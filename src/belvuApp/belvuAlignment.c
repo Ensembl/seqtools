@@ -543,7 +543,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
   
   int j = 0;
   for (j = 0; j < bc->alignArr->len; ++j) 
-    pos[j] = g_array_index(bc->alignArr, ALN, j).start;
+    pos[j] = g_array_index(bc->alignArr, ALN*, j)->start;
   
   
   int paragraph = 0;
@@ -566,7 +566,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
       
       for (j = 0; j < bc->alignArr->len; ++j)
 	{
-          ALN *alnp = &g_array_index(bc->alignArr, ALN, j);
+          ALN *alnp = g_array_index(bc->alignArr, ALN*, j);
           char *alnpSeq = alnGetSeq(alnp);
           
           if (alnp->hide) 
@@ -759,7 +759,7 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
   
   for ( ; i < iMax; ++i)
     {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
       
       if (alnp && !alnp->hide)
         {
@@ -894,7 +894,7 @@ static void drawBelvuSequence(GtkWidget *widget, GdkDrawable *drawable, BelvuAli
   
   for ( ; i < iMax; ++i)
     {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
       
       if (alnp && !alnp->hide)
         {
@@ -1511,7 +1511,7 @@ static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
   
   for ( i = 0; i < bc->alignArr->len; ++i)
     {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
       
       if (!alnp->hide)
         {

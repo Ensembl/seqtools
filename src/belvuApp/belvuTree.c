@@ -464,8 +464,8 @@ void treeBootstrap(BelvuContext *bc)
   int i = 0;
   for (i = 0; i < bc->alignArr->len; ++i)
     {
-      ALN *srcAln = &g_array_index(alignArrTmp, ALN, i);
-      ALN *destAln = &g_array_index(bc->alignArr, ALN, i);
+      ALN *srcAln = g_array_index(alignArrTmp, ALN*, i);
+      ALN *destAln = g_array_index(bc->alignArr, ALN*, i);
       
       if (srcAln->sequenceStr)
         destAln->sequenceStr = g_string_new(srcAln->sequenceStr->str);
@@ -1002,13 +1002,13 @@ static void calcPairwiseDistMatrix(BelvuContext *bc, double **pairmtx)
   int i = 0;
   for (i = 0; i < bc->alignArr->len - 1; ++i)
     {
-      ALN *aln_i = &g_array_index(bc->alignArr, ALN, i);
+      ALN *aln_i = g_array_index(bc->alignArr, ALN*, i);
       char *alniSeq = alnGetSeq(aln_i);
       
       int j = i+1;
       for (j = i+1; j < bc->alignArr->len; ++j)
         {
-          ALN *aln_j = &g_array_index(bc->alignArr, ALN, j);
+          ALN *aln_j = g_array_index(bc->alignArr, ALN*, j);
           char *alnjSeq = alnGetSeq(aln_j);
           
           pairmtx[i][j] = 100.0 - identity(alniSeq, alnjSeq, bc->penalize_gaps);
@@ -1036,14 +1036,14 @@ static void printTreeDistances(BelvuContext *bc, double **pairmtx)
     {
       if (!bc->treeCoordsOn) 
         {
-          printf("%s\t", g_array_index(bc->alignArr, ALN, i).name);
+          printf("%s\t", g_array_index(bc->alignArr, ALN*, i)->name);
         }
       else
         {
           printf("%s/%d-%d\t",
-                 g_array_index(bc->alignArr, ALN, i).name,
-                 g_array_index(bc->alignArr, ALN, i).start,
-                 g_array_index(bc->alignArr, ALN, i).end);
+                 g_array_index(bc->alignArr, ALN*, i)->name,
+                 g_array_index(bc->alignArr, ALN*, i)->start,
+                 g_array_index(bc->alignArr, ALN*, i)->end);
         }
     }
   printf ("\n");
@@ -1281,9 +1281,9 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
       pairmtx[i] = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double));
       Dmtx[i] = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double));
       node[i] = handleAlloc(&treeHandle, sizeof(TreeNode));
-      node[i]->name =  handleAlloc(&treeHandle, strlen(g_array_index(bc->alignArr, ALN, i).name)+50);
+      node[i]->name =  handleAlloc(&treeHandle, strlen(g_array_index(bc->alignArr, ALN*, i)->name)+50);
       
-      ALN *aln_i = &g_array_index(bc->alignArr,ALN, i);
+      ALN *aln_i = g_array_index(bc->alignArr, ALN*, i);
       
       if (!bc->treeCoordsOn) 
 	{
@@ -1661,7 +1661,7 @@ static double treeDrawNode(BelvuContext *bc,
           if (alnArrayFind(bc->organismArr, &aln, &ip, (void*)organism_order)) 
             {
               GdkColor color;
-              int colorNum = g_array_index(bc->organismArr, ALN, ip).color;
+              int colorNum = g_array_index(bc->organismArr, ALN*, ip)->color;
               convertColorNumToGdkColor(colorNum, FALSE, &color); /* we currently don't change the text color when the node is selected */
               
               gdk_gc_set_foreground(gc, &color);
@@ -1774,30 +1774,6 @@ static Tree* createEmptyTree()
   result->currentPickedBox = 0;
   
   return result;
-}
-
-
-/* Utility to search through the alignment array and set the 
- * selected alignment to the alignment whose name and coords
- * are given in alnp. Nasty hack to get around cases where
- * separatemarkuplines/reinsertmarkuplines messes up the
- * selected alignment pointer. */
-static void refindSelectedAln(BelvuContext *bc, ALN *alnToSelect)
-{
-  if (!alnToSelect)
-    return;
-  
-  int i = 0;
-  for ( ; i < bc->alignArr->len; ++i)
-    {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
-      
-      if (alnToSelect->start == alnp->start && alnToSelect->end == alnp->end &&
-	  stringsEqual(alnToSelect->name, alnp->name, TRUE))
-	{
-	  bc->selectedAln = alnp;
-	}
-    }
 }
 
 
@@ -1921,28 +1897,9 @@ static gboolean onExposeBelvuTree(GtkWidget *widget, GdkEventExpose *event, gpoi
           bitmap = createBlankSizedPixmap(widget, window, properties->treeRect.x * 2 + properties->treeRect.width, 
                                           properties->treeRect.y * 2 + properties->treeRect.height);
           
-	  /* Remember the selected alignment name because its pointer
-	   * gets messed up by separate/reinsert markup lines. */
-	  ALN aln;
-	  gboolean hasSelection = FALSE;
-	
-	  if (properties->bc->selectedAln && properties->bc->selectedAln->name)
-	    {
-	      hasSelection = TRUE;
-	      initAln(&aln);
-	      strcpy(aln.name, properties->bc->selectedAln->name);
-	      aln.start = properties->bc->selectedAln->start;
-	      aln.end = properties->bc->selectedAln->end;
-	    }
-	
           separateMarkupLines(properties->bc);
           drawBelvuTree(widget, bitmap, properties);
           reInsertMarkupLines(properties->bc);
-	
-	  if (hasSelection)
-	    {
-	      refindSelectedAln(properties->bc, &aln);
-	    }
         }
       
       if (bitmap)
@@ -1990,7 +1947,7 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
       
       if (pointInRect(x, y, &clickRect->rect))
         {
-          foundRect= clickRect;
+          foundRect = clickRect;
           break; /* we shouldn't have overlapping items, so exit once we have found one */
         }
     }
@@ -2024,23 +1981,8 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
         }
       else if (foundRect->node)
         {
-	  bc->selectedAln = NULL; /* reset to null in case of any problems */
-	
-          /* We clicked on a node name - select this alignment. We need to separate
-	   * markup lines to get the correct aln, but we can't just use the aln pointer
-	   * because reinsertmarkuplines will change it; therefore we need to find the 
-	   * name in the re-jigged array. */
-	  separateMarkupLines(bc);
-	
-	  ALN aln;
-	  initAln(&aln);
-	  str2aln(bc, foundRect->node->name, &aln);
-	  aln.nr = foundRect->node->aln->nr;
-	    
-	  reInsertMarkupLines(bc);
-	  refindSelectedAln(bc, &aln);
-	
-	  onRowSelectionChanged(bc);
+          bc->selectedAln = foundRect->node->aln;
+          onRowSelectionChanged(bc);
         }
     }
 }

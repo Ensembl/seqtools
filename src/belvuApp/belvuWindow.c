@@ -1068,7 +1068,7 @@ static void onunhideMenu(GtkAction *action, gpointer data)
   int i = 0;
   for (i = 0; i < properties->bc->alignArr->len; ++i)
     {
-      g_array_index(properties->bc->alignArr, ALN, i).hide = FALSE;
+      g_array_index(properties->bc->alignArr, ALN*, i)->hide = FALSE;
     }
   
   belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
@@ -2011,7 +2011,7 @@ static void findSeqs(BelvuContext *bc, const char *searchStr, const gboolean fin
 
   for ( ; i >= 0 && i < bc->alignArr->len; i += increment)
     {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
 
       if (wildcardSearch(alnp->name, searchStr))
         {
@@ -2034,7 +2034,7 @@ static void findSeqs(BelvuContext *bc, const char *searchStr, const gboolean fin
 
       for ( ; i >= 0 && i < bc->alignArr->len; i += increment)
         {
-          ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+          ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
 
           if (wildcardSearch(alnp->name, searchStr))
             {
@@ -2531,7 +2531,7 @@ static void showSelectGapCharDialog(GtkWidget *belvuWindow)
           int i,j;
           for (i = 0; i < bc->alignArr->len; ++i) 
             {
-              ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+              ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
               char *alnpSeq = alnGetSeq(alnp);
               
               for (j = 0; j < bc->maxLen; ++j) 
@@ -3420,7 +3420,7 @@ static void drawOrganisms(GtkWidget *widget, GdkDrawable *drawable, BelvuContext
 
   for ( ; i < bc->organismArr->len; ++i) 
     {
-      ALN *alnp = &g_array_index(bc->organismArr, ALN, i);
+      ALN *alnp = g_array_index(bc->organismArr, ALN*, i);
     
       convertColorNumToGdkColor(alnp->color, FALSE, &color);
       gdk_gc_set_foreground(gc, &color);
@@ -3696,7 +3696,7 @@ void onRowSelectionChanged(BelvuContext *bc)
   int i = 0;
   for (i = 0; i < bc->alignArr->len; ++i)
     {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
 
       if (alignmentHighlighted(bc, alnp))
         bc->highlightedAlns = g_slist_prepend(bc->highlightedAlns, alnp);

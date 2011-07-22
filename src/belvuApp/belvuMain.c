@@ -177,7 +177,7 @@ static void suffix2organism(GArray *alignArr, GArray *organismArr)
   
   for (i = 0; i < alignArr->len; ++i) 
     {
-      ALN *alnp = &g_array_index(alignArr, ALN, i);
+      ALN *alnp = g_array_index(alignArr, ALN*, i);
       
       if (!alnp->markup && (cp = strchr(alnp->name, '_'))) 
         {
@@ -189,19 +189,22 @@ static void suffix2organism(GArray *alignArr, GArray *organismArr)
            non-redundant list of present organisms */
           alnp->organism = suffix;
           
-          /* Only insert it if this organism is not already in the array */
+          /* Only insert a new organism if it is not already in the array */
           int ip = 0;
           if (!alnArrayFind(organismArr, alnp, &ip, (void*)organism_order))
             {
-              g_array_append_val(organismArr, *alnp);
+	      ALN *organism = createEmptyAln();
+	      alncpy(organism, alnp);
+	      organism->organism = alnp->organism;
+	    
+              g_array_append_val(organismArr, organism);
               g_array_sort(organismArr, organism_order);
             }
-          
-          /* Store pointer to unique organism in ALN struct */
-          ip = 0;
-          if (alnArrayFind(organismArr, alnp, &ip, (void*)organism_order))
+          else
             {
-              ALN *alnTmp = &g_array_index(organismArr, ALN, ip);
+              /* Store pointer to existing organism in ALN struct */
+              ALN *alnTmp = g_array_index(organismArr, ALN*, ip);
+	      g_free(alnp->organism);
               alnp->organism = alnTmp->organism;
             }
         }
@@ -210,11 +213,9 @@ static void suffix2organism(GArray *alignArr, GArray *organismArr)
 
 
 /* This is to read in sequence names and count sequences */
-static int treeReadDistancesNames(BelvuContext *bc)
+static void treeReadDistancesNames(BelvuContext *bc)
 {
   char   *cp = NULL;
-  ALN     aln;
-  initAln(&aln);
   
   char line[MAXLENGTH + 1];
   
@@ -228,11 +229,12 @@ static int treeReadDistancesNames(BelvuContext *bc)
   
   while ((cp = strtok(nseq ? 0 : line, " \t")))
     {
-      initAln(&aln);
+      ALN *aln = createEmptyAln();
       
-      strncpy(aln.name, cp, MAXNAMESIZE);
-      aln.name[MAXNAMESIZE] = 0;
-      aln.nr = nseq;
+      strncpy(aln->name, cp, MAXNAMESIZE);
+      
+      aln->name[MAXNAMESIZE] = 0;
+      aln->nr = nseq;
       g_array_insert_val(bc->alignArr, nseq, aln);
       
       nseq++;
@@ -241,8 +243,6 @@ static int treeReadDistancesNames(BelvuContext *bc)
     }
   
   g_array_sort(bc->alignArr, nrorder);
-  
-  return nseq;
 }
 
 
@@ -303,7 +303,7 @@ static void readScores(char *filename, BelvuContext *bc)
         {
 	  found = TRUE;
 	
-          g_array_index(bc->alignArr, ALN, idx).score = aln.score;
+          g_array_index(bc->alignArr, ALN*, idx)->score = aln.score;
 
           char *scoreStr = blxprintf("%.1f", aln.score);
           scoreLen = strlen(scoreStr);
@@ -567,12 +567,11 @@ int main(int argc, char **argv)
       bc->dirName = g_path_get_dirname(argv[optind]);
     }
   
-  int nseq = 0;
   if (bc->treeReadDistancesOn) 
     {
       /* Should this really be either or?  Problem: cannot read organism info when reading tree */
       bc->treeReadDistancesPipe = pipe;
-      nseq = treeReadDistancesNames(bc);
+      treeReadDistancesNames(bc);
       
       bc->initTree = TRUE;
       bc->onlyTree = TRUE;

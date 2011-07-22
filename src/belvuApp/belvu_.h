@@ -478,6 +478,7 @@ void					  doSort(BelvuContext *bc, const BelvuSortType sortType, const gboolean
 void                                      arrayOrder(GArray *alignArr);
 gboolean                                  alignFind(GArray *alignArr, ALN *obj, int *idx);
 void                                      initAln(ALN *alnp);
+ALN*                                      createEmptyAln();
 
 void                                      setOrganismColors(GArray *organismArr);
 
@@ -565,6 +566,7 @@ void                                      setTreeHead(BelvuContext *bc, TreeNode
 void                                      fetchAln(BelvuContext *bc, ALN *alnp);
 gboolean                                  alignmentHighlighted(BelvuContext *bc, ALN *alnp);
 void					  str2aln(BelvuContext *bc, char *src, ALN *alnp) ;
+void					  alncpy(ALN *dest, ALN *src);
 
 void                                      setBusyCursor(BelvuContext *bc, const gboolean busy);
 
