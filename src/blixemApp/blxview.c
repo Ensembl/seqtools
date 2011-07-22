@@ -502,13 +502,12 @@ static void loadGffFile(const char *fileName,
   char dummyseqname1[FULLNAMESIZE+1] = "";
   char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname2[FULLNAMESIZE+1] = "";
-  IntRange dummyRange;
   
   MSP *newMsps = NULL;
   GList *newSeqs = NULL;
   
   parseFS(&newMsps, inputFile, blastMode, featureLists, &newSeqs, supportedTypes, styles,
-          &dummyseq1, dummyseqname1, &dummyRange, &dummyseq2, dummyseqname2, keyFile) ;
+          &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile) ;
   
   appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
   

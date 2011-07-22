@@ -766,8 +766,13 @@ int main(int argc, char **argv)
 	}
 	
       /* Read in query sequence */
-      options.refSeq = readFastaSeq(seqfile, options.refSeqName);
+      int startCoord = UNSET_INT;
+      int endCoord = UNSET_INT;
+      options.refSeq = readFastaSeq(seqfile, options.refSeqName, &startCoord, &endCoord);
       
+      if (startCoord != UNSET_INT && endCoord != UNSET_INT)
+	intrangeSetValues(&options.refSeqRange, startCoord, endCoord);
+    
       if (seqfile != stdin)
         fclose(seqfile);
     }
@@ -800,19 +805,28 @@ int main(int argc, char **argv)
   char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname[FULLNAMESIZE+1] = "";
 
-  /* Initialise ref seq range to sequence length, if known */
-  if (options.refSeq)
-    {
-      options.refSeqRange.min = 1;
-      options.refSeqRange.max = strlen(options.refSeq);
-    }
-  
   /* Pass the config file to parseFS, but only if it was a genuine input file; if we created
    * an empty config file ourselves, don't pass it. */
   GKeyFile *inputConfigFile = config_file ? blxGetConfig() : NULL;
   
+  /* Pass the reference sequence range to parseFS to be populated ONLY if it
+   * has not already been set. */
+  IntRange *qRange = NULL;
+  if (options.refSeqRange.min == UNSET_INT && options.refSeqRange.max == UNSET_INT)
+    {
+      if (options.refSeq)
+        {
+          /* initialise to 1-based coords, in case there are no coords found by
+           * parseFS either */
+          options.refSeqRange.min = 1;
+          options.refSeqRange.max = strlen(options.refSeq);
+        }
+      
+      qRange = &options.refSeqRange;
+    }
+  
   parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
-          &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, inputConfigFile) ;
+          &options.refSeq, options.refSeqName, qRange, &dummyseq, dummyseqname, inputConfigFile) ;
   
   if (FSfile != stdin)
     {
@@ -827,7 +841,8 @@ int main(int argc, char **argv)
 	  g_error("Cannot open %s\n", xtra_filename) ;
 	}
       
-      parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, supportedTypes, styles, &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, blxGetConfig()) ;
+      parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
+              &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig()) ;
       fclose(xtra_file) ;
     }
 

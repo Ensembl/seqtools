@@ -129,7 +129,7 @@ void parseGff3Body(const int lineNum,
                    const IntRange const *refSeqRange);
 
 void parseFastaSeqHeader(char *line, const int lineNum,
-                         char **refSeq, char *refSeqName,
+                         char **refSeq, char *refSeqName, IntRange *refSeqRange,
                          char ***readSeq, int *readSeqLen, int *readSeqMaxLen,
                          BlxParserState *parserState);
 			 

@@ -230,7 +230,8 @@ void parseGff3Header(const int lineNum,
           strcpy(refSeqName, qName);
         }
       
-      intrangeSetValues(refSeqRange, qStart, qEnd);
+      if (refSeqRange)
+	intrangeSetValues(refSeqRange, qStart, qEnd);
     }
   
   DEBUG_EXIT("parseGff3Header");
@@ -467,26 +468,39 @@ void parseGff3Body(const int lineNum,
  * if all sequences (including ref seq) were stored in a BlxSequence then it would make things
  * much easier). */
 void parseFastaSeqHeader(char *line, const int lineNum,
-                         char **refSeq, char *refSeqName,
+                         char **refSeq, char *refSeqName, IntRange *refSeqRange,
                          char ***readSeq, int *readSeqLen, int *readSeqMaxLen,
                          BlxParserState *parserState)
 {
   char seqName[MAXLINE + 1];
   
-  /* Read the ref seq name from the header line */
-  if (sscanf(line, ">%s", seqName) != 1)
+  /* Read the ref seq name (and optionally the coords) from the header line */
+  int startCoord = UNSET_INT, endCoord = UNSET_INT;
+  const int numFound = sscanf(line, ">%s %d %d", seqName, &startCoord, &endCoord);
+  
+  if (numFound < 1)
     {
-      g_error("Error parsing data file, type FASTA_SEQ_HEADER: \"%s\"\n", line);
+      /* Didn't find name - this is required */
+      g_error("Error parsing data file: FASTA_SEQ_HEADER line \"%s\" is the wrong format; expected '>seq_name [start_coord end_coord].\n", line);
+    }
+  else if (numFound == 3 && refSeqRange)
+    {
+      /* We found the coords too. These override anything that was set from the
+       * ##sequence_header line, which is fine; however, we don't currently 
+       * handle the case where there might be more than one fasta sequence in 
+       * the GFF file (we will end up overwriting the coords each time...). */
+      intrangeSetValues(refSeqRange, startCoord, endCoord);
     }
 
-  /* Set the name, if not already set */
+  /* Set the name. Again, this will overwrite anything already set. */
   if (*refSeqName == '\0')
     {
       strcpy(refSeqName, seqName);
     }
   else if (!stringsEqual(refSeqName, seqName, FALSE))
     {
-      g_warning("Reference sequence name is '%s' but the name in the FASTA data is '%s'; ignoring the FASTA data name.\n", refSeqName, seqName);
+      g_warning("Reference sequence name was previously set to '%s' but the name in the FASTA data is '%s'; the name will overwritten with the new value.\n", refSeqName, seqName);
+      strcpy(refSeqName, seqName);
     }
 
   /* Now allocate memory for the sequence data (if the sequence is not already populated) */
@@ -612,7 +626,7 @@ static void parseGffColumns(GString *line_string,
 
       /* We can only check the range if the refseqrange is set... */
       if (!typeIsExon(gffData->mspType) && !typeIsIntron(gffData->mspType) && !typeIsTranscript(gffData->mspType) &&
-          (refSeqRange->min != UNSET_INT || refSeqRange->max != UNSET_INT))
+          refSeqRange && (refSeqRange->min != UNSET_INT || refSeqRange->max != UNSET_INT))
         {
           IntRange featureRange;
           intrangeSetValues(&featureRange, gffData->qStart, gffData->qEnd); /* makes sure min < max */

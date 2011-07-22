@@ -274,27 +274,30 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
   /* Sort feature segment array by number */
 //  g_array_sort(fsArr, fsSortByOrderCompareFunc);
   
-  if (seq1Range->min == UNSET_INT && seq1Range->max == UNSET_INT && *seq1)
+  if (seq1Range)
     {
-      /* The seq1 range was not parsed from the file; set the default range to be 1 -> strlen */
-      seq1Range->min = 1;
-      seq1Range->max = strlen(*seq1);
+      if (seq1Range->min == UNSET_INT && seq1Range->max == UNSET_INT && *seq1)
+	{
+	  /* The seq1 range was not parsed from the file; set the default range to be 1 -> strlen */
+	  seq1Range->min = 1;
+	  seq1Range->max = strlen(*seq1);
+	}
+      else if (*seq1)
+	{
+	  /* Check that the range is the same length as the sequence */
+	  int len = strlen(*seq1);
+	  if (getRangeLength(seq1Range) > len)
+	    {
+	      g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d. Limiting end of sequence range to %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len, seq1Range->min + len - 1);
+	      seq1Range->max = seq1Range->min + len - 1;
+	    }
+	  else if (getRangeLength(seq1Range) < len)
+	    {
+	      g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len);
+	    }
+	}
     }
-  else if (*seq1)
-    {
-      /* Check that the range is the same length as the sequence */
-      int len = strlen(*seq1);
-      if (getRangeLength(seq1Range) > len)
-        {
-          g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d. Limiting end of sequence range to %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len, seq1Range->min + len - 1);
-          seq1Range->max = seq1Range->min + len - 1;
-        }
-      else if (getRangeLength(seq1Range) < len)
-        {
-          g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len);
-        }
-    }
-
+  
   DEBUG_EXIT("parseFS");
   return ;
 }
@@ -308,7 +311,7 @@ static gboolean isValidFastaChar(const char inputChar)
 
 
 /* Read in a FASTA sequence from a FASTA file or stdin */
-static char *readFastaSeqFromStdin(FILE *seqfile, char *seqName)
+static char *readFastaSeqFromStdin(FILE *seqfile, char *seqName, int *startCoord, int *endCoord)
 {
   char *resultSeq = NULL;
   char line[MAXLINE+1];
@@ -340,7 +343,7 @@ static char *readFastaSeqFromStdin(FILE *seqfile, char *seqName)
 
 
 /* Read a fasta sequence from a file */
-static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName)
+static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName, int *startCoord, int *endCoord)
 {
   GArray *resultArr = g_array_new(FALSE, FALSE, sizeof(SeqStruct));
   char line[MAXLINE+1];
@@ -361,7 +364,7 @@ static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName)
       
       if (*line == '>')
         {
-          /* This line contains the sequence name, so start a new sequence */
+          /* This line contains the sequence name (and possibly coords), so start a new sequence */
           SeqStruct currentSeq = {g_string_new(NULL), g_string_new(NULL)};
           g_array_append_val(resultArr, currentSeq);
           ++curIdx;
@@ -371,6 +374,13 @@ static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName)
           
           for ( ; *linePos && *linePos != ' ' && *linePos != '\n'; ++linePos)
             g_string_append_c(currentSeqPtr->seqName, *linePos);
+	
+	  if (startCoord && endCoord)
+	    {
+	      /* See if there coords specified on the line (format is ">seq_name start end") */
+              ++linePos;
+              sscanf(linePos, "%d %d", startCoord, endCoord);
+	    }
         }
       else if (currentSeqPtr)
         {
@@ -394,11 +404,11 @@ static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName)
 
 /* Read in multiple FASTA sequences from a file and concatenate them into
  * a single sequence, using the name of the first sequence. */
-static char *concatenateFastaSeqs(FILE *seqfile, char *seqName)
+static char *concatenateFastaSeqs(FILE *seqfile, char *seqName, int *startCoord, int *endCoord)
 {
   GString *resultStr = g_string_new(NULL);
   
-  GArray *resultArr = readFastaSeqsFromFile(seqfile, seqName);
+  GArray *resultArr = readFastaSeqsFromFile(seqfile, seqName, startCoord, endCoord);
   
   int i = 0;
   for ( ; i < resultArr->len; ++i)
@@ -421,9 +431,23 @@ static char *concatenateFastaSeqs(FILE *seqfile, char *seqName)
 
 /* Read in a FASTA sequence from an input, which can be a file or stdin.
  * 
- * Example file format:
+ * Format: 
+ * >seq_name [start end] more words
+ *
+ *
+ * Example with coords (e.g. for blixem):
  * 
- * >5H1A_HUMAN/53-400 more words 
+ * >chr4-04 43747 43996 more words
+ * aaatatgccattttagtattccacaattatgccaccatttggaaagaaag
+ * gattgttgacagcaaaagatacccctactaaatatgggtcacagatattt
+ * taccctaccctaggctatccacctaccacagaaagctgcagttcattgct
+ * ggggctaccagaaatgccaagatgagattacctagagaaacaggagggtc
+ * ggccaagcagcaacggccaccaccctttccggggaactccttatggccct
+ *
+ *
+ * Example without coords (e.g. for belvu where coords are included in the name):
+ * 
+ * >5H1A_HUMAN/53-400 more words
  * GNACVVAAIAL...........ERSLQ.....NVANYLIG..S.LAVTDL
  * MVSVLV..LPMAAL.........YQVL..NKWTL......GQVT.CDL..
  * >5H1A_RAT more words
@@ -431,12 +455,12 @@ static char *concatenateFastaSeqs(FILE *seqfile, char *seqName)
  * MVSVLV..LPMAAL.........YQVL..NKWTL......GQVT.CDL..
  * ...
  */
-char *readFastaSeq(FILE *seqfile, char *seqName)
+char *readFastaSeq(FILE *seqfile, char *seqName, int *startCoord, int *endCoord)
 {
   if (seqfile == stdin) 
-    return readFastaSeqFromStdin(seqfile, seqName);
+    return readFastaSeqFromStdin(seqfile, seqName, startCoord, endCoord);
   else
-    return concatenateFastaSeqs(seqfile, seqName);
+    return concatenateFastaSeqs(seqfile, seqName, startCoord, endCoord);
 }
 
 
@@ -1738,7 +1762,7 @@ static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, con
       break;
 
     case FASTA_SEQ_HEADER:
-      parseFastaSeqHeader(line, lineNum, seq1, seq1name, readSeq, readSeqLen, readSeqMaxLen, parserState);
+      parseFastaSeqHeader(line, lineNum, seq1, seq1name, seq1Range, readSeq, readSeqLen, readSeqMaxLen, parserState);
       break;
 
     case FS_SEQ_BODY: /* fall through */

@@ -430,7 +430,7 @@ int                                mspGetMatchCoord(const MSP *msp,
 
 /* blxparser.c */
 gboolean                           mspHasFs(const MSP *msp);  
-char*                              readFastaSeq(FILE *seqfile, char *qname);
+char*                              readFastaSeq(FILE *seqfile, char *qname, int *startCoord, int *endCoord);
 
 /* blxFetch.c */
 void                               fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow) ;
