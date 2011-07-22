@@ -5588,11 +5588,16 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 
   if (options->bigPictRange.min != UNSET_INT && options->bigPictRange.max != UNSET_INT)
     {
+      /* Make sure the big picture range is not outside our ref seq range */
+      boundsLimitRange(&options->bigPictRange, &refSeqRange, FALSE);
+
+      /* Apply any offset */
       options->bigPictRange.min += options->refSeqOffset;
       options->bigPictRange.max += options->refSeqOffset;
       
       if (options->seqType == BLXSEQ_PEPTIDE)
         {
+          /* Convert to peptide coords */
           options->bigPictRange.min = convertDnaIdxToDisplayIdx(options->bigPictRange.min, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
           options->bigPictRange.max = convertDnaIdxToDisplayIdx(options->bigPictRange.max, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
         }
