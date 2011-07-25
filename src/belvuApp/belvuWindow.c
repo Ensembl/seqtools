@@ -1399,9 +1399,13 @@ static void ondisplayColorsMenu(GtkAction *action, gpointer data)
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   
-  properties->bc->displayColors = !properties->bc->displayColors;
+  const gboolean newVal = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
   
-  belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
+  if (properties->bc->displayColors != newVal)
+    {
+      properties->bc->displayColors = newVal;
+      belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
+    }
 }
 
 static void onlowercaseMenu(GtkAction *action, gpointer data)
@@ -4111,6 +4115,9 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
       if (bc->initTree)
         belvuAlignmentRedrawAll(properties->bc->belvuAlignment); /* redraw, because tree creation removes markup which can mess this up */
     }
+  
+  /* If the display-colors option is disabled, update the menu status */
+  setToggleMenuStatus(actionGroup, "displayColors", bc->displayColors);
   
   return ok;
 }

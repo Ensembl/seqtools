@@ -439,6 +439,17 @@ static void drawSingleSequence(GtkWidget *widget,
           x += properties->charWidth;
         }
     }  
+  else if (rowHighlighted)
+    {
+      /* We're not displaying colors for individual chars, but we still need to
+       * highlight the background if the row is selected. */
+      GdkColor color;
+      convertColorNumToGdkColor(WHITE, TRUE, &color);
+      gdk_gc_set_foreground(gc, &color);
+      
+      gdk_draw_rectangle(drawable, gc, TRUE, startX, y, properties->seqRect.width, properties->charHeight);
+    }
+  
   
   /* Draw the sequence text (current display range only) */
   if (alnGetSeq(alnp))
