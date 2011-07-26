@@ -4108,16 +4108,13 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
     {
       gtk_window_present(GTK_WINDOW(window));
       
-      BelvuWindowProperties *properties = belvuWindowGetProperties(window);
-      setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->consScheme);
-      setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->consScheme);
-      
+      setRadioMenuStatus(actionGroup, "defaultSort", bc->sortType);
+      setRadioMenuStatus(actionGroup, "colorSchemeStandard", bc->consScheme);
+      setToggleMenuStatus(actionGroup, "displayColors", bc->displayColors);
+
       if (bc->initTree)
-        belvuAlignmentRedrawAll(properties->bc->belvuAlignment); /* redraw, because tree creation removes markup which can mess this up */
+        belvuAlignmentRedrawAll(bc->belvuAlignment); /* redraw, because tree creation removes markup which can mess this up */
     }
-  
-  /* If the display-colors option is disabled, update the menu status */
-  setToggleMenuStatus(actionGroup, "displayColors", bc->displayColors);
   
   return ok;
 }
