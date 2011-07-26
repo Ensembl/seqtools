@@ -710,10 +710,10 @@ void highlightScoreSort(char mode, BelvuContext *bc)
     }
   
   g_array_sort(bc->alignArr, scoreorderRev);
+  arrayOrder(bc->alignArr);
   
   reInsertMarkupLines(bc);
   
-  arrayOrder(bc->alignArr);
   bc->alignYStart = 0;
 }
 
@@ -729,7 +729,7 @@ void doSort(BelvuContext *bc, const BelvuSortType sortType, const gboolean showT
   switch(sortType) 
   {
     case BELVU_SORT_ALPHA :	      alphaSort(bc);                        break;
-    case BELVU_SORT_ORGANISM :	  organismSort(bc);                     break;
+    case BELVU_SORT_ORGANISM :        organismSort(bc);                     break;
     case BELVU_SORT_SCORE :	      scoreSort(bc);                        break;
     case BELVU_SORT_TREE  :	      treeSort(bc, showTree);               break;
     case BELVU_SORT_CONS  :	      /* sort by nrorder - already done */  break;
