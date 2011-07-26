@@ -136,6 +136,7 @@
 #include <belvuApp/belvuWindow.h>
 #include <belvuApp/belvuTree.h>
 #include <belvuApp/belvuConsPlot.h>
+#include <belvuApp/belvuAlignment.h>
 
 #include <stdarg.h>
 /*#include <stdlib.h> / * Needed for RAND_MAX but clashes with other stuff */
@@ -196,19 +197,29 @@ static int BLOSUM62[24][24] = {
 
 
 /* ASCII-to-binary translation table
-  Note: to use with BLOSUM62[], always subtract 1 from the values !!!! */
+ *  This converts an ascii char to a 1-based index that can be used in
+ *  the BLOSUM matrix - note that you need to subtract 1 from the values
+ *  to get a 0-based index for use in BLOSUM62.
+ *  
+ *  It specifies a 1-based index for the 20 standard amino acids. For any
+ *  character that is not a residue, NA is returned.
+ *
+ * Note: to use with BLOSUM62[], always subtract 1 from the values !!!!
+ */
+
 #undef NA
-#define NA 0
+#define NA 23 /* not a residue - eaual to X */
+
 static int a2b[] =
   {
     NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
     NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
     NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
     NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-    NA, 1,NA, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA,
+    NA, 1,21, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA,
     15, 6, 2,16,17,NA,20,18,NA,19,NA,NA,NA,NA,NA,NA,
     NA, 1,NA, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA,
-    15, 6, 2,16,17,NA,20,18,NA,19,NA,NA,NA,NA,NA,NA,
+    15, 6, 2,16,17,NA,20,18,23,19,22,NA,NA,NA,NA,NA,
 
     NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
     NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
@@ -221,6 +232,35 @@ static int a2b[] =
   };
 
 
+/* ASCII-to-binary translation table
+ *  Similar to a2b but returns NR (0) for characters that are
+ *  not residues, rather than NA. (This is used in our color
+ *  arrays, which are 1-based, with the 0 index being reserved
+ *  for unknown characters.
+ */
+#undef NR
+#define NR 0
+
+static int n2b[] =
+  {
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+    NR, 1,NR, 5, 4, 7,14, 8, 9,10,NR,12,11,13, 3,NR,
+    15, 6, 2,16,17,NR,20,18,NR,19,NR,NR,NR,NR,NR,NR,
+    NR, 1,NR, 5, 4, 7,14, 8, 9,10,NR,12,11,13, 3,NR,
+    15, 6, 2,16,17,NR,20,18,NR,19,NR,NR,NR,NR,NR,NR,
+
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+    NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
+  };
 
 
 #ifdef OLD_BELVU_CODE
@@ -715,6 +755,13 @@ void highlightScoreSort(char mode, BelvuContext *bc)
   reInsertMarkupLines(bc);
   
   bc->alignYStart = 0;
+  
+  if (bc->belvuAlignment)
+    {
+      updateHeaderColumnsSize(bc->belvuAlignment);
+      calculateDrawingSizes(bc->belvuAlignment);
+      belvuAlignmentRedrawAll(bc->belvuAlignment);
+    }
 }
 
 
@@ -733,16 +780,8 @@ void doSort(BelvuContext *bc, const BelvuSortType sortType, const gboolean showT
     case BELVU_SORT_SCORE :	      scoreSort(bc);                        break;
     case BELVU_SORT_TREE  :	      treeSort(bc, showTree);               break;
     case BELVU_SORT_CONS  :	      /* sort by nrorder - already done */  break;
-    
-    case BELVU_SORT_SIM :
-      bc->selectedAln = g_array_index(bc->alignArr, ALN*, 0);
-      highlightScoreSort('P', bc); 
-      break;
-    
-    case BELVU_SORT_ID : 
-      bc->selectedAln = g_array_index(bc->alignArr, ALN*, 0);
-      highlightScoreSort('I', bc); break;
-    
+    case BELVU_SORT_SIM :             highlightScoreSort('P', bc);          break;
+    case BELVU_SORT_ID :              highlightScoreSort('I', bc);          break;
     case BELVU_UNSORTED : break;
     
     default: 
@@ -1206,7 +1245,7 @@ int getMarkupColor(const char inputChar)
 /* Return the conservation color for the given char at the given index */
 int getConservColor(BelvuContext *bc, const char inputChar, const int idx)
 {
-  return bc->colorMap[a2b[(unsigned char)(inputChar)]][idx];
+  return bc->colorMap[n2b[(unsigned char)(inputChar)]][idx];
 }
 
 /* Return the color from the colors array for the given char */
@@ -3219,7 +3258,7 @@ static int countResidueFreqs(BelvuContext *bc)
       for (i = 0; i < bc->maxLen; ++i)
         {
           char *alnSeq = alnGetSeq(alnp);
-          int val = a2b[(unsigned char)(alnSeq[i])];
+          int val = n2b[(unsigned char)(alnSeq[i])];
 
           bc->conservCount[val][i]++;
 

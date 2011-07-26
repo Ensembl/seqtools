@@ -67,5 +67,8 @@ void                    hScrollLeftRight(GtkWidget *belvuAlignment, const gboole
 
 int                     belvuAlignmentGetWidth(GtkWidget *belvuAlignment);
 
+void                    calculateDrawingSizes(GtkWidget *belvuAlignment);
+void                    updateHeaderColumnsSize(GtkWidget *belvuAlignment);
+
 
 #endif /* _belvualignment_h_included_ */

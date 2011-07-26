@@ -590,6 +590,12 @@ int main(int argc, char **argv)
   if (scoreFile) 
     readScores(scoreFile, bc);
   
+  
+  /* Sort by the initial sort order. If sorting by similarity or ID, then
+   * we must have a selected sequence - select the first one. */
+  if (bc->sortType == BELVU_SORT_SIM || bc->sortType == BELVU_SORT_ID)
+    bc->selectedAln = g_array_index(bc->alignArr, ALN*, 0);
+
   doSort(bc, bc->sortType, FALSE);
   
   if (!bc->matchFooter && readMatchFile) 

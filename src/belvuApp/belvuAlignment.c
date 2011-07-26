@@ -51,8 +51,6 @@
 
 /* Local function declarations */
 static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result);
-static void               calculateDrawingSizes(GtkWidget *belvuAlignment);
-static void               updateHeaderColumnsSize(GtkWidget *belvuAlignment);
 
 
 /* Properties specific to the belvu alignment */
@@ -1260,7 +1258,7 @@ static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
 
 /* Update the size of the header-columns widget. Should be called after any
  * change that affects the length of the text displayed in the columns area. */
-static void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
+void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
 {
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
   
@@ -1294,7 +1292,7 @@ static void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
  * wrapped alignment, the full size required to draw everything.
  * It also updates the height of the columns area, if applicable, so that it is
  * the same height as the sequence area. */
-static void calculateDrawingSizes(GtkWidget *belvuAlignment)
+void calculateDrawingSizes(GtkWidget *belvuAlignment)
 {
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
 

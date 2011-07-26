@@ -113,7 +113,7 @@ static int BLOSUM62[24][24] = {
 /* ASCII-to-binary translation table
  Note: to use with BLOSUM62[], always subtract 1 from the values !!!! */
 #undef NA
-#define NA 0
+#define NA 23
 static int a2b[] =
 {
 NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
