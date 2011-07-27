@@ -716,11 +716,14 @@ int main(int argc, char **argv)
         }
       else if (!strcasecmp(output_format, "tree")) 
         {
-          Tree *treeStruct = g_malloc(sizeof(Tree));
           separateMarkupLines(bc);
-          treeStruct->head = treeMake(bc, TRUE, TRUE);
-          saveTreeNH(treeStruct->head, treeStruct->head, stdout);
+          
+          Tree *tree = treeMake(bc, TRUE, TRUE);
+          saveTreeNH(tree, tree->head, stdout);
+          destroyTree(&tree);
+          
           printf(";\n");
+          reInsertMarkupLines(bc);
         }
       else
         {

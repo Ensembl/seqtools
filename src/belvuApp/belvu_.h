@@ -259,32 +259,26 @@ typedef struct alnStruct {
 } ALN;
 
 
-typedef struct _TreeNode {
-
-    /* KEEP IN SYNC WITH TREECPY !!!! */
-
-    double dist;			/* Absolute distance position */
-    double branchlen;		/* Length of branch to higher node */
-    double boot;	/* Bootstrap value */
-    struct _TreeNode *left;
-    struct _TreeNode *right;
-    struct _TreeNode *parent;
-    char *name;
-    char *organism;
-    ALN *aln;
-    int box;
-    int color;
-
-    /* KEEP IN SYNC WITH TREECPY !!!! */
-
+typedef struct _TreeNode 
+{
+  double dist;			/* Absolute distance position */
+  double branchlen;		/* Length of branch to higher node */
+  double boot;                  /* Bootstrap value */
+  struct _TreeNode *left;
+  struct _TreeNode *right;
+  struct _TreeNode *parent;
+  char *name;
+  char *organism;
+  ALN *aln;
+  int box;
+  int color;
 } TreeNode;
 
 
-typedef struct TreeStruct
+typedef struct _Tree
 {
-   TreeNode *head;
-   int lastNodeBox;		/* Last box used by a node - name boxes come next */
-   int currentPickedBox;
+  TreeNode *head;     /* Root node of the tree */
+  BlxHandle handle;   /* All tree memory should be allocated via this handle */
 } Tree;
 
 
@@ -347,7 +341,7 @@ typedef struct BelvuContextStruct
                                     * (generally, all ALNs with the same name as
                                     * the selectedAln are highlighted) */
 
-  TreeNode *treeHead;              /* global current tree head */
+  Tree *mainTree;                  /* global current tree */
   TreeNode *treeBestBalancedNode;
 
   FILE *treeReadDistancesPipe;
@@ -522,7 +516,7 @@ void                                      writeMSF(BelvuContext *bc, FILE *pipe)
 
 void                                      separateMarkupLines(BelvuContext *bc);
 void                                      reInsertMarkupLines(BelvuContext *bc);
-TreeNode*                                 treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean displayFeedback);
+Tree*                                     treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean displayFeedback);
 
 void                                      outputProbs(BelvuContext *bc, FILE *fil);
 void                                      mksubfamilies(BelvuContext *bc, double cutoff);        
@@ -558,10 +552,10 @@ void                                      drawDoubleAsText(GtkWidget *widget, Gd
 
 void                                      treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *treeNode));
 void                                      treeSort(BelvuContext *bc, const gboolean showTree);
-void                                      saveTreeNH(TreeNode *headNode, TreeNode *node, FILE *file);
+void                                      saveTreeNH(Tree *tree, TreeNode *node, FILE *file);
 
 void                                      listIdentity(BelvuContext *bc);
-void                                      setTreeHead(BelvuContext *bc, TreeNode *headNode);
+void                                      belvuContextSetTree(BelvuContext *bc, Tree **tree);
 
 void                                      fetchAln(BelvuContext *bc, ALN *alnp);
 gboolean                                  alignmentHighlighted(BelvuContext *bc, ALN *alnp);

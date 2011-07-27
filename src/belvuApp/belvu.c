@@ -831,13 +831,13 @@ void treeSortBatch(BelvuContext *bc)
 {
   separateMarkupLines(bc);
   
-  if (!bc->treeHead)
+  if (!bc->mainTree || !bc->mainTree->head)
     {
-      TreeNode *treeHead = treeMake(bc, FALSE, TRUE);
-      setTreeHead(bc, treeHead);
+      Tree *tree = treeMake(bc, FALSE, TRUE);
+      belvuContextSetTree(bc, &tree);
     }
   
-  treeOrder(bc->treeHead, 1); /* Set nr field according to tree order */
+  treeOrder(bc->mainTree->head, 1); /* Set nr field according to tree order */
   
   g_array_sort(bc->alignArr, nrorder);
   
@@ -889,7 +889,7 @@ void treeSort(BelvuContext *bc, const gboolean showTree)
       if (bc->belvuTree)
         gtk_window_present(GTK_WINDOW(bc->belvuTree));
       else
-        createBelvuTreeWindow(bc, bc->treeHead, TRUE);
+        createBelvuTreeWindow(bc, bc->mainTree, TRUE);
     }
 }
 
@@ -944,16 +944,14 @@ static void subfamilyTrav(BelvuContext *bc, TreeNode *node)
 
 void mksubfamilies(BelvuContext *bc, double cutoff)
 {
-  Tree *treeStruct = g_malloc(sizeof(Tree));
-  
   separateMarkupLines(bc);
   
   strcpy(bc->treeMethodString, UPGMAstr);
   bc->treeMethod = UPGMA;
   
-  treeStruct->head = treeMake(bc, FALSE, TRUE);
+  Tree *tree = treeMake(bc, FALSE, TRUE);
   
-  treeTraverseLRfirst(bc, treeStruct->head, subfamilyTrav);
+  treeTraverseLRfirst(bc, tree->head, subfamilyTrav);
 }
 
 
@@ -2401,7 +2399,7 @@ BelvuContext* createBelvuContext()
   bc->selectedAln = NULL;
   bc->highlightedAlns = NULL;
   
-  bc->treeHead = NULL;
+  bc->mainTree = NULL;
   bc->treeBestBalancedNode = NULL;
   
   bc->treeReadDistancesPipe = NULL;
@@ -3536,10 +3534,35 @@ void greyOutInvalidActions(BelvuContext *bc)
 }
 
 
-/* Set the head node of the main tree (null to reset) */
-void setTreeHead(BelvuContext *bc, TreeNode *headNode)
+/* Set the main tree in the belvu context (null to reset). Takes ownership
+ * of the given tree. Destroys the existing tree contents first, if there is one. */
+void belvuContextSetTree(BelvuContext *bc, Tree **tree)
 {
-  bc->treeHead = headNode;
+  if (bc->mainTree)
+    {
+      /* We don't destroy the actual tree struct because there may be pointers
+       * to it from other places; instead, we just replace its contents. */
+      destroyTreeContents(bc->mainTree);
+      
+      if (tree && *tree)
+        {
+          bc->mainTree->head = (*tree)->head;
+          bc->mainTree->handle = (*tree)->handle;
+          g_free(*tree);
+          
+          /* Update input pointer so that it points to the tree that actually
+           * got set. */
+          *tree = bc->mainTree;
+        }
+    }
+  else if (tree && *tree)
+    {
+      bc->mainTree = *tree;
+    }
+  else
+    {
+      bc->mainTree = NULL;
+    }
   
   /* Whether a tree exists affects whether some menu items are greyed out */
   greyOutInvalidActions(bc);
@@ -3554,7 +3577,7 @@ static void rmFinalise(BelvuContext *bc)
   setConsSchemeColors(bc);
   
   /* Removing seqs/cols invalidates the tree, so set the tree head to NULL. */
-  setTreeHead(bc, NULL);
+  belvuContextSetTree(bc, NULL);
   
   /* Removing seqs/cols invalidates the conservation plot, so recalculate it */
   belvuConsPlotRecalcAll(bc->consPlot);
@@ -3827,7 +3850,7 @@ void rmScore(BelvuContext *bc, const double cutoff)
  ***********************************************************/
 
 /* Save the given tree to the given file in New Hampshire format */
-void saveTreeNH(TreeNode *headNode, TreeNode *node, FILE *file)
+void saveTreeNH(Tree *tree, TreeNode *node, FILE *file)
 {
   if (!node) 
     return;
@@ -3835,12 +3858,12 @@ void saveTreeNH(TreeNode *headNode, TreeNode *node, FILE *file)
   if (node->left && node->right) 
     {
       fprintf(file, "(\n");
-      saveTreeNH(headNode, node->left, file);
+      saveTreeNH(tree, node->left, file);
       fprintf(file, ",\n");
-      saveTreeNH(headNode, node->right, file);
+      saveTreeNH(tree, node->right, file);
       fprintf(file, ")\n");
       
-      if (node != headNode)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
+      if (node != tree->head)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
         fprintf(file, "%.0f", node->boot+0.5);
     }
   else
@@ -3848,7 +3871,7 @@ void saveTreeNH(TreeNode *headNode, TreeNode *node, FILE *file)
       fprintf(file, "%s", node->name);
     }
   
-  if (node != headNode)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
+  if (node != tree->head)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
     fprintf(file, ":%.3f", node->branchlen/100.0);
 }
 

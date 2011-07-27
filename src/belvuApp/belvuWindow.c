@@ -717,8 +717,8 @@ static void onShowTreeMenu(GtkAction *action, gpointer data)
     {
       /* If the tree exists, create a window from it. Otherwise we need to
        * create it before we show it. */
-      if (properties->bc->treeHead)
-        createBelvuTreeWindow(properties->bc, properties->bc->treeHead, TRUE);
+      if (properties->bc->mainTree && properties->bc->mainTree->head)
+        createBelvuTreeWindow(properties->bc, properties->bc->mainTree, TRUE);
       else
         createAndShowBelvuTree(properties->bc, TRUE);
     }
@@ -770,10 +770,10 @@ static void onRecalcTreeMenu(GtkAction *action, gpointer data)
     {
       /* No tree window, but make/re-make the underlying tree structure */
       separateMarkupLines(bc);
-      TreeNode *headNode = treeMake(bc, FALSE, TRUE);
+      Tree *tree = treeMake(bc, FALSE, TRUE);
       reInsertMarkupLines(bc);
       
-      setTreeHead(bc, headNode);
+      belvuContextSetTree(bc, &tree);
       onTreeOrderChanged(bc);
     }
 }
@@ -1439,7 +1439,7 @@ static void onSaveTreeMenu(GtkAction *action, gpointer data)
   
   if (file)
     {
-      saveTreeNH(bc->treeHead, bc->treeHead, file);
+      saveTreeNH(bc->mainTree, bc->mainTree->head, file);
 
       /* Add a terminating line and close the file. */
       fprintf(file, ";\n");

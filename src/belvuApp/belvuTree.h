@@ -50,7 +50,10 @@
 
 
 GtkWidget*                createAndShowBelvuTree(BelvuContext *bc, const gboolean isMainTree);
-GtkWidget*                createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead, const gboolean isMainTree);
+GtkWidget*                createBelvuTreeWindow(BelvuContext *bc, Tree *tree, const gboolean isMainTree);
+void                      destroyTreeContents(Tree *tree);
+void                      destroyTree(Tree **tree);
+
 void                      belvuTreeRemakeTree(GtkWidget *belvuTree);
 void                      onBelvuTreeFontSizeChanged(GtkWidget *belvuTree);
 
