@@ -522,7 +522,7 @@ void                                      writeMSF(BelvuContext *bc, FILE *pipe)
 
 void                                      separateMarkupLines(BelvuContext *bc);
 void                                      reInsertMarkupLines(BelvuContext *bc);
-TreeNode*                                 treeMake(BelvuContext *bc, const gboolean doBootstrap);
+TreeNode*                                 treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean displayFeedback);
 
 void                                      outputProbs(BelvuContext *bc, FILE *fil);
 void                                      mksubfamilies(BelvuContext *bc, double cutoff);        

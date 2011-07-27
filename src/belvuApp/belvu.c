@@ -833,7 +833,7 @@ void treeSortBatch(BelvuContext *bc)
   
   if (!bc->treeHead)
     {
-      TreeNode *treeHead = treeMake(bc, FALSE);
+      TreeNode *treeHead = treeMake(bc, FALSE, TRUE);
       setTreeHead(bc, treeHead);
     }
   
@@ -951,7 +951,7 @@ void mksubfamilies(BelvuContext *bc, double cutoff)
   strcpy(bc->treeMethodString, UPGMAstr);
   bc->treeMethod = UPGMA;
   
-  treeStruct->head = treeMake(bc, FALSE);
+  treeStruct->head = treeMake(bc, FALSE, TRUE);
   
   treeTraverseLRfirst(bc, treeStruct->head, subfamilyTrav);
 }

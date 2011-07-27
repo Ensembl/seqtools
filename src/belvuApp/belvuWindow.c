@@ -770,7 +770,7 @@ static void onRecalcTreeMenu(GtkAction *action, gpointer data)
     {
       /* No tree window, but make/re-make the underlying tree structure */
       separateMarkupLines(bc);
-      TreeNode *headNode = treeMake(bc, FALSE);
+      TreeNode *headNode = treeMake(bc, FALSE, TRUE);
       reInsertMarkupLines(bc);
       
       setTreeHead(bc, headNode);

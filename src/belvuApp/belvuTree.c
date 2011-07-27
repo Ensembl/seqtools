@@ -340,7 +340,6 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
               
               /* Add group string to array of bootstrap groups */
               g_array_append_val(bc->bootstrapGroups, BS);
-              g_array_sort(bc->bootstrapGroups, BSptrorder);
             }
           else
             {
@@ -348,15 +347,15 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
               BootstrapGroup *BS2;
               
               int ip = 0;
-              if (bsArrayFind(bc->bootstrapGroups, &BS, &ip, (void *)BSptrorder)) 
+              if (bsArrayFind(bc->bootstrapGroups, BS, &ip, (void *)BSptrorder)) 
                 {
-                  BS2 = &g_array_index(bc->bootstrapGroups, BootstrapGroup, ip);
+                  BS2 = g_array_index(bc->bootstrapGroups, BootstrapGroup*, ip);
                   BS2->node->boot++;
-                  printf("Found bootgroup %s (%d)\n", BS->s, ip);
+                  DEBUG_OUT("Found bootgroup %s (%d)\n", BS->s, ip);
                 }
               else
                 {
-                  /* printf("Did not find bootgroup %s\n", BS->s); */
+                  DEBUG_OUT("Did not find bootgroup %s\n", BS->s);
                 }
               
               if (BS && BS->s)
@@ -384,7 +383,7 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
 
 static void normaliseBootstraps(BelvuContext *bc, TreeNode *node) 
 {
-  node->boot = 100*node->boot/(double)bc->treebootstraps;
+  node->boot = 100.0 * (double)node->boot/(double)bc->treebootstraps;
 }
 
 
@@ -396,8 +395,19 @@ static void normaliseBootstraps(BelvuContext *bc, TreeNode *node)
 static void treeBootstrapStats(BelvuContext *bc, TreeNode *tree)
 {
   /* Traverse tree, fill array bootstrapGroups */
-  bc->bootstrapGroups = g_array_sized_new(FALSE, TRUE, sizeof(BootstrapGroup), bc->alignArr->len);
+  bc->bootstrapGroups = g_array_sized_new(FALSE, TRUE, sizeof(BootstrapGroup*), bc->alignArr->len);
   fillBootstrapGroups(bc, tree, tree, 1);
+  g_array_sort(bc->bootstrapGroups, BSptrorder);
+
+#ifdef DEBUG
+  DEBUG_OUT("Created bootstrap groups:\n");
+  int i = 0;
+  for ( ; i < bc->bootstrapGroups->len; ++i)
+    {
+      BootstrapGroup *bs = g_array_index(bc->bootstrapGroups, BootstrapGroup*, i);
+      DEBUG_OUT("%d:  %s\n", i, (bs && bs->s ? bs->s : "null"));
+    }
+#endif
   
   treeBootstrap(bc);
   
@@ -438,7 +448,7 @@ void treeBootstrap(BelvuContext *bc)
         }
       
       
-      treeStruct->head = treeMake(bc, FALSE);
+      treeStruct->head = treeMake(bc, FALSE, FALSE);
       
       if (bc->outputBootstrapTrees) 
         {
@@ -1249,11 +1259,16 @@ static double treeFindSmallestDist(BelvuContext *bc, double **pairmtx, double **
 }
 
 
-TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
+TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean displayFeedback)
 {
   /* This can take a long time, so let the user know we're doing something.
-   * Force the message to be displayed before we get stuck into the calculations. */
-  g_message_info("Calculating tree...\n");
+   * Only display feedback text if asked, though (e.g. we don't want this each
+   * time if calculating a lot of bootstrap trees) */
+  if (displayFeedback)
+    {
+      g_message_info("Calculating tree...\n");
+    }
+
   setBusyCursor(bc, TRUE);
 
   TreeNode *newnode = NULL ;
@@ -1446,7 +1461,12 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
     treeBootstrapStats(bc, newnode);
   
   setBusyCursor(bc, FALSE);
-  g_message_info("Finished calculating tree.\n");
+  
+  if (displayFeedback)
+    {
+      g_message_info("Finished calculating tree.\n");
+    }
+  
   return newnode ;
 }
 
@@ -1519,7 +1539,7 @@ void belvuTreeRemakeTree(GtkWidget *belvuTree)
 
   /* Re-make the tree */
   separateMarkupLines(bc);
-  TreeNode *headNode = treeMake(bc, TRUE);
+  TreeNode *headNode = treeMake(bc, TRUE, TRUE);
   setTreeHead(bc, headNode);
   reInsertMarkupLines(bc);
   
@@ -1740,12 +1760,13 @@ static double treeDrawNode(BelvuContext *bc,
       gdk_gc_set_foreground(gc, color);
 
       char *tmpStr = blxprintf("%.0f", node->boot);
-      double pos = curX - strlen(tmpStr) - 0.5;
+      const int textWidth = getTextWidth(widget, tmpStr);
+      double pos = curX - textWidth - 0.5;
       
       if (pos < 0.0) 
         pos = 0;
       
-      printf("%f  %f   \n", node->boot, pos);
+      printf("%f  %f   \n", node->boot, pos / properties->charWidth);
       drawText(widget, drawable,  gc, pos, y, tmpStr, NULL, NULL);
 
       g_free(tmpStr);
@@ -2592,7 +2613,7 @@ GtkWidget* createAndShowBelvuTree(BelvuContext *bc)
   if (!bc->treeHead)
     {
       separateMarkupLines(bc);
-      TreeNode *treeHead = treeMake(bc, TRUE);
+      TreeNode *treeHead = treeMake(bc, TRUE, TRUE);
       setTreeHead(bc, treeHead);
       belvuTree = createBelvuTreeWindow(bc, bc->treeHead);
       reInsertMarkupLines(bc);
