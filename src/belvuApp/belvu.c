@@ -889,7 +889,7 @@ void treeSort(BelvuContext *bc, const gboolean showTree)
       if (bc->belvuTree)
         gtk_window_present(GTK_WINDOW(bc->belvuTree));
       else
-        createBelvuTreeWindow(bc, bc->treeHead);
+        createBelvuTreeWindow(bc, bc->treeHead, TRUE);
     }
 }
 
@@ -2297,19 +2297,22 @@ int strcmp_(gconstpointer xIn, gconstpointer yIn)
 
 GArray *copyAlignArray(GArray *inputArr)
 {
-  GArray *result = g_array_sized_new(FALSE, FALSE, sizeof(ALN*), inputArr->len);
-  memcpy(result->data, inputArr->data, inputArr->len * sizeof(ALN*));
-  result->len = inputArr->len;
+  GArray *result = g_array_sized_new(FALSE, FALSE, sizeof(char*), inputArr->len);
   
   int i = 0;
   for ( ; i < inputArr->len; ++i)
     {
       ALN *inputAln = g_array_index(inputArr, ALN*, i);
+      ALN *destAln = createEmptyAln();
+      alncpy(destAln, inputAln); /* shallow copy; doesn't copy sequence string */
       
+      g_array_append_val(result, destAln);
+
+      /* Duplicate the sequence string, if not null */
       if (alnGetSeq(inputAln))
-        g_array_index(result, ALN*, i)->sequenceStr = g_string_new(alnGetSeq(inputAln));
+        destAln->sequenceStr = g_string_new(alnGetSeq(inputAln));
       else
-        g_array_index(result, ALN*, i)->sequenceStr = NULL;
+        destAln->sequenceStr = NULL;
     }
   
   return result;
@@ -2339,6 +2342,38 @@ void columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcI
  *		          Context			   *
  ***********************************************************/
 
+/* Create the colors that belvu will use for various specific purposes */
+static void createBelvuColors(BelvuContext *bc)
+{
+  /* Initialise the array with empty BlxColor structs */
+  bc->defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), BELCOLOR_NUM_COLORS);
+  int i = BELCOLOR_MIN + 1;
+  
+  for ( ; i < BELCOLOR_NUM_COLORS; ++i)
+    {
+      BlxColor *blxColor = g_malloc(sizeof(BlxColor));
+      blxColor->name = NULL;
+      blxColor->desc = NULL;
+      g_array_append_val(bc->defaultColors, *blxColor);
+    }
+  
+  createBlxColor(bc->defaultColors, BELCOLOR_BACKGROUND, "Background", "Background color", BLX_WHITE, BLX_WHITE, "#bdbdbd", NULL);
+  createBlxColor(bc->defaultColors, BELCOLOR_ALIGN_TEXT, "Text color for alignments", "Text color for alignments", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  createBlxColor(bc->defaultColors, BELCOLOR_COLUMN_HIGHLIGHT, "Highlight color for selected column", "Highlight color for selected column",  "#dddddd", BLX_BLACK, NULL, NULL);
+  
+  /* Trees */
+  createBlxColor(bc->defaultColors, BELCOLOR_TREE_BACKGROUND, "Tree background", "Tree background color", BLX_WHITE, BLX_WHITE, NULL, NULL);
+  createBlxColor(bc->defaultColors, BELCOLOR_TREE_LINE, "Default tree line color", "Default tree line color", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  createBlxColor(bc->defaultColors, BELCOLOR_TREE_TEXT, "Default tree text color", "Default tree text color", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  createBlxColor(bc->defaultColors, BELCOLOR_TREE_BOOTSTRAP, "Tree boostrap line color", "Tree boostrap line color", BLX_BLUE, BLX_BLUE, NULL, NULL);
+  
+  /* Conservation plot */
+  createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT, "Line color of the conservation plot", "Line color of the conservation plot", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT_AVG, "Average-conservation line color on the conservation profile", "Average-conservation line color on the conservation profile", BLX_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT_SCALE, "Scale color for the conservation profile", "Scale color for the conservation profile", BLX_DARK_GREY, BLX_DARK_GREY, NULL, NULL);
+}
+
+
 /* Create the context, which contains all program-wide variables */
 BelvuContext* createBelvuContext()
 {
@@ -2356,6 +2391,7 @@ BelvuContext* createBelvuContext()
   bc->busyCursor = gdk_cursor_new(GDK_WATCH);
 
   bc->defaultColors = NULL;
+  createBelvuColors(bc);
   
   bc->alignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN*), 100);
   bc->organismArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN*), 100);
@@ -3482,8 +3518,6 @@ void greyOutInvalidActionsForGroup(BelvuContext *bc, GtkActionGroup *action_grou
   enableMenuAction(action_group, "printColors", colorByConservation(bc));
   
   enableMenuAction(action_group, "excludeHighlighted", bc->selectedAln != NULL);
-  
-  enableMenuAction(action_group, "RecalcTree", bc->treeHead == NULL);
 }
 
 
