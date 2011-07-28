@@ -592,9 +592,19 @@ int main(int argc, char **argv)
   
   
   /* Sort by the initial sort order. If sorting by similarity or ID, then
-   * we must have a selected sequence - select the first one. */
+   * we must have a selected sequence - select the first one that is not
+   * a markup line. */
   if (bc->sortType == BELVU_SORT_SIM || bc->sortType == BELVU_SORT_ID)
-    bc->selectedAln = g_array_index(bc->alignArr, ALN*, 0);
+    {
+      int i = 0;
+      bc->selectedAln = g_array_index(bc->alignArr, ALN*, i);
+
+      while (i < bc->alignArr->len && bc->selectedAln && bc->selectedAln->markup)
+        {
+          ++i;
+          bc->selectedAln = g_array_index(bc->alignArr, ALN*, i);
+        }
+    }
 
   doSort(bc, bc->sortType, FALSE);
   
