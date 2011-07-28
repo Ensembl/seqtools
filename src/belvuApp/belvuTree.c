@@ -990,6 +990,29 @@ static TreeNode* createEmptyTreeNode()
 }
 
 
+/* Recursively destroy the tree node and all its child nodes */
+static void destroyTreeNode(TreeNode **node)
+{
+  if (node == NULL || *node == NULL)
+    return;
+
+  /* Destroy all child nodes first */
+  destroyTreeNode(&((*node)->left));
+  destroyTreeNode(&((*node)->right));
+
+  /* Free memory owned by the node */
+  if ((*node)->name)
+    {
+      g_free((*node)->name);
+      (*node)->name = NULL;
+    }
+
+  /* Free the node struct itself, and set the pointer to it to null */
+  g_free(*node);
+  *node = NULL;
+}
+
+
 /* Swap the left and right branches of the given node */
 static void treeSwapNode(TreeNode *node)
 {
@@ -1342,49 +1365,37 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
   double maxid = 0.0, **pairmtx, **Dmtx, **curMtx, *src, *trg, 
   *avgdist,		/* vector r in Durbin et al */
   llen = 0, rlen = 0;
-  TreeNode **node ;					    /* Array of (primary) nodes.  Value=0 => stale column */
+  TreeNode **nodes;   /* Array of (primary) nodes.  Value=0 => stale column */
+
+  /* Create the tree struct */
+  Tree *tree = createEmptyTree();
 
   /* Allocate memory */
-  BlxHandle treeHandle = handleCreate();
+  BlxHandle localHandle = handleCreate(); /* handles local memory that will be free'd before we return */
   
-  pairmtx = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double *));
-  Dmtx = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double *));
-  node = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(TreeNode *));
-  avgdist = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double));
+  nodes = handleAlloc(&localHandle, bc->alignArr->len * sizeof(TreeNode *));
+  pairmtx = handleAlloc(&localHandle, bc->alignArr->len * sizeof(double *));
+  Dmtx = handleAlloc(&localHandle, bc->alignArr->len * sizeof(double *));
+  avgdist = handleAlloc(&localHandle, bc->alignArr->len * sizeof(double));
 
   int i = 0;
   for (i = 0; i < bc->alignArr->len; ++i)
     {
-      pairmtx[i] = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double));
-      Dmtx[i] = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double));
-      node[i] = handleAlloc(&treeHandle, sizeof(TreeNode));
-      node[i]->name =  handleAlloc(&treeHandle, strlen(g_array_index(bc->alignArr, ALN*, i)->name)+50);
-      
       ALN *aln_i = g_array_index(bc->alignArr, ALN*, i);
+
+      pairmtx[i] = handleAlloc(&localHandle, bc->alignArr->len*sizeof(double));
+      Dmtx[i] = handleAlloc(&localHandle, bc->alignArr->len*sizeof(double));
+
+      nodes[i] = createEmptyTreeNode();
+      nodes[i]->name =  g_malloc(strlen(aln_i->name) + 50);
       
       if (!bc->treeCoordsOn) 
-	{
-	  sprintf(node[i]->name, "%s", aln_i->name);
-	}
+        sprintf(nodes[i]->name, "%s", aln_i->name);
       else
-	{
-	  sprintf(node[i]->name, "%s/%d-%d", 
-		  aln_i->name,
-		  aln_i->start,
-		  aln_i->end);
-	}
+        sprintf(nodes[i]->name, "%s/%d-%d", aln_i->name, aln_i->start, aln_i->end);
       
-      node[i]->aln = aln_i;
-      node[i]->organism = aln_i->organism;
-
-      node[i]->dist = 0.0;
-      node[i]->branchlen = 0.0;
-      node[i]->boot = 0.0;
-      node[i]->left = NULL;
-      node[i]->right = NULL;
-      node[i]->parent = NULL;
-      node[i]->box = 0;
-      node[i]->color = 0;
+      nodes[i]->aln = aln_i;
+      nodes[i]->organism = aln_i->organism;
     }
 
   /* Get the pairwise tree distances (from file if given, or calculate them) */
@@ -1410,7 +1421,7 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
     {
       if (bc->treeMethod == NJ)
         {
-          constructTreeNJ(bc, pairmtx, avgdist, node, Dmtx);
+          constructTreeNJ(bc, pairmtx, avgdist, nodes, Dmtx);
           curMtx = Dmtx;
         }
       else 
@@ -1423,13 +1434,13 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
 #endif
       
       /* Find smallest distance pair in pairmtx */
-      maxid = treeFindSmallestDist(bc, pairmtx, curMtx, Dmtx, node, &maxi, &maxj);
+      maxid = treeFindSmallestDist(bc, pairmtx, curMtx, Dmtx, nodes, &maxi, &maxj);
 
       /* Merge rows & columns of maxi and maxj into maxi
        Recalculate distances to other nodes */
       for (i = 0; i < bc->alignArr->len; ++i)
         {
-          if (!node[i]) 
+          if (!nodes[i])
             continue;
           
           if (i < maxi) 
@@ -1457,12 +1468,12 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
         {
           /* subtract lower branch lengths from absolute distance
            Horribly ugly, only to be able to share code UPGMA and NJ */
-          TreeNode *tmpnode = node[maxi]->left;
+          TreeNode *tmpnode = nodes[maxi]->left;
           
           for (llen = maxid; tmpnode; tmpnode = tmpnode->left)
             llen -= tmpnode->branchlen;
           
-          tmpnode = node[maxj]->right;
+          tmpnode = nodes[maxj]->right;
           
           for (rlen = maxid; tmpnode; tmpnode = tmpnode->right)
             rlen -= tmpnode->branchlen;
@@ -1495,17 +1506,17 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
       }
 #endif
       
-      newnode->left = node[maxi];	
+      newnode->left = nodes[maxi];
       newnode->left->branchlen = llen;
       
-      newnode->right = node[maxj];
+      newnode->right = nodes[maxj];
       newnode->right->branchlen = rlen;
       
-      newnode->organism = (node[maxi]->organism == node[maxj]->organism ?
-                           node[maxi]->organism : NULL);
+      newnode->organism = (nodes[maxi]->organism == nodes[maxj]->organism ?
+                           nodes[maxi]->organism : NULL);
       
-      node[maxi] = newnode;
-      node[maxj] = NULL;
+      nodes[maxi] = newnode;
+      nodes[maxj] = NULL;
     }
 
   fillParents(newnode, newnode->left);
@@ -1519,10 +1530,11 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
   
   fillOrganism(newnode);
 
-  /* Populate the tree struct */
-  Tree *tree = createEmptyTree();
+  /* Set the newnode to be the root node of the tree */
   tree->head = newnode;
-  tree->handle = treeHandle;
+
+  /* Clean up locally allocated memory */
+  handleDestroy(&localHandle);
 
   if (doBootstrap && bc->treebootstraps) 
     treeBootstrapStats(bc, tree);
@@ -1630,9 +1642,8 @@ void belvuTreeRemakeTree(GtkWidget *belvuTree)
       if (newTree)
         {
           properties->tree->head = newTree->head;
-          properties->tree->handle = newTree->handle;
           g_free(newTree);
-          newTree = NULL;
+          newTree = properties->tree;
         }
     }
   else
@@ -1889,13 +1900,11 @@ void destroyTreeContents(Tree *tree)
   if (tree == NULL)
     return;
 
-  /* Free all memory used by the tree members */
-  if (tree->handle)
-    handleDestroy(&(tree->handle));
+  /* Free all memory used by the tree nodes */
+  if (tree->head)
+    destroyTreeNode(&tree->head);
 
-  /* Reset member variables */
   tree->head = NULL;
-  tree->handle = NULL;
 }
 
 
@@ -1919,7 +1928,6 @@ static Tree* createEmptyTree()
   Tree *result = g_malloc(sizeof *result);
   
   result->head = NULL;
-  result->handle = NULL;
   
   return result;
 }
@@ -2342,12 +2350,6 @@ gboolean onBuildMethodChanged(GtkWidget *combo, const gint responseId, gpointer 
   if (origVal != bc->treeMethod)
     {
       belvuContextSetTree(bc, NULL);
-      
-      if (bc->belvuTree)
-        {
-          BelvuTreeProperties *properties = belvuTreeGetProperties(bc->belvuTree);
-          destroyTree(&properties->tree);
-        }
     }
   
   return TRUE;
@@ -2367,12 +2369,6 @@ gboolean onDistCorrChanged(GtkWidget *combo, const gint responseId, gpointer dat
   if (origVal != bc->treeDistCorr)
     {
       belvuContextSetTree(bc, NULL);
-
-      if (bc->belvuTree)
-        {
-          BelvuTreeProperties *properties = belvuTreeGetProperties(bc->belvuTree);
-          destroyTree(&properties->tree);
-        }
     }
   
   return TRUE;

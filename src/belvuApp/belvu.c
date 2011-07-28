@@ -3547,7 +3547,6 @@ void belvuContextSetTree(BelvuContext *bc, Tree **tree)
       if (tree && *tree)
         {
           bc->mainTree->head = (*tree)->head;
-          bc->mainTree->handle = (*tree)->handle;
           g_free(*tree);
           
           /* Update input pointer so that it points to the tree that actually

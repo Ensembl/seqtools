@@ -278,7 +278,6 @@ typedef struct _TreeNode
 typedef struct _Tree
 {
   TreeNode *head;     /* Root node of the tree */
-  BlxHandle handle;   /* All tree memory should be allocated via this handle */
 } Tree;
 
 
