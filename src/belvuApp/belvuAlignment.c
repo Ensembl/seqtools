@@ -51,8 +51,6 @@
 
 /* Local function declarations */
 static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result);
-static void               calculateDrawingSizes(GtkWidget *belvuAlignment);
-static void               updateHeaderColumnsSize(GtkWidget *belvuAlignment);
 
 
 /* Properties specific to the belvu alignment */
@@ -439,6 +437,17 @@ static void drawSingleSequence(GtkWidget *widget,
           x += properties->charWidth;
         }
     }  
+  else if (rowHighlighted)
+    {
+      /* We're not displaying colors for individual chars, but we still need to
+       * highlight the background if the row is selected. */
+      GdkColor color;
+      convertColorNumToGdkColor(WHITE, TRUE, &color);
+      gdk_gc_set_foreground(gc, &color);
+      
+      gdk_draw_rectangle(drawable, gc, TRUE, startX, y, properties->seqRect.width, properties->charHeight);
+    }
+  
   
   /* Draw the sequence text (current display range only) */
   if (alnGetSeq(alnp))
@@ -543,7 +552,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
   
   int j = 0;
   for (j = 0; j < bc->alignArr->len; ++j) 
-    pos[j] = g_array_index(bc->alignArr, ALN, j).start;
+    pos[j] = g_array_index(bc->alignArr, ALN*, j)->start;
   
   
   int paragraph = 0;
@@ -566,7 +575,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
       
       for (j = 0; j < bc->alignArr->len; ++j)
 	{
-          ALN *alnp = &g_array_index(bc->alignArr, ALN, j);
+          ALN *alnp = g_array_index(bc->alignArr, ALN*, j);
           char *alnpSeq = alnGetSeq(alnp);
           
           if (alnp->hide) 
@@ -759,7 +768,7 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
   
   for ( ; i < iMax; ++i)
     {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
       
       if (alnp && !alnp->hide)
         {
@@ -894,7 +903,7 @@ static void drawBelvuSequence(GtkWidget *widget, GdkDrawable *drawable, BelvuAli
   
   for ( ; i < iMax; ++i)
     {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
       
       if (alnp && !alnp->hide)
         {
@@ -1249,7 +1258,7 @@ static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
 
 /* Update the size of the header-columns widget. Should be called after any
  * change that affects the length of the text displayed in the columns area. */
-static void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
+void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
 {
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
   
@@ -1283,7 +1292,7 @@ static void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
  * wrapped alignment, the full size required to draw everything.
  * It also updates the height of the columns area, if applicable, so that it is
  * the same height as the sequence area. */
-static void calculateDrawingSizes(GtkWidget *belvuAlignment)
+void calculateDrawingSizes(GtkWidget *belvuAlignment)
 {
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
 
@@ -1511,7 +1520,7 @@ static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
   
   for ( i = 0; i < bc->alignArr->len; ++i)
     {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
       
       if (!alnp->hide)
         {

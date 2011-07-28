@@ -2745,6 +2745,9 @@ void handleDestroy(BlxHandle *handle)
 {
   DEBUG_ENTER("handleDestroy");
 
+  if (handle == NULL || *handle == NULL)
+    return;
+
   GSList *listItem = (*handle)->memoryList;
   for ( ; listItem; listItem = listItem->next)
     {

@@ -49,8 +49,11 @@
 #define DEFAULT_TREE_SCALE_NON_CORR		1.0	/* default scale for methods not using distance correction */
 
 
-GtkWidget*                createAndShowBelvuTree(BelvuContext *bc);
-GtkWidget*                createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead);
+GtkWidget*                createAndShowBelvuTree(BelvuContext *bc, const gboolean isMainTree);
+GtkWidget*                createBelvuTreeWindow(BelvuContext *bc, Tree *tree, const gboolean isMainTree);
+void                      destroyTreeContents(Tree *tree);
+void                      destroyTree(Tree **tree);
+
 void                      belvuTreeRemakeTree(GtkWidget *belvuTree);
 void                      onBelvuTreeFontSizeChanged(GtkWidget *belvuTree);
 
@@ -62,12 +65,12 @@ BelvuContext*             belvuTreeGetContext(GtkWidget *belvuTree);
 
 void                      showTreeSettingsDialog(GtkWidget *window, BelvuContext *bc);
 
-GtkWidget*                createTreeSettingsDialogContent(BelvuContext *bc, GtkWidget *dialog, 
+GtkWidget*                createTreeSettingsDialogContent(BelvuContext *bc, GtkWidget *dialog, const gboolean isMainTree,
                                                           double *treeScale, double *lineWidth, 
                                                           gboolean *showBranchLen, gboolean *showOrganism,
                                                           BelvuPickMode *pickMode, BelvuBuildMethod *buildMethod, BelvuDistCorr *distCorr);
 
 
-void                      treePrintOrthologs(BelvuContext *bc);
+void                      treePrintOrthologs(BelvuContext *bc, GtkWidget *treeWindow);
 
 #endif /* _belvutree_h_included_ */

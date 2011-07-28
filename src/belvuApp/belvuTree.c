@@ -53,6 +53,11 @@
 #define DIALOG_YPAD                             8       /* default y padding around dialog widgets */
 #define TABLE_XPAD                              12      /* default x padding around table elements */
 #define TABLE_YPAD                              2       /* default y padding around table elements */
+#define TITLE_MAIN_TREE_PREFIX                  ""                  /* prefix for tree window title for the main belvu tree */
+#define TITLE_BOOTSTRAP_TREE_PREFIX             "Bootstrap "        /* prefix for tree window title for bootstrap trees */
+#define TITLE_NJ_TREE_DESCRIPTION               "Neighbor-joining " /* window title tree description for NJ trees */
+#define TITLE_UPGMA_TREE_DESCRIPTION            "UPGMA "            /* window title tree description for NJ trees */
+
 
 
 /* Globals; original build methods in the tree dialog */
@@ -113,17 +118,17 @@ static int BLOSUM62[24][24] = {
 /* ASCII-to-binary translation table
  Note: to use with BLOSUM62[], always subtract 1 from the values !!!! */
 #undef NA
-#define NA 0
+#define NA 23
 static int a2b[] =
 {
 NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
 NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
 NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
 NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-NA, 1,NA, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA,
+NA, 1,21, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA,
 15, 6, 2,16,17,NA,20,18,NA,19,NA,NA,NA,NA,NA,NA,
 NA, 1,NA, 5, 4, 7,14, 8, 9,10,NA,12,11,13, 3,NA,
-15, 6, 2,16,17,NA,20,18,NA,19,NA,NA,NA,NA,NA,NA,
+15, 6, 2,16,17,NA,20,18,23,19,22,NA,NA,NA,NA,NA,
 
 NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
 NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
@@ -153,6 +158,9 @@ typedef struct _BelvuTreeProperties
     BelvuContext *bc;	            /* The belvu context */
     GtkActionGroup *actionGroup;
     
+    Tree *tree;                     /* The underlying tree struct */
+    gboolean isMainTree;            /* True if tree is the main tree's root node. */
+    
     GtkWidget *treeArea;            /* Drawing widget for the tree */
     GdkRectangle treeRect;          /* Specifies the actual area in which we'll draw the tree within treeAre */
     
@@ -161,6 +169,11 @@ typedef struct _BelvuTreeProperties
     
     BelvuBuildMethod buildMethod;   /* The build method used to build the tree */
     BelvuDistCorr distCorr;         /* The distance-correction method used to build the tree */
+    
+    double treeScale;               /* The tree scale (not used if main tree - uses the values in the context instead) */
+    double lineWidth;               /* Line width (not used if main tree) */
+    gboolean showBranchLen;         /* Whether to display branch lengths (not used if main tree) */
+    gboolean showOrganism;          /* Whether to show organism names (not used if main tree) */
     
     GArray *clickableRects;         /* Array of rectangles that associate clickable areas in treeArea to TreeNodes. */
   } BelvuTreeProperties;
@@ -187,7 +200,10 @@ static void onDestroyBelvuTree(GtkWidget *belvuTree)
 
   /* We must remove the tree from the list of spawned windows */
   properties->bc->spawnedWindows = g_slist_remove(properties->bc->spawnedWindows, belvuTree);
-  properties->bc->belvuTree = NULL;
+  
+  /* If it is the main tree, also set the pointer in the context to null */
+  if (properties->isMainTree)
+    properties->bc->belvuTree = NULL;
   
   if (properties)
     {
@@ -202,6 +218,8 @@ static void onDestroyBelvuTree(GtkWidget *belvuTree)
 /* Create the properties struct and initialise all values. */
 static void belvuTreeCreateProperties(GtkWidget *belvuTree, 
                                       BelvuContext *bc,
+                                      Tree *tree,
+                                      const gboolean isMainTree,
                                       GtkActionGroup *actionGroup,
                                       GtkWidget *treeArea,
                                       BelvuBuildMethod buildMethod,
@@ -212,11 +230,19 @@ static void belvuTreeCreateProperties(GtkWidget *belvuTree,
       BelvuTreeProperties *properties = g_malloc(sizeof *properties);
       
       properties->bc = bc;
+      
+      properties->tree = tree;
+      properties->isMainTree = isMainTree;
+      
       properties->treeArea = treeArea;
       properties->actionGroup = actionGroup;
       
       properties->buildMethod = buildMethod;
       properties->distCorr = distCorr;
+      properties->treeScale = bc->treeScale;
+      properties->lineWidth = bc->treeLineWidth;
+      properties->showBranchLen = bc->treeShowBranchlen;
+      properties->showOrganism = bc->treeShowOrganism;
       
       properties->charHeight = 0;
       properties->charWidth = 0;
@@ -240,6 +266,30 @@ GtkActionGroup* belvuTreeGetActionGroup(GtkWidget *belvuTree)
 {
   BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
   return (properties ? properties->actionGroup : NULL);
+}
+
+
+/* Get the tree scale for this tree. Uses the value from the main context
+ * if this is the main belvu tree, or the value stored in the properties 
+ * for other trees. */
+static double treeGetScale(BelvuTreeProperties *properties)
+{
+  return (properties->isMainTree ? properties->bc->treeScale : properties->treeScale);
+}
+
+static double treeGetLineWidth(BelvuTreeProperties *properties)
+{
+  return (properties->isMainTree ? properties->bc->treeLineWidth : properties->lineWidth);
+}
+
+static gboolean treeGetShowBranchLen(BelvuTreeProperties *properties)
+{
+  return (properties->isMainTree ? properties->bc->treeShowBranchlen : properties->showBranchLen);
+}
+
+static gboolean treeGetShowOrganism(BelvuTreeProperties *properties)
+{
+  return (properties->isMainTree ? properties->bc->treeShowOrganism : properties->showOrganism);
 }
 
 
@@ -288,7 +338,7 @@ static BootstrapGroup* createEmptyBootstrapGroup()
 
 
 /* Combines left and right sequence groups and insert to bootstrap group list */
-static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *rootnode, int maintree) 
+static GArray* fillBootstrapGroups(BelvuContext *bc, Tree *tree, TreeNode *node, const gboolean isMainTree) 
 {
   GArray *result = NULL;
   
@@ -299,11 +349,11 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
       /* Internal node */
       /* Combine left node sequences into right node array */
       
-      GArray *left = fillBootstrapGroups(bc, node->left, rootnode, maintree);
-      GArray *right = fillBootstrapGroups(bc, node->right, rootnode, maintree);
+      GArray *left = fillBootstrapGroups(bc, tree, node->left, isMainTree);
+      GArray *right = fillBootstrapGroups(bc, tree, node->right, isMainTree);
       
       /* Nothing to do for root */
-      if (node != rootnode)
+      if (node != tree->head)
         {      
           /* Combine left and right groups */
           int i = 0;
@@ -333,14 +383,13 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
           
           /* printf("   New bootstrap group: %s\n", BS->s); */
           
-          if (maintree) 
+          if (isMainTree) 
             {
               /* Associate this node with the group string */
               BS->node =  node;
               
               /* Add group string to array of bootstrap groups */
               g_array_append_val(bc->bootstrapGroups, BS);
-              g_array_sort(bc->bootstrapGroups, BSptrorder);
             }
           else
             {
@@ -348,15 +397,15 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
               BootstrapGroup *BS2;
               
               int ip = 0;
-              if (bsArrayFind(bc->bootstrapGroups, &BS, &ip, (void *)BSptrorder)) 
+              if (bsArrayFind(bc->bootstrapGroups, BS, &ip, (void *)BSptrorder)) 
                 {
-                  BS2 = &g_array_index(bc->bootstrapGroups, BootstrapGroup, ip);
+                  BS2 = g_array_index(bc->bootstrapGroups, BootstrapGroup*, ip);
                   BS2->node->boot++;
-                  printf("Found bootgroup %s (%d)\n", BS->s, ip);
+                  DEBUG_OUT("Found bootgroup %s (%d)\n", BS->s, ip);
                 }
               else
                 {
-                  /* printf("Did not find bootgroup %s\n", BS->s); */
+                  DEBUG_OUT("Did not find bootgroup %s\n", BS->s);
                 }
               
               if (BS && BS->s)
@@ -384,7 +433,7 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, TreeNode *node, TreeNode *r
 
 static void normaliseBootstraps(BelvuContext *bc, TreeNode *node) 
 {
-  node->boot = 100*node->boot/(double)bc->treebootstraps;
+  node->boot = 100.0 * (double)node->boot/(double)bc->treebootstraps;
 }
 
 
@@ -393,24 +442,36 @@ static void normaliseBootstraps(BelvuContext *bc, TreeNode *node)
  2. In bootstrap tree, for each internal node, check if its contents exists in list. If so, increment node's bootstrap count
  3. Turn increments to percentages
  */
-static void treeBootstrapStats(BelvuContext *bc, TreeNode *tree)
+static void treeBootstrapStats(BelvuContext *bc, Tree *tree)
 {
   /* Traverse tree, fill array bootstrapGroups */
-  bc->bootstrapGroups = g_array_sized_new(FALSE, TRUE, sizeof(BootstrapGroup), bc->alignArr->len);
-  fillBootstrapGroups(bc, tree, tree, 1);
+  bc->bootstrapGroups = g_array_sized_new(FALSE, TRUE, sizeof(BootstrapGroup*), bc->alignArr->len);
+  fillBootstrapGroups(bc, tree, tree->head, TRUE);
+  g_array_sort(bc->bootstrapGroups, BSptrorder);
+
+#ifdef DEBUG
+  DEBUG_OUT("Created bootstrap groups:\n");
+  int i = 0;
+  for ( ; i < bc->bootstrapGroups->len; ++i)
+    {
+      BootstrapGroup *bs = g_array_index(bc->bootstrapGroups, BootstrapGroup*, i);
+      DEBUG_OUT("%d:  %s\n", i, (bs && bs->s ? bs->s : "null"));
+    }
+#endif
   
   treeBootstrap(bc);
   
   /* Turn increments to percentages */
-  treeTraverse(bc, tree, normaliseBootstraps);
+  treeTraverse(bc, tree->head, normaliseBootstraps);
 }
 
 
 void treeBootstrap(BelvuContext *bc)
 {
-  Tree *treeStruct = createEmptyTree();
-  
   separateMarkupLines(bc);
+  
+  /* We will change the sequence strings in the alignments, so first
+   * we must make a copy so we can revert them. */
   GArray *alignArrTmp = copyAlignArray(bc->alignArr);
   
 #if defined(__CYGWIN__) || defined(DARWIN)
@@ -437,26 +498,31 @@ void treeBootstrap(BelvuContext *bc)
           columnCopy(bc->alignArr, i, alignArrTmp, src);
         }
       
-      
-      treeStruct->head = treeMake(bc, FALSE);
+      /* Create the bootstrap tree */
+      Tree* tree = treeMake(bc, FALSE, FALSE);
       
       if (bc->outputBootstrapTrees) 
         {
           if (bc->treebootstrapsDisplay) 
             {
-              createBelvuTreeWindow(bc, treeStruct->head);
+              /* The tree window takes ownership of the tree struct */
+              createBelvuTreeWindow(bc, tree, FALSE);
             }
           else
             {
+              /* Print the tree, then destroy it */
               printf("\n");
-              saveTreeNH(treeStruct->head, treeStruct->head, stdout);
+              saveTreeNH(tree, tree->head, stdout);
               printf(";\n");
+              
+              destroyTree(&tree);
             }
         }
       else
         {
-          /* Collect bootstrap statistics */
-          fillBootstrapGroups(bc, treeStruct->head, treeStruct->head, 0);
+          /* Collect the bootstrap statistics then destroy the tree */
+          fillBootstrapGroups(bc, tree, tree->head, FALSE);
+          destroyTree(&tree);
         }
     }
   
@@ -464,14 +530,21 @@ void treeBootstrap(BelvuContext *bc)
   int i = 0;
   for (i = 0; i < bc->alignArr->len; ++i)
     {
-      ALN *srcAln = &g_array_index(alignArrTmp, ALN, i);
-      ALN *destAln = &g_array_index(bc->alignArr, ALN, i);
+      ALN *srcAln = g_array_index(alignArrTmp, ALN*, i);
+      ALN *destAln = g_array_index(bc->alignArr, ALN*, i);
+      
+      if (destAln->sequenceStr)
+        g_string_free(destAln->sequenceStr, TRUE);
       
       if (srcAln->sequenceStr)
-        destAln->sequenceStr = g_string_new(srcAln->sequenceStr->str);
+        destAln->sequenceStr = srcAln->sequenceStr; /* take ownership of the sequence string */
       else 
         destAln->sequenceStr = NULL;
     }
+  
+  g_array_free(alignArrTmp, TRUE); /* destroys the array and all its ALN structs */
+  
+  reInsertMarkupLines(bc);
 }
 
 
@@ -917,6 +990,29 @@ static TreeNode* createEmptyTreeNode()
 }
 
 
+/* Recursively destroy the tree node and all its child nodes */
+static void destroyTreeNode(TreeNode **node)
+{
+  if (node == NULL || *node == NULL)
+    return;
+
+  /* Destroy all child nodes first */
+  destroyTreeNode(&((*node)->left));
+  destroyTreeNode(&((*node)->right));
+
+  /* Free memory owned by the node */
+  if ((*node)->name)
+    {
+      g_free((*node)->name);
+      (*node)->name = NULL;
+    }
+
+  /* Free the node struct itself, and set the pointer to it to null */
+  g_free(*node);
+  *node = NULL;
+}
+
+
 /* Swap the left and right branches of the given node */
 static void treeSwapNode(TreeNode *node)
 {
@@ -969,23 +1065,23 @@ static gboolean doublesEqual(const double a, const double b)
 
 /* Find the node which has most equal balance, return new tree with this as root.
  */
-static TreeNode *treeFindBalance(BelvuContext *bc, TreeNode *tree) 
+static TreeNode *treeFindBalance(BelvuContext *bc, TreeNode *node) 
 {
-  double lweight = treeSize3way(tree->left, tree->left);
-  double rweight = treeSize3way(tree->right, tree->right);
+  double lweight = treeSize3way(node->left, node->left);
+  double rweight = treeSize3way(node->right, node->right);
   
-  bc->treeBestBalancedNode = tree;
+  bc->treeBestBalancedNode = node;
   bc->treeBestBalance = fabsf(lweight - rweight);
   
   bc->treeBestBalance_subtrees = 
-  fabsf((lweight - tree->left->branchlen) - (rweight - tree->right->branchlen));
+  fabsf((lweight - node->left->branchlen) - (rweight - node->right->branchlen));
   
   DEBUG_OUT("Initial weights = %.1f  %.1f. Bal = %.1f\n", lweight, rweight, bc->treeBestBalance);
   
-  treeTraverse(bc, tree, treeCalcBalance);
+  treeTraverse(bc, node, treeCalcBalance);
   
-  if (bc->treeBestBalancedNode == tree)
-    return tree;
+  if (bc->treeBestBalancedNode == node)
+    return node;
   else
     return treeReroot(bc->treeBestBalancedNode);
 }
@@ -1002,13 +1098,13 @@ static void calcPairwiseDistMatrix(BelvuContext *bc, double **pairmtx)
   int i = 0;
   for (i = 0; i < bc->alignArr->len - 1; ++i)
     {
-      ALN *aln_i = &g_array_index(bc->alignArr, ALN, i);
+      ALN *aln_i = g_array_index(bc->alignArr, ALN*, i);
       char *alniSeq = alnGetSeq(aln_i);
       
       int j = i+1;
       for (j = i+1; j < bc->alignArr->len; ++j)
         {
-          ALN *aln_j = &g_array_index(bc->alignArr, ALN, j);
+          ALN *aln_j = g_array_index(bc->alignArr, ALN*, j);
           char *alnjSeq = alnGetSeq(aln_j);
           
           pairmtx[i][j] = 100.0 - identity(alniSeq, alnjSeq, bc->penalize_gaps);
@@ -1036,14 +1132,14 @@ static void printTreeDistances(BelvuContext *bc, double **pairmtx)
     {
       if (!bc->treeCoordsOn) 
         {
-          printf("%s\t", g_array_index(bc->alignArr, ALN, i).name);
+          printf("%s\t", g_array_index(bc->alignArr, ALN*, i)->name);
         }
       else
         {
           printf("%s/%d-%d\t",
-                 g_array_index(bc->alignArr, ALN, i).name,
-                 g_array_index(bc->alignArr, ALN, i).start,
-                 g_array_index(bc->alignArr, ALN, i).end);
+                 g_array_index(bc->alignArr, ALN*, i)->name,
+                 g_array_index(bc->alignArr, ALN*, i)->start,
+                 g_array_index(bc->alignArr, ALN*, i)->end);
         }
     }
   printf ("\n");
@@ -1249,11 +1345,19 @@ static double treeFindSmallestDist(BelvuContext *bc, double **pairmtx, double **
 }
 
 
-TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
+/* This does the work to create all the nodes in a tree. All the memory for
+ * the nodes etc. is allocated using a BlxHandle which is stored in the tree.
+ * To free the memory used by the tree, the handle should be destroyed. */
+Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean displayFeedback)
 {
   /* This can take a long time, so let the user know we're doing something.
-   * Force the message to be displayed before we get stuck into the calculations. */
-  g_message_info("Calculating tree...\n");
+   * Only display feedback text if asked, though (e.g. we don't want this each
+   * time if calculating a lot of bootstrap trees) */
+  if (displayFeedback)
+    {
+      g_message_info("Calculating tree...\n");
+    }
+
   setBusyCursor(bc, TRUE);
 
   TreeNode *newnode = NULL ;
@@ -1261,53 +1365,37 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
   double maxid = 0.0, **pairmtx, **Dmtx, **curMtx, *src, *trg, 
   *avgdist,		/* vector r in Durbin et al */
   llen = 0, rlen = 0;
-  TreeNode **node ;					    /* Array of (primary) nodes.  Value=0 => stale column */
-  BlxHandle treeHandle = NULL;
+  TreeNode **nodes;   /* Array of (primary) nodes.  Value=0 => stale column */
 
-  if (treeHandle)
-    handleDestroy(&treeHandle);
+  /* Create the tree struct */
+  Tree *tree = createEmptyTree();
 
   /* Allocate memory */
-  treeHandle = handleCreate();
+  BlxHandle localHandle = handleCreate(); /* handles local memory that will be free'd before we return */
   
-  pairmtx = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double *));
-  Dmtx = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double *));
-  node = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(TreeNode *));
-  avgdist = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double));
+  nodes = handleAlloc(&localHandle, bc->alignArr->len * sizeof(TreeNode *));
+  pairmtx = handleAlloc(&localHandle, bc->alignArr->len * sizeof(double *));
+  Dmtx = handleAlloc(&localHandle, bc->alignArr->len * sizeof(double *));
+  avgdist = handleAlloc(&localHandle, bc->alignArr->len * sizeof(double));
 
   int i = 0;
   for (i = 0; i < bc->alignArr->len; ++i)
     {
-      pairmtx[i] = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double));
-      Dmtx[i] = handleAlloc(&treeHandle, bc->alignArr->len*sizeof(double));
-      node[i] = handleAlloc(&treeHandle, sizeof(TreeNode));
-      node[i]->name =  handleAlloc(&treeHandle, strlen(g_array_index(bc->alignArr, ALN, i).name)+50);
-      
-      ALN *aln_i = &g_array_index(bc->alignArr,ALN, i);
+      ALN *aln_i = g_array_index(bc->alignArr, ALN*, i);
+
+      pairmtx[i] = handleAlloc(&localHandle, bc->alignArr->len*sizeof(double));
+      Dmtx[i] = handleAlloc(&localHandle, bc->alignArr->len*sizeof(double));
+
+      nodes[i] = createEmptyTreeNode();
+      nodes[i]->name =  g_malloc(strlen(aln_i->name) + 50);
       
       if (!bc->treeCoordsOn) 
-	{
-	  sprintf(node[i]->name, "%s", aln_i->name);
-	}
+        sprintf(nodes[i]->name, "%s", aln_i->name);
       else
-	{
-	  sprintf(node[i]->name, "%s/%d-%d", 
-		  aln_i->name,
-		  aln_i->start,
-		  aln_i->end);
-	}
+        sprintf(nodes[i]->name, "%s/%d-%d", aln_i->name, aln_i->start, aln_i->end);
       
-      node[i]->aln = aln_i;
-      node[i]->organism = aln_i->organism;
-
-      node[i]->dist = 0.0;
-      node[i]->branchlen = 0.0;
-      node[i]->boot = 0.0;
-      node[i]->left = NULL;
-      node[i]->right = NULL;
-      node[i]->parent = NULL;
-      node[i]->box = 0;
-      node[i]->color = 0;
+      nodes[i]->aln = aln_i;
+      nodes[i]->organism = aln_i->organism;
     }
 
   /* Get the pairwise tree distances (from file if given, or calculate them) */
@@ -1333,7 +1421,7 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
     {
       if (bc->treeMethod == NJ)
         {
-          constructTreeNJ(bc, pairmtx, avgdist, node, Dmtx);
+          constructTreeNJ(bc, pairmtx, avgdist, nodes, Dmtx);
           curMtx = Dmtx;
         }
       else 
@@ -1346,13 +1434,13 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
 #endif
       
       /* Find smallest distance pair in pairmtx */
-      maxid = treeFindSmallestDist(bc, pairmtx, curMtx, Dmtx, node, &maxi, &maxj);
+      maxid = treeFindSmallestDist(bc, pairmtx, curMtx, Dmtx, nodes, &maxi, &maxj);
 
       /* Merge rows & columns of maxi and maxj into maxi
        Recalculate distances to other nodes */
       for (i = 0; i < bc->alignArr->len; ++i)
         {
-          if (!node[i]) 
+          if (!nodes[i])
             continue;
           
           if (i < maxi) 
@@ -1380,12 +1468,12 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
         {
           /* subtract lower branch lengths from absolute distance
            Horribly ugly, only to be able to share code UPGMA and NJ */
-          TreeNode *tmpnode = node[maxi]->left;
+          TreeNode *tmpnode = nodes[maxi]->left;
           
           for (llen = maxid; tmpnode; tmpnode = tmpnode->left)
             llen -= tmpnode->branchlen;
           
-          tmpnode = node[maxj]->right;
+          tmpnode = nodes[maxj]->right;
           
           for (rlen = maxid; tmpnode; tmpnode = tmpnode->right)
             rlen -= tmpnode->branchlen;
@@ -1418,17 +1506,17 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
       }
 #endif
       
-      newnode->left = node[maxi];	
+      newnode->left = nodes[maxi];
       newnode->left->branchlen = llen;
       
-      newnode->right = node[maxj];
+      newnode->right = nodes[maxj];
       newnode->right->branchlen = rlen;
       
-      newnode->organism = (node[maxi]->organism == node[maxj]->organism ?
-                           node[maxi]->organism : NULL);
+      newnode->organism = (nodes[maxi]->organism == nodes[maxj]->organism ?
+                           nodes[maxi]->organism : NULL);
       
-      node[maxi] = newnode;
-      node[maxj] = NULL;
+      nodes[maxi] = newnode;
+      nodes[maxj] = NULL;
     }
 
   fillParents(newnode, newnode->left);
@@ -1441,13 +1529,24 @@ TreeNode *treeMake(BelvuContext *bc, const gboolean doBootstrap)
     newnode = treeFindBalance(bc, newnode) ;
   
   fillOrganism(newnode);
-  
+
+  /* Set the newnode to be the root node of the tree */
+  tree->head = newnode;
+
+  /* Clean up locally allocated memory */
+  handleDestroy(&localHandle);
+
   if (doBootstrap && bc->treebootstraps) 
-    treeBootstrapStats(bc, newnode);
+    treeBootstrapStats(bc, tree);
   
   setBusyCursor(bc, FALSE);
-  g_message_info("Finished calculating tree.\n");
-  return newnode ;
+  
+  if (displayFeedback)
+    {
+      g_message_info("Finished calculating tree.\n");
+    }
+  
+  return tree;
 }
 
 
@@ -1496,12 +1595,23 @@ static gboolean treePrintOrthologsRecur(BelvuContext *bc, TreeNode *node)
 }
 
 
-void treePrintOrthologs(BelvuContext *bc) 
+void treePrintOrthologs(BelvuContext *bc, GtkWidget *treeWindow) 
 {
-  if (treePrintOrthologsRecur(bc, bc->treeHead))
-    g_message_info("Found orthologs\n");
+  BelvuTreeProperties *properties = belvuTreeGetProperties(treeWindow);
+  
+  if (properties->tree == NULL)
+    {
+      g_critical("Tree has not been calculated.\n");
+      return;
+    }
+  else if (treePrintOrthologsRecur(bc, properties->tree->head))
+    {
+      g_message_info("Found orthologs\n");
+    }
   else
-    g_message_info("No orthologs\n");
+    {
+      g_message_info("No orthologs\n");
+    }
 }
 
 
@@ -1519,8 +1629,28 @@ void belvuTreeRemakeTree(GtkWidget *belvuTree)
 
   /* Re-make the tree */
   separateMarkupLines(bc);
-  TreeNode *headNode = treeMake(bc, TRUE);
-  setTreeHead(bc, headNode);
+  
+  Tree *newTree = treeMake(bc, TRUE, TRUE);
+  
+  /* Update the contents of our tree with the new member variables (we don't 
+   * change the actual tree pointer if it already exists because the context 
+   * may point to the same tree struct). */
+  if (properties->tree)
+    {
+      destroyTreeContents(properties->tree);
+      
+      if (newTree)
+        {
+          properties->tree->head = newTree->head;
+          g_free(newTree);
+          newTree = properties->tree;
+        }
+    }
+  else
+    {
+      properties->tree = newTree;
+    }
+  
   reInsertMarkupLines(bc);
   
   /* Make sure our properties are up to date with the data used to create
@@ -1530,29 +1660,34 @@ void belvuTreeRemakeTree(GtkWidget *belvuTree)
   
   calculateBelvuTreeBorders(belvuTree);
   
-  /* If sorting by tree, we need to refresh the sort order */
-  onTreeOrderChanged(bc);
+  /* If the alignment is sorted by tree and we've changed the main belvu tree's
+   * order, we need to refresh the sort order */
+  if (properties->isMainTree)
+    onTreeOrderChanged(bc);
 }
 
 
 /* This is called when the tree settings have been changed. */
-static void belvuTreeUpdateSettings(BelvuContext *bc)
+static void belvuTreeUpdateSettings(BelvuContext *bc, GtkWidget *treeWindow)
 {
-  if (bc->belvuTree)
+  if (!treeWindow)
+    return;
+  
+  /* The tree window exists, so must be updated */
+  BelvuTreeProperties *properties = belvuTreeGetProperties(treeWindow);
+  g_assert(properties);
+  
+  if (properties->tree == NULL || properties->tree->head == NULL)
     {
-      /* The tree window exists, so must be updated */
-      if (!bc->treeHead)
-        {
-          /* The underlying tree has been invalidated, so we'll need to re-make
-           * the whole tree. */
-          belvuTreeRemakeTree(bc->belvuTree);
-        }
-      else
-        {
-          /* Just redraw the existing tree */
-          calculateBelvuTreeBorders(bc->belvuTree);
-          belvuTreeRedrawAll(bc->belvuTree, NULL);
-        }
+      /* The underlying tree has been invalidated, so we'll need to re-make
+       * the whole tree. */
+      belvuTreeRemakeTree(treeWindow);
+    }
+  else
+    {
+      /* Just redraw the existing tree */
+      calculateBelvuTreeBorders(treeWindow);
+      belvuTreeRedrawAll(treeWindow, NULL);
     }
 }
 
@@ -1561,7 +1696,7 @@ static void belvuTreeUpdateSettings(BelvuContext *bc)
  * the tree if the build method has changed. */
 void belvuTreeRedrawAll(gpointer widget, gpointer data)
 {
-  if (!widget)
+  if (!widget || !stringsEqual(gtk_widget_get_name(GTK_WIDGET(widget)), BELVU_TREE_WINDOW_NAME, TRUE))
     return;
   
   GtkWidget *belvuTree = GTK_WIDGET(widget);
@@ -1604,7 +1739,6 @@ static double treeDrawNode(BelvuContext *bc,
                            GdkGC *gc, 
                            BelvuTreeProperties *properties,
                            GdkColor *defaultColor, 
-                           Tree *tree, 
                            TreeNode *node, 
                            double x) 
 {
@@ -1613,14 +1747,14 @@ static double treeDrawNode(BelvuContext *bc,
   if (!node) 
     return 0.0;
   
-  const int curX = x + roundNearest(node->branchlen * (double)(bc->treeScale * properties->charWidth));
+  const int curX = x + roundNearest(node->branchlen * (double)(treeGetScale(properties) * properties->charWidth));
 
   GdkGC *leftGc = gdk_gc_new(drawable);
   gdk_gc_copy(leftGc, gc);
-  yl = treeDrawNode(bc, widget, drawable, leftGc, properties, defaultColor, tree, node->left, curX);
+  yl = treeDrawNode(bc, widget, drawable, leftGc, properties, defaultColor, node->left, curX);
   
   gdk_gc_set_foreground(gc, defaultColor);
-  yr = treeDrawNode(bc, widget, drawable, gc, properties, defaultColor, tree, node->right, curX);
+  yr = treeDrawNode(bc, widget, drawable, gc, properties, defaultColor, node->right, curX);
   
   GdkGC *gcTmp = gdk_gc_new(drawable);
   gdk_gc_set_foreground(gcTmp, defaultColor);
@@ -1661,7 +1795,7 @@ static double treeDrawNode(BelvuContext *bc,
           if (alnArrayFind(bc->organismArr, &aln, &ip, (void*)organism_order)) 
             {
               GdkColor color;
-              int colorNum = g_array_index(bc->organismArr, ALN, ip).color;
+              int colorNum = g_array_index(bc->organismArr, ALN*, ip)->color;
               convertColorNumToGdkColor(colorNum, FALSE, &color); /* we currently don't change the text color when the node is selected */
               
               gdk_gc_set_foreground(gc, &color);
@@ -1700,7 +1834,7 @@ static double treeDrawNode(BelvuContext *bc,
       /* Make a clickable box for the sequence name */
       createClickableRect(properties, node, textX, textY, nameWidth, properties->charHeight, FALSE);
 
-      if (bc->treeShowOrganism && node->organism) 
+      if (treeGetShowOrganism(properties) && node->organism) 
         {
           drawText(widget, drawable, gc, curX + nameWidth + DEFAULT_XPAD * 2, y - properties->charHeight / 2, node->organism, NULL, NULL);
         }
@@ -1720,7 +1854,7 @@ static double treeDrawNode(BelvuContext *bc,
   gdk_draw_line(drawable, gc, curX, y, x, y);
   createClickableRect(properties, node, x, y - properties->charHeight/2, curX - x, properties->charHeight, TRUE);
   
-  if (bc->treeShowBranchlen && node->branchlen) 
+  if (treeGetShowBranchLen(properties) && node->branchlen) 
     {
       /* Draw the branch label, which shows the branch length */
       char *tmpStr = blxprintf("%.1f", node->branchlen);
@@ -1734,18 +1868,19 @@ static double treeDrawNode(BelvuContext *bc,
     }
   
   /* This prints the tree bootstrap statistics */
-  if (bc->treebootstraps && !node->name && node != bc->treeHead && !bc->treebootstrapsDisplay) 
+  if (bc->treebootstraps && !node->name && node != properties->tree->head && !bc->treebootstrapsDisplay) 
     {
       GdkColor *color = getGdkColor(BELCOLOR_TREE_BOOTSTRAP, bc->defaultColors, FALSE, FALSE);
       gdk_gc_set_foreground(gc, color);
 
       char *tmpStr = blxprintf("%.0f", node->boot);
-      double pos = curX - strlen(tmpStr) - 0.5;
+      const int textWidth = getTextWidth(widget, tmpStr);
+      double pos = curX - textWidth - 0.5;
       
       if (pos < 0.0) 
         pos = 0;
       
-      printf("%f  %f   \n", node->boot, pos);
+      printf("%f  %f   \n", node->boot, pos / properties->charWidth);
       drawText(widget, drawable,  gc, pos, y, tmpStr, NULL, NULL);
 
       g_free(tmpStr);
@@ -1758,46 +1893,43 @@ static double treeDrawNode(BelvuContext *bc,
 }
 
 
-static void destroyTree(Tree **tree)
+/* Destroy the contents of the given tree and reset all member variables to
+ * empty values. Does not destroy the tree struct itself */
+void destroyTreeContents(Tree *tree)
 {
+  if (tree == NULL)
+    return;
+
+  /* Free all memory used by the tree nodes */
+  if (tree->head)
+    destroyTreeNode(&tree->head);
+
+  tree->head = NULL;
+}
+
+
+/* Destroy the given tree's contents and the tree itself. */
+void destroyTree(Tree **tree)
+{
+  if (tree == NULL)
+    return;
+  
+  destroyTreeContents(*tree);
+  
+  /* Free the tree struct */
   g_free(*tree);
   *tree = NULL;
 }
 
 
+/* Create a tree struct, initialised with sensible empty values */
 static Tree* createEmptyTree()
 {
   Tree *result = g_malloc(sizeof *result);
   
   result->head = NULL;
-  result->lastNodeBox = 0;
-  result->currentPickedBox = 0;
   
   return result;
-}
-
-
-/* Utility to search through the alignment array and set the 
- * selected alignment to the alignment whose name and coords
- * are given in alnp. Nasty hack to get around cases where
- * separatemarkuplines/reinsertmarkuplines messes up the
- * selected alignment pointer. */
-static void refindSelectedAln(BelvuContext *bc, ALN *alnToSelect)
-{
-  if (!alnToSelect)
-    return;
-  
-  int i = 0;
-  for ( ; i < bc->alignArr->len; ++i)
-    {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
-      
-      if (alnToSelect->start == alnp->start && alnToSelect->end == alnp->end &&
-	  stringsEqual(alnToSelect->name, alnp->name, TRUE))
-	{
-	  bc->selectedAln = alnp;
-	}
-    }
 }
 
 
@@ -1805,26 +1937,23 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
 {
   BelvuContext *bc = properties->bc;
 
-  if (!bc->treeHead)
+  if (!properties->tree || !properties->tree->head)
     return;
   
   /* Clear any previous clickable rects that were created */
   g_array_unref(properties->clickableRects);
   properties->clickableRects = g_array_new(FALSE, FALSE, sizeof(ClickableRect));
   
-  Tree *treeStruct = createEmptyTree();
-  treeStruct->head = bc->treeHead;
-
   bc->maxTreeWidth = 0;
   bc->tree_y = 1;
 
   GdkGC *gc = gdk_gc_new(drawable);
   GdkColor *defaultColor = getGdkColor(BELCOLOR_TREE_LINE, bc->defaultColors, FALSE, FALSE);
-  gdk_gc_set_line_attributes(gc, bc->treeLineWidth * properties->charWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
+  gdk_gc_set_line_attributes(gc, treeGetLineWidth(properties) * properties->charWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
   
-  treeDrawNode(bc, widget, drawable, gc, properties, defaultColor, treeStruct, treeStruct->head, properties->treeRect.x);
+  treeDrawNode(bc, widget, drawable, gc, properties, defaultColor, properties->tree->head, properties->treeRect.x);
 
-  int xscale = bc->treeScale * properties->charWidth;
+  int xscale = treeGetScale(properties) * properties->charWidth;
   int yscale = properties->charHeight;
   
   const int markerHt = 0.5 * yscale;
@@ -1882,10 +2011,9 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
       int y = bc->tree_y * yscale;
 
       double lweight, rweight;
-      TreeNode *tree = treeStruct->head;
       
-      lweight = treeSize3way(tree->left, tree);
-      rweight = treeSize3way(tree->right, tree);
+      lweight = treeSize3way(properties->tree->head->left, properties->tree->head);
+      rweight = treeSize3way(properties->tree->head->right, properties->tree->head);
       
       char *tmpStr = NULL;
 #ifdef DEBUG
@@ -1898,7 +2026,6 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
       g_free(tmpStr);
     }
   
-  destroyTree(&treeStruct);
   g_object_unref(gc);
 }
 
@@ -1921,28 +2048,9 @@ static gboolean onExposeBelvuTree(GtkWidget *widget, GdkEventExpose *event, gpoi
           bitmap = createBlankSizedPixmap(widget, window, properties->treeRect.x * 2 + properties->treeRect.width, 
                                           properties->treeRect.y * 2 + properties->treeRect.height);
           
-	  /* Remember the selected alignment name because its pointer
-	   * gets messed up by separate/reinsert markup lines. */
-	  ALN aln;
-	  gboolean hasSelection = FALSE;
-	
-	  if (properties->bc->selectedAln && properties->bc->selectedAln->name)
-	    {
-	      hasSelection = TRUE;
-	      initAln(&aln);
-	      strcpy(aln.name, properties->bc->selectedAln->name);
-	      aln.start = properties->bc->selectedAln->start;
-	      aln.end = properties->bc->selectedAln->end;
-	    }
-	
           separateMarkupLines(properties->bc);
           drawBelvuTree(widget, bitmap, properties);
           reInsertMarkupLines(properties->bc);
-	
-	  if (hasSelection)
-	    {
-	      refindSelectedAln(properties->bc, &aln);
-	    }
         }
       
       if (bitmap)
@@ -1990,7 +2098,7 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
       
       if (pointInRect(x, y, &clickRect->rect))
         {
-          foundRect= clickRect;
+          foundRect = clickRect;
           break; /* we shouldn't have overlapping items, so exit once we have found one */
         }
     }
@@ -1999,6 +2107,8 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
     {
       if (foundRect->isBranch)
         {
+          BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
+
           /* We clicked on a tree branch - swap or re-root */
           if (bc->treePickMode == NODESWAP)
             {
@@ -2006,11 +2116,8 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
             }
           else if (bc->treePickMode == NODEROOT)
             {
-              /* Re-routing changes the tree's head node, so make sure
-               * to update it in the context as well as our properties. */
-              TreeNode *newHead = treeReroot(foundRect->node);
-
-              setTreeHead(bc, newHead);
+              /* Re-routing changes the tree's head node. */
+              properties->tree->head = treeReroot(foundRect->node);
               
               /* Re-routing can also affect the drawing area size, so recalculate borders */
               calculateBelvuTreeBorders(belvuTree);
@@ -2020,27 +2127,17 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
               g_warning("Program error: unrecognised tree selection mode '%d'.\n", bc->treePickMode);
             }
           
-          onTreeOrderChanged(bc);
+          belvuTreeRedrawAll(belvuTree, NULL);
+
+          /* If this is the main tree, then we need to update the main alignment
+           * to reflect the new tree order. */
+          if (properties->isMainTree)
+            onTreeOrderChanged(bc);
         }
       else if (foundRect->node)
         {
-	  bc->selectedAln = NULL; /* reset to null in case of any problems */
-	
-          /* We clicked on a node name - select this alignment. We need to separate
-	   * markup lines to get the correct aln, but we can't just use the aln pointer
-	   * because reinsertmarkuplines will change it; therefore we need to find the 
-	   * name in the re-jigged array. */
-	  separateMarkupLines(bc);
-	
-	  ALN aln;
-	  initAln(&aln);
-	  str2aln(bc, foundRect->node->name, &aln);
-	  aln.nr = foundRect->node->aln->nr;
-	    
-	  reInsertMarkupLines(bc);
-	  refindSelectedAln(bc, &aln);
-	
-	  onRowSelectionChanged(bc);
+          bc->selectedAln = foundRect->node->aln;
+          onRowSelectionChanged(bc);
         }
     }
 }
@@ -2252,7 +2349,7 @@ gboolean onBuildMethodChanged(GtkWidget *combo, const gint responseId, gpointer 
   /* This change invalidates the tree, so set the tree head to null to indicate this */
   if (origVal != bc->treeMethod)
     {
-      setTreeHead(bc, NULL);
+      belvuContextSetTree(bc, NULL);
     }
   
   return TRUE;
@@ -2271,7 +2368,7 @@ gboolean onDistCorrChanged(GtkWidget *combo, const gint responseId, gpointer dat
   /* This change invalidates the tree, so set the tree head to null to indicate this */
   if (origVal != bc->treeDistCorr)
     {
-      setTreeHead(bc, NULL);
+      belvuContextSetTree(bc, NULL);
     }
   
   return TRUE;
@@ -2377,6 +2474,7 @@ static void createTreeBuildMethodButtons(BelvuContext *bc, GtkBox *box, BelvuBui
 /* Utility function to create the content for the tree settings dialog */
 GtkWidget* createTreeSettingsDialogContent(BelvuContext *bc, 
                                            GtkWidget *dialog, 
+                                           const gboolean isMainTree,
                                            double *treeScale,
                                            double *lineWidth,
                                            gboolean *showBranchLen, 
@@ -2390,7 +2488,11 @@ GtkWidget* createTreeSettingsDialogContent(BelvuContext *bc,
   
   static GtkWidget *treeScaleEntry = NULL;
   
-  createTreeBuildMethodButtons(bc, vbox, buildMethod, distCorr, &treeScaleEntry);
+  /* Only give the option to change the build method for the main belvu tree */
+  if (isMainTree)
+    createTreeBuildMethodButtons(bc, vbox, buildMethod, distCorr, &treeScaleEntry);
+
+  /* For all trees, give the option to change display settings */
   GtkWidget *content = createTreeDisplayOptsButtons(vbox, treeScale, lineWidth, showBranchLen, showOrganism, &treeScaleEntry);
   createTreeInteractionButtons(vbox, pickMode);
 
@@ -2409,6 +2511,25 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
 {
   BelvuContext *bc = (BelvuContext*)data;
   gboolean destroy = TRUE;
+
+  /* Get the toplevel window that this dialog was created from and if if it's
+   * not a tree window then use the main belvu tree window. */
+  GtkWidget *window = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+  GtkWidget *treeWindow = NULL;
+  gboolean isMainTree = FALSE;
+  
+  if (window && stringsEqual(gtk_widget_get_name(window), BELVU_TREE_WINDOW_NAME, TRUE))
+    {
+      treeWindow = window;
+      BelvuTreeProperties *properties = belvuTreeGetProperties(treeWindow);
+      isMainTree = properties->isMainTree;
+    }
+  else 
+    {
+      treeWindow = bc->belvuTree;
+      isMainTree = TRUE;
+    }
+  
   
   switch (responseId)
   {
@@ -2417,12 +2538,12 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
        * properties. Then refresh the window and show the tree. Destroy dialog
        * if successful. */
       destroy = widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      belvuTreeUpdateSettings(bc);
+      belvuTreeUpdateSettings(bc, treeWindow);
       
-      if (!bc->belvuTree)
-        createAndShowBelvuTree(bc);
+      if (!treeWindow)
+        createAndShowBelvuTree(bc, isMainTree);
       else
-        gtk_window_present(GTK_WINDOW(bc->belvuTree));
+        gtk_window_present(GTK_WINDOW(treeWindow));
         
       break;
       
@@ -2430,7 +2551,7 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
       /* Never destroy */
       destroy = FALSE;
       widgetCallAllCallbacks(GTK_WIDGET(dialog), GINT_TO_POINTER(responseId));
-      belvuTreeUpdateSettings(bc);
+      belvuTreeUpdateSettings(bc, treeWindow);
       break;
       
     case GTK_RESPONSE_CANCEL:
@@ -2463,9 +2584,44 @@ void showTreeSettingsDialog(GtkWidget *window, BelvuContext *bc)
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseTreeSettingsDialog), bc);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   
-  createTreeSettingsDialogContent(bc, dialog, 
-                                  &bc->treeScale, &bc->treeLineWidth,
-                                  &bc->treeShowBranchlen, &bc->treeShowOrganism,
+  GtkWidget *treeWindow = NULL;
+  gboolean isMainTree = FALSE;
+  
+  /* If this is a tree window then check the properties to see if it is the main
+   * window. Otherwise, use the main tree from the context. If it's the main window
+   * then updating the tree settings will change them in the context; otherwise
+   * we use locally-stored properties so that we can change them and only affect
+   * the local tree. (Note that the build method properties are only available
+   * on the main tree.) */
+  double *treeScale = &bc->treeScale;
+  double *lineWidth = &bc->treeLineWidth;
+  gboolean *showBranchLen = &bc->treeShowBranchlen;
+  gboolean *showOrganisms = &bc->treeShowOrganism;
+  
+  if (window && stringsEqual(gtk_widget_get_name(window), BELVU_TREE_WINDOW_NAME, TRUE))
+    {
+      treeWindow = window;
+      BelvuTreeProperties *properties = belvuTreeGetProperties(treeWindow);
+      isMainTree = properties->isMainTree;
+
+      if (!isMainTree)
+        {
+          /* Use locally-stored properties */
+          treeScale = &properties->treeScale;
+          lineWidth = &properties->lineWidth;
+          showBranchLen = &properties->showBranchLen;
+          showOrganisms = &properties->showOrganism;
+        }
+    }
+  else
+    {
+      treeWindow = bc->belvuTree;
+      isMainTree = TRUE;
+    }
+
+  createTreeSettingsDialogContent(bc, dialog, isMainTree,
+                                  treeScale, lineWidth,
+                                  showBranchLen, showOrganisms,
                                   &bc->treePickMode, &bc->treeMethod, &bc->treeDistCorr);
   
   gtk_widget_show_all(dialog);
@@ -2481,7 +2637,7 @@ static void calculateNodeWidth(BelvuTreeProperties *properties, TreeNode *node, 
   if (!node)
     return;
   
-  const int curX = x + (node->branchlen * properties->bc->treeScale * properties->charWidth);
+  const int curX = x + (node->branchlen * treeGetScale(properties) * properties->charWidth);
   
   /* Recurse left and right */
   calculateNodeWidth(properties, node->left, curX);
@@ -2505,8 +2661,11 @@ static void calculateBelvuTreeBorders(GtkWidget *belvuTree)
   
   BelvuTreeProperties *properties = belvuTreeGetProperties(belvuTree);
 
+  if (!properties || !properties->tree || !properties->tree->head)
+    return;
+  
   /* This loops through all nodes and calculates the max tree width */
-  calculateNodeWidth(properties, properties->bc->treeHead, properties->treeRect.x);
+  calculateNodeWidth(properties, properties->tree->head, properties->treeRect.x);
   
   int treeHeight = (properties->bc->alignArr->len + 7) * properties->charHeight;
   
@@ -2541,7 +2700,7 @@ static void setBelvuTreeStyle(BelvuContext *bc, GtkWidget *belvuTree)
 
 /* Create a widget for drawing a tree. Returns the GtkLayout widget that 
  * does the drawing. Places the widget into the given parent box. */
-static GtkWidget* createBelvuTreeWidget(BelvuContext *bc, TreeNode *treeHead, GtkBox *box)
+static GtkWidget* createBelvuTreeWidget(BelvuContext *bc, GtkBox *box)
 {
   /* Create the drawing area */
   GtkWidget *treeArea = gtk_layout_new(NULL, NULL);
@@ -2582,14 +2741,18 @@ static void setTreeWindowStyleProperties(GtkWidget *window)
 
 
 /* Display an existing tree. Opens in a new window. */
-GtkWidget* createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
+GtkWidget* createBelvuTreeWindow(BelvuContext *bc, Tree *tree, const gboolean isMainTree)
 {
   /* Create the window */
   GtkWidget *belvuTree = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   setTreeWindowStyleProperties(belvuTree);
 
-  char *title = blxprintf("Belvu - %s using %s distances of %s", 
-                          bc->treeMethod == NJ ? "Neighbor-joining tree" : "UPGMA tree",
+  const char *titlePrefix = (isMainTree ? TITLE_MAIN_TREE_PREFIX : TITLE_BOOTSTRAP_TREE_PREFIX);
+  const char *titleDesc = (bc->treeMethod == NJ ? TITLE_NJ_TREE_DESCRIPTION : TITLE_UPGMA_TREE_DESCRIPTION);
+  
+  char *title = blxprintf("Belvu - %s%stree using %s distances of %s", 
+                          titlePrefix, 
+                          titleDesc,
                           bc->treeDistString,
                           bc->Title);
   
@@ -2599,8 +2762,9 @@ GtkWidget* createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
   /* We must add all toplevel windows to the list of spawned windows */
   bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, belvuTree);
 
-  /* Remember all trees that we create so that we can perform updates on them */
-  bc->belvuTree = belvuTree;
+  /* If this is the main tree, then set it in the context */
+  if (isMainTree)
+    bc->belvuTree = belvuTree;
 
   /* Create the context menu and set a callback to show it */
   GtkActionGroup *actionGroup = NULL;
@@ -2615,10 +2779,10 @@ GtkWidget* createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
   gtk_container_add(GTK_CONTAINER(belvuTree), vbox);
   
   /* Add the alignment section */
-  GtkWidget *treeArea = createBelvuTreeWidget(bc, treeHead, GTK_BOX(vbox));
+  GtkWidget *treeArea = createBelvuTreeWidget(bc, GTK_BOX(vbox));
 
   /* Set the properties on the tree window */
-  belvuTreeCreateProperties(belvuTree, bc, actionGroup, treeArea, bc->treeMethod, bc->treeDistCorr);
+  belvuTreeCreateProperties(belvuTree, bc, tree, isMainTree, actionGroup, treeArea, bc->treeMethod, bc->treeDistCorr);
 
   /* Set the initial size (must be called after properties are set) */
   calculateBelvuTreeBorders(belvuTree);
@@ -2634,30 +2798,36 @@ GtkWidget* createBelvuTreeWindow(BelvuContext *bc, TreeNode *treeHead)
   
   /* Set the font size to be the same as the main alignment window */
   if (bc->belvuAlignment)
-    widgetSetFontSize(bc->belvuTree, GINT_TO_POINTER(pango_font_description_get_size(bc->belvuAlignment->style->font_desc) / PANGO_SCALE));
+    widgetSetFontSize(belvuTree, GINT_TO_POINTER(pango_font_description_get_size(bc->belvuAlignment->style->font_desc) / PANGO_SCALE));
                       
-  onBelvuTreeFontSizeChanged(bc->belvuTree);
+  onBelvuTreeFontSizeChanged(belvuTree);
 
   return belvuTree;
 }
 
 
-/* Create a new tree and create a tree-window to display it. */
-GtkWidget* createAndShowBelvuTree(BelvuContext *bc)
+/* Create a new tree and create a tree-window to display it. If isMainTree is 
+ * true then set this as the main belvu tree. */
+GtkWidget* createAndShowBelvuTree(BelvuContext *bc, const gboolean isMainTree)
 {
   GtkWidget *belvuTree = NULL;
   
-  if (!bc->treeHead)
+  /* For the main tree, use the existing tree nodes if any; otherwise create
+   * one. For other trees, we always need to create the tree nodes. */
+  if (!isMainTree || !bc->mainTree || !bc->mainTree->head)
     {
       separateMarkupLines(bc);
-      TreeNode *treeHead = treeMake(bc, TRUE);
-      setTreeHead(bc, treeHead);
-      belvuTree = createBelvuTreeWindow(bc, bc->treeHead);
+      Tree *tree = treeMake(bc, TRUE, TRUE);
+      
+      if (isMainTree)
+        belvuContextSetTree(bc, &tree);
+          
+      belvuTree = createBelvuTreeWindow(bc, tree, isMainTree);
       reInsertMarkupLines(bc);
     }
   else
     {
-      belvuTree = createBelvuTreeWindow(bc, bc->treeHead);
+      belvuTree = createBelvuTreeWindow(bc, bc->mainTree, isMainTree);
     }
   
   return belvuTree;

@@ -294,7 +294,7 @@ static const GtkActionEntry menuEntries[] = {
   { "Find",                GTK_STOCK_FIND,       "_Find...",           "<control>F",        "Find  Ctrl+F",          G_CALLBACK(onFindMenu)},
   { "Wrap", 	           NULL,                 WrapStr,              NULL,                WrapDesc,                G_CALLBACK(onWrapMenu)},
   { "ShowTree",	           NULL,                 "Show _tree",         NULL,                "Show tree",             G_CALLBACK(onShowTreeMenu)},
-  { "RecalcTree",          NULL,                 "Recalculate tree",   NULL,                "Recalculate tree (e.g. after alignment has changed", G_CALLBACK(onRecalcTreeMenu)},
+  { "RecalcTree",          NULL,                 "Recalculate tree",   NULL,                "Recalculate tree (e.g. after alignment has changed or to reset after swapping nodes)",      G_CALLBACK(onRecalcTreeMenu)},
   { "TreeOpts",	           GTK_STOCK_PREFERENCES,"Tree settings...",   NULL,                "Edit tree settings",    G_CALLBACK(onTreeOptsMenu)},
   { "ConsPlot",	           NULL,                 ConsPlotStr,          NULL,                ConsPlotDesc,            G_CALLBACK(onConsPlotMenu)},
   { "Save",                GTK_STOCK_SAVE,       "_Save",              "<control>S",        "Save alignment",        G_CALLBACK(onSaveMenu)},
@@ -717,10 +717,10 @@ static void onShowTreeMenu(GtkAction *action, gpointer data)
     {
       /* If the tree exists, create a window from it. Otherwise we need to
        * create it before we show it. */
-      if (properties->bc->treeHead)
-        createBelvuTreeWindow(properties->bc, properties->bc->treeHead);
+      if (properties->bc->mainTree && properties->bc->mainTree->head)
+        createBelvuTreeWindow(properties->bc, properties->bc->mainTree, TRUE);
       else
-        createAndShowBelvuTree(properties->bc);
+        createAndShowBelvuTree(properties->bc, TRUE);
     }
 
   if (properties->bc->belvuTree)
@@ -770,10 +770,10 @@ static void onRecalcTreeMenu(GtkAction *action, gpointer data)
     {
       /* No tree window, but make/re-make the underlying tree structure */
       separateMarkupLines(bc);
-      TreeNode *headNode = treeMake(bc, FALSE);
+      Tree *tree = treeMake(bc, FALSE, TRUE);
       reInsertMarkupLines(bc);
       
-      setTreeHead(bc, headNode);
+      belvuContextSetTree(bc, &tree);
       onTreeOrderChanged(bc);
     }
 }
@@ -1068,7 +1068,7 @@ static void onunhideMenu(GtkAction *action, gpointer data)
   int i = 0;
   for (i = 0; i < properties->bc->alignArr->len; ++i)
     {
-      g_array_index(properties->bc->alignArr, ALN, i).hide = FALSE;
+      g_array_index(properties->bc->alignArr, ALN*, i)->hide = FALSE;
     }
   
   belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
@@ -1399,9 +1399,13 @@ static void ondisplayColorsMenu(GtkAction *action, gpointer data)
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   
-  properties->bc->displayColors = !properties->bc->displayColors;
+  const gboolean newVal = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
   
-  belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
+  if (properties->bc->displayColors != newVal)
+    {
+      properties->bc->displayColors = newVal;
+      belvuAlignmentRedrawAll(properties->bc->belvuAlignment);
+    }
 }
 
 static void onlowercaseMenu(GtkAction *action, gpointer data)
@@ -1435,7 +1439,7 @@ static void onSaveTreeMenu(GtkAction *action, gpointer data)
   
   if (file)
     {
-      saveTreeNH(bc->treeHead, bc->treeHead, file);
+      saveTreeNH(bc->mainTree, bc->mainTree->head, file);
 
       /* Add a terminating line and close the file. */
       fprintf(file, ";\n");
@@ -1449,22 +1453,23 @@ static void onFindOrthogsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *window = GTK_WIDGET(data);
   BelvuContext *bc = windowGetContext(window);
-  
-  if (!bc->treeHead)
-    {
-      g_critical("Tree has not been calculated.\n");
-    }
-  else
-    {
-      bc->highlightOrthologs = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
-      
-      /* If turning the option on, print the orthologs to stdout */
-      if (bc->highlightOrthologs)
-        treePrintOrthologs(bc);
 
-      /* Refresh the tree to show or hide the orthologs */
-      belvuTreeRedrawAll(bc->belvuTree, NULL);
-    }
+  GtkWidget *treeWindow = NULL;
+  
+  /* If the current window is a tree, use that; otherwise use the main belvu tree */
+  if (stringsEqual(gtk_widget_get_name(window), BELVU_TREE_WINDOW_NAME, TRUE))
+    treeWindow = window;
+  else
+    treeWindow = bc->belvuTree;
+  
+  bc->highlightOrthologs = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
+      
+  /* If turning the option on, print the orthologs to stdout */
+  if (bc->highlightOrthologs)
+    treePrintOrthologs(bc, treeWindow);
+
+  /* Refresh the tree to show or hide the orthologs */
+  belvuTreeRedrawAll(bc->belvuTree, NULL);
 }
 
 static void onShowOrgsMenu(GtkAction *action, gpointer data)
@@ -2011,7 +2016,7 @@ static void findSeqs(BelvuContext *bc, const char *searchStr, const gboolean fin
 
   for ( ; i >= 0 && i < bc->alignArr->len; i += increment)
     {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
 
       if (wildcardSearch(alnp->name, searchStr))
         {
@@ -2034,7 +2039,7 @@ static void findSeqs(BelvuContext *bc, const char *searchStr, const gboolean fin
 
       for ( ; i >= 0 && i < bc->alignArr->len; i += increment)
         {
-          ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+          ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
 
           if (wildcardSearch(alnp->name, searchStr))
             {
@@ -2531,7 +2536,7 @@ static void showSelectGapCharDialog(GtkWidget *belvuWindow)
           int i,j;
           for (i = 0; i < bc->alignArr->len; ++i) 
             {
-              ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+              ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
               char *alnpSeq = alnGetSeq(alnp);
               
               for (j = 0; j < bc->maxLen; ++j) 
@@ -3420,7 +3425,7 @@ static void drawOrganisms(GtkWidget *widget, GdkDrawable *drawable, BelvuContext
 
   for ( ; i < bc->organismArr->len; ++i) 
     {
-      ALN *alnp = &g_array_index(bc->organismArr, ALN, i);
+      ALN *alnp = g_array_index(bc->organismArr, ALN*, i);
     
       convertColorNumToGdkColor(alnp->color, FALSE, &color);
       gdk_gc_set_foreground(gc, &color);
@@ -3673,7 +3678,7 @@ void onRowSelectionChanged(BelvuContext *bc)
   centerHighlighted(bc, bc->belvuAlignment);
   
   /* Redraw all of the trees */
-  belvuTreeRedrawAll(bc->belvuTree, NULL);
+  g_slist_foreach(bc->spawnedWindows, belvuTreeRedrawAll, NULL);
   
   /* Set the status of the 'exclude highlighted' toggle menu option
    * depending on whether the newly-selected sequence is selected or not
@@ -3696,7 +3701,7 @@ void onRowSelectionChanged(BelvuContext *bc)
   int i = 0;
   for (i = 0; i < bc->alignArr->len; ++i)
     {
-      ALN *alnp = &g_array_index(bc->alignArr, ALN, i);
+      ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
 
       if (alignmentHighlighted(bc, alnp))
         bc->highlightedAlns = g_slist_prepend(bc->highlightedAlns, alnp);
@@ -3939,38 +3944,6 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
 }
 
 
-/* Create the colors that belvu will use for various specific purposes */
-static void createBelvuColors(BelvuContext *bc, GtkWidget *widget)
-{
-  /* Initialise the array with empty BlxColor structs */
-  bc->defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), BELCOLOR_NUM_COLORS);
-  int i = BELCOLOR_MIN + 1;
-  
-  for ( ; i < BELCOLOR_NUM_COLORS; ++i)
-    {
-      BlxColor *blxColor = g_malloc(sizeof(BlxColor));
-      blxColor->name = NULL;
-      blxColor->desc = NULL;
-      g_array_append_val(bc->defaultColors, *blxColor);
-    }
-  
-  createBlxColor(bc->defaultColors, BELCOLOR_BACKGROUND, "Background", "Background color", BLX_WHITE, BLX_WHITE, "#bdbdbd", NULL);
-  createBlxColor(bc->defaultColors, BELCOLOR_ALIGN_TEXT, "Text color for alignments", "Text color for alignments", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc->defaultColors, BELCOLOR_COLUMN_HIGHLIGHT, "Highlight color for selected column", "Highlight color for selected column",  "#dddddd", BLX_BLACK, NULL, NULL);
-
-  /* Trees */
-  createBlxColor(bc->defaultColors, BELCOLOR_TREE_BACKGROUND, "Tree background", "Tree background color", BLX_WHITE, BLX_WHITE, NULL, NULL);
-  createBlxColor(bc->defaultColors, BELCOLOR_TREE_LINE, "Default tree line color", "Default tree line color", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc->defaultColors, BELCOLOR_TREE_TEXT, "Default tree text color", "Default tree text color", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc->defaultColors, BELCOLOR_TREE_BOOTSTRAP, "Tree boostrap line color", "Tree boostrap line color", BLX_BLUE, BLX_BLUE, NULL, NULL);
-
-  /* Conservation plot */
-  createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT, "Line color of the conservation plot", "Line color of the conservation plot", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT_AVG, "Average-conservation line color on the conservation profile", "Average-conservation line color on the conservation profile", BLX_RED, BLX_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT_SCALE, "Scale color for the conservation profile", "Scale color for the conservation profile", BLX_DARK_GREY, BLX_DARK_GREY, NULL, NULL);
-}
-
-
 /* Set various properties for the main belvu window components */
 static void setStyleProperties(GtkWidget *window, GtkToolbar *toolbar)
 {
@@ -4014,9 +3987,6 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   char *title = blxprintf("Belvu - %s", bc->Title);
   gtk_window_set_title(GTK_WINDOW(window), title);
   g_free(title);
-  
-  /* Create the list of default colors */
-  createBelvuColors(bc, window);
   
   /* Create the status bar */
   GtkWidget *statusBar = gtk_statusbar_new();
@@ -4096,7 +4066,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   /* Show the tree on startup, if requested */
   if (bc->initTree)
     {
-      createAndShowBelvuTree(bc);
+      createAndShowBelvuTree(bc, TRUE);
       onBelvuTreeFontSizeChanged(bc->belvuTree);
     }
   
@@ -4104,12 +4074,14 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
     {
       gtk_window_present(GTK_WINDOW(window));
       
-      BelvuWindowProperties *properties = belvuWindowGetProperties(window);
-      setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->consScheme);
-      setRadioMenuStatus(properties->actionGroup, "colorSchemeStandard", properties->bc->consScheme);
+      if (bc->sortType)
+        setRadioMenuStatus(actionGroup, "defaultSort", bc->sortType);
       
+      setRadioMenuStatus(actionGroup, "colorSchemeStandard", bc->consScheme);
+      setToggleMenuStatus(actionGroup, "displayColors", bc->displayColors);
+
       if (bc->initTree)
-        belvuAlignmentRedrawAll(properties->bc->belvuAlignment); /* redraw, because tree creation removes markup which can mess this up */
+        belvuAlignmentRedrawAll(bc->belvuAlignment); /* redraw, because tree creation removes markup which can mess this up */
     }
   
   return ok;
