@@ -368,7 +368,8 @@ static const GtkRadioActionEntry colorSchemeMenuEntries[] = {
 };
 
 static const GtkRadioActionEntry sortMenuEntries[] = {
-  {"defaultSort",          NULL,                     "by conservation",                    NULL, "Sort by conservation order",        BELVU_SORT_CONS},
+  {"unsorted",             NULL,                     "unsorted",                           NULL, "Unsorted",                          BELVU_UNSORTED},
+  {"consSort",             NULL,                     "by conservation",                    NULL, "Sort by conservation",              BELVU_SORT_CONS},
   {"scoreSort",            NULL,                     "by score",                           NULL, "Sort by score",                     BELVU_SORT_SCORE},
   {"alphaSort",            GTK_STOCK_SORT_ASCENDING, "alphabetically",                     NULL, "Sort alphabetically",               BELVU_SORT_ALPHA},
   {"organismSort",         NULL,                     "by swissprot organism",              NULL, "Sort by swissprot organism",        BELVU_SORT_ORGANISM},
@@ -3709,6 +3710,13 @@ void onRowSelectionChanged(BelvuContext *bc)
 
   /* Update the feedback box */
   updateFeedbackBox(properties->bc, properties->feedbackBox);
+  
+  /* If the current sort method is by similarity/id to the selected sequence,
+   * this has effectively been 'invalidated' by the fact that the selected
+   * sequence has changed. We don't undo the sort, but we must set the sort
+   * method to 'unsorted' so that the user can re-select the sort-by-sim/sort-by-id
+   * radio button if they want to sort by similarity/id to the newly-selected sequence */
+  setRadioMenuStatus(properties->actionGroup, "unsorted", BELVU_UNSORTED);
 }
 
 
@@ -4075,7 +4083,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
       gtk_window_present(GTK_WINDOW(window));
       
       if (bc->sortType)
-        setRadioMenuStatus(actionGroup, "defaultSort", bc->sortType);
+        setRadioMenuStatus(actionGroup, "unsorted", bc->sortType);
       
       setRadioMenuStatus(actionGroup, "colorSchemeStandard", bc->consScheme);
       setToggleMenuStatus(actionGroup, "displayColors", bc->displayColors);
