@@ -2671,13 +2671,21 @@ static void calculateBelvuTreeBorders(GtkWidget *belvuTree)
   
   if (treeHeight > MAX_PIXMAP_HEIGHT)
     {
-      treeHeight = MAX_PIXMAP_WIDTH;
+      treeHeight = MAX_PIXMAP_HEIGHT;
       g_warning("The tree window is too large and will be clipped.\n");
     }
 
+  int treeWidth = properties->bc->maxTreeWidth;
+  
+  if (treeWidth > MAX_PIXMAP_WIDTH)
+    {
+      treeWidth = MAX_PIXMAP_WIDTH;
+      g_warning("The tree window is too large and will be clipped.\n");
+    }
+  
   properties->treeRect.x = DEFAULT_XPAD;
   properties->treeRect.y = DEFAULT_YPAD;
-  properties->treeRect.width = properties->bc->maxTreeWidth;
+  properties->treeRect.width = treeWidth;
   properties->treeRect.height = treeHeight;
   
   gtk_layout_set_size(GTK_LAYOUT(properties->treeArea), DEFAULT_XPAD * 2 + properties->treeRect.width, 
