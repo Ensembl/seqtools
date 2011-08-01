@@ -1944,7 +1944,6 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
   g_array_unref(properties->clickableRects);
   properties->clickableRects = g_array_new(FALSE, FALSE, sizeof(ClickableRect));
   
-  bc->maxTreeWidth = 0;
   bc->tree_y = 1;
 
   GdkGC *gc = gdk_gc_new(drawable);
@@ -2045,12 +2044,15 @@ static gboolean onExposeBelvuTree(GtkWidget *widget, GdkEventExpose *event, gpoi
       if (!bitmap)
         {
           /* There isn't a bitmap yet. Create it now. */
-          bitmap = createBlankSizedPixmap(widget, window, properties->treeRect.x * 2 + properties->treeRect.width, 
-                                          properties->treeRect.y * 2 + properties->treeRect.height);
-          
-          separateMarkupLines(properties->bc);
-          drawBelvuTree(widget, bitmap, properties);
-          reInsertMarkupLines(properties->bc);
+          if (properties->treeRect.width > 0 && properties->treeRect.height > 0)
+            {
+              bitmap = createBlankSizedPixmap(widget, window, properties->treeRect.x * 2 + properties->treeRect.width, 
+                                              properties->treeRect.y * 2 + properties->treeRect.height);
+              
+              separateMarkupLines(properties->bc);
+              drawBelvuTree(widget, bitmap, properties);
+              reInsertMarkupLines(properties->bc);
+            }
         }
       
       if (bitmap)
@@ -2665,6 +2667,7 @@ static void calculateBelvuTreeBorders(GtkWidget *belvuTree)
     return;
   
   /* This loops through all nodes and calculates the max tree width */
+  properties->bc->maxTreeWidth = 0;
   calculateNodeWidth(properties, properties->tree->head, properties->treeRect.x);
   
   int treeHeight = (properties->bc->alignArr->len + 7) * properties->charHeight;
@@ -2801,14 +2804,14 @@ GtkWidget* createBelvuTreeWindow(BelvuContext *bc, Tree *tree, const gboolean is
   g_signal_connect(G_OBJECT(treeArea), "button-press-event", G_CALLBACK(onButtonPressBelvuTree), belvuTree);  
   g_signal_connect(G_OBJECT(belvuTree), "key-press-event", G_CALLBACK(onKeyPressBelvuTree), bc);
   
-  gtk_widget_show_all(belvuTree);
-  gtk_window_present(GTK_WINDOW(belvuTree));
-  
   /* Set the font size to be the same as the main alignment window */
   if (bc->belvuAlignment)
     widgetSetFontSize(belvuTree, GINT_TO_POINTER(pango_font_description_get_size(bc->belvuAlignment->style->font_desc) / PANGO_SCALE));
-                      
+  
   onBelvuTreeFontSizeChanged(belvuTree);
+
+  gtk_widget_show_all(belvuTree);
+  gtk_window_present(GTK_WINDOW(belvuTree));
 
   return belvuTree;
 }
