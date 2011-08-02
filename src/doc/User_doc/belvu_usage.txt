@@ -56,7 +56,6 @@
               (Negative value -> display bootstrap trees on screen)
   -O <label>  Read organism info after this label (default OS)
   -t <title>  Set window title.
-  -g          Draw grid line (for debugging).
   -u          Start up with uncoloured alignment (faster).
   -h, --help  Show this usage information
   --compiled  Show package compile date
