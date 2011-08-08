@@ -304,10 +304,10 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 
 
 /* Returns true if this is a valid character to expect in a FASTA sequence input */
-static gboolean isValidFastaChar(const char inputChar)
-{
-  return (isalpha(inputChar) || inputChar == SEQUENCE_CHAR_GAP || inputChar == SEQUENCE_CHAR_STOP);
-}
+//static gboolean isValidFastaChar(const char inputChar)
+//{
+//  return (isalpha(inputChar) || inputChar == SEQUENCE_CHAR_GAP || inputChar == SEQUENCE_CHAR_STOP);
+//}
 
 
 /* Read in a FASTA sequence from a FASTA file or stdin */
@@ -329,7 +329,8 @@ static char *readFastaSeqFromStdin(FILE *seqfile, char *seqName, int *startCoord
   
   while (currentChar != '\n') 
     {
-      if (isValidFastaChar(currentChar)) 
+      /* Ignore whitespace/newlines */
+      if (!isWhitespaceChar(currentChar) && !isNewlineChar(currentChar)) 
         g_string_append_c(resultStr, currentChar);
       
       currentChar = fgetc(seqfile);
@@ -389,8 +390,8 @@ static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName, int *startCoo
           
           for ( ; *linePos; linePos++)
             {
-              /* If this is a valid sequence character, copy it into the result string */
-              if (isValidFastaChar(*linePos))
+              /* Ignore whitespace/newlines */
+              if (!isWhitespaceChar(*linePos) && !isNewlineChar(*linePos))
                 {
                   g_string_append_c(currentSeqPtr->seq, *linePos);
                 }

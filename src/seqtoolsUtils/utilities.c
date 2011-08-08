@@ -1366,6 +1366,13 @@ gboolean isWhitespaceChar(const char curChar)
 }
 
 
+/* Utility to return true if the given char is a newline char */
+gboolean isNewlineChar(const char curChar)
+{
+  return (curChar == '\n');
+}
+
+
 /* Get the child of the given widget that has the given name (which could be the given 
  * widget itself.) Assumes there is only one, so returns the first one found. */
 GtkWidget* getNamedChildWidget(GtkWidget *widget, const gchar *searchName)

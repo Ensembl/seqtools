@@ -137,10 +137,11 @@ char *revComplement(char *comp, char *seq)
 
       for (idx = 0; c != iupac[idx].sym && idx < IUPACSYMNUM; idx++);
 
-      if (idx > IUPACSYMNUM)
+      if (idx >= IUPACSYMNUM)
 	{
-	  *fwdp = '\0';
-	  return NULL;
+          /* do nothing, i.e. keep original char */
+//	  *fwdp = '\0';
+//	  return NULL;
 	}
       else
 	{
@@ -180,15 +181,22 @@ void blxComplement(char *seq)
     {
       c = toupper(*fwdp);
 
-      for (idx = 0; c != iupac[idx].sym && idx < IUPACSYMNUM; idx++);
+      for (idx = 0; idx < IUPACSYMNUM; idx++)
+        {
+          if (c == iupac[idx].sym)
+            break;
+        }
 
-      if (idx > IUPACSYMNUM)
+      if (idx >= IUPACSYMNUM)
 	{
-	  *fwdp = '\0';
-	  return;
+          /* do nothing, i.e. keep original char */
+	  //*fwdp = '\0';
+	  //return;
 	}
-
-      else c = iupac[idx].symcomp;
+      else
+        {
+          c = iupac[idx].symcomp;
+        }
 
       if (islower(*fwdp))
 	*fwdp = tolower(c);

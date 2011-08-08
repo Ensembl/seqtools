@@ -382,6 +382,7 @@ char*		      convertIntToString(const int value);
 char*                 convertDoubleToString(const gdouble value, const int numDp);
 int		      convertStringToInt(const char *inputStr);
 gboolean	      isWhitespaceChar(const char curChar);
+gboolean              isNewlineChar(const char curChar);
 char*		      abbreviateText(const char *inputStr, const int maxLen);
 gboolean              stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive);
 gboolean	      isValidIupacChar(const char inputChar, const BlxSeqType seqType);
