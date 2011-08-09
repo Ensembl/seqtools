@@ -1691,125 +1691,75 @@ MSP* createNewMsp(GArray* featureLists[],
 }
 
 
-/* Exons and UTRs don't have phase, but we want to display them in the same reading frame
- * as the CDS, if there is one, so if we have a corresponding CDS copy its reading frame data. */
-static void copyCdsReadingFrame(MSP *exon, MSP *cds, MSP *utr)
+/* Set the given child list in the given exon. Takes ownership of the child list
+ * (and frees it if exon is null).
+ * Exons and UTRs don't have phase, but we want to display them in the same reading frame
+ * as the CDS in the same exon, if there is one; this function copies it to its siblings. */
+static void setExonChildList(MSP *exon, GList *childList)
 {
-  if (cds && exon)
+  if (!exon)
     {
-      exon->qFrame = cds->qFrame;
-      exon->phase = cds->phase;
+      g_list_free(childList);
+      return;
+    }
+
+  /* Take ownership of the child list */
+  if (exon->childMsps)
+    g_list_free(exon->childMsps);
+  
+  exon->childMsps = childList;
+  
+  /* Loop through and see if there's a CDS */
+  int frame = UNSET_INT;
+  int phase = UNSET_INT;
+  gboolean found = FALSE;
+  
+  GList *childItem = exon->childMsps;
+  for ( ; childItem; childItem = childItem->next)
+    {
+      MSP *msp = (MSP*)(childItem->data);
+      
+      if (msp->type == BLXMSP_CDS)
+        {
+          frame = msp->qFrame;
+          phase = msp->phase;
+          found = TRUE;
+          break;
+        }
     }
   
-  if (cds && utr)
+  if (found)
     {
-      utr->qFrame = cds->qFrame;
-      utr->phase = cds->phase;
+      /* Update the exon */
+      exon->qFrame = frame;
+      exon->phase = phase;
+      
+      /* Loop through and update the other msps */
+      for (childItem = exon->childMsps; childItem; childItem = childItem->next)
+        {
+          MSP *msp = (MSP*)(childItem->data);
+          msp->qFrame = frame;
+          msp->phase = phase;
+        }
     }
 }
 
 
-/* Utility used by constructTranscriptData to create a missing exon/cds/utr given 
- * two others out of the three - i.e. if we have an overlapping exon and cds we can
- * construct the corresponding utr. If created, the new msp is added to the given 
- * BlxSequence and the  MSP list. If a CDS is given and no UTR exists, assume the exon
- * spans the entire CDS (and similarly if a UTR is given but no CDS exists) */
-static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr, 
-                                    BlxSequence *blxSeq, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
-                                    GError **error)
+/* Utility to create the msp for the createMissingExonCdsUtr function. */
+static MSP* createMissingMsp(const BlxMspType newType,
+                             const int newStart,
+                             const int newEnd,
+                             const char *qname,
+                             const int newFrame,
+                             BlxStyle *newStyle,
+                             BlxSequence *blxSeq, 
+                             GArray* featureLists[], 
+                             MSP **lastMsp, 
+                             MSP **mspList, 
+                             GList **seqList, 
+                             GError **error)
 {
-  BlxMspType newType = BLXMSP_INVALID; /* only set this if we need to construct an MSP */
-  MSP **ptrToUpdate = NULL;
-  int newStart = UNSET_INT;
-  int newEnd = UNSET_INT;
-  int newFrame = 0;
-  BlxStyle *newStyle = NULL;
-  char *qname = NULL;
-  
-  if (!*exon && (*cds || *utr))
-    {
-      ptrToUpdate = exon;
-      newType = BLXMSP_EXON; /* always create something */
-      
-      /* The exon spans both the cds and utr */
-      if (*cds && *utr)
-        {
-          newStart = min((*cds)->qRange.min, (*utr)->qRange.min);
-          newEnd = max((*cds)->qRange.max, (*utr)->qRange.max);
-          newFrame = (*cds)->qFrame;
-          newStyle = (*cds)->style;
-          qname = (*cds)->qname ? (*cds)->qname : (*utr)->qname;
-        }
-      else if (*cds)
-        {
-          newStart = (*cds)->qRange.min;
-          newEnd = (*cds)->qRange.max;
-          newFrame = (*cds)->qFrame;
-          newStyle = (*cds)->style;
-          qname = (*cds)->qname;
-        }
-      else
-        {
-          newStart = (*utr)->qRange.min;
-          newEnd = (*utr)->qRange.max;
-          newFrame = (*utr)->qFrame;
-          newStyle = (*utr)->style;
-          qname = (*utr)->qname;
-        }
-    }
-  else if (!*cds && *exon && *utr)
-    {
-      ptrToUpdate = cds;
-      newStyle = (*exon)->style;
-      qname = (*exon)->qname ? (*exon)->qname : (*utr)->qname;
-      newFrame = (*exon)->qFrame;
-      
-      /* The cds is the range of the exon that is not in the utr */
-      if ((*utr)->qRange.max < (*exon)->qRange.max)
-        {
-          newType = BLXMSP_CDS;
-          newStart = (*utr)->qRange.max + 1;
-          newEnd = (*exon)->qRange.max;
-        }
-      else if ((*exon)->qRange.min < (*utr)->qRange.min)
-        {
-          newType = BLXMSP_CDS;
-          newStart = (*exon)->qRange.min;
-          newEnd = (*utr)->qRange.min - 1;
-        }
-    }
-  else if (!*utr && *exon && *cds)
-    {
-      ptrToUpdate = utr;
-      newFrame = (*cds)->qFrame;
-      newStyle = (*cds)->style;
-      qname = (*cds)->qname ? (*cds)->qname : (*exon)->qname;
-      
-      /* The utr is the range of the exon that is not in the cds */
-      if ((*exon)->qRange.min < (*cds)->qRange.min)
-        {
-          newType = BLXMSP_UTR;
-          newStart = (*exon)->qRange.min;
-          newEnd = (*cds)->qRange.min - 1;
-        }
-      else if ((*cds)->qRange.max < (*exon)->qRange.max)
-        {
-          newType = BLXMSP_UTR;
-          newStart = (*cds)->qRange.max + 1;
-          newEnd = (*exon)->qRange.max;
-        }
-    }
-  else if (*exon)
-    {
-      /* We just have an exon. Assume it is all utr. */
-      newType = BLXMSP_UTR;
-      newStart = (*exon)->qRange.min;
-      newEnd = (*exon)->qRange.max;
-      newFrame = (*exon)->qFrame;
-      newStyle = (*exon)->style;
-      qname = (*exon)->qname;
-      ptrToUpdate = utr;
-    }
+  MSP *result = NULL;
   
   if (newType != BLXMSP_INVALID)
     {
@@ -1818,12 +1768,12 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
       
       GError *tmpError = NULL;
       
-      *ptrToUpdate = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, blxSeq->source,
-                                  UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
-                                  qname, newStart, newEnd, blxSeq->strand, newFrame, blxSeq->fullName,
-                                  UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
+      result = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, blxSeq->source,
+                            UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
+                            qname, newStart, newEnd, blxSeq->strand, newFrame, blxSeq->fullName,
+                            UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
       
-      (*ptrToUpdate)->style = newStyle;
+      result->style = newStyle;
       
       if (tmpError)
         {
@@ -1832,14 +1782,104 @@ static void createMissingExonCdsUtr(MSP **exon, MSP **cds, MSP **utr,
         }
     }
   
-  /* We should now have all the bits. Set the relationship data. */
-  if (*exon && (*cds || *utr))
+  return result;
+}
+
+
+/* We have an exon and one or more child CDS/UTRs. Check whether there is a gap
+ * at the startor end of the exon and, if so, construct a CDS/UTR to fill it. */
+static void createMissingCdsUtr(MSP *exon,
+                                GList **childList,
+                                BlxSequence *blxSeq, 
+                                GArray* featureLists[], 
+                                MSP **lastMsp, 
+                                MSP **mspList, 
+                                GList **seqList, 
+                                GError **error)
+{
+  MSP *startMsp = (MSP*)(g_list_first(*childList)->data);
+  MSP *endMsp = (MSP*)(g_list_last(*childList)->data);
+  
+  if (exon->qRange.min < startMsp->qRange.min)
     {
-      if (*cds)
-        (*exon)->childMsps = g_list_append((*exon)->childMsps, *cds);
-      
-      if (*utr)
-        (*exon)->childMsps = g_list_append((*exon)->childMsps, *utr);
+      const BlxMspType type = (startMsp->type == BLXMSP_CDS ? BLXMSP_UTR : BLXMSP_CDS);
+      MSP *result = createMissingMsp(type, exon->qRange.min, startMsp->qRange.min - 1, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+      *childList = g_list_append(*childList, result);
+    }
+
+  if (exon->qRange.max > endMsp->qRange.max)
+    {
+      const BlxMspType type = (endMsp->type == BLXMSP_CDS ? BLXMSP_UTR : BLXMSP_CDS);
+      MSP *result = createMissingMsp(type, endMsp->qRange.max + 1, exon->qRange.max, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+      *childList = g_list_append(*childList, result);
+    }
+}
+
+
+/* Create a UTR that spans the given exon, and add it to the given childList */
+static void createMissingUtr(MSP *exon,
+                             GList **childList,
+                             BlxSequence *blxSeq, 
+                             GArray* featureLists[], 
+                             MSP **lastMsp, 
+                             MSP **mspList, 
+                             GList **seqList, 
+                             GError **error)
+{
+  MSP *result = createMissingMsp(BLXMSP_UTR, exon->qRange.min, exon->qRange.max, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+  *childList = g_list_append(*childList, result);
+}
+
+
+/* Create an exon that spans the given child CDSs/UTRs. Must not be called with
+ * an empty childList. */
+static MSP* createMissingExon(GList *childList,
+                              BlxSequence *blxSeq, 
+                              GArray* featureLists[], 
+                              MSP **lastMsp, 
+                              MSP **mspList, 
+                              GList **seqList, 
+                              GError **error)
+{
+  /* Get the max and min extent of the children. They should be in order
+   * of increasing coords and should not overlap etc. */
+  MSP *startMsp = (MSP*)(g_list_first(childList)->data);
+  MSP *endMsp = (MSP*)(g_list_last(childList)->data);
+  
+  MSP *result = createMissingMsp(BLXMSP_EXON, startMsp->qRange.min, endMsp->qRange.max, startMsp->qname, startMsp->qFrame, startMsp->style, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+  return result;
+}
+
+
+/* Utility used by constructTranscriptData to create a missing exon/cds/utr given 
+ * two others out of the three - i.e. if we have an overlapping exon and cds we can
+ * construct the corresponding utr. If created, the new msp is added to the given 
+ * BlxSequence and the  MSP list. If a CDS is given and no UTR exists, assume the exon
+ * spans the entire CDS (and similarly if a UTR is given but no CDS exists) */
+static void createMissingExonCdsUtr(MSP **exon, 
+                                    GList **childList,
+                                    BlxSequence *blxSeq, 
+                                    GArray* featureLists[], 
+                                    MSP **lastMsp, 
+                                    MSP **mspList, 
+                                    GList **seqList, 
+                                    GError **error)
+{
+  if (*exon && g_list_length(*childList) > 0)
+    {
+      /* We have an exon and one or more CDS/UTRs. Check if there any other
+       * child CDS/UTRs that we need to create. */
+      createMissingCdsUtr(*exon, childList, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+    }
+  else if (*exon)
+    {
+      /* We have an exon but no children. Assume the exon is a single UTR */
+      createMissingUtr(*exon, childList, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+    }
+  else if (g_list_length(*childList) > 0)
+    {
+      /* We have children but no exon; create the exon from the children */
+      *exon = createMissingExon(*childList, blxSeq, featureLists, lastMsp, mspList, seqList, error);
     }
 }
 
@@ -1854,9 +1894,8 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
   const MSP *prevMsp = NULL;
   const MSP *prevExon = NULL;
   
-  MSP *curExon = NULL;
-  MSP *curCds = NULL;
-  MSP *curUtr = NULL;
+  MSP *curExon = NULL;          /* the current exon we're looking at */
+  GList *curChildMsps = NULL;   /* the child CDS/UTRs of the current exon */
   
   /* Loop through all MSPs on this sequence (which must be sorted by position on the
    * ref seq - createNewMsp automatically sorts them for us) and create any missing 
@@ -1875,21 +1914,26 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
            * we have two exons with space between them, or if we're at the first or last exon 
            * and there's a gap to the end of the transcript. */
           gboolean foundGap = FALSE;
-          
-          if (msp && 
-              ((prevMsp && mspIsExon(prevMsp) && !rangesOverlap(&prevMsp->qRange, &msp->qRange)) ||
-               (!prevMsp && blxSequenceGetStart(blxSeq, blxSeq->strand) < msp->qRange.min)))
+
+          if (msp && prevMsp)
             {
-              foundGap = TRUE;
+              /* We have a previous msp; there's a gap if the previous msp is an exon
+               * and if there is a gap between it and the current exon */
+              foundGap = mspIsExon(prevMsp) && !rangesOverlap(&prevMsp->qRange, &msp->qRange) && !rangesAdjacent(&prevMsp->qRange, &msp->qRange);
+            }
+          else if (msp)
+            {
+              /* No previous msp; check if we're at the first exon and if so whether
+               * there's a gap between it and the start of the transcript */
+              foundGap = blxSequenceGetStart(blxSeq, blxSeq->strand) < msp->qRange.min;
             }
           
           if (foundGap || msp == NULL)
             {
               /* We've found a gap between exons, or reached the end. First, see if the current exon/cds or utr
                * is missing and construct it if possible. Also do this if we're at the last MSP. */
-              createMissingExonCdsUtr(&curExon, &curCds, &curUtr, blxSeq, featureLists, lastMsp, mspList, seqList, &tmpError);
+              createMissingExonCdsUtr(&curExon, &curChildMsps, blxSeq, featureLists, lastMsp, mspList, seqList, &tmpError);
               reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
-              copyCdsReadingFrame(curExon, curCds, curUtr);
               
               IntRange newRange = {UNSET_INT, UNSET_INT};
               
@@ -1924,19 +1968,19 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }
               
-              /* We're moving past the gap, so reset the pointers */
+              /* We're done with this exon, so set the exon's list of child msps
+               * and reset the pointers */
+              setExonChildList(curExon, curChildMsps);
+
               prevExon = curExon;
               curExon = NULL;
-              curCds = NULL;
-              curUtr = NULL;
+              curChildMsps = NULL;
             }
           
           if (msp && msp->type == BLXMSP_EXON)
             curExon = msp;
-          else if (msp && msp->type == BLXMSP_CDS)
-            curCds = msp;
-          else if (msp && msp->type == BLXMSP_UTR)
-            curUtr = msp;
+          else if (msp && (msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR))
+            curChildMsps = g_list_append(curChildMsps, msp);
           
           /* Remember the last MSP we saw */
           prevMsp = msp;

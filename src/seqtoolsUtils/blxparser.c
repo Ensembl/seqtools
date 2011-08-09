@@ -631,12 +631,20 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
   /* Create the new MSP */
   GError *error = NULL;
   
+  /* Hack for backwards compatibility: remove the 'i' or 'x' postfix from
+   * intron and exon names. */
+  int len = strlen(sName);
+  if (len && mspType == BLXMSP_EXON && toupper(sName[len - 1]) == 'X')
+    sName[len - 1] = '\0';
+  else if (len && mspType == BLXMSP_INTRON && toupper(sName[len - 1]) == 'I')
+    sName[len - 1] = '\0';
+  
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, NULL,
                           score, UNSET_INT, 0, NULL,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame,
                           sName, sStart, sEnd, BLXSTRAND_FORWARD, NULL,
                           &error);
-  
+
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
   /* Convert subject names to fetchable ones if from NCBI server 
@@ -844,6 +852,14 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
 
   /* Create the new MSP */
   GError *error = NULL;
+
+  /* Hack for backwards compatibility: remove the 'i' or 'x' postfix from
+   * intron and exon names. */
+  int len = strlen(sName);
+  if (len && typeIsExon(mspType) && toupper(sName[len - 1]) == 'X')
+    sName[len - 1] = '\0';
+  else if (len && typeIsIntron(mspType) && toupper(sName[len - 1]) == 'I')
+    sName[len - 1] = '\0';
   
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, NULL,
                           score, UNSET_INT, 0, NULL,
