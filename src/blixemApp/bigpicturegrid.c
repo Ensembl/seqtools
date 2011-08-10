@@ -311,6 +311,13 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
   const gdouble percentPerCell = bigPictureGetIdPerCell(properties->bigPicture);
   const gint numVCells = gridGetNumVCells(grid);
 
+  /* Highlight any regions that are assembly gaps */
+  GdkColor *color = getGdkColor(BLXCOLOR_ASSEMBLY_GAP, bc->defaultColors, FALSE, bc->usePrintColors);
+
+  drawAssemblyGaps(grid, drawable, color, bc->displayRev,
+                   &properties->gridRect, &bpProperties->displayRange, 
+                   bc->featureLists[BLXMSP_GAP]);
+  
   /* Draw the grid lines */
   drawVerticalGridLines(&properties->gridRect, &properties->highlightRect, properties->gridYPadding, bc, bpProperties, drawable);
   drawHorizontalGridLines(grid, properties->bigPicture, &properties->gridRect, bc, bpProperties, drawable, numVCells, percentPerCell, bpProperties->percentIdRange.max, "%");

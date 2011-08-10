@@ -1638,4 +1638,42 @@ void destroyBlxStyle(BlxStyle *style)
     }
 }
 
+
+/* This function highlights any regions within the given display range that
+ * are assembly gaps (which are BLXMSP_GAP type MSPs in the given MSP array).
+ * The given rect defines the drawing area on the given drawable that corresponds
+ * to the given display range. Gaps that lie within the display range are drawn
+ * within the rect at the appropriate positions. */
+void drawAssemblyGaps(GtkWidget *widget,
+                      GdkDrawable *drawable,
+                      GdkColor *color,
+                      const gboolean displayRev,
+                      GdkRectangle *rect, 
+                      const IntRange const *displayRange,
+                      const GArray *mspArray)
+{
+  cairo_t *cr = gdk_cairo_create(drawable);
+  gdk_cairo_set_source_color(cr, color);
+  
+  /* See if any gaps lie within the display range. */
+  int i = 0;
+  MSP *gap = mspArrayIdx(mspArray, i);
+  
+  for ( ; gap; gap = mspArrayIdx(mspArray, ++i))
+    {
+      if (rangesOverlap(&gap->qRange, displayRange))
+        {
+          const int x1 = convertBaseIdxToRectPos(gap->qRange.min, rect, displayRange, TRUE, displayRev, TRUE);
+          const int x2 = convertBaseIdxToRectPos(gap->qRange.max, rect, displayRange, TRUE, displayRev, TRUE);
+          
+          cairo_rectangle(cr, x1, 0, abs(x2 - x1), widget->allocation.height);
+          cairo_clip(cr);
+          cairo_paint_with_alpha(cr, 0.1);
+        }
+    }
+  
+  cairo_destroy(cr);
+}
+
+
 /***************** end of file ***********************/

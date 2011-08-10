@@ -336,6 +336,11 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   ExonViewProperties *properties = exonViewGetProperties(exonView);
+  const IntRange const *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
+
+  /* First, highlight any assembly gaps */
+  GdkColor *gapColor = getGdkColor(BLXCOLOR_ASSEMBLY_GAP, bc->defaultColors, FALSE, bc->usePrintColors);
+  drawAssemblyGaps(exonView, drawable, gapColor, bc->displayRev, &properties->exonViewRect, displayRange, bc->featureLists[BLXMSP_GAP]);
   
   /* Set a clip rectangle for drawing the exons and introns (because they are drawn "over the
    * edges" to make sure intron lines have the correct slope etc.) */
@@ -354,7 +359,7 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     blxWindow,
     bc,
     properties->currentStrand,
-    bigPictureGetDisplayRange(properties->bigPicture),
+    displayRange,
     &bc->refSeqRange,
     bc->displayRev,
     bc->numFrames,
