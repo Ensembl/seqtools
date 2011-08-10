@@ -152,6 +152,7 @@ typedef enum
 #define BLX_VIOLET            "#78b4f0"
 #define BLX_DARK_VIOLET       "#5c98d5"
 #define BLX_MID_BLUE          "#6495ED"
+#define BLX_SLATE_BLUE        "#7C7FFF"
 
 #define BLX_RED		      "#ff0000"
 #define BLX_LIGHT_RED	      "#ff7373"

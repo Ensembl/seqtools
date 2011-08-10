@@ -155,7 +155,10 @@ GSList* blxCreateSupportedGffTypeList()
 
   addGffType(&supportedTypes, "read", "SO:0000150", BLXMSP_SHORT_READ);
   addGffType(&supportedTypes, "region", "SO:0000001", BLXMSP_REGION);
+  addGffType(&supportedTypes, "gap", "SO:0000730", BLXMSP_GAP);
 
+  supportedTypes = g_slist_reverse(supportedTypes);
+  
   return supportedTypes;
 }
 

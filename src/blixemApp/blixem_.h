@@ -155,6 +155,7 @@ typedef enum
     BLXCOLOR_TREE_GRID_LINES,/* color of the tree grid lines (i.e. column separator lines) */
     BLXCOLOR_CLIP_MARKER,   /* color of the marker line used to indicate a match has been clipped */
     BLXCOLOR_COVERAGE_PLOT, /* color of the coverage plot */
+    BLXCOLOR_ASSEMBLY_GAP,  /* highlight color for assembly gaps */
 
     BLXCOL_NUM_COLORS
   } BlxColorId;
@@ -424,6 +425,14 @@ int                                mspGetMatchCoord(const MSP *msp,
                                                     const int numUnalignedBases,
 						    BlxViewContext *bc);
 
+
+void                               drawAssemblyGaps(GtkWidget *widget,
+                                                    GdkDrawable *drawable,
+                                                    GdkColor *color,
+                                                    const gboolean displayRev,
+                                                    GdkRectangle *rect, 
+                                                    const IntRange const *dnaRange,
+                                                    const GArray *mspArray);
 
 /* dotter.c */
 //void                               selectFeatures(void);
