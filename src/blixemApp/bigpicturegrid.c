@@ -312,10 +312,14 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
   const gint numVCells = gridGetNumVCells(grid);
 
   /* Highlight any regions that are assembly gaps */
+  /* Get the display range in dna coords */
+  IntRange bpRange;
+  convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
+  
   GdkColor *color = getGdkColor(BLXCOLOR_ASSEMBLY_GAP, bc->defaultColors, FALSE, bc->usePrintColors);
 
   drawAssemblyGaps(grid, drawable, color, bc->displayRev,
-                   &properties->gridRect, &bpProperties->displayRange, 
+                   &properties->gridRect, &bpRange, 
                    bc->featureLists[BLXMSP_GAP]);
   
   /* Draw the grid lines */

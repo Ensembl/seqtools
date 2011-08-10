@@ -431,7 +431,7 @@ void                               drawAssemblyGaps(GtkWidget *widget,
                                                     GdkColor *color,
                                                     const gboolean displayRev,
                                                     GdkRectangle *rect, 
-                                                    const IntRange const *displayRange,
+                                                    const IntRange const *dnaRange,
                                                     const GArray *mspArray);
 
 /* dotter.c */

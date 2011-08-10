@@ -339,8 +339,12 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   const IntRange const *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
 
   /* First, highlight any assembly gaps */
+  /* Get the display range in dna coords */
+  IntRange bpRange;
+  convertDisplayRangeToDnaRange(displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
+  
   GdkColor *gapColor = getGdkColor(BLXCOLOR_ASSEMBLY_GAP, bc->defaultColors, FALSE, bc->usePrintColors);
-  drawAssemblyGaps(exonView, drawable, gapColor, bc->displayRev, &properties->exonViewRect, displayRange, bc->featureLists[BLXMSP_GAP]);
+  drawAssemblyGaps(exonView, drawable, gapColor, bc->displayRev, &properties->exonViewRect, &bpRange, bc->featureLists[BLXMSP_GAP]);
   
   /* Set a clip rectangle for drawing the exons and introns (because they are drawn "over the
    * edges" to make sure intron lines have the correct slope etc.) */

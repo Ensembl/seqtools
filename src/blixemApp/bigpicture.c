@@ -397,9 +397,13 @@ static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, G
   gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
   
   /* First, highlight any assembly gaps */
+  /* Get the display range in dna coords */
   const IntRange const *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
+  IntRange bpRange;
+  convertDisplayRangeToDnaRange(displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
+  
   GdkColor *gapColor = getGdkColor(BLXCOLOR_ASSEMBLY_GAP, bc->defaultColors, FALSE, bc->usePrintColors);
-  drawAssemblyGaps(header, drawable, gapColor, bc->displayRev, &properties->headerRect, displayRange, bc->featureLists[BLXMSP_GAP]);
+  drawAssemblyGaps(header, drawable, gapColor, bc->displayRev, &properties->headerRect, &bpRange, bc->featureLists[BLXMSP_GAP]);
   
   /* Draw the grid headers */
   drawVerticalGridLineHeaders(header, 
