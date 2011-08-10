@@ -1652,9 +1652,6 @@ void drawAssemblyGaps(GtkWidget *widget,
                       const IntRange const *dnaRange,
                       const GArray *mspArray)
 {
-  cairo_t *cr = gdk_cairo_create(drawable);
-  gdk_cairo_set_source_color(cr, color);
-  
   /* See if any gaps lie within the display range. */
   int i = 0;
   MSP *gap = mspArrayIdx(mspArray, i);
@@ -1666,13 +1663,15 @@ void drawAssemblyGaps(GtkWidget *widget,
           const int x1 = convertBaseIdxToRectPos(gap->qRange.min, rect, dnaRange, TRUE, displayRev, TRUE);
           const int x2 = convertBaseIdxToRectPos(gap->qRange.max, rect, dnaRange, TRUE, displayRev, TRUE);
           
+          cairo_t *cr = gdk_cairo_create(drawable);
+          gdk_cairo_set_source_color(cr, color);
           cairo_rectangle(cr, min(x1, x2), 0, abs(x2 - x1), widget->allocation.height);
           cairo_clip(cr);
           cairo_paint_with_alpha(cr, 0.1);
+          cairo_destroy(cr);
         }
     }
   
-  cairo_destroy(cr);
 }
 
 
