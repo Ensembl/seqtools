@@ -9,6 +9,7 @@
   <li><a href="belvu_news.html">What's new</a></li>
   <li><a href="#t_overview">Overview</a></li>
   <li><a href="#t_controls">Controls</a></li>
+  <li><a href="#t_Styles">Styles</a></li>
 </ul>
 
 
@@ -87,6 +88,30 @@
     <li>Shift-Ctrl-comma: Go to Start of line</li>
     <li>Shift-Ctrl-period: Go to End of line</li>
   </ul>
+</div>
+
+
+<div id="t_styles">
+  <h2>Styles</h2>
+  <p>You can change the look of GTK programs such as Belvu using the gtkrc file. Create or edit the file called <code>.gtkrc-2.0</code> in your home directory. Here are some suggestions for styles that you can modify:</p>
+  <pre>
+# Change the default font size
+gtk-font-name = "san serif 12"
+
+style "scrollbar-style"
+{
+# Change the color of the scrollbars
+        bg[NORMAL] = "#82cafa"
+        bg[INSENSITIVE] = "#82cafa"
+        bg[PRELIGHT] = "#97daff"
+
+# Change the size of the scrollbars
+        GtkRange::slider-width=12
+}
+
+class "*Scrollbar*" style "scrollbar-style"
+
+  </pre>
 </div>
 
 </body>
