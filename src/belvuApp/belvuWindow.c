@@ -938,7 +938,7 @@ static void onrmColumnLeftMenu(GtkAction *action, gpointer data)
     }
   else
     {
-      g_critical("Please select a column first.\n\nMiddle-click with the mouse to select a column.");
+      g_critical("Please select a column first.\n\nMiddle-click with the mouse to select a column.\n");
     }
 }
 
@@ -960,7 +960,7 @@ static void onrmColumnRightMenu(GtkAction *action, gpointer data)
     }
   else
     {
-      g_critical("Please select a column first.\n\nMiddle-click with the mouse to select a column.");
+      g_critical("Please select a column first.\n\nMiddle-click with the mouse to select a column.\n");
     }
 }
 

@@ -705,13 +705,13 @@ void highlightScoreSort(char mode, BelvuContext *bc)
 {
   if (!bc->selectedAln) 
     {
-      g_critical("Please highlight a sequence first");
+      g_critical("Please highlight a sequence first\n");
       return;
     }
   
   if (bc->selectedAln->markup) 
     {
-      g_critical("Please do not highlight a markup line");
+      g_critical("Please do not highlight a markup line\n");
       return;
     }
   
@@ -1184,7 +1184,7 @@ void parseMulLine(BelvuContext *bc, char *line, ALN *aln)
         }
       
       if (strlen(aln->name)+strlen(GRfeat)+2 > MAXNAMESIZE)
-        g_critical("Too long name or/and feature name");
+        g_critical("Too long name or/and feature name\n");
 
       strcat(aln->name, " ");
       strncat(aln->name, GRfeat, MAXNAMESIZE-strlen(aln->name));
@@ -1580,7 +1580,7 @@ void setResidueSchemeColors(BelvuContext *bc)
       case BELVU_SCHEME_CUSTOM:   colorSchemeCustom(bc);    break;
       
       default: 
-	g_warning("Program error: unrecognised color scheme '%d'.\n", bc->residueScheme); 
+	g_warning("Program error: unrecognised color scheme '%d'.\n", bc->residueScheme);
 	break;
     }
 }
@@ -1887,7 +1887,7 @@ void readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr, const gb
           
           int ip = 0;
           if (!alnArrayFind(bc->organismArr, &aln, &ip, (void*)organism_order))
-            g_critical("Cannot find organism \"%s\", specified in color code file. Hope that's ok", aln.organism);
+            g_critical("Cannot find organism \"%s\", specified in color code file. Hope that's ok\n", aln.organism);
           else
             g_array_index(bc->organismArr, ALN*, ip)->color = colornr;
         }
@@ -2764,12 +2764,12 @@ void readLabels(BelvuContext *bc, FILE *fil)
   int seqlen = bc->selectedAln->end - bc->selectedAln->start + 1;
   if (strlen(labelseq) > seqlen)
     {
-      g_critical("The sequence of labels is longer (%d) than the sequence (%d).\nHope that's ok", 
+      g_critical("The sequence of labels is longer (%d) than the sequence (%d).\nHope that's ok\n",
 		 (int)strlen(labelseq), seqlen);
     }
   else if (strlen(labelseq) < seqlen) 
     {
-      g_critical("The sequence of labels is shorter (%d) than the sequence (%d).\nAborting", 
+      g_critical("The sequence of labels is shorter (%d) than the sequence (%d).\nAborting\n",
 		 (int)strlen(labelseq), seqlen);
       return;
     }
@@ -3009,7 +3009,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 	{
 	  if (done_one)
 	    {
-	      g_critical("Sorry, can only do one match");
+	      g_critical("Sorry, can only do one match\n");
 	      continue;
 	    }
 
@@ -3064,7 +3064,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
           int ip = 0;
 	  if (alignFind(bc->alignArr, aln, &ip))
 	    {
-	      g_critical("Sorry, already have sequence %s/%d-%d\n", 
+	      g_critical("Sorry, already have sequence %s/%d-%d\n",
                          aln->name, aln->start, aln->end);
 	      return;
 	    }
@@ -3433,7 +3433,7 @@ void rmColumnCutoff(BelvuContext *bc, const double from, const double to)
           rmColumn(bc, i+1, i+1);
           if (++removed == oldmaxLen) 
             {
-              g_critical("You have removed all columns.  Prepare to exit Belvu");
+              g_critical("You have removed all columns.  Prepare to exit Belvu\n");
               exit(EXIT_SUCCESS);
             }
         }
@@ -3482,7 +3482,7 @@ void rmEmptyColumns(BelvuContext *bc, double cutoff)
           rmColumn(bc, j+1, j+1);
           if (++removed == oldmaxLen)
             {
-              g_critical("You have removed all columns.  Prepare to exit Belvu");
+              g_critical("You have removed all columns.  Prepare to exit Belvu\n");
               exit(0);
             }
 	}
@@ -4780,7 +4780,7 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       
       if (!cp || *cp != 's')
         {
-          g_critical("Invalid URL string %s.\nThe URL must contain the search string \"%%s\", which will be replaced with the sequence name.", url);
+          g_critical("Invalid URL string %s.\nThe URL must contain the search string \"%%s\", which will be replaced with the sequence name.\n", url);
         }
       else
         {
