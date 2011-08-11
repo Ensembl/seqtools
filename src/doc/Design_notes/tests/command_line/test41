@@ -1,0 +1,5 @@
+exec belvu -T nb -o tree  ../data/ALIGN.selex
+
+# Description:
+#   Test creating a neighbour-joining tree (scoredist distance correction)
+

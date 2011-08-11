@@ -1,0 +1,5 @@
+exec belvu -T ub -o tree  ../data/ALIGN.selex
+
+# Description:
+#   Test creating a UPGMA tree (scoredist distance correction)
+

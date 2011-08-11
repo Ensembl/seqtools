@@ -1,0 +1,5 @@
+exec belvu -q 80 -o Selex ../data/ALIGN.selex
+
+# Description:
+#   Remove gappy sequences and save the alignment in
+#   in Selex format

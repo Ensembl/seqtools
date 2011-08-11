@@ -1,0 +1,5 @@
+exec belvu -T r -o tree ../data/PF02171_full.selex
+
+# Description:
+#   Create the tree using uncorrected distances and save
+#   the tree in new-hampshire format (large alignment)

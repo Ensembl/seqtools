@@ -1,0 +1,5 @@
+exec belvu -o Selex -S S ../data/ALIGN.selex
+
+# Description:
+#   Sort by similarity to first sequence (large alignment).
+

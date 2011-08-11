@@ -1,0 +1,5 @@
+exec belvu -T uk -o tree  ../data/ALIGN.selex
+
+# Description:
+#   Test creating a UPGMA tree (kimura distance correction)
+

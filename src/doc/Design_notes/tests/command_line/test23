@@ -1,0 +1,5 @@
+exec belvu -i -c ../data/ALIGN.selex
+
+# Description:
+#   Ignore gaps in conservation calculation and print
+#   conservation table

@@ -1,0 +1,6 @@
+exec belvu -T k -o tree ../data/PF02171_full.selex
+
+# Description:
+#   Create the tree using the Kimura distance
+#   correction and save the tree in new-hampshire format
+#   (large alignment)

@@ -1,0 +1,5 @@
+exec belvu -T uj -o tree  ../data/ALIGN.selex
+
+# Description:
+#   Test creating a UPGMA tree (jukes-cantor distance correction)
+

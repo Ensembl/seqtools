@@ -1,0 +1,6 @@
+exec belvu -o Selex -S s -C -s ../data/PF02171_seed.scores ../data/PF02171_seed.selex
+
+# Description:
+#   Sort by score on start up. Also tests saving
+#   without coords in Selex format.
+

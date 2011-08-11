@@ -1,0 +1,5 @@
+exec belvu -o Selex -S n ../data/ALIGN.selex
+
+# Description:
+#   Sort by neighbour-joinging tree on start up (large alignment).
+

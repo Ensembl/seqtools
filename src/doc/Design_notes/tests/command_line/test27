@@ -1,0 +1,9 @@
+exec belvu -z '=' -R -C -o MSF ../data/PF02171_seed_separator.stock
+
+# Description:
+#   Read in an alignment that has a separator of '='
+#   between the sequence name and coords but don't strip. 
+#   the coords from the alignment name. Save without saving
+#   coords; the coords should still appear in the saved
+#   output because they were part of the name.
+

@@ -1,0 +1,4 @@
+exec belvu -P -o FastaAlign ../data/ALIGN.selex
+
+# Description:
+#   Remove partial sequences and save in aligned-fasta format

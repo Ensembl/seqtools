@@ -1,0 +1,5 @@
+exec belvu -T nk -o tree  ../data/ALIGN.selex
+
+# Description:
+#   Test creating a neighbour-joining tree (kimura distance correction)
+

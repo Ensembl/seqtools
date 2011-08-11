@@ -1,0 +1,5 @@
+exec belvu -n 80 -o Mul ../data/PF02171_full.selex
+
+# Description:
+#   Make the alignment non-redundanct and save
+#   in stockholm format

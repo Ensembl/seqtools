@@ -1,0 +1,4 @@
+exec belvu -o tree ../data/PF02171_seed.stock
+
+# Description:
+#   Test saving a tree in new-hampshire format

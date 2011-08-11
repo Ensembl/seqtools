@@ -1,0 +1,5 @@
+exec belvu -o MSF -r ../data/PF02171_seed.fasta
+
+# Description:
+#   Test reading a file in 'raw' format. Check that it can
+#   be output into a different format.
