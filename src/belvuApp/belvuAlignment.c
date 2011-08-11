@@ -1198,7 +1198,7 @@ static int getAlignmentDisplayWidth(BelvuAlignmentProperties *properties)
     {
       /* Drawing can be very slow if we draw the full alignment, so we only
        * draw what's in the current display width. */
-      result = properties->seqArea->allocation.width - properties->columnPadding;
+      result = properties->seqArea->allocation.width;
     }
   else
     {
