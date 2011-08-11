@@ -142,9 +142,8 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
       properties->columnsRect.y = DEFAULT_YPAD;
 
       /* Find a fixed-width font */
-      const char *fontFamily = findFixedWidthFont(seqArea);
+      const char *fontFamily = findFixedWidthFont(properties->seqArea);
       PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
-      pango_font_description_set_size(fontDesc, pango_font_description_get_size(belvuAlignment->style->font_desc));
       gtk_widget_modify_font(seqArea, fontDesc);
 
       if (columnsArea)

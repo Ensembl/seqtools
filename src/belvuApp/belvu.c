@@ -4797,9 +4797,9 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       char  *env, fetchProg[1025]="";
       
       if ((env = getenv(FETCH_PROG_ENV_VAR)) )
-	strcpy(fetchProg, env);
+        strcpy(fetchProg, env);
       else
-	strcpy(fetchProg, DEFAULT_FETCH_PROG);
+        strcpy(fetchProg, DEFAULT_FETCH_PROG);
 
       char *cmd = blxprintf("%s '%s' &", fetchProg, alnp->name);
       
@@ -4807,6 +4807,10 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       
       if (pfetchWin)
         {
+          const gchar *env = g_getenv(FONT_SIZE_ENV_VAR);
+          if (env)
+            widgetSetFontSizeAndCheck(pfetchWin, convertStringToInt(env));
+
           /* Add the window to our list of spawned windows */
           bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, pfetchWin);
           g_signal_connect(G_OBJECT(pfetchWin), "destroy", G_CALLBACK(onDestroySpawnedWindow), bc);
