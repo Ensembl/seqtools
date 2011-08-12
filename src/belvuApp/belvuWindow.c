@@ -4064,7 +4064,13 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   env = g_getenv(STATUSBAR_SIZE_ENV_VAR);
   if (env)
     {
-      widgetSetFontSizeAndCheck(statusBar, convertStringToInt(env));
+      const int height = convertStringToInt(env);
+      
+      /* If too small, hide the statusbar */
+      if (height < MIN_FONT_SIZE)
+        gtk_widget_hide_all(statusBar);
+      else
+        widgetSetFontSizeAndCheck(statusBar, height);
     }
 
   /* Make sure the alignment font size isup to date. Note: do this before

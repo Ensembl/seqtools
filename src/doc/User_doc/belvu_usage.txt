@@ -69,7 +69,7 @@
 
  setenv BELVU_FETCH to desired sequence fetching program.
  setenv BELVU_FONT_SIZE to specify window font size.
- setenv BELVU_STATUSBAR_SIZE to specify statusbar font size.
+ setenv BELVU_STATUSBAR_SIZE to specify statusbar font size (0 => hide statusbar).
 
 -----
  Written by Gemma Barson <gb10@sanger.ac.uk>
