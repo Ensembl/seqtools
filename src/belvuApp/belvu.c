@@ -3580,6 +3580,11 @@ static void rmFinalise(BelvuContext *bc)
   
   /* Removing seqs/cols invalidates the conservation plot, so recalculate it */
   belvuConsPlotRecalcAll(bc->consPlot);
+  
+  /* Removing sequences can change the size of the columns in the alignment view,
+   * so recalculate them */
+  updateHeaderColumnsSize(bc->belvuAlignment);
+  calculateDrawingSizes(bc->belvuAlignment);
 }
 
 
