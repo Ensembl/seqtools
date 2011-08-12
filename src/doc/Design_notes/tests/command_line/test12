@@ -1,0 +1,5 @@
+exec belvu -T u -o tree ../data/PF02171_full.selex
+
+# Description:
+#   Create the tree using the UPGMA method and save it
+#   in new-hampshire format (large alignment)

@@ -1,0 +1,5 @@
+exec belvu -Ti -R ../data/PF02171_seed.stock
+
+# Description:
+#   Test reading a file without stripping coordinates
+#   from the sequence names

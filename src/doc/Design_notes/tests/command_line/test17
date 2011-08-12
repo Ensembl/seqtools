@@ -1,0 +1,6 @@
+exec belvu -T s -o tree ../data/PF02171_full.selex
+
+# Description:
+#   Create the tree using the Storm and Sonnhammer distance
+#   correction and save the tree in new-hampshire format
+#   (large alignment)

@@ -122,7 +122,8 @@
  Note: X options only work after \"setenv POSIXLY_CORRECT\"\n\
 \n\
  setenv BELVU_FETCH to desired sequence fetching program.\n\
- setenv BELVU_FONT_SIZE to specify window font size.\n\n\
+ setenv BELVU_FONT_SIZE to specify window font size.\n\
+ setenv BELVU_STATUSBAR_SIZE to specify statusbar font size.\n\n\
 "
 
 

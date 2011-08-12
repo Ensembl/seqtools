@@ -1,0 +1,5 @@
+exec belvu -C -o Mul ../data/PF02171_seed.stock
+
+# Description:
+#   Tests saving alignment without coordinates in Mul
+#   format.

@@ -72,6 +72,8 @@ AUTHOR_TEXT "\n"
 #define DIALOG_YPAD                             8       /* default y padding around dialog widgets */
 #define MAX_PIXMAP_WIDTH                        15000 /* max width in pixels of a pixmap */
 #define MAX_PIXMAP_HEIGHT                       15000 /* max width in pixels of a pixmap */
+#define FONT_SIZE_ENV_VAR                       "BELVU_FONT_SIZE"  /* optional environment variable to specify the default font size in points */
+#define STATUSBAR_SIZE_ENV_VAR                  "BELVU_STATUSBAR_SIZE"  /* optional environment variable to specify the font size for the statusbar in points */
 
 
 

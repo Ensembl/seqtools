@@ -1,0 +1,5 @@
+exec belvu -T us -o tree  ../data/ALIGN.selex
+
+# Description:
+#   Test creating a UPGMA tree (storm & sonnhammer distance correction)
+

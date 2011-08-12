@@ -1,0 +1,5 @@
+exec belvu -o Selex -S u ../data/ALIGN.selex
+
+# Description:
+#   Sort by UPGMA tree on start up (large alignment).
+

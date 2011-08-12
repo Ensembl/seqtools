@@ -1,0 +1,11 @@
+exec belvu -l ../data/cgph_pale.color -L ../data/markup.color ../data/PF02171_seed.stock
+
+# Description:
+#   Test that the residue colors and markup colors are loaded correctly
+#   on startup. Test loading both color files to check that they do not 
+#   interfere with each other.
+#
+# Results:
+#   The residues and markup letters should use the colors specified in 
+#   the input files.
+

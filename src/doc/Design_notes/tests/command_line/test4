@@ -1,0 +1,4 @@
+exec belvu -o FastaAlign ../data/PF02171_seed.stock
+
+# Description:
+#   Test saving an alignment in aligned-fasta format

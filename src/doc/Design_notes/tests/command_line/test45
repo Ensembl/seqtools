@@ -1,0 +1,5 @@
+exec belvu -T nr -o tree  ../data/ALIGN.selex
+
+# Description:
+#   Test creating a neighbour-joining tree (uncorrected distances)
+

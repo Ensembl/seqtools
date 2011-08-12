@@ -1,0 +1,5 @@
+exec belvu -T ns -o tree  ../data/ALIGN.selex
+
+# Description:
+#   Test creating a neighbour-joining tree (storm & sonnhammer distance correction)
+

@@ -1,0 +1,6 @@
+exec belvu -o FastaAlign -S o -C ../data/PF02171_seed.selex
+
+# Description:
+#   Sort by organism on start up. Also tests saving
+#   without coords in aligned fasta format.
+

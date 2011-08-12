@@ -1,0 +1,4 @@
+exec belvu -p ../data/PF02171_full.selex
+
+# Description:
+#   Print the distance matrix

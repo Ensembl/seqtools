@@ -1,0 +1,5 @@
+exec belvu -Q 60 -o MSF ../data/ALIGN.selex
+
+# Description:
+#   Remove gappy columns and save the alignment
+#   in MSF format
