@@ -63,10 +63,11 @@ libcurl
 -------
 blixemh also requires the libcurl library to be installed on your system - "make all" will fail if it is not found.
 
-Firstly, if you do not require the facility to fetch sequences using HTTP, then you can use blixem instead of blixemh.  After running "make all", run the following commands to install blixem (and, if required, dotter), without installing blixemh:
+Firstly, if you do not require the facility to fetch sequences using HTTP, then you can use blixem instead of blixemh.  Run the following commands to install blixem, dotter and belvu without installing blixemh:
 
 make blixem
 make dotter
+make belvu
 make install
 
 If you do require the HTTP functionality, you need to install the development version of the libcurl library.  For example, on Debian this can be installed as follows:
