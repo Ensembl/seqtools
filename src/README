@@ -13,11 +13,13 @@ Author:   Gemma Barson <gb10@sanger.ac.uk>
 THE TOOLS
 ---------
 
-blixem - A program for viewing multiple alignments against a reference sequence. It displays an overview showing where alignments and exons/introns lie on the reference sequence, and a detailed view showing the actual nucleotides or peptides in the sequences, color-coded to indicate how well they match.  Gapped alignments are supported and other features such as SNPs and polyA tails can also be displayed.
+blixem - an interactive browser of pairwise alignments that have been stacked up in a "master-slave" multiple alignment; it is not a 'true' multiple alignment but a 'one-to-many' alignment. It displays an overview section showing the positions of genes and alignments around the alignment window, and a detail section showing the actual alignment of protein or nucleotide sequences to the genomic DNA sequence.
 
-blixemh - The same as blixem but with additional functionality for fetching sequences via HTTP.
+blixemh - the same as blixem but with additional functionality for fetching sequences via HTTP.
 
-dotter - A dot-matrix program that plots two sequences against each other, one vertically and one horizontally, drawing a dot wherever the bases match.  Noise is filtered out, so that alignments appear as diagonal lines.
+dotter - a graphical dot-matrix program for detailed comparison of two sequences. Every residue in one sequence is compared to every residue in the other, with one sequence plotted on the x-axis and the other on the y-axis. Noise is filtered out so that alignments appear as diagonal lines.
+
+belvu - a multiple sequence alignment viewer and phylogenetic tool. It has an extensive set of user-configurable modes to color residues by conservation or by residue type, and some basic alignment editing capabilities. It can generate distance matrices between sequences and construct distance-based trees, either graphically or as part of a phylogenetic software pipeline. 
 
 
 
