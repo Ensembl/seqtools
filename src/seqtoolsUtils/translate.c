@@ -39,7 +39,7 @@
  */
 
 #include <seqtoolsUtils/utilities.h>
-#include <iupac.h>
+#include <seqtoolsUtils/iupac.h>
 #include <glib.h>
 #include <ctype.h>
 #include <string.h>
