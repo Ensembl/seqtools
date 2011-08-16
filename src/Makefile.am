@@ -25,7 +25,7 @@ noinst_LIBRARIES = libSeqtoolsUtils.a libpfetch.a libBlixemApp.a libDotterApp.a 
 
 # Define the sources for the convenience libraries
 libSeqtoolsUtils_a_SOURCES = $(UTILS)/iupac.h $(UTILS)/version.h $(UTILS)/utilities.h $(UTILS)/utilities.c $(UTILS)/blxmsp.h $(UTILS)/blxmsp.c $(UTILS)/translate.c $(UTILS)/seqtoolsWebBrowser.c $(UTILS)/blxGff3Parser.h $(UTILS)/blxGff3Parser.c $(UTILS)/blxparser.h $(UTILS)/blxparser.c
-libpfetch_a_SOURCES = $(PFETCH)/libpfetch-utils.c $(PFETCH)/libpfetch.c $(PFETCH)/libpfetch.h $(PFETCH)/libpfetch-cmarshal.c $(PFETCH)/libcurlobject.c $(PFETCH)/libcurlobject.h $(PFETCH)/libpfetch_I.h $(PFETCH)/libpfetch_P.h $(PFETCH)/libcurlobject_I.h
+libpfetch_a_SOURCES = $(PFETCH)/libpfetch-utils.c $(PFETCH)/libpfetch.c $(PFETCH)/libpfetch.h $(PFETCH)/libpfetch-cmarshal.c $(PFETCH)/libpfetch-cmarshal.h $(PFETCH)/libcurlobject.c $(PFETCH)/libcurlobject.h $(PFETCH)/libpfetch_I.h $(PFETCH)/libpfetch_P.h $(PFETCH)/libcurlobject_I.h
 libBlixemApp_a_SOURCES = $(BLIXEM)/sequencecellrenderer.c $(BLIXEM)/bigpicture.c $(BLIXEM)/bigpicturegrid.c $(BLIXEM)/detailview.c $(BLIXEM)/detailviewtree.c $(BLIXEM)/blxwindow.c $(BLIXEM)/exonview.c $(BLIXEM)/coverageview.c $(BLIXEM)/blxdotter.c $(BLIXEM)/blxview.h $(BLIXEM)/blixem_.h $(BLIXEM)/detailview.h $(BLIXEM)/detailviewtree.h $(BLIXEM)/sequencecellrenderer.h $(BLIXEM)/bigpicture.h $(BLIXEM)/bigpicturegrid.h $(BLIXEM)/blxwindow.h $(BLIXEM)/exonview.h $(BLIXEM)/coverageview.h $(BLIXEM)/blxdotter.h
 libDotterApp_a_SOURCES = $(DOTTER)/greyramptool.c $(DOTTER)/alignmenttool.c $(DOTTER)/dotplot.c $(DOTTER)/dotter.c $(DOTTER)/dotterKarlin.c $(DOTTER)/seqtoolsExonView.c $(DOTTER)/dotter_.h $(DOTTER)/dotter.h $(DOTTER)/seqtoolsExonView.h
 libBelvuApp_a_SOURCES = $(BELVU)/belvu_.h $(BELVU)/belvu.c $(BELVU)/belvuWindow.h $(BELVU)/belvuWindow.c $(BELVU)/belvuAlignment.h $(BELVU)/belvuAlignment.c $(BELVU)/belvuTree.h $(BELVU)/belvuTree.c $(BELVU)/belvuConsPlot.h $(BELVU)/belvuConsPlot.c
@@ -57,7 +57,7 @@ dist_doc_DATA = $(USERDOC)/todo.html \
                 $(USERDOC)/Blixem_manual.pdf $(USERDOC)/Dotter_manual.pdf
 
 # these are included in the distribution, but are not installed
-EXTRA_DIST = $(PFETCH_EXTRA_DIST) $(DOC)/Design_notes $(DOC)/index.html $(USERDOC)/index.html $(USERDOC)/manuals.html Blixem_$(USERDOC)/manual.odt Dotter_$(USERDOC)/manual.odt
+EXTRA_DIST = $(PFETCH_EXTRA_DIST) $(DOC)/Design_notes $(DOC)/index.html $(USERDOC)/index.html $(USERDOC)/manuals.html $(USERDOC)/Blixem_manual.odt $(USERDOC)/Dotter_manual.odt
 
 
 #
