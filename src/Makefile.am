@@ -75,17 +75,12 @@ belvu_SOURCES = $(top_srcdir)/belvuApp/belvuMain.c
 AM_CPPFLAGS = $(DEPS_CFLAGS) -I$(top_srcdir)
 blixemh_CPPFLAGS = $(AM_CPPFLAGS) -DPFETCH_HTML
 
-AM_LDFLAGS = -L$(top_builddir)/seqtoolsUtils
-blixem_LDFLAGS = $(AM_LDFLAGS) -L$(top_builddir)/blixemApp
-blixemh_LDFLAGS = $(blixem_LDFLAGS)
-dotter_LDFLAGS = $(AM_LDFLAGS) -L$(top_builddir)/dotterApp
-belvu_LDFLAGS = $(AM_LDFLAGS) -L$(top_builddir)/belvuApp
-
+AM_LDFLAGS = -L$(top_builddir)
 COMMON_LIBS = $(DEPS_LIBS) $(top_builddir)/libSeqtoolsUtils.a
 
-blixem_LDADD = $(COMMON_LIBS) $(top_builddir)/libBlixemApp.a
-blixemh_LDADD = $(COMMON_LIBS) $(top_builddir)/libBlixemApp.a $(top_builddir)/libpfetch.a -lcurl
-dotter_LDADD = $(COMMON_LIBS) $(top_builddir)/libDotterApp.a
-belvu_LDADD = $(COMMON_LIBS) $(top_builddir)/libBelvuApp.a
+blixem_LDADD = $(COMMON_LIBS) $(top_builddir)/libBlixemApp.a -lSeqtoolsUtils -lBlixemApp
+blixemh_LDADD = $(COMMON_LIBS) $(top_builddir)/libBlixemApp.a $(top_builddir)/libpfetch.a -lcurl -lSeqtoolsUtils -lBlixemApp
+dotter_LDADD = $(COMMON_LIBS) $(top_builddir)/libDotterApp.a -lSeqtoolsUtils -lDotterApp
+belvu_LDADD = $(COMMON_LIBS) $(top_builddir)/libBelvuApp.a -lSeqtoolsUtils -lBelvuApp
 
 
