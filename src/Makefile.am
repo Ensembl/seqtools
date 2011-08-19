@@ -50,10 +50,9 @@ GENMARSHAL_COMMAND = $(GLIB_GENMARSHAL) --prefix=libpfetch_cmarshal
 #
 
 # these will be installed alongside the programs
-dist_doc_DATA = $(USERDOC)/todo.html \
+dist_doc_DATA = $(USERDOC)/todo.html $(USERDOC)/news.html \
                 $(USERDOC)/belvu_quick_start.html $(USERDOC)/blixem_quick_start.html $(USERDOC)/dotter_quick_start.html \
                 $(USERDOC)/belvu_usage.txt $(USERDOC)/blixem_usage.txt $(USERDOC)/dotter_usage.txt \
-                $(USERDOC)/belvu_news.html $(USERDOC)/blixem_news.html $(USERDOC)/dotter_news.html \
                 $(USERDOC)/Blixem_manual.pdf $(USERDOC)/Dotter_manual.pdf
 
 # these are included in the distribution, but are not installed
