@@ -41,6 +41,11 @@ make all
 make install
 
 
+USAGE
+-----
+
+Run the individual programs without arguments to see their usage information.
+
 
 DEPENDENCIES
 ------------
