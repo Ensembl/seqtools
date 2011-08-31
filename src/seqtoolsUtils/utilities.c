@@ -46,7 +46,7 @@
 
 #define SEQTOOLS_TOOLBAR_NAME	"SeqtoolsToolbarName"
 #define DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION	      0.5
-#define DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION         0.6
+#define DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION         0.5
 
 
 /* Test char to see if it's a iupac dna/peptide code. */
