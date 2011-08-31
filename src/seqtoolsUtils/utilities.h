@@ -413,6 +413,7 @@ GtkWidget*		createScrollableTextView(const char *messageText,
 						 const gboolean wrapText,
 						 PangoFontDescription *fontDesc,
                                                  const gboolean useMarkup,
+						 int *width,
 						 int *height,
                                                  GtkTextView **textViewOut);
 				    
@@ -534,6 +535,8 @@ int                                scrollBarWidth();
 void                               getTextSize(GtkWidget *widget, const char *text, int *width, int *height);
 int                                getTextWidth(GtkWidget *widget, const char *text);
 int                                getTextHeight(GtkWidget *widget, const char *text);
+
+void                               getScreenSizeFraction(GtkWidget *widget, const double widthFraction, const double heightFraction, int *widthOut, int *heightOut);
 
 GtkWidget*                         createTextEntryFromInt(GtkWidget *widget,
                                                           GtkTable *table, 

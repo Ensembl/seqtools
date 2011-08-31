@@ -45,8 +45,8 @@
 
 
 #define SEQTOOLS_TOOLBAR_NAME	"SeqtoolsToolbarName"
-#define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      85
-#define DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION         0.7
+#define DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION	      0.5
+#define DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION         0.6
 
 
 /* Test char to see if it's a iupac dna/peptide code. */
@@ -1479,25 +1479,41 @@ char *stringUnprotect(char **textp, char *target)
 
 /* Utility to set the height of a GtkTextView based on the number of lines of text it
  * contains (but not going above the given max height). Returns the height that was set. */
-//static int textViewSetHeight(GtkWidget *textView, GtkTextBuffer *textBuffer, PangoFontDescription *fontDesc, int maxHeight, int *charHeightOut)
-//{
-//  PangoContext *context = gtk_widget_get_pango_context(textView);
-//  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
-//  gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
-//  
-//  if (charHeightOut)
-//    {
-//      *charHeightOut = charHeight;
-//    }
-//  
-//  /* Adjust height to include all the lines if possible (limit to the original height passed in thought) */
-//  const int calcHeight = (gtk_text_buffer_get_line_count(textBuffer) * charHeight);
-//  int resultHeight = min(maxHeight, calcHeight);
-//  
-//  pango_font_metrics_unref(metrics);
-//  
-//  return resultHeight;
-//}
+static void setTextViewHeight(GtkWidget *textView, GtkTextBuffer *textBuffer, PangoFontDescription *fontDesc, int *width, int *height)
+{
+  /* Adjust height to include all the lines if possible (limit to the original height passed in though) */
+  if (height)
+    {
+      const int charHeight = getTextHeight(textView, "A");
+      const int calcHeight = (gtk_text_buffer_get_line_count(textBuffer) * charHeight);
+      *height = min(*height, calcHeight);
+    }
+
+  if (width)
+    {
+      /* Loop through all lines and find the max line length. */
+      int maxWidth = 0;
+      int numLines = gtk_text_buffer_get_line_count(textBuffer);
+      
+      int line = 0;
+      for ( ; line < numLines; ++line)
+        {
+          GtkTextIter iter1;
+          GtkTextIter iter2;
+          gtk_text_buffer_get_iter_at_line(textBuffer, &iter1, line);
+          gtk_text_buffer_get_iter_at_line(textBuffer, &iter2, line + 1);
+          
+          gchar *text = gtk_text_iter_get_text(&iter1, &iter2);
+          const int lineWidth = getTextWidth(textView, text);
+          
+          if (lineWidth > maxWidth)
+            maxWidth = lineWidth;
+        } 
+      
+      /* Limit it to the input width */
+      *width = min(*width, maxWidth);
+    }
+}
 
 
 /* Utility to create a scrollable text view from the given message text. If textBufferOut is
@@ -1506,6 +1522,7 @@ GtkWidget* createScrollableTextView(const char *messageText,
 				    const gboolean wrapText,
 				    PangoFontDescription *fontDesc,
                                     const gboolean useMarkup,
+                                    int *width,
 				    int *height,
                                     GtkTextView **textViewOut)
 {
@@ -1549,9 +1566,10 @@ GtkWidget* createScrollableTextView(const char *messageText,
   gtk_container_add(GTK_CONTAINER(scrollWin), textView);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
-  /* Set the height to fit the number of lines of text, unless this would exceed the passed-in height */
-//  int charHeight = UNSET_INT;
-//  *height = textViewSetHeight(textView, textBuffer, fontDesc, *height, &charHeight);
+  /* Set the height to fit the number of lines of text, unless this would exceed 
+   * the passed-in height. To do: should pass in width here too but the calculation
+   * is not accurate. */
+ setTextViewHeight(textView, textBuffer, fontDesc, NULL, height);
   
   /* Return the outermost container */
   return scrollWin;
@@ -1564,7 +1582,7 @@ GtkWidget* createScrollableTextView(const char *messageText,
 GtkWidget* showMessageDialog(const char *title,  
                              const char *messageText,
                              GtkWidget *parent,
-                             const int width,
+                             const int maxWidth,
                              const int maxHeight,
                              const gboolean wrapText,
                              const gboolean useMarkup,
@@ -1580,9 +1598,10 @@ GtkWidget* showMessageDialog(const char *title,
 
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
-  int height = maxHeight;
-  GtkWidget *child = createScrollableTextView(messageText, wrapText, fontDesc, useMarkup, &height, textView);
-
+  int width = maxWidth, height = maxHeight;
+  GtkWidget *child = createScrollableTextView(messageText, wrapText, fontDesc, useMarkup, &width, &height, textView);
+  height += 40; /* fudge to allow space for dialog buttons */
+  
   gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);
 
@@ -3298,7 +3317,7 @@ static void displayMessageAsList(GSList *messageList, const char *titlePrefix, c
       int width = 600;
       int height = 180;
       
-      GtkWidget *child = createScrollableTextView(NULL, FALSE, NULL, TRUE, &height, &textView);
+      GtkWidget *child = createScrollableTextView(NULL, FALSE, NULL, TRUE, NULL, &height, &textView);
       gtk_box_pack_start(GTK_BOX(vbox), child, TRUE, TRUE, 0);
       gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
       textBuffer = gtk_text_view_get_buffer(textView);
@@ -4114,26 +4133,16 @@ GtkWidget* displayFetchResults(const char *title,
   const char *fontFamily = findFixedWidthFont(widget);
   PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
   
-  /* Set the initial width based on the default number of characters wide */
-//  PangoContext *context = gtk_widget_get_pango_context(widget);
-//  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
-//  getFontCharSize(widget, fontDesc, &charWidth, NULL);
-  int charWidth = 8;
-
-  const int initWidth = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * charWidth;
-  const int maxHeight = widget->allocation.height * DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION;
+  int maxWidth = 0, maxHeight = 0;
+  getScreenSizeFraction(widget, DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION, DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
   
   GtkTextView *textView = NULL;
-  GtkWidget *result = showMessageDialog(title, displayText, NULL, initWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
+  GtkWidget *result = showMessageDialog(title, displayText, NULL, maxWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
   
   if (textBuffer && textView)
     {
       *textBuffer = gtk_text_view_get_buffer(textView);
     }
-  
-  /* Clean up */
-//  pango_font_metrics_unref(metrics);
-//  pango_font_description_free(fontDesc);
   
   return result;
 }
@@ -4201,6 +4210,19 @@ int getTextHeight(GtkWidget *widget, const char *text)
   int height = 0;
   getTextSize(widget, text, NULL, &height);
   return height;
+}
+
+
+/* Utility to get the size of the screen multiplied by the given width/height fractions */
+void getScreenSizeFraction(GtkWidget *widget, const double widthFraction, const double heightFraction, int *widthOut, int *heightOut)
+{
+  GdkScreen *screen = gtk_widget_get_screen(widget);
+  
+  if (widthOut)
+    *widthOut = gdk_screen_get_width(screen) * widthFraction;
+  
+  if (heightOut)
+    *heightOut = gdk_screen_get_height(screen) * heightFraction;
 }
 
 

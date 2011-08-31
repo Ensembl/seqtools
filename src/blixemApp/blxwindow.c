@@ -1414,7 +1414,7 @@ void showInfoDialog(GtkWidget *blxWindow)
       g_free(seqText);
     }
   
-  GtkWidget *child = createScrollableTextView(resultStr->str, TRUE, blxWindow->style->font_desc, TRUE, &height, NULL);
+  GtkWidget *child = createScrollableTextView(resultStr->str, TRUE, blxWindow->style->font_desc, TRUE, NULL, &height, NULL);
                              
   gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);

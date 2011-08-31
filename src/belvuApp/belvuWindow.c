@@ -3565,7 +3565,7 @@ void showAnnotationWindow(BelvuContext *bc)
   PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
   pango_font_description_set_size(fontDesc, pango_font_description_get_size(dialog->style->font_desc));
   
-  GtkWidget *textView = createScrollableTextView(resultStr->str, FALSE, fontDesc, FALSE, NULL, NULL);
+  GtkWidget *textView = createScrollableTextView(resultStr->str, FALSE, fontDesc, FALSE, NULL, NULL, NULL);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), textView, TRUE, TRUE, 0);
 
   const gchar *env = g_getenv(FONT_SIZE_ENV_VAR);
