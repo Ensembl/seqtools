@@ -26,25 +26,29 @@ belvu - a multiple sequence alignment viewer and phylogenetic tool. It has an ex
 INSTALLATION
 ------------
 
-Supported platforms are Linux and Mac OS X.
+Supported platforms are Linux and Mac OS X.  The installation procedure for both is as follows.
 
-To install this package in the default location (usually /usr/bin), type the following commands on a command line:
+To install package in the default location (usually /usr/bin), type the following commands on a command line:
 
-./configure
-make all
-make install
+> ./configure
+> make all
+> make install
 
-To install in a different location (e.g. if you do not have root privileges for the default location), use the --prefix argument with ./configure.  For example, the following would install the programs in the directory /foo/bar:
+You may need to run 'make install' using sudo if you do not have root privileges:
 
-./configure --prefix=/foo/bar
-make all
-make install
+> sudo make install
+
+Alternatively, to install in a different location (e.g. one that does not require root privileges), use the --prefix argument with ./configure.  For example, the following would tell 'make' to install the programs in the directory foo/bar in your home directory:
+
+> ./configure --prefix=~/foo/bar
 
 
 USAGE
 -----
 
-Run the individual programs without arguments to see their usage information.
+Run the individual programs without arguments to see their usage information, or view the documentation here: doc/User_doc/index.html
+
+Help pages can also be accessed from within the programs using the 'Help' menu, the lifebuoy icon on the toolbar or the Ctrl-H shortcut key.
 
 
 DEPENDENCIES
@@ -61,7 +65,7 @@ If you have more than one version of these libraries on your system, you may als
 
 For example:
 
-./configure PKG_CONFIG_PATH=/my/dir/lib/pkgconfig LDFLAGS="-Xlinker -rpath -Xlinker /my/dir/lib"
+> ./configure PKG_CONFIG_PATH=/my/dir/lib/pkgconfig LDFLAGS="-Xlinker -rpath -Xlinker /my/dir/lib"
 
 
 libcurl
@@ -70,11 +74,19 @@ blixemh also requires the libcurl library to be installed on your system - "make
 
 Firstly, if you do not require the facility to fetch sequences using HTTP, then you can use blixem instead of blixemh.  Run the following commands to install blixem, dotter and belvu without installing blixemh:
 
-make blixem
-make dotter
-make belvu
-make install
+> make blixem
+> make dotter
+> make belvu
 
-If you do require the HTTP functionality, you need to install the development version of the libcurl library.  For example, on Debian this can be installed as follows:
+To install the individual programs, copy the executables to the desired destination, e.g.
 
-sudo apt-get install libcurl4-gnutls-dev
+> cp blixem dotter belvu /usr/bin
+
+or with root privileges:
+
+> sudo cp blixem dotter belvu /usr/bin
+
+
+If you DO require the HTTP functionality, you need to install the development version of the libcurl library.  For example, on Debian this can be installed as follows:
+
+> sudo apt-get install libcurl4-gnutls-dev
