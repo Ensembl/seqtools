@@ -969,7 +969,7 @@ static void readFastaAlnFinalise(BelvuContext *bc, ALN *aln)
   if (bc->maxLen) 
     {
       if (alnGetSeqLen(aln) != bc->maxLen) 
-        g_error("Differing sequence lengths: %d %d", bc->maxLen, alnGetSeqLen(aln));
+        g_error("Differing sequence lengths: %d %d\n", bc->maxLen, alnGetSeqLen(aln));
     }
   else
     {
@@ -979,7 +979,7 @@ static void readFastaAlnFinalise(BelvuContext *bc, ALN *aln)
   int ip = 0;
   if (alnArrayFind(bc->alignArr, &aln, &ip, (void*)alphaorder))
     {
-      g_error("Sequence name occurs more than once: %s%c%d-%d", 
+      g_error("Sequence name occurs more than once: %s%c%d-%d\n", 
               aln->name, bc->saveSeparator, aln->start, aln->end);
       
       g_string_free(aln->sequenceStr, TRUE);
@@ -2828,7 +2828,7 @@ static void makeSegList(BelvuContext *bc, SEG **SegList, char *line)
   g_free(linecopy);
     
   if (!n || n % 4) 
-    g_error("Segments not multiple of 4 ints (%s)", line);
+    g_error("Segments not multiple of 4 ints (%s)\n", line);
 
   for (i = 0; i < n/4; i++) 
     {
@@ -2852,21 +2852,21 @@ static void makeSegList(BelvuContext *bc, SEG **SegList, char *line)
       DEBUG_OUT("%d %d %d %d\n", seg->qstart, seg->qend, seg->start, seg->end);
 
       if (seg == *SegList && seg->qstart != 1)
-        g_error("Bad qstart: Must start on 1");
+        g_error("Bad qstart: Must start on 1\n");
 
       if (seg->qstart < 1 || seg->qstart > bc->maxLen)
-        g_error("Bad qstart: %d.  Range: 1-%d", seg->qstart, bc->maxLen);
+        g_error("Bad qstart: %d.  Range: 1-%d\n", seg->qstart, bc->maxLen);
       if (seg->qend < 1 || seg->qend > bc->maxLen)
-        g_error("Bad qend: %d.  Range: 1-%d", seg->qend, bc->maxLen);
+        g_error("Bad qend: %d.  Range: 1-%d\n", seg->qend, bc->maxLen);
       if (seg->start < 1 || seg->start > bc->maxLen)
-        g_error("Bad start: %d.  Range: 1-%d", seg->start, bc->maxLen);
+        g_error("Bad start: %d.  Range: 1-%d\n", seg->start, bc->maxLen);
       if (seg->end < 1 || seg->end > bc->maxLen)
-        g_error("Bad end: %d.  Range: 1-%d", seg->end, bc->maxLen);
+        g_error("Bad end: %d.  Range: 1-%d\n", seg->end, bc->maxLen);
 
       if (seg->qstart > seg->qend)
-        g_error("qstart > qend  (%d > %d)", seg->qstart, seg->qend);
+        g_error("qstart > qend  (%d > %d)\n", seg->qstart, seg->qend);
       if (seg->start > seg->end)
-        g_error("start > end  (%d > %d)", seg->start, seg->end);
+        g_error("start > end  (%d > %d)\n", seg->start, seg->end);
     }
 }
 
@@ -2883,11 +2883,11 @@ static int countInserts(SEG *seg)
     {
       Align_gap = seg->next->start - seg->end - 1;
       if (Align_gap < 0) 
-        g_error("Negative Align_gap: %d (%d-%d)", Align_gap, seg->start, seg->next->end );
+        g_error("Negative Align_gap: %d (%d-%d)\n", Align_gap, seg->start, seg->next->end );
 		
       Query_gap = seg->next->qstart - seg->qend - 1;
       if (Query_gap < 0) 
-        g_error("Negative Query_gap: %d (%d-%d)", Query_gap, seg->qstart, seg->next->qend );
+        g_error("Negative Query_gap: %d (%d-%d)\n", Query_gap, seg->qstart, seg->next->qend );
 
       gap = Query_gap - Align_gap;
       if (gap > 0) 
@@ -3017,7 +3017,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 
 	  /* Name */
 	  if (!strtok(line, "/"))
-	    g_error("Bad format: %s", line);
+	    g_error("Bad format: %s\n", line);
 
 	  strncpy(aln->name, line, MAXNAMESIZE);
 	  aln->name[MAXNAMESIZE] = 0;
@@ -3030,7 +3030,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 
 	  /* Start & End */
 	  if (!(cp = strtok(0, "-"))) 
-            g_error("Bad start: %s", cp);
+            g_error("Bad start: %s\n", cp);
 
 	  aln->start = atoi(cp);
           
@@ -3046,7 +3046,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
           tmpStr = NULL;
 
 	  if (!(cp = strtok(0, " ")))
-	    g_error("Bad end: %s", cp);
+	    g_error("Bad end: %s\n", cp);
           
 	  aln->end = atoi(cp);
           
@@ -3071,7 +3071,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 
 	  /* Score */
 	  if (!(cp = strtok(0, "\n")))
-	    g_error("Bad score: %s", cp);
+	    g_error("Bad score: %s\n", cp);
 
 	  aln->score = atof(cp);
           
@@ -4367,7 +4367,7 @@ static void readMul(BelvuContext *bc, FILE *pipe)
    */
   
   if (bc->alignArr->len == 0 || bc->maxLen == 0) 
-    g_error("Unable to read sequence data");
+    g_error("Unable to read sequence data\n");
   
   bc->saveFormat = BELVU_FILE_MUL;
 }
@@ -4636,14 +4636,14 @@ void outputProbs(BelvuContext *bc, FILE *fil)
     }
 
   if (!n)
-    g_error("No residues found");
+    g_error("No residues found\n");
 
   if (0) 
     {
       nmat = getMatchStates(bc);	/* Approximation, HMM may differ slightly */
 
       if (!nmat) 
-        g_error("No match state columns found");
+        g_error("No match state columns found\n");
       
       printf("Amino\n");
       

@@ -1042,7 +1042,7 @@ static void initWindow(const char *winsizeIn, DotplotProperties *properties)
     {
       if (!atoi(winsizeIn))
         {
-          g_error("Bad window size specification: %s", winsizeIn);
+          g_error("Bad window size specification: %s\n", winsizeIn);
         }
       
       properties->slidingWinSize = atoi(winsizeIn);

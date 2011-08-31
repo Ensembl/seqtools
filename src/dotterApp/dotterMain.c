@@ -396,7 +396,7 @@ int main(int argc, char **argv)
             strcpy(options.winsize, optarg);            break;
           case 'w': options.watsonOnly = TRUE;          break;
           case 'z': options.dotterZoom = atoi(optarg);  break;
-          default : g_error("Illegal option");
+          default : g_error("Illegal option\n");
       }
     }
 
@@ -454,14 +454,14 @@ int main(int argc, char **argv)
         int l = fread(options.qseq, 1, options.qlen, stdin); 
 	if (l != options.qlen) 
           {
-	    g_error("Only read %d chars to qseq, expected %d", l, options.qlen);
+	    g_error("Only read %d chars to qseq, expected %d\n", l, options.qlen);
           }
 	options.qseq[options.qlen] = 0;
 
         l = fread(options.sseq, 1, options.slen, stdin);
 	if (l != options.slen) 
           {
-	    g_error("Only read %d chars to sseq, expected %d", l, options.slen);
+	    g_error("Only read %d chars to sseq, expected %d\n", l, options.slen);
           }
 	options.sseq[options.slen] = 0;
         DEBUG_OUT("...done.\n");
