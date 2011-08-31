@@ -4092,9 +4092,13 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
       if (bc->sortType)
         setRadioMenuStatus(actionGroup, "unsorted", bc->sortType);
       
-      setRadioMenuStatus(actionGroup, "colorSchemeStandard", bc->consScheme);
       setToggleMenuStatus(actionGroup, "displayColors", bc->displayColors);
 
+      if (bc->schemeType == BELVU_SCHEME_TYPE_RESIDUE)
+        setRadioMenuStatus(actionGroup, "colorSchemeStandard", bc->residueScheme);
+      else
+        setRadioMenuStatus(actionGroup, "colorSchemeStandard", bc->consScheme);
+      
       if (bc->initTree)
         belvuAlignmentRedrawAll(bc->belvuAlignment); /* redraw, because tree creation removes markup which can mess this up */
     }
