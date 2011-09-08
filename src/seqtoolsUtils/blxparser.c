@@ -333,6 +333,9 @@ static char *readFastaSeqFromStdin(FILE *seqfile, char *seqName, int *startCoord
       if (!isWhitespaceChar(currentChar) && !isNewlineChar(currentChar)) 
         g_string_append_c(resultStr, currentChar);
       
+      if (!isValidIupacChar(currentChar, BLXSEQ_DNA)) /* always dna in our input fasta files for now... */
+	g_critical("DNA sequence in FASTA input contains invalid character '%c'", currentChar);
+	
       currentChar = fgetc(seqfile);
     }
   
@@ -394,6 +397,10 @@ static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName, int *startCoo
               if (!isWhitespaceChar(*linePos) && !isNewlineChar(*linePos))
                 {
                   g_string_append_c(currentSeqPtr->seq, *linePos);
+		
+		  if (!isValidIupacChar(*linePos, BLXSEQ_DNA)) /* always dna in our input fasta files for now... */
+		    g_critical("DNA sequence in FASTA input contains invalid character '%c'\n", *linePos);
+
                 }
             }
         }      
