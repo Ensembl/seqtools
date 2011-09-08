@@ -76,6 +76,7 @@ MSP score codes (for obsolete exblx file format):
 #define MKSTEMP_REPLACEMENT_CHARS	      "XXXXXX"		  /* the required string that will be replaced by unique chars when creating a temp file name */
 #define GFF3_VERSION_HEADER		      "##gff-version 3"	  /* the header line of a GFF v3 file */
 #define GFF3_SEQUENCE_REGION_HEADER	      "##sequence-region" /* the start comment of the sequence-region comment line in a GFF v3 file */
+#define MIN_GAP_HIGHLIGHT_WIDTH		      5			  /* minimum width of assembly gaps markers */
 
 
 static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
@@ -1701,9 +1702,11 @@ void drawAssemblyGaps(GtkWidget *widget,
 	  const int x1 = convertBaseIdxToRectPos(displayRev ? gap->qRange.min - 1 : gap->qRange.min, rect, dnaRange, TRUE, displayRev, TRUE);
 	  const int x2 = convertBaseIdxToRectPos(gap->qRange.max + 1, rect, dnaRange, TRUE, displayRev, TRUE);
           
+	  const int width = max(MIN_GAP_HIGHLIGHT_WIDTH, abs(x2 - x1));
+	
           cairo_t *cr = gdk_cairo_create(drawable);
           gdk_cairo_set_source_color(cr, color);
-          cairo_rectangle(cr, min(x1, x2), 0, abs(x2 - x1), widget->allocation.height);
+          cairo_rectangle(cr, min(x1, x2), 0, width, widget->allocation.height);
           cairo_clip(cr);
           cairo_paint_with_alpha(cr, 0.1);
           cairo_destroy(cr);
