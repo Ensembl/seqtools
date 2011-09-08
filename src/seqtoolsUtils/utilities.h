@@ -122,6 +122,7 @@ typedef enum
 
 /* Special characters for displaying in sequences */
 #define SEQUENCE_CHAR_GAP    '.'   /* represents a gap in the match sequence */
+#define SEQUENCE_CHAR_GAP2   '-'   /* represents a gap in the ref sequence */
 #define SEQUENCE_CHAR_PAD    '-'   /* used for padding when the sequence is unavailable */
 #define SEQUENCE_CHAR_BLANK  '-'   /* used to display a blank when we're not interested in what the actual base is */
 #define SEQUENCE_CHAR_STOP   '*'   /* STOP codon */

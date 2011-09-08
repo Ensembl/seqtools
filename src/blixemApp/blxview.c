@@ -832,6 +832,40 @@ gboolean blxviewFetchSequences(gboolean External,
 }
 
 
+/* Find any gaps in the reference sequence */
+static void findAssemblyGaps(const char *refSeq, GArray *featureLists[], MSP **mspList, const IntRange const *refSeqRange)
+{
+  /* Find the last msp in the list so we can append new ones to the end */
+  MSP *lastMsp = *mspList;
+  while (lastMsp && lastMsp->next)
+    lastMsp = lastMsp->next;
+  
+  /* Scan for the gap character */
+  const char *cp = strchr(refSeq, SEQUENCE_CHAR_GAP2);
+
+  while (cp && *cp)
+    {
+      /* Found the start of a gap; remember the start coord */
+      const int startCoord = cp - refSeq + refSeqRange->min;
+    
+      /* Loop until we find a non-gap character (or the end of the string) */
+      while (cp && *cp == SEQUENCE_CHAR_GAP2)
+	++cp;
+    
+      const int endCoord = cp - refSeq - 1 + refSeqRange->min;
+    
+      MSP *msp = createEmptyMsp(&lastMsp, mspList);
+      msp->type = BLXMSP_GAP;
+      intrangeSetValues(&msp->qRange, startCoord, endCoord);
+      
+      featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
+    
+      /* Continue looking for more gaps */
+      cp = strchr(cp, SEQUENCE_CHAR_GAP2);
+    }
+}
+
+
 /* blxview() can be called either from other functions in the Blixem
  * program itself or directly by functions in other programs such as
  * xace.
@@ -879,6 +913,9 @@ gboolean blxview(CommandLineOptions *options,
   
   if (status)
     {
+      /* Find any assembly gaps (i.e. gaps in the reference sequence) */
+      findAssemblyGaps(options->refSeq, featureLists, &options->mspList, &options->refSeqRange);
+      
       /* Construct missing data and do any other required processing now we have all the sequence data */
       finaliseBlxSequences(featureLists, &options->mspList, &seqList, 
                            options->refSeqOffset, options->seqType, 
@@ -1660,8 +1697,9 @@ void drawAssemblyGaps(GtkWidget *widget,
     {
       if (rangesOverlap(&gap->qRange, dnaRange))
         {
-          const int x1 = convertBaseIdxToRectPos(gap->qRange.min, rect, dnaRange, TRUE, displayRev, TRUE);
-          const int x2 = convertBaseIdxToRectPos(gap->qRange.max, rect, dnaRange, TRUE, displayRev, TRUE);
+	  /* Draw to max coord plus one (or min coord minus one if reversed) to be inclusive */
+	  const int x1 = convertBaseIdxToRectPos(displayRev ? gap->qRange.min - 1 : gap->qRange.min, rect, dnaRange, TRUE, displayRev, TRUE);
+	  const int x2 = convertBaseIdxToRectPos(gap->qRange.max + 1, rect, dnaRange, TRUE, displayRev, TRUE);
           
           cairo_t *cr = gdk_cairo_create(drawable);
           gdk_cairo_set_source_color(cr, color);
