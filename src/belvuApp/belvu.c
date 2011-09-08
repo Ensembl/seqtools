@@ -4312,7 +4312,7 @@ static void readMul(BelvuContext *bc, FILE *pipe)
           line[i] = 0;
 
           /* Store the line for processing later (once alnstart has been calculated) */
-          alnList = g_slist_append(alnList, g_strdup(line));
+          alnList = g_slist_prepend(alnList, g_strdup(line));
 	}
       else if (!strncmp(line, "#=GF ", 5) || 
                !strncmp(line, "#=GS ", 5)) 
@@ -4327,7 +4327,7 @@ static void readMul(BelvuContext *bc, FILE *pipe)
                !strncmp(line, "#=RF ", 5)) 
         {
           /* These are markup lines that are shown in the alignment list */
-          alnList = g_slist_append(alnList, g_strdup(line));
+          alnList = g_slist_prepend(alnList, g_strdup(line));
         }
       else if (!strncmp(line, "# matchFooter", 13)) 
         {
@@ -4337,8 +4337,9 @@ static void readMul(BelvuContext *bc, FILE *pipe)
         }
     }
   
-  /* Reverse the annotation list, because we prepended items instead of appending them */
+  /* Reverse the lists, because we prepended items instead of appending them */
   bc->annotationList = g_slist_reverse(bc->annotationList);
+  alnList = g_slist_reverse(alnList);
   
   /* Loop through all of the alignment lines and extract the sequence string */
   GSList *alnItem = alnList;
