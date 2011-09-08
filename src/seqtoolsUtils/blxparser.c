@@ -1707,6 +1707,14 @@ static void parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *read
   /* First, reealloc if necessary */
   if (*readSeqLen + strlen(line) > *readSeqMaxLen) 
     {
+      char *cp = line;
+      while (cp && *cp)
+	{ 
+	  if (!isValidIupacChar(*cp, BLXSEQ_DNA))
+	    g_critical("DNA sequence in FASTA input contains invalid character '%c'.\n", *cp);
+	  ++cp;
+	}
+    
       char *tmp;
       *readSeqMaxLen += MAXLINE + strlen(line);
       tmp = g_malloc(*readSeqMaxLen + 1);
