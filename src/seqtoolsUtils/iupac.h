@@ -154,7 +154,7 @@ struct iupactype
  * V = G/C/A (all but T)    B = C/G/T
  * N = A/G/C/T (any)        N = A/G/C/T
  */ 
-#define IUPACSYMNUM 19
+#define IUPACSYMNUM 17
 struct iupactype iupac[IUPACSYMNUM] =
   {
     {'A', 'T', NTA, NTT},
@@ -163,9 +163,7 @@ struct iupactype iupac[IUPACSYMNUM] =
     {'T', 'A', NTT, NTA},
     {'U', 'A', NTU, NTA},
     {'N', 'N', NTN, NTN},
-    {' ', ' ', NTGAP, NTGAP},
     {'-', '-', NTGAP, NTGAP},
-    {'.', '.', NTGAP, NTGAP},
     {'R', 'Y', NTR, NTY},
     {'Y', 'R', NTY, NTR},
     {'M', 'K', NTM, NTK},
