@@ -229,7 +229,11 @@ static void validateInput(CommandLineOptions *options)
     {
       printf("\nNo sequence type specified. Detected ");
       
-      if (determineSeqType(options->refSeq) == BLXSEQ_PEPTIDE)
+      GError *error = NULL;
+      BlxSeqType seqType = determineSeqType(options->refSeq, &error);
+      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+      
+      if (seqType == BLXSEQ_PEPTIDE)
 	{
 	  printf("protein sequence. Will try to run Blixem in protein mode.\n");
 	  options->seqType = BLXSEQ_PEPTIDE;

@@ -719,26 +719,33 @@ int main(int argc, char **argv)
       }
 
     /* Determine sequence types */
-    if (determineSeqType(options.qseq) == BLXSEQ_PEPTIDE && determineSeqType(options.sseq) == BLXSEQ_PEPTIDE) 
+    GError *error = NULL;
+    BlxSeqType qSeqType = determineSeqType(options.qseq, &error);
+    prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.qname);
+    reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+  
+    BlxSeqType sSeqType = determineSeqType(options.sseq, &error);
+    prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.sname);
+    reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+  
+    if (qSeqType == BLXSEQ_PEPTIDE && sSeqType == BLXSEQ_PEPTIDE) 
       {
 	g_message("\nDetected sequence types: Protein vs. Protein\n");
 	blastMode = BLXMODE_BLASTP;
       }
-    else if (determineSeqType(options.qseq) == BLXSEQ_DNA && determineSeqType(options.sseq) == BLXSEQ_DNA) 
+    else if (qSeqType == BLXSEQ_DNA && sSeqType == BLXSEQ_DNA) 
       {
 	g_message("\nDetected sequence types: DNA vs. DNA\n");
 	blastMode = BLXMODE_BLASTN;
       }
-    else if (determineSeqType(options.qseq) == BLXSEQ_DNA && determineSeqType(options.sseq) == BLXSEQ_PEPTIDE) 
+    else if (qSeqType == BLXSEQ_DNA && sSeqType == BLXSEQ_PEPTIDE) 
       {
 	g_message("\nDetected sequence types: DNA vs. Protein\n");
 	blastMode = BLXMODE_BLASTX;;
       }
     else
       {
-        fprintf(stderr, "Illegal sequence types: Protein vs. DNA - turn arguments around!\n\n");
-	showUsageText();
-        exit(EXIT_FAILURE);
+        g_error("Illegal sequence types: Protein vs. DNA - turn arguments around!\n");
       }
       
     /* Add -install for private colormaps */

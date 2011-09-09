@@ -440,8 +440,9 @@ int numDigitsInInt(int val)
 
 /* Determine (or give our best guess) the sequence type of a sequence, based on the characters it
  * contains. Returns BLXSEQ_DNA for nucleotide sequences or BLXSEQ_PEPTIDE for peptide sequences. */
-BlxSeqType determineSeqType(char *seq)
+BlxSeqType determineSeqType(char *seq, GError **error)
 {
+    const int lenToSearch = 300;
     char *aminos      = "ABCDEFGHIKLMNPQRSTVWXYZ*";
     char *primenuc    = "ACGTUN";
     char *protonly    = "EFIPQZ";
@@ -457,9 +458,9 @@ BlxSeqType determineSeqType(char *seq)
     int  aa = 0;			/* count of amino acids */
     int  no = 0;			/* count of others */
   
-    /* Look at the first 300 characters
+    /* Look at the first lenToSearch characters
      */
-    for (pos = 0; seq[pos] && pos < 300; pos++)
+    for (pos = 0; seq[pos] && pos < lenToSearch; pos++)
     {
 	c = toupper(seq[pos]);
 
@@ -476,9 +477,15 @@ BlxSeqType determineSeqType(char *seq)
 	    no++;
     }
 
-    if (po > 0) return BLXSEQ_PEPTIDE;
-    else if (na > aa) return BLXSEQ_DNA;
-    else return BLXSEQ_PEPTIDE;
+    if (po == 0 && na == 0 && aa == 0 && no == 0)
+      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_TYPE, "No valid DNA or amino-acid characters found. (Searched the first %d characters.)\n", lenToSearch);
+    
+    if (po > 0) 
+      return BLXSEQ_PEPTIDE;
+    else if (na > aa) 
+      return BLXSEQ_DNA;
+    else
+      return BLXSEQ_PEPTIDE;
 } /* determineSeqType */
 
 

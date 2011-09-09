@@ -140,9 +140,6 @@ NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
 NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN
 };
 
-/* binary-to-ASCII translation table */
-char bton[] = "ACGTN*";
-
 double aafq[20]	/* Amino acid residue frequencies used by S. Altschul */
 = {.081, .057, .045, .054, .015, .039, .061, .068, .022, .057,
 .093, .056, .025, .040, .049, .068, .058, .013, .032, .067 } ;

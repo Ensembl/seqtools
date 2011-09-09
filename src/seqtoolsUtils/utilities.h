@@ -89,7 +89,8 @@ typedef enum
   SEQTOOLS_ERROR_PARSING_COLOR,	      /* error parsing color string */
   SEQTOOLS_ERROR_SEQ_SEGMENT,	      /* error getting the requested segment of a sequence */
   SEQTOOLS_ERROR_NO_STYLE,            /* style does not exist */
-  SEQTOOLS_ERROR_EXECUTING_CMD	      /* error executing command */
+  SEQTOOLS_ERROR_EXECUTING_CMD,       /* error executing command */
+  SEQTOOLS_ERROR_SEQ_TYPE	      /* error determining sequence type */
 } SeqToolsError;
 
 
@@ -302,7 +303,7 @@ GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdoub
 GdkDrawable*	      createBlankPixmap(GtkWidget *widget);
 GdkDrawable*          createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *window, const int width, const int height);
 
-BlxSeqType            determineSeqType(char *seq);
+BlxSeqType            determineSeqType(char *seq, GError **error);
 void                  argvAdd(int *argc, char ***argv, char *s);
 char*                 getSystemErrorText();
 gpointer              handleAlloc(BlxHandle *handle, size_t numBytes);
