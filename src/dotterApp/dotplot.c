@@ -1067,7 +1067,7 @@ static char getHozSeqBase(DotterWindowContext *dwc, const int idx, const int fra
       /* Complement the sequence if it's the reverse strand */
       const gboolean complement = (dc->refSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->hozScaleRev);
 
-      result = getRefSeqBase(dc->refSeq, coord, complement, &dc->refSeqFullRange, dc->refSeqType);
+      result = getSequenceIndex(dc->refSeq, coord, complement, &dc->refSeqFullRange, dc->refSeqType);
     }
   
   return result;
@@ -1085,7 +1085,7 @@ static char getVertSeqBase(DotterWindowContext *dwc, const int idx)
 
   const gboolean complement = (dc->matchSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->vertScaleRev);
   
-  return getRefSeqBase(dc->matchSeq, coord, complement, &dc->matchSeqFullRange, dc->matchSeqType);
+  return getSequenceIndex(dc->matchSeq, coord, complement, &dc->matchSeqFullRange, dc->matchSeqType);
 }
 
 

@@ -1149,7 +1149,7 @@ static void blxWindowFindDnaString(GtkWidget *blxWindow,
   
   while (refSeqIdx >= bc->refSeqRange.min && refSeqIdx <= bc->refSeqRange.max && searchStrIdx >= 0 && searchStrIdx <= searchStrMax)
     {
-      const char refSeqBase = getRefSeqBase(bc->refSeq, refSeqIdx, complement, &bc->refSeqRange, BLXSEQ_DNA);
+      const char refSeqBase = getSequenceIndex(bc->refSeq, refSeqIdx, complement, &bc->refSeqRange, BLXSEQ_DNA);
       char searchStrBase = convertBaseToCorrectCase(searchStr[searchStrIdx], BLXSEQ_DNA);      
       
       if (refSeqBase == searchStrBase)

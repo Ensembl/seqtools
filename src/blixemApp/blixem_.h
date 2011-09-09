@@ -439,7 +439,7 @@ void                               drawAssemblyGaps(GtkWidget *widget,
 
 /* blxparser.c */
 gboolean                           mspHasFs(const MSP *msp);  
-char*                              readFastaSeq(FILE *seqfile, char *qname, int *startCoord, int *endCoord);
+char*                              readFastaSeq(FILE *seqfile, char *qname, int *startCoord, int *endCoord, const BlxSeqType seqType);
 
 /* blxFetch.c */
 void                               fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow) ;

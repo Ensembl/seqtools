@@ -741,6 +741,13 @@ int main(int argc, char **argv)
       g_error("Config File Error: %s\n", error->message) ;
     }
 
+  /* Set the blast mode from the sequence type, or vice versa, depending on which was supplied.
+   * Ideally we'll get rid of blast mode eventually. */
+  if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_INVALID)
+    options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
+  else if (options.seqType == BLXSEQ_INVALID && options.blastMode != BLXMODE_UNSET)
+    options.seqType = (options.blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
+  
   /* Read in the key file, if there is one */
   GSList *styles = blxReadStylesFile(key_file, &error);
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
@@ -768,7 +775,7 @@ int main(int argc, char **argv)
       /* Read in query sequence */
       int startCoord = UNSET_INT;
       int endCoord = UNSET_INT;
-      options.refSeq = readFastaSeq(seqfile, options.refSeqName, &startCoord, &endCoord);
+      options.refSeq = readFastaSeq(seqfile, options.refSeqName, &startCoord, &endCoord, options.seqType);
       
       if (startCoord != UNSET_INT && endCoord != UNSET_INT)
 	intrangeSetValues(&options.refSeqRange, startCoord, endCoord);
@@ -776,13 +783,6 @@ int main(int argc, char **argv)
       if (seqfile != stdin)
         fclose(seqfile);
     }
-
-  /* Set the blast mode from the sequence type, or vice versa, depending on which was supplied.
-   * Ideally we'll get rid of blast mode eventually. */
-  if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_INVALID)
-    options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
-  else if (options.seqType == BLXSEQ_INVALID && options.blastMode != BLXMODE_UNSET)
-    options.seqType = (options.blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
 
   /* Parse the data file containing the homol descriptions.                */
   if (!strcmp(FSfilename, "-"))

@@ -123,9 +123,10 @@ typedef enum
 
 /* Special characters for displaying in sequences */
 #define SEQUENCE_CHAR_DELETION '.'   /* represents a deletion */
-#define SEQUENCE_CHAR_GAP      '-'   /* represents a gap */
+#define SEQUENCE_CHAR_GAP      '-'   /* represents a gap. Note that gaps in the reference sequence will be highlighted as assembly gaps */
 #define SEQUENCE_CHAR_PAD      '-'   /* used for padding when the sequence is unavailable */
 #define SEQUENCE_CHAR_BLANK    '-'   /* used to display a blank when we're not interested in what the actual base is */
+#define SEQUENCE_CHAR_INVALID  ' '   /* used to replace non-utf8 characters (which GTK can't display) */
 #define SEQUENCE_CHAR_STOP     '*'   /* STOP codon */
 #define SEQUENCE_CHAR_MET      'M'   /* MET codon */
 
@@ -360,11 +361,11 @@ char                  getStrandAsChar(const BlxStrand strand);
 int                   roundNearest(const double val);
 int		      roundToValue(const int inputVal, const int roundTo);
 
-char		      getRefSeqBase(char *refSeq, 
-				    const int qIdx, 
-				    const gboolean complement, 
-				    const IntRange const *refSeqRange,
-				    const BlxSeqType seqType);
+char		      getSequenceIndex(char *seq, 
+                                       const int qIdx, 
+                                       const gboolean complement, 
+                                       const IntRange const *seqRange,
+                                       const BlxSeqType seqType);
 
 int		      getStartDnaCoord(const IntRange const *displayRange, 
 				       const int frame,

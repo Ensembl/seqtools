@@ -987,46 +987,26 @@ char convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType
 }
 
 
-/* Returns the base at the given index in the reference sequence. If
- * 'complement' is true, the result is complemented. */
-char getRefSeqBase(char *refSeq,
-		   const int qIdx, 
-		   const gboolean complement, 
-		   const IntRange const *refSeqRange,
-		   const BlxSeqType seqType)
+/* Utility to return the base at the given index in the given sequence. If
+ * 'complement' is true and seqType is DNA, the result is complemented.
+ * Returns ' ' if the index is out of range. */
+char getSequenceIndex(char *seq,
+                      const int qIdx, 
+                      const gboolean complement, 
+                      const IntRange const *seqRange,
+                      const BlxSeqType seqType)
 {
   char result = ' ';
   
-  if (qIdx >= refSeqRange->min && qIdx <= refSeqRange->max)
+  if (qIdx >= seqRange->min && qIdx <= seqRange->max)
     {
-      char base = refSeq[qIdx - refSeqRange->min];
+      char base = seq[qIdx - seqRange->min];
       base = convertBaseToCorrectCase(base, seqType);
       
-      if (!complement)
-	{
-	  result = base;
-	}
+      if (!complement || seqType == BLXSEQ_PEPTIDE)
+        result = base;
       else
-	{
-	  switch (base)
-	  {
-	    case 'c':
-	      result = 'g';
-	      break;
-	    case 'g':
-	      result = 'c';
-	      break;
-	    case 'a':
-	      result = 't';
-	      break;
-	    case 't':
-	      result = 'a';
-	      break;
-	    default:
-	      result = ' ';
-	      break;
-	  }
-	}
+        result = complementChar(base, NULL);
     }
   
   return result;
