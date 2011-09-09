@@ -842,7 +842,7 @@ static void findAssemblyGaps(const char *refSeq, GArray *featureLists[], MSP **m
     lastMsp = lastMsp->next;
   
   /* Scan for the gap character */
-  const char *cp = strchr(refSeq, SEQUENCE_CHAR_GAP2);
+  const char *cp = strchr(refSeq, SEQUENCE_CHAR_GAP);
 
   while (cp && *cp)
     {
@@ -850,7 +850,7 @@ static void findAssemblyGaps(const char *refSeq, GArray *featureLists[], MSP **m
       const int startCoord = cp - refSeq + refSeqRange->min;
     
       /* Loop until we find a non-gap character (or the end of the string) */
-      while (cp && *cp == SEQUENCE_CHAR_GAP2)
+      while (cp && *cp == SEQUENCE_CHAR_GAP)
 	++cp;
     
       const int endCoord = cp - refSeq - 1 + refSeqRange->min;
@@ -862,7 +862,7 @@ static void findAssemblyGaps(const char *refSeq, GArray *featureLists[], MSP **m
       featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
     
       /* Continue looking for more gaps */
-      cp = strchr(cp, SEQUENCE_CHAR_GAP2);
+      cp = strchr(cp, SEQUENCE_CHAR_GAP);
     }
 }
 

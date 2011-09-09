@@ -121,12 +121,12 @@ typedef enum
 
 
 /* Special characters for displaying in sequences */
-#define SEQUENCE_CHAR_GAP    '.'   /* represents a gap in the match sequence */
-#define SEQUENCE_CHAR_GAP2   '-'   /* represents a gap in the ref sequence */
-#define SEQUENCE_CHAR_PAD    '-'   /* used for padding when the sequence is unavailable */
-#define SEQUENCE_CHAR_BLANK  '-'   /* used to display a blank when we're not interested in what the actual base is */
-#define SEQUENCE_CHAR_STOP   '*'   /* STOP codon */
-#define SEQUENCE_CHAR_MET    'M'   /* MET codon */
+#define SEQUENCE_CHAR_DELETION '.'   /* represents a deletion */
+#define SEQUENCE_CHAR_GAP      '-'   /* represents a gap */
+#define SEQUENCE_CHAR_PAD      '-'   /* used for padding when the sequence is unavailable */
+#define SEQUENCE_CHAR_BLANK    '-'   /* used to display a blank when we're not interested in what the actual base is */
+#define SEQUENCE_CHAR_STOP     '*'   /* STOP codon */
+#define SEQUENCE_CHAR_MET      'M'   /* MET codon */
 
 
 /* Color strings that can be passed to create a GdkColor */
@@ -592,7 +592,7 @@ gboolean                           seqtoolsLaunchWebBrowser(const char *link, GE
 char*                              blxTranslate(const char *seq, char **code);
 void                               blxComplement(char *seq) ;    
 char*                              revComplement(char *comp, char *seq) ;
-
+char                               complementChar(const char inputChar, GError **error);
 
 
 void    gtk_text_buffer_insert_markup             (GtkTextBuffer *buffer,

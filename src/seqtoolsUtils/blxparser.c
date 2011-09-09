@@ -303,13 +303,6 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 }
 
 
-/* Returns true if this is a valid character to expect in a FASTA sequence input */
-//static gboolean isValidFastaChar(const char inputChar)
-//{
-//  return (isalpha(inputChar) || inputChar == SEQUENCE_CHAR_GAP || inputChar == SEQUENCE_CHAR_STOP);
-//}
-
-
 /* Read in a FASTA sequence from a FASTA file or stdin */
 static char *readFastaSeqFromStdin(FILE *seqfile, char *seqName, int *startCoord, int *endCoord)
 {

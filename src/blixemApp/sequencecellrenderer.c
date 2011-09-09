@@ -671,8 +671,8 @@ static void drawBase(MSP *msp,
     }
   else if (*sIdx == UNSET_INT)
     {
-      /* We're inside the alignment range but there is no base to display: we must be in a gap. */
-      sBase = SEQUENCE_CHAR_GAP;
+      /* We're inside the alignment range but there is no base to display: we must be in a deletion. */
+      sBase = SEQUENCE_CHAR_DELETION;
       baseBgColor = selected ? data->mismatchColorSelected : data->mismatchColor;
     }
   else

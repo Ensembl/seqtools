@@ -45,6 +45,18 @@
 #include <string.h>
 
 
+/* Translation errors domain */
+#define SEQTOOLS_TRANSLATION_ERROR g_quark_from_string("SeqTools")
+
+/* Error codes */
+typedef enum
+  {
+    SEQTOOLS_ERROR_INVALID_NUCLEOTIDE      /* invalid dna/rna nucleotide */
+  } SeqToolsTranslationError;
+
+
+
+
 /* THIS FILE NEEDS RENAMING TO SOMETHING LIKE utils.c */
 
 /* Function: Translate(char *seq, char **code)
@@ -105,6 +117,36 @@ char *blxTranslate(const char *seq, char **code)
 }
 
 
+/* Get the complement of the given nucleotide. Returns the original char and sets
+ * the error if no valid complement exists */
+char complementChar(const char inputChar, GError **error)
+{
+  /* Loop through each iupac code looking for this char. iupac chars are all
+   * uppercase */
+  char result = '\0';
+  char c = toupper(inputChar);
+  int idx = 0;
+  
+  for ( ; c != iupac[idx].sym && idx < IUPACSYMNUM; idx++);
+  
+  if (idx >= IUPACSYMNUM)
+    {
+      /* not found; return original char */
+      result = inputChar;
+      g_set_error(error, SEQTOOLS_TRANSLATION_ERROR, SEQTOOLS_ERROR_INVALID_NUCLEOTIDE, "Invalid nucleotide '%c'; could not find complement.\n", inputChar);
+    }
+  else
+    {
+      result = iupac[idx].symcomp;
+      
+      if (islower(inputChar))
+        result = tolower(result);
+    }
+  
+  return result;
+}
+
+
 /* All these calls need rationalising into a single function with options. */
 
 /* revComplement.c
@@ -117,9 +159,7 @@ char *revComplement(char *comp, char *seq)
 {
   long  bases;
   char *bckp, *fwdp;
-  int   idx;
   long  pos;
-  int   c;
 
   if (comp == NULL)
     return NULL;
@@ -132,25 +172,7 @@ char *revComplement(char *comp, char *seq)
   bckp = seq + bases -1;
   for (pos = 0; pos < bases; pos++)
     {
-      c = *bckp;
-      c = toupper(c);
-
-      for (idx = 0; c != iupac[idx].sym && idx < IUPACSYMNUM; idx++);
-
-      if (idx >= IUPACSYMNUM)
-	{
-          /* do nothing, i.e. keep original char */
-//	  *fwdp = '\0';
-//	  return NULL;
-	}
-      else
-	{
-	  *fwdp = iupac[idx].symcomp;
-	}
-
-      if (islower(*bckp))
-	*fwdp = tolower(*fwdp);
-
+      *fwdp = complementChar(*bckp, NULL);
       fwdp++;
       bckp--;
     }
@@ -169,9 +191,7 @@ char *revComplement(char *comp, char *seq)
 void blxComplement(char *seq)
 {
   char *fwdp;
-  int   idx;
   long  pos;
-  int   c;
 
   if (seq == NULL)
     return ;
@@ -179,30 +199,7 @@ void blxComplement(char *seq)
   fwdp = seq;
   for (pos = 0; pos < strlen(seq); pos++)
     {
-      c = toupper(*fwdp);
-
-      for (idx = 0; idx < IUPACSYMNUM; idx++)
-        {
-          if (c == iupac[idx].sym)
-            break;
-        }
-
-      if (idx >= IUPACSYMNUM)
-	{
-          /* do nothing, i.e. keep original char */
-	  //*fwdp = '\0';
-	  //return;
-	}
-      else
-        {
-          c = iupac[idx].symcomp;
-        }
-
-      if (islower(*fwdp))
-	*fwdp = tolower(c);
-      else
-	*fwdp = c;
-
+      *fwdp = complementChar(*fwdp, NULL);
       fwdp++;
     }
 
