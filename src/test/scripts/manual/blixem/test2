@@ -1,0 +1,2 @@
+exec blixemh -c ~/.blixemrc -s 299152 -m 210623 -z 298622:299322  -n -t P ../data/chr4.fasta ../data/chr4_protein_align.gff --dataset=human 
+
