@@ -792,19 +792,20 @@ int main(int argc, char **argv)
   IntRange *qRange = NULL;
   if (options.refSeqRange.min == UNSET_INT && options.refSeqRange.max == UNSET_INT)
     qRange = &options.refSeqRange;
+
+  /* Set the blast mode from the sequence type, if given. If not, blast mode might
+   * get set by parseFS (nasty for backwards compatibility; ideally we'll get rid
+   * of blastmode at some point). */
+  if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_INVALID)
+    options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
   
   parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
           &options.refSeq, options.refSeqName, qRange, &dummyseq, dummyseqname, inputConfigFile) ;
 
-  
-  /* Set the blast mode from the sequence type, or vice versa, depending on which was supplied.
-   * Ideally we'll get rid of blast mode eventually. */
-  if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_INVALID)
-    options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
-  else if (options.seqType == BLXSEQ_INVALID && options.blastMode != BLXMODE_UNSET)
+  /* Now see if blast mode was set and set seqtype from it if not already set... */
+  if (options.seqType == BLXSEQ_INVALID && options.blastMode != BLXMODE_UNSET)
     options.seqType = (options.blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
-  
-  
+
   /* Parse the reference sequence, if we have a separate sequence file (and it was
    * not already specified in the features file) */
   if (!options.refSeq && numFiles == 2)
