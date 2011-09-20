@@ -1,0 +1,14 @@
+exec dotter -q 246634 -f ../data/chr4_dna_align.gff ../data/chr4_ref_seq.fasta ../data/DA730641.fasta
+
+#
+# Description:
+#   Test Dotter in nucleotide->nucleotide mode. Tests the dot-matrix calculation as well
+#   as the display of transcripts and HSPs supplied via a features file.
+#
+# Results:
+#   Dotter's graphical display should start up, showing a dot-plot where strong matching regions
+#   between the two sequences are shown as diagonal lines. The greyramp tool can be used to adjust
+#   the contrast of the dot plot. Transcripts from the features file should be shown along the
+#   horizontal axis and HSPs from the features file can be displayed by enabling the relevant
+#   option in the View menu.
+#

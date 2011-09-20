@@ -1,0 +1,15 @@
+exec dotter -q 246634 -s 246634 -f ../data/chr4_dna_align.gff ../data/chr4_ref_seq.fasta ../data/chr4_ref_seq.fasta
+
+#
+# Description:
+#   Tests calling Dotter on a long sequence versus itself. Transcripts are supplied via a features
+#   file.
+#
+# Results:
+#   Dotter's graphical display should start up, showing a dot-plot where strong matching regions
+#   between the two sequences are shown as diagonal lines: since the two sequences match exactly, 
+#   there will be a diagonal line from the top-left to the bottom-right corner. Any other matching
+#   regions (i.e. internal repeats) will also display as diagonal lines.
+#
+#   Transcripts from the features file should be shown along both axes.
+#

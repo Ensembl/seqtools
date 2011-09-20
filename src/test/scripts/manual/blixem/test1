@@ -1,2 +1,11 @@
-exec blixemh -c ~/.blixemrc -s 299152 -m 210623 -z 298622:299322  -n -t N ../data/chr4.fasta ../data/chr4_dna_align.gff --dataset=human 
+exec blixemh -c ~/.blixemrc -s 337622 -m 210623 -z 335873:338382  -n -t N ../data/chr4_ref_seq.fasta ../data/chr4_dna_align.gff --dataset=human 
 
+#
+# Description:
+#   Test Blixem in nucleotide mode. Features include nucleotide matches, transcripts
+#   variations, polyA sites and signals
+#
+# Results:
+#   Blixem's graphical display should start up showing the alignments and transripts.
+#   Variations and polyA features can be displayed from the Settings dialog.
+#
