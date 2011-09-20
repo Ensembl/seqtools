@@ -72,7 +72,13 @@ typedef struct _CoverageViewProperties
 
 CoverageViewProperties* coverageViewGetProperties(GtkWidget *widget)
 {
-  return widget ? (CoverageViewProperties*)(g_object_get_data(G_OBJECT(widget), "CoverageViewProperties")) : NULL;
+  /* optimisation: cache result, because we know there is only ever one coverage view */
+  static CoverageViewProperties *properties = NULL;
+  
+  if (!properties && widget)
+    properties = (CoverageViewProperties*)(g_object_get_data(G_OBJECT(widget), "CoverageViewProperties"));
+  
+  return properties;
 }
 
 static void onDestroyCoverageView(GtkWidget *widget)

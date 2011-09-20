@@ -417,6 +417,7 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
       boundsLimitValue(&newSelectedBaseIdx, fullRange);
       
       detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, detailViewProperties->selectedBaseNum, TRUE, TRUE);
+      detailViewRedrawAll(detailView);
     }
 }
 
@@ -1198,6 +1199,7 @@ static void blxWindowFindDnaString(GtkWidget *blxWindow,
       result = convertDnaIdxToDisplayIdx(result, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
       
       detailViewSetSelectedBaseIdx(detailView, result, frame, baseNum, TRUE, FALSE);
+      detailViewRedrawAll(detailView);
     }
   else
     {
@@ -4495,7 +4497,13 @@ static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpoin
 
 static BlxWindowProperties* blxWindowGetProperties(GtkWidget *widget)
 {
-  return widget ? (BlxWindowProperties*)(g_object_get_data(G_OBJECT(widget), "BlxWindowProperties")) : NULL;
+  /* optimisation: cache result, because we know there is only ever one main window */
+  static BlxWindowProperties *properties = NULL;
+  
+  if (!properties && widget)
+    properties = (BlxWindowProperties*)(g_object_get_data(G_OBJECT(widget), "BlxWindowProperties"));
+  
+  return properties;
 }
 
 BlxViewContext* blxWindowGetContext(GtkWidget *blxWindow)
@@ -4677,6 +4685,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc->defaultColors, BLXCOLOR_CLIP_MARKER, "Clipped-match indicator", "Marker to indicate a match has been clipped to the display range", BLX_RED, BLX_DARK_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_COVERAGE_PLOT, "Coverage plot", "Coverage plot", BLX_ROYAL_BLUE, BLX_DARK_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_ASSEMBLY_GAP, "Assembly gaps", "Highlight color for assembly gaps", "#D14553", BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_SELECTION, "Selection color", "Highlight color for selections", BLX_DARK_GREY, BLX_DARK_GREY, NULL, NULL);
   
   g_free(defaultBgColorStr);
 }
@@ -5760,7 +5769,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   if (blxContext->modelId == BLXMODEL_SQUASHED)
     {
       callFuncOnAllDetailViewTrees(detailView, treeUpdateSquashMatches, NULL);
-      gtk_widget_queue_draw(detailView);
+      detailViewRedrawAll(detailView);
     }
   
   /* If the options say to hide the inactive strand, hide it now. (This must be done

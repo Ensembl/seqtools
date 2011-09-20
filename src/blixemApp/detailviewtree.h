@@ -60,7 +60,8 @@
 
 #define DETAIL_VIEW_TREE_NAME		  "DetailViewTreeName"
 #define DETAIL_VIEW_TREE_CONTAINER_NAME	  "DetailViewTreeContainerName"
-
+#define START_TRUE                        1
+#define START_FALSE                       2
 
 /* This struct holds info about a tree header widget. */
 typedef struct _TreeColumnHeaderInfo
@@ -113,6 +114,10 @@ void		  treeScrollSelectionIntoView(GtkWidget *tree, gpointer data);
 
 void		  addMspToTree(GtkWidget *tree, MSP *msp);
 void		  addSequencesToTree(GtkWidget *tree, gpointer data);
+
+void              treeDrawCachedBitmap(GtkWidget *tree, gpointer data);
+
+void              setMouseDragMode(const gboolean value);
 
 GtkWidget*	  createDetailViewTree(GtkWidget *grid, 
 				       GtkWidget *detailView,

@@ -1080,7 +1080,13 @@ static void onSizeAllocateBigPicture(GtkWidget *bigPicture, GtkAllocation *alloc
 
 BigPictureProperties* bigPictureGetProperties(GtkWidget *bigPicture)
 {
-  return bigPicture ? (BigPictureProperties*)(g_object_get_data(G_OBJECT(bigPicture), "BigPictureProperties")) : NULL;
+  /* optimisation: cache result, because we know there is only ever one big picture */
+  static BigPictureProperties *properties = NULL;
+  
+  if (!properties && bigPicture)
+    properties = (BigPictureProperties*)(g_object_get_data(G_OBJECT(bigPicture), "BigPictureProperties"));
+  
+  return properties;
 }
 
 BlxViewContext* bigPictureGetContext(GtkWidget *bigPicture)
@@ -1091,7 +1097,13 @@ BlxViewContext* bigPictureGetContext(GtkWidget *bigPicture)
 
 static GridHeaderProperties* gridHeaderGetProperties(GtkWidget *gridHeader)
 {
-  return gridHeader ? (GridHeaderProperties*)(g_object_get_data(G_OBJECT(gridHeader), "GridHeaderProperties")) : NULL;
+  /* optimisation: cache result, because we know there is only ever one grid header */
+  static GridHeaderProperties *properties = NULL;
+  
+  if (!properties && gridHeader)
+    properties = (GridHeaderProperties*)(g_object_get_data(G_OBJECT(gridHeader), "GridHeaderProperties"));
+  
+  return properties;
 }
 
 

@@ -666,7 +666,7 @@ void updateDetailViewFontDesc(GtkWidget *detailView)
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   callFuncOnAllDetailViewTrees(detailView, treeUpdateFontSize, NULL);
-  gtk_widget_queue_draw(detailView);
+  detailViewRedrawAll(detailView);
 }
 
 
@@ -930,7 +930,7 @@ void detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash)
       callFuncOnAllDetailViewTrees(detailView, treeUpdateSquashMatches, NULL);
     }
 
-  gtk_widget_queue_draw(detailView);
+  detailViewRedrawAll(detailView);
 }
 
 
@@ -972,7 +972,7 @@ void detailViewUpdateMspLengths(GtkWidget *detailView, const int numUnalignedBas
    * sequences may have changed (and we need to make sure they're sorted by start pos) */
   callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-  gtk_widget_queue_draw(detailView);
+  detailViewRedrawAll(detailView);
 }
 
 
@@ -2111,13 +2111,13 @@ static void detailViewCentreOnSelection(GtkWidget *detailView)
 
 /* Gets the x coords at the start/end of the given column and populate them into the range
  * return argument. */
-void detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnId, IntRange *xRange)
+void detailViewGetColumnXCoords(DetailViewProperties *properties, const BlxColumnId columnId, IntRange *xRange)
 {
   xRange->min = 0;
   xRange->max = 0;
   
   /* Loop through all visible columns up to the given column, summing their widths. */
-  GList *columnItem = detailViewGetColumnList(detailView);
+  GList *columnItem = properties->columnList;
   
   for ( ; columnItem; columnItem = columnItem->next)
     {
@@ -2148,20 +2148,21 @@ void detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnI
 static int getBaseIndexAtDetailViewCoords(GtkWidget *detailView, const int x, const int y)
 {
   int baseIdx = UNSET_INT;
-
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  
   /* Get the x coords at the start/end of the sequence column */
   IntRange xRange;
-  detailViewGetColumnXCoords(detailView, BLXCOL_SEQUENCE, &xRange);
+  detailViewGetColumnXCoords(properties, BLXCOL_SEQUENCE, &xRange);
   
   /* See if our x coord lies inside the sequence column */
   if (x >= xRange.min && x <= xRange.max)
     {
       /* Get the 0-based char index at x */
-      gdouble charWidth = detailViewGetCharWidth(detailView);
+      gdouble charWidth = properties->charWidth;
       int charIdx = (int)(((gdouble)x - xRange.min) / charWidth);
 
       /* Add the start of the scroll range to convert this to the display index */
-      GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+      GtkAdjustment *adjustment = properties->adjustment;
       baseIdx = charIdx + adjustment->value;
     }
   
@@ -2213,7 +2214,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
       callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
-      gtk_widget_queue_draw(detailView);
+      detailViewRedrawAll(detailView);
 
       /* Update the big picture because the highlight box has moved (and changed size) */
       GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
@@ -2255,7 +2256,7 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
       callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
-      gtk_widget_queue_draw(detailView);
+      detailViewRedrawAll(detailView);
 
       /* Update the big picture because the highlight box has moved */
       GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
@@ -2525,7 +2526,7 @@ void refilterDetailView(GtkWidget *detailView, const IntRange const *oldRange)
         }
     }
   
-  gtk_widget_queue_draw(detailView);
+  detailViewRedrawAll(detailView);
   
   DEBUG_EXIT("refilterDetailView returning ");
 }
@@ -2908,7 +2909,13 @@ static GtkWidget *detailViewGetBigPicture(GtkWidget *detailView)
 
 DetailViewProperties* detailViewGetProperties(GtkWidget *widget)
 {
-  return widget ? (DetailViewProperties*)(g_object_get_data(G_OBJECT(widget), "DetailViewProperties")) : NULL;
+  /* optimisation: cache result, because we know there is only ever one detail view */
+  static DetailViewProperties *properties = NULL;
+
+  if (!properties && widget)
+    properties = (DetailViewProperties*)(g_object_get_data(G_OBJECT(widget), "DetailViewProperties"));
+  
+  return properties;
 }
 
 static BlxViewContext* detailViewGetContext(GtkWidget *detailView)
@@ -3273,6 +3280,14 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
     case 2:
     {
       /* Middle button: select the base index at the clicked coords */
+      
+      /* First make sure the detail view trees are fully drawn (so that the
+       * cached drawable is up to date - see notes in onExposeDetailViewTree)
+       * and then set the mouse-drag flag. */
+      detailViewRedrawAll(detailView);
+      gdk_window_process_all_updates();
+      setMouseDragMode(TRUE);
+      
       int baseIdx = getBaseIndexAtDetailViewCoords(detailView, event->x, event->y);
       
       if (baseIdx != UNSET_INT)
@@ -3342,6 +3357,9 @@ static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton 
   /* Middle button: scroll the selected base index to the centre (unless CTRL is pressed) */
   if (event->button == 2)
     {
+      /* Cancel middle-drag mode */
+      setMouseDragMode(FALSE);
+      
       guint modifiers = gtk_accelerator_get_default_mod_mask();
       const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
       
@@ -3360,6 +3378,8 @@ static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton 
 	      setDetailViewStartIdx(detailView, newStart, seqType);
 	    }
 	}
+
+      detailViewRedrawAll(detailView);
       
       handled = TRUE;
     }
@@ -3611,7 +3631,7 @@ void toggleStrand(GtkWidget *detailView)
   callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-  gtk_widget_queue_draw(detailView);
+  detailViewRedrawAll(detailView);
   
   /* Redraw the grids and grid headers */
   refreshBigPictureDisplayRange(bigPicture, FALSE);
@@ -3682,6 +3702,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
             {
 	      const int activeFrame = detailViewGetActiveFrame(detailView);
 	      detailViewSetSelectedDnaBaseIdx(detailView, coord, activeFrame, TRUE, FALSE);
+              detailViewRedrawAll(detailView);
             }
           else
             {
@@ -3829,6 +3850,7 @@ static MSP* goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
       /* Offset the start coord by the found amount. */
       int newDnaIdx = searchData.startDnaIdx + (searchData.offset * searchDirection);
       detailViewSetSelectedDnaBaseIdx(detailView, newDnaIdx, searchData.foundFrame, TRUE, FALSE);
+      detailViewRedrawAll(detailView);
     }
   
   return searchData.foundMsp;
@@ -4130,7 +4152,10 @@ static GtkWidget* createSeqColHeader(GtkWidget *detailView,
 
 	  gtk_widget_set_name(line, DNA_TRACK_HEADER_NAME);
 	  seqColHeaderSetRow(line, frame + 1);
-	  
+
+          /* Disable double buffering to try to speed up drawing */
+          GTK_WIDGET_UNSET_FLAGS (line, GTK_DOUBLE_BUFFERED);
+
 	  gtk_widget_add_events(line, GDK_BUTTON_PRESS_MASK);
 	  gtk_widget_add_events(line, GDK_BUTTON_RELEASE_MASK);
 	  gtk_widget_add_events(line, GDK_POINTER_MOTION_MASK);
@@ -4413,9 +4438,6 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   GtkWidget *panedWin = gtk_vpaned_new();
   gtk_widget_set_name(panedWin, DETAIL_VIEW_WIDGET_NAME);
 
-  /* Create a custom cell renderer to render the sequences in the detail view */
-  GtkCellRenderer *renderer = sequence_cell_renderer_new();
-
   /* Create the columns */
   GList *columnList = createColumns(detailView, seqType, numFrames, optionalDataLoaded);
 
@@ -4428,7 +4450,10 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   GtkWidget *feedbackBox = NULL;
   GtkWidget *statusBar = NULL;
   GtkWidget *buttonBar = createDetailViewButtonBar(detailView, toolbar, mode, sortColumn, columnList, &feedbackBox, &statusBar);
-  
+
+  /* Create a custom cell renderer to render the sequences in the detail view */
+  GtkCellRenderer *renderer = sequence_cell_renderer_new();
+
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
   createDetailViewPanes(detailView, 

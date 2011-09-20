@@ -457,6 +457,7 @@ void		      intrangeSetValues(IntRange *range, const int val1, const int val2);
 void		      debugLogLevel(const int increaseAmt);
 #endif
 
+void                  drawRect(GdkDrawable *drawable, GdkColor *color, const int x, const int y, const int width, const int height, const double alpha, cairo_operator_t op);
 void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle const *rect, const gint minWidth, GdkColor *color);
 
 void		      blxPrintWidget(GtkWidget *widget, GtkWidget *window, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const gboolean printCachedOnly, const PrintScaleType scaleType);

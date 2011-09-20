@@ -2363,6 +2363,30 @@ void debugLogLevel(const int increaseAmt)
 #endif
 
 
+/* Utility to draw a filled rectangle (optionally transparent; 
+ * pass alpha=1 for opaque) */
+void drawRect(GdkDrawable *drawable, 
+              GdkColor *color,
+              const int x,
+              const int y,
+              const int width,
+              const int height,
+              const double alpha,
+              cairo_operator_t op)
+{
+  cairo_t *cr = gdk_cairo_create(drawable);
+  
+  gdk_cairo_set_source_color(cr, color);
+  
+  cairo_rectangle(cr, x, y, width, height);
+  cairo_clip(cr);
+  
+  cairo_set_operator(cr, op);
+  cairo_paint_with_alpha(cr, alpha);
+  cairo_destroy(cr);
+}
+
+
 /* Draw the highlight box (for highlighting the current detail-view display range on 
  * big-picture widgets such as the grids and exon views). */
 void drawHighlightBox(GdkDrawable *drawable,
