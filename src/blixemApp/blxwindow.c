@@ -1880,23 +1880,29 @@ static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
         {
           /* Try the full sequence name e.g. AB123456.1 */
           dataToCompare = blxSequenceGetFullName(seq);
-          found = wildcardSearch(dataToCompare, searchData->searchStr);
+          
+          if (dataToCompare)
+            found = wildcardSearch(dataToCompare, searchData->searchStr);
         }
   
       if (!found)
         {
           /* Try without the postfix. e.g. AB123456 */
           dataToCompare = blxSequenceGetShortName(seq);
-          char *seqName = g_strdup(dataToCompare);
-          char *cutPoint = strchr(seqName, '.');
           
-          if (cutPoint)
+          if (dataToCompare)
             {
-              *cutPoint = '\0';
-              found = wildcardSearch(seqName, searchData->searchStr);
+              char *seqName = g_strdup(dataToCompare);
+              char *cutPoint = strchr(seqName, '.');
+              
+              if (cutPoint)
+                {
+                  *cutPoint = '\0';
+                  found = wildcardSearch(seqName, searchData->searchStr);
+                }
+              
+              g_free(seqName);
             }
-          
-          g_free(seqName);
         }
     }
   
