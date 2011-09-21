@@ -79,7 +79,7 @@
   -H             Do not calculate dotplot at startup.\n\
   -R             Reversed Greyramp tool at start.\n\
   -r             Reverse and complement horizontal_sequence (DNA vs Protein)\n\
-  -v             Reverse and complement vertical_sequence (DNA vs Protein)\n\
+  -v             Reverse and complement vertical_sequence (DNA vs DNA)\n\
   -D             Don't display mirror image in self comparisons\n\
   -w             For DNA: horizontal_sequence top strand only (Watson)\n\
   -c             For DNA: horizontal_sequence bottom strand only (Crick)\n\
@@ -414,7 +414,21 @@ int main(int argc, char **argv)
   
   options.hozScaleRev = hozScaleRev;
   options.vertScaleRev = vertScaleRev;
+  
+  /* There's a bug if the rev-scale options are not used with the rev strand and vv, so
+   * for now if one option is set, force the other. */
+  if (options.hozScaleRev || qStrand == BLXSTRAND_REVERSE)
+    {
+      options.hozScaleRev = TRUE;
+      qStrand = BLXSTRAND_REVERSE;
+    }
 
+  if (options.vertScaleRev || sStrand == BLXSTRAND_REVERSE)
+    {
+      options.vertScaleRev = TRUE;
+      sStrand = BLXSTRAND_REVERSE;
+    }
+  
   if (!options.savefile)
       {
         /* Not in batch mode, so initialise GTK for the graphical components */
@@ -626,11 +640,15 @@ int main(int argc, char **argv)
               }
             else 
               {
-
-                for (cq = line; *cq; cq++) if (isalpha(*cq)) 
+                /* Read in sequence data */
+                for (cq = line; *cq; cq++) 
                   {
-                    *cc++ = *cq;
-                    count++;
+                    /* Don't know yet what type of sequence it is, so accept chars for both types */
+                    if (isValidIupacChar(*cq, BLXSEQ_DNA) || isValidIupacChar(*cq, BLXSEQ_PEPTIDE))
+                      {
+                        *cc++ = *cq;
+                        count++;
+                      }
                   }
               }
           }
@@ -677,10 +695,14 @@ int main(int argc, char **argv)
 	    }
 	    else 
               {
-		for (cq = line; *cq; cq++) if (isalpha(*cq)) 
+		for (cq = line; *cq; cq++) 
                   {
-		    *cc++ = *cq;
-		    count++;
+                    /* Don't know yet what type of sequence it is, so accept chars for both types */
+                    if (isValidIupacChar(*cq, BLXSEQ_DNA) || isValidIupacChar(*cq, BLXSEQ_PEPTIDE))
+                      {
+                        *cc++ = *cq;
+                        count++;
+                      }
                   }
               }
           }
