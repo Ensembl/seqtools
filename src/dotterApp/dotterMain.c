@@ -78,8 +78,8 @@
   -f <file>      Read feature segments from <file>\n\
   -H             Do not calculate dotplot at startup.\n\
   -R             Reversed Greyramp tool at start.\n\
-  -r             Reverse and complement horizontal_sequence (DNA vs Protein)\n\
-  -v             Reverse and complement vertical_sequence (DNA vs DNA)\n\
+  -r             Reverse and complement horizontal_sequence (if DNA)\n\
+  -v             Reverse and complement vertical_sequence (if DNA)\n\
   -D             Don't display mirror image in self comparisons\n\
   -w             For DNA: horizontal_sequence top strand only (Watson)\n\
   -c             For DNA: horizontal_sequence bottom strand only (Crick)\n\
