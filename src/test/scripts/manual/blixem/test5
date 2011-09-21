@@ -1,4 +1,4 @@
-exec dotter -q 246634 -f ../data/chr4_dna_align.gff ../data/chr4_ref_seq.fasta ../data/Q9H8G1.fasta 
+exec dotter -q 246634 -f ../data/chr4_protein_align.gff ../data/chr4_ref_seq.fasta ../data/Q9H8G1.fasta 
 
 #
 # Description:

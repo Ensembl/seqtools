@@ -1,0 +1,12 @@
+exec dotter -q 246634 -r --negate-coords -H -v -f ../data/chr4_protein_align.gff ../data/chr4_ref_seq.fasta ../data/Q9H8G1.fasta 
+
+#
+# Description:
+#   Test Dotter in nucleotide->protein mode, using the reverse strand of the reference sequence.
+#   Also tests starting up in HSP mode.
+#
+# Results:
+#   Dotter starts up showing HSPs; diagonals from bottom-left to top-right are matches against
+#   the reverse strand. Enable the pixelmap from the View menu to see if the alignments in the
+#   calculated dot-plot match the positions of the HSPs.
+#
