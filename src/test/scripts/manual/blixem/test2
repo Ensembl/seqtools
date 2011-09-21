@@ -1,0 +1,11 @@
+exec blixemh -c ~/.blixemrc -s 337622 -m 210623 -z 335873:338382  -n -t P ../data/chr4_ref_seq.fasta ../data/chr4_protein_align.gff --dataset=human 
+
+#
+# Description:
+#   Test Blixem in protein mode. Features include protein matches, transcripts
+#   variations, polyA sites and signals
+#
+# Results:
+#   Blixem's graphical display should start up showing the alignments and transripts.
+#   Variations and polyA features can be displayed from the Settings dialog.
+#

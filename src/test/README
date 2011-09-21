@@ -1,0 +1,12 @@
+SeqTools package tests
+
+This directory contains test descriptions, datasets and scripts that can be used to verify the basic functionality of Blixem, Dotter and Belvu. The test scripts are not extensive, particularly for graphical functions, but they are a good starting point. To supplement the test scripts, there are also some manual tests described in test_plan.ods.
+
+The directory contents are:
+- data: test datasets
+- scripts: contains the test scripts
+- scripts/automated: contains tests that can be run on the command line. Tests are organised into subdirectories by program. The program output on stdout for, say, test1, should match the recorded results in test1_results. The intent is that these tests can be automated at some point.
+- scripts/manual: contains tests that must be run manually, e.g. graphical tests for checking that colors are displayed correctly etc. Tests are organised into subdirectories by program. These tests start up the graphical user interface and require user interaction/verification.  See the description inside the individual test scripts for details of what the script is testing and the expected results.
+- test_plan.ods: an Open Office spreadsheet detailing the manual tests.
+
+Note that the test scripts must be run from the 'scripts' directory, because they use a relative path to look for the input files.
