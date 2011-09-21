@@ -2,8 +2,8 @@ exec dotter -q 246634 -r -H -f ../data/chr4_protein_align.gff ../data/chr4_ref_s
 
 #
 # Description:
-#   Test Dotter in nucleotide->protein mode, using the reverse strand of the reference sequence.
-#   Also tests starting up in HSP mode.
+#   Test Dotter in nucleotide->protein mode, using the reverse-complemented version of the 
+#   reference sequence. Also tests starting up in HSP mode.
 #
 # Results:
 #   Dotter starts up showing HSPs. Enable the pixelmap from the View menu to see if the alignments
