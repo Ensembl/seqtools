@@ -1,4 +1,4 @@
-exec dotter -q 246634 -r --negate-coords -H -v -f ../data/chr4_protein_align.gff ../data/chr4_ref_seq.fasta ../data/Q9H8G1.fasta 
+exec dotter -q 246634 -r -H -f ../data/chr4_protein_align.gff ../data/chr4_ref_seq.fasta ../data/Q9H8G1.fasta 
 
 #
 # Description:
@@ -6,7 +6,7 @@ exec dotter -q 246634 -r --negate-coords -H -v -f ../data/chr4_protein_align.gff
 #   Also tests starting up in HSP mode.
 #
 # Results:
-#   Dotter starts up showing HSPs; diagonals from bottom-left to top-right are matches against
-#   the reverse strand. Enable the pixelmap from the View menu to see if the alignments in the
-#   calculated dot-plot match the positions of the HSPs.
+#   Dotter starts up showing HSPs. Enable the pixelmap from the View menu to see if the alignments
+#   in the calculated dot-plot match the positions of the HSPs. HSPs for both strands will be shown,
+#   but the pixelmap will only show matches for the reverse strand.
 #

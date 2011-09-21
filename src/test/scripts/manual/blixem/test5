@@ -10,5 +10,6 @@ exec dotter -q 246634 -f ../data/chr4_protein_align.gff ../data/chr4_ref_seq.fas
 #   between the two sequences are shown as diagonal lines. The greyramp tool can be used to adjust
 #   the contrast of the dot plot. Transcripts from the features file should be shown along the
 #   horizontal axis and HSPs from the features file can be displayed by enabling the relevant
-#   option in the View menu.
+#   option in the View menu (note that HSPs on both strands of the reference sequence are shown,
+#   but the pixelmap will only draw matches against the forward strand in protein mode).
 #
