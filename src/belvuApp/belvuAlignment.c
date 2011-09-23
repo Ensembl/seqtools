@@ -454,13 +454,19 @@ static void drawSingleSequence(GtkWidget *widget,
     {
       GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
       gdk_gc_set_foreground(gc, textColor);
+
+      /* Start at the number of characters into the string where the horizontal 
+       * scrollbar indicates we are (making sure that's not out of the end of the
+       * string) */
+      if ((int)hAdjustment->value < alnGetSeqLen(alnp))
+        {
+          char *cp = alnGetSeq(alnp) + (int)hAdjustment->value;
+          char *displayText = g_strndup(cp, iMax - properties->hAdjustment->value);
       
-      char *cp = alnGetSeq(alnp) + (int)hAdjustment->value;
-      char *displayText = g_strndup(cp, iMax - properties->hAdjustment->value);
+          drawText(widget, drawable, gc, startX, y, displayText, NULL, NULL);
       
-      drawText(widget, drawable, gc, startX, y, displayText, NULL, NULL);
-      
-      g_free(displayText);
+          g_free(displayText);
+        }
     }
   
   /* Loop again and draw any characters that are not in the default text color.
