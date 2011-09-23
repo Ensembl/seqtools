@@ -1632,13 +1632,13 @@ static int colorPriority(BelvuContext *bc, int c1, int c2)
  * the colors according to the active color scheme. */
 void setConsSchemeColors(BelvuContext *bc)
 {
-  int i, j, k, l, colornr, simCount, n, nseqeff;
+  int i, j, k, l, colornr, simCount, n;
   double id, maxid;
   
   if (!bc->conservCount) 
     initConservMtx(bc);
   
-  nseqeff = countResidueFreqs(bc);
+  int totalNumSeqs = countResidueFreqs(bc);
   
   for (i = 0; i < bc->maxLen; ++i)
     {
@@ -1660,31 +1660,44 @@ void setConsSchemeColors(BelvuContext *bc)
               simCount = 0;
               for (j = 1; j < 21; j++) 
                 {
+                  /* Get the blosum comparison score of the two residues */
+                  int score_k_vs_j = BLOSUM62[j-1][k-1];
+                  
+                  /* This comparison score applies for each occurance of k vs
+                   * each occurance of j, e.g. if there are 3 occurances of k 
+                   * and 2 occurances of j, we have:
+                   *   k1 vs j1 = score_k_vs_j
+                   *   k1 vs j2 = score_k_vs_j
+                   *   k2 vs j1 = score_k_vs_j
+                   *   k2 vs j2 = score_k_vs_j
+                   *   k3 vs j1 = score_k_vs_j
+                   *   k4 vs j2 = score_k_vs_j
+                   * 
+                   * i.e. score_k_vs_j occurs (count_k * count_j) times.
+                   */
+                  int count_k = bc->conservCount[k][i];
+                  int count_j = bc->conservCount[j][i];
+
+                  /* Don't compare the same amino acid against itself, i.e. if
+                   * there are three occurances of k then we compare:
+                   *   k1 vs k2 
+                   *   k1 vs k3 
+                   * 
+                   * but NOT
+                   *   k1 vs k1
+                   *
+                   * so in this case score_k_vs_j occurs (count_k * (count_k - 1)) times.
+                   */
                   if (j == k) 
-                    {
-                      if (1)
-                        {
-                          simCount += (bc->conservCount[j][i]-1) * bc->conservCount[k][i] * BLOSUM62[j-1][k-1];
-                        }
-                      else
-                        {
-                          /* Alternative, less good way */
-                          simCount += 
-                            (int)floor(bc->conservCount[j][i]/2.0)*
-                            (int)ceil(bc->conservCount[k][i]/2.0)*
-                            BLOSUM62[j-1][k-1];
-                        }
-                    }
-                  else
-                    {
-                      simCount += bc->conservCount[j][i] * bc->conservCount[k][i] * BLOSUM62[j-1][k-1];
-                    }
+                    --count_k;
+
+                  simCount += count_k * count_j * score_k_vs_j;
                 }
 	    
               if (bc->ignoreGapsOn) 
-                n = bc->conservResidues[i];
+                n = bc->conservResidues[i]; /* total number of residues in this column */
               else 
-                n = nseqeff;
+                n = totalNumSeqs;  /* total number of sequences */
               
               if (n < 2)
                 {
@@ -1692,17 +1705,19 @@ void setConsSchemeColors(BelvuContext *bc)
                 }
               else 
                 {
-                  if (1)
-                    id = (double)simCount/(n*(n-1));
-                  else
-                    /* Alternative, less good way */
-                    id = (double)simCount/(n/2.0 * n/2.0);
+                  /* Divide the similarity count by the total number of comparisons 
+                   * made for each column; we made n * (n - 1) comparisons because
+                   * we compared each of the n residues in the column to each other
+                   * residue in the column except itself. */
+                  id = (double)simCount / (n * (n-1));
                 }
               
               /* printf("%d, %c:  simCount= %d, id= %.2f\n", i, b2a[k], simCount, id); */
 	    
+              /* Colour this residue if it is above the %ID threshold */
               if (id > bc->lowSimCutoff) 
                 {
+                  /* Choose the colour based on the 3 specified levels */
                   if (id > bc->maxSimCutoff) 
                     colornr = *getConsColor(bc, CONS_LEVEL_MAX, FALSE);
                   else if (id > bc->midSimCutoff) 
@@ -1710,10 +1725,17 @@ void setConsSchemeColors(BelvuContext *bc)
                   else
                     colornr = *getConsColor(bc, CONS_LEVEL_LOW, FALSE);
                   
+                  /* Set the colour for this residue, unless it has already been
+                   * given a colour with a higher priority than this one (i.e. it
+                   * has already been marked as more conserved) */
                   if (colorPriority(bc, colornr, bc->colorMap[k][i]))
                     bc->colorMap[k][i] = colornr;
 	      
-                  /* Colour all similar residues too */
+                  /* Color all similar residues too; that is, any residue that has
+                   * a positive blosum score when compared to the current residue
+                   * should be coloured with same level of conservation in this 
+                   * column; again, we only set the colour if it doesn't already 
+                   * have a higher priority colour set on it. */
                   for (l = 1; l < 21; l++) 
                     {
                       if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
@@ -1726,20 +1748,33 @@ void setConsSchemeColors(BelvuContext *bc)
 	    }
 	  else 
 	    {
+              /* We are colouring by %ID */
+              
+              /* First, get the %ID; this is the count of this residue divided
+               * by the total number of residues (or the total number of sequences,
+               * if we are including gaps). 
+               * If ignoring gaps but there is only one residue in this column
+               * then the ID takes into account the total number of sequences;
+               * I'm not sure why - perhaps because there are no other residues
+               * to compare it to; it seems a bit inconsistent, though. */
               if (bc->ignoreGapsOn && bc->conservResidues[i] != 1)
                 id = (double)bc->conservCount[k][i]/bc->conservResidues[i];
               else
-                id = (double)bc->conservCount[k][i]/nseqeff;
+                id = (double)bc->conservCount[k][i]/totalNumSeqs;
               
               if (colorByResId(bc)) 
                 {
-                  if (id*100.0 > bc->colorByResIdCutoff)
+                  /* We're colouring by residue type, but only colouring the residues
+                   * if their %ID is above the set threshold */
+                  if (id * 100.0 > bc->colorByResIdCutoff)
                     bc->colorMap[k][i] = color[(unsigned char)(b2a[k])];
                   else
                     bc->colorMap[k][i] = WHITE;
                 }
               else if (id > bc->lowIdCutoff) 
                 {
+                  /* We're colouring by conservation, using the %ID to determine
+                   * the colour according to the three thresholds: */
                   if (id > bc->maxIdCutoff) 
                     colornr = *getConsColor(bc, CONS_LEVEL_MAX, FALSE);
                   else if (id > bc->midIdCutoff) 
@@ -1747,11 +1782,19 @@ void setConsSchemeColors(BelvuContext *bc)
                   else
                     colornr = *getConsColor(bc, CONS_LEVEL_LOW, FALSE);
                   
+                  /* Set the colour in the array (to do: should this use 
+                   * colorPriority to check if it's already been set? At the moment
+                   * it overrides any previous (possibly better) colour set 
+                   * from a similar residue's result)  */
                   bc->colorMap[k][i] = colornr;
                   
                   if (bc->consScheme == BELVU_SCHEME_ID_BLOSUM) 
                     {
-                      /* Colour all similar residues too */
+                      /* Colour all similar residues too; that is, any residues
+                       * that have a positive blosum score when compared to the 
+                       * current residue should be given the same colour in this
+                       * column (unless a higher priority colour has already been
+                       * set). */
                       for (l = 1; l < 21; l++) 
                         {
                           if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
@@ -3260,10 +3303,13 @@ static void initConservMtx(BelvuContext *bc)
 }	
 
 
-/* Calculate conservation in each column */
+/* This populates conservCount (the count of how many of each residue there is
+ * in each column) and conservResidues (the count of how many residues in total
+ * there are in each column). 
+ * Returns: the total number of sequences (excluding markup lines) */
 static int countResidueFreqs(BelvuContext *bc)
 {
-  int   i, j, nseqeff=0;
+  int   i, j, totalNumSeqs=0;
 
   if (!bc->conservCount) 
     initConservMtx(bc);
@@ -3287,7 +3333,7 @@ static int countResidueFreqs(BelvuContext *bc)
       if (alnp->markup)
         continue;
 
-      nseqeff++;
+      totalNumSeqs++;
 
       for (i = 0; i < bc->maxLen; ++i)
         {
@@ -3301,7 +3347,7 @@ static int countResidueFreqs(BelvuContext *bc)
         }
     }
 
-  return nseqeff;
+  return totalNumSeqs;
 }
 
 
