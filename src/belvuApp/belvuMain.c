@@ -525,7 +525,7 @@ int main(int argc, char **argv)
   
   double   
   makeNRinit = 0.0,
-  init_rmEmptyColumns = 0.0,
+  init_rmGappyColumns = 0.0,
   init_rmGappySeqs = 0.0;
   
   
@@ -622,7 +622,7 @@ int main(int argc, char **argv)
           case 'O': strncpy(OrganismLabel, optarg, 2);                  break;
           case 'o': output_format = g_strdup(optarg);                   break;
           case 'P': init_rmPartial = TRUE;                              break;
-          case 'Q': init_rmEmptyColumns = atof(optarg);                 break;
+          case 'Q': init_rmGappyColumns = atof(optarg);                 break;
           case 'q': init_rmGappySeqs = atof(optarg);                    break;
           case 'p': output_probs = 1;                                   break;
           case 'R': bc->stripCoordTokensOn = bc->saveCoordsOn = FALSE;  break;
@@ -875,8 +875,8 @@ int main(int argc, char **argv)
   if (init_rmPartial)
     rmPartialSeqs(bc);
   
-  if (init_rmEmptyColumns)
-    rmEmptyColumns(bc, init_rmEmptyColumns/100.0);
+  if (init_rmGappyColumns)
+    rmEmptyColumns(bc, init_rmGappyColumns/100.0);
   
   if (init_rmGappySeqs) {
     rmGappySeqs(bc, init_rmGappySeqs);
@@ -960,21 +960,6 @@ int main(int argc, char **argv)
   if (show_ann) 
     showAnnotationWindow(bc);
 
-  /* Calculate screen width of alignment */
-  double cw = 1 + bc->maxNameLen + 1;      /* character width of initial alignment */
-  
-  if (bc->maxStartLen) 
-    cw += bc->maxStartLen + 1;
-  
-  if (bc->maxEndLen)   
-    cw += bc->maxEndLen + 1;
-  
-  if (bc->maxScoreLen) 
-    cw += bc->maxScoreLen + 1;
-
-  int scrollbarWidth = 20; /* to do: calculate scrollbar width properly */
-  cw += bc->maxLen + scrollbarWidth + 2;
-  
   if (bc->outputBootstrapTrees && bc->treebootstraps < 0)
     {	
       /* Display [treebootstraps] bootstrap trees */
