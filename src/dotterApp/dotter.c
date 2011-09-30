@@ -952,8 +952,8 @@ void dotter (const BlxBlastMode blastMode,
   const int qlen = strlen(options->qseq);
   const int slen = strlen(options->sseq);
   
-  if (qlen < 1) g_error("queryseq is empty");
-  if (slen < 1) g_error("subjectseq is empty");
+  if (qlen < 1) g_error("queryseq is empty\n");
+  if (slen < 1) g_error("subjectseq is empty\n");
 
   int i = 0;
   for (i = 0; i < qlen; i++) options->qseq[i] = toupper(options->qseq[i]);
@@ -992,7 +992,7 @@ void dotter (const BlxBlastMode blastMode,
       
       /* Don't do batch processing if output file can't be opened */
       if (!fopen (options->savefile, "wb"))
-	g_error("Failed to open %s", options->savefile);
+	g_error("Failed to open %s\n", options->savefile);
     }
   
   /* Create the main dotter context (shared properties for all dotter windows in this process) */
@@ -2547,7 +2547,7 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
     if (!(fil = fopen(mtxfile, "r")) &&
 	!(fil = fopen(mtxfileText, "r")))
       {
-        char *msg = blxprintf("Failed to open score matrix file %s - not found in ./ or $BLASTMAT/.");
+        char *msg = blxprintf("Failed to open score matrix file %s - not found in ./ or $BLASTMAT/.\n");
 	g_error(msg, mtxfile);
         g_free(msg);
       }
@@ -2563,7 +2563,7 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
     for (row = 0; row < 24; row++)
     {
 	if (!(fgets(line, 1024, fil)))
-	    g_error("Wrong number of rows in matrix file: %d (should be 24).", row);
+	    g_error("Wrong number of rows in matrix file: %d (should be 24).\n", row);
 
 	p = strtok(line, " \t\n");
 	for (col = 0; col < 24; col++) 
@@ -2572,7 +2572,7 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
 		p = strtok(NULL, " \t\n");
           
 	    if (!p) 
-              g_error("Error on row %d in matrix file.", row);
+              g_error("Error on row %d in matrix file.\n", row);
 
 	    MATRIX[row][col] = atoi(p);
 

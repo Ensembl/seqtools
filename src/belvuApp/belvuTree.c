@@ -583,13 +583,13 @@ static void treeReadDistances(BelvuContext *bc, double **pairmtx)
 	}
       
       if (j != bc->alignArr->len)
-	g_error("nseq = %d, but read %d distances in row %d", bc->alignArr->len, j, i);
+	g_error("nseq = %d, but read %d distances in row %d\n", bc->alignArr->len, j, i);
       
       i++;
     }
   
   if (j != bc->alignArr->len)
-    g_error("nseq = %d, but read %d distance rows", bc->alignArr->len, i);
+    g_error("nseq = %d, but read %d distance rows\n", bc->alignArr->len, i);
   
   return ;
 }

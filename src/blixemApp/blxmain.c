@@ -745,6 +745,7 @@ int main(int argc, char **argv)
   GSList *styles = blxReadStylesFile(key_file, &error);
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 
+  /* Get the file names */
   if (numFiles == 1)
     {
       /* We have a single file containing both the aligments and the ref seq */
@@ -752,37 +753,14 @@ int main(int argc, char **argv)
     }
   else if (numFiles == 2)
     {
-      /* The ref seq is in a separate file. Read it in now. */
+      /* The ref seq is in a separate file (the first arg) */
       strcpy(seqfilename, argv[optind]);
       strcpy(FSfilename, argv[optind+1]);
-
-      if (!strcmp(seqfilename, "-"))
-	{
-	  seqfile = stdin;
-	}
-      else if(!(seqfile = fopen(seqfilename, "r")))
-	{
-	  g_error("Cannot open %s\n", seqfilename);
-	}
-	
-      /* Read in query sequence */
-      int startCoord = UNSET_INT;
-      int endCoord = UNSET_INT;
-      options.refSeq = readFastaSeq(seqfile, options.refSeqName, &startCoord, &endCoord);
-      
-      if (startCoord != UNSET_INT && endCoord != UNSET_INT)
-	intrangeSetValues(&options.refSeqRange, startCoord, endCoord);
-    
-      if (seqfile != stdin)
-        fclose(seqfile);
     }
-
-  /* Set the blast mode from the sequence type, or vice versa, depending on which was supplied.
-   * Ideally we'll get rid of blast mode eventually. */
-  if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_INVALID)
-    options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
-  else if (options.seqType == BLXSEQ_INVALID && options.blastMode != BLXMODE_UNSET)
-    options.seqType = (options.blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
+  else
+    {
+      showUsageText();
+    }
 
   /* Parse the data file containing the homol descriptions.                */
   if (!strcmp(FSfilename, "-"))
@@ -813,21 +791,53 @@ int main(int argc, char **argv)
    * has not already been set. */
   IntRange *qRange = NULL;
   if (options.refSeqRange.min == UNSET_INT && options.refSeqRange.max == UNSET_INT)
-    {
-      if (options.refSeq)
-        {
-          /* initialise to 1-based coords, in case there are no coords found by
-           * parseFS either */
-          options.refSeqRange.min = 1;
-          options.refSeqRange.max = strlen(options.refSeq);
-        }
-      
-      qRange = &options.refSeqRange;
-    }
+    qRange = &options.refSeqRange;
+
+  /* Set the blast mode from the sequence type, if given. If not, blast mode might
+   * get set by parseFS (nasty for backwards compatibility; ideally we'll get rid
+   * of blastmode at some point). */
+  if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_INVALID)
+    options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
   
   parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
           &options.refSeq, options.refSeqName, qRange, &dummyseq, dummyseqname, inputConfigFile) ;
+
+  /* Now see if blast mode was set and set seqtype from it if not already set... */
+  if (options.seqType == BLXSEQ_INVALID && options.blastMode != BLXMODE_UNSET)
+    options.seqType = (options.blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
+
+  /* Parse the reference sequence, if we have a separate sequence file (and it was
+   * not already specified in the features file) */
+  if (!options.refSeq && numFiles == 2)
+    {
+      /* Open the file (or stdin) */
+      if (!strcmp(seqfilename, "-"))
+        seqfile = stdin;
+      else if(!(seqfile = fopen(seqfilename, "r")))
+        g_error("Cannot open %s\n", seqfilename);
+      
+      /* Read in the reference sequence */
+      int startCoord = UNSET_INT;
+      int endCoord = UNSET_INT;
+      options.refSeq = readFastaSeq(seqfile, options.refSeqName, &startCoord, &endCoord, options.seqType);
+      
+      if (startCoord != UNSET_INT && endCoord != UNSET_INT)
+        intrangeSetValues(&options.refSeqRange, startCoord, endCoord);
+      
+      if (seqfile != stdin)
+        fclose(seqfile);
+    }
   
+  if (!options.refSeq)
+    g_error("No reference sequence supplied.");
+  
+  /* If the ref seq range still has not been set, use 1-based coords */
+  if (options.refSeqRange.min == UNSET_INT && options.refSeqRange.max == UNSET_INT)
+    {
+      options.refSeqRange.min = 1;
+      options.refSeqRange.max = strlen(options.refSeq);
+    }
+
   if (FSfile != stdin)
     {
       fclose(FSfile) ;

@@ -140,9 +140,6 @@ NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,
 NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN
 };
 
-/* binary-to-ASCII translation table */
-char bton[] = "ACGTN*";
-
 double aafq[20]	/* Amino acid residue frequencies used by S. Altschul */
 = {.081, .057, .045, .054, .015, .039, .061, .068, .022, .057,
 .093, .056, .025, .040, .049, .068, .058, .013, .032, .067 } ;
@@ -1042,7 +1039,7 @@ static void initWindow(const char *winsizeIn, DotplotProperties *properties)
     {
       if (!atoi(winsizeIn))
         {
-          g_error("Bad window size specification: %s", winsizeIn);
+          g_error("Bad window size specification: %s\n", winsizeIn);
         }
       
       properties->slidingWinSize = atoi(winsizeIn);
@@ -1070,7 +1067,7 @@ static char getHozSeqBase(DotterWindowContext *dwc, const int idx, const int fra
       /* Complement the sequence if it's the reverse strand */
       const gboolean complement = (dc->refSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->hozScaleRev);
 
-      result = getRefSeqBase(dc->refSeq, coord, complement, &dc->refSeqFullRange, dc->refSeqType);
+      result = getSequenceIndex(dc->refSeq, coord, complement, &dc->refSeqFullRange, dc->refSeqType);
     }
   
   return result;
@@ -1088,7 +1085,7 @@ static char getVertSeqBase(DotterWindowContext *dwc, const int idx)
 
   const gboolean complement = (dc->matchSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->vertScaleRev);
   
-  return getRefSeqBase(dc->matchSeq, coord, complement, &dc->matchSeqFullRange, dc->matchSeqType);
+  return getSequenceIndex(dc->matchSeq, coord, complement, &dc->matchSeqFullRange, dc->matchSeqType);
 }
 
 

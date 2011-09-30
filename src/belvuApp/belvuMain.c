@@ -122,7 +122,8 @@
  Note: X options only work after \"setenv POSIXLY_CORRECT\"\n\
 \n\
  setenv BELVU_FETCH to desired sequence fetching program.\n\
- setenv BELVU_FONT_SIZE to specify window font size.\n\n\
+ setenv BELVU_FONT_SIZE to specify window font size.\n\
+ setenv BELVU_STATUSBAR_SIZE to specify statusbar font size (0 => hide statusbar).\n\n\
 "
 
 
@@ -220,7 +221,7 @@ static void treeReadDistancesNames(BelvuContext *bc)
   char line[MAXLENGTH + 1];
   
   if (!fgets (line, MAXLENGTH, bc->treeReadDistancesPipe))
-    g_error("Error reading distance matrix");
+    g_error("Error reading distance matrix\n");
   
   if ((cp = strchr(line, '\n')))
     *cp = 0;
@@ -259,7 +260,7 @@ static void readScores(char *filename, BelvuContext *bc)
   initAln(&aln);
 
   if (!(file = fopen(filename, "r")))
-    g_error("Cannot open file %s", filename);
+    g_error("Cannot open file %s\n", filename);
   
   while (!feof (file))
     { 
@@ -269,28 +270,28 @@ static void readScores(char *filename, BelvuContext *bc)
       initAln(&aln);
       
       if (!(cp = strtok(line, " "))) 
-	g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+	g_error("Error parsing score file %s.\nLine: %s\n", filename, linecp);
       
       if (!(sscanf(cp, "%f", &aln.score)))
-        g_error("Error parsing score file %s - bad score.\nLine: %s", filename, linecp);
+        g_error("Error parsing score file %s - bad score.\nLine: %s\n", filename, linecp);
       
       if (!(cp = strtok(0, "/"))) 
-	g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+	g_error("Error parsing score file %s.\nLine: %s\n", filename, linecp);
       
       strncpy(aln.name, cp, MAXNAMESIZE);
       aln.name[MAXNAMESIZE] = 0;
       
       if (!(cp = strtok(0, "-"))) 
-	g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+	g_error("Error parsing score file %s.\nLine: %s\n", filename, linecp);
       
       if (!(aln.start = atoi(cp)))
-        g_error("Error parsing score file %s - no start coordinate.\nLine: %s", filename, linecp);
+        g_error("Error parsing score file %s - no start coordinate.\nLine: %s\n", filename, linecp);
       
       if (!(cp = strtok(0, "\n"))) 
-	g_error("Error parsing score file %s.\nLine: %s", filename, linecp);
+	g_error("Error parsing score file %s.\nLine: %s\n", filename, linecp);
       
       if (!(aln.end = atoi(cp)))
-        g_error("Error parsing score file %s - no end coordinate.\nLine: %s", filename, linecp);
+        g_error("Error parsing score file %s - no end coordinate.\nLine: %s\n", filename, linecp);
       
       int idx = 0;
       if (!alignFind(bc->alignArr, &aln, &idx)) 
@@ -467,7 +468,7 @@ int main(int argc, char **argv)
               case 'u': 
                 bc->treeMethod = UPGMA; 
                 bc->sortType = BELVU_SORT_TREE;                         break;
-              default : g_error("Illegal sorting order: %s", optarg);   break;
+              default : g_error("Illegal sorting order: %s\n", optarg);   break;
             };
             break;
             
@@ -519,7 +520,7 @@ int main(int argc, char **argv)
                     strcpy(bc->treeDistString, UNCORRstr);
                     bc->treeDistCorr = UNCORR;
                     setTreeScale(bc, 1.0);          break;
-                  default : g_error("Illegal sorting order: %s", optarg);
+                  default : g_error("Illegal sorting order: %s\n", optarg);
                 }
             } 
             break;
@@ -528,7 +529,7 @@ int main(int argc, char **argv)
           case 'u': bc->displayColors = FALSE;                    break;
           case 'X': bc->mksubfamilies_cutoff = atof(optarg);      break;
           case 'z': bc->saveSeparator = *optarg;		  break;
-          default : g_error("Illegal option");                    break;
+          default : g_error("Illegal option\n");                    break;
         }
     }
   
@@ -559,7 +560,7 @@ int main(int argc, char **argv)
   else 
     {
       if (!(pipe = fopen(argv[optind], "r")))
-	g_error("Cannot open file %s", argv[optind]);
+	g_error("Cannot open file %s\n", argv[optind]);
       if (!*bc->Title) 
 	strncpy(bc->Title, argv[optind], 255);
       
@@ -611,7 +612,7 @@ int main(int argc, char **argv)
   if (!bc->matchFooter && readMatchFile) 
     {
       if (!(file = fopen(readMatchFile, "r"))) 
-        g_error("Cannot open file %s", readMatchFile);
+        g_error("Cannot open file %s\n", readMatchFile);
       
       readMatch(bc, file);
       fclose(file);
@@ -666,7 +667,7 @@ int main(int argc, char **argv)
   if (colorCodesFile) 
     {
       if (!(file = fopen(colorCodesFile, "r"))) 
-        g_error("Cannot open file %s", colorCodesFile);
+        g_error("Cannot open file %s\n", colorCodesFile);
       
       readResidueColorScheme(bc, file, getColorArray(), TRUE);
 
@@ -678,7 +679,7 @@ int main(int argc, char **argv)
   if (markupColorCodesFile) 
     {
       if (!(file = fopen(markupColorCodesFile, "r"))) 
-        g_error("Cannot open file %s", markupColorCodesFile);
+        g_error("Cannot open file %s\n", markupColorCodesFile);
 
       readResidueColorScheme(bc, file, getMarkupColorArray(), FALSE);
 
@@ -737,7 +738,7 @@ int main(int argc, char **argv)
         }
       else
         {
-          g_error("Illegal output format: %s", output_format);
+          g_error("Illegal output format: %s\n", output_format);
         }
 
       exit(0);

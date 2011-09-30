@@ -1,0 +1,5 @@
+exec belvu -o Selex -S i ../data/PF02171_seed.selex
+
+# Description:
+#   Sort by ID to first sequence
+

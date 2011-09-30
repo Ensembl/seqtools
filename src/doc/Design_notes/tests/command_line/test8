@@ -1,0 +1,5 @@
+exec belvu -c ../data/ALIGN.selex
+
+# Description:
+#   Test the option to print the conservation table
+#   (for a large alignment)

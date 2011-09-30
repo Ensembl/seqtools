@@ -1,0 +1,6 @@
+exec belvu -p ../data/ALIGN.selex
+
+# Description:
+#   Output random model probabilities for HMMER
+#   (large alignment)
+

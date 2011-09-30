@@ -100,6 +100,7 @@ typedef enum
   BLXMSP_XY_PLOT,                /* x/y coordinates - for plotting feature-series curves - obsolete? */
 
   BLXMSP_REGION,                 /* Region */
+  BLXMSP_GAP,                    /* Gap, e.g. assembly gap */
 
   
   

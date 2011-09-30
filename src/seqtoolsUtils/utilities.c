@@ -45,27 +45,27 @@
 
 
 #define SEQTOOLS_TOOLBAR_NAME	"SeqtoolsToolbarName"
-#define DEFAULT_PFETCH_WINDOW_WIDTH_CHARS	      85
-#define DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION         0.7
+#define DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION	      0.47
+#define DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION         0.4
 
 
-/* Test char to see if it's a iupac dna/peptide code. */
+/* Macros to test a char to see if it's a iupac dna/peptide code (see iupac.h
+ * for details of what the codes are). */
 #define ISIUPACDNA(BASE) \
 (((BASE) == 'a' || (BASE) == 'c'|| (BASE) == 'g' || (BASE) == 't'       \
-  || (BASE) == 'u' || (BASE) == 'r'|| (BASE) == 'y' || (BASE) == 'm'    \
-  || (BASE) == 'k' || (BASE) == 'w'|| (BASE) == 's' || (BASE) == 'b'    \
-  || (BASE) == 'd' || (BASE) == 'h'|| (BASE) == 'v'                     \
-  || (BASE) == 'n' || (BASE) == SEQUENCE_CHAR_GAP || (BASE) == SEQUENCE_CHAR_PAD))
+|| (BASE) == 'u' || (BASE) == 'r'|| (BASE) == 'y' || (BASE) == 'm'    \
+|| (BASE) == 'k' || (BASE) == 'w'|| (BASE) == 's' || (BASE) == 'b'    \
+|| (BASE) == 'd' || (BASE) == 'h'|| (BASE) == 'v'                     \
+|| (BASE) == 'n' || (BASE) == SEQUENCE_CHAR_GAP))
 
 #define ISIUPACPEPTIDE(PEPTIDE) \
 (((PEPTIDE) == 'A' || (PEPTIDE) == 'B'|| (PEPTIDE) == 'C' || (PEPTIDE) == 'D'       \
-  || (PEPTIDE) == 'E' || (PEPTIDE) == 'F'|| (PEPTIDE) == 'G' || (PEPTIDE) == 'H'    \
-  || (PEPTIDE) == 'I' || (PEPTIDE) == 'K'|| (PEPTIDE) == 'L' || (PEPTIDE) == 'M'    \
-  || (PEPTIDE) == 'N' || (PEPTIDE) == 'P'|| (PEPTIDE) == 'Q' || (PEPTIDE) == 'R'    \
-  || (PEPTIDE) == 'S' || (PEPTIDE) == 'T'|| (PEPTIDE) == 'U' || (PEPTIDE) == 'V'    \
-  || (PEPTIDE) == 'W' || (PEPTIDE) == 'X'|| (PEPTIDE) == 'Y' || (PEPTIDE) == 'Z'    \
-  || (PEPTIDE) == SEQUENCE_CHAR_STOP || (PEPTIDE) == SEQUENCE_CHAR_GAP || (PEPTIDE) == SEQUENCE_CHAR_PAD))
-
+|| (PEPTIDE) == 'E' || (PEPTIDE) == 'F'|| (PEPTIDE) == 'G' || (PEPTIDE) == 'H'    \
+|| (PEPTIDE) == 'I' || (PEPTIDE) == 'K'|| (PEPTIDE) == 'L' || (PEPTIDE) == 'M'    \
+|| (PEPTIDE) == 'N' || (PEPTIDE) == 'P'|| (PEPTIDE) == 'Q' || (PEPTIDE) == 'R'    \
+|| (PEPTIDE) == 'S' || (PEPTIDE) == 'T'|| (PEPTIDE) == 'U' || (PEPTIDE) == 'V'    \
+|| (PEPTIDE) == 'W' || (PEPTIDE) == 'X'|| (PEPTIDE) == 'Y' || (PEPTIDE) == 'Z'    \
+|| (PEPTIDE) == SEQUENCE_CHAR_STOP || (PEPTIDE) == SEQUENCE_CHAR_GAP))
 
 
 /* Globals */
@@ -342,6 +342,12 @@ gboolean rangesOverlap(const IntRange const *range1, const IntRange const *range
   return (range1->min <= range2->max && range1->max >= range2->min);
 }
 
+/* Return true if two IntRanges are adjacent */
+gboolean rangesAdjacent(const IntRange const *range1, const IntRange const *range2)
+{
+  return (range1->min == range2->max + 1 || range2->min == range1->max + 1);
+}
+
 /* Return true if two IntRanges are equal */
 gboolean rangesEqual(const IntRange const *range1, const IntRange const *range2)
 {
@@ -434,8 +440,9 @@ int numDigitsInInt(int val)
 
 /* Determine (or give our best guess) the sequence type of a sequence, based on the characters it
  * contains. Returns BLXSEQ_DNA for nucleotide sequences or BLXSEQ_PEPTIDE for peptide sequences. */
-BlxSeqType determineSeqType(char *seq)
+BlxSeqType determineSeqType(char *seq, GError **error)
 {
+    const int lenToSearch = 300;
     char *aminos      = "ABCDEFGHIKLMNPQRSTVWXYZ*";
     char *primenuc    = "ACGTUN";
     char *protonly    = "EFIPQZ";
@@ -451,9 +458,9 @@ BlxSeqType determineSeqType(char *seq)
     int  aa = 0;			/* count of amino acids */
     int  no = 0;			/* count of others */
   
-    /* Look at the first 300 characters
+    /* Look at the first lenToSearch characters
      */
-    for (pos = 0; seq[pos] && pos < 300; pos++)
+    for (pos = 0; seq[pos] && pos < lenToSearch; pos++)
     {
 	c = toupper(seq[pos]);
 
@@ -470,9 +477,15 @@ BlxSeqType determineSeqType(char *seq)
 	    no++;
     }
 
-    if (po > 0) return BLXSEQ_PEPTIDE;
-    else if (na > aa) return BLXSEQ_DNA;
-    else return BLXSEQ_PEPTIDE;
+    if (po == 0 && na == 0 && aa == 0 && no == 0)
+      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_TYPE, "No valid DNA or amino-acid characters found. (Searched the first %d characters.)\n", lenToSearch);
+    
+    if (po > 0) 
+      return BLXSEQ_PEPTIDE;
+    else if (na > aa) 
+      return BLXSEQ_DNA;
+    else
+      return BLXSEQ_PEPTIDE;
 } /* determineSeqType */
 
 
@@ -974,46 +987,26 @@ char convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType
 }
 
 
-/* Returns the base at the given index in the reference sequence. If
- * 'complement' is true, the result is complemented. */
-char getRefSeqBase(char *refSeq,
-		   const int qIdx, 
-		   const gboolean complement, 
-		   const IntRange const *refSeqRange,
-		   const BlxSeqType seqType)
+/* Utility to return the base at the given index in the given sequence. If
+ * 'complement' is true and seqType is DNA, the result is complemented.
+ * Returns ' ' if the index is out of range. */
+char getSequenceIndex(char *seq,
+                      const int qIdx, 
+                      const gboolean complement, 
+                      const IntRange const *seqRange,
+                      const BlxSeqType seqType)
 {
   char result = ' ';
   
-  if (qIdx >= refSeqRange->min && qIdx <= refSeqRange->max)
+  if (qIdx >= seqRange->min && qIdx <= seqRange->max)
     {
-      char base = refSeq[qIdx - refSeqRange->min];
+      char base = seq[qIdx - seqRange->min];
       base = convertBaseToCorrectCase(base, seqType);
       
-      if (!complement)
-	{
-	  result = base;
-	}
+      if (!complement || seqType == BLXSEQ_PEPTIDE)
+        result = base;
       else
-	{
-	  switch (base)
-	  {
-	    case 'c':
-	      result = 'g';
-	      break;
-	    case 'g':
-	      result = 'c';
-	      break;
-	    case 'a':
-	      result = 't';
-	      break;
-	    case 't':
-	      result = 'a';
-	      break;
-	    default:
-	      result = ' ';
-	      break;
-	  }
-	}
+        result = complementChar(base, NULL);
     }
   
   return result;
@@ -1366,6 +1359,13 @@ gboolean isWhitespaceChar(const char curChar)
 }
 
 
+/* Utility to return true if the given char is a newline char */
+gboolean isNewlineChar(const char curChar)
+{
+  return (curChar == '\n');
+}
+
+
 /* Get the child of the given widget that has the given name (which could be the given 
  * widget itself.) Assumes there is only one, so returns the first one found. */
 GtkWidget* getNamedChildWidget(GtkWidget *widget, const gchar *searchName)
@@ -1464,27 +1464,44 @@ char *stringUnprotect(char **textp, char *target)
  *			   Dialogs			   *
  ***********************************************************/
 
-/* Utility to set the height of a GtkTextView based on the number of lines of text it
- * contains (but not going above the given max height). Returns the height that was set. */
-//static int textViewSetHeight(GtkWidget *textView, GtkTextBuffer *textBuffer, PangoFontDescription *fontDesc, int maxHeight, int *charHeightOut)
-//{
-//  PangoContext *context = gtk_widget_get_pango_context(textView);
-//  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
-//  gint charHeight = (pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / PANGO_SCALE;
-//  
-//  if (charHeightOut)
-//    {
-//      *charHeightOut = charHeight;
-//    }
-//  
-//  /* Adjust height to include all the lines if possible (limit to the original height passed in thought) */
-//  const int calcHeight = (gtk_text_buffer_get_line_count(textBuffer) * charHeight);
-//  int resultHeight = min(maxHeight, calcHeight);
-//  
-//  pango_font_metrics_unref(metrics);
-//  
-//  return resultHeight;
-//}
+/* Utility to set the width and height of a GtkTextView based on the width and
+ * number of lines of text it contains (but not going above the given max). 
+ * Returns the width/height that was set. */
+static void setTextViewSize(GtkWidget *textView, GtkTextBuffer *textBuffer, PangoFontDescription *fontDesc, int *width, int *height)
+{
+  /* Adjust height to include all the lines if possible (limit to the original height passed in though) */
+  if (height)
+    {
+      const int charHeight = getTextHeight(textView, "A");
+      const int calcHeight = (gtk_text_buffer_get_line_count(textBuffer) * charHeight);
+      *height = min(*height, calcHeight);
+    }
+
+  if (width)
+    {
+      /* Loop through all lines and find the max line length. */
+      int maxWidth = 0;
+      int numLines = gtk_text_buffer_get_line_count(textBuffer);
+      
+      int line = 0;
+      for ( ; line < numLines; ++line)
+        {
+          GtkTextIter iter1;
+          GtkTextIter iter2;
+          gtk_text_buffer_get_iter_at_line(textBuffer, &iter1, line);
+          gtk_text_buffer_get_iter_at_line(textBuffer, &iter2, line + 1);
+          
+          gchar *text = gtk_text_iter_get_text(&iter1, &iter2);
+          const int lineWidth = getTextWidth(textView, text);
+          
+          if (lineWidth > maxWidth)
+            maxWidth = lineWidth;
+        } 
+      
+      /* Limit it to the input width */
+      *width = min(*width, maxWidth);
+    }
+}
 
 
 /* Utility to create a scrollable text view from the given message text. If textBufferOut is
@@ -1493,6 +1510,7 @@ GtkWidget* createScrollableTextView(const char *messageText,
 				    const gboolean wrapText,
 				    PangoFontDescription *fontDesc,
                                     const gboolean useMarkup,
+                                    int *width,
 				    int *height,
                                     GtkTextView **textViewOut)
 {
@@ -1536,9 +1554,10 @@ GtkWidget* createScrollableTextView(const char *messageText,
   gtk_container_add(GTK_CONTAINER(scrollWin), textView);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
-  /* Set the height to fit the number of lines of text, unless this would exceed the passed-in height */
-//  int charHeight = UNSET_INT;
-//  *height = textViewSetHeight(textView, textBuffer, fontDesc, *height, &charHeight);
+  /* Set the height to fit the number of lines of text, unless this would exceed 
+   * the passed-in height. To do: should pass in width here too but the calculation
+   * is not accurate. */
+ setTextViewSize(textView, textBuffer, fontDesc, NULL, height);
   
   /* Return the outermost container */
   return scrollWin;
@@ -1551,7 +1570,7 @@ GtkWidget* createScrollableTextView(const char *messageText,
 GtkWidget* showMessageDialog(const char *title,  
                              const char *messageText,
                              GtkWidget *parent,
-                             const int width,
+                             const int maxWidth,
                              const int maxHeight,
                              const gboolean wrapText,
                              const gboolean useMarkup,
@@ -1567,9 +1586,14 @@ GtkWidget* showMessageDialog(const char *title,
 
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
-  int height = maxHeight;
-  GtkWidget *child = createScrollableTextView(messageText, wrapText, fontDesc, useMarkup, &height, textView);
-
+  /* ideally we'd pass in width and height here to set them from the actual size
+   * of the text. however, this function is used for the pfetch window, which
+   * may change its contents, giving an inaccurate size if we calculate it now, so
+   * just use the max size. */
+  int width = maxWidth, height = maxHeight;
+  GtkWidget *child = createScrollableTextView(messageText, wrapText, fontDesc, useMarkup, NULL, NULL, textView);
+  height += 40; /* fudge to allow space for dialog buttons */
+  
   gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);
 
@@ -3285,7 +3309,7 @@ static void displayMessageAsList(GSList *messageList, const char *titlePrefix, c
       int width = 600;
       int height = 180;
       
-      GtkWidget *child = createScrollableTextView(NULL, FALSE, NULL, TRUE, &height, &textView);
+      GtkWidget *child = createScrollableTextView(NULL, FALSE, NULL, TRUE, NULL, &height, &textView);
       gtk_box_pack_start(GTK_BOX(vbox), child, TRUE, TRUE, 0);
       gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
       textBuffer = gtk_text_view_get_buffer(textView);
@@ -4101,26 +4125,16 @@ GtkWidget* displayFetchResults(const char *title,
   const char *fontFamily = findFixedWidthFont(widget);
   PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
   
-  /* Set the initial width based on the default number of characters wide */
-//  PangoContext *context = gtk_widget_get_pango_context(widget);
-//  PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
-//  getFontCharSize(widget, fontDesc, &charWidth, NULL);
-  int charWidth = 8;
-
-  const int initWidth = DEFAULT_PFETCH_WINDOW_WIDTH_CHARS * charWidth;
-  const int maxHeight = widget->allocation.height * DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION;
+  int maxWidth = 0, maxHeight = 0;
+  getScreenSizeFraction(widget, DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION, DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
   
   GtkTextView *textView = NULL;
-  GtkWidget *result = showMessageDialog(title, displayText, NULL, initWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
+  GtkWidget *result = showMessageDialog(title, displayText, NULL, maxWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
   
   if (textBuffer && textView)
     {
       *textBuffer = gtk_text_view_get_buffer(textView);
     }
-  
-  /* Clean up */
-//  pango_font_metrics_unref(metrics);
-//  pango_font_description_free(fontDesc);
   
   return result;
 }
@@ -4188,6 +4202,19 @@ int getTextHeight(GtkWidget *widget, const char *text)
   int height = 0;
   getTextSize(widget, text, NULL, &height);
   return height;
+}
+
+
+/* Utility to get the size of the screen multiplied by the given width/height fractions */
+void getScreenSizeFraction(GtkWidget *widget, const double widthFraction, const double heightFraction, int *widthOut, int *heightOut)
+{
+  GdkScreen *screen = gtk_widget_get_screen(widget);
+  
+  if (widthOut)
+    *widthOut = gdk_screen_get_width(screen) * widthFraction;
+  
+  if (heightOut)
+    *heightOut = gdk_screen_get_height(screen) * heightFraction;
 }
 
 

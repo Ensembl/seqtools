@@ -59,8 +59,6 @@
 #define MAX_ANNOTATION_WINDOW_HEIGHT_FRACTION   0.7    /* max height of annotation window (as fraction of screen height) */
 #define ORGS_WINDOW_XPAD                        20     /* x padding for the organisms window */
 #define ORGS_WINDOW_YPAD                        20     /* y padding for the organisms window */
-#define FONT_SIZE_ENV_VAR                       "BELVU_FONT_SIZE"  /* optional environment variable to specify the default font size in points */
-
 
 /* Utility struct to pass data to the color-changed callback
  * when a color has been changed on the edit-colors dialog */
@@ -213,9 +211,9 @@ static void                      onDestroyBelvuWindow(GtkWidget *belvuWindow);
 #define rmScoreDesc        "Remove sequences below a given score"
 #define rmColumnPromptStr  "Remove columns..."
 #define rmColumnPromptDesc "Remove specific columns"
-#define rmColumnLeftStr    "Remove columns left of selection (inclusive)"
+#define rmColumnLeftStr    "<- Remove columns left of selection (inclusive)"
 #define rmColumnLeftDesc   "Remove columns to the left of the currently-selected column (inclusive)"
-#define rmColumnRightStr   "Remove columns right of selection (inclusive) "
+#define rmColumnRightStr   "Remove columns right of selection (inclusive) ->"
 #define rmColumnRightDesc  "Remove columns to the right of the currently-selected column (inclusive) -> "
 #define rmColumnCutoffStr  "Remove columns by conservation..."
 #define rmColumnCutoffDesc "Remove columns with conservation between specific values"
@@ -938,7 +936,7 @@ static void onrmColumnLeftMenu(GtkAction *action, gpointer data)
     }
   else
     {
-      g_critical("Please select a column first.\n\nMiddle-click with the mouse to select a column.");
+      g_critical("Please select a column first.\n\nMiddle-click with the mouse to select a column.\n");
     }
 }
 
@@ -960,7 +958,7 @@ static void onrmColumnRightMenu(GtkAction *action, gpointer data)
     }
   else
     {
-      g_critical("Please select a column first.\n\nMiddle-click with the mouse to select a column.");
+      g_critical("Please select a column first.\n\nMiddle-click with the mouse to select a column.\n");
     }
 }
 
@@ -3567,8 +3565,13 @@ void showAnnotationWindow(BelvuContext *bc)
   PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
   pango_font_description_set_size(fontDesc, pango_font_description_get_size(dialog->style->font_desc));
   
-  GtkWidget *textView = createScrollableTextView(resultStr->str, FALSE, fontDesc, FALSE, NULL, NULL);
+  GtkWidget *textView = createScrollableTextView(resultStr->str, FALSE, fontDesc, FALSE, NULL, NULL, NULL);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), textView, TRUE, TRUE, 0);
+
+  const gchar *env = g_getenv(FONT_SIZE_ENV_VAR);
+  if (env)
+    widgetSetFontSizeAndCheck(dialog, convertStringToInt(env));
+
 
   /* Set the initial size */
   double charWidth, charHeight;
@@ -3967,15 +3970,7 @@ static void setStyleProperties(GtkWidget *window, GtkToolbar *toolbar)
   gtk_container_set_border_width (GTK_CONTAINER(window), DEFAULT_WINDOW_BORDER_WIDTH); 
   gtk_window_set_mnemonic_modifier(GTK_WINDOW(window), GDK_MOD1_MASK); /* MOD1 is ALT on most systems */
   
-  /* Set the default font size to be a bit smaller than usual */
-  int origSize = pango_font_description_get_size(window->style->font_desc) / PANGO_SCALE;
-  const char *origFamily = pango_font_description_get_family(window->style->font_desc);
-
-  char parseString[500];
-  sprintf(parseString, "gtk-font-name = \"%s %d\"", origFamily, origSize + DEFAULT_FONT_SIZE_ADJUSTMENT);
-  gtk_rc_parse_string(parseString);
-
-  /* Set toolbar style properties */
+    /* Set toolbar style properties */
   gtk_toolbar_set_style(toolbar, GTK_TOOLBAR_ICONS);
   gtk_toolbar_set_icon_size(toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
 }
@@ -4061,9 +4056,21 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
     {
       if (bc->belvuWindow)
         widgetSetFontSizeAndCheck(bc->belvuWindow, convertStringToInt(env));
-      
+
       if (bc->belvuTree)
         widgetSetFontSizeAndCheck(bc->belvuTree, convertStringToInt(env));
+    }
+
+  env = g_getenv(STATUSBAR_SIZE_ENV_VAR);
+  if (env)
+    {
+      const int height = convertStringToInt(env);
+      
+      /* If too small, hide the statusbar */
+      if (height < MIN_FONT_SIZE)
+        gtk_widget_hide_all(statusBar);
+      else
+        widgetSetFontSizeAndCheck(statusBar, height);
     }
 
   /* Make sure the alignment font size isup to date. Note: do this before
@@ -4085,9 +4092,13 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
       if (bc->sortType)
         setRadioMenuStatus(actionGroup, "unsorted", bc->sortType);
       
-      setRadioMenuStatus(actionGroup, "colorSchemeStandard", bc->consScheme);
       setToggleMenuStatus(actionGroup, "displayColors", bc->displayColors);
 
+      if (bc->schemeType == BELVU_SCHEME_TYPE_RESIDUE)
+        setRadioMenuStatus(actionGroup, "colorSchemeStandard", bc->residueScheme);
+      else
+        setRadioMenuStatus(actionGroup, "colorSchemeStandard", bc->consScheme);
+      
       if (bc->initTree)
         belvuAlignmentRedrawAll(bc->belvuAlignment); /* redraw, because tree creation removes markup which can mess this up */
     }

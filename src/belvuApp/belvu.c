@@ -705,13 +705,13 @@ void highlightScoreSort(char mode, BelvuContext *bc)
 {
   if (!bc->selectedAln) 
     {
-      g_critical("Please highlight a sequence first");
+      g_critical("Please highlight a sequence first\n");
       return;
     }
   
   if (bc->selectedAln->markup) 
     {
-      g_critical("Please do not highlight a markup line");
+      g_critical("Please do not highlight a markup line\n");
       return;
     }
   
@@ -969,7 +969,7 @@ static void readFastaAlnFinalise(BelvuContext *bc, ALN *aln)
   if (bc->maxLen) 
     {
       if (alnGetSeqLen(aln) != bc->maxLen) 
-        g_error("Differing sequence lengths: %d %d", bc->maxLen, alnGetSeqLen(aln));
+        g_error("Differing sequence lengths: %d %d\n", bc->maxLen, alnGetSeqLen(aln));
     }
   else
     {
@@ -979,7 +979,7 @@ static void readFastaAlnFinalise(BelvuContext *bc, ALN *aln)
   int ip = 0;
   if (alnArrayFind(bc->alignArr, &aln, &ip, (void*)alphaorder))
     {
-      g_error("Sequence name occurs more than once: %s%c%d-%d", 
+      g_error("Sequence name occurs more than once: %s%c%d-%d\n", 
               aln->name, bc->saveSeparator, aln->start, aln->end);
       
       g_string_free(aln->sequenceStr, TRUE);
@@ -1184,7 +1184,7 @@ void parseMulLine(BelvuContext *bc, char *line, ALN *aln)
         }
       
       if (strlen(aln->name)+strlen(GRfeat)+2 > MAXNAMESIZE)
-        g_critical("Too long name or/and feature name");
+        g_critical("Too long name or/and feature name\n");
 
       strcat(aln->name, " ");
       strncat(aln->name, GRfeat, MAXNAMESIZE-strlen(aln->name));
@@ -1580,7 +1580,7 @@ void setResidueSchemeColors(BelvuContext *bc)
       case BELVU_SCHEME_CUSTOM:   colorSchemeCustom(bc);    break;
       
       default: 
-	g_warning("Program error: unrecognised color scheme '%d'.\n", bc->residueScheme); 
+	g_warning("Program error: unrecognised color scheme '%d'.\n", bc->residueScheme);
 	break;
     }
 }
@@ -1887,7 +1887,7 @@ void readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr, const gb
           
           int ip = 0;
           if (!alnArrayFind(bc->organismArr, &aln, &ip, (void*)organism_order))
-            g_critical("Cannot find organism \"%s\", specified in color code file. Hope that's ok", aln.organism);
+            g_critical("Cannot find organism \"%s\", specified in color code file. Hope that's ok\n", aln.organism);
           else
             g_array_index(bc->organismArr, ALN*, ip)->color = colornr;
         }
@@ -2764,12 +2764,12 @@ void readLabels(BelvuContext *bc, FILE *fil)
   int seqlen = bc->selectedAln->end - bc->selectedAln->start + 1;
   if (strlen(labelseq) > seqlen)
     {
-      g_critical("The sequence of labels is longer (%d) than the sequence (%d).\nHope that's ok", 
+      g_critical("The sequence of labels is longer (%d) than the sequence (%d).\nHope that's ok\n",
 		 (int)strlen(labelseq), seqlen);
     }
   else if (strlen(labelseq) < seqlen) 
     {
-      g_critical("The sequence of labels is shorter (%d) than the sequence (%d).\nAborting", 
+      g_critical("The sequence of labels is shorter (%d) than the sequence (%d).\nAborting\n",
 		 (int)strlen(labelseq), seqlen);
       return;
     }
@@ -2828,7 +2828,7 @@ static void makeSegList(BelvuContext *bc, SEG **SegList, char *line)
   g_free(linecopy);
     
   if (!n || n % 4) 
-    g_error("Segments not multiple of 4 ints (%s)", line);
+    g_error("Segments not multiple of 4 ints (%s)\n", line);
 
   for (i = 0; i < n/4; i++) 
     {
@@ -2852,21 +2852,21 @@ static void makeSegList(BelvuContext *bc, SEG **SegList, char *line)
       DEBUG_OUT("%d %d %d %d\n", seg->qstart, seg->qend, seg->start, seg->end);
 
       if (seg == *SegList && seg->qstart != 1)
-        g_error("Bad qstart: Must start on 1");
+        g_error("Bad qstart: Must start on 1\n");
 
       if (seg->qstart < 1 || seg->qstart > bc->maxLen)
-        g_error("Bad qstart: %d.  Range: 1-%d", seg->qstart, bc->maxLen);
+        g_error("Bad qstart: %d.  Range: 1-%d\n", seg->qstart, bc->maxLen);
       if (seg->qend < 1 || seg->qend > bc->maxLen)
-        g_error("Bad qend: %d.  Range: 1-%d", seg->qend, bc->maxLen);
+        g_error("Bad qend: %d.  Range: 1-%d\n", seg->qend, bc->maxLen);
       if (seg->start < 1 || seg->start > bc->maxLen)
-        g_error("Bad start: %d.  Range: 1-%d", seg->start, bc->maxLen);
+        g_error("Bad start: %d.  Range: 1-%d\n", seg->start, bc->maxLen);
       if (seg->end < 1 || seg->end > bc->maxLen)
-        g_error("Bad end: %d.  Range: 1-%d", seg->end, bc->maxLen);
+        g_error("Bad end: %d.  Range: 1-%d\n", seg->end, bc->maxLen);
 
       if (seg->qstart > seg->qend)
-        g_error("qstart > qend  (%d > %d)", seg->qstart, seg->qend);
+        g_error("qstart > qend  (%d > %d)\n", seg->qstart, seg->qend);
       if (seg->start > seg->end)
-        g_error("start > end  (%d > %d)", seg->start, seg->end);
+        g_error("start > end  (%d > %d)\n", seg->start, seg->end);
     }
 }
 
@@ -2883,11 +2883,11 @@ static int countInserts(SEG *seg)
     {
       Align_gap = seg->next->start - seg->end - 1;
       if (Align_gap < 0) 
-        g_error("Negative Align_gap: %d (%d-%d)", Align_gap, seg->start, seg->next->end );
+        g_error("Negative Align_gap: %d (%d-%d)\n", Align_gap, seg->start, seg->next->end );
 		
       Query_gap = seg->next->qstart - seg->qend - 1;
       if (Query_gap < 0) 
-        g_error("Negative Query_gap: %d (%d-%d)", Query_gap, seg->qstart, seg->next->qend );
+        g_error("Negative Query_gap: %d (%d-%d)\n", Query_gap, seg->qstart, seg->next->qend );
 
       gap = Query_gap - Align_gap;
       if (gap > 0) 
@@ -3009,7 +3009,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 	{
 	  if (done_one)
 	    {
-	      g_critical("Sorry, can only do one match");
+	      g_critical("Sorry, can only do one match\n");
 	      continue;
 	    }
 
@@ -3017,7 +3017,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 
 	  /* Name */
 	  if (!strtok(line, "/"))
-	    g_error("Bad format: %s", line);
+	    g_error("Bad format: %s\n", line);
 
 	  strncpy(aln->name, line, MAXNAMESIZE);
 	  aln->name[MAXNAMESIZE] = 0;
@@ -3030,7 +3030,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 
 	  /* Start & End */
 	  if (!(cp = strtok(0, "-"))) 
-            g_error("Bad start: %s", cp);
+            g_error("Bad start: %s\n", cp);
 
 	  aln->start = atoi(cp);
           
@@ -3046,7 +3046,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
           tmpStr = NULL;
 
 	  if (!(cp = strtok(0, " ")))
-	    g_error("Bad end: %s", cp);
+	    g_error("Bad end: %s\n", cp);
           
 	  aln->end = atoi(cp);
           
@@ -3064,14 +3064,14 @@ void readMatch(BelvuContext *bc, FILE *fil)
           int ip = 0;
 	  if (alignFind(bc->alignArr, aln, &ip))
 	    {
-	      g_critical("Sorry, already have sequence %s/%d-%d\n", 
+	      g_critical("Sorry, already have sequence %s/%d-%d\n",
                          aln->name, aln->start, aln->end);
 	      return;
 	    }
 
 	  /* Score */
 	  if (!(cp = strtok(0, "\n")))
-	    g_error("Bad score: %s", cp);
+	    g_error("Bad score: %s\n", cp);
 
 	  aln->score = atof(cp);
           
@@ -3433,7 +3433,7 @@ void rmColumnCutoff(BelvuContext *bc, const double from, const double to)
           rmColumn(bc, i+1, i+1);
           if (++removed == oldmaxLen) 
             {
-              g_critical("You have removed all columns.  Prepare to exit Belvu");
+              g_critical("You have removed all columns.  Prepare to exit Belvu\n");
               exit(EXIT_SUCCESS);
             }
         }
@@ -3482,7 +3482,7 @@ void rmEmptyColumns(BelvuContext *bc, double cutoff)
           rmColumn(bc, j+1, j+1);
           if (++removed == oldmaxLen)
             {
-              g_critical("You have removed all columns.  Prepare to exit Belvu");
+              g_critical("You have removed all columns.  Prepare to exit Belvu\n");
               exit(0);
             }
 	}
@@ -3580,6 +3580,11 @@ static void rmFinalise(BelvuContext *bc)
   
   /* Removing seqs/cols invalidates the conservation plot, so recalculate it */
   belvuConsPlotRecalcAll(bc->consPlot);
+  
+  /* Removing sequences can change the size of the columns in the alignment view,
+   * so recalculate them */
+  updateHeaderColumnsSize(bc->belvuAlignment);
+  calculateDrawingSizes(bc->belvuAlignment);
 }
 
 
@@ -4307,7 +4312,7 @@ static void readMul(BelvuContext *bc, FILE *pipe)
           line[i] = 0;
 
           /* Store the line for processing later (once alnstart has been calculated) */
-          alnList = g_slist_append(alnList, g_strdup(line));
+          alnList = g_slist_prepend(alnList, g_strdup(line));
 	}
       else if (!strncmp(line, "#=GF ", 5) || 
                !strncmp(line, "#=GS ", 5)) 
@@ -4322,7 +4327,7 @@ static void readMul(BelvuContext *bc, FILE *pipe)
                !strncmp(line, "#=RF ", 5)) 
         {
           /* These are markup lines that are shown in the alignment list */
-          alnList = g_slist_append(alnList, g_strdup(line));
+          alnList = g_slist_prepend(alnList, g_strdup(line));
         }
       else if (!strncmp(line, "# matchFooter", 13)) 
         {
@@ -4332,8 +4337,9 @@ static void readMul(BelvuContext *bc, FILE *pipe)
         }
     }
   
-  /* Reverse the annotation list, because we prepended items instead of appending them */
+  /* Reverse the lists, because we prepended items instead of appending them */
   bc->annotationList = g_slist_reverse(bc->annotationList);
+  alnList = g_slist_reverse(alnList);
   
   /* Loop through all of the alignment lines and extract the sequence string */
   GSList *alnItem = alnList;
@@ -4362,7 +4368,7 @@ static void readMul(BelvuContext *bc, FILE *pipe)
    */
   
   if (bc->alignArr->len == 0 || bc->maxLen == 0) 
-    g_error("Unable to read sequence data");
+    g_error("Unable to read sequence data\n");
   
   bc->saveFormat = BELVU_FILE_MUL;
 }
@@ -4631,14 +4637,14 @@ void outputProbs(BelvuContext *bc, FILE *fil)
     }
 
   if (!n)
-    g_error("No residues found");
+    g_error("No residues found\n");
 
   if (0) 
     {
       nmat = getMatchStates(bc);	/* Approximation, HMM may differ slightly */
 
       if (!nmat) 
-        g_error("No match state columns found");
+        g_error("No match state columns found\n");
       
       printf("Amino\n");
       
@@ -4780,7 +4786,7 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       
       if (!cp || *cp != 's')
         {
-          g_critical("Invalid URL string %s.\nThe URL must contain the search string \"%%s\", which will be replaced with the sequence name.", url);
+          g_critical("Invalid URL string %s.\nThe URL must contain the search string \"%%s\", which will be replaced with the sequence name.\n", url);
         }
       else
         {
@@ -4797,9 +4803,9 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       char  *env, fetchProg[1025]="";
       
       if ((env = getenv(FETCH_PROG_ENV_VAR)) )
-	strcpy(fetchProg, env);
+        strcpy(fetchProg, env);
       else
-	strcpy(fetchProg, DEFAULT_FETCH_PROG);
+        strcpy(fetchProg, DEFAULT_FETCH_PROG);
 
       char *cmd = blxprintf("%s '%s' &", fetchProg, alnp->name);
       
@@ -4807,6 +4813,10 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       
       if (pfetchWin)
         {
+          const gchar *env = g_getenv(FONT_SIZE_ENV_VAR);
+          if (env)
+            widgetSetFontSizeAndCheck(pfetchWin, convertStringToInt(env));
+
           /* Add the window to our list of spawned windows */
           bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, pfetchWin);
           g_signal_connect(G_OBJECT(pfetchWin), "destroy", G_CALLBACK(onDestroySpawnedWindow), bc);

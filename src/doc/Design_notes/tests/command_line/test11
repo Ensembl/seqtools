@@ -1,0 +1,5 @@
+exec belvu -X 0.5 ../data/PF02171_full.selex
+
+# Description:
+#   Test the 'Print UPGMA-based subfamilies at cutoff'
+#   option (large alignment).

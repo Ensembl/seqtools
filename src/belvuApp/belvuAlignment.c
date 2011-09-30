@@ -43,6 +43,7 @@
 #define DEFAULT_XPAD                            2
 #define DEFAULT_YPAD                            4
 #define DEFAULT_PADDING_CHARS                   1  /* number of char widths to use to pad between columns */
+#define SEQ_AREA_PADDING                        2  /* padding around the sequence area, in pixels */
 #define DEFAULT_NAME_COLUMN_PADDING_CHARS       2  /* number of char widths to use to pad after the name column */
 #define WRAP_DISPLAY_PADDING_CHARS              4
 #define TICKMARK_INTERVAL                       10 /* number of coords between each tick marker in the sequence area header */
@@ -142,9 +143,8 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
       properties->columnsRect.y = DEFAULT_YPAD;
 
       /* Find a fixed-width font */
-      const char *fontFamily = findFixedWidthFont(seqArea);
+      const char *fontFamily = findFixedWidthFont(properties->seqArea);
       PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
-      pango_font_description_set_size(fontDesc, pango_font_description_get_size(belvuAlignment->style->font_desc));
       gtk_widget_modify_font(seqArea, fontDesc);
 
       if (columnsArea)
@@ -456,7 +456,7 @@ static void drawSingleSequence(GtkWidget *widget,
       gdk_gc_set_foreground(gc, textColor);
       
       char *cp = alnGetSeq(alnp) + (int)hAdjustment->value;
-      char *displayText = g_strndup(cp, iMax - properties->hAdjustment->value + 1);
+      char *displayText = g_strndup(cp, iMax - properties->hAdjustment->value);
       
       drawText(widget, drawable, gc, startX, y, displayText, NULL, NULL);
       
@@ -783,7 +783,8 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
 static void drawBelvuSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
 {
   /* The range starts at the current adjustment value (add one to make it a 1-based column number) */
-  IntRange displayRange = {properties->hAdjustment->value + 1, properties->hAdjustment->upper};
+  IntRange displayRange = {properties->hAdjustment->value + 1,
+                           min(properties->bc->maxLen, properties->hAdjustment->value + properties->hAdjustment->page_size)};
   
   drawHScale(widget, 
              drawable,
@@ -794,52 +795,6 @@ static void drawBelvuSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, Be
              TICKMARK_INTERVAL,     /* interval between main tickmarks with labels */
              MINOR_TICKMARK_HEIGHT,
              MAJOR_TICKMARK_HEIGHT);
-  
-//  GdkGC *gc = gdk_gc_new(drawable);
-//
-//  /* Draw the header, which shows tick marks at coordinates at every TICKMARK_INTERVAL columns */
-//  const int labelMarkerIncrement = TICKMARK_INTERVAL;
-//  const int majorMarkerIncrement = labelMarkerIncrement / 2;
-//  const int xIncrement = properties->charWidth;
-//  
-//  int y = DEFAULT_YPAD;
-//  const int yBottom = y + properties->charHeight + DEFAULT_YPAD; /* bottom pos of tickmarks */
-//  const int yTopMajor = yBottom - MAJOR_TICKMARK_HEIGHT; /* top position of major tickmarks */
-//  const int yTopMinor = yBottom - MINOR_TICKMARK_HEIGHT; /* top position of major tickmarks */
-//
-//  int x = properties->seqRect.x + properties->charWidth / 2;
-//  int tickmarkVal = properties->hAdjustment->value + 1;
-//  
-//  for ( ; x < properties->seqRect.width; x += xIncrement, ++tickmarkVal)
-//    {
-//      const gboolean major = (tickmarkVal % majorMarkerIncrement == 0);
-//      const gboolean drawLabel = (tickmarkVal % labelMarkerIncrement == 0);
-//      
-//      /* Draw the tick mark */
-//      const int yTop = (major ? yTopMajor : yTopMinor);
-//      gdk_draw_line(drawable, gc, x, yTop, x, yBottom);
-//      
-//      if (drawLabel)
-//        {
-//          char *tmpStr = blxprintf("%d", tickmarkVal);
-//          PangoLayout *layout = gtk_widget_create_pango_layout(widget, tmpStr);
-//          g_free(tmpStr);
-//          
-//          /* Centre the text on the tick-mark position */
-//          int width;
-//          pango_layout_get_pixel_size(layout, &width, NULL);
-//
-//          gdk_draw_layout(drawable, gc, x - width / 2, y, layout);
-//          g_object_unref(layout);
-//        }
-//    }
-//  
-//  /* Draw a horizontal separator line */
-//  y = yBottom - 1;
-//  x = 0;
-//  gdk_draw_line(drawable, gc, x, y, x + properties->seqRect.width, y);
-//  
-//  g_object_unref(gc);
 }
 
 
@@ -1099,7 +1054,7 @@ static void onHScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data
 
   /* Set the horizontal adjustment page size to be the number of characters
    * that will fit in the width */
-  properties->hAdjustment->page_size = (int)(properties->seqArea->allocation.width / properties->charWidth);
+  properties->hAdjustment->page_size = (int)(properties->seqRect.width / properties->charWidth);
   properties->hAdjustment->page_increment = properties->hAdjustment->page_size;
 
   /* Make sure the scroll position still lies within upper - page_size. */
@@ -1198,7 +1153,7 @@ static int getAlignmentDisplayWidth(BelvuAlignmentProperties *properties)
     {
       /* Drawing can be very slow if we draw the full alignment, so we only
        * draw what's in the current display width. */
-      result = properties->seqArea->allocation.width - properties->columnPadding;
+      result = properties->seqArea->allocation.width - SEQ_AREA_PADDING;
     }
   else
     {

@@ -1,0 +1,9 @@
+exec belvu -T i ../data/PF02171_seed_segs.stock
+
+# Description: 
+#   Test loading of match segments from a match-footer section
+#
+# Results:
+#   The match segment "seg_match" should appear in the alignment list
+#   with coordinates 3->30 and score 20.0. Its sequence is
+#   WLPLHTLinsertAACGEFYLVDSLLKH, starting at column 3.

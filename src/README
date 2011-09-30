@@ -5,7 +5,7 @@ This package is aimed at those involved in genome annotation
 and contains tools for detailed analysis of sequences/alignments.
 
 Homepage: www.sanger.ac.uk/resources/software/seqtools/
-Author:   Gemma Barson <gb10@sanger.ac.uk>
+Author:   Gemma Barson <gemma.barson@sanger.ac.uk>
 
 ==============================================================
 
@@ -13,31 +13,42 @@ Author:   Gemma Barson <gb10@sanger.ac.uk>
 THE TOOLS
 ---------
 
-blixem - A program for viewing multiple alignments against a reference sequence. It displays an overview showing where alignments and exons/introns lie on the reference sequence, and a detailed view showing the actual nucleotides or peptides in the sequences, color-coded to indicate how well they match.  Gapped alignments are supported and other features such as SNPs and polyA tails can also be displayed.
+blixem - an interactive browser of pairwise alignments that have been stacked up in a "master-slave" multiple alignment; it is not a 'true' multiple alignment but a 'one-to-many' alignment. It displays an overview section showing the positions of genes and alignments around the alignment window, and a detail section showing the actual alignment of protein or nucleotide sequences to the genomic DNA sequence.
 
-blixemh - The same as blixem but with additional functionality for fetching sequences via HTTP.
+blixemh - the same as blixem but with additional functionality for fetching sequences via HTTP.
 
-dotter - A dot-matrix program that plots two sequences against each other, one vertically and one horizontally, drawing a dot wherever the bases match.  Noise is filtered out, so that alignments appear as diagonal lines.
+dotter - a graphical dot-matrix program for detailed comparison of two sequences. Every residue in one sequence is compared to every residue in the other, with one sequence plotted on the x-axis and the other on the y-axis. Noise is filtered out so that alignments appear as diagonal lines.
+
+belvu - a multiple sequence alignment viewer and phylogenetic tool. It has an extensive set of user-configurable modes to color residues by conservation or by residue type, and some basic alignment editing capabilities. It can generate distance matrices between sequences and construct distance-based trees, either graphically or as part of a phylogenetic software pipeline. 
 
 
 
 INSTALLATION
 ------------
 
-Supported platforms are Linux and Mac OS X.
+Supported platforms are Linux and Mac OS X.  The installation procedure for both is as follows.
 
-To install this package in the default location (usually /usr/bin), type the following commands on a command line:
+To install package in the default location (usually /usr/bin), type the following commands on a command line:
 
-./configure
-make all
-make install
+> ./configure
+> make all
+> make install
 
-To install in a different location (e.g. if you do not have root privileges for the default location), use the --prefix argument with ./configure.  For example, the following would install the programs in the directory /foo/bar:
+You may need to run 'make install' using sudo if you do not have root privileges:
 
-./configure --prefix=/foo/bar
-make all
-make install
+> sudo make install
 
+Alternatively, to install in a different location (e.g. one that does not require root privileges), use the --prefix argument with ./configure.  For example, the following would tell 'make' to install the programs in the directory foo/bar in your home directory:
+
+> ./configure --prefix=~/foo/bar
+
+
+USAGE
+-----
+
+Run the individual programs without arguments to see their usage information, or view the documentation here: doc/User_doc/index.html
+
+Help pages can also be accessed from within the programs using the 'Help' menu, the lifebuoy icon on the toolbar or the Ctrl-H shortcut key.
 
 
 DEPENDENCIES
@@ -54,19 +65,28 @@ If you have more than one version of these libraries on your system, you may als
 
 For example:
 
-./configure PKG_CONFIG_PATH=/my/dir/lib/pkgconfig LDFLAGS="-Xlinker -rpath -Xlinker /my/dir/lib"
+> ./configure PKG_CONFIG_PATH=/my/dir/lib/pkgconfig LDFLAGS="-Xlinker -rpath -Xlinker /my/dir/lib"
 
 
 libcurl
 -------
 blixemh also requires the libcurl library to be installed on your system - "make all" will fail if it is not found.
 
-Firstly, if you do not require the facility to fetch sequences using HTTP, then you can use blixem instead of blixemh.  After running "make all", run the following commands to install blixem (and, if required, dotter), without installing blixemh:
+Firstly, if you do not require the facility to fetch sequences using HTTP, then you can use blixem instead of blixemh.  Run the following commands to install blixem, dotter and belvu without installing blixemh:
 
-make blixem
-make dotter
-make install
+> make blixem
+> make dotter
+> make belvu
 
-If you do require the HTTP functionality, you need to install the development version of the libcurl library.  For example, on Debian this can be installed as follows:
+To install the individual programs, copy the executables to the desired destination, e.g.
 
-sudo apt-get install libcurl4-gnutls-dev
+> cp blixem dotter belvu /usr/bin
+
+or with root privileges:
+
+> sudo cp blixem dotter belvu /usr/bin
+
+
+If you DO require the HTTP functionality, you need to install the development version of the libcurl library.  For example, on Debian this can be installed as follows:
+
+> sudo apt-get install libcurl4-gnutls-dev

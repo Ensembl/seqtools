@@ -1,0 +1,4 @@
+exec belvu -c ../data/PF02171_seed.stock
+
+# Description:
+#   Test the option to print the conservation table

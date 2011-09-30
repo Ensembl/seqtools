@@ -76,6 +76,7 @@ MSP score codes (for obsolete exblx file format):
 #define MKSTEMP_REPLACEMENT_CHARS	      "XXXXXX"		  /* the required string that will be replaced by unique chars when creating a temp file name */
 #define GFF3_VERSION_HEADER		      "##gff-version 3"	  /* the header line of a GFF v3 file */
 #define GFF3_SEQUENCE_REGION_HEADER	      "##sequence-region" /* the start comment of the sequence-region comment line in a GFF v3 file */
+#define MIN_GAP_HIGHLIGHT_WIDTH		      5			  /* minimum width of assembly gaps markers */
 
 
 static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
@@ -228,7 +229,11 @@ static void validateInput(CommandLineOptions *options)
     {
       printf("\nNo sequence type specified. Detected ");
       
-      if (determineSeqType(options->refSeq) == BLXSEQ_PEPTIDE)
+      GError *error = NULL;
+      BlxSeqType seqType = determineSeqType(options->refSeq, &error);
+      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+      
+      if (seqType == BLXSEQ_PEPTIDE)
 	{
 	  printf("protein sequence. Will try to run Blixem in protein mode.\n");
 	  options->seqType = BLXSEQ_PEPTIDE;
@@ -832,6 +837,40 @@ gboolean blxviewFetchSequences(gboolean External,
 }
 
 
+/* Find any gaps in the reference sequence */
+static void findAssemblyGaps(const char *refSeq, GArray *featureLists[], MSP **mspList, const IntRange const *refSeqRange)
+{
+  /* Find the last msp in the list so we can append new ones to the end */
+  MSP *lastMsp = *mspList;
+  while (lastMsp && lastMsp->next)
+    lastMsp = lastMsp->next;
+  
+  /* Scan for the gap character */
+  const char *cp = strchr(refSeq, SEQUENCE_CHAR_GAP);
+
+  while (cp && *cp)
+    {
+      /* Found the start of a gap; remember the start coord */
+      const int startCoord = cp - refSeq + refSeqRange->min;
+    
+      /* Loop until we find a non-gap character (or the end of the string) */
+      while (cp && *cp == SEQUENCE_CHAR_GAP)
+	++cp;
+    
+      const int endCoord = cp - refSeq - 1 + refSeqRange->min;
+    
+      MSP *msp = createEmptyMsp(&lastMsp, mspList);
+      msp->type = BLXMSP_GAP;
+      intrangeSetValues(&msp->qRange, startCoord, endCoord);
+      
+      featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
+    
+      /* Continue looking for more gaps */
+      cp = strchr(cp, SEQUENCE_CHAR_GAP);
+    }
+}
+
+
 /* blxview() can be called either from other functions in the Blixem
  * program itself or directly by functions in other programs such as
  * xace.
@@ -879,6 +918,9 @@ gboolean blxview(CommandLineOptions *options,
   
   if (status)
     {
+      /* Find any assembly gaps (i.e. gaps in the reference sequence) */
+      findAssemblyGaps(options->refSeq, featureLists, &options->mspList, &options->refSeqRange);
+      
       /* Construct missing data and do any other required processing now we have all the sequence data */
       finaliseBlxSequences(featureLists, &options->mspList, &seqList, 
                            options->refSeqOffset, options->seqType, 
@@ -1637,5 +1679,45 @@ void destroyBlxStyle(BlxStyle *style)
       g_free(style->styleName);
     }
 }
+
+
+/* This function highlights any regions within the given display range that
+ * are assembly gaps (which are BLXMSP_GAP type MSPs in the given MSP array).
+ * The given rect defines the drawing area on the given drawable that corresponds
+ * to the given display range. Gaps that lie within the display range are drawn
+ * within the rect at the appropriate positions. */
+void drawAssemblyGaps(GtkWidget *widget,
+                      GdkDrawable *drawable,
+                      GdkColor *color,
+                      const gboolean displayRev,
+                      GdkRectangle *rect, 
+                      const IntRange const *dnaRange,
+                      const GArray *mspArray)
+{
+  /* See if any gaps lie within the display range. */
+  int i = 0;
+  MSP *gap = mspArrayIdx(mspArray, i);
+  
+  for ( ; gap; gap = mspArrayIdx(mspArray, ++i))
+    {
+      if (rangesOverlap(&gap->qRange, dnaRange))
+        {
+	  /* Draw to max coord plus one (or min coord minus one if reversed) to be inclusive */
+	  const int x1 = convertBaseIdxToRectPos(displayRev ? gap->qRange.min - 1 : gap->qRange.min, rect, dnaRange, TRUE, displayRev, TRUE);
+	  const int x2 = convertBaseIdxToRectPos(gap->qRange.max + 1, rect, dnaRange, TRUE, displayRev, TRUE);
+          
+	  const int width = max(MIN_GAP_HIGHLIGHT_WIDTH, abs(x2 - x1));
+	
+          cairo_t *cr = gdk_cairo_create(drawable);
+          gdk_cairo_set_source_color(cr, color);
+          cairo_rectangle(cr, min(x1, x2), 0, width, widget->allocation.height);
+          cairo_clip(cr);
+          cairo_paint_with_alpha(cr, 0.1);
+          cairo_destroy(cr);
+        }
+    }
+  
+}
+
 
 /***************** end of file ***********************/

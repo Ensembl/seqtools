@@ -1,0 +1,4 @@
+exec belvu -o Mul ../data/PF02171_seed.stock
+
+# Description:
+#   Test saving a file to Mul format

@@ -94,7 +94,7 @@ static void	    parseFsSeg(char *line, BlxBlastMode blastMode, GArray* featureLi
 static void	    parseFsXyHeader(char *line, BlxBlastMode blastMode, GArray* featureLists[], MSP **lastMsp, MSP **mspList, char **seq1, char *seq1name, char **seq2, char *seq2name, BlxParserState *parserState, GList **seqList);
 static void	    parseFsXyData(char *line, MSP *msp);
 static void         parseFsSeqHeader(char *line, char **seq1, char *seq1name, char **seq2, char *seq2name, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, BlxParserState *parserState);
-static void         parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *readSeqMaxLen);
+static void         parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, const BlxSeqType seqType);
 
 static gboolean	    parseGaps(char **text, MSP *msp, const gboolean hasGapsTag) ;
 static gboolean	    parseDescription(char **text, MSP *msp_unused) ;
@@ -303,15 +303,28 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 }
 
 
-/* Returns true if this is a valid character to expect in a FASTA sequence input */
-static gboolean isValidFastaChar(const char inputChar)
+/* Check that the given character is a valid DNA/RNA nucleotide. If not, give
+ * a warning.  If it is not even a valid UTF8 character then GTK cannot display
+ * it, so replace it with a padding character. */
+static void validateIupacChar(char *inputChar, const BlxSeqType seqType)
 {
-  return (isalpha(inputChar) || inputChar == SEQUENCE_CHAR_GAP || inputChar == SEQUENCE_CHAR_STOP);
+  if (!isValidIupacChar(*inputChar, seqType))
+    {
+      if (g_utf8_validate(inputChar, 1, NULL))
+        {
+          g_critical("FASTA input contains invalid %s '%c'\n", (seqType == BLXSEQ_PEPTIDE ? "peptide" : "nucleotide"), *inputChar);
+        }
+      else
+        {
+          g_critical("FASTA input contains bad (non-UTF8) character - it will be replaced by '%c'\n", SEQUENCE_CHAR_INVALID);
+          *inputChar = SEQUENCE_CHAR_INVALID;
+        }
+    }
 }
 
 
 /* Read in a FASTA sequence from a FASTA file or stdin */
-static char *readFastaSeqFromStdin(FILE *seqfile, char *seqName, int *startCoord, int *endCoord)
+static char *readFastaSeqFromStdin(FILE *seqfile, char *seqName, int *startCoord, int *endCoord, const BlxSeqType seqType)
 {
   char *resultSeq = NULL;
   char line[MAXLINE+1];
@@ -329,8 +342,12 @@ static char *readFastaSeqFromStdin(FILE *seqfile, char *seqName, int *startCoord
   
   while (currentChar != '\n') 
     {
-      if (isValidFastaChar(currentChar)) 
-        g_string_append_c(resultStr, currentChar);
+      /* Ignore whitespace/newlines */
+      if (!isWhitespaceChar(currentChar) && !isNewlineChar(currentChar)) 
+        {
+          validateIupacChar(&currentChar, seqType);
+          g_string_append_c(resultStr, currentChar);
+        }      
       
       currentChar = fgetc(seqfile);
     }
@@ -343,7 +360,7 @@ static char *readFastaSeqFromStdin(FILE *seqfile, char *seqName, int *startCoord
 
 
 /* Read a fasta sequence from a file */
-static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName, int *startCoord, int *endCoord)
+static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName, int *startCoord, int *endCoord, const BlxSeqType seqType)
 {
   GArray *resultArr = g_array_new(FALSE, FALSE, sizeof(SeqStruct));
   char line[MAXLINE+1];
@@ -389,9 +406,10 @@ static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName, int *startCoo
           
           for ( ; *linePos; linePos++)
             {
-              /* If this is a valid sequence character, copy it into the result string */
-              if (isValidFastaChar(*linePos))
+              /* Ignore whitespace/newlines */
+              if (!isWhitespaceChar(*linePos) && !isNewlineChar(*linePos))
                 {
+                  validateIupacChar(linePos, seqType);
                   g_string_append_c(currentSeqPtr->seq, *linePos);
                 }
             }
@@ -404,11 +422,11 @@ static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName, int *startCoo
 
 /* Read in multiple FASTA sequences from a file and concatenate them into
  * a single sequence, using the name of the first sequence. */
-static char *concatenateFastaSeqs(FILE *seqfile, char *seqName, int *startCoord, int *endCoord)
+static char *concatenateFastaSeqs(FILE *seqfile, char *seqName, int *startCoord, int *endCoord, const BlxSeqType seqType)
 {
   GString *resultStr = g_string_new(NULL);
   
-  GArray *resultArr = readFastaSeqsFromFile(seqfile, seqName, startCoord, endCoord);
+  GArray *resultArr = readFastaSeqsFromFile(seqfile, seqName, startCoord, endCoord, seqType);
   
   int i = 0;
   for ( ; i < resultArr->len; ++i)
@@ -455,12 +473,12 @@ static char *concatenateFastaSeqs(FILE *seqfile, char *seqName, int *startCoord,
  * MVSVLV..LPMAAL.........YQVL..NKWTL......GQVT.CDL..
  * ...
  */
-char *readFastaSeq(FILE *seqfile, char *seqName, int *startCoord, int *endCoord)
+char *readFastaSeq(FILE *seqfile, char *seqName, int *startCoord, int *endCoord, const BlxSeqType seqType)
 {
   if (seqfile == stdin) 
-    return readFastaSeqFromStdin(seqfile, seqName, startCoord, endCoord);
+    return readFastaSeqFromStdin(seqfile, seqName, startCoord, endCoord, seqType);
   else
-    return concatenateFastaSeqs(seqfile, seqName, startCoord, endCoord);
+    return concatenateFastaSeqs(seqfile, seqName, startCoord, endCoord, seqType);
 }
 
 
@@ -630,12 +648,20 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
   /* Create the new MSP */
   GError *error = NULL;
   
+  /* Hack for backwards compatibility: remove the 'i' or 'x' postfix from
+   * intron and exon names. */
+  int len = strlen(sName);
+  if (len && mspType == BLXMSP_EXON && toupper(sName[len - 1]) == 'X')
+    sName[len - 1] = '\0';
+  else if (len && mspType == BLXMSP_INTRON && toupper(sName[len - 1]) == 'I')
+    sName[len - 1] = '\0';
+  
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, NULL,
                           score, UNSET_INT, 0, NULL,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame,
                           sName, sStart, sEnd, BLXSTRAND_FORWARD, NULL,
                           &error);
-  
+
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
   /* Convert subject names to fetchable ones if from NCBI server 
@@ -843,6 +869,14 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
 
   /* Create the new MSP */
   GError *error = NULL;
+
+  /* Hack for backwards compatibility: remove the 'i' or 'x' postfix from
+   * intron and exon names. */
+  int len = strlen(sName);
+  if (len && typeIsExon(mspType) && toupper(sName[len - 1]) == 'X')
+    sName[len - 1] = '\0';
+  else if (len && typeIsIntron(mspType) && toupper(sName[len - 1]) == 'I')
+    sName[len - 1] = '\0';
   
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, mspType, NULL, NULL,
                           score, UNSET_INT, 0, NULL,
@@ -1669,7 +1703,7 @@ static void parseFsSeqHeader(char *line,
 /* Parse a line that contains a chunk of sequence data. Concatenates the contents of the
  * line onto readSeq, extending readSeq if necessary. readSeqLen is the length of the current
  * contents of readSeq, and readSeqMaxLen is the currently allocated space for readSeq. */
-static void parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *readSeqMaxLen)
+static void parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, const BlxSeqType seqType)
 {
   if (*readSeqLen == UNSET_INT)
     {
@@ -1680,7 +1714,14 @@ static void parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *read
   /* Read in the actual sequence data. It may span several lines, so concatenate each
    * one on to the end of our result. */
   
-  /* First, reealloc if necessary */
+  /* First, validate that we have valid input */
+  char *cp = line;
+  for ( ; cp && *cp; ++cp)
+    {
+      validateIupacChar(cp, seqType);
+    }
+  
+  /* Also reealloc memory if necessary */
   if (*readSeqLen + strlen(line) > *readSeqMaxLen) 
     {
       char *tmp;
@@ -1767,7 +1808,7 @@ static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, con
 
     case FS_SEQ_BODY: /* fall through */
     case FASTA_SEQ_BODY:
-      parseSeqData(line, readSeq, readSeqLen, readSeqMaxLen);
+      parseSeqData(line, readSeq, readSeqLen, readSeqMaxLen, BLXSEQ_DNA); /* ref seq is always dna, not peptide */
       break;
       
     case PARSER_ERROR:

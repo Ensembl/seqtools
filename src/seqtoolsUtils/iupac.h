@@ -133,6 +133,27 @@ struct iupactype
 				/* note: sequence chars are UPPER CASE */
 				/* in order of occurrence frequency;
 				   to speed up loops a bit */
+
+/* Define all of the valid characters in a DNA/RNA sequence, and their
+ * complements */
+/* residue:                 inverse:
+ * A = adenine              T
+ * C = cytosine             G
+ * G = guanine              C
+ * T = thymine (DNA only)   A
+ * U = uracil (RNA only)    A
+ * R = G/A (purine)         Y = C/T
+ * Y = T/C (pyrimidine)     R = G/A
+ * K = G/T (keto)           M = C/A
+ * M = A/C (amino)          K = T/G
+ * S = G/C (strong bonds)   S = C/G
+ * W = A/T (weak bonds)     W = T/A
+ * B = G/T/C (all but A)    V = C/A/G
+ * D = G/A/T (all but C)    H = C/T/A
+ * H = A/C/T (all but G)    D = T/G/A
+ * V = G/C/A (all but T)    B = C/G/T
+ * N = A/G/C/T (any)        N = A/G/C/T
+ */ 
 #define IUPACSYMNUM 17
 struct iupactype iupac[IUPACSYMNUM] =
   {
@@ -142,7 +163,7 @@ struct iupactype iupac[IUPACSYMNUM] =
     {'T', 'A', NTT, NTA},
     {'U', 'A', NTU, NTA},
     {'N', 'N', NTN, NTN},
-    {' ', ' ', NTGAP, NTGAP},
+    {'-', '-', NTGAP, NTGAP},
     {'R', 'Y', NTR, NTY},
     {'Y', 'R', NTY, NTR},
     {'M', 'K', NTM, NTK},

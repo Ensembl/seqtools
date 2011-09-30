@@ -1194,14 +1194,14 @@ static void mspGetAdjacentBases(const MSP const *msp, char *bases, const gboolea
 {
   if (start)
     {
-      bases[0] = getRefSeqBase(bc->refSeq, msp->qRange.min - 2, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
-      bases[1] = getRefSeqBase(bc->refSeq, msp->qRange.min - 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[0] = getSequenceIndex(bc->refSeq, msp->qRange.min - 2, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[1] = getSequenceIndex(bc->refSeq, msp->qRange.min - 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
       bases[2] = '\0';
     }  
   else
     {
-      bases[0] = getRefSeqBase(bc->refSeq, msp->qRange.max + 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
-      bases[1] = getRefSeqBase(bc->refSeq, msp->qRange.max + 2, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[0] = getSequenceIndex(bc->refSeq, msp->qRange.max + 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[1] = getSequenceIndex(bc->refSeq, msp->qRange.max + 2, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
       bases[2] = '\0';
     }
 }
@@ -1658,7 +1658,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   while (qIdx >= qRange.min && qIdx <= qRange.max)
     {
       /* Get the character to display at this index */
-      displayText[displayTextPos] = getRefSeqBase(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
+      displayText[displayTextPos] = getSequenceIndex(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
       
       /* Color the base depending on whether it is selected or affected by a SNP */
       const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);

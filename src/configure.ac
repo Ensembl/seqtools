@@ -9,7 +9,7 @@ AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([blixemApp/blxmain.c])
 AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile seqtoolsUtils/Makefile libpfetch/Makefile blixemApp/Makefile dotterApp/Makefile belvuApp/Makefile doc/Makefile doc/User_doc/Makefile])
+AC_CONFIG_FILES([Makefile])
 
 # Check if this is a Git repository and, if so, include info about the current
 # status in the version info. Otherwise use PACKAGE_VERSION (which will get
@@ -55,12 +55,13 @@ echo \
 
  ${PACKAGE_NAME} Version ${PACKAGE_VERSION}
 
- Prefix: '${prefix}'.
+ Prefix: '${prefix}'
  Compiler: '${CC} ${CFLAGS} ${CPPFLAGS}'
 
  Now type 'make @<:@<target>@:>@'
-   where the optional <target> is:
-     all      - build all binaries
-     install  - install everything
+   where the optional @<:@<target>@:>@ is:
+     all       - build all binaries (default)
+     install   - build and install everything
+     <program> - build specific program
 
 --------------------------------------------------"

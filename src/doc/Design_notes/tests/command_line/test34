@@ -1,0 +1,5 @@
+exec belvu -o Selex -S n -s ../data/PF02171_seed.scores ../data/PF02171_seed.selex
+
+# Description:
+#   Sort by neighbour-joinging tree on start up.
+

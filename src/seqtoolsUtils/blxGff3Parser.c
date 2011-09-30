@@ -93,6 +93,7 @@ static void           parseAttributes(char *attributes, GList **seqList, const i
 static void           parseTagDataPair(char *text, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseNameTag(char *data, char **sName, const int lineNum, GError **error);
 static void           parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
+static void           parseSequenceTag(const char *text, const int lineNum, BlxGffData *gffData, GError **error);
 static void           parseGapString(char *text, MSP *msp, const int resFactor, GError **error);
 
 static BlxStrand      readStrand(char *token, GError **error);
@@ -156,6 +157,8 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "read", "SO:0000150", BLXMSP_SHORT_READ);
   addGffType(&supportedTypes, "region", "SO:0000001", BLXMSP_REGION);
 
+  supportedTypes = g_slist_reverse(supportedTypes);
+  
   return supportedTypes;
 }
 
@@ -756,7 +759,7 @@ static void parseTagDataPair(char *text,
         }
       else if (!strcmp(tokens[0], "sequence"))
         {
-          gffData->sequence = g_strdup(tokens[1]);
+          parseSequenceTag(tokens[1], lineNum, gffData, &tmpError);
         }
       else if (!strcmp(tokens[0], "variant_sequence"))
         {
@@ -851,6 +854,13 @@ static void parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGf
      }
   
   g_strfreev(tokens);
+}
+
+
+/* Parse the data from the 'sequence' tag */
+static void parseSequenceTag(const char *text, const int lineNum, BlxGffData *gffData, GError **error)
+{
+  gffData->sequence = g_strdup(text);
 }
 
 

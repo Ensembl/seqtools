@@ -89,7 +89,8 @@ typedef enum
   SEQTOOLS_ERROR_PARSING_COLOR,	      /* error parsing color string */
   SEQTOOLS_ERROR_SEQ_SEGMENT,	      /* error getting the requested segment of a sequence */
   SEQTOOLS_ERROR_NO_STYLE,            /* style does not exist */
-  SEQTOOLS_ERROR_EXECUTING_CMD	      /* error executing command */
+  SEQTOOLS_ERROR_EXECUTING_CMD,       /* error executing command */
+  SEQTOOLS_ERROR_SEQ_TYPE	      /* error determining sequence type */
 } SeqToolsError;
 
 
@@ -121,11 +122,13 @@ typedef enum
 
 
 /* Special characters for displaying in sequences */
-#define SEQUENCE_CHAR_GAP    '.'   /* represents a gap in the match sequence */
-#define SEQUENCE_CHAR_PAD    '-'   /* used for padding when the sequence is unavailable */
-#define SEQUENCE_CHAR_BLANK  '-'   /* used to display a blank when we're not interested in what the actual base is */
-#define SEQUENCE_CHAR_STOP   '*'   /* STOP codon */
-#define SEQUENCE_CHAR_MET    'M'   /* MET codon */
+#define SEQUENCE_CHAR_DELETION '.'   /* represents a deletion */
+#define SEQUENCE_CHAR_GAP      '-'   /* represents a gap. Note that gaps in the reference sequence will be highlighted as assembly gaps */
+#define SEQUENCE_CHAR_PAD      '-'   /* used for padding when the sequence is unavailable */
+#define SEQUENCE_CHAR_BLANK    '-'   /* used to display a blank when we're not interested in what the actual base is */
+#define SEQUENCE_CHAR_INVALID  ' '   /* used to replace non-utf8 characters (which GTK can't display) */
+#define SEQUENCE_CHAR_STOP     '*'   /* STOP codon */
+#define SEQUENCE_CHAR_MET      'M'   /* MET codon */
 
 
 /* Color strings that can be passed to create a GdkColor */
@@ -152,6 +155,7 @@ typedef enum
 #define BLX_VIOLET            "#78b4f0"
 #define BLX_DARK_VIOLET       "#5c98d5"
 #define BLX_MID_BLUE          "#6495ED"
+#define BLX_SLATE_BLUE        "#7C7FFF"
 
 #define BLX_RED		      "#ff0000"
 #define BLX_LIGHT_RED	      "#ff7373"
@@ -300,7 +304,7 @@ GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdoub
 GdkDrawable*	      createBlankPixmap(GtkWidget *widget);
 GdkDrawable*          createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *window, const int width, const int height);
 
-BlxSeqType            determineSeqType(char *seq);
+BlxSeqType            determineSeqType(char *seq, GError **error);
 void                  argvAdd(int *argc, char ***argv, char *s);
 char*                 getSystemErrorText();
 gpointer              handleAlloc(BlxHandle *handle, size_t numBytes);
@@ -323,6 +327,7 @@ int		      getRangeCentre(const IntRange const *range);
 void                  centreRangeOnCoord(IntRange *range, const int coord, const int length);
 gboolean	      valueWithinRange(const int value, const IntRange const *range);
 gboolean              rangesOverlap(const IntRange const *range1, const IntRange const *range2);
+gboolean              rangesAdjacent(const IntRange const *range1, const IntRange const *range2);
 gboolean	      rangesEqual(const IntRange const *range1, const IntRange const *range2);
 void		      boundsLimitValue(int *value, const IntRange const *range);
 void                  boundsLimitRange(IntRange *range, const IntRange const *limit, const gboolean maintainLen);
@@ -356,11 +361,11 @@ char                  getStrandAsChar(const BlxStrand strand);
 int                   roundNearest(const double val);
 int		      roundToValue(const int inputVal, const int roundTo);
 
-char		      getRefSeqBase(char *refSeq, 
-				    const int qIdx, 
-				    const gboolean complement, 
-				    const IntRange const *refSeqRange,
-				    const BlxSeqType seqType);
+char		      getSequenceIndex(char *seq, 
+                                       const int qIdx, 
+                                       const gboolean complement, 
+                                       const IntRange const *seqRange,
+                                       const BlxSeqType seqType);
 
 int		      getStartDnaCoord(const IntRange const *displayRange, 
 				       const int frame,
@@ -382,6 +387,7 @@ char*		      convertIntToString(const int value);
 char*                 convertDoubleToString(const gdouble value, const int numDp);
 int		      convertStringToInt(const char *inputStr);
 gboolean	      isWhitespaceChar(const char curChar);
+gboolean              isNewlineChar(const char curChar);
 char*		      abbreviateText(const char *inputStr, const int maxLen);
 gboolean              stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive);
 gboolean	      isValidIupacChar(const char inputChar, const BlxSeqType seqType);
@@ -410,6 +416,7 @@ GtkWidget*		createScrollableTextView(const char *messageText,
 						 const gboolean wrapText,
 						 PangoFontDescription *fontDesc,
                                                  const gboolean useMarkup,
+						 int *width,
 						 int *height,
                                                  GtkTextView **textViewOut);
 				    
@@ -532,6 +539,8 @@ void                               getTextSize(GtkWidget *widget, const char *te
 int                                getTextWidth(GtkWidget *widget, const char *text);
 int                                getTextHeight(GtkWidget *widget, const char *text);
 
+void                               getScreenSizeFraction(GtkWidget *widget, const double widthFraction, const double heightFraction, int *widthOut, int *heightOut);
+
 GtkWidget*                         createTextEntryFromInt(GtkWidget *widget,
                                                           GtkTable *table, 
                                                           const int row,
@@ -585,7 +594,7 @@ gboolean                           seqtoolsLaunchWebBrowser(const char *link, GE
 char*                              blxTranslate(const char *seq, char **code);
 void                               blxComplement(char *seq) ;    
 char*                              revComplement(char *comp, char *seq) ;
-
+char                               complementChar(const char inputChar, GError **error);
 
 
 void    gtk_text_buffer_insert_markup             (GtkTextBuffer *buffer,
