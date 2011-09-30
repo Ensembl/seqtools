@@ -45,8 +45,8 @@
 
 
 #define SEQTOOLS_TOOLBAR_NAME	"SeqtoolsToolbarName"
-#define DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION	      0.5
-#define DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION         0.5
+#define DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION	      0.47
+#define DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION         0.4
 
 
 /* Macros to test a char to see if it's a iupac dna/peptide code (see iupac.h
@@ -1464,9 +1464,10 @@ char *stringUnprotect(char **textp, char *target)
  *			   Dialogs			   *
  ***********************************************************/
 
-/* Utility to set the height of a GtkTextView based on the number of lines of text it
- * contains (but not going above the given max height). Returns the height that was set. */
-static void setTextViewHeight(GtkWidget *textView, GtkTextBuffer *textBuffer, PangoFontDescription *fontDesc, int *width, int *height)
+/* Utility to set the width and height of a GtkTextView based on the width and
+ * number of lines of text it contains (but not going above the given max). 
+ * Returns the width/height that was set. */
+static void setTextViewSize(GtkWidget *textView, GtkTextBuffer *textBuffer, PangoFontDescription *fontDesc, int *width, int *height)
 {
   /* Adjust height to include all the lines if possible (limit to the original height passed in though) */
   if (height)
@@ -1556,7 +1557,7 @@ GtkWidget* createScrollableTextView(const char *messageText,
   /* Set the height to fit the number of lines of text, unless this would exceed 
    * the passed-in height. To do: should pass in width here too but the calculation
    * is not accurate. */
- setTextViewHeight(textView, textBuffer, fontDesc, NULL, height);
+ setTextViewSize(textView, textBuffer, fontDesc, NULL, height);
   
   /* Return the outermost container */
   return scrollWin;
@@ -1585,8 +1586,12 @@ GtkWidget* showMessageDialog(const char *title,
 
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
+  /* ideally we'd pass in width and height here to set them from the actual size
+   * of the text. however, this function is used for the pfetch window, which
+   * may change its contents, giving an inaccurate size if we calculate it now, so
+   * just use the max size. */
   int width = maxWidth, height = maxHeight;
-  GtkWidget *child = createScrollableTextView(messageText, wrapText, fontDesc, useMarkup, &width, &height, textView);
+  GtkWidget *child = createScrollableTextView(messageText, wrapText, fontDesc, useMarkup, NULL, NULL, textView);
   height += 40; /* fudge to allow space for dialog buttons */
   
   gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
