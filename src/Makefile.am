@@ -54,10 +54,10 @@ GENMARSHAL_COMMAND = $(GLIB_GENMARSHAL) --prefix=libpfetch_cmarshal
 dist_doc_DATA = $(USERDOC)/todo.html $(USERDOC)/release_notes.html \
                 $(USERDOC)/belvu_quick_start.html $(USERDOC)/blixem_quick_start.html $(USERDOC)/dotter_quick_start.html \
                 $(USERDOC)/belvu_usage.txt $(USERDOC)/blixem_usage.txt $(USERDOC)/dotter_usage.txt \
-                $(USERDOC)/Blixem_manual.pdf $(USERDOC)/Dotter_manual.pdf
+                $(USERDOC)/Blixem_manual.pdf $(USERDOC)/Dotter_manual.pdf $(USERDOC)/Belvu_manual.pdf
 
 # these are included in the distribution, but are not installed
-EXTRA_DIST = $(PFETCH_EXTRA_DIST) $(TEST) $(DOC)/Design_notes $(DOC)/index.html $(USERDOC)/index.html $(USERDOC)/manuals.html $(USERDOC)/Blixem_manual.odt $(USERDOC)/Dotter_manual.odt
+EXTRA_DIST = $(PFETCH_EXTRA_DIST) $(TEST) $(DOC)/Design_notes $(DOC)/index.html $(USERDOC)/index.html $(USERDOC)/manuals.html $(USERDOC)/Blixem_manual.odt $(USERDOC)/Dotter_manual.odt $(USERDOC)/Belvu_manual.odt
 
 
 #
