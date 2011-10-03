@@ -1,4 +1,4 @@
-exec blixemh -c ~/.blixemrc -s 337622 -m 210623 -z 335873:338382  -n -t P ../data/chr4_ref_seq.fasta ../data/chr4_protein_align.gff --dataset=human 
+exec blixemh -a 'SwissProt' -c ~/.blixemrc -s 337622 -m 210623 -z 335873:338382  -t P ../data/chr4_ref_seq.fasta ../data/chr4_protein_align.gff --dataset=human 
 
 #
 # Description:

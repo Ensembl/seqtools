@@ -1,4 +1,4 @@
-exec blixemh -c ~/.blixemrc -s 337622 -m 210623 -z 335873:338382  -n -t N ../data/chr4_ref_seq.fasta ../data/chr4_dna_align.gff --dataset=human 
+exec blixemh -a 'EST_Human' -c ~/.blixemrc -s 337622 -m 210623 -z 335873:338382  -n -t N ../data/chr4_ref_seq.fasta ../data/chr4_dna_align.gff --dataset=human 
 
 #
 # Description:
