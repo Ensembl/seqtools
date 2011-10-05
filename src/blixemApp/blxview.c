@@ -948,6 +948,48 @@ gboolean blxview(CommandLineOptions *options,
 }
 
 
+/* Find all of the different alignment types (i.e. source names) and 
+ * compile them into a single string, separated by the given separator string */
+static char* findAlignTypes(GArray* featureLists[], const char *separatorStr)
+{
+  GSList *sourceList = NULL;
+  GString *resultStr = g_string_new(NULL);
+  
+  /* Loop through all MSPs of type 'match' */
+  const GArray const *mspList = featureLists[BLXMSP_MATCH];
+  
+  int i = 0;
+  const MSP *msp = mspArrayIdx(mspList, i);
+  
+  for ( ; msp; msp = mspArrayIdx(mspList, ++i))
+    {
+      const char *source = mspGetSource(msp);
+      
+      if (source)
+        {
+          /* See if we've already seen this source. If not, add it to the list,
+           * and append it to the string. */
+          GQuark quark = g_quark_from_string(source);
+          
+          if (!g_slist_find(sourceList, GINT_TO_POINTER(quark)))
+            {
+              sourceList = g_slist_prepend(sourceList, GINT_TO_POINTER(quark));
+              
+              if (resultStr->len)
+                g_string_append(resultStr, separatorStr);
+              
+              g_string_append(resultStr, source);
+            }
+        }
+    }
+  
+  char *result = resultStr->str;
+  g_string_free(resultStr, FALSE);
+  
+  return result;
+}
+
+
 /* Initialize the display and the buttons */
 static void blviewCreate(char *align_types, 
 			 const char *paddingSeq,
@@ -964,13 +1006,18 @@ static void blviewCreate(char *align_types,
       /* Create the window */
       blixemWindow = createBlxWindow(options, paddingSeq, featureLists, seqList, supportedTypes, net_id, port, External);
 
-      gboolean pep_nuc_align = (options->blastMode == BLXMODE_BLASTX || options->blastMode == BLXMODE_BLASTN);
+      /* Set the window title. Get a description of all the alignment types 
+       * (unless already supplied) */
+      if (!align_types)
+        align_types = findAlignTypes(featureLists, ", ");
+
+      /* If no alignment description was set, create a generic description */
+      if (!align_types)
+        align_types = blxprintf("%s", options->seqType == BLXSEQ_PEPTIDE ? "peptide alignment" : "nucleotide alignment");
       
-      char *title = blxprintf("Blixem %s%s%s:   %s",
-                              (pep_nuc_align ? "  (" : ""),
-                              (align_types ? align_types : (options->seqType == BLXSEQ_PEPTIDE ? "peptide" :
-                                                            (options->seqType == BLXSEQ_DNA ? "nucleotide" : ""))),
-                              (pep_nuc_align ? " alignment)" : ""),
+      char *title = blxprintf("Blixem (%s):   %s %s",
+                              align_types,
+                              (options->dataset ? options->dataset : ""),
                               options->refSeqName);
       
       gtk_window_set_title(GTK_WINDOW(blixemWindow), title);
