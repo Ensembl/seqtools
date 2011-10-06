@@ -2356,7 +2356,25 @@ static void drawImage(GtkWidget *dotplot, GdkDrawable *drawable)
       gdk_draw_image(drawable, gc, properties->image,
                      0, 0, properties->plotRect.x, properties->plotRect.y,
                      properties->image->width, properties->image->height); 
-      
+
+      /* We cannot calculate the image in the sliding-window size border,
+       * so shade that in to indicate it is not part of the plot */
+      DotterWindowContext *dwc = properties->dotterWinCtx;
+      DotterContext *dc = dwc->dotterCtx;
+
+      GdkColor *color = getGdkColor(DOTCOLOR_BORDER, dc->defaultColors, FALSE, dwc->usePrintColors);
+      const double alpha = 1;
+      const int hBorder = properties->slidingWinSize / (2 * getScaleFactor(properties, TRUE));
+      const int vBorder = properties->slidingWinSize / (2 * getScaleFactor(properties, FALSE));
+
+      cairo_operator_t op = CAIRO_OPERATOR_OVER;
+      GdkRectangle *r = &properties->plotRect;
+
+      drawRect(drawable, color, r->x, r->y, vBorder, r->height, alpha, op);
+      drawRect(drawable, color, r->x + r->width - vBorder, r->y, vBorder, r->height, alpha, op);
+      drawRect(drawable, color, r->x, r->y, r->width, hBorder, alpha, op);
+      drawRect(drawable, color, r->x, r->y + r->height - hBorder, r->width, hBorder, alpha, op);      
+
       g_object_unref(gc);
     }
   

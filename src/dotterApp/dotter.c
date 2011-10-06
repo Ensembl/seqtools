@@ -406,6 +406,7 @@ static void createDotterColors(DotterContext *dc)
   /* dot plot */
   createBlxColor(dc->defaultColors, DOTCOLOR_CROSSHAIR, "Crosshair", "Color of the crosshair on the dot plot", BLX_BLUE, BLX_BLUE, NULL, NULL);
   createBlxColor(dc->defaultColors, DOTCOLOR_GRID, "Grid", "Line color of the grid on the dot plot", BLX_LIGHT_RED, BLX_LIGHT_RED, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_BORDER, "Grid", "Highlight color for the border where the alignment cannot be calculated", "#ffeeee", "#bbbbbb", NULL, NULL);
 
   /* greyramp */
   createBlxColor(dc->defaultColors, DOTCOLOR_THRESHOLD_MARKER, "Greyramp threshold marker color", "Outline color of the threshold marker on the greyramp tool", BLX_RED, BLX_RED, BLX_GREEN, BLX_GREEN);
