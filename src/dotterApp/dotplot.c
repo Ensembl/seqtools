@@ -345,6 +345,14 @@ int dotplotGetPixelFac(GtkWidget *dotplot)
   return properties->pixelFac;
 }
 
+void dotplotToggleBumpExons(GtkWidget *dotplot)
+{
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  exonViewToggleBumped(properties->hozExons1);
+  exonViewToggleBumped(properties->hozExons2);
+  exonViewToggleBumped(properties->vertExons1);
+  exonViewToggleBumped(properties->vertExons2);
+}
 
 /* Returns true if the pixelmap image should be displayed */
 static gboolean showImage(DotplotProperties *properties)

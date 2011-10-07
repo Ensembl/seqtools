@@ -316,6 +316,7 @@ int		    convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, Dotter
 int                 getDotplotWidth(DotplotProperties *properties);
 int                 getDotplotHeight(DotplotProperties *properties);
 DotplotProperties*  dotplotGetProperties(GtkWidget *widget);
+void                dotplotToggleBumpExons(GtkWidget *dotplot);
 
 DotterHspMode       dotplotGetHspMode(GtkWidget *dotplot);
 int                 dotplotGetSlidingWinSize(GtkWidget *dotplot);

@@ -186,6 +186,7 @@ static void                       onAboutMenu(GtkAction *action, gpointer data);
 static void                       onCopyHCoordMenu(GtkAction *action, gpointer data);
 static void                       onCopyVCoordMenu(GtkAction *action, gpointer data);
 static void                       onToggleUsePrintColorsMenu(GtkAction *action, gpointer data);
+static void                       onToggleBumpExonsMenu(GtkAction *action, gpointer data);
 
 
 /* Menu builders: the action entry list lists menu actions for all menus */
@@ -215,7 +216,8 @@ static GtkToggleActionEntry toggleMenuEntries[] = {
 { "ToggleCrosshair",  NULL, "Crosshair",             NULL,  "Show the crosshair",             G_CALLBACK(onToggleCrosshairMenu),       TRUE},
 { "ToggleCoords",     NULL, "Crosshair label",       NULL,  "Show the crosshair label",       G_CALLBACK(onToggleCoordsMenu),          TRUE},
 { "ToggleFullscreen", NULL, "Crosshair fullscreen",  NULL,  "Show the crosshair full screen", G_CALLBACK(onToggleFullscreenMenu),      TRUE},
-{ "TogglePrintColors",NULL, "Use print colors",      NULL,  "Use print _colors",              G_CALLBACK(onToggleUsePrintColorsMenu),  FALSE}
+{ "TogglePrintColors",NULL, "Use print colors",      NULL,  "Use print _colors",              G_CALLBACK(onToggleUsePrintColorsMenu),  FALSE},
+{ "ToggleBumpExons",  NULL, "Bump exons",            "B",   "_Bump exons",                    G_CALLBACK(onToggleBumpExonsMenu),       FALSE}
 };
 
 /* Radio-button menu entries are listed here: */
@@ -262,6 +264,8 @@ static const char mainMenuDescription[] =
 "      <menuitem action='HspsGrey'/>"
 "      <menuitem action='HspsLine'/>"
 "      <menuitem action='HspsFunc'/>"
+"     <separator/>"
+"      <menuitem action='ToggleBumpExons'/>"
 "    </menu>"
 "    <menu action='HelpMenuAction'>"
 "      <menuitem action='Help'/>"
@@ -2924,6 +2928,12 @@ static void onToggleUsePrintColorsMenu(GtkAction *action, gpointer data)
   refreshAll(dotterWindow, NULL);
 }
 
+static void onToggleBumpExonsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  dotplotToggleBumpExons(properties->dotplot);
+}
 
 /* Mouse button handler */
 static gboolean onButtonPressDotter(GtkWidget *window, GdkEventButton *event, gpointer data)

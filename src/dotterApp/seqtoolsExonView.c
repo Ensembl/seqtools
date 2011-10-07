@@ -447,8 +447,8 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     }
 
   /* Set the height based on the height of the exons that were actually drawn */
-//  const int newHeight = drawData.y - properties->exonViewRect.y + drawData.yPad;
-//  gtk_layout_set_size(GTK_LAYOUT(exonView), exonView->allocation.width, newHeight);
+  const int newHeight = drawData.y - properties->exonViewRect.y + drawData.yPad;
+  gtk_layout_set_size(GTK_LAYOUT(exonView), exonView->allocation.width, newHeight);
 
   g_object_unref(gc);
   DEBUG_EXIT("drawExonView returning ");
@@ -493,7 +493,7 @@ void calculateDotterExonViewHeight(GtkWidget *exonView)
 	}
     }
   
-  properties->exonViewRect.height = (numExons * (properties->exonHeight + properties->yPad)) + (2 * properties->yPad);
+  properties->exonViewRect.height = (numExons * (properties->exonHeight + 2 * properties->yPad)) + (2 * properties->yPad);
   
   gtk_widget_set_size_request(exonView, -1, properties->exonViewRect.height);
 }
@@ -621,6 +621,9 @@ void exonViewSetBumped(GtkWidget *exonView, const gboolean bumped)
   /* Refresh the parent */
   if (properties->refreshFunc)
     properties->refreshFunc(properties->parent, NULL);
+
+  /* Redraw all */
+  widgetClearCachedDrawable(exonView, NULL);
 }
 
 
@@ -648,7 +651,7 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
   
   if (!drawable)
     {
-      /* Create a pixmap and draw the exon view onto it */
+      /* Create a pixmap and draw the exon view ont oit */
       drawable = createBlankPixmap(exonView);
       drawExonView(exonView, drawable);
     }
@@ -674,7 +677,7 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
 
 static void onSizeAllocateExonView(GtkWidget *exonView, GtkAllocation *allocation, gpointer data)
 {
-//  calculateDotterExonViewBorders(exonView);
+  //  calculateDotterExonViewBorders(exonView);
 }
 
 
