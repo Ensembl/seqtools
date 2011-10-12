@@ -431,20 +431,9 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     FALSE
   };
   
-  /* If the view is compressed (i.e. exons will overlap each other), then
-   * only draw "normal" MSPs the first time round, and draw grouped/selected
-   * MSPs afterwards, so that they appear on top. If the view is bumped, 
-   * we can draw them all in a single loop, because they will not overlap. */
-  drawData.normalOnly = !properties->bumped;
-  
   /* Loop through all sequences, drawing all msps that are exons/introns */
   GList *seqList = dc->seqList;
   g_list_foreach(seqList, drawExonIntronItem, &drawData);
-
-  if (!properties->bumped)
-    {
-      /* we don't currently support selected sequences in dotter */
-    }
 
   g_object_unref(gc);
   DEBUG_EXIT("drawExonView returning ");
@@ -529,6 +518,11 @@ void calculateDotterExonViewBorders(GtkWidget *exonView, const int width, const 
   gtk_layout_set_size(GTK_LAYOUT(exonView), properties->exonViewRect.x + properties->exonViewRect.width, properties->exonViewRect.y + properties->exonViewRect.height);
   gtk_widget_set_size_request(exonView, properties->exonViewRect.x + properties->exonViewRect.width, properties->exonViewRect.y + properties->exonViewRect.height);
   
+  /* If the display is bumped, we need to do more work to determine the height
+   * because it depends on the number of exons that are visible */
+  if (properties->bumped)
+    calculateDotterExonViewHeight(exonView);
+
   widgetClearCachedDrawable(exonView, NULL);
   gtk_widget_queue_draw(exonView);
   
