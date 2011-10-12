@@ -446,13 +446,6 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
       /* we don't currently support selected sequences in dotter */
     }
 
-  /* Set the height based on the height of the exons that were actually drawn */
-  const int newHeight = drawData.y - properties->exonViewRect.y + drawData.yPad;
-  if (properties->horizontal)
-    gtk_layout_set_size(GTK_LAYOUT(exonView), exonView->allocation.width, newHeight);
-  else
-    gtk_layout_set_size(GTK_LAYOUT(exonView), newHeight, exonView->allocation.height);
-
   g_object_unref(gc);
   DEBUG_EXIT("drawExonView returning ");
 }
@@ -500,11 +493,13 @@ void calculateDotterExonViewHeight(GtkWidget *exonView)
     {
       properties->exonViewRect.height = (numExons * (properties->exonHeight + 2 * properties->yPad)) + (2 * properties->yPad);
       gtk_widget_set_size_request(exonView, -1, properties->exonViewRect.height);
+      gtk_layout_set_size(GTK_LAYOUT(exonView), exonView->allocation.width, properties->exonViewRect.height);
     }
   else
     {
       properties->exonViewRect.width = (numExons * (properties->exonHeight + 2 * properties->yPad)) + (2 * properties->yPad);
       gtk_widget_set_size_request(exonView, properties->exonViewRect.width, -1);
+      gtk_layout_set_size(GTK_LAYOUT(exonView), properties->exonViewRect.width, exonView->allocation.height);
     }
 }
 
@@ -634,6 +629,7 @@ void exonViewSetBumped(GtkWidget *exonView, const gboolean bumped)
 
   /* Redraw all */
   widgetClearCachedDrawable(exonView, NULL);
+  gtk_widget_queue_draw(exonView);
 }
 
 
@@ -661,7 +657,7 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
   
   if (!drawable)
     {
-      /* Create a pixmap and draw the exon view ont oit */
+      /* Create a pixmap and draw the exon view onto it */
       drawable = createBlankPixmap(exonView);
       drawExonView(exonView, drawable);
     }
@@ -687,7 +683,7 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
 
 static void onSizeAllocateExonView(GtkWidget *exonView, GtkAllocation *allocation, gpointer data)
 {
-  //  calculateDotterExonViewBorders(exonView);
+
 }
 
 
