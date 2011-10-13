@@ -1528,6 +1528,11 @@ void blviewRedraw(void)
     }
 }
 
+GtkWidget* getBlixemWindow()
+{
+  return blixemWindow;
+}
+
 
 /* Reset any global variables / singleton instances */
 void blviewResetGlobals()

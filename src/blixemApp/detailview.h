@@ -214,6 +214,7 @@ void                    detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
 
 void                    detailViewUnsetSelectedBaseIdx(GtkWidget *detailView);
 void                    detailViewSetActiveFrame(GtkWidget *detailView, const int frame);
+void                    detailViewResortTrees(GtkWidget *detailView);
 
 void			updateFeedbackBox(GtkWidget *detailView);
 void                    updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const BlxStrand strand);
@@ -255,6 +256,11 @@ GHashTable*             getRefSeqBasesToHighlight(GtkWidget *detailView, const I
 
 void                    drawColumnSeparatorLine(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const BlxViewContext *bc);
 gboolean                onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
+
+gint                    sortByColumnCompareFunc(GList *mspGList1,
+                                                GList *mspGList2,
+                                                GtkWidget *detailView, 
+                                                const BlxColumnId sortColumn);
 
 gboolean                coordAffectedByVariation(const int dnaIdx,
                                                  const BlxStrand strand, 

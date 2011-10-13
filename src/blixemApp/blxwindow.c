@@ -1542,7 +1542,7 @@ static void blxWindowGroupsChanged(GtkWidget *blxWindow)
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
   /* Re-sort all trees, because grouping affects sort order */
-  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+  detailViewResortTrees(detailView);
   
   /* Refilter the trees (because groups affect whether sequences are visible) */
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
@@ -2679,7 +2679,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
       
       /* Re-sort the trees, because the new data may affect the sort order. Also
        * resize them, because whether data is loaded affects whether columns are shown. */
-      callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+      detailViewResortTrees(detailView);
       updateDynamicColumnWidths(detailView);
 
       /* Force a of resize the tree columns (updateDynamicColumnWidths won't resize them
@@ -3522,7 +3522,7 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
         }
       
       /* Re-sort trees */
-      callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+      detailViewResortTrees(detailView);
     }
   
   return TRUE;
@@ -5799,7 +5799,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Just once, at the start, update the visibility of all tree rows. (After this,
    * filter updates will be done on affected rows only.) */
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+  detailViewResortTrees(detailView);
   
   /* Calculate initial size of the exon views (depends on big picture range) */
   calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
