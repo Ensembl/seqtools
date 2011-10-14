@@ -1082,22 +1082,39 @@ static GtkSortType getColumnSortOrder(BlxViewContext *bc, const BlxColumnId colu
 }
 
 
+  /* We're only interested in sorting exons and matches */
+static gboolean mspIsSortable(const MSP const *msp)
+{
+  return (typeIsMatch(msp->type) || mspIsExon(msp));
+}
+
+
 /* Sort comparison function for sorting by a particular column of the tree view. */
 gint sortByColumnCompareFunc(GList *mspGList1,
                              GList *mspGList2,
                              GtkWidget *detailView, 
                              const BlxColumnId sortColumn)
 {
-  gint result = UNSET_INT;
+  gint result = 0;
   
   /* Get the first MSP in each list. */
   MSP *msp1 = (MSP*)(mspGList1->data);
   MSP *msp2 = (MSP*)(mspGList2->data);
-  
+
+  /* If an msp is of a type that we don't bother sorting, place it before any that we do sort */
+  if (!mspIsSortable(msp1) && !mspIsSortable(msp2))
+    return 0;
+  else if (!mspIsSortable(msp1))
+    return -1;
+  else if (!mspIsSortable(msp2))
+    return 1;
+
   /* Check whether either row has more than one MSP. If so, it means some options
    * aren't applicable (unless they're short reads, which should be identical if
    * they're in the same row, so we can treat those as singular). */
-  const gboolean multipleMsps = (!mspIsShortRead(msp1) || !mspIsShortRead(msp2)) && (g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1);
+  const gboolean multipleMsps = 
+    (!mspIsShortRead(msp1) || !mspIsShortRead(msp2)) && 
+    (g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1);
   
   BlxViewContext *bc = detailViewGetContext(detailView);
   gboolean displayRev = bc->displayRev;
@@ -1183,10 +1200,6 @@ static gint detailViewSortByColumns(gconstpointer a, gconstpointer b)
   const BlxSequence *seq1 = (const BlxSequence*)a;
   const BlxSequence *seq2 = (const BlxSequence*)b;
 
-  /* This function is only used for sorting exons for the exon view, so ignore other types */
-  if (seq1->type != BLXSEQUENCE_TRANSCRIPT || seq2->type != BLXSEQUENCE_TRANSCRIPT)
-    return 0.0;
-  
   GtkWidget *blxWindow = getBlixemWindow();
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
 
