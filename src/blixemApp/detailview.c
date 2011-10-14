@@ -3372,14 +3372,11 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       for ( ; i < BLXCOL_NUM_COLUMNS; ++i)
         properties->sortColumns[i] = BLXCOL_NONE;
 
-      if (BLXCOL_NUM_COLUMNS > 0)
-        properties->sortColumns[0] = sortColumn;
       
-      /* to do: bit of a hack to do a secondary sort by position by default;
-       * ideally we'd be more generic here (and also allow the caller to specify
-       * secondary sort orders on the command line) */
-      if (BLXCOL_NUM_COLUMNS > 1)
-        properties->sortColumns[1] = BLXCOL_START;
+      /* Sort by the default/input column, and then by name and then position */
+      properties->sortColumns[0] = sortColumn;
+      properties->sortColumns[1] = BLXCOL_SEQNAME;
+      properties->sortColumns[2] = BLXCOL_START;
       
       g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
       g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
