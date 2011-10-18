@@ -15,13 +15,11 @@
       <li>Multiple row selections: using the up/down arrow keys to move the row selection doesn't always work if there are adjacent rows from the same match sequence.
       <li>DNA search: this currently just jumps to the start of the DNA section that was found; we should also highlight the found DNA in the reference sequence.
       <li>Printing: the pfetch window should have a print option.
-      <li>Sorting exons: exons in the big picture Blixem should be sorted in the same order as those in the detail-view.
     </ul>
     <br/>
     <li>Enhancements
     <ul>
       <li>It would be nice to be able to view the sequence data for an insertion (a vertical yellow line in a match sequence) in Blixem, e.g. by hovering over it with the mouse.
-      <li>Selecting exons: when you click on an exon in the exon view in Blixem (when bumped), the exon should be selected.
       <li>When you hover over an exon in the exon view in Blixem (when bumped), it would be nice if info about the exon were shown in the toolbar feedback area.
       <li>When running Dotter on a large range it takes a long time to start up and there is no indication that anything is happening; it would be good to have a status bar of some description, and a cancel button. When running from Blixem, we should report if Dotter fails to start.
       <li>When calling Dotter from Blixem, start Dotter with the crosshair placed at the currently-selected coords in Blixem (if applicable).
@@ -34,13 +32,11 @@
   <ul>
     <li>Issues
     <ul>
-      <li>Dotter does not display dots in a sliding-window sized margin at edges of the dot-plot, even if bases are exactly aligned. This is confusing to the users so the dot-plot should be clipped so as not to show the space where the dots cannot be calculated.
       <li>There is a bug where the dot-plot can appear blacked-out if the plot is very wide and you zoom in (say to about half of the default compression factor).
     </ul>
     <br/>
     <li>Enhancements
     <ul>
-      <li>Bump exons: add the facility to bump exons in Dotter.
       <li>If you hit the boundary of one sequence when moving along a diagonal in Dotter and continue to press the movement keys (,.[]), then it stops moving on the one sequence but continues to move along the other, i.e. it goes off the diagonal. It would be nicer if it stopped moving altogether.
     </ul>
   </ul>
