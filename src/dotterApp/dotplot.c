@@ -934,12 +934,6 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
       return NULL;
     }
 
-  /* Put the dotplot in a scrolled window. It only needs the vertical scrollbar because the 
-   * container including the exon views etc as well will have a horizontal scrollbar for everything. */
-  GtkWidget *dotplotScrollWin = gtk_scrolled_window_new(NULL, NULL);
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(dotplotScrollWin), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-  gtk_container_add(GTK_CONTAINER(dotplotScrollWin), *dotplot);
-  
   /* Create labels for the axes */
   DotterContext *dc = dwc->dotterCtx;
   GtkWidget *hozLabel = createLabel(dc->refSeqName, 0.5, 0.5, FALSE, TRUE);
@@ -954,7 +948,7 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
   createDotterExonViews(*dotplot, dwc, &hozExons1, &hozExons2, &vertExons1, &vertExons2);
 
   /* Put everything in a table */
-  GtkWidget *scrollWin = createDotplotTable(dotplotScrollWin, hozLabel, vertLabel, hozExons1, hozExons2, vertExons1, vertExons2);
+  GtkWidget *parent = createDotplotTable(*dotplot, hozLabel, vertLabel, hozExons1, hozExons2, vertExons1, vertExons2);
   
   gtk_widget_add_events(*dotplot, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(*dotplot, GDK_BUTTON_RELEASE_MASK);
@@ -965,7 +959,7 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
   g_signal_connect(G_OBJECT(*dotplot), "motion-notify-event",   G_CALLBACK(onMouseMoveDotplot), NULL);
 
   DEBUG_EXIT("createDotplot returning ");
-  return scrollWin;
+  return parent;
 }
 
 

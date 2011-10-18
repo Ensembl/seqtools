@@ -3462,9 +3462,14 @@ static void printDotterWindow(GtkWidget *dotterWindow)
   GtkWidget *dotplot = properties->dotplot;
   dotplotPrepareForPrinting(dotplot);
   
+  /* Print the parent of the dotplot, because this contains the exon views as well.
+   * Note that we don't want to print the scrolled window, because that will chop off
+   * parts of the plot that are not currently visible; we want to print the whole plot) */
+  GtkWidget *parent = gtk_widget_get_parent(dotplot);
+
   /* Do the print */
   DotterWindowContext *dwc = properties->dotterWinCtx;
-  blxPrintWidget(dotterWindow, dotterWindow, &dwc->printSettings, &dwc->pageSetup, TRUE, PRINT_FIT_BOTH);
+  blxPrintWidget(parent, dotterWindow, &dwc->printSettings, &dwc->pageSetup, TRUE, PRINT_FIT_BOTH);
   
   /* Redraw the entire dotplot to make sure the crosshair we added gets cleared */
   redrawDotplot(dotplot);
