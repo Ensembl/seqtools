@@ -688,7 +688,7 @@ static void onPrintMenu(GtkAction *action, gpointer data)
       widgetToPrint = window;
     }
   
-  blxPrintWidget(widgetToPrint, GTK_WINDOW(window), &printSettings, &pageSetup, NULL, printCachedOnly, scaleType);
+  blxPrintWidget(widgetToPrint, NULL, GTK_WINDOW(window), &printSettings, &pageSetup, NULL, printCachedOnly, scaleType);
 }
 
 static void onFindMenu(GtkAction *action, gpointer data)

@@ -1873,7 +1873,7 @@ void exportPlot(GtkWidget *dotplot, GtkWindow *window, const char *exportFileNam
   gtk_print_settings_set_quality(printSettings, GTK_PRINT_QUALITY_HIGH);
   gtk_print_settings_set_resolution(printSettings, DEFAULT_PRINT_RESOLUTION);
 
-  blxPrintWidget(printWidget, window, &printSettings, &pageSetup, fileName, TRUE, PRINT_FIT_BOTH);
+  blxPrintWidget(printWidget, NULL, window, &printSettings, &pageSetup, fileName, TRUE, PRINT_FIT_BOTH);
 }
 
 

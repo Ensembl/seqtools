@@ -3194,9 +3194,7 @@ static gboolean onKeyPressP(GtkWidget *widget, GtkWidget *dotterWindow, const gb
       else
         {
           /* Generic widget printing */
-          DotterProperties *properties = dotterGetProperties(dotterWindow);
-          DotterWindowContext *dwc = properties->dotterWinCtx;
-          blxPrintWidget(widget, GTK_WINDOW(widget), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
+          printDotterWindow(dotterWindow);
         }
     }
   
@@ -3515,7 +3513,7 @@ static void printDotterWindow(GtkWidget *dotterWindow)
 
   /* Do the print */
   DotterWindowContext *dwc = properties->dotterWinCtx;
-  blxPrintWidget(parent, GTK_WINDOW(dotterWindow), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
+  blxPrintWidget(parent, NULL, GTK_WINDOW(dotterWindow), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
   
   /* Revert the background colour */
   defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, properties->dotterWinCtx->dotterCtx->defaultColors, FALSE, properties->dotterWinCtx->usePrintColors);
