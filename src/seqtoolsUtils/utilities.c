@@ -3749,9 +3749,10 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
  * sure they include everything necessary if they want to use this option, 
  * otherwise we just draw everything. */
 void blxPrintWidget(GtkWidget *widget, 
-                    GtkWidget *window,
+                    GtkWindow *window,
                     GtkPrintSettings **printSettings, 
                     GtkPageSetup **pageSetup, 
+                    const char *filename,
                     const gboolean printCachedOnly,
                     const PrintScaleType scaleType)
 {
@@ -3760,6 +3761,7 @@ void blxPrintWidget(GtkWidget *widget,
   
   /* Create a print operation, using the same settings as the last print, if there was one */
   GtkPrintOperation *print = gtk_print_operation_new();
+  GtkPrintOperationAction printAction = GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG;
   
   if (*printSettings != NULL)
     gtk_print_operation_set_print_settings(print, *printSettings);
@@ -3767,15 +3769,18 @@ void blxPrintWidget(GtkWidget *widget,
   if (*pageSetup)
     gtk_print_operation_set_default_page_setup(print, *pageSetup);
   
+  if (filename)
+    {
+      /* If a filename was given, export to that file (without showing the print dialog) */
+      gtk_print_operation_set_export_filename(print, filename);
+      printAction = GTK_PRINT_OPERATION_ACTION_EXPORT;
+    }
   
   g_signal_connect (print, "begin_print", G_CALLBACK (onBeginPrint), widget);
   g_signal_connect(G_OBJECT(print), "draw-page", G_CALLBACK(onDrawPage), widget);
   
   /* Pop up the print dialog */
-  GtkPrintOperationResult printResult = gtk_print_operation_run (print, 
-								 GTK_PRINT_OPERATION_ACTION_PRINT_DIALOG,
-								 GTK_WINDOW(window),
-								 NULL);
+  GtkPrintOperationResult printResult = gtk_print_operation_run (print, printAction, window, NULL);
   
   /* If the user hit ok, remember the print settings for next time */
   if (printResult == GTK_PRINT_OPERATION_RESULT_APPLY)

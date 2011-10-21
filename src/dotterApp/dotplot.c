@@ -212,7 +212,8 @@ static void onDestroyDotplot(GtkWidget *widget)
 static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
                                                   DotterWindowContext *dwc,
                                                   const gboolean hspsOn,
-                                                  const gboolean breaklinesOn)
+                                                  const gboolean breaklinesOn,
+                                                  const char *exportFileName)
 {
   DotplotProperties *properties = g_malloc(sizeof *properties);
   
@@ -256,6 +257,8 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
   properties->dragEnd.x = UNSET_INT;
   properties->dragEnd.y = UNSET_INT;
       
+  properties->exportFileName = exportFileName;
+
   if (widget)
     {
       g_object_set_data(G_OBJECT(widget), "DotplotProperties", properties);
@@ -546,13 +549,21 @@ void toggleCrosshairFullscreen(GtkWidget *dotplot)
 static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpointer data)
 {
   GdkDrawable *window = GTK_LAYOUT(dotplot)->bin_window;
-  
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+
   if (window)
     {
       GdkDrawable *bitmap = widgetGetDrawable(dotplot);
 
       if (!bitmap)
         {
+          if (properties->exportFileName)
+            {
+              /* Set the background colour to something sensible for printing */
+              GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, properties->dotterWinCtx->dotterCtx->defaultColors, FALSE, TRUE);
+              setWidgetBackgroundColor(gtk_widget_get_toplevel(dotplot), defaultBgColor);
+            }
+
           bitmap = createBlankPixmap(dotplot);
           drawDotplot(dotplot, bitmap);
         }
@@ -569,6 +580,16 @@ static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpoin
           drawRubberBand(dotplot, window);
         }
     }
+
+  if (properties->exportFileName)
+    {
+      /* We're in batch mode and have been asked to export the plot to pdf; print it, 
+      * and then quit */
+      GError *error = NULL;
+      exportPlot(dotplot, GTK_WINDOW(gtk_widget_get_toplevel(dotplot)), properties->exportFileName, &error);
+      gtk_main_quit();
+    }
+
   
   return TRUE;
 }
@@ -725,6 +746,7 @@ static void initCrosshairCoords(const int qcenter, const int scenter, DotterWind
 static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc, 
                                            const char *loadFileName,
                                            const char *saveFileName,
+                                           const char *exportFileName,
                                            const gboolean hspsOn,
                                            const gboolean breaklinesOn,
                                            const char *initWinsize,
@@ -735,11 +757,14 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
 {
   DEBUG_ENTER("createDotplotDrawingArea");
 
-  gboolean batch = (saveFileName == NULL ? FALSE : TRUE);
+  /* If we're in batch mode and we're exporting the matrix only (i.e. we have a save file
+   * but we don't have an export file), then we don't need to create the plot */
+  gboolean batch = (saveFileName || exportFileName);
+  gboolean showPlot = (exportFileName || !batch);
 
-  GtkWidget *dotplot = (batch ? NULL : gtk_layout_new(NULL, NULL));
+  GtkWidget *dotplot = (showPlot ? gtk_layout_new(NULL, NULL) : NULL);
   
-  DotplotProperties *properties = dotplotCreateProperties(dotplot, dwc, hspsOn, breaklinesOn);
+  DotplotProperties *properties = dotplotCreateProperties(dotplot, dwc, hspsOn, breaklinesOn, exportFileName);
   
   if (loadFileName)
     {
@@ -778,7 +803,7 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
           calculateImage(properties);
         }
 
-      if (!batch)
+      if (showPlot)
         {
           /* Create the image and push the pixelmap to it */
           properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
@@ -790,15 +815,21 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
   
   if (saveFileName)
     {
+      /* Batch mode: save the dot matrix;  */
       GError *error = NULL;
       savePlot(dotplot, properties, saveFileName, &error);
       
       prefixError(error, "Error saving dot plot. ");
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
-  else
+
+  if (showPlot)
     {
-      initCrosshairCoords(qcenter, scenter, properties->dotterWinCtx);
+      /* Set the crosshair coords (only applicable if not in batch mode) */
+      if (!batch)
+        initCrosshairCoords(qcenter, scenter, properties->dotterWinCtx);
+
+      /* Calculate the size of the dot-plot */
       calculateDotplotBorders(dotplot, properties);
     }
   
@@ -914,6 +945,7 @@ static void createDotterExonViews(GtkWidget *dotplot,
 GtkWidget* createDotplot(DotterWindowContext *dwc, 
                          const char *loadFileName,
                          const char *saveFileName,
+                         const char *exportFileName,
                          const gboolean hspsOn,
                          const gboolean breaklinesOn,
                          const char *initWinsize,
@@ -926,7 +958,7 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
   DEBUG_ENTER("createDotplot");
 
   /* Create the actual drawing area for the dot plot */
-  *dotplot = createDotplotDrawingArea(dwc, loadFileName, saveFileName, hspsOn, breaklinesOn, initWinsize, pixelFacIn, zoomFacIn, qcenter, scenter);
+  *dotplot = createDotplotDrawingArea(dwc, loadFileName, saveFileName, exportFileName, hspsOn, breaklinesOn, initWinsize, pixelFacIn, zoomFacIn, qcenter, scenter);
 
   if (saveFileName)
     {
@@ -1723,7 +1755,7 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
   if (batch)
     fileName = saveFileName;
   else if (dotplot)
-    fileName = getSaveFileName(dotplot, fileName, NULL, ".dotter", NULL);
+    fileName = getSaveFileName(dotplot, fileName, NULL, ".dotter", "Save dot-plot in dotter format");
   
   FILE *saveFile = NULL;
   
@@ -1814,6 +1846,34 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
   
   fclose(saveFile);
   saveFile = 0;
+}
+
+
+void exportPlot(GtkWidget *dotplot, GtkWindow *window, const char *exportFileName, GError **error)
+{
+  GtkWidget *printWidget = gtk_widget_get_parent(dotplot);
+  //GtkWidget *printWidget = dotplot;
+
+  gboolean batch = (exportFileName ? TRUE : FALSE); /* whether this is part of a batch process */
+  
+  /* Open the file. Use the given file name (i.e. if we're in batch mode) or ask the user to 
+   * select a file. */
+  static const char *fileName = NULL;
+
+  if (batch)
+    fileName = exportFileName;
+  else if (dotplot)
+    fileName = getSaveFileName(dotplot, fileName, NULL, ".pdf", "Export dot-plot");
+  
+  GtkPrintSettings *printSettings = gtk_print_settings_new();
+  GtkPageSetup *pageSetup = gtk_page_setup_new();
+  
+  gtk_page_setup_set_orientation(pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
+  gtk_print_settings_set_orientation(printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
+  gtk_print_settings_set_quality(printSettings, GTK_PRINT_QUALITY_HIGH);
+  gtk_print_settings_set_resolution(printSettings, DEFAULT_PRINT_RESOLUTION);
+
+  blxPrintWidget(printWidget, window, &printSettings, &pageSetup, fileName, TRUE, PRINT_FIT_BOTH);
 }
 
 

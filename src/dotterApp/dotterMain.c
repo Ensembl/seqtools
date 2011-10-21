@@ -131,9 +131,11 @@ static void setDefaultOptions(DotterOptions *options)
   options->memoryLimit = 0.0;
   
   options->savefile = NULL;
+  options->exportfile = NULL;
   options->loadfile = NULL;
   options->FSfilename = NULL;
   options->mtxfile = NULL;
+
   options->winsize = NULL;
   options->xOptions = NULL;
   options->qname = NULL;
@@ -268,6 +270,11 @@ static char* getXOptions(char **argv, const int argc, const int idx)
 }
 
 
+static void validateOptions(DotterOptions *options)
+{
+}
+
+
 int main(int argc, char **argv)
 {
   DEBUG_OUT("dotter main\n");
@@ -298,7 +305,7 @@ int main(int argc, char **argv)
   static gboolean showCompiled = FALSE;
   static gboolean hozScaleRev = FALSE;
   static gboolean vertScaleRev = FALSE;
-  
+    
   /* The strand stuff is a bit hacky, because dotter was originally never designed to deal with
    * reverse match seq strands, so match and ref seq strands work in different ways. If the ref seq
    * strand is reversed then the horizontal scale is reversed as well. (Because the 'active' (top) strand
@@ -318,9 +325,10 @@ int main(int argc, char **argv)
       {"compiled",		no_argument,        &showCompiled, 1},
       {"reverse-h-display",	no_argument,        &hozScaleRev, 1},
       {"reverse-v-display",	no_argument,        &vertScaleRev, 1},
-      
+
       {"help",                  no_argument,        0, 'h'},
       {"batch",                 required_argument,  0, 'b'},
+      {"export",                required_argument,  0, 'e'},
       {"load-plot",             required_argument,  0, 'l'},
       {"memory-limit",          required_argument,  0, 'm'},
       {"zoom",                  required_argument,  0, 'z'},
@@ -342,7 +350,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
     };
 
-  char        *optstring="b:cDf:F:hHil:M:m:Np:q:Rrs:SvW:wz:";
+  char        *optstring="b:cDe:f:F:hHil:M:m:Np:q:Rrs:SvW:wz:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -353,65 +361,65 @@ int main(int argc, char **argv)
       switch (optc) 
         {
 	  case 0:
-          break; /* we get here if getopt_long set a flag; nothing else to do */
+            /* we get here if getopt_long set a flag; nothing else to do */
+            break;
           
 	  case '?':
-          break; /* getopt_long already printed an error message */
+            break; /* getopt_long already printed an error message */
 	  
-          case 'b': 
-            options.savefile = g_malloc(strlen(optarg)+1);
-            strcpy(options.savefile, optarg);           break;
-          case 'c': options.crickOnly = TRUE;           break;
-          case 'D': options.mirrorImage = FALSE;        break;
-          case 'f': 
-            options.FSfilename = g_malloc(strlen(optarg)+1);
-            strcpy(options.FSfilename, optarg);         break;
+          case 'b': options.savefile = g_strdup(optarg);   break;
+          case 'c': options.crickOnly = TRUE;              break;
+          case 'D': options.mirrorImage = FALSE;           break;
+          case 'e': options.exportfile = g_strdup(optarg); break;
+          case 'f': options.FSfilename = g_strdup(optarg); break;
           case 'F': 
             options.seqInSFS = 1;        
             options.FSfilename = g_malloc(strlen(optarg)+1);
-            strcpy(options.FSfilename, optarg);         break;
+            strcpy(options.FSfilename, optarg);            break;
 	  case 'h': 
 	    showUsageText();
-	    exit(EXIT_FAILURE);			        break;
-          case 'H': options.hspsOnly = TRUE;            break;
-          case 'i': options.install = 0;                break;
+	    exit(EXIT_FAILURE);			           break;
+          case 'H': options.hspsOnly = TRUE;               break;
+          case 'i': options.install = 0;                   break;
           case 'l': 
             options.loadfile = g_malloc(strlen(optarg)+1);
-            strcpy(options.loadfile, optarg);           break;
+            strcpy(options.loadfile, optarg);              break;
           case 'M': 
             options.mtxfile = g_malloc(strlen(optarg)+1);
-            strcpy(options.mtxfile, optarg);            break;
-          case 'm': options.memoryLimit = atof(optarg); break;
-	  case 'N': options.negateCoords = TRUE;        break;
-          case 'p': options.pixelFacset = atoi(optarg); break;
-          case 'q': options.qoffset = atoi(optarg);     break;
-          case 'R': options.swapGreyramp = TRUE;        break;
-          case 'r': qStrand = BLXSTRAND_REVERSE;	break;
-          case 's': options.soffset = atoi(optarg);     break;
+            strcpy(options.mtxfile, optarg);               break;
+          case 'm': options.memoryLimit = atof(optarg);    break;
+	  case 'N': options.negateCoords = TRUE;           break;
+          case 'p': options.pixelFacset = atoi(optarg);    break;
+          case 'q': options.qoffset = atoi(optarg);        break;
+          case 'R': options.swapGreyramp = TRUE;           break;
+          case 'r': qStrand = BLXSTRAND_REVERSE;	   break;
+          case 's': options.soffset = atoi(optarg);        break;
           case 'S': 
-            options.selfcall = TRUE;                    break;
-          case 'v': sStrand = BLXSTRAND_REVERSE;	break;
+            options.selfcall = TRUE;                       break;
+          case 'v': sStrand = BLXSTRAND_REVERSE;	   break;
           case 'W': 
             options.winsize = g_malloc(strlen(optarg)+1);
-            strcpy(options.winsize, optarg);            break;
-          case 'w': options.watsonOnly = TRUE;          break;
-          case 'z': options.dotterZoom = atoi(optarg);  break;
+            strcpy(options.winsize, optarg);               break;
+          case 'w': options.watsonOnly = TRUE;             break;
+          case 'z': options.dotterZoom = atoi(optarg);     break;
           default : g_error("Illegal option\n");
-      }
+        }
     }
 
-    if (showVersion)
-      {
-        showVersionInfo();
-        exit (EXIT_FAILURE);
-      }
-    
-    if (showCompiled)
-      {
-        showCompiledInfo();
-        exit (EXIT_FAILURE);
-      } 
+  if (showVersion)
+    {
+      showVersionInfo();
+      exit (EXIT_FAILURE);
+    }
   
+  if (showCompiled)
+    {
+      showCompiledInfo();
+      exit (EXIT_FAILURE);
+    }
+  
+  validateOptions(&options);
+
   options.hozScaleRev = hozScaleRev;
   options.vertScaleRev = vertScaleRev;
   
@@ -422,371 +430,377 @@ int main(int argc, char **argv)
       options.hozScaleRev = TRUE;
       qStrand = BLXSTRAND_REVERSE;
     }
-
+  
   if (options.vertScaleRev || sStrand == BLXSTRAND_REVERSE)
     {
       options.vertScaleRev = TRUE;
       sStrand = BLXSTRAND_REVERSE;
     }
   
-  if (!options.savefile)
-      {
-        /* Not in batch mode, so initialise GTK for the graphical components */
-	gtk_init(&argc, &argv);
+  /* We're in batch mode if we've specified a save file or an export file */
+  const gboolean batchMode = options.savefile || options.exportfile;
 
-        /* Set the message handlers to use our custom dialog boxes */
-        g_log_set_default_handler(defaultMessageHandler, &options.msgData);
-        g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
-                          popupMessageHandler, &options.msgData);
-      }
+  /* We create the window in batch mode only if exporting (because this needs
+   * to print the window); otherwise, don't create the window in batch mode. */
+  const gboolean createWindow = options.exportfile || !batchMode;
 
-    if (options.selfcall) /* Blixem/Dotter calling dotter */
+  /* Initialise gtk */
+  gtk_init(&argc, &argv);
+
+  if (!batchMode)
     {
-        DEBUG_OUT("Dotter was called internally.\n");
-	
-        /* The input arguments (following the options) are: qname, qlen, sname, slen, dotterBinary, Xoptions.
-         * Xoptions are optional, so we should have 5 or 6 arguments */
-        if (argc - optind < 5 || argc - optind > 6)
-          {
-	    g_error("Incorrect number of arguments passed to dotter from internal program call\n"); 
-          }
-	
-        options.qname = g_strdup(argv[optind]);
-        options.qlen = atoi(argv[optind + 1]);
-        options.sname = g_strdup(argv[optind + 2]);
-        options.slen = atoi(argv[optind + 3]);
-        dotterBinary = g_strdup(argv[optind + 4]);
-        options.xOptions = getXOptions(argv, argc, optind + 5);
-	
-        /* Allocate memory for the sequences, now we know their lengths */
-        options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
-        options.sseq = g_malloc(sizeof(char) * (options.slen+1));
+      /* Set the message handlers to use our custom dialog boxes (don't do this 
+       * in batch mode because we don't want user interaction) */
+      g_log_set_default_handler(defaultMessageHandler, &options.msgData);
+      g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
+                        popupMessageHandler, &options.msgData);
+    }
 
-        /* Read in the sequences from the piped input */
-        DEBUG_OUT("Reading sequences from pipe...\n");
+  if (options.selfcall) /* Blixem/Dotter calling dotter */
+    {
+      DEBUG_OUT("Dotter was called internally.\n");
+      
+      /* The input arguments (following the options) are: qname, qlen, sname, slen, dotterBinary, Xoptions.
+       * Xoptions are optional, so we should have 5 or 6 arguments */
+      if (argc - optind < 5 || argc - optind > 6)
+        {
+          g_error("Incorrect number of arguments passed to dotter from internal program call\n"); 
+        }
+      
+      options.qname = g_strdup(argv[optind]);
+      options.qlen = atoi(argv[optind + 1]);
+      options.sname = g_strdup(argv[optind + 2]);
+      options.slen = atoi(argv[optind + 3]);
+      dotterBinary = g_strdup(argv[optind + 4]);
+      options.xOptions = getXOptions(argv, argc, optind + 5);
+      
+      /* Allocate memory for the sequences, now we know their lengths */
+      options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
+      options.sseq = g_malloc(sizeof(char) * (options.slen+1));
 
-        int l = fread(options.qseq, 1, options.qlen, stdin); 
-	if (l != options.qlen) 
-          {
-	    g_error("Only read %d chars to qseq, expected %d\n", l, options.qlen);
-          }
-	options.qseq[options.qlen] = 0;
+      /* Read in the sequences from the piped input */
+      DEBUG_OUT("Reading sequences from pipe...\n");
 
-        l = fread(options.sseq, 1, options.slen, stdin);
-	if (l != options.slen) 
-          {
-	    g_error("Only read %d chars to sseq, expected %d\n", l, options.slen);
-          }
-	options.sseq[options.slen] = 0;
-        DEBUG_OUT("...done.\n");
+      int l = fread(options.qseq, 1, options.qlen, stdin); 
+      if (l != options.qlen) 
+        {
+          g_error("Only read %d chars to qseq, expected %d\n", l, options.qlen);
+        }
+      options.qseq[options.qlen] = 0;
 
-	/* Read in the features from the piped input */
-        DEBUG_OUT("Reading features from pipe...\n");
-        MSP *lastMsp = NULL;
-        
-	while (!feof (stdin))
-          { 
-            /* read in the blxsequences. they are separated by newlines */
-	    if (!fgets (text, MAXLINE, stdin) || (unsigned char)*text == (unsigned char)EOF)
-              break;
+      l = fread(options.sseq, 1, options.slen, stdin);
+      if (l != options.slen) 
+        {
+          g_error("Only read %d chars to sseq, expected %d\n", l, options.slen);
+        }
+      options.sseq[options.slen] = 0;
+      DEBUG_OUT("...done.\n");
 
-	    int numMsps = 0;
-            BlxSequence *blxSeq = readBlxSequenceFromText(text, &numMsps);
-            seqList = g_list_append(seqList, blxSeq);
-            
-            /* read in the msps for this blx sequence and add them to the msplist */
-            int i = 0;
-            for ( ; i < numMsps; ++i)
-              {
-                /* msps are also separated by newlines */
-                if (!fgets (text, MAXLINE, stdin) || (unsigned char)*text == (unsigned char)EOF)
-                  break;
+      /* Read in the features from the piped input */
+      DEBUG_OUT("Reading features from pipe...\n");
+      MSP *lastMsp = NULL;
+      
+      while (!feof (stdin))
+        { 
+          /* read in the blxsequences. they are separated by newlines */
+          if (!fgets (text, MAXLINE, stdin) || (unsigned char)*text == (unsigned char)EOF)
+            break;
 
-                MSP *msp = createEmptyMsp(&lastMsp, &MSPlist);
-                readMspFromText(msp, text);
-                
-                /* add it to the relevant feature list. */
-                featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
-                
-                /* add the msp to the blxsequence */
-                blxSeq->mspList = g_list_append(blxSeq->mspList, msp);
-                msp->sSequence = blxSeq;
-                
-                /* really horrible hack */
-                if (msp->type == BLXMSP_FS_SEG)
-                  {
-//                    insertFS(msp, "chain_separator");
-                    options.breaklinesOn = TRUE;
-                  }
-              }
-          }
+          int numMsps = 0;
+          BlxSequence *blxSeq = readBlxSequenceFromText(text, &numMsps);
+          seqList = g_list_append(seqList, blxSeq);
           
-	fclose(stdin);
-        DEBUG_OUT("...done.\n");
-      }
-    else if (options.seqInSFS)
-      {
-        /* The -F option has been used, which replaces the input sequence files. We should therefore
-         * only have, at most, one input argument: the Xoptions*/
-        if (argc - optind > 1)
-          {
-	    showUsageText();
-            exit(EXIT_FAILURE);
-          }
-        
-        options.xOptions = getXOptions(argv, argc, optind);
-      }
-    else
-      {
-
-        /* The input arguments (following the options) are: qfile, sfile, Xoptions. Xoptions are
-         * optional, so we should have 2 or 3 arguments */
-        if (argc - optind < 2 || argc - optind > 3) 
-          {
-	    showUsageText();
-            exit(EXIT_FAILURE);
-          }
-
-        options.xOptions = getXOptions(argv, argc, optind + 2);
-        
-	if(!(qfile = fopen(argv[optind], "r"))) 
-          {
-	    g_error("Cannot open %s\n", argv[optind]); 
-          }
-      
-	qfilename = argv[optind];
-	fseek(qfile, 0, SEEK_END);
-	options.qlen = ftell(qfile);
-	fseek(qfile, 0, SEEK_SET);
-      
-	if ((curChar = (char *)strrchr(argv[optind], '/')))
-          {
-            options.qname = g_strdup(curChar+1);
-          }
-	else
-          {
-            options.qname = g_strdup(argv[optind]);
-          }
-
-	if (!(sfile = fopen(argv[optind+1], "r"))) 
-          {
-	    g_error("Cannot open %s\n", argv[optind+1]); 
-          }
-      
-	sfilename = argv[optind+1];
-	fseek(sfile, 0, SEEK_END);
-	options.slen = ftell(sfile);
-	fseek(sfile, 0, SEEK_SET);
-      
-	if ((curChar = (char *)strrchr(argv[optind]+1, '/')))
-          {
-            options.sname = g_strdup(curChar+1);
-          }
-	else
-          {
-            options.sname = g_strdup(argv[optind+1]);
-          }
-
-        /* Allocate memory for the sequences, now we know their lengths */
-        options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
-        options.sseq = g_malloc(sizeof(char) * (options.slen+1));
-
-	/* Read in the sequences */
-	int l = 0, count = 0;
-	cc = options.qseq;
-        char *firstdesc = NULL;
-      
-	while (!feof(qfile))
-          {
-            if (!fgets(line, MAXLINE, qfile))
-              {
+          /* read in the msps for this blx sequence and add them to the msplist */
+          int i = 0;
+          for ( ; i < numMsps; ++i)
+            {
+              /* msps are also separated by newlines */
+              if (!fgets (text, MAXLINE, stdin) || (unsigned char)*text == (unsigned char)EOF)
                 break;
-              }
+
+              MSP *msp = createEmptyMsp(&lastMsp, &MSPlist);
+              readMspFromText(msp, text);
+              
+              /* add it to the relevant feature list. */
+              featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
+              
+              /* add the msp to the blxsequence */
+              blxSeq->mspList = g_list_append(blxSeq->mspList, msp);
+              msp->sSequence = blxSeq;
+              
+              /* really horrible hack */
+              if (msp->type == BLXMSP_FS_SEG)
+                {
+                    //insertFS(msp, "chain_separator");
+                  options.breaklinesOn = TRUE;
+                }
+            }
+        }
         
-            if ((cq = (char *)strchr(line, '\n')))
-              {
-                *cq = 0;
-              }
-
-            /* Name headers */
-            if ((cq = (char *)strchr(line, '>'))) 
-              {
-
-                cq++;
-                if (++l == 1) 
-                  {
-
-                    options.qname = g_malloc(strlen(cq)+1); strNamecpy(options.qname, cq);
-                    firstdesc = g_strdup(cq);
-                  }
-                else
-                  {
-
-                  /* Multiple sequences - add break lines */
-                    if (l == 2) 
-                      {
-
-                        options.breaklinesOn = TRUE;
-
-                        /* Second sequence - add break line to mark first sequence */
-                        addBreakline (&MSPlist, qfilename, firstdesc, options.qoffset, 1);
-                        
-                        /* change sequence name to filename */
-                        options.qname = g_malloc(strlen(qfilename)+1); strcpy(options.qname, qfilename);
-                      }
-                    
-                    addBreakline (&MSPlist, qfilename, cq, count + options.qoffset, 1);
-                  }
-              }
-            else 
-              {
-                /* Read in sequence data */
-                for (cq = line; *cq; cq++) 
-                  {
-                    /* Don't know yet what type of sequence it is, so accept chars for both types */
-                    if (isValidIupacChar(*cq, BLXSEQ_DNA) || isValidIupacChar(*cq, BLXSEQ_PEPTIDE))
-                      {
-                        *cc++ = *cq;
-                        count++;
-                      }
-                  }
-              }
-          }
-
-	*cc = 0;
-
-        if (firstdesc)
-          {
-            g_free(firstdesc);
-            firstdesc = NULL;
-          }
-
-	l = 0, count = 0;
-	cc = options.sseq;
+      fclose(stdin);
+      DEBUG_OUT("...done.\n");
+    }
+  else if (options.seqInSFS)
+    {
+      /* The -F option has been used, which replaces the input sequence files. We should therefore
+       * only have, at most, one input argument: the Xoptions*/
+      if (argc - optind > 1)
+        {
+          showUsageText();
+          exit(EXIT_FAILURE);
+        }
       
-	while (!feof(sfile))
-          {
-	    if (!fgets(line, MAXLINE, sfile))
-	      break;
-	    if ((cq = (char *)strchr(line, '\n')))
-	      *cq = 0;
+      options.xOptions = getXOptions(argv, argc, optind);
+    }
+  else
+    {
 
-	    /* Name headers */
-	    if ((cq = (char *)strchr(line, '>'))) {
-		cq++;
-		if (++l == 1) {
-		    options.sname = g_malloc(strlen(cq)+1); strNamecpy(options.sname, cq);
-		    firstdesc = g_strdup(cq);
-		}
-		else {
-		  /* Multiple sequences - add break lines */
+      /* The input arguments (following the options) are: qfile, sfile, Xoptions. Xoptions are
+       * optional, so we should have 2 or 3 arguments */
+      if (argc - optind < 2 || argc - optind > 3) 
+        {
+          showUsageText();
+          exit(EXIT_FAILURE);
+        }
 
-		    if (l == 2) {
-			options.breaklinesOn = TRUE;
-
-		        /* Second sequence - add break line to mark first sequence */
-		        addBreakline (&MSPlist, sfilename, firstdesc, options.soffset, 2);
-			
-			/* change sequence name to filename */
-			options.sname = g_malloc(strlen(sfilename)+1); strcpy(options.sname, sfilename);
-		    }
-		    addBreakline (&MSPlist, sfilename, cq, count + options.soffset, 2);
-		}
-	    }
-	    else 
-              {
-		for (cq = line; *cq; cq++) 
-                  {
-                    /* Don't know yet what type of sequence it is, so accept chars for both types */
-                    if (isValidIupacChar(*cq, BLXSEQ_DNA) || isValidIupacChar(*cq, BLXSEQ_PEPTIDE))
-                      {
-                        *cc++ = *cq;
-                        count++;
-                      }
-                  }
-              }
-          }
-        
-	*cc = 0;
-        
-        if (firstdesc)
-          {
-            g_free(firstdesc);
-            firstdesc = NULL;
-          }
-      }
-
-    BlxBlastMode blastMode = BLXMODE_UNSET;
-
-    if (options.FSfilename) 
-      {
-	FILE *file;
-	
-	if (!strcmp(options.FSfilename, "-")) 
-          {
-	    file = stdin;
-          }
-	else if(!(file = fopen(options.FSfilename, "r")))
-          {
-	    g_error("Cannot open %s\n", options.FSfilename);
-          }
-	
-        GSList *supportedTypes = blxCreateSupportedGffTypeList();
-
-	parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL);
-        
-        finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
-        
-        blxDestroyGffTypeList(&supportedTypes);
-      }
-
-    /* Determine sequence types */
-    GError *error = NULL;
-    BlxSeqType qSeqType = determineSeqType(options.qseq, &error);
-    prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.qname);
-    reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
-  
-    BlxSeqType sSeqType = determineSeqType(options.sseq, &error);
-    prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.sname);
-    reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
-  
-    if (qSeqType == BLXSEQ_PEPTIDE && sSeqType == BLXSEQ_PEPTIDE) 
-      {
-	g_message("\nDetected sequence types: Protein vs. Protein\n");
-	blastMode = BLXMODE_BLASTP;
-      }
-    else if (qSeqType == BLXSEQ_DNA && sSeqType == BLXSEQ_DNA) 
-      {
-	g_message("\nDetected sequence types: DNA vs. DNA\n");
-	blastMode = BLXMODE_BLASTN;
-      }
-    else if (qSeqType == BLXSEQ_DNA && sSeqType == BLXSEQ_PEPTIDE) 
-      {
-	g_message("\nDetected sequence types: DNA vs. Protein\n");
-	blastMode = BLXMODE_BLASTX;;
-      }
-    else
-      {
-        g_error("Illegal sequence types: Protein vs. DNA - turn arguments around!\n");
-      }
+      options.xOptions = getXOptions(argv, argc, optind + 2);
       
-    /* Add -install for private colormaps */
-    if (options.install) 
-      {
-        argvAdd(&argc, &argv, "-install");
-      }
+      if(!(qfile = fopen(argv[optind], "r"))) 
+        {
+          g_error("Cannot open %s\n", argv[optind]); 
+        }
+    
+      qfilename = argv[optind];
+      fseek(qfile, 0, SEEK_END);
+      options.qlen = ftell(qfile);
+      fseek(qfile, 0, SEEK_SET);
+    
+      if ((curChar = (char *)strrchr(argv[optind], '/')))
+        {
+          options.qname = g_strdup(curChar+1);
+        }
+      else
+        {
+          options.qname = g_strdup(argv[optind]);
+        }
+
+      if (!(sfile = fopen(argv[optind+1], "r"))) 
+        {
+          g_error("Cannot open %s\n", argv[optind+1]); 
+        }
+    
+      sfilename = argv[optind+1];
+      fseek(sfile, 0, SEEK_END);
+      options.slen = ftell(sfile);
+      fseek(sfile, 0, SEEK_SET);
+    
+      if ((curChar = (char *)strrchr(argv[optind]+1, '/')))
+        {
+          options.sname = g_strdup(curChar+1);
+        }
+      else
+        {
+          options.sname = g_strdup(argv[optind+1]);
+        }
+
+      /* Allocate memory for the sequences, now we know their lengths */
+      options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
+      options.sseq = g_malloc(sizeof(char) * (options.slen+1));
+
+      /* Read in the sequences */
+      int l = 0, count = 0;
+      cc = options.qseq;
+      char *firstdesc = NULL;
+    
+      while (!feof(qfile))
+        {
+          if (!fgets(line, MAXLINE, qfile))
+            {
+              break;
+            }
+      
+          if ((cq = (char *)strchr(line, '\n')))
+            {
+              *cq = 0;
+            }
+
+          /* Name headers */
+          if ((cq = (char *)strchr(line, '>'))) 
+            {
+
+              cq++;
+              if (++l == 1) 
+                {
+
+                  options.qname = g_malloc(strlen(cq)+1); strNamecpy(options.qname, cq);
+                  firstdesc = g_strdup(cq);
+                }
+              else
+                {
+
+                /* Multiple sequences - add break lines */
+                  if (l == 2) 
+                    {
+
+                      options.breaklinesOn = TRUE;
+
+                      /* Second sequence - add break line to mark first sequence */
+                      addBreakline (&MSPlist, qfilename, firstdesc, options.qoffset, 1);
+                      
+                      /* change sequence name to filename */
+                      options.qname = g_malloc(strlen(qfilename)+1); strcpy(options.qname, qfilename);
+                    }
+                  
+                  addBreakline (&MSPlist, qfilename, cq, count + options.qoffset, 1);
+                }
+            }
+          else 
+            {
+              /* Read in sequence data */
+              for (cq = line; *cq; cq++) 
+                {
+                  /* Don't know yet what type of sequence it is, so accept chars for both types */
+                  if (isValidIupacChar(*cq, BLXSEQ_DNA) || isValidIupacChar(*cq, BLXSEQ_PEPTIDE))
+                    {
+                      *cc++ = *cq;
+                      count++;
+                    }
+                }
+            }
+        }
+
+      *cc = 0;
+
+      if (firstdesc)
+        {
+          g_free(firstdesc);
+          firstdesc = NULL;
+        }
+
+      l = 0, count = 0;
+      cc = options.sseq;
+    
+      while (!feof(sfile))
+        {
+          if (!fgets(line, MAXLINE, sfile))
+            break;
+          if ((cq = (char *)strchr(line, '\n')))
+            *cq = 0;
+
+          /* Name headers */
+          if ((cq = (char *)strchr(line, '>'))) {
+      	cq++;
+      	if (++l == 1) {
+      	    options.sname = g_malloc(strlen(cq)+1); strNamecpy(options.sname, cq);
+      	    firstdesc = g_strdup(cq);
+      	}
+      	else {
+      	  /* Multiple sequences - add break lines */
+
+      	    if (l == 2) {
+      		options.breaklinesOn = TRUE;
+
+      	        /* Second sequence - add break line to mark first sequence */
+      	        addBreakline (&MSPlist, sfilename, firstdesc, options.soffset, 2);
+      		
+      		/* change sequence name to filename */
+      		options.sname = g_malloc(strlen(sfilename)+1); strcpy(options.sname, sfilename);
+      	    }
+      	    addBreakline (&MSPlist, sfilename, cq, count + options.soffset, 2);
+      	}
+          }
+          else 
+            {
+      	for (cq = line; *cq; cq++) 
+                {
+                  /* Don't know yet what type of sequence it is, so accept chars for both types */
+                  if (isValidIupacChar(*cq, BLXSEQ_DNA) || isValidIupacChar(*cq, BLXSEQ_PEPTIDE))
+                    {
+                      *cc++ = *cq;
+                      count++;
+                    }
+                }
+            }
+        }
+      
+      *cc = 0;
+      
+      if (firstdesc)
+        {
+          g_free(firstdesc);
+          firstdesc = NULL;
+        }
+    }
+
+  BlxBlastMode blastMode = BLXMODE_UNSET;
+
+  if (options.FSfilename) 
+    {
+      FILE *file;
+      
+      if (!strcmp(options.FSfilename, "-")) 
+        {
+          file = stdin;
+        }
+      else if(!(file = fopen(options.FSfilename, "r")))
+        {
+          g_error("Cannot open %s\n", options.FSfilename);
+        }
+      
+      GSList *supportedTypes = blxCreateSupportedGffTypeList();
+
+      parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL);
+      
+      finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
+      
+      blxDestroyGffTypeList(&supportedTypes);
+    }
+
+  /* Determine sequence types */
+  GError *error = NULL;
+  BlxSeqType qSeqType = determineSeqType(options.qseq, &error);
+  prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.qname);
+  reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+
+  BlxSeqType sSeqType = determineSeqType(options.sseq, &error);
+  prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.sname);
+  reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+
+  if (qSeqType == BLXSEQ_PEPTIDE && sSeqType == BLXSEQ_PEPTIDE) 
+    {
+      g_message("\nDetected sequence types: Protein vs. Protein\n");
+      blastMode = BLXMODE_BLASTP;
+    }
+  else if (qSeqType == BLXSEQ_DNA && sSeqType == BLXSEQ_DNA) 
+    {
+      g_message("\nDetected sequence types: DNA vs. DNA\n");
+      blastMode = BLXMODE_BLASTN;
+    }
+  else if (qSeqType == BLXSEQ_DNA && sSeqType == BLXSEQ_PEPTIDE) 
+    {
+      g_message("\nDetected sequence types: DNA vs. Protein\n");
+      blastMode = BLXMODE_BLASTX;;
+    }
+  else
+    {
+      g_error("Illegal sequence types: Protein vs. DNA - turn arguments around!\n");
+    }
+    
+  /* Add -install for private colormaps */
+  if (options.install) 
+    {
+      argvAdd(&argc, &argv, "-install");
+    }
+
+  /* Create the dot-plot */
+  dotter(blastMode, &options, qStrand, sStrand, 0, 0, MSPlist, seqList, 0);
+
+  /* Start the gtk loop to await user interaction */
+  if (createWindow)
+    {
+      gtk_main();
+    }
   
-    if (!options.savefile)
-      {
-	dotter(blastMode, &options, qStrand, sStrand, 0, 0, MSPlist, seqList, 0);
 
-        gtk_main();
-      }
-    else
-      {
-        /* Batch mode */
-	dotter(blastMode, &options, qStrand, sStrand, 0, 0, MSPlist, seqList, 0);
-      }
-
-    return (0) ;
+  return (0) ;
 }

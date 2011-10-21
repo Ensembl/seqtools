@@ -126,6 +126,7 @@ typedef struct _DotterProperties
   GtkWidget *dotplot;                       /* the dotplot drawing area */
   
   DotterWindowContext *dotterWinCtx;
+  const char *exportFileName;
 } DotterProperties;
 
 
@@ -145,7 +146,7 @@ static void DNAmatrix(int mtx[24][24]);
 
 static void		      showGreyrampTool(GtkWidget *dotterWindow);
 static void		      showAlignmentTool(GtkWidget *dotterWindow);
-static GtkWidget*	      createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot);
+static GtkWidget*	      createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot, const char *exportFileName);
 static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
@@ -155,23 +156,26 @@ static gboolean		      negateDisplayCoord(DotterContext *dc, const gboolean hori
 static gboolean		      setStartCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
 static gboolean		      setEndCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
 static void                   printDotterWindow(GtkWidget *dotterWindow);
+static DotterProperties*      dotterGetProperties(GtkWidget *dotterWindow);
 
-static void createDotterInstance(DotterContext *dotterCtx,
-                                 DotterWindowContext *dotterWinCtx,
-                                 const char *loadFileName,
-                                 const char *saveFileName,
-                                 const gboolean hspsOn,
-                                 const gboolean breaklinesOn,
-                                 const char* winsizeIn,
-                                 const int pixelFacIn,
-                                 const int zoomFacIn,
-                                 const int qcenter,
-                                 const int scenter,
-                                 const gboolean greyramSwap);
+static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
+                                       DotterWindowContext *dotterWinCtx,
+                                       const char *loadFileName,
+                                       const char *saveFileName,
+                                       const char *exportFileName,
+                                       const gboolean hspsOn,
+                                       const gboolean breaklinesOn,
+                                       const char* winsizeIn,
+                                       const int pixelFacIn,
+                                       const int zoomFacIn,
+                                       const int qcenter,
+                                       const int scenter,
+                                       const gboolean greyramSwap);
 
 static void                       onQuitMenu(GtkAction *action, gpointer data);
 static void                       onCloseMenu(GtkAction *action, gpointer data);
 static void                       onSavePlotMenu(GtkAction *action, gpointer data);
+static void                       onExportPlotMenu(GtkAction *action, gpointer data);
 static void                       onPrintMenu(GtkAction *action, gpointer data);
 static void                       onSettingsMenu(GtkAction *action, gpointer data);
 static void                       onShowGreyrampMenu(GtkAction *action, gpointer data);
@@ -199,6 +203,7 @@ static const GtkActionEntry menuEntries[] = {
 { "Quit",           GTK_STOCK_QUIT,         "_Quit all dotters",      "<control>Q", "Quit all dotters",           G_CALLBACK(onQuitMenu)},
 { "Close",          GTK_STOCK_CLOSE,        "_Close this dotter",     "<control>W", "Close this dotter",          G_CALLBACK(onCloseMenu)},
 { "SavePlot",       GTK_STOCK_SAVE,         "_Save plot",             NULL,         "Save plot",                  G_CALLBACK(onSavePlotMenu)},
+{ "ExportPlot",     NULL,                   "_Export plot",           NULL,         "Export plot",                G_CALLBACK(onExportPlotMenu)},
 { "Print",          GTK_STOCK_PRINT,        "_Print...",              "<control>P", "Print",                      G_CALLBACK(onPrintMenu)},
 { "Settings",       GTK_STOCK_PREFERENCES,  "Settings",               "<control>S", "Set dotter parameters",      G_CALLBACK(onSettingsMenu)},
 { "ShowGreyramp",   NULL,                   "_Greyramp tool",         "<control>G", "Show the greyramp tool",     G_CALLBACK(onShowGreyrampMenu)},
@@ -236,6 +241,7 @@ static const char mainMenuDescription[] =
 "  <menubar name='MenuBar'>"
 "    <menu action='FileMenuAction'>"
 "      <menuitem action='SavePlot'/>"
+"      <menuitem action='ExportPlot'/>"
 "      <separator/>"
 "      <menuitem action='Print'/>"
 "      <menuitem action='TogglePrintColors'/>"
@@ -448,7 +454,7 @@ static gdouble getInitZoomFactor(DotterContext *dc, const gdouble zoomFacIn, con
 
 static DotterContext* createDotterContext(DotterOptions *options,
                                           BlxBlastMode blastMode, 
-                                          const gboolean batchMode,
+                                          const gboolean showWindow,
                                           const BlxStrand refSeqStrand,
                                           const BlxStrand matchSeqStrand,
                                           MSP *mspList,
@@ -474,7 +480,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
   result->crickOnly = options->crickOnly;
   
   /* Set the fixed-width font (not applicable in batch mode) */
-  if (!batchMode)
+  if (showWindow)
     {
       GtkWidget *tmp = gtk_window_new(GTK_WINDOW_TOPLEVEL);
       const char *fontFamily = findFixedWidthFont(tmp);
@@ -580,7 +586,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
         }
     }
   
-  if (!batchMode)
+  if (showWindow)
     { 
       createDotterColors(result);
     }
@@ -861,7 +867,8 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
 				   GtkWidget *greyrampTool, 
 				   GtkWidget *alignmentTool,
                                    GtkWidget *dotplot,
-                                   DotterWindowContext *dotterWinCtx)
+                                   DotterWindowContext *dotterWinCtx,
+                                   const char *exportFileName)
 {
   DEBUG_ENTER("dotterCreateProperties");
 
@@ -873,6 +880,7 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
       properties->alignmentTool = alignmentTool;
       properties->dotplot = dotplot;
       properties->dotterWinCtx = dotterWinCtx;
+      properties->exportFileName = exportFileName;
       
       g_object_set_data(G_OBJECT(dotterWindow), "DotterProperties", properties);
       g_signal_connect(G_OBJECT(dotterWindow), "destroy", G_CALLBACK(onDestroyDotterWindow), NULL); 
@@ -988,20 +996,24 @@ void dotter (const BlxBlastMode blastMode,
       strcpy(matrixName, "BLOSUM62");
     }
 
-  gboolean batchMode = FALSE;
+  /* If a save/export file was given, that implies we're in batch mode.
+   * We don't display the window in batch mode, unless we're exporting to PDF, in
+   * which case we need to create the window so that we have something to print  */
+  const gboolean batchMode = (options->savefile || options->exportfile);
+  const gboolean createWindow = options->exportfile || !batchMode;
   
-  if (options->savefile) 
+  if (batchMode) 
     {
-      /* If a save file was given, that implies we're in batch mode (i.e. don't display any windows) */
-      batchMode = TRUE;
-      
       /* Don't do batch processing if output file can't be opened */
-      if (!fopen (options->savefile, "wb"))
+      if (options->savefile && !fopen (options->savefile, "wb"))
 	g_error("Failed to open %s\n", options->savefile);
+
+      if (options->exportfile && !fopen (options->exportfile, "wb"))
+	g_error("Failed to open %s\n", options->exportfile);
     }
   
   /* Create the main dotter context (shared properties for all dotter windows in this process) */
-  DotterContext *dotterCtx = createDotterContext(options, blastMode, batchMode, refSeqStrand, matchSeqStrand, MSPlist, seqList, MATRIX, matrixName);
+  DotterContext *dotterCtx = createDotterContext(options, blastMode, createWindow, refSeqStrand, matchSeqStrand, MSPlist, seqList, MATRIX, matrixName);
 
   /* Create a context specific to the initial dotter window */
   DotterWindowContext *dotterWinCtx = createDotterWindowContext(dotterCtx, &dotterCtx->refSeqFullRange, &dotterCtx->matchSeqFullRange, options->dotterZoom);
@@ -1011,6 +1023,7 @@ void dotter (const BlxBlastMode blastMode,
                        dotterWinCtx,
                        options->loadfile,
                        options->savefile,
+                       options->exportfile,
                        options->hspsOnly,
                        options->breaklinesOn,
                        options->winsize,
@@ -1028,25 +1041,29 @@ void dotter (const BlxBlastMode blastMode,
 /* Create all the widgets for a dotter instance. Uses the existing dotter context. Multiple
  * instances (i.e. multiple dotter windows) can exist that share the same main context but display
  * a different range of coords etc,. This creates the widgets and shows them. */
-static void createDotterInstance(DotterContext *dotterCtx,
-                                 DotterWindowContext *dotterWinCtx,
-                                 const char *loadFileName,
-                                 const char *saveFileName,
-                                 const gboolean hspsOn,
-                                 const gboolean breaklinesOn,
-                                 const char* winsizeIn,
-                                 const int pixelFacIn,
-                                 const int zoomFacIn,
-                                 const int qcenter,
-                                 const int scenter,
-                                 const gboolean greyrampSwap)
+static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
+                                       DotterWindowContext *dotterWinCtx,
+                                       const char *loadFileName,
+                                       const char *saveFileName,
+                                       const char *exportFileName,
+                                       const gboolean hspsOn,
+                                       const gboolean breaklinesOn,
+                                       const char* winsizeIn,
+                                       const int pixelFacIn,
+                                       const int zoomFacIn,
+                                       const int qcenter,
+                                       const int scenter,
+                                       const gboolean greyrampSwap)
 {
   DEBUG_ENTER("createDotterInstance");
+
+  GtkWidget *dotterWindow = NULL;
 
   GtkWidget *dotplot = NULL;
   GtkWidget *dotplotWidget = createDotplot(dotterWinCtx, 
                                            loadFileName,
                                            saveFileName,
+                                           exportFileName,
                                            hspsOn,
                                            breaklinesOn,
                                            winsizeIn,
@@ -1065,7 +1082,7 @@ static void createDotterInstance(DotterContext *dotterCtx,
       GtkWidget *alignmentTool = createAlignmentTool(dotterWinCtx);
   
       const DotterHspMode hspMode = dotplotGetHspMode(dotplot);
-      GtkWidget *dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, greyrampTool, dotplotWidget, dotplot);
+      dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, greyrampTool, dotplotWidget, dotplot, exportFileName);
 
       /* Set the handlers for the alignment and greyramp tools. Connect them here so we can pass
        * the main window as data. */
@@ -1078,7 +1095,7 @@ static void createDotterInstance(DotterContext *dotterCtx,
        * the last one is closed */
       dotterCtx->windowList = g_slist_append(dotterCtx->windowList, dotterWindow);
       
-      dotterCreateProperties(dotterWindow, greyrampTool, alignmentTool, dotplot, dotterWinCtx);
+      dotterCreateProperties(dotterWindow, greyrampTool, alignmentTool, dotplot, dotterWinCtx, exportFileName);
       DotterProperties *properties = dotterGetProperties(dotterWindow);
       
       setInitSelectedCoords(dotterWindow, qcenter, scenter);
@@ -1087,6 +1104,7 @@ static void createDotterInstance(DotterContext *dotterCtx,
     }
   
   DEBUG_EXIT("createDotterInstance returning ");
+  return dotterWindow;
 }
 
 
@@ -1099,7 +1117,7 @@ void callDotterInternal(DotterContext *dc,
                         const gboolean breaklinesOn)
 {
   DotterWindowContext *dwc = createDotterWindowContext(dc, refSeqRange, matchSeqRange, zoomFactor);
-  createDotterInstance(dc, dwc, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, FALSE);
+  createDotterInstance(dc, dwc, NULL, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, FALSE);
 }
 
 
@@ -2811,6 +2829,28 @@ static void onSavePlotMenu(GtkAction *action, gpointer data)
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 }
 
+static void onExportPlotMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+
+  /* Set the background colour to something sensible for printing */
+  GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, properties->dotterWinCtx->dotterCtx->defaultColors, FALSE, TRUE);
+  setWidgetBackgroundColor(dotterWindow, defaultBgColor);
+  redrawAll(dotterWindow, NULL);
+  
+  GError *error = NULL;
+  exportPlot(properties->dotplot, GTK_WINDOW(dotterWindow), NULL, &error);
+  
+  prefixError(error, "Error exporting plot. ");
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+
+  /* Revert the background colour */
+  defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, properties->dotterWinCtx->dotterCtx->defaultColors, FALSE, properties->dotterWinCtx->usePrintColors);
+  setWidgetBackgroundColor(dotterWindow, defaultBgColor);
+  redrawAll(dotterWindow, NULL);
+}
+
 static void onPrintMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *dotterWindow = GTK_WIDGET(data);
@@ -2934,6 +2974,7 @@ static void onToggleBumpExonsMenu(GtkAction *action, gpointer data)
   DotterProperties *properties = dotterGetProperties(dotterWindow);
   dotplotToggleBumpExons(properties->dotplot);
 }
+
 
 /* Mouse button handler */
 static gboolean onButtonPressDotter(GtkWidget *window, GdkEventButton *event, gpointer data)
@@ -3155,7 +3196,7 @@ static gboolean onKeyPressP(GtkWidget *widget, GtkWidget *dotterWindow, const gb
           /* Generic widget printing */
           DotterProperties *properties = dotterGetProperties(dotterWindow);
           DotterWindowContext *dwc = properties->dotterWinCtx;
-          blxPrintWidget(widget, widget, &dwc->printSettings, &dwc->pageSetup, TRUE, PRINT_FIT_BOTH);
+          blxPrintWidget(widget, GTK_WINDOW(widget), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
         }
     }
   
@@ -3384,7 +3425,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
                                      const DotterHspMode hspMode, 
                                      GtkWidget *greyrampTool, 
                                      GtkWidget *dotplotContainer, 
-                                     GtkWidget *dotplot)
+                                     GtkWidget *dotplot,
+                                     const char *exportFileName)
 { 
   DEBUG_ENTER("createDotterWindow");
 
@@ -3429,9 +3471,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   
   width = min(width, maxWidth);
   height = min(height, maxHeight);
-  
+
   gtk_window_set_default_size(GTK_WINDOW(dotterWindow), width, height);
-  
   gtk_widget_show_all(dotterWindow);
   
   DEBUG_EXIT("createDotterWindow returning ");
@@ -3456,7 +3497,12 @@ void copyIntToDefaultClipboard(const int val)
 static void printDotterWindow(GtkWidget *dotterWindow)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
-  
+
+  /* Set the background colour to something sensible for printing */
+  GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, properties->dotterWinCtx->dotterCtx->defaultColors, FALSE, TRUE);
+  setWidgetBackgroundColor(dotterWindow, defaultBgColor);
+  redrawAll(dotterWindow, NULL);
+
   /* The crosshair on the dotplot does not get cached in the dotplot's drawable,
    * but we want it to show in the print, so draw it on now. */
   GtkWidget *dotplot = properties->dotplot;
@@ -3469,10 +3515,14 @@ static void printDotterWindow(GtkWidget *dotterWindow)
 
   /* Do the print */
   DotterWindowContext *dwc = properties->dotterWinCtx;
-  blxPrintWidget(parent, dotterWindow, &dwc->printSettings, &dwc->pageSetup, TRUE, PRINT_FIT_BOTH);
+  blxPrintWidget(parent, GTK_WINDOW(dotterWindow), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
   
+  /* Revert the background colour */
+  defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, properties->dotterWinCtx->dotterCtx->defaultColors, FALSE, properties->dotterWinCtx->usePrintColors);
+  setWidgetBackgroundColor(dotterWindow, defaultBgColor);
+
   /* Redraw the entire dotplot to make sure the crosshair we added gets cleared */
-  redrawDotplot(dotplot);
+  redrawAll(dotterWindow, NULL);
 }
 
 
