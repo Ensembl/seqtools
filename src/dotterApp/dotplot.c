@@ -956,9 +956,13 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
   /* Create the actual drawing area for the dot plot */
   *dotplot = createDotplotDrawingArea(dwc, loadFileName, saveFileName, exportFileName, hspsOn, breaklinesOn, initWinsize, pixelFacIn, zoomFacIn, qcenter, scenter);
 
-  if (saveFileName)
+  /* Create and realise the container widgets etc. only if not in batch mode, or if
+   * in batch mode and exporting to PDF (which requires the widget to draw itself). */
+  const gboolean batch = (exportFileName || saveFileName);
+  const gboolean createWindow = (!batch || exportFileName);
+
+  if (!createWindow)
     {
-      /* Don't create the container widgets */
       return NULL;
     }
 
@@ -1839,11 +1843,13 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
 }
 
 
-void exportPlot(GtkWidget *dotplot, GtkWindow *window, const char *exportFileName, GError **error)
+/* Export the plot to a graphical format (currently only PDF is supported by GTK).
+ * the drawable can be NULL. */
+void exportPlot(GtkWidget *dotplot, 
+                GtkWindow *window,
+                const char *exportFileName,
+                GError **error)
 {
-  GtkWidget *printWidget = gtk_widget_get_parent(dotplot);
-  //GtkWidget *printWidget = dotplot;
-
   gboolean batch = (exportFileName ? TRUE : FALSE); /* whether this is part of a batch process */
   
   /* Open the file. Use the given file name (i.e. if we're in batch mode) or ask the user to 
@@ -1863,7 +1869,7 @@ void exportPlot(GtkWidget *dotplot, GtkWindow *window, const char *exportFileNam
   gtk_print_settings_set_quality(printSettings, GTK_PRINT_QUALITY_HIGH);
   gtk_print_settings_set_resolution(printSettings, DEFAULT_PRINT_RESOLUTION);
 
-  blxPrintWidget(printWidget, NULL, window, &printSettings, &pageSetup, fileName, TRUE, PRINT_FIT_BOTH);
+  blxPrintWidget(dotplot, NULL, window, &printSettings, &pageSetup, fileName, TRUE, PRINT_FIT_BOTH);
 }
 
 
