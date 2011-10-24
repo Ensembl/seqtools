@@ -447,15 +447,16 @@ int main(int argc, char **argv)
   /* Initialise gtk */
   gtk_init(&argc, &argv);
 
-  if (!batchMode)
-    {
-      /* Set the message handlers to use our custom dialog boxes (don't do this 
-       * in batch mode because we don't want user interaction) */
-      g_log_set_default_handler(defaultMessageHandler, &options.msgData);
-      g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
-                        popupMessageHandler, &options.msgData);
-    }
+  /* Set the message handlers to use our custom handlers. We normally assign a popup
+   * message handler for critical messages, but don't do this in batch mode because
+   * we can't have user interaction, so use the default handler for all in that case. */
+  g_log_set_default_handler(defaultMessageHandler, &options.msgData);
 
+  if (batchMode)
+    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, defaultMessageHandler, &options.msgData);
+  else
+    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, &options.msgData);
+  
   if (options.selfcall) /* Blixem/Dotter calling dotter */
     {
       DEBUG_OUT("Dotter was called internally.\n");

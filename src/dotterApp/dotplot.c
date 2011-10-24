@@ -1751,6 +1751,8 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
   else if (dotplot)
     fileName = getSaveFileName(dotplot, fileName, NULL, ".dotter", "Save dot-plot in dotter format");
   
+  g_message("Saving dot-matrix to '%s'.\n", fileName);
+
   FILE *saveFile = NULL;
   
   if (fileName) 

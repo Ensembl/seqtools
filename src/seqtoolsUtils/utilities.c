@@ -3778,6 +3778,7 @@ void blxPrintWidget(GtkWidget *widget,
   if (filename)
     {
       /* If a filename was given, export to that file (without showing the print dialog) */
+      g_message("Exporting graphical image to '%s'.\n", filename);
       gtk_print_operation_set_export_filename(print, filename);
       printAction = GTK_PRINT_OPERATION_ACTION_EXPORT;
     }
