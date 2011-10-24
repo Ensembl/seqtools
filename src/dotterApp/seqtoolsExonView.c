@@ -502,7 +502,7 @@ void calculateDotterExonViewBorders(GtkWidget *exonView, const int width, const 
   /* Calculate the area where the exon view will be drawn */
   if (properties->horizontal)
     {
-      properties->exonViewRect.x = properties->dc->scaleWidth; /* use same left border as dotplot */
+      properties->exonViewRect.x = properties->dc->scaleWidth + properties->dc->charHeight; /* use same left border as dotplot */
       properties->exonViewRect.y = 0;
       properties->exonViewRect.width = width;
       properties->exonViewRect.height = properties->exonHeight + (2 * properties->yPad);
@@ -510,7 +510,7 @@ void calculateDotterExonViewBorders(GtkWidget *exonView, const int width, const 
   else
     {
       properties->exonViewRect.x = 0;
-      properties->exonViewRect.y = properties->dc->scaleHeight; /* use same top border as dotplot */
+      properties->exonViewRect.y = properties->dc->scaleHeight + properties->dc->charHeight; /* use same top border as dotplot */
       properties->exonViewRect.width = properties->exonHeight + (2 * properties->yPad);
       properties->exonViewRect.height = height;
     }
