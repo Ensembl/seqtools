@@ -66,31 +66,71 @@
 			     DNA      -   Protein\n\
 \n\
  Options:\n\
-  -h		 Show this usage information\n\
-  -b <file>      Batch mode, write dotplot to <file>\n\
-  -l <file>      Load dotplot from <file>\n\
-  -m <float>     Memory usage limit in Mb (default 0.5)\n\
-  -z <int>       Set zoom (compression) factor\n\
-  -p <int>       Set pixel factor manually (ratio pixelvalue/score)\n\
-  -W <int>       Set sliding window size. (K => Karlin/Altschul estimate)\n\
-  -M <file>      Read in score matrix from <file> (Blast format; Default: Blosum62).\n\
-  -F <file>      Read in sequences and data from <file> (replaces sequencefiles).\n\
-  -f <file>      Read feature segments from <file>\n\
-  -H             Do not calculate dotplot at startup.\n\
-  -R             Reversed Greyramp tool at start.\n\
-  -r             Reverse and complement horizontal_sequence (if DNA)\n\
-  -v             Reverse and complement vertical_sequence (if DNA)\n\
-  -D             Don't display mirror image in self comparisons\n\
-  -w             For DNA: horizontal_sequence top strand only (Watson)\n\
-  -c             For DNA: horizontal_sequence bottom strand only (Crick)\n\
-  -q <int>       Horizontal_sequence offset\n\
-  -s <int>       Vertical_sequence offset\n\
-  --version      Show package version\n\
-  --compiled     Show package compile date\n\
+  -h, --help\n\
+    Show this usage information\n\
 \n\
- Some X options:\n\
-  -acefont <font> Main font.\n\
-  -font    <font> Menu font.\n\
+  -b <file>, --batch-save=<file>\n\
+    Batch mode; save dot matrix to <file>\n\
+\n\
+  -e <file>, --batch-export=<file>\n\
+    Batch mode; export plot to PDF file <file>\n\
+\n\
+  -l <file>, --load\n\
+    Load dot matrix from <file>\n\
+\n\
+  -m <float>, --memory-limit=<float>\n\
+    Memory usage limit in Mb (default 0.5)\n\
+\n\
+  -z <int>, --zoom\n\
+    Set zoom (compression) factor\n\
+\n\
+  -p <int>, --pixel-factor\n\
+    Set pixel factor manually (ratio pixelvalue/score)\n\
+\n\
+  -W <int>, --window-size\n\
+    Set sliding window size. (K => Karlin/Altschul estimate)\n\
+\n\
+  -M <file>, --matrix-file=<file>\n\
+    Read in score matrix from <file> (Blast format; Default: Blosum62).\n\
+\n\
+  -F <file>, --sequence-file\n\
+    Read in sequences and data from <file> (replaces sequencefiles).\n\
+\n\
+  -f <file>, --feature-file\n\
+    Read feature segments from <file>\n\
+\n\
+  -H, --hsp-mode\n\
+    Do not calculate dotplot at startup.\n\
+\n\
+  -R, --reverse-greyramp\n\
+    Reversed Greyramp tool at start.\n\
+\n\
+  -r, --reverse-horizontal\n\
+    Reverse and complement horizontal_sequence (if DNA)\n\
+\n\
+  -v, --reverse-vertical\n\
+    Reverse and complement vertical_sequence (if DNA)\n\
+\n\
+  -D, --disable-mirror\n\
+    Don't display mirror image in self comparisons\n\
+\n\
+  -w, --watson-only\n\
+    For DNA: horizontal_sequence top strand only (Watson)\n\
+\n\
+  -c, --crick-only\n\
+    For DNA: horizontal_sequence bottom strand only (Crick)\n\
+\n\
+  -q <int>, --horizontal-offset=<int>\n\
+    Horizontal_sequence offset\n\
+\n\
+  -s <int>, --vertical-offset=<int>\n\
+    Vertical_sequence offset\n\
+\n\
+  --compiled\n\
+    Show package compile date\n\
+\n\
+  --version\n\
+    Show package version\n\
 \n"
 
 /* Text to show the version */
@@ -327,9 +367,9 @@ int main(int argc, char **argv)
       {"reverse-v-display",	no_argument,        &vertScaleRev, 1},
 
       {"help",                  no_argument,        0, 'h'},
-      {"batch",                 required_argument,  0, 'b'},
-      {"export",                required_argument,  0, 'e'},
-      {"load-plot",             required_argument,  0, 'l'},
+      {"batch-save",            required_argument,  0, 'b'},
+      {"batch-export",          required_argument,  0, 'e'},
+      {"load",                  required_argument,  0, 'l'},
       {"memory-limit",          required_argument,  0, 'm'},
       {"zoom",                  required_argument,  0, 'z'},
       {"pixel-factor",          required_argument,  0, 'p'},
