@@ -264,6 +264,8 @@ typedef struct _DotplotProperties
     
     GdkPoint dragStart;                 /* start point for mid-click drag */
     GdkPoint dragEnd;                   /* end point for mid-click drag */
+
+    const char *exportFileName;         /* file to export the plot to if in batch "export to pdf" mode */
   } DotplotProperties;
 
 
@@ -302,6 +304,7 @@ void                updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowC
 GtkWidget*	    createDotplot(DotterWindowContext *dwc, 
                                   const char *loadFileName,
                                   const char *saveFileName,
+                                  const char *exportFileName,
                                   const gboolean hspsOn,
                                   const gboolean breaklinesOn,
                                   const char *initWinsize,
@@ -340,6 +343,7 @@ void                refreshDotplot(GtkWidget *dotplot);
 void                redrawDotplot(GtkWidget *dotplot);
 void                recalcDotplot(GtkWidget *dotplot);
 void                savePlot(GtkWidget *dotplot, DotplotProperties *properties, const char *saveFileName, GError **error);
+void                exportPlot(GtkWidget *dotplot, GtkWindow *window, const char *exportFileName, GError **error);
 void                loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error);
 
 

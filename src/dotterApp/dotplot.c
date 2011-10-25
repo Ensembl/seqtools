@@ -212,7 +212,8 @@ static void onDestroyDotplot(GtkWidget *widget)
 static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
                                                   DotterWindowContext *dwc,
                                                   const gboolean hspsOn,
-                                                  const gboolean breaklinesOn)
+                                                  const gboolean breaklinesOn,
+                                                  const char *exportFileName)
 {
   DotplotProperties *properties = g_malloc(sizeof *properties);
   
@@ -256,6 +257,8 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
   properties->dragEnd.x = UNSET_INT;
   properties->dragEnd.y = UNSET_INT;
       
+  properties->exportFileName = exportFileName;
+
   if (widget)
     {
       g_object_set_data(G_OBJECT(widget), "DotplotProperties", properties);
@@ -546,13 +549,21 @@ void toggleCrosshairFullscreen(GtkWidget *dotplot)
 static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpointer data)
 {
   GdkDrawable *window = GTK_LAYOUT(dotplot)->bin_window;
-  
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+
   if (window)
     {
       GdkDrawable *bitmap = widgetGetDrawable(dotplot);
 
       if (!bitmap)
         {
+          if (properties->exportFileName)
+            {
+              /* Set the background colour to something sensible for printing */
+              GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, properties->dotterWinCtx->dotterCtx->defaultColors, FALSE, TRUE);
+              setWidgetBackgroundColor(gtk_widget_get_toplevel(dotplot), defaultBgColor);
+            }
+
           bitmap = createBlankPixmap(dotplot);
           drawDotplot(dotplot, bitmap);
         }
@@ -569,6 +580,16 @@ static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpoin
           drawRubberBand(dotplot, window);
         }
     }
+
+  if (properties->exportFileName)
+    {
+      /* We're in batch mode and have been asked to export the plot to pdf; print it, 
+      * and then quit */
+      GError *error = NULL;
+      exportPlot(dotplot, GTK_WINDOW(gtk_widget_get_toplevel(dotplot)), properties->exportFileName, &error);
+      gtk_main_quit();
+    }
+
   
   return TRUE;
 }
@@ -725,6 +746,7 @@ static void initCrosshairCoords(const int qcenter, const int scenter, DotterWind
 static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc, 
                                            const char *loadFileName,
                                            const char *saveFileName,
+                                           const char *exportFileName,
                                            const gboolean hspsOn,
                                            const gboolean breaklinesOn,
                                            const char *initWinsize,
@@ -735,11 +757,14 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
 {
   DEBUG_ENTER("createDotplotDrawingArea");
 
-  gboolean batch = (saveFileName == NULL ? FALSE : TRUE);
+  /* If we're in batch mode and we're exporting the matrix only (i.e. we have a save file
+   * but we don't have an export file), then we don't need to create the plot */
+  gboolean batch = (saveFileName || exportFileName);
+  gboolean showPlot = (exportFileName || !batch);
 
-  GtkWidget *dotplot = (batch ? NULL : gtk_layout_new(NULL, NULL));
+  GtkWidget *dotplot = (showPlot ? gtk_layout_new(NULL, NULL) : NULL);
   
-  DotplotProperties *properties = dotplotCreateProperties(dotplot, dwc, hspsOn, breaklinesOn);
+  DotplotProperties *properties = dotplotCreateProperties(dotplot, dwc, hspsOn, breaklinesOn, exportFileName);
   
   if (loadFileName)
     {
@@ -778,7 +803,7 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
           calculateImage(properties);
         }
 
-      if (!batch)
+      if (showPlot)
         {
           /* Create the image and push the pixelmap to it */
           properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
@@ -790,15 +815,21 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
   
   if (saveFileName)
     {
+      /* Batch mode: save the dot matrix;  */
       GError *error = NULL;
       savePlot(dotplot, properties, saveFileName, &error);
       
       prefixError(error, "Error saving dot plot. ");
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
-  else
+
+  if (showPlot)
     {
-      initCrosshairCoords(qcenter, scenter, properties->dotterWinCtx);
+      /* Set the crosshair coords (only applicable if not in batch mode) */
+      if (!batch)
+        initCrosshairCoords(qcenter, scenter, properties->dotterWinCtx);
+
+      /* Calculate the size of the dot-plot */
       calculateDotplotBorders(dotplot, properties);
     }
   
@@ -810,8 +841,6 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
 /* Put all the dotplot and exon widgets in a table. The table gets put in a
  * scrolled window and the scrolled window is returned. */
 static GtkWidget* createDotplotTable(GtkWidget *dotplotCont, 
-                                     GtkWidget *hozLabel,
-                                     GtkWidget *vertLabel,
                                      GtkWidget *hozExons1,
                                      GtkWidget *hozExons2,
                                      GtkWidget *vertExons1,
@@ -824,8 +853,6 @@ static GtkWidget* createDotplotTable(GtkWidget *dotplotCont,
   
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
   
-  gtk_table_attach(table, hozLabel, 1, numCols, 0, 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, vertLabel, 0, 1, 1, numRows, GTK_FILL, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, dotplotCont, 1, 2, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
   gtk_table_attach(table, vertExons1, 2, 3, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
   gtk_table_attach(table, vertExons2, 3, 4, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
@@ -914,6 +941,7 @@ static void createDotterExonViews(GtkWidget *dotplot,
 GtkWidget* createDotplot(DotterWindowContext *dwc, 
                          const char *loadFileName,
                          const char *saveFileName,
+                         const char *exportFileName,
                          const gboolean hspsOn,
                          const gboolean breaklinesOn,
                          const char *initWinsize,
@@ -926,19 +954,17 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
   DEBUG_ENTER("createDotplot");
 
   /* Create the actual drawing area for the dot plot */
-  *dotplot = createDotplotDrawingArea(dwc, loadFileName, saveFileName, hspsOn, breaklinesOn, initWinsize, pixelFacIn, zoomFacIn, qcenter, scenter);
+  *dotplot = createDotplotDrawingArea(dwc, loadFileName, saveFileName, exportFileName, hspsOn, breaklinesOn, initWinsize, pixelFacIn, zoomFacIn, qcenter, scenter);
 
-  if (saveFileName)
+  /* Create and realise the container widgets etc. only if not in batch mode, or if
+   * in batch mode and exporting to PDF (which requires the widget to draw itself). */
+  const gboolean batch = (exportFileName || saveFileName);
+  const gboolean createWindow = (!batch || exportFileName);
+
+  if (!createWindow)
     {
-      /* Don't create the container widgets */
       return NULL;
     }
-
-  /* Create labels for the axes */
-  DotterContext *dc = dwc->dotterCtx;
-  GtkWidget *hozLabel = createLabel(dc->refSeqName, 0.5, 0.5, FALSE, TRUE);
-  GtkWidget *vertLabel = createLabel(dc->matchSeqName, 0.5, 0.5, FALSE, TRUE);
-  gtk_label_set_angle(GTK_LABEL(vertLabel), 90);
 
   /* Create the 4 exon views: one for each strand, for both sequences */
   GtkWidget *hozExons1 = NULL;
@@ -948,7 +974,7 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
   createDotterExonViews(*dotplot, dwc, &hozExons1, &hozExons2, &vertExons1, &vertExons2);
 
   /* Put everything in a table */
-  GtkWidget *parent = createDotplotTable(*dotplot, hozLabel, vertLabel, hozExons1, hozExons2, vertExons1, vertExons2);
+  GtkWidget *parent = createDotplotTable(*dotplot, hozExons1, hozExons2, vertExons1, vertExons2);
   
   gtk_widget_add_events(*dotplot, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(*dotplot, GDK_BUTTON_RELEASE_MASK);
@@ -1723,8 +1749,10 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
   if (batch)
     fileName = saveFileName;
   else if (dotplot)
-    fileName = getSaveFileName(dotplot, fileName, NULL, ".dotter", NULL);
+    fileName = getSaveFileName(dotplot, fileName, NULL, ".dotter", "Save dot-plot in dotter format");
   
+  g_message("Saving dot-matrix to '%s'.\n", fileName);
+
   FILE *saveFile = NULL;
   
   if (fileName) 
@@ -1817,6 +1845,36 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
 }
 
 
+/* Export the plot to a graphical format (currently only PDF is supported by GTK).
+ * the drawable can be NULL. */
+void exportPlot(GtkWidget *dotplot, 
+                GtkWindow *window,
+                const char *exportFileName,
+                GError **error)
+{
+  gboolean batch = (exportFileName ? TRUE : FALSE); /* whether this is part of a batch process */
+  
+  /* Open the file. Use the given file name (i.e. if we're in batch mode) or ask the user to 
+   * select a file. */
+  static const char *fileName = NULL;
+
+  if (batch)
+    fileName = exportFileName;
+  else if (dotplot)
+    fileName = getSaveFileName(dotplot, fileName, NULL, ".pdf", "Export dot-plot");
+  
+  GtkPrintSettings *printSettings = gtk_print_settings_new();
+  GtkPageSetup *pageSetup = gtk_page_setup_new();
+  
+  gtk_page_setup_set_orientation(pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
+  gtk_print_settings_set_orientation(printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
+  gtk_print_settings_set_quality(printSettings, GTK_PRINT_QUALITY_HIGH);
+  gtk_print_settings_set_resolution(printSettings, DEFAULT_PRINT_RESOLUTION);
+
+  blxPrintWidget(dotplot, NULL, window, &printSettings, &pageSetup, fileName, TRUE, PRINT_FIT_BOTH);
+}
+
+
 /* Clear previous image and pixmaps and re-create them */
 static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *properties)
 {
@@ -1899,8 +1957,8 @@ static void calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *prope
 
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
 
-  properties->plotRect.x = DEFAULT_X_PADDING + dc->scaleWidth;
-  properties->plotRect.y = DEFAULT_Y_PADDING + dc->scaleHeight;
+  properties->plotRect.x = DEFAULT_X_PADDING + dc->scaleWidth + dc->charHeight;
+  properties->plotRect.y = DEFAULT_Y_PADDING + dc->scaleHeight + dc->charHeight;
   properties->plotRect.width = properties->imageWidth;
   properties->plotRect.height = properties->imageHeight;
   
@@ -2099,8 +2157,10 @@ static void drawScaleMarkers(GtkWidget *dotplot,
   findScaleUnit(cutoff, &basesPerMark, &basesPerSubmark);
   
   const int variableBorder = horizontal ? properties->plotRect.x : properties->plotRect.y;
-  const int staticBorder = horizontal ? properties->plotRect.y - SCALE_LINE_WIDTH : properties->plotRect.x - SCALE_LINE_WIDTH;
-
+  const int staticBorder = horizontal 
+    ? properties->plotRect.y - SCALE_LINE_WIDTH
+    : properties->plotRect.x - SCALE_LINE_WIDTH;
+  
   /* Round up the start coord to find the coord and position of the first submark */
   int startCoord = UNSET_INT;
   int endCoord = UNSET_INT;
@@ -2154,6 +2214,48 @@ static void drawScaleMarkers(GtkWidget *dotplot,
     }
 }
 
+static void drawLabel(GtkWidget *dotplot, GdkDrawable *drawable, GdkGC *gc)
+{
+  DotplotProperties *properties = dotplotGetProperties(dotplot);
+  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+
+  PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, dc->refSeqName);
+
+  int textWidth = UNSET_INT, textHeight = UNSET_INT;
+  pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
+
+  int x = properties->plotRect.x + (properties->plotRect.width / 2) - (textWidth / 2);
+  int y = properties->plotRect.y - (dc->scaleHeight + dc->charHeight);
+
+  gdk_draw_layout(drawable, gc, x, y, layout);
+
+  g_object_unref(layout);
+
+  /* Vertical label */
+  layout = gtk_widget_create_pango_layout(dotplot, dc->matchSeqName);
+
+  PangoMatrix pangoMtx = PANGO_MATRIX_INIT;
+  pango_matrix_rotate(&pangoMtx, 90.0);
+
+  PangoContext *pangoCtx = pango_layout_get_context(layout);
+  pango_context_set_base_gravity(pangoCtx, PANGO_GRAVITY_EAST);
+  pango_context_set_matrix(pangoCtx, &pangoMtx);
+  
+  pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
+  
+  x = properties->plotRect.x - (dc->scaleWidth + dc->charHeight);
+  y = properties->plotRect.y + (properties->plotRect.height / 2) - (textHeight / 2);
+  
+  gdk_draw_layout(drawable, gc, x, y, layout);
+  
+  g_object_unref(layout);
+
+  /* revert context */
+  pango_context_set_base_gravity(pangoCtx, PANGO_GRAVITY_SOUTH);
+  PangoMatrix pangoMtxOrig = PANGO_MATRIX_INIT;
+  pango_context_set_matrix(pangoCtx, &pangoMtxOrig);
+}
+
 
 /* Draw the outer rectangle of the dot plot, with a scale along the left and top */
 static void drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable)
@@ -2169,6 +2271,8 @@ static void drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable)
                      properties->plotRect.x - SCALE_LINE_WIDTH, properties->plotRect.y - SCALE_LINE_WIDTH, 
                      properties->plotRect.width + SCALE_LINE_WIDTH, properties->plotRect.height + SCALE_LINE_WIDTH);
 
+  drawLabel(dotplot, drawable, gc);
+  
   drawScaleMarkers(dotplot, drawable, gc, &properties->dotterWinCtx->refSeqRange, properties, TRUE);
   drawScaleMarkers(dotplot, drawable, gc, &properties->dotterWinCtx->matchSeqRange, properties, FALSE);
   
@@ -2290,12 +2394,12 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
 
       /* Draw the horizontal line (y position is at the match sequence coord position). x coords
        * depend on whether it's across the whole widget or just the dot-plot rectangle */
-      int x1 = properties->crosshairFullscreen ? 0: properties->plotRect.x;
+      int x1 = properties->crosshairFullscreen ? dc->scaleWidth: properties->plotRect.x;
       int width = properties->crosshairFullscreen ? dotplot->allocation.width : properties->plotRect.width;
       gdk_draw_line(drawable, gc, x1, y, x1 + width, y);
 
       /* Draw the vertical line (x position is at the ref sequence coord position - inverted if the display is reversed) */
-      int y1 = properties->crosshairFullscreen ? 0 : properties->plotRect.y;
+      int y1 = properties->crosshairFullscreen ? dc->scaleHeight : properties->plotRect.y;
       int height = properties->crosshairFullscreen ? dotplot->allocation.height : properties->plotRect.height;
       gdk_draw_line(drawable, gc, x, y1, x, y1 + height);
       

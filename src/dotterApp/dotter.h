@@ -49,6 +49,16 @@
 #include <seqtoolsUtils/blxmsp.h>
 
 
+/* Possible graphical formats the plot can be exported as */
+typedef enum _DotterExportFormat
+  {
+    DOTTER_EXPORT_NONE,         /* Don't export the plot to a graphical format */
+    DOTTER_EXPORT_PDF,          /* PDF */
+    DOTTER_EXPORT_PS,           /* Postscript */
+    DOTTER_EXPORT_SVG           /* Scalable vector graphics */
+  } DotterExportFormat;
+
+
 /* Options specifying the initial state for dotter */
 typedef struct _DotterOptions
   {
@@ -64,7 +74,8 @@ typedef struct _DotterOptions
     
     float memoryLimit;
     
-    char *savefile;           /* file to save the dot-plot to */
+    char *savefile;           /* file to save the dot-plot to (batch mode; saves the dot-matrix so it can be loaded later and interacted with) */
+    char *exportfile;         /* file to export the dot-plot to (batch mode; exports to a graphical format, e.g. pdf or ps. Default is pdf unless file extension indicates otherwise) */
     char *loadfile;           /* file to load a dot-plot from */
     char *FSfilename;         /* file containing features i.e. MSPs */
     char *mtxfile;            /* caller-supplied matrix file */

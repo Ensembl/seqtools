@@ -1,0 +1,1827 @@
+alignmenttool.c:2: *  Author: Gemma Barson, 2010-09-02
+alignmenttool.c:4: * ---------------------------------------------------------------------------
+alignmenttool.c:17: * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+alignmenttool.c:18: * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+alignmenttool.c:19: * ---------------------------------------------------------------------------
+alignmenttool.c:29: *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+alignmenttool.c:35: *              The alignment tool shows the sequence data for the currently-
+alignmenttool.c:41: *----------------------------------------------------------------------------
+alignmenttool.c:51:static int atob[]	/* OLD (starting at 1) ASCII-to-binary translation table  (Inherited from blast) */
+alignmenttool.c:77:#define	SELECTED_COORD_MARKER_HEIGHT		    12	  /* the height of the marker that indicates the currently-selected coord */
+alignmenttool.c:89:  gboolean scaleReversed;	    /* whether the scale for this sequence is shown reversed (i.e. high-to-low rather than low-to-high) */
+alignmenttool.c:117:/* Menu builders - standard menu entries */
+alignmenttool.c:119:{ "Close",        NULL, "_Close tool\t\t\tCtrl-W",  NULL,	"Close the alignment tool",             G_CALLBACK(onCloseMenu)},
+alignmenttool.c:120:{ "Print",        NULL, "_Print...\t\t\t\tCtrl-P",  NULL,	"Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
+alignmenttool.c:181:      properties->seqName = seqName;
+alignmenttool.c:182:      properties->sequence = sequence;
+alignmenttool.c:183:      properties->seqType = seqType;
+alignmenttool.c:184:      properties->strand = strand;
+alignmenttool.c:185:      properties->frame = frame;
+alignmenttool.c:186:      properties->displayRange = displayRange;
+alignmenttool.c:187:      properties->fullRange = fullRange;
+alignmenttool.c:188:      properties->scaleReversed = scaleReversed;
+alignmenttool.c:189:      properties->compSeqs = compSeqs;
+alignmenttool.c:190:      properties->isMatchSeq = isMatchSeq;
+alignmenttool.c:221:      properties->dotterWinCtx = dotterWinCtx;
+alignmenttool.c:222:      properties->alignmentLen = DEFAULT_ALIGNMENT_LENGTH;
+alignmenttool.c:223:      properties->refDisplayRange.min = 0;
+alignmenttool.c:224:      properties->refDisplayRange.max = 20;
+alignmenttool.c:225:      properties->matchDisplayRange.min = 0;
+alignmenttool.c:226:      properties->matchDisplayRange.max = 20; /* to do: put real values in here for the ranges */
+alignmenttool.c:261:      GdkGC *gc = gdk_gc_new(widget->window);
+alignmenttool.c:262:      gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
+alignmenttool.c:284:      GdkGC *gc = gdk_gc_new(widget->window);
+alignmenttool.c:285:      gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
+alignmenttool.c:307:      GdkGC *gc = gdk_gc_new(widget->window);
+alignmenttool.c:308:      gdk_draw_drawable(widget->window, gc, drawable, 0, 0, 0, 0, -1, -1);
+alignmenttool.c:340:  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
+alignmenttool.c:353:  if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
+alignmenttool.c:355:      gtk_menu_popup (GTK_MENU (data), NULL, NULL, NULL, NULL, event->button, event->time);
+alignmenttool.c:367:/* Set the alignment range centre based on the currently-selected match/ref seq coord. */
+alignmenttool.c:371:  DotterContext *dc = dwc->dotterCtx;
+alignmenttool.c:373:  /* Re-create the range, centred on the set coordinate and with the alignment tool's alignment 
+alignmenttool.c:377:  int len = properties->alignmentLen * getResFactor(dc, TRUE);
+alignmenttool.c:378:  int offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, TRUE);
+alignmenttool.c:379:  properties->refDisplayRange.min = dwc->refCoord - offset;
+alignmenttool.c:380:  properties->refDisplayRange.max = properties->refDisplayRange.min + len;
+alignmenttool.c:382:  len = properties->alignmentLen * getResFactor(dc, FALSE);
+alignmenttool.c:383:  offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, FALSE);
+alignmenttool.c:384:  properties->matchDisplayRange.min = dwc->matchCoord - offset;
+alignmenttool.c:385:  properties->matchDisplayRange.max = properties->matchDisplayRange.min + len;
+alignmenttool.c:399:      properties->alignmentLen = length;
+alignmenttool.c:403:      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_INVALID_LENGTH, "Length %d is not in valid range %d -> %d.\n",
+alignmenttool.c:407:  updateAlignmentRange(alignmentTool, properties->dotterWinCtx);
+alignmenttool.c:430:  DotterWindowContext *dwc = properties->dotterWinCtx;
+alignmenttool.c:432:  blxPrintWidget(alignmentTool, GTK_WINDOW(alignmentTool), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
+alignmenttool.c:458:/* Set-length menu item: pops up a dialog asking the user to enter the alignment length */
+alignmenttool.c:467:      GtkWidget *dialog = gtk_dialog_new_with_buttons("Dotter - Set alignment length", 
+alignmenttool.c:478:      GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
+alignmenttool.c:484:      char *displayText = convertIntToString(properties->alignmentLen);
+alignmenttool.c:505:  copyIntToDefaultClipboard(properties->dotterWinCtx->refCoord);
+alignmenttool.c:514:  copyIntToDefaultClipboard(properties->dotterWinCtx->matchCoord);
+alignmenttool.c:529:  DotterContext *dc = dwc->dotterCtx;
+alignmenttool.c:530:  const int numRows = dc->numFrames + 3;  /* 2 rows for the headers, 1 for the sseq and 1 for each ref seq frame */
+alignmenttool.c:534:  const char strandChar = (strand == BLXSTRAND_FORWARD ? '+' : '-');
+alignmenttool.c:542:  gtk_widget_set_size_request(matchSeqWidget, -1, roundNearest(dc->charHeight));
+alignmenttool.c:552:   * the currently-selected ref seq coord. */
+alignmenttool.c:554:  gtk_widget_set_size_request(refSeqHeader, -1, roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT);
+alignmenttool.c:556:  g_signal_connect(G_OBJECT(refSeqHeader), "expose-event", G_CALLBACK(onExposeRefSequenceHeader), alignmentTool);
+alignmenttool.c:561:  for (frame = 1; frame <= dc->numFrames; ++frame)
+alignmenttool.c:564:      char *text = blxprintf("%s (%c%d):", dc->refSeqName, strandChar, frame);
+alignmenttool.c:566:      gtk_widget_modify_font(label, dc->fontDesc);
+alignmenttool.c:572:      char *sequence = dc->refSeq;
+alignmenttool.c:574:      if (dc->displaySeqType == BLXSEQ_DNA && strand == BLXSTRAND_REVERSE)
+alignmenttool.c:575:        sequence = dc->refSeqRev;
+alignmenttool.c:576:      else if (dc->blastMode == BLXMODE_BLASTX)
+alignmenttool.c:577:        sequence = dc->peptideSeqs[frame - 1];
+alignmenttool.c:581:      gtk_widget_set_size_request(refSeqWidget, -1, roundNearest(dc->charHeight));
+alignmenttool.c:584:      sequenceCreateProperties(refSeqWidget, dc->refSeqName, sequence, dc->refSeqType, strand, 
+alignmenttool.c:585:                               frame, &properties->refDisplayRange, &dc->refSeqFullRange,
+alignmenttool.c:586:                               dc->hozScaleRev, matchSeqList, FALSE);
+alignmenttool.c:590:      g_signal_connect(G_OBJECT(refSeqWidget), "expose-event", G_CALLBACK(onExposeSequence), alignmentTool);
+alignmenttool.c:596:  char *text = blxprintf("%s:", dc->matchSeqName);
+alignmenttool.c:598:  gtk_widget_modify_font(label, dc->fontDesc);
+alignmenttool.c:603:  /* Now add the data to the match-sequence widget and add it to the bottom row of the table */
+alignmenttool.c:604:  char *matchSequence = dc->matchSeqStrand == BLXSTRAND_REVERSE ? dc->matchSeqRev : dc->matchSeq;
+alignmenttool.c:606:  sequenceCreateProperties(matchSeqWidget, dc->matchSeqName, matchSequence, dc->matchSeqType, dc->matchSeqStrand,
+alignmenttool.c:607:                           1, &properties->matchDisplayRange, &dc->matchSeqFullRange, dc->vertScaleRev, refSeqList, TRUE);
+alignmenttool.c:611:  g_signal_connect(G_OBJECT(matchSeqWidget), "expose-event", G_CALLBACK(onExposeSequence), alignmentTool);
+alignmenttool.c:617:  gtk_widget_set_size_request(matchSeqHeader, -1, roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT + roundNearest(dc->charHeight)); /* add an extra charheight just for spacing */
+alignmenttool.c:619:  g_signal_connect(G_OBJECT(matchSeqHeader), "expose-event", G_CALLBACK(onExposeMatchSequenceHeader), alignmentTool);
+alignmenttool.c:631:  gtk_window_set_title(GTK_WINDOW(alignmentTool), "Dotter - Alignment Tool");
+alignmenttool.c:633:  gtk_window_set_default_size(GTK_WINDOW(alignmentTool), 1160, -1);
+alignmenttool.c:647:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+alignmenttool.c:650:  BlxStrand qStrand = dc->hozScaleRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
+alignmenttool.c:655:  if (dc->displaySeqType == BLXSEQ_DNA)
+alignmenttool.c:662:  /* Create the right-click menu */
+alignmenttool.c:666:  g_signal_connect(G_OBJECT(alignmentTool), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
+alignmenttool.c:667:  g_signal_connect(G_OBJECT(alignmentTool), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+alignmenttool.c:668:  g_signal_connect(G_OBJECT(alignmentTool), "size-allocate", G_CALLBACK(onSizeAllocateAlignmentTool), NULL);
+alignmenttool.c:686:  const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
+alignmenttool.c:689:  *displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
+alignmenttool.c:692:  int seqStart = forward ? properties->fullRange->min : properties->fullRange->max;
+alignmenttool.c:695:  int reqdFrame = properties->frame;
+alignmenttool.c:697:  convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, 1, &frame);
+alignmenttool.c:699:  int offset = reqdFrame - frame;
+alignmenttool.c:702:      offset += dc->numFrames;
+alignmenttool.c:705:  seqStart = forward ? seqStart + offset : seqStart - offset;
+alignmenttool.c:708:  seqStart = convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
+alignmenttool.c:709:  *displayStart = convertToDisplayIdx(*displayStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
+alignmenttool.c:713:  int result = forward ? seqStart - *displayStart - 1 : *displayStart - seqStart;
+alignmenttool.c:718:/* Draw the sequence data for the given sequence-widget */
+alignmenttool.c:722:  DotterWindowContext *dwc = atProperties->dotterWinCtx;
+alignmenttool.c:723:  DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
+alignmenttool.c:727:  GdkColor *matchColor = getGdkColor(DOTCOLOR_MATCH, dc->defaultColors, FALSE, dwc->usePrintColors);
+alignmenttool.c:728:  GdkColor *consColor = getGdkColor(DOTCOLOR_CONS, dc->defaultColors, FALSE, dwc->usePrintColors);
+alignmenttool.c:732:  const gchar *seq1 = seq1Properties->sequence;
+alignmenttool.c:740:  char seq1Text[atProperties->alignmentLen + 1];
+alignmenttool.c:744:  for ( ; displayIdx <= atProperties->alignmentLen; ++displayIdx)
+alignmenttool.c:748:      x = (int)((gdouble)displayIdx * dc->charWidth);
+alignmenttool.c:750:      /* Get the 0-based index into sequence 1 and if it's in range extract the character at this index */
+alignmenttool.c:751:      const int seq1Idx = displayIdx - seq1Offset;
+alignmenttool.c:762:          GSList *item = seq1Properties->compSeqs;
+alignmenttool.c:764:          for ( ; item; item = item->next)
+alignmenttool.c:767:              GtkWidget *seq2Widget = GTK_WIDGET(item->data);
+alignmenttool.c:769:              const gchar *seq2 = seq2Properties->sequence;
+alignmenttool.c:775:              /* Get the zero-based index into the sequence and compare the bases to determine the highlight color */
+alignmenttool.c:776:	      const int seq2Idx = displayIdx - seq2Offset;
+alignmenttool.c:785:                  else if (dc->blastMode != BLXMODE_BLASTN && 
+alignmenttool.c:786:                           dc->matrix[atob[(unsigned int)seq1[seq1Idx]] - 1 ][atob[(unsigned int)seq2[seq2Idx]] - 1 ] > 0)
+alignmenttool.c:796:              gdk_draw_rectangle(drawable, gc, TRUE, x, y, ceil(dc->charWidth), roundNearest(dc->charHeight));
+alignmenttool.c:801:              gdk_draw_rectangle(drawable, gc, TRUE, x, y, ceil(dc->charWidth), roundNearest(dc->charHeight));
+alignmenttool.c:816:  pango_layout_set_font_description(layout, dc->fontDesc);
+alignmenttool.c:820:      gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, x, y, layout);
+alignmenttool.c:853:  pango_layout_set_font_description(layout, dc->fontDesc);
+alignmenttool.c:858:    const int offset = ceil((((gdouble)numDigitsInInt(coord) / 2.0) - 1) * dc->charWidth);
+alignmenttool.c:860:    gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, x - offset, y, layout);
+alignmenttool.c:877:  DotterWindowContext *dwc = properties->dotterWinCtx;
+alignmenttool.c:878:  DotterContext *dc = dwc->dotterCtx;
+alignmenttool.c:881:  const int coord = horizontal ? dwc->refCoord : dwc->matchCoord;
+alignmenttool.c:883:  const IntRange const *displayRange = horizontal ? &properties->refDisplayRange : &properties->matchDisplayRange;
+alignmenttool.c:886:  const int displayIdx = convertToDisplayIdx(coord - displayRange->min, horizontal, dc, 1, NULL) - 1;
+alignmenttool.c:887:  int x = (int)((gdouble)displayIdx * dc->charWidth);
+alignmenttool.c:894:      y += roundNearest(dc->charHeight);
+alignmenttool.c:895:      drawSequenceHeaderMarker(drawable, x, y, dc->charWidth);
+alignmenttool.c:900:      drawSequenceHeaderMarker(drawable, x, y, dc->charWidth);
+dotplot.c:2: *  Author: Gemma Barson, 2010-09-08
+dotplot.c:4: * ---------------------------------------------------------------------------
+dotplot.c:17: * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+dotplot.c:18: * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+dotplot.c:19: * ---------------------------------------------------------------------------
+dotplot.c:29: *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+dotplot.c:35: *              calculates and draws the dot-matrix plot.
+dotplot.c:36: *----------------------------------------------------------------------------
+dotplot.c:55:int atob_0[]	/* NEW (starting at 0) ASCII-to-binary translation table */
+dotplot.c:76://static int atob[]	/* OLD (starting at 1) ASCII-to-binary translation table  (Inherited from blast) */
+dotplot.c:97:char aa_btoa[]	/* binary-to-ASCII translation table */
+dotplot.c:98:= "-ARNDCQEGHILKMFPSTWYVBZX*" ;
+dotplot.c:191:      if (properties->pixelmap)
+dotplot.c:193:	  g_free(properties->pixelmap);
+dotplot.c:194:	  properties->pixelmap = NULL;
+dotplot.c:197:    if (properties->hspPixmap)
+dotplot.c:199:	g_free(properties->hspPixmap);
+dotplot.c:200:	properties->hspPixmap = NULL;
+dotplot.c:219:  properties->dotterWinCtx = dwc;
+dotplot.c:220:  properties->hozExons1 = NULL;
+dotplot.c:221:  properties->hozExons2 = NULL;
+dotplot.c:222:  properties->vertExons1 = NULL;
+dotplot.c:223:  properties->vertExons2 = NULL;
+dotplot.c:225:  properties->plotRect.x = 0;
+dotplot.c:226:  properties->plotRect.y = 0;
+dotplot.c:227:  properties->plotRect.width = 0;
+dotplot.c:228:  properties->plotRect.height = 0;
+dotplot.c:230:  if (widget) /* only create colormap if we have a widget (i.e. we're not in batch/non-graphical mode) */
+dotplot.c:232:      properties->colorMap = insertGreyRamp(properties);
+dotplot.c:233:      gtk_widget_set_default_colormap(properties->colorMap);
+dotplot.c:236:  properties->image = NULL;
+dotplot.c:237:  properties->lineLen = UNSET_INT;
+dotplot.c:239:  properties->pixelmap = NULL;
+dotplot.c:240:  properties->hspPixmap = NULL;
+dotplot.c:242:  properties->crosshairOn = TRUE;
+dotplot.c:243:  properties->crosshairCoordsOn = TRUE;
+dotplot.c:244:  properties->crosshairFullscreen = TRUE;
+dotplot.c:246:  properties->pixelmapOn = !hspsOn;
+dotplot.c:247:  properties->hspMode = hspsOn ? DOTTER_HSPS_LINE : DOTTER_HSPS_OFF;
+dotplot.c:249:  properties->gridlinesOn = FALSE;
+dotplot.c:250:  properties->breaklinesOn = breaklinesOn;
+dotplot.c:251:  properties->hozLabelsOn = TRUE;
+dotplot.c:252:  properties->vertLabelsOn = TRUE;
+dotplot.c:254:  properties->dragStart.x = UNSET_INT;
+dotplot.c:255:  properties->dragStart.y = UNSET_INT;
+dotplot.c:256:  properties->dragEnd.x = UNSET_INT;
+dotplot.c:257:  properties->dragEnd.y = UNSET_INT;
+dotplot.c:276:  return properties->hspMode;
+dotplot.c:282:  return properties->slidingWinSize;
+dotplot.c:294:  else if (newValue != properties->slidingWinSize)
+dotplot.c:296:      properties->slidingWinSize = newValue;
+dotplot.c:306:  properties->breaklinesOn = breaklinesOn;
+dotplot.c:313:  properties->hozLabelsOn = labelsOn;
+dotplot.c:320:  properties->vertLabelsOn = labelsOn;
+dotplot.c:327:  return properties->imageWidth;
+dotplot.c:333:  return properties->imageHeight;
+dotplot.c:339:  return properties->expResScore;
+dotplot.c:345:  return properties->pixelFac;
+dotplot.c:351:  exonViewToggleBumped(properties->hozExons1);
+dotplot.c:352:  exonViewToggleBumped(properties->hozExons2);
+dotplot.c:353:  exonViewToggleBumped(properties->vertExons1);
+dotplot.c:354:  exonViewToggleBumped(properties->vertExons2);
+dotplot.c:360:  /* Show the greyscale if hsp mode is greyscale or the dot-plot pixelmap is enabled */
+dotplot.c:361:  return (properties->pixelmapOn || properties->hspMode == DOTTER_HSPS_GREYSCALE);
+dotplot.c:365:/* This returns true if the dot-plot should be shown. */
+dotplot.c:369:  return (properties->pixelmapOn && !(properties->hspMode == DOTTER_HSPS_GREYSCALE && properties->hspPixmap));
+dotplot.c:397:  const int pixelmapLen = properties->image->width * properties->image->height;
+dotplot.c:411:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:413:  properties->hspMode = hspMode;
+dotplot.c:415:  if (properties->hspMode)
+dotplot.c:417:      if (!properties->hspPixmap)
+dotplot.c:420:          initPixmap(&properties->hspPixmap, properties->image->width, properties->image->height);
+dotplot.c:424:      if (properties->hspMode == DOTTER_HSPS_GREYSCALE) 
+dotplot.c:426:          resetPixmapBackground(properties->hspPixmap, properties);
+dotplot.c:427:          MSP *msp = dc->mspList;
+dotplot.c:429:          for ( ; msp; msp = msp->next)
+dotplot.c:432:              if (!mspName || strcmp(mspName, dc->matchSeqName))
+dotplot.c:442:              const int strength = (int)msp->score;
+dotplot.c:447:          transformGreyRampImage(properties->image, properties->hspPixmap, properties);
+dotplot.c:453:      /* Make sure the dot-plot pixmap is set (we may have overwritten it if the previous mode
+dotplot.c:456:      if (!properties->pixelmap)
+dotplot.c:458:          /* The dot-plot pixelmap doesn't exist yet so create it */
+dotplot.c:459:          initPixmap(&properties->pixelmap, properties->image->width, properties->image->height);
+dotplot.c:463:      transformGreyRampImage(properties->image, properties->pixelmap, properties);
+dotplot.c:475:  properties->gridlinesOn = !properties->gridlinesOn;
+dotplot.c:486:  properties->pixelmapOn = !properties->pixelmapOn;
+dotplot.c:488:  if (!properties->pixelmap)
+dotplot.c:490:      /* The dot-plot pixelmap doesn't exist yet so create it */
+dotplot.c:491:      initPixmap(&properties->pixelmap, properties->image->width, properties->image->height);
+dotplot.c:495:  if (properties->hspMode != DOTTER_HSPS_GREYSCALE)
+dotplot.c:497:      /* Make sure the image has the dot-plot pixels, not the HSP pixels, which might previously
+dotplot.c:499:      transformGreyRampImage(properties->image, properties->pixelmap, properties);
+dotplot.c:511:  properties->crosshairOn = !properties->crosshairOn;
+dotplot.c:513:  exonViewSetShowCrosshair(properties->hozExons1, properties->crosshairOn && properties->crosshairFullscreen);
+dotplot.c:514:  exonViewSetShowCrosshair(properties->hozExons2, properties->crosshairOn && properties->crosshairFullscreen);
+dotplot.c:515:  exonViewSetShowCrosshair(properties->vertExons1, properties->crosshairOn && properties->crosshairFullscreen);
+dotplot.c:516:  exonViewSetShowCrosshair(properties->vertExons2, properties->crosshairOn && properties->crosshairFullscreen);
+dotplot.c:524:  properties->crosshairCoordsOn = !properties->crosshairCoordsOn;
+dotplot.c:531:  properties->crosshairFullscreen = !properties->crosshairFullscreen;
+dotplot.c:533:  exonViewSetShowCrosshair(properties->hozExons1, properties->crosshairOn && properties->crosshairFullscreen);
+dotplot.c:534:  exonViewSetShowCrosshair(properties->hozExons2, properties->crosshairOn && properties->crosshairFullscreen);
+dotplot.c:535:  exonViewSetShowCrosshair(properties->vertExons1, properties->crosshairOn && properties->crosshairFullscreen);
+dotplot.c:536:  exonViewSetShowCrosshair(properties->vertExons2, properties->crosshairOn && properties->crosshairFullscreen);
+dotplot.c:545:/* Expose handler for dot-plot window */
+dotplot.c:548:  GdkDrawable *window = GTK_LAYOUT(dotplot)->bin_window;
+dotplot.c:564:          gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
+dotplot.c:576:/* mouse-press handler for the dot plot window */
+dotplot.c:581:  if (event->type == GDK_BUTTON_PRESS && event->button == 1) /* left click */
+dotplot.c:583:      setCoordsFromPos(dotplot, event->x, event->y);
+dotplot.c:586:  else if (event->type == GDK_BUTTON_PRESS && event->button == 2) /* middle click */
+dotplot.c:590:      setPoint(&properties->dragStart, event->x, event->y, &properties->plotRect);
+dotplot.c:598:/* mouse-release handler for the dot plot window */
+dotplot.c:603:  if (event->type == GDK_BUTTON_RELEASE && event->button == 2) /* middle click */
+dotplot.c:607:      DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:609:      if (properties->dragStart.x != UNSET_INT && properties->dragEnd.x != UNSET_INT)
+dotplot.c:615:	  getCoordsFromPos(dotplot, properties->dragStart.x, properties->dragStart.y, &qStart, &sStart);
+dotplot.c:616:	  getCoordsFromPos(dotplot, properties->dragEnd.x, properties->dragEnd.y, &qEnd, &sEnd);
+dotplot.c:623:          if (qRange.max - qRange.min > 10 && sRange.max - sRange.min > 10)
+dotplot.c:626:              callDotterInternal(dc, &qRange, &sRange, zoomFactor, properties->breaklinesOn) ;
+dotplot.c:631:      setPoint(&properties->dragStart, UNSET_INT, UNSET_INT, NULL);
+dotplot.c:632:      setPoint(&properties->dragEnd, UNSET_INT, UNSET_INT, NULL);
+dotplot.c:647:  if (event->state & GDK_BUTTON1_MASK)  /* left-drag */
+dotplot.c:649:      setCoordsFromPos(dotplot, event->x, event->y);
+dotplot.c:652:  else if (event->state & GDK_BUTTON2_MASK)  /* middle-drag */
+dotplot.c:655:      setPoint(&properties->dragEnd, event->x, event->y, &properties->plotRect);
+dotplot.c:673:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:674:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:676:  const IntRange const *seqRange = horizontal ? &dwc->refSeqRange : &dwc->matchSeqRange;
+dotplot.c:685:      imageLen += 4 - (imageLen % 4);
+dotplot.c:690:  if (seqLen / dc->numFrames > imageLen * dwc->zoomFactor)
+dotplot.c:692:      g_critical("seqLen/resfac > imageLen * zoom (%d > %d (%d*%f))", seqLen / dc->numFrames, (int)(imageLen * dwc->zoomFactor), imageLen, dwc->zoomFactor);
+dotplot.c:704:  if (valueWithinRange(qcenter, &dwc->refSeqRange))
+dotplot.c:706:      dwc->refCoord = qcenter;
+dotplot.c:710:      dwc->refCoord = getRangeCentre(&dwc->refSeqRange);
+dotplot.c:713:  if (valueWithinRange(qcenter, &dwc->matchSeqRange))
+dotplot.c:715:      dwc->matchCoord = qcenter;
+dotplot.c:719:      dwc->matchCoord = getRangeCentre(&dwc->matchSeqRange);
+dotplot.c:763:      properties->pixelFac = pixelFacIn ? pixelFacIn : 0.2 * NUM_COLORS / properties->expResScore;
+dotplot.c:766:      properties->imageWidth = getImageDimension(properties, TRUE);
+dotplot.c:767:      properties->imageHeight = getImageDimension(properties, FALSE);
+dotplot.c:768:      properties->lineLen = properties->imageWidth;
+dotplot.c:769:      DEBUG_OUT("Set image w=%d, h=%d, line len=%d\n", properties->imageWidth, properties->imageHeight, properties->lineLen);
+dotplot.c:773:      if (properties->hspMode == DOTTER_HSPS_GREYSCALE)
+dotplot.c:775:          pixmap = &properties->hspPixmap;
+dotplot.c:776:          initPixmap(pixmap, properties->imageWidth, properties->imageHeight);
+dotplot.c:778:      else if (properties->pixelmapOn)
+dotplot.c:780:          pixmap = &properties->pixelmap;
+dotplot.c:781:          initPixmap(pixmap, properties->imageWidth, properties->imageHeight);
+dotplot.c:788:          properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
+dotplot.c:791:            transformGreyRampImage(properties->image, *pixmap, properties);
+dotplot.c:809:        initCrosshairCoords(qcenter, scenter, properties->dotterWinCtx);
+dotplot.c:811:      /* Calculate the size of the dot-plot */
+dotplot.c:870:  DotterContext *dc = dwc->dotterCtx;
+dotplot.c:871:  const gboolean showCrosshair = properties->crosshairOn && properties->crosshairFullscreen;
+dotplot.c:877:                                    dc->refSeqStrand, 
+dotplot.c:879:                                    properties->imageWidth,
+dotplot.c:880:                                    properties->imageHeight,
+dotplot.c:881:                                    &dwc->refSeqRange, 
+dotplot.c:883:                                    &properties->hozExons1);
+dotplot.c:888:                                    getOppositeStrand(dc->refSeqStrand), 
+dotplot.c:890:                                    properties->imageWidth, 
+dotplot.c:891:                                    properties->imageHeight,
+dotplot.c:892:                                    &dwc->refSeqRange, 
+dotplot.c:894:                                    &properties->hozExons2);
+dotplot.c:899:                                     dc->matchSeqStrand, 
+dotplot.c:901:                                     properties->imageWidth,
+dotplot.c:902:                                     properties->imageHeight,
+dotplot.c:903:                                     &dwc->matchSeqRange,
+dotplot.c:905:                                     &properties->vertExons1);
+dotplot.c:910:                                     getOppositeStrand(dc->matchSeqStrand),
+dotplot.c:912:                                     properties->imageWidth, 
+dotplot.c:913:                                     properties->imageHeight,
+dotplot.c:914:                                     &dwc->matchSeqRange, 
+dotplot.c:916:                                     &properties->vertExons2);
+dotplot.c:949:  DotterContext *dc = dwc->dotterCtx;
+dotplot.c:950:  GtkWidget *hozLabel = createLabel(dc->refSeqName, 0.5, 0.5, FALSE, TRUE);
+dotplot.c:951:  GtkWidget *vertLabel = createLabel(dc->matchSeqName, 0.5, 0.5, FALSE, TRUE);
+dotplot.c:967:  g_signal_connect(G_OBJECT(*dotplot), "expose-event", G_CALLBACK(onExposeDotplot), NULL);
+dotplot.c:968:  g_signal_connect(G_OBJECT(*dotplot), "button-press-event", G_CALLBACK(onButtonPressDotplot), NULL);
+dotplot.c:969:  g_signal_connect(G_OBJECT(*dotplot), "button-release-event", G_CALLBACK(onButtonReleaseDotplot), NULL);
+dotplot.c:970:  g_signal_connect(G_OBJECT(*dotplot), "motion-notify-event",   G_CALLBACK(onMouseMoveDotplot), NULL);
+dotplot.c:977:/* Delete image and pixmaps. Needed if we have to re-create them at a different size. */
+dotplot.c:980:  if (properties->image)
+dotplot.c:982:      gdk_image_unref(properties->image);
+dotplot.c:983:      properties->image = NULL;
+dotplot.c:986:  if (properties->pixelmap)
+dotplot.c:988:      g_free(properties->pixelmap);
+dotplot.c:989:      properties->pixelmap = NULL;
+dotplot.c:992:  if (properties->hspPixmap)
+dotplot.c:994:      g_free(properties->hspPixmap);
+dotplot.c:995:      properties->hspPixmap = NULL;
+dotplot.c:1010:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:1015:  const int alphabetSize = getAlphabetSize(dc->displaySeqType);
+dotplot.c:1018:   size in order to get the other parameters (properties->expResScore) */
+dotplot.c:1020:  if (dc->blastMode == BLXMODE_BLASTX) 
+dotplot.c:1022:      win1 = winsizeFromlambdak(dc->matrix, atob_0, alphabetSize, dc->peptideSeqs[0], dc->matchSeq, &exp1, &lambda);
+dotplot.c:1023:      win2 = winsizeFromlambdak(dc->matrix, atob_0, alphabetSize, dc->peptideSeqs[1], dc->matchSeq, &exp2, &lambda);
+dotplot.c:1024:      win3 = winsizeFromlambdak(dc->matrix, atob_0, alphabetSize, dc->peptideSeqs[2], dc->matchSeq, &exp3, &lambda);
+dotplot.c:1025:      properties->expResScore = (exp1 + exp2 + exp3)/3.0;
+dotplot.c:1026:      properties->slidingWinSize = (win1 + win2 + win3)/3.0;
+dotplot.c:1028:  else if (dc->blastMode == BLXMODE_BLASTN)
+dotplot.c:1030:      properties->slidingWinSize = winsizeFromlambdak(dc->matrix, ntob, alphabetSize, dc->refSeq, dc->matchSeq, &properties->expResScore, &lambda);
+dotplot.c:1034:      properties->slidingWinSize = winsizeFromlambdak(dc->matrix, atob_0, alphabetSize, dc->refSeq, dc->matchSeq, &properties->expResScore, &lambda);
+dotplot.c:1039:      if (properties->slidingWinSize < 3) 
+dotplot.c:1041:          g_critical("Karlin/Altschul estimate of window size = %d ignored. Using 10 instead.\n", properties->slidingWinSize);
+dotplot.c:1042:          properties->slidingWinSize = 10;
+dotplot.c:1045:      if (properties->slidingWinSize > 50) 
+dotplot.c:1047:          g_critical("Karlin/Altschul estimate of window size = %d ignored. Using 50 instead.\n", properties->slidingWinSize);
+dotplot.c:1048:          properties->slidingWinSize = 50;
+dotplot.c:1058:      properties->slidingWinSize = atoi(winsizeIn);
+dotplot.c:1063:/* Get a base in the horizontal (reference) sequence. The given index is zero-based within our
+dotplot.c:1067:  DotterContext *dc = dwc->dotterCtx;
+dotplot.c:1071:  if (dc->blastMode == BLXMODE_BLASTX)
+dotplot.c:1073:      result = dc->peptideSeqs[frame][idx + offset];
+dotplot.c:1078:      const int coord = dc->hozScaleRev ? dwc->refSeqRange.max - idx : dwc->refSeqRange.min + idx;
+dotplot.c:1081:      const gboolean complement = (dc->refSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->hozScaleRev);
+dotplot.c:1083:      result = getSequenceIndex(dc->refSeq, coord, complement, &dc->refSeqFullRange, dc->refSeqType);
+dotplot.c:1090:/* Get a base in the vertical (match) sequence. The given index is zero-based within our
+dotplot.c:1094:  DotterContext *dc = dwc->dotterCtx;
+dotplot.c:1097:  const int coord = dc->vertScaleRev ? dwc->matchSeqRange.max - idx : dwc->matchSeqRange.min + idx;
+dotplot.c:1099:  const gboolean complement = (dc->matchSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->vertScaleRev);
+dotplot.c:1101:  return getSequenceIndex(dc->matchSeq, coord, complement, &dc->matchSeqFullRange, dc->matchSeqType);
+dotplot.c:1121: * except for the not-a-residue entry) */
+dotplot.c:1124:  DotterContext *dc = dwc->dotterCtx;
+dotplot.c:1136:  if (dc->blastMode != BLXMODE_BLASTN)
+dotplot.c:1138:      /* Populate non-protein symbols in scorevector */
+dotplot.c:1142:          scoreVec[vecLen - 1][qIdx] = dc->matrix[vecLen - 2][vecLen - 2];
+dotplot.c:1150:  DotterContext *dc = dwc->dotterCtx;
+dotplot.c:1154:  for (rowIdx = 0; rowIdx < vecLen - 1; ++rowIdx)
+dotplot.c:1163:          const gint32 score = dc->matrix[rowIdx][aminoAcidId]; /* score of this base in the q seq wrt the current amino acid ID 'i' */
+dotplot.c:1195:      if (sIdx < slen - slidingWinSize) 
+dotplot.c:1208:          delrow = scoreVec[sIndex[sIdx - slidingWinSize]];
+dotplot.c:1239:  DotterContext *dc = dwc->dotterCtx;
+dotplot.c:1240:  const int pixelmapLen = properties->imageWidth * properties->imageHeight;
+dotplot.c:1258:   * info to calculate the average properly - exclude the winsize at the start if fwd or the end if reverse) */
+dotplot.c:1260:  validRange.min = (qStrand == BLXSTRAND_REVERSE ? 0 : properties->slidingWinSize);
+dotplot.c:1261:  validRange.max = (qStrand == BLXSTRAND_REVERSE ? slen - properties->slidingWinSize : slen);
+dotplot.c:1263:  /* Re-populate the score vector for this reading frame */
+dotplot.c:1264:  populateScoreVec(dwc, vecLen, pepQSeqLen, frame, pepQSeqOffset, getTranslationTable(dc->displaySeqType, qStrand), scoreVec);
+dotplot.c:1269:      /* Set oldsum to the previous row. (newsum will be overwritten, but we re-use the
+dotplot.c:1274:      delrow = getRowToDelete(sIdx, slen, sIndex, scoreVec, zero, properties->slidingWinSize, qStrand);
+dotplot.c:1276:      /* We add the pre-calculated value from the score vector for the current amino acid */
+dotplot.c:1281:      qmax = min(properties->slidingWinSize, pepQSeqLen);
+dotplot.c:1291:      qmax = (dc->blastMode != BLXMODE_BLASTX && dwc->selfComp ? sIdx + 1 : pepQSeqLen);
+dotplot.c:1297:          *newsum = *oldsum + *addrow - *delrow;
+dotplot.c:1304:              dotposq = (qIdx - win2)/dwc->zoomFactor;
+dotplot.c:1305:              dotposs = (sIdx - (incrementVal * win2))/dwc->zoomFactor;
+dotplot.c:1308:              const int qPosLocal = qIdx - win2 - (dotposq * dwc->zoomFactor);  /* query position in local submatrix (of one pixel) */
+dotplot.c:1309:              int sPosLocal = sIdx - (incrementVal * win2) - (dotposs * dwc->zoomFactor);  /* subject position in local submatrix (of one pixel) */
+dotplot.c:1315:                  sPosLocal = dwc->zoomFactor - 1 - sPosLocal;
+dotplot.c:1320:                  dotpos = properties->imageWidth*dotposs + dotposq;
+dotplot.c:1324:                      g_critical ( "Pixel %d out of bounds. Pixelmap len=%d, mode =%d, ref sequqnece strand=%s\n", dotpos, pixelmapLen, dc->blastMode, (qStrand == BLXSTRAND_REVERSE ? "reverse" : "forward"));
+dotplot.c:1329:                      const int val = *newsum * properties->pixelFac / properties->slidingWinSize;
+dotplot.c:1331:                      unsigned char *curDot = &properties->pixelmap[dotpos];
+dotplot.c:1348:  DotterContext *dc = dwc->dotterCtx;
+dotplot.c:1356:  if (dwc->selfComp) 
+dotplot.c:1359:  if (dc->blastMode == BLXMODE_BLASTN && !(dc->watsonOnly || dc->crickOnly)) 
+dotplot.c:1362:  if (dc->blastMode == BLXMODE_BLASTX) 
+dotplot.c:1366:  int sec = (int)(numDots/speed) - min*60;
+dotplot.c:1393:  g_assert(properties->slidingWinSize > 0);
+dotplot.c:1400:  /* Extract some often-used data */
+dotplot.c:1401:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:1402:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:1403:  const int qlen = getRangeLength(&dwc->refSeqRange);
+dotplot.c:1404:  const int slen = getRangeLength(&dwc->matchSeqRange);
+dotplot.c:1405:  const int win2 = properties->slidingWinSize/2;
+dotplot.c:1411:  const int qOffset = dc->refSeqStrand == BLXSTRAND_REVERSE 
+dotplot.c:1412:    ? dc->refSeqFullRange.max - dwc->refSeqRange.max
+dotplot.c:1413:    : dwc->refSeqRange.min - dc->refSeqFullRange.min;
+dotplot.c:1416:  const int resFactor = (dc->blastMode == BLXMODE_BLASTX ? dc->numFrames : 1);
+dotplot.c:1419:  const int vecLen = (dc->displaySeqType == BLXSEQ_DNA ? 6 : 25);
+dotplot.c:1423:   * binary values (i.e. amino-acid IDs 0 -> 23) */
+dotplot.c:1428:  populateMatchSeqBinaryVals(dwc, slen, getTranslationTable(dc->matchSeqType, BLXSTRAND_FORWARD), sIndex);
+dotplot.c:1442:  if (dc->blastMode == BLXMODE_BLASTX)
+dotplot.c:1444:      /* Protein -> Nucleotide matches. Calculate the result for each reqding frame of the
+dotplot.c:1447:      for ( ; frame < dc->numFrames; ++frame)
+dotplot.c:1455:  else if (dc->blastMode == BLXMODE_BLASTP) 
+dotplot.c:1457:      /* Protein -> Protein matches. Straightforward comparison of the two sequences. */
+dotplot.c:1462:  else if (dc->blastMode == BLXMODE_BLASTN)
+dotplot.c:1464:      /* Nucleotide -> Nucleotide matches. Calculate the result for each strand of the reference
+dotplot.c:1467:      if (!dc->crickOnly)
+dotplot.c:1474:      if (!dc->watsonOnly)
+dotplot.c:1476:          doCalculateImage(BLXSTRAND_REVERSE, -1, slen - 1, 0,
+dotplot.c:1482:  if (dwc->selfComp && dc->displayMirror) 
+dotplot.c:1488:      for (sIdx = 0; sIdx < properties->imageHeight; ++sIdx) 
+dotplot.c:1492:              dotpos = properties->imageWidth * sIdx + qIdx;
+dotplot.c:1493:              dotposCopy = properties->imageWidth * qIdx + sIdx;
+dotplot.c:1495:              const int pixelmapLen = properties->imageWidth * properties->imageHeight;
+dotplot.c:1499:                            pixelmapLen-1, dotpos);
+dotplot.c:1502:                            pixelmapLen-1, dotposCopy);
+dotplot.c:1503:              properties->pixelmap[dotposCopy] = properties->pixelmap[dotpos];
+dotplot.c:1517:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:1518:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:1529:  /* 'dotstart' is the sum of how many bytes there are before the dot-plot data starts. We remember this
+dotplot.c:1531:   * to jump back to in the file to start reading the dot-plot data. */
+dotplot.c:1548:      ok &= fread(&dwc->zoomFactor, 1, sizeof(gint32), loadFile) == sizeof(gint32);
+dotplot.c:1553:      ok &= fread(&dwc->zoomFactor, 1, sizeof(gdouble), loadFile) == sizeof(gdouble);
+dotplot.c:1558:  ok &= fread(&properties->imageWidth, 1, sizeof(gint32), loadFile) == sizeof(gint32);
+dotplot.c:1561:  ok &= fread(&properties->imageHeight, 1, sizeof(gint32), loadFile) == sizeof(gint32);
+dotplot.c:1571:  reversebytes(&dwc->zoomFactor, sizeof(gdouble));
+dotplot.c:1572:  reversebytes(&properties->imageWidth, sizeof(gint32));
+dotplot.c:1573:  reversebytes(&properties->imageHeight, sizeof(gint32));
+dotplot.c:1576:  properties->lineLen = properties->imageWidth;
+dotplot.c:1580:      /* Don't actually know these variables for sure - guess the most common */
+dotplot.c:1581:      properties->pixelFac = 50;
+dotplot.c:1582:      properties->slidingWinSize = 25;
+dotplot.c:1586:      ok &= fread(&properties->pixelFac, 1, sizeof(gint32), loadFile) == sizeof(gint32);
+dotplot.c:1589:      ok &= fread(&properties->slidingWinSize, 1, sizeof(gint32), loadFile) == sizeof(gint32);
+dotplot.c:1600:          reversebytes(&properties->pixelFac, sizeof(gint32));
+dotplot.c:1601:          reversebytes(&properties->slidingWinSize, sizeof(gint32));
+dotplot.c:1616:          g_free(dc->matrixName);
+dotplot.c:1617:          dc->matrixName = g_strdup(matrixName);
+dotplot.c:1633:                  dc->matrix[i][j] = matrixVal;
+dotplot.c:1648:  const int pixelmapLen = properties->imageHeight*properties->imageWidth;
+dotplot.c:1650:  if (n - dotstart != pixelmapLen)
+dotplot.c:1653:            loadFileName, n - dotstart, properties->imageWidth, properties->imageHeight, pixelmapLen);
+dotplot.c:1658:  initPixmap(&properties->pixelmap, properties->imageWidth, properties->imageHeight);
+dotplot.c:1670:      properties->pixelmap[i] = pixelVal;
+dotplot.c:1674://  if ((n = fread(properties->pixelmap, sizeof(unsigned char), pixelmapLen, loadFile)) != pixelmapLen)
+dotplot.c:1676://      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Read wrong number of pixels from %s: %d. Expected %d * %-d = %d\n", 
+dotplot.c:1677://              loadFileName, n, properties->imageWidth, properties->imageHeight, pixelmapLen);
+dotplot.c:1693:  if (properties->image)
+dotplot.c:1694:    gdk_image_unref(properties->image);
+dotplot.c:1696:  properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
+dotplot.c:1700:/* savePlot writes a 1 byte unsigned-char at the start of the file to indicate the file format. 
+dotplot.c:1701: * It then writes various parameters (as determined by that format) and then the dot-matrix itself.
+dotplot.c:1720:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:1721:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:1737:    fileName = getSaveFileName(dotplot, fileName, NULL, ".dotter", "Save dot-plot in dotter format");
+dotplot.c:1758:  const gint32 MNlen = strlen(dc->matrixName);
+dotplot.c:1762:  reversebytes(&dwc->zoomFactor, sizeof(gdouble));
+dotplot.c:1763:  reversebytes(&properties->imageWidth, sizeof(gint32));
+dotplot.c:1764:  reversebytes(&properties->imageHeight, sizeof(gint32));
+dotplot.c:1771:  ok &= fwrite(&dwc->zoomFactor, 1, sizeof(gdouble), saveFile) == sizeof(gdouble);
+dotplot.c:1772:  ok &= fwrite(&properties->imageWidth, 1, sizeof(gint32), saveFile) == sizeof(gint32);
+dotplot.c:1773:  ok &= fwrite(&properties->imageHeight, 1, sizeof(gint32), saveFile) == sizeof(gint32);
+dotplot.c:1774:  ok &= fwrite(&properties->pixelFac,  1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+dotplot.c:1775:  ok &= fwrite(&properties->slidingWinSize, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+dotplot.c:1777:  ok &= fwrite(dc->matrixName, sizeof(char), MNlen, saveFile) == sizeof(char) * MNlen; /* New feature of format 2  */
+dotplot.c:1789:          mtx = dc->matrix[i][j];
+dotplot.c:1798:  reversebytes(&dwc->zoomFactor, sizeof(gdouble));
+dotplot.c:1799:  reversebytes(&properties->imageWidth, sizeof(gint32));
+dotplot.c:1800:  reversebytes(&properties->imageHeight, sizeof(gint32));
+dotplot.c:1807:  const int imgSize = properties->imageWidth * properties->imageHeight;
+dotplot.c:1811:      unsigned char pixelVal = properties->pixelmap[i];
+dotplot.c:1819://  ok &= fwrite(properties->pixelmap, sizeof(unsigned char), imgSize, saveFile) == imgSize;
+dotplot.c:1838:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:1839:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:1850:    fileName = getSaveFileName(dotplot, fileName, NULL, ".pdf", "Export dot-plot");
+dotplot.c:1871:  blxPrintWidget(parent, dc->dotterWindow, NULL, NULL, fileName, TRUE, PRINT_FIT_BOTH);
+dotplot.c:1875:/* Clear previous image and pixmaps and re-create them */
+dotplot.c:1884:  properties->imageWidth = getImageDimension(properties, TRUE);
+dotplot.c:1885:  properties->imageHeight = getImageDimension(properties, FALSE);
+dotplot.c:1886:  properties->lineLen = properties->imageWidth;
+dotplot.c:1888:  DEBUG_OUT("Set image w=%d, h=%d, line len=%d\n", properties->imageWidth, properties->imageHeight, properties->lineLen);
+dotplot.c:1891:  if (properties->image)
+dotplot.c:1892:    gdk_image_unref(properties->image);
+dotplot.c:1894:  properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
+dotplot.c:1897:  if (properties->hspMode == DOTTER_HSPS_GREYSCALE)
+dotplot.c:1899:      initPixmap(&properties->hspPixmap, properties->imageWidth, properties->imageHeight);
+dotplot.c:1900:      transformGreyRampImage(properties->image, properties->hspPixmap, properties);
+dotplot.c:1902:  else if (properties->pixelmapOn)
+dotplot.c:1904:      initPixmap(&properties->pixelmap, properties->imageWidth, properties->imageHeight);
+dotplot.c:1906:      transformGreyRampImage(properties->image, properties->pixelmap, properties);
+dotplot.c:1918:  int result = properties->plotRect.y + 
+dotplot.c:1919:               properties->plotRect.height + 		  
+dotplot.c:1923:  if (properties->breaklinesOn && properties->hozLabelsOn)
+dotplot.c:1926:      result += properties->dotterWinCtx->dotterCtx->charHeight + (2 * ANNOTATION_LABEL_PADDING);
+dotplot.c:1935:  int result = properties->plotRect.x +
+dotplot.c:1936:               properties->plotRect.width + 
+dotplot.c:1940:  if (properties->breaklinesOn && properties->vertLabelsOn)
+dotplot.c:1943:      result += (properties->dotterWinCtx->dotterCtx->charWidth * ANNOTATION_LABEL_LEN) + 
+dotplot.c:1955:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:1957:  properties->plotRect.x = DEFAULT_X_PADDING + dc->scaleWidth;
+dotplot.c:1958:  properties->plotRect.y = DEFAULT_Y_PADDING + dc->scaleHeight;
+dotplot.c:1959:  properties->plotRect.width = properties->imageWidth;
+dotplot.c:1960:  properties->plotRect.height = properties->imageHeight;
+dotplot.c:1988:  gtk_widget_queue_draw(properties->hozExons1);
+dotplot.c:1989:  gtk_widget_queue_draw(properties->hozExons2);
+dotplot.c:1990:  gtk_widget_queue_draw(properties->vertExons1);
+dotplot.c:1991:  gtk_widget_queue_draw(properties->vertExons2);
+dotplot.c:1999:  widgetClearCachedDrawable(properties->hozExons1, NULL);
+dotplot.c:2000:  widgetClearCachedDrawable(properties->hozExons2, NULL);
+dotplot.c:2001:  widgetClearCachedDrawable(properties->vertExons1, NULL);
+dotplot.c:2002:  widgetClearCachedDrawable(properties->vertExons2, NULL);
+dotplot.c:2017:  calculateDotterExonViewBorders(properties->hozExons1, properties->imageWidth, properties->imageHeight);
+dotplot.c:2018:  calculateDotterExonViewBorders(properties->hozExons2, properties->imageWidth, properties->imageHeight);
+dotplot.c:2019:  calculateDotterExonViewBorders(properties->vertExons1, properties->imageWidth, properties->imageHeight);
+dotplot.c:2020:  calculateDotterExonViewBorders(properties->vertExons2, properties->imageWidth, properties->imageHeight);
+dotplot.c:2039: * (Normally the crosshair does not get drawn to the pixmap - it just gets 
+dotplot.c:2058:  exonViewPrepareForPrinting(properties->hozExons1);
+dotplot.c:2059:  exonViewPrepareForPrinting(properties->hozExons2);
+dotplot.c:2060:  exonViewPrepareForPrinting(properties->vertExons1);
+dotplot.c:2061:  exonViewPrepareForPrinting(properties->vertExons2);
+dotplot.c:2071:    cutoff = -cutoff ;
+dotplot.c:2094:  if (properties->gridlinesOn)
+dotplot.c:2098:      DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:2099:      DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:2101:      GdkColor *gridColor = getGdkColor(DOTCOLOR_GRID, dc->defaultColors, FALSE, dwc->usePrintColors);
+dotplot.c:2104:      int xEnd = horizontal ? xStart : xStart + properties->plotRect.width;
+dotplot.c:2105:      int yEnd = horizontal ? yStart + properties->plotRect.height : yStart;
+dotplot.c:2127:  x -= horizontal ? width / 2 : width;
+dotplot.c:2128:  y -= horizontal ? height : height / 2;;
+dotplot.c:2144:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:2146:  const gboolean reversedScale = ((horizontal && dc->hozScaleRev) || (!horizontal && dc->vertScaleRev));
+dotplot.c:2147:  const int direction = reversedScale ? -1 : 1;
+dotplot.c:2156:  const int variableBorder = horizontal ? properties->plotRect.x : properties->plotRect.y;
+dotplot.c:2157:  const int staticBorder = horizontal ? properties->plotRect.y - SCALE_LINE_WIDTH : properties->plotRect.x - SCALE_LINE_WIDTH;
+dotplot.c:2167:      startCoord = displayRange->max;
+dotplot.c:2168:      endCoord = displayRange->min;
+dotplot.c:2174:      startCoord = displayRange->min;
+dotplot.c:2175:      endCoord = displayRange->max;
+dotplot.c:2179:  const int firstMarkPos = variableBorder + abs(firstMarkCoord - startCoord) / scaleFactor;
+dotplot.c:2180:  const int numSubmarks = (int)((gdouble)(abs(endCoord - firstMarkCoord) + 1) / basesPerSubmark) + 1;
+dotplot.c:2194:      int x1 = horizontal ? currentPos : staticBorder - tickHeight;
+dotplot.c:2196:      int y1 = horizontal ? staticBorder - tickHeight : currentPos;
+dotplot.c:2224:                     properties->plotRect.x - SCALE_LINE_WIDTH, properties->plotRect.y - SCALE_LINE_WIDTH, 
+dotplot.c:2225:                     properties->plotRect.width + SCALE_LINE_WIDTH, properties->plotRect.height + SCALE_LINE_WIDTH);
+dotplot.c:2227:  drawScaleMarkers(dotplot, drawable, gc, &properties->dotterWinCtx->refSeqRange, properties, TRUE);
+dotplot.c:2228:  drawScaleMarkers(dotplot, drawable, gc, &properties->dotterWinCtx->matchSeqRange, properties, FALSE);
+dotplot.c:2237:  g_assert(msp && msp->type == BLXMSP_FS_SEG);
+dotplot.c:2238:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:2241:  if (msp->qRange.min != msp->qRange.max)
+dotplot.c:2242:    g_warning("Breakline coords should be the same but min=%d and max=%d\n", msp->qRange.min, msp->qRange.max);
+dotplot.c:2245:  gboolean horizontal = (msp->qname && strcmp(msp->qname, dc->refSeqName) == 0);
+dotplot.c:2246:  gboolean vertical = (msp->qname && strcmp(msp->qname, dc->matchSeqName) == 0);
+dotplot.c:2251:      int sy = properties->plotRect.y;
+dotplot.c:2252:      int ey = properties->plotRect.y + properties->plotRect.height + ANNOTATION_LABEL_PADDING;
+dotplot.c:2259:      if (properties->hozLabelsOn && msp->desc)
+dotplot.c:2261:	  PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, msp->desc);
+dotplot.c:2270:      int sx = properties->plotRect.x;
+dotplot.c:2271:      int ex = properties->plotRect.x + properties->plotRect.width + ANNOTATION_LABEL_PADDING;
+dotplot.c:2279:      sy += properties->plotRect.y - properties->plotRect.x;
+dotplot.c:2280:      ey += properties->plotRect.y - properties->plotRect.x;
+dotplot.c:2285:      if (properties->vertLabelsOn && msp->desc)
+dotplot.c:2287:	  PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, msp->desc);
+dotplot.c:2300:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:2301:  DotterContext *dc = dwc->dotterCtx;
+dotplot.c:2303:  if (properties->breaklinesOn)
+dotplot.c:2308:      GdkColor *color = getGdkColor(DOTCOLOR_BREAKLINE, dc->defaultColors, FALSE, dwc->usePrintColors);
+dotplot.c:2312:      const MSP const *msp = dc->mspList;
+dotplot.c:2314:      for ( ; msp; msp = msp->next)
+dotplot.c:2316:	  if (msp->type == BLXMSP_FS_SEG)
+dotplot.c:2327:/* Draw the crosshair that indicates the position of the currently-selected coords */
+dotplot.c:2332:  if (properties->crosshairOn)
+dotplot.c:2336:      DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:2337:      DotterContext *dc = dwc->dotterCtx;
+dotplot.c:2340:      GdkColor *lineColor = getGdkColor(DOTCOLOR_CROSSHAIR, dc->defaultColors, FALSE, dwc->usePrintColors);
+dotplot.c:2347:       * depend on whether it's across the whole widget or just the dot-plot rectangle */
+dotplot.c:2348:      int x1 = properties->crosshairFullscreen ? 0: properties->plotRect.x;
+dotplot.c:2349:      int width = properties->crosshairFullscreen ? dotplot->allocation.width : properties->plotRect.width;
+dotplot.c:2352:      /* Draw the vertical line (x position is at the ref sequence coord position - inverted if the display is reversed) */
+dotplot.c:2353:      int y1 = properties->crosshairFullscreen ? 0 : properties->plotRect.y;
+dotplot.c:2354:      int height = properties->crosshairFullscreen ? dotplot->allocation.height : properties->plotRect.height;
+dotplot.c:2357:      if (properties->crosshairCoordsOn)
+dotplot.c:2361:					getDisplayCoord(dwc->refCoord, dc, TRUE), 
+dotplot.c:2362:					getDisplayCoord(dwc->matchCoord, dc, FALSE));
+dotplot.c:2371:              /* We draw the label below-right by default, or above/left if it won't fit */
+dotplot.c:2372:              if (x + CROSSHAIR_TEXT_PADDING + textWidth > properties->plotRect.x + properties->plotRect.width)
+dotplot.c:2374:                  x -= CROSSHAIR_TEXT_PADDING + textWidth;
+dotplot.c:2381:              if (y + CROSSHAIR_TEXT_PADDING + textHeight > properties->plotRect.y + properties->plotRect.height)
+dotplot.c:2383:                  y -= CROSSHAIR_TEXT_PADDING + textHeight;
+dotplot.c:2413:      gdk_draw_image(drawable, gc, properties->image,
+dotplot.c:2414:                     0, 0, properties->plotRect.x, properties->plotRect.y,
+dotplot.c:2415:                     properties->image->width, properties->image->height); 
+dotplot.c:2417:      /* We cannot calculate the image in the sliding-window size border,
+dotplot.c:2419:      DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:2420:      DotterContext *dc = dwc->dotterCtx;
+dotplot.c:2422:      GdkColor *color = getGdkColor(DOTCOLOR_BORDER, dc->defaultColors, FALSE, dwc->usePrintColors);
+dotplot.c:2424:      const int hBorder = properties->slidingWinSize / (2 * getScaleFactor(properties, TRUE));
+dotplot.c:2425:      const int vBorder = properties->slidingWinSize / (2 * getScaleFactor(properties, FALSE));
+dotplot.c:2428:      GdkRectangle *r = &properties->plotRect;
+dotplot.c:2430:      drawRect(drawable, color, r->x, r->y, vBorder, r->height, alpha, op);
+dotplot.c:2431:      drawRect(drawable, color, r->x + r->width - vBorder, r->y, vBorder, r->height, alpha, op);
+dotplot.c:2432:      drawRect(drawable, color, r->x, r->y, r->width, hBorder, alpha, op);
+dotplot.c:2433:      drawRect(drawable, color, r->x, r->y + r->height - hBorder, r->width, hBorder, alpha, op);      
+dotplot.c:2462:  /* Get zero-based coords from the edge of the drawing rectangle */
+dotplot.c:2463:  sx -= properties->plotRect.x;
+dotplot.c:2464:  ex -= properties->plotRect.x;
+dotplot.c:2465:  sy -= properties->plotRect.y;
+dotplot.c:2466:  ey -= properties->plotRect.y;
+dotplot.c:2468:  const int xInc = (sx < ex) ? 1 : -1;
+dotplot.c:2469:  const int xLen = (ex - sx) * xInc + 1;
+dotplot.c:2470:  const int yInc = (sy < ey) ? 1 : -1;
+dotplot.c:2471:  const int yLen = (ey - sy) * yInc + 1;
+dotplot.c:2473:  const int width = properties->image->width;
+dotplot.c:2474:  const int height = properties->image->height;
+dotplot.c:2482:    dotValue = NUM_COLORS - 1;
+dotplot.c:2495:          if (dotpos >= 0 && dotpos < pixelmapLen && dotValue > properties->hspPixmap[dotpos]) 
+dotplot.c:2497:              properties->hspPixmap[dotpos] = dotValue;
+dotplot.c:2509:  const int qStart = msp->qRange.min;
+dotplot.c:2510:  const int qEnd = msp->qRange.max;
+dotplot.c:2511:  const int sStart = sameDirection ? msp->sRange.min : msp->sRange.max;
+dotplot.c:2512:  const int sEnd = sameDirection ? msp->sRange.max : msp->sRange.min;
+dotplot.c:2525:  if (properties->hspMode != DOTTER_HSPS_LINE && properties->hspMode != DOTTER_HSPS_FUNC)
+dotplot.c:2531:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:2535:  gdk_gc_set_clip_rectangle(gc, &properties->plotRect);
+dotplot.c:2538:  MSP *msp = dc->mspList;
+dotplot.c:2541:  for (msp = dc->mspList; msp;  msp = msp->next)
+dotplot.c:2544:      if (!mspName || strcmp(mspName, dc->matchSeqName) != 0)
+dotplot.c:2552:      if (properties->hspMode == DOTTER_HSPS_LINE) 
+dotplot.c:2562:      else if (properties->hspMode == DOTTER_HSPS_FUNC)
+dotplot.c:2567:          if (msp->score < 75.0)
+dotplot.c:2571:          if (msp->score < 100.0) 
+dotplot.c:2591:/* If middle-dragging, draw a rubber-band box around the currently-selected region */
+dotplot.c:2596:  if (properties->dragStart.x != UNSET_INT && properties->dragEnd.x != UNSET_INT)
+dotplot.c:2602:      gdk_draw_line(drawable, gc, properties->dragStart.x, properties->dragStart.y, properties->dragEnd.x, properties->dragStart.y);
+dotplot.c:2603:      gdk_draw_line(drawable, gc, properties->dragStart.x, properties->dragStart.y, properties->dragStart.x, properties->dragEnd.y);
+dotplot.c:2604:      gdk_draw_line(drawable, gc, properties->dragStart.x, properties->dragEnd.y, properties->dragEnd.x, properties->dragEnd.y);
+dotplot.c:2605:      gdk_draw_line(drawable, gc, properties->dragEnd.x, properties->dragStart.y, properties->dragEnd.x, properties->dragEnd.y);
+dotplot.c:2623:  if (visual->type == GDK_VISUAL_PSEUDO_COLOR) 
+dotplot.c:2625:      g_critical("Pseudo-color display not supported.\n");
+dotplot.c:2633:      properties->greyRamp[i].red = i<<8;
+dotplot.c:2634:      properties->greyRamp[i].green =  i<<8;
+dotplot.c:2635:      properties->greyRamp[i].blue = i<<8;
+dotplot.c:2638:  gdk_colormap_alloc_colors(cmap, properties->greyRamp, NUM_COLORS, FALSE, TRUE, success);
+dotplot.c:2654:  /* Note1 : here we stick to client byte-order, and rely on Xlib to swap
+dotplot.c:2660:   they represent do. If it's a true-colour visual, the map entries 
+dotplot.c:2663:   for changing the grey-ramp. */
+dotplot.c:2667:  gboolean byterev = (image->byte_order == GDK_LSB_FIRST);
+dotplot.c:2669:  gboolean byterev = (image->byte_order == GDK_MSB_FIRST);
+dotplot.c:2673:  switch (image->bpp)
+dotplot.c:2676:      for (row = 0; row < image->height; row++)
+dotplot.c:2678:	  guint8 *ptr = ((guint8 *)image->mem) + row * image->bpl;
+dotplot.c:2679:	  guint8 *sptr = ((guint8 *)pixmap) + row * properties->lineLen; 
+dotplot.c:2680:	  for (col = 0 ; col < image->width; col++)
+dotplot.c:2681:	    *ptr++ = (guint8) properties->greyMap[*sptr++];
+dotplot.c:2685:      for (row = 0; row < image->height; row++)
+dotplot.c:2687:	  guint16 *ptr = (guint16 *)(((guint8 *)(image->mem))+row*image->bpl);
+dotplot.c:2688:	  guint8 *sptr = ((guint8 *)pixmap) +row*properties->lineLen;
+dotplot.c:2690:	    for (col = 0 ; col < image->width; col++)
+dotplot.c:2692:		register guint32 pixel = properties->greyMap[*sptr++];
+dotplot.c:2696:	    for (col = 0 ; col < image->width; col++)
+dotplot.c:2697:	      *ptr++ = (guint16) properties->greyMap[*sptr++];
+dotplot.c:2701:      for (row = 0; row < image->height; row++)
+dotplot.c:2703:	  guint8 *ptr = ((guint8 *)image->mem) + row*image->bpl;
+dotplot.c:2704:	  guint8 *sptr = ((guint8 *)pixmap) +row*properties->lineLen;
+dotplot.c:2705:	  for (col = 0 ; col < image->width; col++)
+dotplot.c:2707:	      register guint32 pixel = properties->greyMap[*sptr++]; 
+dotplot.c:2715:      for (row = 0; row < image->height; row++)
+dotplot.c:2717:	  guint32 *ptr = (guint32 *)(((guint8 *)image->mem) + row*image->bpl);
+dotplot.c:2718:	  guint8 *sptr = ((guint8 *)pixmap) +row*properties->lineLen;
+dotplot.c:2720:	    for (col = 0 ; col < image->width; col++)
+dotplot.c:2722:		register guint32 pixel = properties->greyMap[*sptr++];
+dotplot.c:2730:	    for (col = 0 ; col < image->width; col++)
+dotplot.c:2731:	      *ptr++ = (guint32) properties->greyMap[*sptr++];
+dotplot.c:2747:/* Update the dot-plot image following a change in the greyramp */
+dotplot.c:2759:      GdkColor *color = &properties->greyRamp[ramp[i]];
+dotplot.c:2760:      properties->greyMap[i] = color->pixel;
+dotplot.c:2765:  if (properties->hspMode == DOTTER_HSPS_GREYSCALE)
+dotplot.c:2767:      transformGreyRampImage(properties->image, properties->hspPixmap, properties);
+dotplot.c:2769:  else if (properties->pixelmap)
+dotplot.c:2771:      transformGreyRampImage(properties->image, properties->pixelmap, properties);
+dotplot.c:2786:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:2787:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:2791:  const int numBasesHoz = (x - properties->plotRect.x) * scaleFactor;
+dotplot.c:2793:  if (dc->hozScaleRev)
+dotplot.c:2795:      *refCoord = dwc->refSeqRange.max - numBasesHoz;
+dotplot.c:2799:      *refCoord = dwc->refSeqRange.min + numBasesHoz;
+dotplot.c:2804:  boundsLimitValue(refCoord, &dwc->refSeqRange);
+dotplot.c:2807:  const int numBasesVert = (y - properties->plotRect.y) * scaleFactor;  
+dotplot.c:2809:  if (dc->vertScaleRev)
+dotplot.c:2811:      *matchCoord = dwc->matchSeqRange.max - numBasesVert;
+dotplot.c:2815:      *matchCoord = dwc->matchSeqRange.min + numBasesVert;
+dotplot.c:2820:  boundsLimitValue(matchCoord, &dwc->matchSeqRange);
+dotplot.c:2824:/* Set the currently-selected coords from the given x/y position */
+dotplot.c:2828:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:2830:  getCoordsFromPos(dotplot, x, y, &dwc->refCoord, &dwc->matchCoord);
+dotplot.c:2839:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:2840:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:2847:      if (dc->hozScaleRev)
+dotplot.c:2848:	*x = properties->plotRect.x + (dwc->refSeqRange.max - qCoord) / hScaleFactor;
+dotplot.c:2850:	*x = properties->plotRect.x + (qCoord - dwc->refSeqRange.min) / hScaleFactor;
+dotplot.c:2855:      if (dc->vertScaleRev)
+dotplot.c:2856:	*y = properties->plotRect.y + (dwc->matchSeqRange.max - sCoord) / vScaleFactor;
+dotplot.c:2858:	*y = properties->plotRect.y + (sCoord - dwc->matchSeqRange.min) / vScaleFactor;
+dotplot.c:2867:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotplot.c:2869:  getPosFromCoords(properties, dwc->refCoord, dwc->matchCoord, x, y);
+dotplot.c:2876:  if (point->x < rect->x)
+dotplot.c:2877:    point->x = rect->x;
+dotplot.c:2879:  if (point->x > rect->x + rect->width)
+dotplot.c:2880:    point->x = rect->x + rect->width;
+dotplot.c:2882:  if (point->y < rect->y)
+dotplot.c:2883:    point->y = rect->y;
+dotplot.c:2885:  if (point->y > rect->y + rect->height)
+dotplot.c:2886:    point->y = rect->y + rect->height;
+dotplot.c:2894:  point->x = x;
+dotplot.c:2895:  point->y = y;
+dotplot.c:2906:  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+dotplot.c:2907:  gdouble result = properties->dotterWinCtx->zoomFactor * (gdouble)getResFactor(dc, horizontal);
+dotplot.c:2921:  memcpy(copy, ptr, n);  /* Note: strcpy doesn't work - stops at \0 */
+dotplot.c:2923:  for(i=0; i<n; i++) *cp++ = copy[n-i-1];
+dotter.c:2: *  Author: Erik Sonnhammer, 1993-09-04
+dotter.c:4: * ---------------------------------------------------------------------------
+dotter.c:17: * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+dotter.c:18: * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+dotter.c:19: * ---------------------------------------------------------------------------
+dotter.c:29: *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+dotter.c:36: *----------------------------------------------------------------------------
+dotter.c:41:   DOTTER - Sequence-sequence dotplot in a pixel background image
+dotter.c:46:          Pending (this is an old list - may be out of date):
+dotter.c:61:-------------------------------------------------------------------------------- */
+dotter.c:66:   pixie -o dotter.pixie dotter
+dotter.c:67:   dotter.pixie -wD -b t seq seq
+dotter.c:68:   prof -pixie -h -only calcWindow dotter dotter.Addrs dotter.Counts
+dotter.c:81:/* tint stuff used to be in graph.h, now local - rd 960524
+dotter.c:215:/* Toggle-able menu entries are listed here: */
+dotter.c:226:/* Radio-button menu entries are listed here: */
+dotter.c:329:static MSP   *MSPlist=0;     /* List of MSPs - the first object contains data */
+dotter.c:336:  {  4, -1, -2, -2,  0, -1, -1,  0, -2, -1, -1, -1, -1, -2, -1,  1,  0, -3, -2,  0, -2, -1,  0, -4 },
+dotter.c:337:  { -1,  5,  0, -2, -3,  1,  0, -2,  0, -3, -2,  2, -1, -3, -2, -1, -1, -3, -2, -3, -1,  0, -1, -4 },
+dotter.c:338:  { -2,  0,  6,  1, -3,  0,  0,  0,  1, -3, -3,  0, -2, -3, -2,  1,  0, -4, -2, -3,  3,  0, -1, -4 },
+dotter.c:339:  { -2, -2,  1,  6, -3,  0,  2, -1, -1, -3, -4, -1, -3, -3, -1,  0, -1, -4, -3, -3,  4,  1, -1, -4 },
+dotter.c:340:  {  0, -3, -3, -3,  9, -3, -4, -3, -3, -1, -1, -3, -1, -2, -3, -1, -1, -2, -2, -1, -3, -3, -2, -4 },
+dotter.c:341:  { -1,  1,  0,  0, -3,  5,  2, -2,  0, -3, -2,  1,  0, -3, -1,  0, -1, -2, -1, -2,  0,  3, -1, -4 },
+dotter.c:342:  { -1,  0,  0,  2, -4,  2,  5, -2,  0, -3, -3,  1, -2, -3, -1,  0, -1, -3, -2, -2,  1,  4, -1, -4 },
+dotter.c:343:  { 0, -2,  0, -1, -3, -2, -2,  6, -2, -4, -4, -2, -3, -3, -2,  0, -2, -2, -3, -3, -1, -2, -1, -4 },
+dotter.c:344:  { -2,  0,  1, -1, -3,  0,  0, -2,  8, -3, -3, -1, -2, -1, -2, -1, -2, -2,  2, -3,  0,  0, -1, -4 },
+dotter.c:345:  { -1, -3, -3, -3, -1, -3, -3, -4, -3,  4,  2, -3,  1,  0, -3, -2, -1, -3, -1,  3, -3, -3, -1, -4 },
+dotter.c:346:  { -1, -2, -3, -4, -1, -2, -3, -4, -3,  2,  4, -2,  2,  0, -3, -2, -1, -2, -1,  1, -4, -3, -1, -4 },
+dotter.c:347:  { -1,  2,  0, -1, -3,  1,  1, -2, -1, -3, -2,  5, -1, -3, -1,  0, -1, -3, -2, -2,  0,  1, -1, -4 },
+dotter.c:348:  { -1, -1, -2, -3, -1,  0, -2, -3, -2,  1,  2, -1,  5,  0, -2, -1, -1, -1, -1,  1, -3, -1, -1, -4 },
+dotter.c:349:  { -2, -3, -3, -3, -2, -3, -3, -3, -1,  0,  0, -3,  0,  6, -4, -2, -2,  1,  3, -1, -3, -3, -1, -4 },
+dotter.c:350:  { -1, -2, -2, -1, -3, -1, -1, -2, -2, -3, -3, -1, -2, -4,  7, -1, -1, -4, -3, -2, -2, -1, -2, -4 },
+dotter.c:351:  { 1, -1,  1,  0, -1,  0,  0,  0, -1, -2, -2,  0, -1, -2, -1,  4,  1, -3, -2, -2,  0,  0,  0, -4 },
+dotter.c:352:  { 0, -1,  0, -1, -1, -1, -1, -2, -2, -1, -1, -1, -1, -2, -1,  1,  5, -2, -2,  0, -1, -1,  0, -4 },
+dotter.c:353:  { -3, -3, -4, -4, -2, -2, -3, -2, -2, -3, -2, -3, -1,  1, -4, -3, -2, 11,  2, -3, -4, -3, -2, -4 },
+dotter.c:354:  { -2, -2, -2, -3, -2, -1, -2, -3,  2, -1, -1, -2, -1,  3, -3, -2, -2,  2,  7, -1, -3, -2, -1, -4 },
+dotter.c:355:  { 0, -3, -3, -3, -1, -2, -2, -3, -3,  3,  1, -2,  1, -1, -2, -2,  0, -3, -1,  4, -3, -2, -1, -4 },
+dotter.c:356:  { -2, -1,  3,  4, -3,  0,  1, -1,  0, -3, -4,  0, -3, -3, -2,  0, -1, -4, -3, -3,  4,  1, -1, -4 },
+dotter.c:357:  { -1,  0,  0,  1, -3,  3,  4, -2,  0, -3, -3,  1, -1, -3, -1,  0, -1, -3, -2, -2,  1,  4, -1, -4 },
+dotter.c:358:  { 0, -1, -1, -1, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -2,  0,  0, -2, -1, -1, -1, -1, -1, -4 },
+dotter.c:359:  { -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -1 }
+dotter.c:363://GArray *fsArr = NULL;  /* Stores Feature Series - t he actual segments are stored
+dotter.c:365://			   msp->sframe  = [1..2] sequence
+dotter.c:366://			   msp->qstart = segment start
+dotter.c:367://			   msp->qend   = segment end
+dotter.c:368://			   msp->fs     = Ordinal number of series that this MSP belongs to.
+dotter.c:369://			   msp->fsColor  = color
+dotter.c:370://			   msp->desc   = annotation
+dotter.c:382:  dc->defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), DOTCOLOR_NUM_COLORS);
+dotter.c:388:      blxColor->name = NULL;
+dotter.c:389:      blxColor->desc = NULL;
+dotter.c:390:      g_array_append_val(dc->defaultColors, *blxColor);
+dotter.c:396:  char *defaultBgColorStr = convertColorToString(&tmp->style->bg[GTK_STATE_NORMAL]);
+dotter.c:397:  createBlxColor(dc->defaultColors, DOTCOLOR_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
+dotter.c:402:  createBlxColor(dc->defaultColors, DOTCOLOR_MATCH, "Exact match", "Exact match", BLX_LIGHT_CYAN, BLX_LIGHT_CYAN, BLX_CYAN, BLX_CYAN);
+dotter.c:403:  createBlxColor(dc->defaultColors, DOTCOLOR_CONS, "Conserved match", "Conserved match", BLX_VIOLET, BLX_VIOLET, BLX_DARK_VIOLET, BLX_DARK_VIOLET);
+dotter.c:404:  createBlxColor(dc->defaultColors, DOTCOLOR_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#cacaca", BLX_WHITE);
+dotter.c:407:  createBlxColor(dc->defaultColors, DOTCOLOR_EXON_FILL, "Exon fill color", "Exon fill color", BLX_YELLOW, BLX_YELLOW, NULL, NULL);
+dotter.c:408:  createBlxColor(dc->defaultColors, DOTCOLOR_EXON_LINE, "Exon line color", "Exon outline color", BLX_BLUE, BLX_BLUE, NULL, NULL);
+dotter.c:409:  createBlxColor(dc->defaultColors, DOTCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color", BLX_LIGHT_GREEN, BLX_LIGHT_GREEN, NULL, NULL);
+dotter.c:410:  createBlxColor(dc->defaultColors, DOTCOLOR_CDS_LINE, "CDS line color", "Coding section outline color", BLX_DARK_GREEN, BLX_DARK_GREEN, BLX_VERY_DARK_GREEN, BLX_VERY_DARK_GREEN);
+dotter.c:411:  createBlxColor(dc->defaultColors, DOTCOLOR_UTR_FILL, "UTR fill color", "Untranslated region fill color", BLX_LIGHT_RED, BLX_LIGHT_RED, NULL, NULL);
+dotter.c:412:  createBlxColor(dc->defaultColors, DOTCOLOR_UTR_LINE, "UTR line color", "Untranslated region outline color", BLX_DARK_RED, BLX_DARK_RED, BLX_VERY_DARK_RED, BLX_VERY_DARK_RED);
+dotter.c:415:  createBlxColor(dc->defaultColors, DOTCOLOR_CROSSHAIR, "Crosshair", "Color of the crosshair on the dot plot", BLX_BLUE, BLX_BLUE, NULL, NULL);
+dotter.c:416:  createBlxColor(dc->defaultColors, DOTCOLOR_GRID, "Grid", "Line color of the grid on the dot plot", BLX_LIGHT_RED, BLX_LIGHT_RED, NULL, NULL);
+dotter.c:417:  createBlxColor(dc->defaultColors, DOTCOLOR_BORDER, "Grid", "Highlight color for the border where the alignment cannot be calculated", "#ffeeee", "#bbbbbb", NULL, NULL);
+dotter.c:420:  createBlxColor(dc->defaultColors, DOTCOLOR_THRESHOLD_MARKER, "Greyramp threshold marker color", "Outline color of the threshold marker on the greyramp tool", BLX_RED, BLX_RED, BLX_GREEN, BLX_GREEN);
+dotter.c:421:  createBlxColor(dc->defaultColors, DOTCOLOR_MARKER_LINE, "Greyramp marker outline color", "Outline color of the triangle markers on the greyramp tool", BLX_BLACK, BLX_BLACK, BLX_GREEN, BLX_GREEN);
+dotter.c:422:  createBlxColor(dc->defaultColors, DOTCOLOR_MARKER_FILL, "Greyramp marker fill color", "Fill color of the triangle markers on the greyramp tool", BLX_WHITE, BLX_WHITE, NULL, NULL);
+dotter.c:425:  createBlxColor(dc->defaultColors, DOTCOLOR_BREAKLINE, "Breakline color", "Color of the separator lines between sequences, if there were multiple sequences in the input file", BLX_GREEN, BLX_GREEN, NULL, NULL);
+dotter.c:429:/* Get the initial zoom factor, calculating it if the passed-in zoom is 0 */
+dotter.c:438:      if (dc->memoryLimit)
+dotter.c:440:          result = (int)sqrt((qLen / dc->numFrames / 1e6 * sLen - 1e-6) / dc->memoryLimit) + 1;
+dotter.c:467:  result->blastMode = blastMode;
+dotter.c:468:  result->displaySeqType = (blastMode == BLXMODE_BLASTN) ? BLXSEQ_DNA : BLXSEQ_PEPTIDE;
+dotter.c:469:  result->numFrames = (blastMode == BLXMODE_BLASTX) ? 3 : 1;
+dotter.c:470:  result->geneticCode = stdcode1;
+dotter.c:471:  mtxcpy(result->matrix, matrix);
+dotter.c:472:  result->matrixName = matrixName;
+dotter.c:473:  result->mspList = mspList;
+dotter.c:474:  result->seqList = seqList;
+dotter.c:475:  result->windowList = NULL;
+dotter.c:477:  result->watsonOnly = options->watsonOnly;
+dotter.c:478:  result->crickOnly = options->crickOnly;
+dotter.c:480:  /* Set the fixed-width font (not applicable in batch mode) */
+dotter.c:485:      result->fontDesc = pango_font_description_from_string(fontFamily);
+dotter.c:486:      pango_font_description_set_size(result->fontDesc, pango_font_description_get_size(tmp->style->font_desc));
+dotter.c:487:      getFontCharSize(tmp, result->fontDesc, &result->charWidth, &result->charHeight);
+dotter.c:492:      result->fontDesc = NULL;
+dotter.c:495:  result->refSeqName = g_strdup(options->qname);
+dotter.c:496:  result->refSeq = options->qseq; /* take ownership of passed-in seq */
+dotter.c:497:  result->refSeqRev = NULL;
+dotter.c:498:  result->refSeqType = (blastMode == BLXMODE_BLASTP ? BLXSEQ_PEPTIDE : BLXSEQ_DNA);
+dotter.c:500:  /* for dna ref sequences, reverse-complement the ref seq */
+dotter.c:501:  if (result->refSeqType == BLXSEQ_DNA && result->refSeq)
+dotter.c:503:      result->refSeqRev = g_malloc(strlen(result->refSeq) + 1);
+dotter.c:504:      revComplement(result->refSeqRev, result->refSeq);
+dotter.c:506:  else if (result->refSeq)
+dotter.c:509:      result->refSeqRev = g_strdup(result->refSeq);
+dotter.c:510:      g_strreverse(result->refSeqRev);
+dotter.c:513:  result->refSeqStrand = refSeqStrand;
+dotter.c:515:  result->matchSeqName = g_strdup(options->sname);
+dotter.c:516:  result->matchSeq = options->sseq; /* take ownership of passed-in seq */
+dotter.c:517:  result->matchSeqRev = NULL;
+dotter.c:518:  result->matchSeqType = (blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
+dotter.c:519:  result->matchSeqStrand = matchSeqStrand;
+dotter.c:521:  result->refSeqFullRange.min = options->qoffset + 1;
+dotter.c:522:  result->refSeqFullRange.max = options->qoffset + strlen(options->qseq);
+dotter.c:523:  result->matchSeqFullRange.min = options->soffset + 1;
+dotter.c:524:  result->matchSeqFullRange.max = options->soffset + strlen(options->sseq);
+dotter.c:526:  result->hozScaleRev = options->hozScaleRev;
+dotter.c:527:  result->vertScaleRev = options->vertScaleRev;
+dotter.c:528:  result->negateCoords = options->negateCoords;
+dotter.c:530:  result->displayMirror = options->mirrorImage;
+dotter.c:532:  result->memoryLimit = options->memoryLimit;
+dotter.c:534:  result->defaultColors = NULL;
+dotter.c:538:  if (result->matchSeqType == BLXSEQ_DNA && result->matchSeqStrand == BLXSTRAND_REVERSE && result->matchSeq)
+dotter.c:540:      result->matchSeqRev = g_malloc(strlen(result->matchSeq) + 1);
+dotter.c:541:      revComplement(result->matchSeqRev, result->matchSeq);
+dotter.c:543:  else if (result->matchSeqStrand == BLXSTRAND_REVERSE && result->matchSeq)
+dotter.c:546:      result->matchSeqRev = g_strdup(result->matchSeq);
+dotter.c:547:      g_strreverse(result->matchSeqRev);
+dotter.c:551:  for ( ; i < result->numFrames; ++i)
+dotter.c:553:      result->peptideSeqs[i] = NULL;
+dotter.c:556:  if (result->blastMode == BLXMODE_BLASTX) 
+dotter.c:559:      const gboolean rev = (result->hozScaleRev);
+dotter.c:560:      char *refSeqToUse = (rev ? result->refSeqRev : result->refSeq);
+dotter.c:563:      for (i = 0; i < result->numFrames; i++)
+dotter.c:567:	  const int startCoord = rev ? result->refSeqFullRange.max - i : result->refSeqFullRange.min + i;
+dotter.c:572:          result->peptideSeqs[frame - 1] = blxTranslate(refSeqToUse + i, result->geneticCode);
+dotter.c:574:          DEBUG_OUT("Frame %d starts at coord %d for hoz seq strand = %d.\n", frame, startCoord, result->refSeqStrand);
+dotter.c:578:      for (i = 0; i < result->numFrames; ++i)
+dotter.c:580:          if (result->peptideSeqs[i] == NULL)
+dotter.c:593:  const int leftBorderChars = max(numDigitsInInt(result->matchSeqFullRange.min), numDigitsInInt(result->matchSeqFullRange.max)) + 1;
+dotter.c:594:  result->scaleWidth = DEFAULT_MAJOR_TICK_HEIGHT + (roundNearest)((gdouble)leftBorderChars * result->charWidth) + SCALE_LINE_WIDTH;
+dotter.c:595:  result->scaleHeight = DEFAULT_MAJOR_TICK_HEIGHT + roundNearest(result->charHeight) + SCALE_LINE_WIDTH;
+dotter.c:597:  result->msgData = &options->msgData;
+dotter.c:610:    if (dc->blastMode == BLXMODE_BLASTX)
+dotter.c:613:	for ( ; i < dc->numFrames; i++)
+dotter.c:615:            if (dc->peptideSeqs && dc->peptideSeqs[i])
+dotter.c:617:                g_free(dc->peptideSeqs[i]);
+dotter.c:618:                dc->peptideSeqs[i] = NULL;
+dotter.c:624:    g_free(dc->refSeq);
+dotter.c:625:    dc->refSeq = NULL;
+dotter.c:627:    g_free(dc->refSeqName);
+dotter.c:628:    dc->refSeqName = NULL;
+dotter.c:630:    g_free(dc->matchSeq);
+dotter.c:631:    dc->matchSeq = NULL;
+dotter.c:633:    g_free(dc->matchSeqName);
+dotter.c:634:    dc->matchSeqName = NULL;
+dotter.c:638:      if (dc->matrixName)
+dotter.c:640:          g_free(dc->matrixName);
+dotter.c:641:          dc->matrixName = NULL;
+dotter.c:669:      if (properties->greyrampTool)
+dotter.c:671:          gtk_widget_destroy(properties->greyrampTool);
+dotter.c:672:          properties->greyrampTool = NULL;
+dotter.c:675:      if (properties->alignmentTool)
+dotter.c:677:          gtk_widget_destroy(properties->alignmentTool);
+dotter.c:678:          properties->alignmentTool = NULL;
+dotter.c:681:      if (properties->dotterWinCtx)
+dotter.c:683:	  if (properties->dotterWinCtx->dotterCtx && properties->dotterWinCtx->dotterCtx->windowList)
+dotter.c:685:	      properties->dotterWinCtx->dotterCtx->windowList = g_slist_remove(properties->dotterWinCtx->dotterCtx->windowList, dotterWindow);
+dotter.c:687:	      if (g_slist_length(properties->dotterWinCtx->dotterCtx->windowList) < 1)
+dotter.c:691:		  g_slist_free(properties->dotterWinCtx->dotterCtx->windowList);
+dotter.c:692:		  properties->dotterWinCtx->dotterCtx->windowList = NULL;
+dotter.c:693:		  destroyDotterContext(properties->dotterWinCtx->dotterCtx);
+dotter.c:698:	  destroyDotterWindowContext(properties->dotterWinCtx);
+dotter.c:699:	  properties->dotterWinCtx = NULL;
+dotter.c:716:  GSList *winList = g_slist_copy(dc->windowList);
+dotter.c:719:  for ( ; winItem; winItem = winItem->next)
+dotter.c:721:      GtkWidget *window = GTK_WIDGET(winItem->data);
+dotter.c:758:   * ref seq. Also, we only need to convert if it's peptide-nucleotide match. */
+dotter.c:759:  if (horizontal && dc->blastMode == BLXMODE_BLASTX)
+dotter.c:761:      /* If the strand is reversed, the frame will be inverted; un-invert it first */
+dotter.c:762:      const gboolean rev = (horizontal && dc->hozScaleRev) || (!horizontal && dc->vertScaleRev);
+dotter.c:768:        fraction = (double)(dnaIdx + frame - 1) / (double)dc->numFrames;
+dotter.c:770:        fraction = (double)(dnaIdx - frame + 1) / (double)dc->numFrames;
+dotter.c:775:       * to the same value. If values are negative this still works; 0, -0.3
+dotter.c:776:       * and -0.6 will all round to 0.
+dotter.c:779:       * from top-to-bottom then left-to-right): 
+dotter.c:782:       * Frame1:         -5 -2  1  4             6  3  0 -3
+dotter.c:783:       * Frame2:         -4 -1  2  5             5  2 -1 -4
+dotter.c:784:       * Frame3:         -3  0  3  6             4  1 -2 -5
+dotter.c:786:       * Peptide coord:  -1  0  1  2             2  1  0 -1
+dotter.c:794:          *baseNum = (dnaIdx - frame + 1) % dc->numFrames;
+dotter.c:800:            *baseNum += dc->numFrames;
+dotter.c:806:              *baseNum = dc->numFrames - *baseNum + 1;
+dotter.c:825:  result->dotterCtx = dotterCtx;
+dotter.c:827:  result->refSeqRange.min = refSeqRange->min;
+dotter.c:828:  result->refSeqRange.max = refSeqRange->max;
+dotter.c:829:  result->matchSeqRange.min = matchSeqRange->min;
+dotter.c:830:  result->matchSeqRange.max = matchSeqRange->max;
+dotter.c:832:  result->refCoord = UNSET_INT;
+dotter.c:833:  result->matchCoord = UNSET_INT;
+dotter.c:835:  result->zoomFactor = getInitZoomFactor(dotterCtx, zoomFacIn, getRangeLength(refSeqRange), getRangeLength(matchSeqRange));
+dotter.c:838:  result->selfComp = (refSeqRange->min == matchSeqRange->min && 
+dotter.c:839:                      refSeqRange->max == matchSeqRange->max &&
+dotter.c:840:                      stringsEqual(dotterCtx->refSeq, dotterCtx->matchSeq, FALSE));
+dotter.c:842:  result->usePrintColors = FALSE;
+dotter.c:844:  result->pageSetup = gtk_page_setup_new();
+dotter.c:845:  gtk_page_setup_set_orientation(result->pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
+dotter.c:847:  result->printSettings = gtk_print_settings_new();
+dotter.c:848:  gtk_print_settings_set_orientation(result->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
+dotter.c:849:  gtk_print_settings_set_quality(result->printSettings, GTK_PRINT_QUALITY_HIGH);
+dotter.c:850:  gtk_print_settings_set_resolution(result->printSettings, DEFAULT_PRINT_RESOLUTION);
+dotter.c:856:      result->dialogList[dialogId] = NULL;
+dotter.c:876:      properties->greyrampTool = greyrampTool;
+dotter.c:877:      properties->alignmentTool = alignmentTool;
+dotter.c:878:      properties->dotplot = dotplot;
+dotter.c:879:      properties->dotterWinCtx = dotterWinCtx;
+dotter.c:893:  return properties ? properties->dotterWinCtx->dotterCtx : NULL;
+dotter.c:897:/* Perform required updates following a change to the currently-selected coords */
+dotter.c:903:  boundsLimitValue(&properties->dotterWinCtx->refCoord, &properties->dotterWinCtx->refSeqRange);
+dotter.c:904:  boundsLimitValue(&properties->dotterWinCtx->matchCoord, &properties->dotterWinCtx->matchSeqRange);
+dotter.c:907:  updateAlignmentRange(properties->alignmentTool, properties->dotterWinCtx);
+dotter.c:910:  widgetClearCachedDrawable(properties->alignmentTool, NULL);
+dotter.c:911:  refreshDotplot(properties->dotplot);
+dotter.c:915:/* Set the initial currently-selected ref seq and match seq coords (i.e. the coords 
+dotter.c:922:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:924:  if (valueWithinRange(refCoord, &dwc->refSeqRange))
+dotter.c:925:    dwc->refCoord = refCoord;
+dotter.c:927:    dwc->refCoord = getRangeCentre(&dwc->refSeqRange);
+dotter.c:929:  if (valueWithinRange(matchCoord, &dwc->matchSeqRange))
+dotter.c:930:    dwc->matchCoord = matchCoord;
+dotter.c:932:    dwc->matchCoord = getRangeCentre(&dwc->matchSeqRange);
+dotter.c:957:              blastMode, options->qname, options->qoffset, refSeqStrand, options->sname, options->soffset, matchSeqStrand);
+dotter.c:961:  const int qlen = strlen(options->qseq);
+dotter.c:962:  const int slen = strlen(options->sseq);
+dotter.c:968:  for (i = 0; i < qlen; i++) options->qseq[i] = toupper(options->qseq[i]);
+dotter.c:969:  for (i = 0; i < slen; i++) options->sseq[i] = toupper(options->sseq[i]);
+dotter.c:971:  if (!options->memoryLimit) 
+dotter.c:973:      options->memoryLimit = 0.5; /* Mb */
+dotter.c:979:  if (options->mtxfile)	
+dotter.c:981:      readmtx(MATRIX, options->mtxfile);
+dotter.c:982:      strncpy(matrixName, options->mtxfile, MAX_MATRIX_NAME_LENGTH);
+dotter.c:987:      strcpy(matrixName, "DNA+5/-4");
+dotter.c:997:  if (options->savefile || options->exportfile) 
+dotter.c:1003:      if (options->savefile && !fopen (options->savefile, "wb"))
+dotter.c:1004:	g_error("Failed to open %s\n", options->savefile);
+dotter.c:1006:      if (options->exportfile && !fopen (options->exportfile, "wb"))
+dotter.c:1007:	g_error("Failed to open %s\n", options->exportfile);
+dotter.c:1014:  DotterWindowContext *dotterWinCtx = createDotterWindowContext(dotterCtx, &dotterCtx->refSeqFullRange, &dotterCtx->matchSeqFullRange, options->dotterZoom);
+dotter.c:1019:                       options->loadfile,
+dotter.c:1020:                       options->savefile,
+dotter.c:1021:                       options->exportfile,
+dotter.c:1022:                       options->hspsOnly,
+dotter.c:1023:                       options->breaklinesOn,
+dotter.c:1024:                       options->winsize,
+dotter.c:1025:                       options->pixelFacset,
+dotter.c:1026:                       options->dotterZoom,
+dotter.c:1029:                       options->swapGreyramp);
+dotter.c:1084:      g_signal_connect(G_OBJECT(alignmentTool), "key-press-event", G_CALLBACK(onKeyPressDotterCoords), dotterWindow);
+dotter.c:1085:      g_signal_connect(G_OBJECT(greyrampTool), "key-press-event", G_CALLBACK(onKeyPressDotter), dotterWindow);
+dotter.c:1089:      dotterCtx->windowList = g_slist_append(dotterCtx->windowList, dotterWindow);
+dotter.c:1096:      updateGreyMap(properties->greyrampTool);
+dotter.c:1122:   due to biased composition. Gos's idea - not explored yet.
+dotter.c:1131://  return msp->fs;
+dotter.c:1139://  return (fs && fs->on);
+dotter.c:1143:/* Return the y position of the lower edge of a feature-series MSP, given its height.
+dotter.c:1154://      result = fs->y;
+dotter.c:1159://          fs->y = *maxy;
+dotter.c:1168:/* Return the x position of the rightmost edge of a feature-series MSP, given its height.
+dotter.c:1179://      result = fs->x;
+dotter.c:1184://          fs->x = *maxx;
+dotter.c:1197://    x = ceil((float)(pos + MSPoffset - qoffset)/zoom/resfac);
+dotter.c:1200://	x = RightBorder - x;
+dotter.c:1202://	x += LeftBorder-1;
+dotter.c:1211://    y = ceil((float)(pos - soffset)/zoom);
+dotter.c:1213://    y += TopBorder-1;
+dotter.c:1227://    offset += TopBorder + slen4 -1;
+dotter.c:1228://    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
+dotter.c:1231://	graphLine(sx, TopBorder, sx, TopBorder+slen4-2);
+dotter.c:1232://	graphLine(ex, TopBorder, ex, TopBorder+slen4-2);
+dotter.c:1235://    graphFillRectangle(sx, offset, ex, offset - msp->score/100.0 * fonth);
+dotter.c:1237://    graphRectangle(sx, offset, ex, offset - msp->score/100.0 * fonth);
+dotter.c:1240://    if (fsAnnBottomOn && msp->desc) {
+dotter.c:1241://	graphText(msp->desc, sx, offset);
+dotter.c:1254://    offset += TopBorder + slen4 -1;
+dotter.c:1255://    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
+dotter.c:1259://	const int xyVal = g_array_index(msp->xy, int, i);
+dotter.c:1268://	    y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
+dotter.c:1270://	    if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE))
+dotter.c:1274://		if (fsAnnBottomOn && msp->desc && !descShown)
+dotter.c:1277://		    graphText(msp->desc, xold, offset);
+dotter.c:1301://    offset += LeftBorder + qlen4 -1;
+dotter.c:1302://    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
+dotter.c:1305://	graphLine(LeftBorder, sx, LeftBorder+qlen4-2, sx);
+dotter.c:1306://	graphLine(LeftBorder, ex, LeftBorder+qlen4-2, ex);
+dotter.c:1309://    graphFillRectangle(offset, sx, offset - msp->score/100.0 * fonth, ex);
+dotter.c:1311://    graphRectangle    (offset, sx, offset - msp->score/100.0 * fonth, ex);
+dotter.c:1314://    if (fsAnnRightOn && msp->desc) {
+dotter.c:1315://	graphText(msp->desc, offset, sx);
+dotter.c:1328://    offset += LeftBorder + qlen4 -1;
+dotter.c:1329://    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
+dotter.c:1333://	const int xyVal = g_array_index(msp->xy, int, i);
+dotter.c:1342://	    y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
+dotter.c:1344://	    if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE)) 
+dotter.c:1348://		if (fsAnnRightOn && msp->desc && !descShown) 
+dotter.c:1351://		    graphText(msp->desc, offset, xold);
+dotter.c:1369://    if (!msp->qname)
+dotter.c:1370://      g_error("No qname set in MSP - I need this to associate it with one of the sequences");
+dotter.c:1372://    if (!strcasecmp(msp->qname, qname) || !strcmp(msp->qname, "@1"))
+dotter.c:1381://    if (!msp->qname) 
+dotter.c:1382://      g_error("No qname set in MSP - I need this to associate it with one of the sequences");
+dotter.c:1384://    if (!strcasecmp(msp->qname, sname) || !strcmp(msp->qname, "@2"))
+dotter.c:1413://  feature_strand = feature_top + ((feature_bottom - feature_top + 1) / 2) ;
+dotter.c:1417://  depth = (feature_strand - feature_boundary) - (feature_top + feature_boundary) - fonth ;
+dotter.c:1422://  graphLine(LeftBorder - 1, feature_strand, LeftBorder - 1 + qlen4, feature_strand) ;
+dotter.c:1432://      /* Loop through each feature-series in the feature-series array and set coords to 0 */
+dotter.c:1436://	  fs->y = fs->x = 0;
+dotter.c:1453://  for (; msp; msp = msp->next)
+dotter.c:1462://	  if (msp->qStrand != strand)
+dotter.c:1471://	  if (msp->score > 0)
+dotter.c:1473://	      height = boxHeight * msp->score / 100.0;
+dotter.c:1480://	      if (msp->type == BLXMSP_XY_PLOT)
+dotter.c:1484://	      else if (msp->type == BLXMSP_FS_SEG)
+dotter.c:1494://	      if (msp->type == BLXMSP_XY_PLOT)
+dotter.c:1498://	      else if (msp->type == BLXMSP_FS_SEG)
+dotter.c:1542://      for ( ; tmp ; tmp = tmp->next)
+dotter.c:1544://	  if (tmp->score < 0)
+dotter.c:1561://      strand_genes.strand = '-' ;
+dotter.c:1591://      for (; msp; msp = msp->next)
+dotter.c:1593://	  if (msp->score < 0)
+dotter.c:1595://	      if (msp->qStrand != strand)
+dotter.c:1605://		  sy = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/zoom);
+dotter.c:1606://		  ey = ceil((float)(mspGetQEnd(msp)+MSPoffset - qoffset)/zoom);
+dotter.c:1608://		  sy += TopBorder-1;
+dotter.c:1609://		  ey += TopBorder-1;
+dotter.c:1612://		  if (msp->qStrand != strand) x += 20;
+dotter.c:1614://		  if (msp->score == -1.0) /* EXON */
+dotter.c:1619://		  else if (msp->score == -2.0) /* INTRON */
+dotter.c:1645://  if (!(result = strcmp(msp_a->sname, msp_b->sname)))
+dotter.c:1648://	result = -1 ;
+dotter.c:1656://	    result = -1 ;
+dotter.c:1677://  if (msp->qframe[1] == strand_genes->strand)
+dotter.c:1682://      if (strand_genes->strand == '+')
+dotter.c:1683://	gene_list = strand_genes->forward_genes ;
+dotter.c:1685://	gene_list = strand_genes->reverse_genes ;
+dotter.c:1692://	  curr_name = (((GeneData)(gene_list->data))->name) ;
+dotter.c:1693://	  curr_length = strlen(curr_name) - 1 ;
+dotter.c:1701://	  gene->name = mspGetSName(msp) ;
+dotter.c:1702://	  gene->start = mspGetSStart(msp) ;
+dotter.c:1703://	  gene->end = mspGetSEnd(msp) ;
+dotter.c:1704://	  gene->strand = msp->qframe[1] ;
+dotter.c:1705://	  gene->msp_start = msp ;
+dotter.c:1711://	  gene = (GeneData)(gene_list->data) ;
+dotter.c:1713://	  gene->end = mspGetSEnd(msp) ;
+dotter.c:1714://	  gene->msp_end = msp ;
+dotter.c:1717://      if (strand_genes->strand == '+')
+dotter.c:1718://	strand_genes->forward_genes = gene_list ;
+dotter.c:1720://	strand_genes->reverse_genes = gene_list ;
+dotter.c:1734://  if (gene_a->strand == '+' && gene_b->strand == '-')
+dotter.c:1735://    result = -1 ;
+dotter.c:1736://  else if (gene_a->strand == '-' && gene_b->strand == '+')
+dotter.c:1740://      if (gene_a->start < gene_b->start)
+dotter.c:1741://	result = -1 ;
+dotter.c:1742://      else if (gene_a->start > gene_b->start)
+dotter.c:1762://  next_ptr = curr_ptr->next ;
+dotter.c:1763://  curr_y = min_offset - bump_incr ;
+dotter.c:1774://	  GeneData list_gene = (GeneData)list_ptr->data ;
+dotter.c:1775://	  GeneData curr_gene = (GeneData)curr_ptr->data ;
+dotter.c:1784://	      curr_gene->y_pos = curr_y ;
+dotter.c:1787://	  else if (curr_gene->start > list_gene->end)
+dotter.c:1790://	      curr_gene->y_pos = list_gene->y_pos ;
+dotter.c:1792://	      if (list_ptr->next != curr_ptr)
+dotter.c:1795://		  list_ptr = g_list_insert_before(gene_list, list_ptr->next, curr_gene) ;
+dotter.c:1809://	next_ptr = curr_ptr->next ;
+dotter.c:1822://  msp = gene->msp_start ;
+dotter.c:1825://      drawMSPGene(msp, gene->y_pos) ;
+dotter.c:1827://      msp = msp->next ;
+dotter.c:1828://    } while (msp && msp != gene->msp_end) ;
+dotter.c:1844://  if (msp->score == -1.0) /* EXON */
+dotter.c:1848://  else if (msp->score == -2.0) /* INTRON */
+dotter.c:1864://  printf("%s:\t%d,%d\t->\t%d,%d\n",
+dotter.c:1865://	 msp->sname, msp->sstart, msp->send, msp->qstart, msp->qend) ;
+dotter.c:1876://  printf("%s: '%c' %d -> %d   is at position: %f\n",
+dotter.c:1877://	 gene->name, gene->strand, gene->start, gene->end, gene->y_pos) ;
+dotter.c:1892://      fs->on = 1;
+dotter.c:1905://      fs->on = 0;
+dotter.c:1919://      if (fs->xy) 
+dotter.c:1921://	  fs->on = 0;
+dotter.c:1936://      if (!fs->xy) 
+dotter.c:1938://	  fs->on = 0;
+dotter.c:1971://    if (box-fsBoxStart < 0 || box-fsBoxStart > gArrayGetLen(fsArr))
+dotter.c:1974://    FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, box - fsBoxStart);
+dotter.c:1975://    int *on = &fs->on;
+dotter.c:2061://      graphText(fs->name, 1, y);      
+dotter.c:2062://      graphRectangle(1 - margin, y - margin, 1 + margin + strlen(fs->name), y + 1 + margin);
+dotter.c:2065://      if (!fs->on) 
+dotter.c:2096://	fs->y = fs->x = 0;
+dotter.c:2099://    for (msp = msplist; msp; msp = msp->next) 
+dotter.c:2103://	    if (msp->type == BLXMSP_XY_PLOT) 
+dotter.c:2107://	    else if (msp->type == BLXMSP_FS_SEG) 
+dotter.c:2134:  else if (newValue != properties->dotterWinCtx->zoomFactor)
+dotter.c:2136:      properties->dotterWinCtx->zoomFactor = newValue;
+dotter.c:2147:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:2152:  /* If display coords are negated, we must un-negate it before we use it */
+dotter.c:2153:  if (negateDisplayCoord(dwc->dotterCtx, TRUE))
+dotter.c:2154:    newValue *= -1;
+dotter.c:2156:  if (!valueWithinRange(newValue, &dwc->dotterCtx->refSeqFullRange))
+dotter.c:2157:    g_warning("Limiting reference sequence start to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
+dotter.c:2159:  boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
+dotter.c:2164:  if (dwc->selfComp)
+dotter.c:2180:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:2185:  /* If display coords are negated, we must un-negate it before we use it */
+dotter.c:2186:  if (negateDisplayCoord(dwc->dotterCtx, TRUE))
+dotter.c:2187:    newValue *= -1;
+dotter.c:2189:  if (!valueWithinRange(newValue, &dwc->dotterCtx->refSeqFullRange))
+dotter.c:2190:    g_warning("Limiting reference sequence end to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
+dotter.c:2192:  boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
+dotter.c:2197:  if (dwc->selfComp)
+dotter.c:2213:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:2218:  /* If display coords are negated, we must un-negate it before we use it */
+dotter.c:2219:  if (negateDisplayCoord(dwc->dotterCtx, FALSE))
+dotter.c:2220:    newValue *= -1;
+dotter.c:2222:  if (!valueWithinRange(newValue, &dwc->dotterCtx->matchSeqFullRange))
+dotter.c:2223:    g_warning("Limiting vertical sequence start to range %d -> %d.\n", dwc->dotterCtx->matchSeqFullRange.min, dwc->dotterCtx->matchSeqFullRange.max);
+dotter.c:2225:  boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
+dotter.c:2242:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:2247:  /* If display coords are negated, we must un-negate it before we use it */
+dotter.c:2248:  if (negateDisplayCoord(dwc->dotterCtx, FALSE))
+dotter.c:2249:    newValue *= -1;
+dotter.c:2251:  if (!valueWithinRange(newValue, &dwc->dotterCtx->matchSeqFullRange))
+dotter.c:2252:    g_warning("Limiting vertical sequence end to range %d -> %d.\n", dwc->dotterCtx->matchSeqFullRange.min, dwc->dotterCtx->matchSeqFullRange.max);
+dotter.c:2254:  boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
+dotter.c:2278:  gboolean changed = dotplotSetSlidingWinSize(properties->dotplot, newValue, &error);
+dotter.c:2303:  dotplotSetBreaklinesOn(properties->dotplot, breaklinesOn);
+dotter.c:2315:  dotplotSetHozLabelsOn(properties->dotplot, labelsOn);
+dotter.c:2327:  dotplotSetVertLabelsOn(properties->dotplot, labelsOn);
+dotter.c:2380:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:2381:  DotterContext *dc = dwc->dotterCtx;
+dotter.c:2385:  gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), frame);
+dotter.c:2403:  createTextEntryFromDouble(dotterWindow, table, 1, 2, xpad, ypad, "_Zoom: ", dwc->zoomFactor, onZoomFactorChanged);
+dotter.c:2406:  if (dwc->selfComp)
+dotter.c:2410:      createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+dotter.c:2418:      createTextEntryFromInt(dotterWindow, table, 4, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+dotter.c:2431:  gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), frame);
+dotter.c:2440:  DotplotProperties *dotplotProperties = dotplotGetProperties(properties->dotplot);
+dotter.c:2441:  static int disableBreaklines = -1; /* -1 for unset; 0 for false; 1 for true */
+dotter.c:2443:  if (disableBreaklines == -1)
+dotter.c:2444:    disableBreaklines = !dotplotProperties->breaklinesOn;
+dotter.c:2448:  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(breaklinesBtn), dotplotProperties->breaklinesOn);
+dotter.c:2458:  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hozBtn), dotplotProperties->hozLabelsOn);
+dotter.c:2463:  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(vertBtn), dotplotProperties->vertLabelsOn);
+dotter.c:2473:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:2476:  GtkWidget *dialog = getPersistentDialog(dwc->dialogList, dialogId);
+dotter.c:2481:      dialog = gtk_dialog_new_with_buttons("Dotter - Settings", 
+dotter.c:2491:      addPersistentDialog(dwc->dialogList, dialogId, dialog);
+dotter.c:2492:      g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+dotter.c:2498:      /* Clear contents and re-create */
+dotter.c:2515:/* Redraw the main dotter window, the alignment tool and the greyramp tool. Re-calculates borders etc. */
+dotter.c:2521:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:2524:  sortValues(&dwc->refSeqRange.min, &dwc->refSeqRange.max, TRUE);
+dotter.c:2525:  sortValues(&dwc->matchSeqRange.min, &dwc->matchSeqRange.max, TRUE);
+dotter.c:2529:      gtk_widget_queue_draw(properties->greyrampTool);
+dotter.c:2530:      gtk_widget_queue_draw(properties->alignmentTool);
+dotter.c:2531:      recalcDotplot(properties->dotplot);
+dotter.c:2547:      gtk_widget_queue_draw(properties->greyrampTool);
+dotter.c:2548:      callFuncOnAllChildWidgets(properties->alignmentTool, widgetClearCachedDrawable);
+dotter.c:2549:      callFuncOnAllChildWidgets(properties->dotplot, widgetClearCachedDrawable);
+dotter.c:2565:        char *msg = blxprintf("Failed to open score matrix file %s - not found in ./ or $BLASTMAT/.\n");
+dotter.c:2619:		mtx[i][j] = (i == j ? 5 : -4);
+dotter.c:2621:		mtx[i][j] = -4;
+dotter.c:2629://  return (array ? array->len : 0);
+dotter.c:2642:  if (properties->greyrampTool && GTK_IS_WIDGET(properties->greyrampTool))
+dotter.c:2644:      gtk_widget_show_all(properties->greyrampTool);
+dotter.c:2646:      if (GTK_IS_WINDOW(properties->greyrampTool))
+dotter.c:2648:	  gtk_window_present(GTK_WINDOW(properties->greyrampTool));
+dotter.c:2653:      properties->greyrampTool = createGreyrampTool(properties->dotterWinCtx, 40, 100, FALSE);
+dotter.c:2662:  if (properties->alignmentTool && GTK_IS_WIDGET(properties->alignmentTool))
+dotter.c:2664:      gtk_widget_show_all(properties->alignmentTool);
+dotter.c:2666:      if (GTK_IS_WINDOW(properties->alignmentTool))
+dotter.c:2668:	  gtk_window_present(GTK_WINDOW(properties->alignmentTool));
+dotter.c:2673:      properties->alignmentTool = createAlignmentTool(properties->dotterWinCtx);
+dotter.c:2818:  savePlot(properties->dotplot, NULL, NULL, &error);
+dotter.c:2830:  exportPlot(properties->dotplot, NULL, NULL, &error);
+dotter.c:2866:  copyIntToDefaultClipboard(properties->dotterWinCtx->refCoord);
+dotter.c:2875:  copyIntToDefaultClipboard(properties->dotterWinCtx->matchCoord);
+dotter.c:2894:  toggleCrosshairOn(properties->dotplot);
+dotter.c:2901:  toggleCrosshairCoordsOn(properties->dotplot);
+dotter.c:2908:  toggleCrosshairFullscreen(properties->dotplot);
+dotter.c:2915:  dotplotTogglePixelmap(properties->dotplot);
+dotter.c:2922:  dotplotToggleGrid(properties->dotplot);
+dotter.c:2931:  setHspMode(properties->dotplot, hspMode);
+dotter.c:2938:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:2941:  dwc->usePrintColors = !dwc->usePrintColors;
+dotter.c:2944:  GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, dwc->usePrintColors);
+dotter.c:2947:  setWidgetBackgroundColor(properties->alignmentTool, defaultBgColor);
+dotter.c:2957:  dotplotToggleBumpExons(properties->dotplot);
+dotter.c:2965:  if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
+dotter.c:2968:      gtk_menu_popup (contextMenu, NULL, NULL, NULL, NULL, event->button, event->time);
+dotter.c:2970:  else if (event->type == GDK_BUTTON_PRESS && event->button == 1) /* left click */
+dotter.c:2972:      /* If the dot-plot was clicked the selected coords will have changed. Perform required updates. */
+dotter.c:2986:  if (event->state & GDK_BUTTON1_MASK)  /* left-drag */
+dotter.c:2988:      /* If the dot-plot was clicked the selected coords will have changed. Perform required updates. */
+dotter.c:3001:  return horizontal && dc->blastMode == BLXMODE_BLASTX ? dc->numFrames : 1;
+dotter.c:3010:  if (dc->negateCoords)
+dotter.c:3013:      result = dc->hozScaleRev;
+dotter.c:3015:      result = dc->vertScaleRev;
+dotter.c:3028:    result *= -1;
+dotter.c:3034:/* Get the currently-selected (i.e. crosshair) coord for the horizontal or 
+dotter.c:3038:  return (horizontal ? dwc->refCoord : dwc->matchCoord);
+dotter.c:3048:    result = dwc->dotterCtx->hozScaleRev ? dwc->refSeqRange.max : dwc->refSeqRange.min;
+dotter.c:3050:    result = dwc->dotterCtx->vertScaleRev ? dwc->matchSeqRange.max : dwc->matchSeqRange.min;
+dotter.c:3061:    result = dwc->dotterCtx->hozScaleRev ? dwc->refSeqRange.min : dwc->refSeqRange.max;
+dotter.c:3063:    result = dwc->dotterCtx->vertScaleRev ? dwc->matchSeqRange.min : dwc->matchSeqRange.max;
+dotter.c:3077:    valueToUpdate = (dwc->dotterCtx->hozScaleRev ? &dwc->refSeqRange.max : &dwc->refSeqRange.min);
+dotter.c:3079:    valueToUpdate = (dwc->dotterCtx->vertScaleRev ? &dwc->matchSeqRange.max : &dwc->matchSeqRange.min);
+dotter.c:3097:    valueToUpdate = (dwc->dotterCtx->hozScaleRev ? &dwc->refSeqRange.min : &dwc->refSeqRange.max);
+dotter.c:3099:    valueToUpdate = (dwc->dotterCtx->vertScaleRev ? &dwc->matchSeqRange.min : &dwc->matchSeqRange.max);
+dotter.c:3125:      *coord -= incValue;
+dotter.c:3136:/* Handle Q key press (Ctrl-Q => close all windows) */
+dotter.c:3145:/* Handle W key press (Ctrl-W => close window) */
+dotter.c:3156:/* Handle H key press (Ctrl-H => show help dialog) */
+dotter.c:3165:/* Handle P key press (Ctrl-P => prints the given widget) */
+dotter.c:3179:          DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:3180:          blxPrintWidget(widget, GTK_WINDOW(widget), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
+dotter.c:3188:/* Handle S key press (Ctrl-S => show settings dialog) */
+dotter.c:3197:/* Handle G key press (Ctrl-G => show greyramp tool) */
+dotter.c:3206:/* Handle A key press (Ctrl-A => show alignment tool) */
+dotter.c:3215:/* Handle D key press (Ctrl-D => show dotplot) */
+dotter.c:3229:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:3231:  const int numCoords = isUp ? -1 : 1;
+dotter.c:3233:  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->matchCoord, dwc->dotterCtx->vertScaleRev, FALSE, !modifier, numCoords);  
+dotter.c:3242:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:3244:  const int numCoords = isLeft ? -1 : 1;
+dotter.c:3246:  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->refCoord, dwc->dotterCtx->hozScaleRev, TRUE, !modifier, numCoords);
+dotter.c:3255:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:3257:  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->refCoord, dwc->dotterCtx->hozScaleRev, TRUE, !modifier, isComma ? -1 : 1);
+dotter.c:3258:  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->matchCoord, dwc->dotterCtx->vertScaleRev, FALSE, !modifier, isComma ? -1 : 1);
+dotter.c:3267:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:3269:  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->refCoord, dwc->dotterCtx->hozScaleRev, TRUE, !modifier, isLeft ? -1 : 1);
+dotter.c:3270:  incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->matchCoord, dwc->dotterCtx->vertScaleRev, FALSE, !modifier, isLeft ? 1 : -1);
+dotter.c:3282:  const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;	
+dotter.c:3284:  switch (event->keyval)
+dotter.c:3327:      const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
+dotter.c:3328:      //  const gboolean altModifier = (event->state & GDK_MOD1_MASK) == GDK_MOD1_MASK;
+dotter.c:3330:      switch (event->keyval)
+dotter.c:3392:  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
+dotter.c:3416:  char *title = blxprintf("Dotter %s vs. %s", dc->refSeqName, dc->matchSeqName);
+dotter.c:3421:  dc->msgData->parent = GTK_WINDOW(dotterWindow);
+dotter.c:3423:  /* Create the menu bar, and a right-click context menu */
+dotter.c:3438:  g_signal_connect(G_OBJECT(dotterWindow), "key-press-event", G_CALLBACK(onKeyPressDotterCoords), dotterWindow);
+dotter.c:3439:  g_signal_connect(G_OBJECT(dotterWindow), "button-press-event", G_CALLBACK(onButtonPressDotter), contextMenu);
+dotter.c:3440:  g_signal_connect(G_OBJECT(dotterWindow), "motion-notify-event", G_CALLBACK(onMouseMoveDotter), NULL);
+dotter.c:3484:  GtkWidget *dotplot = properties->dotplot;
+dotter.c:3493:  DotterWindowContext *dwc = properties->dotterWinCtx;
+dotter.c:3494:  blxPrintWidget(parent, GTK_WINDOW(dotterWindow), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
+dotter.h:2: *  Author: Erik Sonnhammer, 1999-08-26
+dotter.h:4: * ---------------------------------------------------------------------------
+dotter.h:17: * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+dotter.h:18: * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+dotter.h:19: * ---------------------------------------------------------------------------
+dotter.h:29: *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+dotter.h:43: *----------------------------------------------------------------------------
+dotter.h:71:    int install : 1;          /* whether to add -install to the dotter args (for private colormaps) */
+dotter.h:77:    char *savefile;           /* file to save the dot-plot to (batch mode; saves the dot-matrix so it can be loaded later and interacted with) */
+dotter.h:78:    char *exportfile;         /* file to export the dot-plot to (batch mode; exports to a graphical format, e.g. pdf or ps. Default is pdf unless file extension indicates otherwise) */
+dotter.h:79:    char *loadfile;           /* file to load a dot-plot from */
+dotter.h:81:    char *mtxfile;            /* caller-supplied matrix file */
+dotter.h:83:    char *winsize;            /* caller-supplied sliding-window size */
+dotter.h:84:    char *xOptions;           /* x-options */
+dotter.h:91:    gboolean mirrorImage;     /* display mirror image in self comparisons (i.e. so we only have to calculate half of the dot-plot) */
+dotter.h:94:    gboolean hspsOnly;        /* only draw HSPs (i.e. don't calculate the dot-plot, just draw lines where we know HSPs should be) */
+dotter.h:99:    gboolean negateCoords;    /* negate the displayed coords when the scale is reversed, i.e. so they still appear to increase from left-to-right */
+dotter.h:107:			      P -> Protein-Protein
+dotter.h:108:			      N -> DNA-DNA
+dotter.h:109:			      X -> DNA-Protein */
+dotterKarlin.c:2: *  Author: Erik Sonnhammer, 1995-08-28
+dotterKarlin.c:4: * ---------------------------------------------------------------------------
+dotterKarlin.c:17: * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+dotterKarlin.c:18: * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+dotterKarlin.c:19: * ---------------------------------------------------------------------------
+dotterKarlin.c:29: *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+dotterKarlin.c:35: *----------------------------------------------------------------------------
+dotterKarlin.c:96: * Return values accurate to approx. 16 digits for the quantity exp(x)-1
+dotterKarlin.c:103:    double absx = ((x < 0) ? -x : x) ;
+dotterKarlin.c:106:	return exp(x) - 1.;
+dotterKarlin.c:108:    if (absx < 1.e-16)
+dotterKarlin.c:126:/* etop() -- given an Expect value, return the associated probability 
+dotterKarlin.c:131:        return -fct_expm1(-E);
+dotterKarlin.c:162:	Schemes,"  Proc. Natl. Acad. Sci. USA 87 (1990), 2264-2268.
+dotterKarlin.c:165:	statistical significance of high-scoring segments or subalignments.
+dotterKarlin.c:173:	these two extreme scores.  For example, if score -2 occurs with
+dotterKarlin.c:176:	low = -2, high = 3, and pr pointing to the array of values
+dotterKarlin.c:189:		P( S >= x )   <=   1 - exp [ - KN exp ( - lambda * x ) ].
+dotterKarlin.c:191:	In other words, the p-value for this segment can be written as
+dotterKarlin.c:192:	1-exp[-KN*exp(-lambda*S)].
+dotterKarlin.c:199:	In addition, letting y = KN*exp(-lambda*S), the p-value for finding m
+dotterKarlin.c:202:                               2             m-1           -y
+dotterKarlin.c:203:                1 - [ 1 + y + y /2! + ... + y   /(m-1)! ] e
+dotterKarlin.c:205:	Notice that for m=1 this formula reduces to 1-exp(-y), which is the same
+dotterKarlin.c:219:	g_critical("Karlin-Altschul statistics error: There must be at least one negative score in the substitution matrix.");
+dotterKarlin.c:220:	return -1.0;
+dotterKarlin.c:223:    for (i=range=high-low; i > -low && pr[i] == 0.0; --i);
+dotterKarlin.c:224:    if (i <= -low) {
+dotterKarlin.c:225:	g_critical("Karlin-Altschul statistics error: A positive score is impossible in the context of the scoring scheme, the residue composition of the query sequence, and the residue composition assumed for the database.");
+dotterKarlin.c:226:	return -1.0;
+dotterKarlin.c:231:	    g_critical("Karlin-Altschul statistics error: Negative probabilities for scores are disallowed.");
+dotterKarlin.c:232:	    return -1.0;
+dotterKarlin.c:243:	g_critical("Karlin/Altschul statistics failed due to non-negative expected score: %#0.3lg", Sum);
+dotterKarlin.c:278:    if (low == -1 || high == 1) {
+dotterKarlin.c:280:	*K *= 1.0 - 1./beta;
+dotterKarlin.c:289:	for (ptrP = P + (hi += high) - (lo += low); ptrP >= P; *ptrP-- =sum) {
+dotterKarlin.c:290:	    ptr1 = ptrP - first;
+dotterKarlin.c:293:		sum += *ptr1-- * *ptr2++;
+dotterKarlin.c:295:		--first;
+dotterKarlin.c:296:	    if (ptrP-P <= range)
+dotterKarlin.c:297:		--last;
+dotterKarlin.c:299:	new = fct_powi(beta, lo-1);
+dotterKarlin.c:310:    if (ratio >= (1.0 - SUMLIMIT*0.001))
+dotterKarlin.c:326:    for (i=low; p[i-low] == 0.; ++i)
+dotterKarlin.c:328:    for (j= -i;i<high && j>1;)
+dotterKarlin.c:329:	if (p[++i-low])
+dotterKarlin.c:332:    *K = (j*exp(-2.*Sum))/(av*etop(*lambda * j));
+dotterKarlin.c:355:	n = 100;		/* Nominal size of dot-matrix */
+dotterKarlin.c:407:    range = highs - lows;
+dotterKarlin.c:415:	    prob[mtx[i][j]-lows] += fq1[i] * fq2[j];
+dotterKarlin.c:434:    if (sum -1.0 > 0.0001)
+dotterMain.c:2: *  Author: esr, 1999-08-26
+dotterMain.c:4: * ---------------------------------------------------------------------------
+dotterMain.c:17: * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+dotterMain.c:18: * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+dotterMain.c:19: * ---------------------------------------------------------------------------
+dotterMain.c:29: *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+dotterMain.c:35: *----------------------------------------------------------------------------
+dotterMain.c:48:#define UNSET_INT  -1
+dotterMain.c:57: Dotter - Sequence dotplots with image enhancement tools.\n\
+dotterMain.c:64:   Allowed sequence types:   Protein  -   Protein\n\
+dotterMain.c:65:			     DNA      -   DNA\n\
+dotterMain.c:66:			     DNA      -   Protein\n\
+dotterMain.c:69:  -h		 Show this usage information\n\
+dotterMain.c:70:  -b <file>      Batch mode, write dotplot to <file>\n\
+dotterMain.c:71:  -l <file>      Load dotplot from <file>\n\
+dotterMain.c:72:  -m <float>     Memory usage limit in Mb (default 0.5)\n\
+dotterMain.c:73:  -z <int>       Set zoom (compression) factor\n\
+dotterMain.c:74:  -p <int>       Set pixel factor manually (ratio pixelvalue/score)\n\
+dotterMain.c:75:  -W <int>       Set sliding window size. (K => Karlin/Altschul estimate)\n\
+dotterMain.c:76:  -M <file>      Read in score matrix from <file> (Blast format; Default: Blosum62).\n\
+dotterMain.c:77:  -F <file>      Read in sequences and data from <file> (replaces sequencefiles).\n\
+dotterMain.c:78:  -f <file>      Read feature segments from <file>\n\
+dotterMain.c:79:  -H             Do not calculate dotplot at startup.\n\
+dotterMain.c:80:  -R             Reversed Greyramp tool at start.\n\
+dotterMain.c:81:  -r             Reverse and complement horizontal_sequence (if DNA)\n\
+dotterMain.c:82:  -v             Reverse and complement vertical_sequence (if DNA)\n\
+dotterMain.c:83:  -D             Don't display mirror image in self comparisons\n\
+dotterMain.c:84:  -w             For DNA: horizontal_sequence top strand only (Watson)\n\
+dotterMain.c:85:  -c             For DNA: horizontal_sequence bottom strand only (Crick)\n\
+dotterMain.c:86:  -q <int>       Horizontal_sequence offset\n\
+dotterMain.c:87:  -s <int>       Vertical_sequence offset\n\
+dotterMain.c:88:  --version      Show package version\n\
+dotterMain.c:89:  --compiled     Show package compile date\n\
+dotterMain.c:92:  -acefont <font> Main font.\n\
+dotterMain.c:93:  -font    <font> Menu font.\n\
+dotterMain.c:102:-----\n\
+dotterMain.c:105: Reference: Sonnhammer ELL & Durbin R (1995). A dot-matrix program\n\
+dotterMain.c:107: 	    sequence analysis. Gene 167(2):GC1-10.\n\
+dotterMain.c:121:  options->qoffset = 0;
+dotterMain.c:122:  options->soffset = 0;
+dotterMain.c:123:  options->selfcall = FALSE;
+dotterMain.c:124:  options->qlen = UNSET_INT;
+dotterMain.c:125:  options->slen = UNSET_INT;
+dotterMain.c:126:  options->dotterZoom = 0;
+dotterMain.c:127:  options->install = 1;
+dotterMain.c:128:  options->pixelFacset = 0;
+dotterMain.c:129:  options->seqInSFS = 0;
+dotterMain.c:131:  options->memoryLimit = 0.0;
+dotterMain.c:133:  options->savefile = NULL;
+dotterMain.c:134:  options->exportfile = NULL;
+dotterMain.c:135:  options->loadfile = NULL;
+dotterMain.c:136:  options->FSfilename = NULL;
+dotterMain.c:137:  options->mtxfile = NULL;
+dotterMain.c:139:  options->winsize = NULL;
+dotterMain.c:140:  options->xOptions = NULL;
+dotterMain.c:141:  options->qname = NULL;
+dotterMain.c:142:  options->qseq = NULL;
+dotterMain.c:143:  options->sname = NULL;
+dotterMain.c:144:  options->sseq = NULL;
+dotterMain.c:146:  options->mirrorImage = TRUE;
+dotterMain.c:147:  options->watsonOnly = FALSE;
+dotterMain.c:148:  options->crickOnly = FALSE;
+dotterMain.c:149:  options->hspsOnly = FALSE;
+dotterMain.c:150:  options->swapGreyramp = FALSE;
+dotterMain.c:151:  options->breaklinesOn = FALSE;
+dotterMain.c:152:  options->hozScaleRev = FALSE;
+dotterMain.c:153:  options->vertScaleRev = FALSE;
+dotterMain.c:154:  options->negateCoords = FALSE;
+dotterMain.c:156:  options->msgData.titlePrefix = g_strdup("Dotter - ");
+dotterMain.c:157:  options->msgData.parent = NULL;
+dotterMain.c:158:  options->msgData.statusBar = NULL;
+dotterMain.c:195:      while(lastMsp->next) 
+dotterMain.c:196:	lastMsp = lastMsp->next;
+dotterMain.c:201:  msp->qname = g_malloc(strlen(name)+1);
+dotterMain.c:202:  strcpy(msp->qname, name);
+dotterMain.c:204:  msp->desc = g_strdup(desc);
+dotterMain.c:205:  if ((cp = (char *)strchr(msp->desc, ' ')))
+dotterMain.c:207:  if ((cp = (char *)strchr(msp->desc, '\n')))
+dotterMain.c:210:  msp->qRange.min = msp->qRange.max = pos;
+dotterMain.c:211:  msp->fsColor = 0;
+dotterMain.c:212:  msp->type = BLXMSP_FS_SEG;
+dotterMain.c:213:  msp->score = 100.0;
+dotterMain.c:313:   * strands are always shown anyway, so the -r option essentially just swaps which strand is shown at 
+dotterMain.c:317:   * always set to false, even if we have the reverse match seq strand (which is indicated with the -v option). */
+dotterMain.c:326:      {"reverse-h-display",	no_argument,        &hozScaleRev, 1},
+dotterMain.c:327:      {"reverse-v-display",	no_argument,        &vertScaleRev, 1},
+dotterMain.c:332:      {"load-plot",             required_argument,  0, 'l'},
+dotterMain.c:333:      {"memory-limit",          required_argument,  0, 'm'},
+dotterMain.c:335:      {"pixel-factor",          required_argument,  0, 'p'},
+dotterMain.c:336:      {"window-size",           required_argument,  0, 'W'},
+dotterMain.c:337:      {"matrix-file",           required_argument,  0, 'M'},
+dotterMain.c:338:      {"sequence-file",         required_argument,  0, 'F'},
+dotterMain.c:339:      {"feature-file",          required_argument,  0, 'f'},
+dotterMain.c:340:      {"hsp-mode",              no_argument,        0, 'H'},
+dotterMain.c:341:      {"reverse-greyramp",      no_argument,        0, 'R'},
+dotterMain.c:342:      {"reverse-horizontal",    no_argument,        0, 'r'},
+dotterMain.c:343:      {"reverse-vertical",      no_argument,        0, 'v'},
+dotterMain.c:344:      {"disable-mirror",        no_argument,        0, 'D'},
+dotterMain.c:345:      {"watson-only",           no_argument,        0, 'w'},
+dotterMain.c:346:      {"crick-only",            no_argument,        0, 'c'},
+dotterMain.c:347:      {"horizontal-offset",     required_argument,  0, 'q'},
+dotterMain.c:348:      {"vertical-offset",       required_argument,  0, 's'},
+dotterMain.c:349:      {"negate-coords",         no_argument,        0, 'N'},
+dotterMain.c:426:  /* There's a bug if the rev-scale options are not used with the rev strand and vv, so
+dotterMain.c:461:      if (argc - optind < 5 || argc - optind > 6)
+dotterMain.c:521:              featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
+dotterMain.c:524:              blxSeq->mspList = g_list_append(blxSeq->mspList, msp);
+dotterMain.c:525:              msp->sSequence = blxSeq;
+dotterMain.c:528:              if (msp->type == BLXMSP_FS_SEG)
+dotterMain.c:541:      /* The -F option has been used, which replaces the input sequence files. We should therefore
+dotterMain.c:543:      if (argc - optind > 1)
+dotterMain.c:556:      if (argc - optind < 2 || argc - optind > 3) 
+dotterMain.c:637:                /* Multiple sequences - add break lines */
+dotterMain.c:643:                      /* Second sequence - add break line to mark first sequence */
+dotterMain.c:694:      	  /* Multiple sequences - add break lines */
+dotterMain.c:699:      	        /* Second sequence - add break line to mark first sequence */
+dotterMain.c:737:      if (!strcmp(options.FSfilename, "-")) 
+dotterMain.c:750:      finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
+dotterMain.c:782:      g_error("Illegal sequence types: Protein vs. DNA - turn arguments around!\n");
+dotterMain.c:785:  /* Add -install for private colormaps */
+dotterMain.c:788:      argvAdd(&argc, &argv, "-install");
+dotterMain.c:791:  /* Create the dot-plot */
+dotter_.h:2: *  Author: esr, 1999-08-26
+dotter_.h:4: * ---------------------------------------------------------------------------
+dotter_.h:17: * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+dotter_.h:18: * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+dotter_.h:19: * ---------------------------------------------------------------------------
+dotter_.h:29: *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+dotter_.h:34: * Description: Internal header for Dotter package-wide code
+dotter_.h:35: *----------------------------------------------------------------------------
+dotter_.h:57:extern char *stdcode1[];        /* 1-letter amino acid translation code */
+dotter_.h:62:#define DOTTER_DESC    "Dot-matrix plotter for detailed comparision of two sequences."
+dotter_.h:70:#define DOTTER_COPYRIGHT_STRING	   UT_MAKE_COPYRIGHT_STRING("2010-2011")
+dotter_.h:99:    DOTTER_HSPS_GREYSCALE           /* HSPs are drawn as greyscale, overriding the dot-plot */
+dotter_.h:119:  DOTCOLOR_UTR_FILL,                        /* fill color for an UTR in the exon view (non-coding/untranslated region) */
+dotter_.h:120:  DOTCOLOR_UTR_LINE,                        /* line color for an UTR in the exon view (non-coding/untranslated region) */
+dotter_.h:127:  DOTCOLOR_BREAKLINE,			    /* the color of break-lines between sequences */
+dotter_.h:148: * open for the same process (i.e. if you start a sub-dotter from within dotter it will inherit
+dotter_.h:165:  PangoFontDescription *fontDesc;	    /* fixed-width font to use for alignment */
+dotter_.h:166:  gdouble charWidth;                        /* the fixed-width font width */
+dotter_.h:167:  gdouble charHeight;                       /* the fixed-width font height */
+dotter_.h:170:  char *refSeq;				    /* the passed-in reference sequence */
+dotter_.h:171:  char *refSeqRev;                          /* the reverse-complement of refSeq (or NULL if not applicable) */
+dotter_.h:180:  char *matchSeqRev;			    /* the revsere-complemented match sequence (or NULL if not applicable) */
+dotter_.h:185:  gboolean hozScaleRev;			    /* true if horizontal coords should increase from right-to-left rather than left-to-right */
+dotter_.h:186:  gboolean vertScaleRev;		    /* true if vertical coords should increase from bottom-to-top rather than top-to-bottom */
+dotter_.h:187:  gboolean negateCoords;		    /* negate displayed coords if the scale is reversed, i.e. so coords still appear to increase left-to-right */
+dotter_.h:209:    int refCoord;                             /* currently-selected ref seq coord */
+dotter_.h:210:    int matchCoord;                           /* currently-selected match seq coord */
+dotter_.h:234:    gulong greyMap[NUM_COLORS];         /* maps weight -> pixel value. fixed mapping in pseudo colour displays
+dotter_.h:236:    GdkColor greyRamp[NUM_COLORS];      /* 256 grey colors, black->white, only used in true color displays */
+dotter_.h:250:    unsigned char *pixelmap;            /* source data for drawing the dot-plot */
+dotter_.h:251:    unsigned char *hspPixmap;           /* source data for drawing the HSP dot-plot */
+dotter_.h:253:    gboolean crosshairOn;               /* whether to show the crosshair that marks the position of the currently-selected coord */
+dotter_.h:255:    gboolean crosshairFullscreen;       /* whether to show the crosshair over the whole widget or just within the dot-plot rectangle */
+dotter_.h:257:    gboolean pixelmapOn;                /* whether to show the dot-plot pixelmap or not */
+dotter_.h:258:    DotterHspMode hspMode;              /* how (and whether) to show high-scoring pairs from Blast */
+dotter_.h:261:    gboolean breaklinesOn;		/* whether to show break-lines between sequences */
+dotter_.h:265:    GdkPoint dragStart;                 /* start point for mid-click drag */
+dotter_.h:266:    GdkPoint dragEnd;                   /* end point for mid-click drag */
+greyramptool.c:2: *  Author: Gemma Barson, 2010-08-31
+greyramptool.c:4: * ---------------------------------------------------------------------------
+greyramptool.c:17: * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+greyramptool.c:18: * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+greyramptool.c:19: * ---------------------------------------------------------------------------
+greyramptool.c:29: *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+greyramptool.c:38: *----------------------------------------------------------------------------
+greyramptool.c:64:{ "Close",        NULL, "_Close tool\tCtrl-W",              NULL,	"Close the greyramp tool",             G_CALLBACK(onCloseMenu)},
+greyramptool.c:94:    int lastBlackPoint;                 /* the previous value for the black-point spin button (so we can undo) */
+greyramptool.c:95:    int lastWhitePoint;                 /* the previous value for the white-point spin button (so we can undo) */
+greyramptool.c:99:    gboolean draggingWhite;             /* set to true when dragging the white-point marker */
+greyramptool.c:100:    gboolean draggingBlack;             /* set to true when dragging the black-point marker */
+greyramptool.c:123:      if (properties->callbackItems)
+greyramptool.c:125:          GSList *item = properties->callbackItems;
+greyramptool.c:126:          for ( ; item; item = item->next)
+greyramptool.c:128:              CallbackItem *callbackItem = (CallbackItem*)(item->data);
+greyramptool.c:132:          g_slist_free(properties->callbackItems);
+greyramptool.c:156:      properties->dwc = dwc;
+greyramptool.c:157:      properties->gradientRect.x = gradientRect->x;
+greyramptool.c:158:      properties->gradientRect.y = gradientRect->y;
+greyramptool.c:159:      properties->gradientRect.width = gradientRect->width;
+greyramptool.c:160:      properties->gradientRect.height = gradientRect->height;
+greyramptool.c:161:      properties->whiteSpinButton = whiteSpinButton;
+greyramptool.c:162:      properties->blackSpinButton = blackSpinButton;
+greyramptool.c:163:      properties->blackPoint = blackPoint;
+greyramptool.c:164:      properties->whitePoint = whitePoint;
+greyramptool.c:165:      properties->lastBlackPoint = lastBlackPoint;
+greyramptool.c:166:      properties->lastWhitePoint = lastWhitePoint;
+greyramptool.c:167:      properties->swapValues = swapValues;
+greyramptool.c:168:      properties->draggingWhite = FALSE;
+greyramptool.c:169:      properties->draggingBlack = FALSE;
+greyramptool.c:170:      properties->draggingThreshold = FALSE;
+greyramptool.c:171:      properties->dragXPos = 0;
+greyramptool.c:172:      properties->callbackItems = NULL;
+greyramptool.c:183:  properties->whitePoint = whitePoint;
+greyramptool.c:185:  if (properties->whitePoint < GREYRAMP_MIN)
+greyramptool.c:187:      properties->whitePoint = GREYRAMP_MIN;
+greyramptool.c:190:  if (properties->whitePoint > GREYRAMP_MAX)
+greyramptool.c:192:      properties->whitePoint = GREYRAMP_MAX;
+greyramptool.c:195:  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), properties->whitePoint);
+greyramptool.c:200:  properties->blackPoint = blackPoint;
+greyramptool.c:202:  if (properties->blackPoint < GREYRAMP_MIN)
+greyramptool.c:204:      properties->blackPoint = GREYRAMP_MIN;
+greyramptool.c:207:  if (properties->blackPoint > GREYRAMP_MAX)
+greyramptool.c:209:      properties->blackPoint = GREYRAMP_MAX;
+greyramptool.c:212:  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->blackSpinButton), properties->blackPoint);
+greyramptool.c:225:  callbackItem->widget = widget;
+greyramptool.c:226:  callbackItem->func = func;
+greyramptool.c:228:  properties->callbackItems = g_slist_append(properties->callbackItems, callbackItem);
+greyramptool.c:253:/* This should be called whenever the black- or white- point has changed. It causes
+greyramptool.c:261:  int whitePoint = properties->whitePoint;
+greyramptool.c:262:  int blackPoint = properties->blackPoint;
+greyramptool.c:272:      --whitePoint;
+greyramptool.c:282:      gdouble fac = 0xff / (gdouble)(whitePoint - blackPoint) ;
+greyramptool.c:285:	ramp[i] =  fac * (i - blackPoint) ; 
+greyramptool.c:297:      gdouble fac = 0xff / (gdouble)(blackPoint - whitePoint) ;
+greyramptool.c:300:	ramp[i] = fac * (blackPoint - i) ; 
+greyramptool.c:308:  GSList *item = properties->callbackItems;
+greyramptool.c:310:  for ( ; item; item = item->next)
+greyramptool.c:312:      CallbackItem *callbackItem = (CallbackItem*)(item->data);
+greyramptool.c:313:      callbackItem->func(callbackItem->widget, ramp);
+greyramptool.c:323:  result->x = properties->gradientRect.x + properties->whitePoint - (GRADIENT_RECT_MARKER_HEIGHT / 2);
+greyramptool.c:324:  result->y = properties->gradientRect.y - GRADIENT_RECT_MARKER_HEIGHT - (GRADIENT_RECT_Y_PADDING / 2);
+greyramptool.c:325:  result->width = GRADIENT_RECT_MARKER_HEIGHT;
+greyramptool.c:326:  result->height = GRADIENT_RECT_MARKER_HEIGHT;
+greyramptool.c:332:  result->x = properties->gradientRect.x + properties->blackPoint - (GRADIENT_RECT_MARKER_HEIGHT / 2);
+greyramptool.c:333:  result->y = properties->gradientRect.y + properties->gradientRect.height + (GRADIENT_RECT_Y_PADDING / 2);
+greyramptool.c:334:  result->width = GRADIENT_RECT_MARKER_HEIGHT;
+greyramptool.c:335:  result->height = GRADIENT_RECT_MARKER_HEIGHT;
+greyramptool.c:341:  result->x = properties->gradientRect.x + properties->whitePoint + (properties->blackPoint - properties->whitePoint) / 2 - (GRADIENT_RECT_MARKER_HEIGHT / 2);
+greyramptool.c:342:  result->y = properties->gradientRect.y + (properties->gradientRect.height / 2) - (GRADIENT_RECT_MARKER_HEIGHT / 2);
+greyramptool.c:343:  result->width = GRADIENT_RECT_MARKER_HEIGHT;
+greyramptool.c:344:  result->height = GRADIENT_RECT_MARKER_HEIGHT;
+greyramptool.c:353:  if (x >= rect->x && x <= rect->x + rect->width && y >= rect->y && y <= rect->y + rect->height)
+greyramptool.c:395:  GdkRectangle *rect = &properties->gradientRect;
+greyramptool.c:398:  cairo_pattern_t *pattern = cairo_pattern_create_linear(rect->x, rect->y, rect->x + rect->width, rect->y);
+greyramptool.c:401:  int whitePoint = properties->whitePoint;
+greyramptool.c:402:  int blackPoint = properties->blackPoint;
+greyramptool.c:412:          blackPoint -= 1;
+greyramptool.c:449:  DotterContext *dc = properties->dwc->dotterCtx;
+greyramptool.c:455:  GdkColor *fillColor = getGdkColor(DOTCOLOR_MARKER_FILL, dc->defaultColors, FALSE, properties->dwc->usePrintColors);
+greyramptool.c:456:  GdkColor *lineColor = getGdkColor(DOTCOLOR_MARKER_LINE, dc->defaultColors, properties->draggingWhite, properties->dwc->usePrintColors);
+greyramptool.c:483:  DotterContext *dc = properties->dwc->dotterCtx;
+greyramptool.c:489:  GdkColor *fillColor = getGdkColor(DOTCOLOR_MARKER_FILL, dc->defaultColors, FALSE, properties->dwc->usePrintColors);
+greyramptool.c:490:  GdkColor *lineColor = getGdkColor(DOTCOLOR_MARKER_LINE, dc->defaultColors, properties->draggingBlack, properties->dwc->usePrintColors);
+greyramptool.c:517:  DotterContext *dc = properties->dwc->dotterCtx;
+greyramptool.c:525:  GdkColor *lineColor = getGdkColor(DOTCOLOR_THRESHOLD_MARKER, dc->defaultColors, properties->draggingThreshold, properties->dwc->usePrintColors);
+greyramptool.c:547:  GdkWindow *drawable = GTK_LAYOUT(gradient)->bin_window;
+greyramptool.c:562:/* Mouse-button press handler */
+greyramptool.c:567:  if (event->button == 1)
+greyramptool.c:573:      if (pointInWhiteMarker(properties, event->x, event->y))
+greyramptool.c:575:          properties->draggingWhite = TRUE;
+greyramptool.c:576:          properties->dragXPos = event->x;
+greyramptool.c:578:      else if (pointInBlackMarker(properties, event->x, event->y))
+greyramptool.c:580:          properties->draggingBlack = TRUE;
+greyramptool.c:581:          properties->dragXPos = event->x;
+greyramptool.c:583:      else if (pointInThresholdMarker(properties, event->x, event->y))
+greyramptool.c:585:          properties->draggingThreshold = TRUE;
+greyramptool.c:586:          properties->dragXPos = event->x;
+greyramptool.c:589:      if (properties->draggingWhite || properties->draggingBlack || properties->draggingThreshold)
+greyramptool.c:592:          properties->lastBlackPoint =  properties->blackPoint; 
+greyramptool.c:593:          properties->lastWhitePoint =  properties->whitePoint;
+greyramptool.c:604:/* Mouse-button release handler */
+greyramptool.c:610:  properties->draggingWhite = FALSE;
+greyramptool.c:611:  properties->draggingBlack = FALSE;
+greyramptool.c:612:  properties->draggingThreshold = FALSE;
+greyramptool.c:613:  properties->dragXPos = 0;
+greyramptool.c:621:/* Mouse-motion event handler. */
+greyramptool.c:626:  if (event->state & GDK_BUTTON1_MASK) /* left button pressed */
+greyramptool.c:631:      if (properties->draggingWhite)
+greyramptool.c:633:          /* Move the white point by the amount offset since the last move/button-press */
+greyramptool.c:634:          const int offset = event->x - properties->dragXPos;
+greyramptool.c:635:          properties->dragXPos = event->x;
+greyramptool.c:636:          greyrampSetWhitePoint(properties, properties->whitePoint + offset);
+greyramptool.c:638:      else if (properties->draggingBlack)
+greyramptool.c:641:          const int offset = event->x - properties->dragXPos;
+greyramptool.c:642:          properties->dragXPos = event->x;
+greyramptool.c:643:          greyrampSetBlackPoint(properties, properties->blackPoint + offset);
+greyramptool.c:645:      else if (properties->draggingThreshold)
+greyramptool.c:648:          const int offset = event->x - properties->dragXPos;
+greyramptool.c:649:          properties->dragXPos = event->x;
+greyramptool.c:650:          greyrampSetWhitePoint(properties, properties->whitePoint + offset);
+greyramptool.c:651:          greyrampSetBlackPoint(properties, properties->blackPoint + offset);
+greyramptool.c:661:/* Called when the black-point spin button's value has changed */
+greyramptool.c:667:  properties->blackPoint = gtk_spin_button_get_value_as_int(blackSpinButton);
+greyramptool.c:674:/* Called when the white-point spin button's value has changed */
+greyramptool.c:680:  properties->whitePoint = gtk_spin_button_get_value_as_int(whiteSpinButton);
+greyramptool.c:693:  int temp = properties->blackPoint; 
+greyramptool.c:694:  properties->blackPoint = properties->lastBlackPoint; 
+greyramptool.c:695:  properties->lastBlackPoint = temp;
+greyramptool.c:697:  temp = properties->whitePoint; 
+greyramptool.c:698:  properties->whitePoint = properties->lastWhitePoint; 
+greyramptool.c:699:  properties->lastWhitePoint = temp;
+greyramptool.c:701:  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->blackSpinButton), (float)properties->blackPoint) ;
+greyramptool.c:702:  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), (float)properties->whitePoint); 
+greyramptool.c:708:/* Swap the min and max values - has the effect of inverting the colors */
+greyramptool.c:714:  int temp = properties->blackPoint; 
+greyramptool.c:715:  properties->blackPoint = properties->whitePoint; 
+greyramptool.c:716:  properties->whitePoint = temp;
+greyramptool.c:718:  properties->swapValues = !properties->swapValues;
+greyramptool.c:720:  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->blackSpinButton), (float)properties->blackPoint) ;
+greyramptool.c:721:  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), (float)properties->whitePoint);
+greyramptool.c:741:  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
+greyramptool.c:754:  if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
+greyramptool.c:756:      gtk_menu_popup (GTK_MENU (data), NULL, NULL, NULL, NULL, event->button, event->time);
+greyramptool.c:844:  g_signal_connect(G_OBJECT(layout), "expose-event", G_CALLBACK(onExposeGradient), greyramp);
+greyramptool.c:845:  g_signal_connect(G_OBJECT(layout), "button-press-event", G_CALLBACK(onButtonPressGradient), greyramp);
+greyramptool.c:846:  g_signal_connect(G_OBJECT(layout), "button-release-event", G_CALLBACK(onButtonReleaseGradient), greyramp);
+greyramptool.c:847:  g_signal_connect(G_OBJECT(layout), "motion-notify-event", G_CALLBACK(onMouseMoveGradient), greyramp);
+greyramptool.c:850:  rect->x = GRADIENT_RECT_X_PADDING;
+greyramptool.c:851:  rect->y = GRADIENT_RECT_MARKER_HEIGHT + GRADIENT_RECT_Y_PADDING;
+greyramptool.c:852:  rect->width = GRADIENT_RECT_WIDTH;
+greyramptool.c:853:  rect->height = GRADIENT_RECT_HEIGHT;
+greyramptool.c:867:  gtk_window_set_title(GTK_WINDOW(greyrampTool), "Dotter - Greyramp Tool");
+greyramptool.c:902:  /* Create the right-click menu */
+greyramptool.c:907:  g_signal_connect(G_OBJECT(greyrampTool), "button-press-event", G_CALLBACK(onButtonPressGreyrampTool), menu);
+greyramptool.c:908:  g_signal_connect(G_OBJECT(greyrampTool), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+seqtoolsExonView.c:2: *  Author: Gemma Barson, 2009-12-24
+seqtoolsExonView.c:4: * ---------------------------------------------------------------------------
+seqtoolsExonView.c:17: * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+seqtoolsExonView.c:18: * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+seqtoolsExonView.c:19: * ---------------------------------------------------------------------------
+seqtoolsExonView.c:29: *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+seqtoolsExonView.c:35: *----------------------------------------------------------------------------
+seqtoolsExonView.c:113:  const gint xMin = (data->horizontal ? data->exonViewRect->x : data->exonViewRect->y);
+seqtoolsExonView.c:114:  const gint xMax = xMin + (data->horizontal ? data->exonViewRect->width : data->exonViewRect->height);
+seqtoolsExonView.c:120:          xStart = xMin - 1;
+seqtoolsExonView.c:121:          width = xEnd - xStart;
+seqtoolsExonView.c:127:          width = xEnd - xStart;
+seqtoolsExonView.c:134:      if (!data->horizontal)
+seqtoolsExonView.c:143:      const GdkColor *fillColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dwc->usePrintColors, TRUE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
+seqtoolsExonView.c:144:      gdk_gc_set_foreground(data->gc, fillColor);
+seqtoolsExonView.c:145:      gdk_draw_rectangle(data->drawable, data->gc, TRUE, xStart, yStart, width, height);
+seqtoolsExonView.c:148:      const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dwc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
+seqtoolsExonView.c:149:      gdk_gc_set_foreground(data->gc, lineColor);
+seqtoolsExonView.c:150:      gdk_draw_rectangle(data->drawable, data->gc, FALSE, xStart, yStart, width, height);
+seqtoolsExonView.c:169:  const gint xMin = data->horizontal ? clipRect->x : clipRect->y;
+seqtoolsExonView.c:170:  const gint xMax = xMin + (data->horizontal ? clipRect->width : clipRect->height);
+seqtoolsExonView.c:182:          const int origWidth = abs(xEnd - xStart);
+seqtoolsExonView.c:186:          const int newWidth = abs(xEnd - xStart);
+seqtoolsExonView.c:187:          const int newHeight = roundNearest((double)(yEnd - yStart) * (double)newWidth / (double)origWidth); /* negative if yend < ystart */
+seqtoolsExonView.c:189:          yStart = yEnd - newHeight;
+seqtoolsExonView.c:194:          const int origWidth = abs(xEnd - xStart);
+seqtoolsExonView.c:198:          const int newWidth = abs(xEnd - xStart);
+seqtoolsExonView.c:199:          const int newHeight = roundNearest((double)(yEnd - yStart) * (double)newWidth / (double)origWidth);
+seqtoolsExonView.c:205:      if (!data->horizontal)
+seqtoolsExonView.c:211:      gdk_draw_line(data->drawable, data->gc, xStart, yStart, xEnd, yEnd);
+seqtoolsExonView.c:226:  const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dwc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
+seqtoolsExonView.c:227:  gdk_gc_set_foreground(data->gc, lineColor);
+seqtoolsExonView.c:235:  int yTop = data->horizontal ? yIn : yIn + heightIn;
+seqtoolsExonView.c:241:  drawIntronLine(data, xStart, yBottom, xEnd, yTop, data->exonViewRect);
+seqtoolsExonView.c:246:  drawIntronLine(data, xStart, yTop, xEnd, yBottom, data->exonViewRect);
+seqtoolsExonView.c:255:  if (rangesOverlap(&msp->qRange, data->qRange))
+seqtoolsExonView.c:260:      const int qStart = msp->qRange.min;
+seqtoolsExonView.c:261:      const int qEnd = msp->qRange.max + 1;
+seqtoolsExonView.c:263:      /* Get the length-ways position (technically this will actually be y for the vertical sequence) */
+seqtoolsExonView.c:264:      const gint x1 = convertBaseIdxToRectPos(qStart, data->exonViewRect, data->qRange, data->horizontal, data->dc->hozScaleRev, FALSE);
+seqtoolsExonView.c:265:      const gint x2 = convertBaseIdxToRectPos(qEnd, data->exonViewRect, data->qRange, data->horizontal, data->dc->hozScaleRev, FALSE);
+seqtoolsExonView.c:268:      gint width = abs(x1 - x2);
+seqtoolsExonView.c:269:      gint y = data->y + data->yPad;
+seqtoolsExonView.c:270:      gint height = data->height;
+seqtoolsExonView.c:296:  showMsp &= (mspGetRefStrand(msp) == drawData->strand);
+seqtoolsExonView.c:299:  if (drawData->horizontal)
+seqtoolsExonView.c:300:    showMsp &= stringsEqual(msp->qname, drawData->dc->refSeqName, FALSE);
+seqtoolsExonView.c:302:    showMsp &= stringsEqual(msp->qname, drawData->dc->matchSeqName, FALSE);
+seqtoolsExonView.c:317:  if (!drawData->normalOnly || !isSelected)
+seqtoolsExonView.c:320:      GList *mspListItem = seq->mspList;
+seqtoolsExonView.c:322:      for ( ; mspListItem; mspListItem = mspListItem->next)
+seqtoolsExonView.c:324:	  MSP *msp = (MSP*)(mspListItem->data);
+seqtoolsExonView.c:333:  /* If the view is bumped, increase the y-coord for the next sequence */
+seqtoolsExonView.c:334:  if (seqDrawn && drawData->bumped)
+seqtoolsExonView.c:336:      drawData->y += drawData->height + (2 * drawData->yPad) ;
+seqtoolsExonView.c:345:  if (properties->showCrosshair)
+seqtoolsExonView.c:347:      DotterContext *dc = properties->dc;
+seqtoolsExonView.c:348:      DotterWindowContext *dwc = properties->dwc;
+seqtoolsExonView.c:350:      const gdouble scaleFactor = dwc->zoomFactor * getResFactor(dc, properties->horizontal);
+seqtoolsExonView.c:351:      const int coord = getSelectedCoord(dwc, properties->horizontal);
+seqtoolsExonView.c:354:      const int distFromEdge = abs(coord - getStartCoord(dwc, properties->horizontal)) / scaleFactor;
+seqtoolsExonView.c:356:      GdkColor *color = getGdkColor(DOTCOLOR_CROSSHAIR, dc->defaultColors, FALSE, dwc->usePrintColors);
+seqtoolsExonView.c:359:      if (properties->horizontal)
+seqtoolsExonView.c:362:          const int x = properties->exonViewRect.x + distFromEdge;
+seqtoolsExonView.c:363:          gdk_draw_line(drawable, gc, x, 0, x, exonView->allocation.height);
+seqtoolsExonView.c:368:          const int y = properties->exonViewRect.y + distFromEdge;
+seqtoolsExonView.c:369:          gdk_draw_line(drawable, gc, 0, y, exonView->allocation.width, y);
+seqtoolsExonView.c:402:  DotterContext *dc = properties->dc;
+seqtoolsExonView.c:409:  gdk_gc_set_clip_rectangle(gc, &properties->exonViewRect);
+seqtoolsExonView.c:415:    properties->parent,
+seqtoolsExonView.c:418:    properties->dc,
+seqtoolsExonView.c:419:    properties->dwc,
+seqtoolsExonView.c:421:    &properties->exonViewRect,
+seqtoolsExonView.c:422:    properties->qRange,
+seqtoolsExonView.c:424:    properties->yPad,
+seqtoolsExonView.c:425:    properties->horizontal ? properties->exonViewRect.y : properties->exonViewRect.x,
+seqtoolsExonView.c:426:    properties->exonHeight,
+seqtoolsExonView.c:428:    properties->strand,
+seqtoolsExonView.c:429:    properties->horizontal,
+seqtoolsExonView.c:430:    properties->bumped,
+seqtoolsExonView.c:435:  GList *seqList = dc->seqList;
+seqtoolsExonView.c:446:  DotterContext *dc = properties->dc;
+seqtoolsExonView.c:450:  int maxExons = properties->bumped ? UNSET_INT : 1; /* unset means no limit */
+seqtoolsExonView.c:453:  GList *seqItem = dc->seqList;
+seqtoolsExonView.c:455:  for ( ; seqItem; seqItem = seqItem->next)
+seqtoolsExonView.c:458:      const BlxSequence *seq = (BlxSequence*)(seqItem->data);
+seqtoolsExonView.c:459:      GList *mspItem = seq->mspList;
+seqtoolsExonView.c:461:      for ( ; mspItem; mspItem = mspItem->next)
+seqtoolsExonView.c:463:	  const MSP *msp = (const MSP*)(mspItem->data);
+seqtoolsExonView.c:466:              mspGetRefStrand(msp) == properties->strand &&
+seqtoolsExonView.c:467:	      rangesOverlap(&msp->qRange, properties->qRange))
+seqtoolsExonView.c:481:  if (properties->horizontal)
+seqtoolsExonView.c:483:      properties->exonViewRect.height = (numExons * (properties->exonHeight + 2 * properties->yPad)) + (2 * properties->yPad);
+seqtoolsExonView.c:484:      gtk_widget_set_size_request(exonView, -1, properties->exonViewRect.height);
+seqtoolsExonView.c:485:      gtk_layout_set_size(GTK_LAYOUT(exonView), exonView->allocation.width, properties->exonViewRect.height);
+seqtoolsExonView.c:489:      properties->exonViewRect.width = (numExons * (properties->exonHeight + 2 * properties->yPad)) + (2 * properties->yPad);
+seqtoolsExonView.c:490:      gtk_widget_set_size_request(exonView, properties->exonViewRect.width, -1);
+seqtoolsExonView.c:491:      gtk_layout_set_size(GTK_LAYOUT(exonView), properties->exonViewRect.width, exonView->allocation.height);
+seqtoolsExonView.c:503:  if (properties->horizontal)
+seqtoolsExonView.c:505:      properties->exonViewRect.x = properties->dc->scaleWidth; /* use same left border as dotplot */
+seqtoolsExonView.c:506:      properties->exonViewRect.y = 0;
+seqtoolsExonView.c:507:      properties->exonViewRect.width = width;
+seqtoolsExonView.c:508:      properties->exonViewRect.height = properties->exonHeight + (2 * properties->yPad);
+seqtoolsExonView.c:512:      properties->exonViewRect.x = 0;
+seqtoolsExonView.c:513:      properties->exonViewRect.y = properties->dc->scaleHeight; /* use same top border as dotplot */
+seqtoolsExonView.c:514:      properties->exonViewRect.width = properties->exonHeight + (2 * properties->yPad);
+seqtoolsExonView.c:515:      properties->exonViewRect.height = height;
+seqtoolsExonView.c:518:  gtk_layout_set_size(GTK_LAYOUT(exonView), properties->exonViewRect.x + properties->exonViewRect.width, properties->exonViewRect.y + properties->exonViewRect.height);
+seqtoolsExonView.c:519:  gtk_widget_set_size_request(exonView, properties->exonViewRect.x + properties->exonViewRect.width, properties->exonViewRect.y + properties->exonViewRect.height);
+seqtoolsExonView.c:523:  if (properties->bumped)
+seqtoolsExonView.c:529:  DEBUG_OUT("seq horizontal=%d, x=%d, y=%d, w=%d, h=%d\n", properties->horizontal, properties->exonViewRect.x, properties->exonViewRect.y, properties->exonViewRect.width, properties->exonViewRect.height);
+seqtoolsExonView.c:568:      properties->parent	      = parent;
+seqtoolsExonView.c:569:      properties->refreshFunc	      = refreshFunc;
+seqtoolsExonView.c:570:      properties->dc		      = dc;
+seqtoolsExonView.c:571:      properties->dwc		      = dwc;
+seqtoolsExonView.c:573:      properties->strand	      = strand;
+seqtoolsExonView.c:574:      properties->horizontal          = horizontal;
+seqtoolsExonView.c:575:      properties->qRange	      = qRange;
+seqtoolsExonView.c:577:      properties->bumped	      = FALSE;
+seqtoolsExonView.c:578:      properties->yPad		      =	DEFAULT_EXON_YPAD;
+seqtoolsExonView.c:580:      properties->exonViewRect.x      = 0;
+seqtoolsExonView.c:581:      properties->exonViewRect.y      = DEFAULT_EXON_YPAD;
+seqtoolsExonView.c:582:      properties->exonViewRect.width  = width;
+seqtoolsExonView.c:583:      properties->exonViewRect.height = DEFAULT_EXON_HEIGHT;
+seqtoolsExonView.c:585:      properties->exonHeight          = DEFAULT_EXON_HEIGHT;
+seqtoolsExonView.c:586:      properties->showCrosshair       = showCrosshair;
+seqtoolsExonView.c:598:  return properties->bumped;
+seqtoolsExonView.c:605:  properties->bumped = bumped;
+seqtoolsExonView.c:609:      properties->yPad = DEFAULT_EXON_YPAD_BUMPED;
+seqtoolsExonView.c:610:      properties->exonHeight = DEFAULT_EXON_HEIGHT_BUMPED;
+seqtoolsExonView.c:614:      properties->yPad = DEFAULT_EXON_YPAD;
+seqtoolsExonView.c:615:      properties->exonHeight = DEFAULT_EXON_HEIGHT;
+seqtoolsExonView.c:621:  if (properties->refreshFunc)
+seqtoolsExonView.c:622:    properties->refreshFunc(properties->parent, NULL);
+seqtoolsExonView.c:634:  exonViewSetBumped(exonView, !properties->bumped);
+seqtoolsExonView.c:640:  properties->showCrosshair = showCrosshair;
+seqtoolsExonView.c:662:      GdkDrawable *window = GTK_LAYOUT(exonView)->bin_window;
+seqtoolsExonView.c:666:      gdk_draw_drawable(window, gc, drawable, 0, 0, 0, 0, -1, -1);
+seqtoolsExonView.c:720:  DEBUG_ENTER("createDotterExonView(width=%d, height=%d, qRange=%d %d)", width, height, qRange->min, qRange->max);
+seqtoolsExonView.c:722:  DotterContext *dc = dwc->dotterCtx;
+seqtoolsExonView.c:735:  g_signal_connect(G_OBJECT(exonView),	"expose-event",		G_CALLBACK(onExposeExonView),	      NULL);
+seqtoolsExonView.c:736:  g_signal_connect(G_OBJECT(exonView),	"size-allocate",	G_CALLBACK(onSizeAllocateExonView),   NULL);
+seqtoolsExonView.c:737:  g_signal_connect(G_OBJECT(exonView),	"button-press-event",   G_CALLBACK(onButtonPressExonView),    NULL);
+seqtoolsExonView.c:738:  g_signal_connect(G_OBJECT(exonView),	"button-release-event", G_CALLBACK(onButtonReleaseExonView),  NULL);
+seqtoolsExonView.c:739:  g_signal_connect(G_OBJECT(exonView),	"motion-notify-event",  G_CALLBACK(onMouseMoveExonView),      NULL);
+seqtoolsExonView.h:2: *  Author: Gemma Barson, 2009-12-24
+seqtoolsExonView.h:4: * ---------------------------------------------------------------------------
+seqtoolsExonView.h:17: * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+seqtoolsExonView.h:18: * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+seqtoolsExonView.h:19: * ---------------------------------------------------------------------------
+seqtoolsExonView.h:29: *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+seqtoolsExonView.h:41: *              contain some Dotter- and Blixem- specific stuff: in Dotter
+seqtoolsExonView.h:44: *              detail-view range.
+seqtoolsExonView.h:45: *----------------------------------------------------------------------------
