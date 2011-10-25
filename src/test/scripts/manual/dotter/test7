@@ -1,0 +1,11 @@
+exec dotter -l ../data/chr4_vs_DA730641.dot -q 246634 -f ../data/chr4_dna_align.gff ../data/chr4_ref_seq_short.fasta ../data/DA730641.fasta
+
+#
+# Description:
+#   Test loading of a saved dot-matrix.
+#
+# Results:
+#   Dotter should start up in graphical mode. You should be able to interact
+#   with the dot-plot as if it were created from the original sequences (test1).,
+#   including being able to adjust the contrast using the greyramp tool.
+#

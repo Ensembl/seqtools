@@ -1,0 +1,10 @@
+exec dotter -b output.dot -e output.pdf -q 246634 -f ../data/chr4_dna_align.gff ../data/chr4_ref_seq_short.fasta ../data/DA730641.fasta
+
+#
+# Description:
+#   Test Dotter in batch mode: save both the dot-matrix and an exported PDF of the plot.
+#
+# Results:
+#   The output file 'output.dot' and 'output.pdf' should be the same as the files
+#   'test3_result.dot' and 'test3_result.pdf' respectively.
+#
