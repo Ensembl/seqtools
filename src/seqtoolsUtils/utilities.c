@@ -438,6 +438,17 @@ int numDigitsInInt(int val)
  *                       Misc                              * 
  ***********************************************************/
 
+/* Returns true if the given button event position is inside the given rectangle
+ * (expands the rectangle to the given minimum width if it is less than this) */
+gboolean clickedInRect(GdkEventButton *event, GdkRectangle *rect, const int minWidth)
+{
+  gboolean result = event->x >= rect->x && event->x <= rect->x + rect->width + minWidth;
+  result &= event->y >= rect->y && event->y <= rect->y + rect->height;
+  
+  return result;
+}
+
+
 /* Determine (or give our best guess) the sequence type of a sequence, based on the characters it
  * contains. Returns BLXSEQ_DNA for nucleotide sequences or BLXSEQ_PEPTIDE for peptide sequences. */
 BlxSeqType determineSeqType(char *seq, GError **error)

@@ -304,6 +304,8 @@ GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdoub
 GdkDrawable*	      createBlankPixmap(GtkWidget *widget);
 GdkDrawable*          createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *window, const int width, const int height);
 
+gboolean              clickedInRect(GdkEventButton *event, GdkRectangle *rect, const int minWidth);
+
 BlxSeqType            determineSeqType(char *seq, GError **error);
 void                  argvAdd(int *argc, char ***argv, char *s);
 char*                 getSystemErrorText();

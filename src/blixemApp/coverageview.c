@@ -460,10 +460,19 @@ static gboolean onButtonPressCoverageView(GtkWidget *coverageView, GdkEventButto
 {
   gboolean handled = FALSE;
   
-  if (event->button == 2) /* middle button */
+  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+  BigPictureProperties *bpProperties = bigPictureGetProperties(coverageViewGetBigPicture(coverageView));
+  
+  if ((event->button == 1 && clickedInRect(event, &properties->highlightRect, bpProperties->highlightBoxMinWidth)) || 
+      event->button == 2)
     {
       /* Draw the preview box (draw it on the other big picture components as well) */
-      showPreviewBox(coverageViewGetBigPicture(coverageView), event->x);
+      int x = event->x;
+      
+      if (event->button == 1)
+        x = properties->highlightRect.x + properties->highlightRect.width / 2;
+      
+      showPreviewBox(coverageViewGetBigPicture(coverageView), event->x, TRUE, x - event->x);
       handled = TRUE;
     }
   
@@ -473,7 +482,7 @@ static gboolean onButtonPressCoverageView(GtkWidget *coverageView, GdkEventButto
 
 static gboolean onButtonReleaseCoverageView(GtkWidget *coverageView, GdkEventButton *event, gpointer data)
 {
-  if (event->button == 2) /* middle button */
+  if (event->button == 1 || event->button == 2) /* left or middle button */
     {
       CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
       acceptAndClearPreviewBox(coverageViewGetBigPicture(coverageView), event->x, &properties->viewRect, &properties->highlightRect);
@@ -519,10 +528,11 @@ static gboolean onScrollCoverageView(GtkWidget *coverageView, GdkEventScroll *ev
 
 static gboolean onMouseMoveCoverageView(GtkWidget *coverageView, GdkEventMotion *event, gpointer data)
 {
-  if (event->state & GDK_BUTTON2_MASK) /* middle button */
+  if ((event->state & GDK_BUTTON1_MASK) || /* left or middle button */
+      (event->state & GDK_BUTTON2_MASK))
     {
       /* Draw a preview box at the mouse pointer location */
-      showPreviewBox(coverageViewGetBigPicture(coverageView), event->x);
+      showPreviewBox(coverageViewGetBigPicture(coverageView), event->x, FALSE, 0);
     }
   
   return TRUE;

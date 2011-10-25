@@ -516,20 +516,20 @@ static gboolean selectMspIfContainsCoords(GtkWidget *grid,
 
 /* Loop through all the msp lines for this grid and mark them as selected
  * if they contain the coords of the mouse press */
-static void selectClickedMspLines(GtkWidget *grid, GdkEventButton *event, const gboolean ctrlModifier, const gboolean shiftModifier)
+static gboolean selectClickedMspLines(GtkWidget *grid, GdkEventButton *event, const gboolean ctrlModifier, const gboolean shiftModifier)
 {
   /* Loop through all the MSPs until we find one under the click coords */
   GtkWidget *blxWindow = gridGetBlxWindow(grid);
   const MSP *msp = blxWindowGetMspList(blxWindow);
   const gboolean deselectOthers = !ctrlModifier && !shiftModifier; /* whether to deselect all others first */
-  
-  for ( ; msp; msp = msp->next)
-    {
-      const gboolean found = selectMspIfContainsCoords(grid, msp, event->x, event->y, deselectOthers);
+  gboolean found = FALSE;
 
-      if (found)
-	break;
+  for ( ; msp && !found; msp = msp->next)
+    {
+      found = selectMspIfContainsCoords(grid, msp, event->x, event->y, deselectOthers);
     }
+
+  return found;
 }
 
 
@@ -537,19 +537,35 @@ static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpoint
 {
   gboolean handled = FALSE;
   
-  if (event->button == 1) /* left button */
+  /* left button */
+  if (event->button == 1)
     {
       /* If we clicked on top of an msp line, select that msp */
       guint modifiers = gtk_accelerator_get_default_mod_mask();
       const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
       const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
 
-      selectClickedMspLines(grid, event, ctrlModifier, shiftModifier);
-      handled = TRUE;
+      handled = selectClickedMspLines(grid, event, ctrlModifier, shiftModifier);
     }
-  else if (event->button == 2) /* middle button */
+  
+  /* Middle button: always show the preview box; left button: show
+   * preview box if we clicked in the highlight box (i.e. left button
+   * selects and drags the highlight box; middle button makes the 
+   * highlight box jump) */
+  GridProperties *properties = gridGetProperties(grid);
+  BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+  
+  if (event->button == 2 || 
+      (event->button == 1 && !handled && clickedInRect(event, &properties->highlightRect, bpProperties->highlightBoxMinWidth)))
     {
-      showPreviewBox(gridGetBigPicture(grid), event->x);
+      /* If dragging the highlight box (left button), then centre the preview 
+       * box on the existing highlight box centre; otherwise, centre it on the click pos */
+      int x = event->x;
+      
+      if (event->button == 1)
+        x = properties->highlightRect.x + properties->highlightRect.width / 2;
+
+      showPreviewBox(gridGetBigPicture(grid), event->x, TRUE, x - event->x);
       handled = TRUE;
     }
   
@@ -559,7 +575,7 @@ static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpoint
 
 static gboolean onButtonReleaseGrid(GtkWidget *grid, GdkEventButton *event, gpointer data)
 {
-  if (event->button == 2) /* middle button */
+  if (event->button == 1 || event->button == 2) /* left or middle button */
     {
       GridProperties *properties = gridGetProperties(grid);
       acceptAndClearPreviewBox(gridGetBigPicture(grid), event->x, &properties->gridRect, &properties->highlightRect);
@@ -605,10 +621,11 @@ static gboolean onScrollGrid(GtkWidget *grid, GdkEventScroll *event, gpointer da
 
 static gboolean onMouseMoveGrid(GtkWidget *grid, GdkEventMotion *event, gpointer data)
 {
-  if (event->state & GDK_BUTTON2_MASK) /* middle button */
+  if ((event->state & GDK_BUTTON1_MASK) || /* left button */
+      (event->state & GDK_BUTTON2_MASK))   /* middle button */
     {
       /* Draw a preview box at the mouse pointer location */
-      showPreviewBox(gridGetBigPicture(grid), event->x);
+      showPreviewBox(gridGetBigPicture(grid), event->x, FALSE, 0);
     }
   
   return TRUE;
