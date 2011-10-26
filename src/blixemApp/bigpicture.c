@@ -947,6 +947,12 @@ void showPreviewBox(GtkWidget *bigPicture, const int x, const gboolean init, con
     {
       properties->displayPreviewBox = TRUE;
       properties->previewBoxOffset = offset;
+
+      static GdkCursor *cursor = NULL;
+      cursor = gdk_cursor_new(GDK_FLEUR);
+
+      GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
+      gdk_window_set_cursor(blxWindow->window, cursor);
     }
 
   /* We might get called by a drag operation where the preview box drag has not been
@@ -969,6 +975,9 @@ void showPreviewBox(GtkWidget *bigPicture, const int x, const gboolean init, con
 void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentreIn, GdkRectangle *displayRect, GdkRectangle *highlightRect)
 {
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+  GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
+
+  gdk_window_set_cursor(blxWindow->window, NULL);
 
   if (!bpProperties->displayPreviewBox)
     return;
