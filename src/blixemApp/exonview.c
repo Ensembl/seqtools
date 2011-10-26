@@ -815,12 +815,14 @@ static gboolean onButtonPressExonView(GtkWidget *exonView, GdkEventButton *event
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
 
   if (event->button == 2 ||
-      (event->button == 1 && !handled && clickedInRect(event, &properties->highlightRect, bpProperties->highlightBoxMinWidth)))
+      (event->button == 1 && !handled && 
+       (event->type == GDK_2BUTTON_PRESS || 
+        clickedInRect(event, &properties->highlightRect, bpProperties->highlightBoxMinWidth))))
     {
       /* Draw the preview box (draw it on the other big picture components as well) */
       int x = event->x;
       
-      if (event->button == 1)
+      if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
         x = properties->highlightRect.x + properties->highlightRect.width / 2;
       
       showPreviewBox(exonViewGetBigPicture(exonView), event->x, TRUE, x - event->x);

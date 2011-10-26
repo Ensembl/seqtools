@@ -544,25 +544,33 @@ static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpoint
       guint modifiers = gtk_accelerator_get_default_mod_mask();
       const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
       const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
-
+      
       handled = selectClickedMspLines(grid, event, ctrlModifier, shiftModifier);
+      
+      if (!handled && event->type == GDK_2BUTTON_PRESS)
+        {
+          /* Double-click */
+
+        }
     }
   
   /* Middle button: always show the preview box; left button: show
-   * preview box if we clicked in the highlight box (i.e. left button
-   * selects and drags the highlight box; middle button makes the 
-   * highlight box jump) */
+   * preview box if we double-clicked, or if we clicked in the highlight
+   * box (i.e. left button selects and drags the highlight box; middle 
+   * button or double-click makes the highlight box jump) */
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
   
   if (event->button == 2 || 
-      (event->button == 1 && !handled && clickedInRect(event, &properties->highlightRect, bpProperties->highlightBoxMinWidth)))
+      (event->button == 1 && !handled && 
+       (event->type == GDK_2BUTTON_PRESS || 
+        clickedInRect(event, &properties->highlightRect, bpProperties->highlightBoxMinWidth))))
     {
       /* If dragging the highlight box (left button), then centre the preview 
        * box on the existing highlight box centre; otherwise, centre it on the click pos */
       int x = event->x;
       
-      if (event->button == 1)
+      if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
         x = properties->highlightRect.x + properties->highlightRect.width / 2;
 
       showPreviewBox(gridGetBigPicture(grid), event->x, TRUE, x - event->x);

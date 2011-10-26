@@ -463,13 +463,15 @@ static gboolean onButtonPressCoverageView(GtkWidget *coverageView, GdkEventButto
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
   BigPictureProperties *bpProperties = bigPictureGetProperties(coverageViewGetBigPicture(coverageView));
   
-  if ((event->button == 1 && clickedInRect(event, &properties->highlightRect, bpProperties->highlightBoxMinWidth)) || 
-      event->button == 2)
+  if (event->button == 2 ||
+      (event->button == 1 && !handled && 
+       (event->type == GDK_2BUTTON_PRESS || 
+        clickedInRect(event, &properties->highlightRect, bpProperties->highlightBoxMinWidth))))
     {
       /* Draw the preview box (draw it on the other big picture components as well) */
       int x = event->x;
       
-      if (event->button == 1)
+      if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
         x = properties->highlightRect.x + properties->highlightRect.width / 2;
       
       showPreviewBox(coverageViewGetBigPicture(coverageView), event->x, TRUE, x - event->x);
