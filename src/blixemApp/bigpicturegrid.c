@@ -546,12 +546,6 @@ static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpoint
       const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
       
       handled = selectClickedMspLines(grid, event, ctrlModifier, shiftModifier);
-      
-      if (!handled && event->type == GDK_2BUTTON_PRESS)
-        {
-          /* Double-click */
-
-        }
     }
   
   /* Middle button: always show the preview box; left button: show
