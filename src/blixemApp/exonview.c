@@ -857,6 +857,43 @@ static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, 
 }
 
 
+/* Implement custom scrolling for horizontal mouse wheel movements over the grid.
+ * This scrolls the position of the highlight box, i.e. it scrolls the display
+ * range in the detail view. */
+static gboolean onScrollExonView(GtkWidget *exonView, GdkEventScroll *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  switch (event->direction)
+    {
+      case GDK_SCROLL_LEFT:
+	{
+          GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
+	  scrollDetailViewLeftStep(blxWindowGetDetailView(blxWindow));
+	  handled = TRUE;
+	  break;
+	}
+	
+      case GDK_SCROLL_RIGHT:
+	{
+          GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
+	  scrollDetailViewRightStep(blxWindowGetDetailView(blxWindow));
+	  handled = TRUE;
+	  break;
+	}
+
+      default:
+	{
+	  handled = FALSE;
+	  break;
+	}
+    };
+  
+  return handled;
+}
+
+
+
 /***********************************************************
  *                       Initialisation                    *
  ***********************************************************/
@@ -877,6 +914,7 @@ GtkWidget *createExonView(GtkWidget *bigPicture, const BlxStrand currentStrand)
   g_signal_connect(G_OBJECT(exonView),	"button-press-event",   G_CALLBACK(onButtonPressExonView),    NULL);
   g_signal_connect(G_OBJECT(exonView),	"button-release-event", G_CALLBACK(onButtonReleaseExonView),  NULL);
   g_signal_connect(G_OBJECT(exonView),	"motion-notify-event",  G_CALLBACK(onMouseMoveExonView),      NULL);
+  g_signal_connect(G_OBJECT(exonView),  "scroll-event",	        G_CALLBACK(onScrollExonView),         NULL);
 
   exonViewCreateProperties(exonView, bigPicture, currentStrand);
 
