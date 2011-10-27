@@ -101,19 +101,6 @@ static void bigPictureRefreshAll(GtkWidget *bigPicture)
 }
 
 
-/* Set the x coord of the centre of the preview box within the big picture.
- * Setting it to UNSET_INT means the preview box will not be displayed. */
-void bigPictureSetPreviewBoxCentre(GtkWidget *bigPicture, int previewBoxCentre)
-{
-  BigPictureProperties *bigPictureProperties = bigPictureGetProperties(bigPicture);
-  
-  if (bigPictureProperties)
-    {
-      bigPictureProperties->previewBoxCentre = previewBoxCentre;
-    }
-}
-
-
 /* Function to round the given value to the nearest "nice" value, from the given
  * list of values to round by. Returns the value it rounded to the nearest of. */
 static int roundToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo)
@@ -923,7 +910,7 @@ void drawPreviewBox(GtkWidget *bigPicture,
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
   BlxViewContext *bc = bigPictureGetContext(bigPicture);
   
-  if (bpProperties->previewBoxCentre == UNSET_INT)
+  if (!bpProperties->displayPreviewBox)
     {
       return;
     }
@@ -950,28 +937,56 @@ void drawPreviewBox(GtkWidget *bigPicture,
 }
 
 
-/* Show a preview box centred on the given x coord */
-void showPreviewBox(GtkWidget *bigPicture, const int x)
+/* Show a preview box centred on the given x coord. If init is true, we're initialising
+ * a drag; otherwise, we're already dragging */
+void showPreviewBox(GtkWidget *bigPicture, const int x, const gboolean init, const int offset)
 {
-  /* Set the position for the preview box */
-  bigPictureSetPreviewBoxCentre(bigPicture, x);
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
+  if (init)
+    {
+      properties->displayPreviewBox = TRUE;
+      properties->previewBoxOffset = offset;
+
+      static GdkCursor *cursor = NULL;
+      cursor = gdk_cursor_new(GDK_FLEUR);
+
+      GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
+      gdk_window_set_cursor(blxWindow->window, cursor);
+    }
+
+  /* We might get called by a drag operation where the preview box drag has not been
+   * initialised; just ignore it */
+  if (!properties->displayPreviewBox)
+    return;
+
+  /* Whether dragging or initialising, we need to update the position */
+  properties->previewBoxCentre = x + properties->previewBoxOffset;
+
   /* Refresh all child widgets, and also the coverage view (which may not
    * be a child of the big picture) */
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   gtk_widget_queue_draw(bigPicture);
   gtk_widget_queue_draw(properties->coverageView);
 }
 
 
 /* Scroll the big picture so that it is centred on the current preview box position, and clear
- * the preview box.  */
-void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect)
+ * the preview box. (Do nothing if preview box is not currently shown.)  */
+void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentreIn, GdkRectangle *displayRect, GdkRectangle *highlightRect)
 {
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+  GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
+
+  gdk_window_set_cursor(blxWindow->window, NULL);
+
+  if (!bpProperties->displayPreviewBox)
+    return;
+
+  /* Apply any offset required to get the real centre coord */
+  const int xCentre = xCentreIn + bpProperties->previewBoxOffset;
   
   /* Get the display range in dna coords */
+  BlxViewContext *bc = bigPictureGetContext(bigPicture);
   IntRange dnaDispRange;
   convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
   
@@ -985,9 +1000,10 @@ void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRecta
   if (bc->displayRev)
     --baseIdx;
   
-  /* Reset the preview box's position. We don't need to un-draw it because we
+  /* Reset the preview box status. We don't need to un-draw it because we
    * will redraw the whole big picture below. */
-  bigPictureSetPreviewBoxCentre(bigPicture, UNSET_INT);
+  bpProperties->displayPreviewBox = FALSE;
+  bpProperties->previewBoxOffset = 0;
   
   /* Update the detail view's scroll pos to start at the new base. The base index is in terms of
    * the nucleotide coords so we need to convert to display coords */
@@ -1161,6 +1177,8 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
       properties->percentIdRange.min = lowestId;
       properties->percentIdRange.max = (gdouble)DEFAULT_GRID_PERCENT_ID_MAX;
 
+      properties->displayPreviewBox = FALSE;
+      properties->previewBoxOffset = 0;
       properties->previewBoxCentre = previewBoxCentre;
       properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 2; /* Extra fudge factor because char width is approx */
       properties->highlightBoxMinWidth = MIN_HIGHLIGHT_BOX_WIDTH;

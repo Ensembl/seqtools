@@ -74,8 +74,10 @@ typedef struct _BigPictureProperties
     gdouble idPerCell;		/* The percent ID to show per vertical cell */
     DoubleRange percentIdRange;	/* The max and min %ID values displayed */
 
-    int previewBoxCentre;	/* The base that the preview box is centered on (or UNSET_INT if no preview box) */
-    
+    gboolean displayPreviewBox; /* Whether to display the preview box */
+    int previewBoxCentre;	/* The base that the preview box is centered on */
+    int previewBoxOffset;       /* Can be used to offset the actual preview box position from previewBoxCentre */
+
     int leftBorderChars;	/* The number of characters in the left border of the big picture grids */
     gdouble charWidth;		/* The width of the characters in the big picture grids */
     gdouble charHeight;		/* The height of the characters in the big picture grids */
@@ -128,7 +130,6 @@ BlxViewContext*		      bigPictureGetContext(GtkWidget *bigPicture);
 gboolean                      bigPictureSetIdPerCell(GtkWidget *bigPicture, const gdouble idPerCell);
 gboolean		      bigPictureSetMaxPercentId(GtkWidget *bigPicture, const gdouble newValue);
 gboolean		      bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue);
-void                          bigPictureSetPreviewBoxCentre(GtkWidget *bigPicture, int previewBoxCentre);
 
 void			      calculateGridHeaderBorders(GtkWidget *header);
 void			      refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean keepCentered);
@@ -138,7 +139,7 @@ void			      bigPictureRedrawAll(GtkWidget *bigPicture);
 void                          bigPicturePrepareForPrinting(GtkWidget *bigPicture);
 
 void                          drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkRectangle *displayRect, GdkRectangle *highlightRect);
-void                          showPreviewBox(GtkWidget *bigPicture, const int x);
+void                          showPreviewBox(GtkWidget *bigPicture, const int x, const gboolean bOffset, const int offset);
 void                          acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect);
 
 gint			      bigPictureGetCellHeight(GtkWidget *bigPicture);

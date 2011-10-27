@@ -227,10 +227,10 @@ static gboolean selectExonIfContainsCoords(GtkWidget *exonView,
 
 /* Loop through all the msp lines for this grid and mark them as selected
  * if they contain the coords of the mouse press */
-static void selectClickedExon(GtkWidget *exonView, 
-                              GdkEventButton *event, 
-                              const gboolean ctrlModifier, 
-                              const gboolean shiftModifier)
+static gboolean selectClickedExon(GtkWidget *exonView, 
+                                  GdkEventButton *event, 
+                                  const gboolean ctrlModifier, 
+                                  const gboolean shiftModifier)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   const gboolean deselectOthers = !ctrlModifier && !shiftModifier; /* whether to deselect all others first */
@@ -260,6 +260,8 @@ static void selectClickedExon(GtkWidget *exonView,
       if (drawn && properties->expanded)
         y += properties->exonHeight + properties->yPad;
     }
+
+  return found;
 }
 
 
@@ -806,12 +808,24 @@ static gboolean onButtonPressExonView(GtkWidget *exonView, GdkEventButton *event
       const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
       const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
 
-      selectClickedExon(exonView, event, ctrlModifier, shiftModifier);
-      handled = TRUE;
+      handled = selectClickedExon(exonView, event, ctrlModifier, shiftModifier);
     }
-  else if (event->button == 2) /* middle button */
+  
+  ExonViewProperties *properties = exonViewGetProperties(exonView);
+  BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+
+  if (event->button == 2 ||
+      (event->button == 1 && !handled && 
+       (event->type == GDK_2BUTTON_PRESS || 
+        clickedInRect(event, &properties->highlightRect, bpProperties->highlightBoxMinWidth))))
     {
-      showPreviewBox(exonViewGetBigPicture(exonView), event->x);
+      /* Draw the preview box (draw it on the other big picture components as well) */
+      int x = event->x;
+      
+      if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
+        x = properties->highlightRect.x + properties->highlightRect.width / 2;
+      
+      showPreviewBox(exonViewGetBigPicture(exonView), event->x, TRUE, x - event->x);
       handled = TRUE;
     }
   
@@ -821,7 +835,7 @@ static gboolean onButtonPressExonView(GtkWidget *exonView, GdkEventButton *event
 
 static gboolean onButtonReleaseExonView(GtkWidget *exonView, GdkEventButton *event, gpointer data)
 {
-  if (event->button == 2) /* middle button */
+  if (event->button == 1 || event->button == 2) /* left or middle button */
     {
       ExonViewProperties *properties = exonViewGetProperties(exonView);
       acceptAndClearPreviewBox(exonViewGetBigPicture(exonView), event->x, &properties->exonViewRect, &properties->highlightRect);
@@ -833,14 +847,51 @@ static gboolean onButtonReleaseExonView(GtkWidget *exonView, GdkEventButton *eve
 
 static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, gpointer data)
 {
-  if (event->state & GDK_BUTTON2_MASK) /* middle button */
+  if ((event->state & GDK_BUTTON1_MASK) || (event->state & GDK_BUTTON2_MASK)) /* left or middle button */
     {
       /* Draw a preview box at the mouse pointer location */
-      showPreviewBox(exonViewGetBigPicture(exonView), event->x);
+      showPreviewBox(exonViewGetBigPicture(exonView), event->x, FALSE, 0);
     }
   
   return TRUE;
 }
+
+
+/* Implement custom scrolling for horizontal mouse wheel movements over the grid.
+ * This scrolls the position of the highlight box, i.e. it scrolls the display
+ * range in the detail view. */
+static gboolean onScrollExonView(GtkWidget *exonView, GdkEventScroll *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  switch (event->direction)
+    {
+      case GDK_SCROLL_LEFT:
+	{
+          GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
+	  scrollDetailViewLeftStep(blxWindowGetDetailView(blxWindow));
+	  handled = TRUE;
+	  break;
+	}
+	
+      case GDK_SCROLL_RIGHT:
+	{
+          GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
+	  scrollDetailViewRightStep(blxWindowGetDetailView(blxWindow));
+	  handled = TRUE;
+	  break;
+	}
+
+      default:
+	{
+	  handled = FALSE;
+	  break;
+	}
+    };
+  
+  return handled;
+}
+
 
 
 /***********************************************************
@@ -863,6 +914,7 @@ GtkWidget *createExonView(GtkWidget *bigPicture, const BlxStrand currentStrand)
   g_signal_connect(G_OBJECT(exonView),	"button-press-event",   G_CALLBACK(onButtonPressExonView),    NULL);
   g_signal_connect(G_OBJECT(exonView),	"button-release-event", G_CALLBACK(onButtonReleaseExonView),  NULL);
   g_signal_connect(G_OBJECT(exonView),	"motion-notify-event",  G_CALLBACK(onMouseMoveExonView),      NULL);
+  g_signal_connect(G_OBJECT(exonView),  "scroll-event",	        G_CALLBACK(onScrollExonView),         NULL);
 
   exonViewCreateProperties(exonView, bigPicture, currentStrand);
 
