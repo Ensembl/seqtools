@@ -115,6 +115,9 @@ static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescri
 static GtkWidget*	      createSeqColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames);
 static void		      setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse);
+static int                    getNumSnpTrackRows(const BlxViewContext *bc, DetailViewProperties *properties, const BlxStrand strand, const int frame);
+static int                    getVariationRowNumber(const IntRange const *rangeIn, const int numRows, GSList **rows);
+static void                   freeRowsList(GSList *rows);
 
 
 /***********************************************************
@@ -1406,6 +1409,9 @@ void selectClickedSnp(GtkWidget *snpTrack,
 		      const int clickedBase)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const int activeFrame = detailViewGetActiveFrame(detailView);
   
   /* Convert x coord to sequence-column coords */
   int x = xIn, y = yIn;
@@ -1414,17 +1420,19 @@ void selectClickedSnp(GtkWidget *snpTrack,
     {
       gtk_widget_translate_coordinates(snpTrack, colHeader, xIn, 0, &x, NULL);
     }
-  
+
   int clickedDisplayIdx = getBaseIndexAtColCoords(x, y, properties->charWidth, &properties->displayRange);
-  
+
+  /* Get the clicked row index (0-based) */
+  const int rowHeight = ceil(properties->charHeight);
+  const int clickedRow = y / rowHeight;
+  const int numRows = getNumSnpTrackRows(bc, properties, snpTrackGetStrand(snpTrack), activeFrame);
+
   if (clickedDisplayIdx != UNSET_INT)
     {
-      GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-      BlxViewContext *bc = blxWindowGetContext(blxWindow);
-      const int activeFrame = detailViewGetActiveFrame(detailView);
-      
-      /* Loop through all variations and see if there are any at this displayIdx */
+      /* Loop through all variations and see if there are any at this displayIdx and row */
       GList *snpList = NULL;
+      GSList *rows = NULL;
       int i = 0;
       const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
       
@@ -1439,7 +1447,12 @@ void selectClickedSnp(GtkWidget *snpTrack,
           gboolean found = FALSE;
           int dnaIdxToSelect = UNSET_INT;
           
-          if (expandSnps && valueWithinRange(clickedDisplayIdx, &mspExpandedRange))
+          /* Get the row this variation is in */
+          int mspRow = 1;
+          if (expandSnps)
+            mspRow = getVariationRowNumber(&mspExpandedRange, numRows, &rows) - 1;
+
+          if (expandSnps && valueWithinRange(clickedDisplayIdx, &mspExpandedRange) && mspRow == clickedRow)
             {
               /* We clicked inside this MSP on the variation track. Select the first coord in
                * the MSP. */
@@ -1461,6 +1474,8 @@ void selectClickedSnp(GtkWidget *snpTrack,
             }
 	}
       
+      freeRowsList(rows);
+
       /* Clear any existing selections and select the new SNP(s) */
       blxWindowSetSelectedSeqList(blxWindow, snpList);
     }
