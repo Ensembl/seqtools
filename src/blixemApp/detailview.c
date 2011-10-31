@@ -115,6 +115,9 @@ static void		      updateCellRendererFont(GtkWidget *detailView, PangoFontDescri
 static GtkWidget*	      createSeqColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames);
 static void		      setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse);
+static int                    getNumSnpTrackRows(const BlxViewContext *bc, DetailViewProperties *properties, const BlxStrand strand, const int frame);
+static int                    getVariationRowNumber(const IntRange const *rangeIn, const int numRows, GSList **rows);
+static void                   freeRowsList(GSList *rows);
 
 
 /***********************************************************
@@ -1406,6 +1409,9 @@ void selectClickedSnp(GtkWidget *snpTrack,
 		      const int clickedBase)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const int activeFrame = detailViewGetActiveFrame(detailView);
   
   /* Convert x coord to sequence-column coords */
   int x = xIn, y = yIn;
@@ -1414,17 +1420,19 @@ void selectClickedSnp(GtkWidget *snpTrack,
     {
       gtk_widget_translate_coordinates(snpTrack, colHeader, xIn, 0, &x, NULL);
     }
-  
+
   int clickedDisplayIdx = getBaseIndexAtColCoords(x, y, properties->charWidth, &properties->displayRange);
-  
+
+  /* Get the clicked row index (0-based) */
+  const int rowHeight = ceil(properties->charHeight);
+  const int clickedRow = y / rowHeight;
+  const int numRows = getNumSnpTrackRows(bc, properties, snpTrackGetStrand(snpTrack), activeFrame);
+
   if (clickedDisplayIdx != UNSET_INT)
     {
-      GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-      BlxViewContext *bc = blxWindowGetContext(blxWindow);
-      const int activeFrame = detailViewGetActiveFrame(detailView);
-      
-      /* Loop through all variations and see if there are any at this displayIdx */
+      /* Loop through all variations and see if there are any at this displayIdx and row */
       GList *snpList = NULL;
+      GSList *rows = NULL;
       int i = 0;
       const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
       
@@ -1439,7 +1447,12 @@ void selectClickedSnp(GtkWidget *snpTrack,
           gboolean found = FALSE;
           int dnaIdxToSelect = UNSET_INT;
           
-          if (expandSnps && valueWithinRange(clickedDisplayIdx, &mspExpandedRange))
+          /* Get the row this variation is in */
+          int mspRow = 1;
+          if (expandSnps)
+            mspRow = getVariationRowNumber(&mspExpandedRange, numRows, &rows) - 1;
+
+          if (expandSnps && valueWithinRange(clickedDisplayIdx, &mspExpandedRange) && mspRow == clickedRow)
             {
               /* We clicked inside this MSP on the variation track. Select the first coord in
                * the MSP. */
@@ -1461,6 +1474,8 @@ void selectClickedSnp(GtkWidget *snpTrack,
             }
 	}
       
+      freeRowsList(rows);
+
       /* Clear any existing selections and select the new SNP(s) */
       blxWindowSetSelectedSeqList(blxWindow, snpList);
     }
@@ -2331,11 +2346,131 @@ void drawHeaderChar(BlxViewContext *bc,
 }
 
 
+/* This works out the row number (1-based) to draw a variation with the given range
+ * in. Variations are drawn in row 1 if possible, but if the given range overlaps
+ * another variation in row 1, then we will try row 2, then row 3 etc.
+ * If numRows is UNSET_INT, then the straightforward row calculation is returned.
+ * If numRows is given, then the result is inverted (i.e. if there are three rows, rows
+ * 1 is translated to 3, 2->2 and 3->1. This is so that we can draw the first row at the
+ * bottom). */
+static int getVariationRowNumber(const IntRange const *rangeIn, const int numRows, GSList **rows)
+{
+  /* Loop through each row and add it to the first row where it will not overlap any other */
+  GSList *row = *rows;
+  int rowNum = 1;
+
+  for ( ; row; row = row->next, ++rowNum)
+    {
+      /* See if it overlaps an existing range */
+      GSList *ranges = (GSList*)(row->data);
+      GSList *rangeItem = ranges;
+      
+      gboolean overlaps = FALSE;
+  
+      for ( ; rangeItem && !overlaps; rangeItem = rangeItem->next)
+        {
+          IntRange *range = (IntRange*)(rangeItem->data);
+          overlaps = rangesOverlap(range, rangeIn);
+        }
+
+      if (!overlaps)
+        {
+          /* Doesn't overlap anything in this row; add it to the row and exit */
+          IntRange *range = g_malloc(sizeof *range);
+          range->min = rangeIn->min;
+          range->max = rangeIn->max;
+          ranges = g_slist_append(ranges, range);
+          
+          row->data = ranges;
+
+          if (numRows != UNSET_INT)
+            rowNum = numRows - rowNum + 1; /* invert row order */
+          
+          return rowNum;
+        }
+    }
+
+  /* If we get here, we didn't find a row that we don't overlap, so add a new row */
+  GSList *ranges = NULL;
+  IntRange *range = g_malloc(sizeof *range);
+  range->min = rangeIn->min;
+  range->max = rangeIn->max;
+  ranges = g_slist_append(ranges, range);
+  *rows = g_slist_append(*rows, ranges);
+
+  if (numRows != UNSET_INT)
+    rowNum = numRows - rowNum + 1; /* invert row order */
+
+  return rowNum;
+}
+
+
+/* This deletes the memory allocated to the 'rows' array created
+ * when drawing the snp track */
+static void freeRowsList(GSList *rows)
+{
+  GSList *rowItem = rows;
+  for ( ; rowItem; rowItem = rowItem->next)
+    {
+      GSList *ranges = (GSList*)(rowItem->data);
+      GSList *rangeItem = ranges;
+      
+      for ( ; rangeItem; rangeItem = rangeItem->next)
+        g_free(rangeItem->data);
+
+      g_slist_free(ranges);
+    }
+
+  g_slist_free(rows);
+}
+
+
+/* Utility to calculate the number of rows we need in the SNP track to avoid 
+ * any overlapping variations. */
+static int getNumSnpTrackRows(const BlxViewContext *bc, 
+                              DetailViewProperties *properties, 
+                              const BlxStrand strand, 
+                              const int frame)
+{
+  int numRows = 1; /* Always show one row, even if it is empty */
+
+  int i = 0;
+  const MSP const *msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
+  GSList *rows = NULL;
+
+  for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], ++i))
+    {
+      if (mspGetRefStrand(msp) == strand && mspGetMatchSeq(msp))
+	{
+	  /* Get the range of display coords where this SNP will appear */
+          IntRange mspDisplayRange, mspExpandedRange;
+	  getVariationDisplayRange(msp, TRUE, bc->seqType, bc->numFrames, bc->displayRev, frame, &bc->refSeqRange, &mspDisplayRange, &mspExpandedRange);
+
+	  /* See if the variation is in the current display range */
+	  if (rangesOverlap(&mspExpandedRange, &properties->displayRange))
+	    {
+              /* Get the row number (1-based) to draw this variation in. */
+              int row = getVariationRowNumber(&mspExpandedRange, UNSET_INT, &rows);
+              
+              /* Keep track of how many rows we've seen so we can size the widget accordingly */
+              if (row > numRows)
+                numRows = row;
+            }
+        }
+    }
+
+  freeRowsList(rows);
+  
+  return numRows;
+}
+
+
 /* Function that does the drawing for the variations track */
 static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 {
   /* Create the drawable for the widget (whether we're actually going to do any drawing or not) */
-  GdkDrawable *drawable = createBlankPixmap(snpTrack);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  GdkDrawable *drawable = createBlankSizedPixmap(snpTrack, snpTrack->window, snpTrack->allocation.width, ceil(properties->charHeight) * 10);
 
   GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -2345,7 +2480,6 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
       return;
     }
   
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
   const int activeFrame = detailViewGetActiveFrame(detailView);
   
   BlxStrand strand = (snpTrackGetStrand(snpTrack) == UNSET_INT)
@@ -2360,11 +2494,17 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
   gtk_widget_translate_coordinates(seqColInfo->headerWidget, snpTrack, 0, 0, &leftMargin, NULL);
   
+  /* Maintain lists for each row where the variations are drawn; remember their display
+   * ranges and don't allow any to overlap. */
+  const int numRows = getNumSnpTrackRows(bc, properties, strand, activeFrame);
+
   /* Loop through all variations and see if any are in the current display range */
+  const int y = 0;
+  const int rowHeight = ceil(properties->charHeight);
   int i = 0;
   const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
-  const int y = 0;
-  
+  GSList *rows = NULL;
+
   for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], ++i))
     {
       if (mspGetRefStrand(msp) == strand && mspGetMatchSeq(msp))
@@ -2376,6 +2516,10 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	  /* See if the variation is in the current display range */
 	  if (rangesOverlap(&mspExpandedRange, &properties->displayRange))
 	    {
+              /* Get the row number to draw this variation in. */
+              const int rowNum = getVariationRowNumber(&mspExpandedRange, numRows, &rows);
+              const int rowIdx = rowNum - 1;
+              
 	      int x = leftMargin + (int)((gdouble)(mspExpandedRange.min - properties->displayRange.min) * properties->charWidth);
 	      const int width = ceil((gdouble)strlen(mspGetMatchSeq(msp)) * properties->charWidth);
 	      const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
@@ -2387,7 +2531,7 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 	      GdkColor *fillColor = isSelected ? getGdkColor(BLXCOLOR_SNP, bc->defaultColors, FALSE, bc->usePrintColors) : NULL;
 	      
 	      /* Draw the background rectangle for the char */
-	      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, width, ceil(properties->charHeight), TRUE, TRUE, TRUE, TRUE);
+	      drawRectangle(drawable, gc, fillColor, outlineColor, x, y + (rowHeight * rowIdx), width, rowHeight, TRUE, TRUE, TRUE, TRUE);
 	      
 	      /* Draw the text */
 	      PangoLayout *layout = gtk_widget_create_pango_layout(detailView, mspGetMatchSeq(msp));
@@ -2395,12 +2539,16 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 
 	      if (layout)
 		{
-		  gtk_paint_layout(snpTrack->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, x, y, layout);
+		  gtk_paint_layout(snpTrack->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, x, y + (rowHeight * rowIdx), layout);
 		  g_object_unref(layout);
 		}	      
 	    }
 	}
     }
+
+  freeRowsList(rows);
+  
+  gtk_widget_set_size_request(snpTrack, -1, numRows * rowHeight);
   
   drawColumnSeparatorLine(snpTrack, drawable, gc, bc);
   
