@@ -45,6 +45,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <math.h>
+#include <string.h>
 
 
 #define SEQUENCE_CELL_RENDERER_NAME	"SequenceCellRenderer"
@@ -76,6 +77,8 @@ typedef struct _RenderData
     GdkColor *cdsColorSelected;
     GdkColor *utrColor;
     GdkColor *utrColorSelected;
+    GdkColor *crosshatchColor;
+    GdkColor *crosshatchColorSelected;
     GdkColor *insertionColor;
     GdkColor *insertionColorSelected;
     GdkColor *matchColor;
@@ -92,8 +95,8 @@ typedef struct _RenderData
     GdkColor *polyAColorSelected;
     GdkColor *clipMarkerColor;
     int exonBoundaryWidth;
-    GdkLineStyle exonBoundaryStyleStart;
-    GdkLineStyle exonBoundaryStyleEnd;
+    GdkLineStyle exonBoundaryStyle;
+    GdkLineStyle exonBoundaryStylePartial;
     gboolean showUnalignedSeq;
     gboolean showUnalignedSelected;
     gboolean limitUnalignedBases;
@@ -243,6 +246,21 @@ void drawRectangle2(GdkDrawable *drawable1,
     }
 }
 
+
+/* Fill a rectangle with crosshatch lines */
+void drawCrosshatchRectangle(GdkDrawable *drawable1,
+                             GdkDrawable *drawable2,
+                             GdkGC *gc,
+                             gint x,
+                             gint y,
+                             gint width,
+                             gint height)
+{
+  /* Draw diagonal lines from top-right to bottom-left. */
+  drawLine2(drawable1, drawable2, gc, x + width, y, x, y + height);
+  drawLine2(drawable1, drawable2, gc, x + width / 2, y, x, y + height / 2);
+  drawLine2(drawable1, drawable2, gc, x + width, y + height / 2, x + width / 2, y + height);
+}
 
 
 /***************************************************************************
@@ -561,6 +579,59 @@ static GdkColor* getExonFillColor(const MSP const *msp, const gboolean isSelecte
 }
 
 
+/* Returns true if the min coord (or max coord, if 'start' is false) is a
+ * partial codon, i.e. if it does not start at base 1 (if start) or end at
+ * base 3 (if end)... or vice versa if the display is reversed */
+static gboolean isPartialCodon(const MSP const *msp, const gboolean start, RenderData *data, int *displayIdxOut)
+{
+  /* To be a complete codon, if we're at the start the the coord must be base 1 
+   * or if we're at the end then coord must be base 3 */
+  const int reqdBase = (start != data->bc->displayRev) ? 1 : data->bc->numFrames;
+  
+  /* Calculate the actual base number of the start/end coord */
+  const int dnaIdx = start ? msp->qRange.min : msp->qRange.max;
+  
+  int baseNum = UNSET_INT;
+  const int frame = mspGetRefFrame(msp, data->bc->seqType);
+  
+  const int displayIdx = convertDnaIdxToDisplayIdx(dnaIdx, data->bc->seqType, frame, 
+    data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange, &baseNum);
+  
+  if (displayIdxOut)
+    *displayIdxOut = displayIdx;
+
+  gboolean isPartial = (baseNum != reqdBase);
+  return isPartial;
+}
+
+
+/* Highlight the start (min) peptide of the given msp if it is a partial codon, i.e. if it
+ * does not start at base 1 (or end at base 3, if the display is reversed). OR highlight the end
+ * (max) codon if 'start' is FALSE. The x/y coords give the top left corner of the peptide. */
+static void highlightPartialCodons(const MSP const *msp, 
+				   const gboolean start, 
+				   const int x, 
+				   const int y, 
+				   RenderData *data)
+{
+  int displayIdx = UNSET_INT;
+  gboolean isPartial = isPartialCodon(msp, start, data, &displayIdx);
+  
+  if (isPartial && valueWithinRange(displayIdx, data->displayRange)) 
+    {
+      /* It's not a complete codon, so highlight this base */
+      const gboolean coordSelected = (data->selectedBaseIdx == displayIdx);
+      const gboolean isSelected = (data->seqSelected != coordSelected);
+
+      GdkColor *color = (isSelected ? data->crosshatchColorSelected : data->crosshatchColor);
+      gdk_gc_set_foreground(data->gc, color);
+
+      drawCrosshatchRectangle(data->window, data->drawable, data->gc, x, y, data->charWidth, data->charHeight);
+    }
+}
+
+
+
 /* The given renderer is an MSP that is an exon. This function draws the exon
  * or part of the exon that is in view, if it is within the current display range. */
 static void drawExon(SequenceCellRenderer *renderer,
@@ -595,6 +666,10 @@ static void drawExon(SequenceCellRenderer *renderer,
           GdkColor *color = getExonFillColor(msp, !data->seqSelected, data);
           highlightSelectedBase(data->selectedBaseIdx, color, data);
         }
+      
+      /* If the start or end index is not a full codon, highlight it in a different color */
+      highlightPartialCodons(msp, !data->bc->displayRev, x, y, data);
+      highlightPartialCodons(msp, data->bc->displayRev, x + width - data->charWidth, y, data);
       
       drawVisibleExonBoundaries(tree, data);
     }
@@ -756,7 +831,7 @@ static void getCoordsForBaseIdx(const int segmentIdx,
  * coords are within the current display range */
 static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 {
-  if (msp && (msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR))
+  if (msp && msp->type == BLXMSP_EXON)
     {
       /* Get the msp's start/end in terms of the display coords */
       const IntRange const *mspRange = mspGetDisplayRange(msp);
@@ -767,14 +842,17 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorEnd : rd->exonBoundaryColorStart;
 	  gdk_gc_set_foreground(rd->gc, color);
 	  
-	  GdkLineStyle lineStyle = rd->bc->displayRev ? rd->exonBoundaryStyleEnd : rd->exonBoundaryStyleStart;
-	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
+          /* Check if it's the boundary of a partial codon - we'll draw a dotted
+           * line if it is, to indicate that the boundary is not exactly at this position. */
+          const gboolean isPartial = isPartialCodon(msp, !rd->bc->displayRev, rd, NULL);
+	  GdkLineStyle lineStyle = isPartial ? rd->exonBoundaryStylePartial : rd->exonBoundaryStyle;
+          gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
-	  const int idx = mspRange->min - rd->displayRange->min;
-
+          const int idx = mspRange->min - rd->displayRange->min;
+          
 	  int x = UNSET_INT, y = UNSET_INT;
 	  getCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
-	  
+          
           drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + roundNearest(rd->charHeight));
 	}
       
@@ -784,8 +862,11 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorStart : rd->exonBoundaryColorEnd;
 	  gdk_gc_set_foreground(rd->gc, color);
 	  
-	  GdkLineStyle lineStyle = rd->bc->displayRev ? rd->exonBoundaryStyleStart : rd->exonBoundaryStyleEnd;
-	  gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
+          /* Check if it's the boundary of a partial codon - we'll draw a dotted
+           * line if it is, to indicate that the boundary is not exactly at this position. */
+          const gboolean isPartial = isPartialCodon(msp, rd->bc->displayRev, rd, NULL);
+	  GdkLineStyle lineStyle = isPartial ? rd->exonBoundaryStylePartial : rd->exonBoundaryStyle;
+          gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 	  
 	  const int idx = mspRange->max + 1 - rd->displayRange->min;
 
@@ -975,6 +1056,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
   /* The ref seq is in nucleotide coords, so convert the segment coords to nucleotide coords */
   const int coord1 = convertDisplayIdxToDnaIdx(segmentRange.min, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
   const int coord2 = convertDisplayIdxToDnaIdx(segmentRange.max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
+
   IntRange qRange;
   intrangeSetValues(&qRange, coord1, coord2);
 
@@ -1008,7 +1090,7 @@ static void drawDnaSequence(SequenceCellRenderer *renderer,
     }
     
   /* We'll populate a string with the characters we want to display as we loop through the indices. */
-  const int segmentLen = segmentRange.max - segmentRange.min + 1;
+  const int segmentLen = strlen(refSeqSegment);
   gchar displayText[segmentLen + 1];
   displayText[0] = '\0';
   
@@ -1074,6 +1156,14 @@ static void drawMsps(SequenceCellRenderer *renderer,
   
   GdkGC *gc = gdk_gc_new(window);
   
+  /* Make the dashes of the partial-boundary lines very short and closely
+   * packed (i.e. dash length of 2 pixels and gaps of 1 pixel) */
+  int listLen = 2;
+  gint8 dashList[listLen];
+  dashList[0] = 2;
+  dashList[1] = 1;
+  gdk_gc_set_dashes(gc, 1, dashList, listLen);
+  
   RenderData data = {
     bc,
     cell_area,
@@ -1098,6 +1188,8 @@ static void drawMsps(SequenceCellRenderer *renderer,
     getGdkColor(BLXCOLOR_CDS_FILL, bc->defaultColors, TRUE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_UTR_FILL, bc->defaultColors, FALSE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_UTR_FILL, bc->defaultColors, TRUE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_PARTIAL_EXON_CROSSHATCH, bc->defaultColors, FALSE, bc->usePrintColors),
+    getGdkColor(BLXCOLOR_PARTIAL_EXON_CROSSHATCH, bc->defaultColors, TRUE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_INSERTION, bc->defaultColors, FALSE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_INSERTION, bc->defaultColors, TRUE, bc->usePrintColors),
     highlightDiffs ? mismatchColor : matchColor,
@@ -1114,8 +1206,8 @@ static void drawMsps(SequenceCellRenderer *renderer,
     getGdkColor(BLXCOLOR_POLYA_TAIL, bc->defaultColors, TRUE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_CLIP_MARKER, bc->defaultColors, FALSE, bc->usePrintColors),
     detailViewProperties->exonBoundaryLineWidth,
-    detailViewProperties->exonBoundaryLineStyleStart,
-    detailViewProperties->exonBoundaryLineStyleEnd,
+    detailViewProperties->exonBoundaryLineStyle,
+    detailViewProperties->exonBoundaryLineStylePartial,
     bc->flags[BLXFLAG_SHOW_UNALIGNED],
     bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED],
     bc->flags[BLXFLAG_LIMIT_UNALIGNED_BASES],

@@ -1771,5 +1771,4 @@ void drawAssemblyGaps(GtkWidget *widget,
   
 }
 
-
 /***************** end of file ***********************/

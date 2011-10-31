@@ -4656,6 +4656,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc->defaultColors, BLXCOLOR_CDS_LINE, "CDS line color", "Coding section line color in big picture", BLX_DARK_GREEN, BLX_DARK_GREY, BLX_VERY_DARK_GREEN, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_UTR_FILL, "Exon fill color (UTR)", "Untranslated region fill color in big picture", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_UTR_LINE, "Exon line color (UTR)", "Untranslated region line color in big picture", BLX_DARK_RED, BLX_VERY_DARK_GREY, BLX_VERY_DARK_RED, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_PARTIAL_EXON_CROSSHATCH, "Cross-hatch line color for partial exons", "Line color of cross-hatch highlighting for partial exons", BLX_GREY, BLX_GREY, NULL, NULL);
   
   /* codons */
   createBlxColor(bc->defaultColors, BLXCOLOR_CODON, "Codon nucleotides", "Codon nucleotides", BLX_SKY_BLUE, BLX_GREY, NULL, NULL);
@@ -5572,6 +5573,53 @@ static gdouble calculateMspData(MSP *mspList, BlxViewContext *bc)
 }
 
 
+/* Calculate the reference sequence range from the range and offset given in 
+ * the option. Also translate this to display coords. */
+static void calculateRefSeqRange(CommandLineOptions *options,
+                                 IntRange *refSeqRange,
+                                 IntRange *fullDisplayRange)
+{
+  
+  /* Offset the reference sequence range, if an offset was specified. */ 
+  refSeqRange->min = options->refSeqRange.min + options->refSeqOffset;
+  refSeqRange->max = options->refSeqRange.max + options->refSeqOffset;
+  
+  fullDisplayRange->min = refSeqRange->min;
+  fullDisplayRange->max = refSeqRange->max;
+  
+  if (options->seqType == BLXSEQ_PEPTIDE)
+    {
+      /* Adjust the reference sequence reading frame so that it always starts at
+        * base 1 in frame 1. This makes the display easier because we can always just
+        * start drawing from the 1st base in the reference sequence. */
+      int base = UNSET_INT;
+      convertDnaIdxToDisplayIdx(refSeqRange->min, options->seqType, 1, options->numFrames, FALSE, refSeqRange, &base);
+      
+      int offset = (options->numFrames - base + 1);
+      
+      if (offset >= options->numFrames)
+          offset -= options->numFrames;
+      
+      refSeqRange->min += offset;
+      options->refSeq = options->refSeq + offset;
+      
+      /* Now do the same for when the ref seq is reversed */
+      convertDnaIdxToDisplayIdx(refSeqRange->max, options->seqType, 1, options->numFrames, TRUE, refSeqRange, &base);
+      offset = (options->numFrames - base + 1);
+      
+      if (offset >= options->numFrames) 
+          offset -= options->numFrames;
+      
+      refSeqRange->max -= offset;
+      options->refSeq[refSeqRange->max - refSeqRange->min + 1] = '\0';
+      
+      /* Now calculate the full display range in display coords */
+      fullDisplayRange->min = convertDnaIdxToDisplayIdx(refSeqRange->min, options->seqType, 1, options->numFrames, FALSE, refSeqRange, NULL);
+      fullDisplayRange->max = convertDnaIdxToDisplayIdx(refSeqRange->max, options->seqType, 1, options->numFrames, FALSE, refSeqRange, NULL);
+    }  
+}
+
+
 /* Create the main blixem window */
 GtkWidget* createBlxWindow(CommandLineOptions *options, 
                            const char *paddingSeq, 
@@ -5582,17 +5630,10 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                            int port,
                            const gboolean External)
 {
-  /* Offset the reference sequence range, if an offset was specified. */ 
-  IntRange refSeqRange = {options->refSeqRange.min + options->refSeqOffset, 
-                          options->refSeqRange.max + options->refSeqOffset};
+  IntRange refSeqRange;
+  IntRange fullDisplayRange;
   
-  /* Get the ref seq range in display coords (DNA or peptide coords, depending on what we're displaying). */
-  IntRange fullDisplayRange = {refSeqRange.min, refSeqRange.max};
-  if (options->seqType == BLXSEQ_PEPTIDE)
-    {
-      fullDisplayRange.min = convertDnaIdxToDisplayIdx(refSeqRange.min, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
-      fullDisplayRange.max = convertDnaIdxToDisplayIdx(refSeqRange.max, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
-    }
+  calculateRefSeqRange(options, &refSeqRange, &fullDisplayRange);
   
   printf("Reference sequence [%d - %d], display range [%d - %d]\n", 
 	 refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);

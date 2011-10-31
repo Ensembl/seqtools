@@ -341,7 +341,7 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
   const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
 
   const int qStart = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, 1, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, bc->numFrames, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   
   char *startString = convertIntToString(getDisplayCoord(qStart, bc));
   char *endString = convertIntToString(getDisplayCoord(qEnd, bc));

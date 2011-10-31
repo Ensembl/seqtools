@@ -157,7 +157,8 @@ typedef enum
     BLXCOLOR_COVERAGE_PLOT, /* color of the coverage plot */
     BLXCOLOR_ASSEMBLY_GAP,  /* highlight color for assembly gaps */
     BLXCOLOR_SELECTION,     /* highlight color for selections */
-    
+    BLXCOLOR_PARTIAL_EXON_CROSSHATCH, /* color of cross-hatch lines for partial exons */
+
     BLXCOL_NUM_COLORS
   } BlxColorId;
   
@@ -488,6 +489,7 @@ gboolean                           blxviewFetchSequences(gboolean External,
                                                          const IntRange const *refSeqRange,
 							 const char *dataset
 							 );
+
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char      *stdcode1[];      /* 1-letter amino acid translation code */
