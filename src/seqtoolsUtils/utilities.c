@@ -43,6 +43,9 @@
 #include <errno.h>
 #include <sys/utsname.h>
 
+#ifdef DEBUG
+#include <gdk/gdkx.h>
+#endif
 
 #define SEQTOOLS_TOOLBAR_NAME   "SeqtoolsToolbarName"
 #define DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION          0.47
@@ -82,7 +85,8 @@ typedef struct _BlxMessage
   } BlxMessage;
 
 
-
+static gboolean        widgetGetDrawableValid(GtkWidget *widget);
+static void            widgetSetDrawableValid(GtkWidget *widget, const gboolean valid);
 static CallbackData*   widgetGetCallbackData(GtkWidget *widget);
 static void            displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level, const char *titlePrefix, GtkWindow *parent, GtkStatusbar *statusBar);
 static void            displayMessageAsList(GSList *messageList, const char *titlePrefix, const gboolean bringToFront);
@@ -128,7 +132,19 @@ static void onDestroyCustomWidget(GtkWidget *widget)
 
 GdkDrawable* widgetGetDrawable(GtkWidget *widget)
 {
-  return widget ? (GdkDrawable*)(g_object_get_data(G_OBJECT(widget), "drawable")) : NULL;
+  GdkDrawable *result = widget ? (GdkDrawable*)(g_object_get_data(G_OBJECT(widget), "drawable")) : NULL;
+
+  /* if the drawable has been marked as invalid, return null */
+  if (result && !widgetGetDrawableValid(widget))
+    result = NULL;
+  
+  return result;
+}
+
+static GdkDrawable* widgetGetDrawableAllowInvalid(GtkWidget *widget)
+{
+  GdkDrawable *result = widget ? (GdkDrawable*)(g_object_get_data(G_OBJECT(widget), "drawable")) : NULL;
+  return result;
 }
 
 void widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable)
@@ -145,6 +161,8 @@ void widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable)
 
       g_object_set_data(G_OBJECT(widget), "drawable", drawable);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyCustomWidget), NULL);
+
+      widgetSetDrawableValid(widget, TRUE);
     }
 }
 
@@ -153,7 +171,21 @@ void widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable)
  * next time that expose is called, the bitmap will be redrawn from scratch. */
 void widgetClearCachedDrawable(GtkWidget *widget, gpointer data)
 {  
-  widgetSetDrawable(widget, NULL);
+  /* Don't delete the drawable; instead, mark it as invalid so that we
+   * can re-use it (because lots of create/delete of drawables can cause 
+   * XID reuse errors */
+  widgetSetDrawableValid(widget, FALSE);
+}
+
+
+static void widgetSetDrawableValid(GtkWidget *widget, const gboolean valid)
+{
+  g_object_set_data(G_OBJECT(widget), "drawableValid", GINT_TO_POINTER(valid));
+}
+
+static gboolean widgetGetDrawableValid(GtkWidget *widget)
+{
+  return GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "drawableValid"));
 }
 
 
@@ -2128,15 +2160,32 @@ void setDefaultClipboardText(const char *text)
 }
 
 
+/* Utility to check whether the given drawable has the given size */
+static gboolean drawableSizeCorrect(GdkDrawable *drawable, const int widthIn, const int heightIn)
+{
+  int width = UNSET_INT, height = UNSET_INT;
+  gdk_drawable_get_size(drawable, &width, &height);
+  return (width == widthIn && height == heightIn);
+}
+
+
 /* Create and cache a blank pixmap drawable in the given widget. The size of the
  * resultant pixmap is the same as the widget's allocation size. */
 GdkDrawable* createBlankPixmap(GtkWidget *widget)
 {
-  GdkWindow *window = GTK_IS_LAYOUT(widget) ? GTK_LAYOUT(widget)->bin_window : widget->window;
+  /* If there's already a stored drawable, re-use it */
+  GdkDrawable *drawable = widgetGetDrawableAllowInvalid(widget);
   
-  GdkDrawable *drawable = gdk_pixmap_new(window, widget->allocation.width, widget->allocation.height, -1);
-  gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
-  widgetSetDrawable(widget, drawable); /* deletes the old drawable, if there is one */
+  if (!drawable || !drawableSizeCorrect(drawable, widget->allocation.width, widget->allocation.height))
+    {
+      GdkWindow *window = GTK_IS_LAYOUT(widget) ? GTK_LAYOUT(widget)->bin_window : widget->window;
+  
+      drawable = gdk_pixmap_new(window, widget->allocation.width, widget->allocation.height, -1);
+      gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
+      widgetSetDrawable(widget, drawable); /* deletes the old drawable, if there is one */
+
+      DEBUG_OUT("Created drawable '%x', XID=%d\n", drawable, gdk_x11_drawable_get_xid(drawable));
+    }
   
   /* Paint a blank rectangle for the background, the same color as the widget's background */
   GdkGC *gc = gdk_gc_new(drawable);
@@ -2144,9 +2193,11 @@ GdkDrawable* createBlankPixmap(GtkWidget *widget)
   GdkColor *bgColor = &widget->style->bg[GTK_STATE_NORMAL];
   gdk_gc_set_foreground(gc, bgColor);
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, widget->allocation.width, widget->allocation.height);
-  
+      
   g_object_unref(gc);
   
+  widgetSetDrawableValid(widget, TRUE);
+
   return drawable;
 }
 
@@ -2155,20 +2206,29 @@ GdkDrawable* createBlankPixmap(GtkWidget *widget)
  * the widget allocation size */
 GdkDrawable* createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *window, const int width, const int height)
 {
-  GdkDrawable *bitmap = gdk_pixmap_new(window, width, height, -1);
-  gdk_drawable_set_colormap(bitmap, gdk_colormap_get_system());
-  widgetSetDrawable(widget, bitmap); /* deletes the old drawable, if there is one */
+  /* If there's already a stored drawable, re-use it */
+  GdkDrawable *drawable = widgetGetDrawableAllowInvalid(widget);
+  
+  if (!drawable || !drawableSizeCorrect(drawable, width, height))
+    {
+      drawable = gdk_pixmap_new(window, width, height, -1);
+      gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
+      widgetSetDrawable(widget, drawable); /* deletes the old drawable, if there is one */
+      DEBUG_OUT("Created drawable '%x', XID=%d\n", drawable, gdk_x11_drawable_get_xid(drawable));
+    }
   
   /* Paint a blank rectangle for the background, the same color as the widget's background */
-  GdkGC *gc = gdk_gc_new(bitmap);
+  GdkGC *gc = gdk_gc_new(drawable);
   
   GdkColor *bgColor = &widget->style->bg[GTK_STATE_NORMAL];
   gdk_gc_set_foreground(gc, bgColor);
-  gdk_draw_rectangle(bitmap, gc, TRUE, 0, 0, width, height);
+  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, width, height);
   
   g_object_unref(gc);
   
-  return bitmap;
+  widgetSetDrawableValid(widget, TRUE);
+  
+  return drawable;
 }
 
 
