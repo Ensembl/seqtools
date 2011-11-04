@@ -355,6 +355,7 @@ typedef struct _BlxViewContext
     char* bulkFetchMode;                    /* The default method of bulk fetching sequences (can be overridden by an MSPs data-type properties) */
     char* userFetchMode;                    /* The default method for interactively fetching individual sequences */
     char* dataset;			    /* the name of a dataset, e.g. 'human' */
+    gboolean loadOptionalData;              /* parse the full EMBL files on startup to populate additional info like tissue-type */
 
     MSP *mspList;                           /* List of all MSPs. Obsolete - use featureLists array instead */
     GArray* featureLists[BLXMSP_NUM_TYPES]; /* Array indexed by the BlxMspType enum. Each array entry contains a zero-terminated array of all the MSPs of that type. */
@@ -459,6 +460,8 @@ gboolean                           blxConfigSetPFetchSocketPrefs(char *node, int
 gboolean                           blxConfigGetPFetchSocketPrefs(const char **node, int *port) ;
 gboolean                           blxConfigGetPFetchWWWPrefs();
 
+void                               loadGffFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs);
+void                               appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
 
 /* Create/destroy sequences and MSPs */
 void                               destroyMspList(MSP **mspList);

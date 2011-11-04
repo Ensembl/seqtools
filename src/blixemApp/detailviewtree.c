@@ -444,6 +444,7 @@ static void addShortReadsToCompactTree(GtkWidget *tree, GtkListStore *store, Gtk
 /* Add all of the BlxSequences that are in the given tree's strand to the tree */
 void addSequencesToTree(GtkWidget *tree, gpointer data)
 {
+  GList *seqList = (GList*)data;
   GtkListStore *store = gtk_list_store_new(BLXCOL_NUM_COLUMNS, TREE_COLUMN_TYPE_LIST);
   
   /* Set the sort function for each column */
@@ -456,7 +457,7 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
   /* Add the rows - one row per sequence. Use the list we've already compiled of all
    * sequences as BlxSequences */
   GtkWidget *blxWindow = treeGetBlxWindow(tree);
-  GList *seqItem = blxWindowGetAllMatchSeqs(blxWindow);
+  GList *seqItem = seqList;
   
   for ( ; seqItem; seqItem = seqItem->next)
     {
@@ -527,7 +528,7 @@ GtkTreeModel* treeGetBaseDataModel(GtkTreeView *tree)
   if (tree)
     {
       GtkTreeModel *model = gtk_tree_view_get_model(tree);
-      if (GTK_IS_TREE_MODEL_FILTER(model))
+      if (model && GTK_IS_TREE_MODEL_FILTER(model))
         {
           result = gtk_tree_model_filter_get_model(GTK_TREE_MODEL_FILTER(model));
         }
@@ -2754,7 +2755,10 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
 /* Create the base data store for a detail view tree */
 void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
 {
-  /* Create the data store for the tree view */
+  /* Create the data store for the tree view (unless it already exists) */
+  if (treeGetBaseDataModel(GTK_TREE_VIEW(tree)))
+    return;
+  
   GtkListStore *store = gtk_list_store_new(BLXCOL_NUM_COLUMNS, TREE_COLUMN_TYPE_LIST);
   
   /* Set the sort function for each column */
@@ -2775,9 +2779,15 @@ void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
 /* Create a filtered version of the data store to only show rows that are within the display range. */
 void treeCreateFilteredDataModel(GtkWidget *tree, gpointer data)
 {
-  GtkTreeModel *baseModel = gtk_tree_view_get_model(GTK_TREE_VIEW(tree));
-  GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(baseModel), NULL);
+  GtkTreeModel *baseModel = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
+
+  /* If there is already a filtered model, there's nothing to do. (If the visible
+   * model is different to the base model, we can assume it's the filtered model.)*/
+  if (treeGetVisibleDataModel(GTK_TREE_VIEW(tree)) != baseModel)
+    return;
   
+  GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(baseModel), NULL);
+
   gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(filter), 
 					 (GtkTreeModelFilterVisibleFunc)isTreeRowVisible, 
 					 tree, 

@@ -100,6 +100,7 @@ static void			  onQuit(GtkAction *action, gpointer data);
 static void			  onPrintMenu(GtkAction *action, gpointer data);
 static void			  onPageSetupMenu(GtkAction *action, gpointer data);
 static void			  onSettingsMenu(GtkAction *action, gpointer data);
+static void			  onLoadMenu(GtkAction *action, gpointer data);
 static void                       onSortMenu(GtkAction *action, gpointer data);
 static void                       onZoomInMenu(GtkAction *action, gpointer data);
 static void                       onZoomOutMenu(GtkAction *action, gpointer data);
@@ -165,6 +166,7 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Print",		GTK_STOCK_PRINT,          "_Print...",                "<control>P",         "Print  Ctrl+P",                        G_CALLBACK(onPrintMenu)},
   { "PageSetup",        GTK_STOCK_PAGE_SETUP,     "Page set_up",              NULL,                 "Page setup",                           G_CALLBACK(onPageSetupMenu)},
   { "Settings",		GTK_STOCK_PREFERENCES,    "_Settings",                "<control>S",         "Settings  Ctrl+S",                     G_CALLBACK(onSettingsMenu)},
+  { "Load",		GTK_STOCK_OPEN,           "_Load",                    "<control>L",         "Load features file  Ctrl+L",           G_CALLBACK(onLoadMenu)},
 
   { "Sort",		GTK_STOCK_SORT_ASCENDING, "Sort",                     NULL,                 "Sort sequences",                       G_CALLBACK(onSortMenu)},
   { "ZoomIn",		GTK_STOCK_ZOOM_IN,        "Zoom in",                  "equal",              "Zoom in  =",                           G_CALLBACK(onZoomInMenu)},
@@ -210,6 +212,7 @@ static const char standardMenuDescription[] =
 "      <menuitem action='Print'/>"
 //"      <menuitem action='PageSetup'/>"
 "      <menuitem action='Settings'/>"
+"      <menuitem action='Load'/>"
 "      <separator/>"
 "      <menuitem action='View'/>"
 "      <menuitem action='CreateGroup'/>"
@@ -529,6 +532,52 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
     }
   
   return result;
+}
+
+
+/* Dynamically load in additional features from a file. (should be called after
+ * blixem's GUI has already started up, rather than during start-up where normal
+ * feature-loading happens) */
+static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char filename)
+{
+  if (!filename)
+    return;
+
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  GKeyFile *keyFile = blxGetConfig();
+  
+  MSP *newMsps = NULL;
+  GList *newSeqs = NULL;
+  
+  loadGffFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs);
+
+  /* Add the msps/sequences to the tree data models */
+  detailViewAddMspData(blxWindowGetDetailView(blxWindow), newMsps, newSeqs);
+
+  /* Add the new msps/sequences to the main lists, fetch the sequence data and
+   * perform any post-processing required */
+  appendNewSequences(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
+
+  blxviewFetchSequences(FALSE, FALSE, TRUE, FALSE, bc->seqType, &newSeqs, 
+                        bc->bulkFetchMode, bc->net_id, bc->port, &newMsps, &bc->blastMode,
+                        bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
+
+  finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->refSeqOffset, bc->seqType, 
+                       bc->numFrames, &bc->refSeqRange, TRUE);
+
+  /* Cache the new msp display ranges and sort and filter the trees. */
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  cacheMspDisplayRanges(bc, detailViewGetNumUnalignedBases(detailView));
+  detailViewResortTrees(detailView);
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+  
+  /* Re-calculate the height of the exon views */
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
+  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
+  forceResize(bigPicture);
+  
+  blxWindowRedrawAll(blxWindow);
 }
 
 
@@ -4107,6 +4156,14 @@ static void onSettingsMenu(GtkAction *action, gpointer data)
   showSettingsDialog(blxWindow, TRUE);
 }
 
+
+static void onLoadMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  const char *filename = getLoadFileName(blxWindow, NULL, "Load GFF file");
+  dynamicLoadFeaturesFile(blxWindow, filename);
+}
+
 static void onSortMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
@@ -5777,7 +5834,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   
   /* Add the MSP's to the trees and sort them by the initial sort mode. This must
    * be done after all widgets have been created, because it accesses their properties.*/
-  detailViewAddMspData(detailView, options->mspList);
+  detailViewAddMspData(detailView, options->mspList, seqList);
   
   /* Updated the cached display range and full extents of the MSPs */
   detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));

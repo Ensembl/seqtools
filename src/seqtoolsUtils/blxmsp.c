@@ -2197,6 +2197,16 @@ void finaliseBlxSequences(GArray* featureLists[],
       findSequenceExtents(blxSeq);
       constructTranscriptData(blxSeq, featureLists, &lastMsp, mspList, seqList);
     }
+
+  /* Sort msp arrays by start coord (only applicable to msp types that
+   * appear in the detail-view because the order is only applicable when
+   * filtering detail-view rows) */
+  int typeId = 0;
+  for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
+    {
+      if (typeShownInDetailView(typeId))
+        g_array_sort(featureLists[typeId], compareFuncMspArray);
+    }
 }
 
 
