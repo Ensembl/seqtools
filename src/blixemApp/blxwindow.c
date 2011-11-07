@@ -3366,6 +3366,29 @@ static void createFontSelectionButton(GtkBox *parent, GtkWidget *blxWindow)
 }
 
 
+/* This function restores all settings to defaults */
+static void resetSettings(GtkWidget *blxWindow)
+{
+  gint responseId = runConfirmationBox(blxWindow, "Reset all settings", 
+    "This will reset all settings to their default values: are you sure you want to continue?");
+  
+  if (responseId == GTK_RESPONSE_ACCEPT)
+    {
+      detailViewResetColumnWidths(blxWindowGetDetailView(blxWindow));
+      showSettingsDialog(blxWindow, FALSE);
+    }
+}
+
+
+void onResponseSettingsDialog(GtkDialog *dialog, gint responseId, gpointer data)
+{
+  if (responseId == BLX_RESPONSE_RESET)
+    resetSettings(dialogChildGetBlxWindow(GTK_WIDGET(dialog)));
+  else
+    onResponseDialog(dialog, responseId, data); /* default handler */
+}
+
+
 /* Show/refresh the "Settings" dialog. */
 void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
@@ -3378,6 +3401,8 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       dialog = gtk_dialog_new_with_buttons("Blixem - Settings", 
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
+                                           "Reset to defaults",
+                                           BLX_RESPONSE_RESET,
                                            GTK_STOCK_CANCEL,
                                            GTK_RESPONSE_REJECT,
                                            GTK_STOCK_APPLY,
@@ -3390,7 +3415,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 
-      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
+      g_signal_connect(dialog, "response", G_CALLBACK(onResponseSettingsDialog), GINT_TO_POINTER(TRUE));
     }
   else
     {
@@ -4646,8 +4671,6 @@ static void destroyBlxContext(BlxViewContext **bc)
  * a config file. */
 static void saveBlixemSettings(GtkWidget *blxWindow)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  
   char *filename = blxprintf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
 
   GKeyFile *key_file = g_key_file_new();

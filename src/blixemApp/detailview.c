@@ -62,8 +62,8 @@
 #define POLYA_SIG_BASES_UPSTREAM        50    /* the number of bases upstream from a polyA tail to search for polyA signals */
 
 /* Define the columns' default widths and titles. */
-#define BLXCOL_INT_COLUMN_WIDTH		40    /* default width for ordinary integer columns */
 #define BLXCOL_SEQNAME_WIDTH            120   /* default width for the name column */
+#define BLXCOL_SCORE_WIDTH		40    /* default width for the score column */
 #define BLXCOL_ID_WIDTH                 45    /* default width for the ID column */
 #define BLXCOL_SOURCE_WIDTH             85    /* default width for source column  */
 #define BLXCOL_GROUP_WIDTH              58    /* default width for group column  */
@@ -173,12 +173,8 @@ void detailViewSaveColumnWidths(GtkWidget *detailView, GKeyFile *key_file)
     {
       DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
 
-      if (columnInfo)
+      if (columnInfo && columnInfo->columnId != BLXCOL_SEQUENCE)
         {
-          /* Don't save the width for the sequence column because it is dynamic */
-          if (columnInfo->columnId == BLXCOL_SEQUENCE)
-            continue;
-
           /* If column is not visible, set width to zero to indicate that it should be hidden */
           if (columnInfo->visible)
             g_key_file_set_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, columnInfo->width);
@@ -186,6 +182,52 @@ void detailViewSaveColumnWidths(GtkWidget *detailView, GKeyFile *key_file)
             g_key_file_set_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, 0);
         }
     }
+}
+
+
+/* Reset column widths to default values */
+void detailViewResetColumnWidths(GtkWidget *detailView)
+{
+  /* Quick and dirty: just set the width and visibility manually. This should be
+   * done differently so we can just loop through and find the correct values somehow;
+   * currently we run the risk of getting out of sync with the initial values set in
+   * createColumns */
+  detailViewGetColumnInfo(detailView, BLXCOL_SEQNAME)->width = BLXCOL_SEQNAME_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_SEQNAME)->visible = TRUE;
+
+  detailViewGetColumnInfo(detailView, BLXCOL_SCORE)->width = BLXCOL_SCORE_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_SCORE)->visible = TRUE;
+
+  detailViewGetColumnInfo(detailView, BLXCOL_ID)->width = BLXCOL_ID_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_ID)->visible = TRUE;
+
+  detailViewGetColumnInfo(detailView, BLXCOL_START)->width = BLXCOL_START_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_START)->visible = TRUE;
+
+  detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE)->width = BLXCOL_SEQUENCE_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE)->visible = TRUE;
+
+  detailViewGetColumnInfo(detailView, BLXCOL_END)->width = BLXCOL_END_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_END)->visible = TRUE;
+
+  detailViewGetColumnInfo(detailView, BLXCOL_SOURCE)->width = BLXCOL_SOURCE_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_SOURCE)->visible = TRUE;
+
+  detailViewGetColumnInfo(detailView, BLXCOL_GROUP)->width = BLXCOL_GROUP_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_GROUP)->visible = FALSE;
+
+  detailViewGetColumnInfo(detailView, BLXCOL_ORGANISM)->width = BLXCOL_ORGANISM_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_ORGANISM)->visible = TRUE;
+
+  detailViewGetColumnInfo(detailView, BLXCOL_GENE_NAME)->width = BLXCOL_GENE_NAME_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_GENE_NAME)->visible = FALSE;
+
+  detailViewGetColumnInfo(detailView, BLXCOL_TISSUE_TYPE)->width = BLXCOL_TISSUE_TYPE_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_TISSUE_TYPE)->visible = FALSE;
+
+  detailViewGetColumnInfo(detailView, BLXCOL_STRAIN)->width = BLXCOL_STRAIN_WIDTH;
+  detailViewGetColumnInfo(detailView, BLXCOL_STRAIN)->visible = FALSE;
+
 }
 
 
@@ -4530,7 +4572,7 @@ static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, con
   
   /* Create the column headers and pack them into the column header bar */
   createColumn(BLXCOL_SEQNAME,     NULL,     NULL,        "Name",       RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,   TRUE,  TRUE,   "Name",        &columnList, detailView);
-  createColumn(BLXCOL_SCORE,       NULL,     NULL,        "Score",      RENDERER_TEXT_PROPERTY,     BLXCOL_INT_COLUMN_WIDTH,     TRUE,   TRUE,  FALSE,  "Score",       &columnList, detailView);
+  createColumn(BLXCOL_SCORE,       NULL,     NULL,        "Score",      RENDERER_TEXT_PROPERTY,     BLXCOL_SCORE_WIDTH,          TRUE,   TRUE,  FALSE,  "Score",       &columnList, detailView);
   createColumn(BLXCOL_ID,          NULL,     NULL,        "%Id",        RENDERER_TEXT_PROPERTY,     BLXCOL_ID_WIDTH,             TRUE,   TRUE,  FALSE,  "Identity",    &columnList, detailView);
   createColumn(BLXCOL_START,       NULL,     NULL,        "Start",      RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,   TRUE,  FALSE,  "Position",    &columnList, detailView);
   createColumn(BLXCOL_SEQUENCE,    seqHeader,seqCallback, "Sequence",   RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,   TRUE,  FALSE,  NULL,          &columnList, detailView);
