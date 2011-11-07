@@ -538,7 +538,7 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
 /* Dynamically load in additional features from a file. (should be called after
  * blixem's GUI has already started up, rather than during start-up where normal
  * feature-loading happens) */
-static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char filename)
+static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
 {
   if (!filename)
     return;
@@ -558,7 +558,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char filename)
    * perform any post-processing required */
   appendNewSequences(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
 
-  blxviewFetchSequences(FALSE, FALSE, TRUE, FALSE, bc->seqType, &newSeqs, 
+  blxviewFetchSequences(FALSE, bc->loadOptionalData, TRUE, FALSE, bc->seqType, &newSeqs, 
                         bc->bulkFetchMode, bc->net_id, bc->port, &newMsps, &bc->blastMode,
                         bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
 
@@ -4846,6 +4846,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->fullDisplayRange.min = fullDisplayRange->min;
   blxContext->fullDisplayRange.max = fullDisplayRange->max;
   blxContext->refSeqOffset = options->refSeqOffset;
+  blxContext->loadOptionalData = options->parseFullEmblInfo;
 
   blxContext->mspList = options->mspList;
   

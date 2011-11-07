@@ -501,7 +501,16 @@ void loadGffFile(const char *fileName,
                  MSP **newMsps,
                  GList **newSeqs)
 {
+  if (!fileName)
+    return;
+  
   FILE *inputFile = fopen(fileName, "r");
+
+  if (!inputFile)
+    {
+      g_critical("Failed to open file.\n");
+      return;
+    }
   
   char *dummyseq1 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname1[FULLNAMESIZE+1] = "";
