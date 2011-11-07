@@ -220,7 +220,7 @@ void			updateFeedbackBox(GtkWidget *detailView);
 void                    updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const BlxStrand strand);
 void			toggleStrand(GtkWidget *detailView);
 
-void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList);
+void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList);
 
 void			updateDetailViewFontDesc(GtkWidget *detailView);
 void			updateDetailViewRange(GtkWidget *detailView);

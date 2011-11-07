@@ -4827,12 +4827,13 @@ static void createDetailViewPanes(GtkWidget *detailView,
 
 /* Add the MSPs to the detail-view trees. Calculates and returns the lowest ID 
  * out of all the blast matches. modelId specifies which tree data model should
- * be active at the start. */
-void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
+ * be active at the start. If create is true, the tree data stores are created;
+ * otherwise we assume they already exist. */
+void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
 {
   BlxViewContext *bc = detailViewGetContext(detailView);
 
-  /* First, create a data store for each tree so we have something to add our data to. */
+  /* First, make sure there is a data model for each tree */
   callFuncOnAllDetailViewTrees(detailView, treeCreateBaseDataModel, NULL);
 
   /* Loop through each MSP, and add it to the correct tree based on its strand and
@@ -4862,12 +4863,14 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList)
     }
     
   /* Finally, create a custom-filtered version of the data store for each tree. We do 
-   * this AFTER adding the data so that it doesn't try to re-filter every time we add a row. */
+   * this AFTER adding the data so that it doesn't try to re-filter every time we add a row.
+   * To do: Note that if we're calling this function a second time to add additional rows, the filter
+   * will already exist so this may be slow and we may need to look into improving this. */
   callFuncOnAllDetailViewTrees(detailView, treeCreateFilteredDataModel, NULL);
   
   /* Also create a second data store that will store one sequence per row (as opposed to one
    * MSP per row). This data store will be switched in when the user selects 'squash matches'. */
-  callFuncOnAllDetailViewTrees(detailView, addSequencesToTree, NULL);
+  callFuncOnAllDetailViewTrees(detailView, addSequencesToTree, seqList);
 }
 
 

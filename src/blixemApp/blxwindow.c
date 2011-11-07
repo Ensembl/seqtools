@@ -100,6 +100,7 @@ static void			  onQuit(GtkAction *action, gpointer data);
 static void			  onPrintMenu(GtkAction *action, gpointer data);
 static void			  onPageSetupMenu(GtkAction *action, gpointer data);
 static void			  onSettingsMenu(GtkAction *action, gpointer data);
+static void			  onLoadMenu(GtkAction *action, gpointer data);
 static void                       onSortMenu(GtkAction *action, gpointer data);
 static void                       onZoomInMenu(GtkAction *action, gpointer data);
 static void                       onZoomOutMenu(GtkAction *action, gpointer data);
@@ -163,13 +164,14 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Help",		GTK_STOCK_HELP,           "_Help",                    "<control>H",         "Display help  Ctrl+H",                 G_CALLBACK(onHelpMenu)},
   { "About",		GTK_STOCK_ABOUT,          "About",                    NULL,                 "Program information",                  G_CALLBACK(onAboutMenu)},
   { "Print",		GTK_STOCK_PRINT,          "_Print...",                "<control>P",         "Print  Ctrl+P",                        G_CALLBACK(onPrintMenu)},
-  { "PageSetup",        GTK_STOCK_PAGE_SETUP,     "Page set_up",              NULL,                 "Page setup",                           G_CALLBACK(onPageSetupMenu)},
-  { "Settings",		GTK_STOCK_PREFERENCES,    "_Settings",                "<control>S",         "Settings  Ctrl+S",                     G_CALLBACK(onSettingsMenu)},
+  { "PageSetup",        GTK_STOCK_PAGE_SETUP,     "Page set_up...",           NULL,                 "Page setup",                           G_CALLBACK(onPageSetupMenu)},
+  { "Settings",		GTK_STOCK_PREFERENCES,    "_Settings...",             "<control>S",         "Settings  Ctrl+S",                     G_CALLBACK(onSettingsMenu)},
+  { "Load",		GTK_STOCK_OPEN,           "_Open features file...",    NULL,                 "Load additional features from file  Ctrl+L", G_CALLBACK(onLoadMenu)},
 
-  { "Sort",		GTK_STOCK_SORT_ASCENDING, "Sort",                     NULL,                 "Sort sequences",                       G_CALLBACK(onSortMenu)},
+  { "Sort",		GTK_STOCK_SORT_ASCENDING, "Sort...",                  NULL,                 "Sort sequences",                       G_CALLBACK(onSortMenu)},
   { "ZoomIn",		GTK_STOCK_ZOOM_IN,        "Zoom in",                  "equal",              "Zoom in  =",                           G_CALLBACK(onZoomInMenu)},
   { "ZoomOut",		GTK_STOCK_ZOOM_OUT,       "Zoom out",                 "minus",              "Zoom out  -",                          G_CALLBACK(onZoomOutMenu)},
-  { "GoTo",		GTK_STOCK_JUMP_TO,        "Go to position",           "P",                  "Go to position  P",                    G_CALLBACK(onGoToMenu)},
+  { "GoTo",		GTK_STOCK_JUMP_TO,        "Go to position...",        "P",                  "Go to position  P",                    G_CALLBACK(onGoToMenu)},
   { "FirstMatch",	GTK_STOCK_GOTO_FIRST,     "First match",              "<control>Home",      "Go to first match in selection (or all, if none selected)  Ctrl+Home",    G_CALLBACK(onFirstMatchMenu)},
   { "PrevMatch",	GTK_STOCK_GO_BACK,        "Previous match",           "<control>Left",      "Go to previous match in selection (or all, if none selected)  Ctrl+Left", G_CALLBACK(onPrevMatchMenu)},
   { "NextMatch",	GTK_STOCK_GO_FORWARD,     "Next match",               "<control>Right",     "Go to next match in selection (or all, if none selected)  Ctrl+Right",    G_CALLBACK(onNextMatchMenu)},
@@ -178,18 +180,18 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "BackOne",          NULL,                     "<",                        "comma",              "Scroll left one index  ,",             G_CALLBACK(onScrollLeft1Menu)},
   { "FwdOne",           NULL,                     ">",                        "period",             "Scroll right one index  .",            G_CALLBACK(onScrollRight1Menu)},
   { "FwdPage",          NULL,                     ">>",                       "<control>period",    "Scroll right one page  Ctrl+.",        G_CALLBACK(onPageRightMenu)},
-  { "Find",             GTK_STOCK_FIND,           "Find",                     "<control>F",         "Find sequences  Ctrl+F",               G_CALLBACK(onFindMenu)},
+  { "Find",             GTK_STOCK_FIND,           "Find...",                  "<control>F",         "Find sequences  Ctrl+F",               G_CALLBACK(onFindMenu)},
   { "ToggleStrand",     GTK_STOCK_REFRESH,        "Toggle strand",            "T",                  "Toggle the active strand  T",          G_CALLBACK(onToggleStrandMenu)},
 
-  { "View",		GTK_STOCK_FULLSCREEN,     "_View",                    "V",                  "Edit view settings  V",                G_CALLBACK(onViewMenu)},
-  { "CreateGroup",	NULL,                     "Create Group",             "<shift><control>G",  "Create group  Shift+Ctrl+G",           G_CALLBACK(onCreateGroupMenu)},
-  { "EditGroups",	GTK_STOCK_EDIT,           "Edit _Groups",             "<control>G",         "Edit groups  Ctrl+G",                  G_CALLBACK(onEditGroupsMenu)},
+  { "View",		GTK_STOCK_FULLSCREEN,     "_View...",                 "V",                  "Edit view settings  V",                G_CALLBACK(onViewMenu)},
+  { "CreateGroup",	NULL,                     "Create Group...",          "<shift><control>G",  "Create group  Shift+Ctrl+G",           G_CALLBACK(onCreateGroupMenu)},
+  { "EditGroups",	GTK_STOCK_EDIT,           "Edit _Groups...",          "<control>G",         "Edit groups  Ctrl+G",                  G_CALLBACK(onEditGroupsMenu)},
   { "ToggleMatchSet",	NULL,                     "Toggle _match set group",  "G",                  "Create/clear the match set group  G",  G_CALLBACK(onToggleMatchSet)},
   { "DeselectAllRows",	NULL,                     "Deselect _all",            "<shift><control>A",  "Deselect all  Shift+Ctrl+A",           G_CALLBACK(onDeselectAllRows)},
 
-  { "Dotter",		NULL,                     "_Dotter",                  "<control>D",         "Start Dotter  Ctrl+D",                 G_CALLBACK(onDotterMenu)},
+  { "Dotter",		NULL,                     "_Dotter...",               "<control>D",         "Start Dotter  Ctrl+D",                 G_CALLBACK(onDotterMenu)},
   { "CloseAllDotters",  GTK_STOCK_CLOSE,          "Close all Dotters",        NULL,                 "Close all Dotters",                    G_CALLBACK(onCloseAllDottersMenu)},
-  { "SelectFeatures",	GTK_STOCK_SELECT_ALL,     "Feature series selection tool",  NULL,           "Feature series selection tool",        G_CALLBACK(onSelectFeaturesMenu)},
+  { "SelectFeatures",	GTK_STOCK_SELECT_ALL,     "Feature series selection tool...",  NULL,           "Feature series selection tool",        G_CALLBACK(onSelectFeaturesMenu)},
 
   { "Statistics",	NULL,                     "Statistics",               NULL,                 "Show memory statistics",               G_CALLBACK(onStatisticsMenu)}
 };
@@ -210,6 +212,7 @@ static const char standardMenuDescription[] =
 "      <menuitem action='Print'/>"
 //"      <menuitem action='PageSetup'/>"
 "      <menuitem action='Settings'/>"
+"      <menuitem action='Load'/>"
 "      <separator/>"
 "      <menuitem action='View'/>"
 "      <menuitem action='CreateGroup'/>"
@@ -529,6 +532,54 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
     }
   
   return result;
+}
+
+
+/* Dynamically load in additional features from a file. (should be called after
+ * blixem's GUI has already started up, rather than during start-up where normal
+ * feature-loading happens) */
+static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
+{
+  if (!filename)
+    return;
+
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  GKeyFile *keyFile = blxGetConfig();
+  
+  /* Load the features from the file into some temporary lists */
+  MSP *newMsps = NULL;
+  GList *newSeqs = NULL;
+
+  loadGffFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs);
+
+  /* Fetch any missing sequence data and finalise the new sequences */
+  blxviewFetchSequences(FALSE, bc->loadOptionalData, TRUE, FALSE, bc->seqType, &newSeqs, 
+                        bc->bulkFetchMode, bc->net_id, bc->port, &newMsps, &bc->blastMode,
+                        bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
+
+  finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->refSeqOffset, bc->seqType, 
+                       bc->numFrames, &bc->refSeqRange, TRUE);
+
+  /* Add the msps/sequences to the tree data models (must be done after finalise because
+   * finalise populates the child msp lists for parent feaatures) */
+  detailViewAddMspData(blxWindowGetDetailView(blxWindow), newMsps, newSeqs);
+
+  /* Merge the temporary lists into the main lists */
+  appendNewSequences(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
+
+  /* Cache the new msp display ranges and sort and filter the trees. */
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  cacheMspDisplayRanges(bc, detailViewGetNumUnalignedBases(detailView));
+  detailViewResortTrees(detailView);
+  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+  
+  /* Re-calculate the height of the exon views */
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
+  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
+  forceResize(bigPicture);
+  
+  blxWindowRedrawAll(blxWindow);
 }
 
 
@@ -4107,6 +4158,14 @@ static void onSettingsMenu(GtkAction *action, gpointer data)
   showSettingsDialog(blxWindow, TRUE);
 }
 
+
+static void onLoadMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  const char *filename = getLoadFileName(blxWindow, NULL, "Load GFF file");
+  dynamicLoadFeaturesFile(blxWindow, filename);
+}
+
 static void onSortMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
@@ -4789,6 +4848,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->fullDisplayRange.min = fullDisplayRange->min;
   blxContext->fullDisplayRange.max = fullDisplayRange->max;
   blxContext->refSeqOffset = options->refSeqOffset;
+  blxContext->loadOptionalData = options->parseFullEmblInfo;
 
   blxContext->mspList = options->mspList;
   
@@ -5777,7 +5837,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   
   /* Add the MSP's to the trees and sort them by the initial sort mode. This must
    * be done after all widgets have been created, because it accesses their properties.*/
-  detailViewAddMspData(detailView, options->mspList);
+  detailViewAddMspData(detailView, options->mspList, seqList);
   
   /* Updated the cached display range and full extents of the MSPs */
   detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));

@@ -414,7 +414,7 @@ static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList)
 }
 
 
-static void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList)
+void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList)
 {
   /* Append new MSPs to MSP list */
   MSP *lastMsp = *mspList;
@@ -492,29 +492,33 @@ static char* getRegionFetchCommand(const MSP const *msp,
 
 /* Utility function to load the contents of the given file into blixem. The 
  * new features are appended onto the existing sequence and MSP lists. */
-static void loadGffFile(const char *fileName,
-                        GKeyFile *keyFile,
-                        BlxBlastMode *blastMode,
-                        GList **seqList,
-                        MSP **mspListIn,
-                        GArray* featureLists[],
-                        GSList *supportedTypes, 
-                        GSList *styles)                        
+void loadGffFile(const char *fileName,
+                 GKeyFile *keyFile,
+                 BlxBlastMode *blastMode,
+                 GArray* featureLists[],
+                 GSList *supportedTypes, 
+                 GSList *styles,
+                 MSP **newMsps,
+                 GList **newSeqs)
 {
+  if (!fileName)
+    return;
+  
   FILE *inputFile = fopen(fileName, "r");
+
+  if (!inputFile)
+    {
+      g_critical("Failed to open file.\n");
+      return;
+    }
   
   char *dummyseq1 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname1[FULLNAMESIZE+1] = "";
   char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname2[FULLNAMESIZE+1] = "";
   
-  MSP *newMsps = NULL;
-  GList *newSeqs = NULL;
-  
-  parseFS(&newMsps, inputFile, blastMode, featureLists, &newSeqs, supportedTypes, styles,
+  parseFS(newMsps, inputFile, blastMode, featureLists, newSeqs, supportedTypes, styles,
           &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile) ;
-  
-  appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
   
   fclose(inputFile);
 }
@@ -570,7 +574,12 @@ static void fetchSequencesForRegion(const MSP const *msp,
     {
       /* Parse the results */
       g_message_info("Parsing %s results...", REGION_FETCH_GROUP);
-      loadGffFile(fileName, keyFile, blastMode, seqList, mspListIn, featureLists, supportedTypes, styles);
+      MSP *newMsps = NULL;
+      GList *newSeqs = NULL;
+
+      loadGffFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, &newMsps, &newSeqs);
+      appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
+
       g_message_info(" complete.\n");
     }
   else
@@ -910,6 +919,9 @@ gboolean blxview(CommandLineOptions *options,
   const char *net_id = NULL;
   int port = UNSET_INT;
   setupFetchModes(pfetch, &options->bulkFetchMode, &options->userFetchMode, &net_id, &port);
+
+  /* Find any assembly gaps (i.e. gaps in the reference sequence) */
+  findAssemblyGaps(options->refSeq, featureLists, &options->mspList, &options->refSeqRange);
   
   gboolean status = blxviewFetchSequences(
     External, options->parseFullEmblInfo, TRUE, options->saveTempFiles, options->seqType, &seqList, 
@@ -918,23 +930,11 @@ gboolean blxview(CommandLineOptions *options,
   
   if (status)
     {
-      /* Find any assembly gaps (i.e. gaps in the reference sequence) */
-      findAssemblyGaps(options->refSeq, featureLists, &options->mspList, &options->refSeqRange);
-      
       /* Construct missing data and do any other required processing now we have all the sequence data */
       finaliseBlxSequences(featureLists, &options->mspList, &seqList, 
                            options->refSeqOffset, options->seqType, 
                            options->numFrames, &options->refSeqRange, TRUE);
 
-      /* Sort msp arrays by start coord (only applicable to msp types that
-       * appear in the detail-view because the order is only applicable when
-       * filtering detail-view rows) */
-      int typeId = 0;
-      for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
-        {
-          if (typeShownInDetailView(typeId))
-            g_array_sort(featureLists[typeId], compareFuncMspArray);
-        }
     }
 
   /* Note that we create a blxview even if MSPlist is empty.
