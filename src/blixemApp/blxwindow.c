@@ -546,24 +546,26 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   GKeyFile *keyFile = blxGetConfig();
   
+  /* Load the features from the file into some temporary lists */
   MSP *newMsps = NULL;
   GList *newSeqs = NULL;
-  
+
   loadGffFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs);
 
-  /* Add the msps/sequences to the tree data models */
-  detailViewAddMspData(blxWindowGetDetailView(blxWindow), newMsps, newSeqs);
-
-  /* Add the new msps/sequences to the main lists, fetch the sequence data and
-   * perform any post-processing required */
-  appendNewSequences(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
-
+  /* Fetch any missing sequence data and finalise the new sequences */
   blxviewFetchSequences(FALSE, bc->loadOptionalData, TRUE, FALSE, bc->seqType, &newSeqs, 
                         bc->bulkFetchMode, bc->net_id, bc->port, &newMsps, &bc->blastMode,
                         bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
 
   finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->refSeqOffset, bc->seqType, 
                        bc->numFrames, &bc->refSeqRange, TRUE);
+
+  /* Add the msps/sequences to the tree data models (must be done after finalise because
+   * finalise populates the child msp lists for parent feaatures) */
+  detailViewAddMspData(blxWindowGetDetailView(blxWindow), newMsps, newSeqs);
+
+  /* Merge the temporary lists into the main lists */
+  appendNewSequences(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
 
   /* Cache the new msp display ranges and sort and filter the trees. */
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
