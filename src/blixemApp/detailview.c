@@ -62,7 +62,6 @@
 #define POLYA_SIG_BASES_UPSTREAM        50    /* the number of bases upstream from a polyA tail to search for polyA signals */
 
 /* Define the columns' default widths and titles. */
-#define COLUMN_WIDTHS_GROUP             "column-widths"  /* group name in the config file */
 #define BLXCOL_INT_COLUMN_WIDTH		40    /* default width for ordinary integer columns */
 #define BLXCOL_SEQNAME_WIDTH            120   /* default width for the name column */
 #define BLXCOL_ID_WIDTH                 45    /* default width for the ID column */
@@ -76,6 +75,7 @@
 #define BLXCOL_STRAIN_WIDTH             85    /* default width for strain column  */
 #define BLXCOL_TISSUE_TYPE_WIDTH        100   /* default width for tissue-type column  */
 
+#define COLUMN_WIDTHS_GROUP             "column-widths"  /* group name in the config file */
 
 
 
@@ -159,6 +159,33 @@ const char* detailViewGetColumnTitle(GtkWidget *detailView, const BlxColumnId co
     }
   
   return result;
+}
+
+
+/* Save the column widths to the given config file. */
+void detailViewSaveColumnWidths(GtkWidget *detailView, GKeyFile *key_file)
+{
+  /* Loop through each column */
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  GList *listItem = properties->columnList;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+
+      if (columnInfo)
+        {
+          /* Don't save the width for the sequence column because it is dynamic */
+          if (columnInfo->columnId == BLXCOL_SEQUENCE)
+            continue;
+
+          /* If column is not visible, set width to zero to indicate that it should be hidden */
+          if (columnInfo->visible)
+            g_key_file_set_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, columnInfo->width);
+          else
+            g_key_file_set_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, 0);
+        }
+    }
 }
 
 

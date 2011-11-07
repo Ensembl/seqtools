@@ -4642,10 +4642,37 @@ static void destroyBlxContext(BlxViewContext **bc)
 }
 
 
+/* This function saves all of blixem's customisable settings to
+ * a config file. */
+static void saveBlixemSettings(GtkWidget *blxWindow)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  
+  char *filename = blxprintf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
+
+  GKeyFile *key_file = g_key_file_new();
+  GKeyFileFlags flags = G_KEY_FILE_NONE;
+  GError *error = NULL;
+  
+  /* Load existing contents so they can be merged, if the file already exists */
+  g_key_file_load_from_file(key_file, filename, flags, &error);
+  
+  g_message("Saving Blixem settings to '%s'.\n", filename);
+  detailViewSaveColumnWidths(blxWindowGetDetailView(blxWindow), key_file);
+
+  gchar *file_content = g_key_file_to_data(key_file, NULL, NULL);
+      
+  if (!g_file_set_contents(filename, file_content, -1, NULL))
+    g_warning("Error saving settings to '%s'.\n", filename);
+}
+
+
 static void onDestroyBlxWindow(GtkWidget *widget)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(widget);
   
+  saveBlixemSettings(widget);
+
   if (properties)
     {
       destroyBlxContext(&properties->blxContext);

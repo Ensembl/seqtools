@@ -110,6 +110,10 @@ AUTHOR_TEXT "\n"
 #define BLX_FETCH_REGION           REGION_FETCH_GROUP
 
 
+/* For settings */
+#define BLIXEM_SETTINGS_FILE             ".blixemrc"  /* default file name for saving blixem settings to */
+
+
 /* would be good to get rid of this.... */
 #define FULLNAMESIZE               255
 
