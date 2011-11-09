@@ -276,7 +276,8 @@ typedef struct _CallbackData
 typedef enum
   {
     BLX_RESPONSE_FORWARD, 
-    BLX_RESPONSE_BACK
+    BLX_RESPONSE_BACK,
+    BLX_RESPONSE_RESET
   } BlxResponseType;
 
 

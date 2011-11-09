@@ -175,6 +175,8 @@ int			detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId
 const char*             detailViewGetColumnTitle(GtkWidget *detailView, const BlxColumnId columnId);
 void                    detailViewGetColumnXCoords(DetailViewProperties *properties, const BlxColumnId columnId, IntRange *xRange);
 gboolean                detailViewShowColumn(DetailViewColumnInfo *columnInfo);
+void                    detailViewSaveColumnWidths(GtkWidget *detailView, GKeyFile *key_file);
+void                    detailViewResetColumnWidths(GtkWidget *detailView);
 
 int			getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange const *displayRange);
 

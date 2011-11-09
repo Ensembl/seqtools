@@ -824,7 +824,8 @@ gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int po
 }
 
 
-/* Set/Get global config, necessary because we don't have some blixem context pointer.... */
+/* Set/Get global config, necessary because we don't have some blixem context pointer....
+ * To do: we do have a context now, so this should be moved to there. */
 gboolean blxInitConfig(char *config_file, GError **error)
 {
   gboolean result = FALSE ;
@@ -833,19 +834,64 @@ gboolean blxInitConfig(char *config_file, GError **error)
 
   blx_config_G = g_key_file_new() ;
 
+  /* First, get any persistent settings from the settings file */
+  char *settings_file = blxprintf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
+  gchar *content1 = NULL;
+  gsize len1 = 0;
+
+  if (g_file_test(settings_file, G_FILE_TEST_EXISTS))
+    {
+      /* This will become the global config file if no other file is given. If
+       * another is given, this will be overwritten, so save the content of the settings file. */
+      g_key_file_load_from_file(blx_config_G, settings_file, G_KEY_FILE_NONE, NULL);
+      content1 = g_key_file_to_data(blx_config_G, &len1, NULL);
+    }
+  
+  /* Load the given config file, if any */
   if (!config_file)
     {
       result = TRUE ;
     }
+  else if (readConfigFile(blx_config_G, config_file, error))
+    {
+      result = TRUE;
+
+      if (content1)
+        {
+          /* Merge both file contents. First, get the new content as a string and concatenate */
+          gsize len2 = 0;
+          gchar *content2 = g_key_file_to_data(blx_config_G, &len2, NULL);
+
+          gsize len = len1 + len2 + 1;
+          gchar *content = g_malloc(len);
+          sprintf(content, "%s\n%s", content1, content2);
+
+          /* Load the concatenated contents into a new key file */
+          GKeyFile *key_file = g_key_file_new();
+          if (g_key_file_load_from_data(key_file, content, len, G_KEY_FILE_NONE, NULL))
+            {
+              /* Delete the original config key file and replace it with the new one */
+              g_key_file_free(blx_config_G);
+              blx_config_G = key_file;
+            }
+          else
+            {
+              g_key_file_free(key_file);
+            }
+
+          g_free(content);
+          g_free(content2);
+        }
+    }
   else
     {
-      if (!(result = readConfigFile(blx_config_G, config_file, error)))
-	{
-	  g_key_file_free(blx_config_G) ;
-	  blx_config_G = NULL ;
-	}
+      g_key_file_free(blx_config_G) ;
+      blx_config_G = NULL ;
     }
 
+  if (content1)
+    g_free(content1);
+  
   return result ;
 }
 
