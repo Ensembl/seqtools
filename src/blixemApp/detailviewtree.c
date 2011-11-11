@@ -47,13 +47,18 @@
 #include <math.h>
 
 
+/* Global variables */
+
+/* This enables "mouse-drag" mode: see the expose function for how this is used. */
+static gboolean g_mouse_drag_mode = FALSE;  
+
+
 /* Local function declarations */
 static GtkWidget*	treeGetDetailView(GtkWidget *tree);
 static gboolean		onSelectionChangedTree(GObject *selection, gpointer data);
 static gint		sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTreeIter *iter2, gpointer data);
 static int		calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree);
 static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
-static GtkSortType	treeGetColumnSortOrder(GtkWidget *tree, const BlxColumnId columnId);
 static gboolean		onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 static GList*		treeGetSequenceRows(GtkWidget *tree, const BlxSequence *clickedSeq);
 static BlxSequence*	treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter);
@@ -61,6 +66,12 @@ static BlxSequence*	treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter);
 /***********************************************************
  *                Tree - utility functions                 *
  ***********************************************************/
+
+/* This sets the "mouse drag mode" flag */
+void setMouseDragMode(const gboolean value)
+{
+  g_mouse_drag_mode = value;
+}
 
 /* Check the given widget is a detail-view tree and has its properties set */
 static void assertTree(GtkWidget *tree)
@@ -85,8 +96,17 @@ static void assertTree(GtkWidget *tree)
 static GtkWidget *treeGetDetailView(GtkWidget *tree)
 {
   assertTree(tree);
-  TreeProperties *properties = treeGetProperties(tree);
-  return properties ? properties->detailView : NULL;
+  
+  /* optimisation: cache result, because we know there is only ever one detail view */
+  static GtkWidget *detailView = NULL;
+
+  if (!detailView)
+    {
+      TreeProperties *properties = treeGetProperties(tree);
+      detailView = properties ? properties->detailView : NULL;
+    }
+  
+  return detailView;
 }
 
 GtkWidget *treeGetBlxWindow(GtkWidget *tree)
@@ -718,35 +738,6 @@ void refilterTree(GtkWidget *tree, gpointer data)
 }
 
 
-/* Determine the sort order for this column. Columns may have a different default
- * sort order (e.g. name is sorted ascending, but score is sorted descending.)
- * However, the opposite sort order is returned if the detail view's invert-sort-
- * order flag is set. */
-static GtkSortType treeGetColumnSortOrder(GtkWidget *tree, const BlxColumnId columnId)
-{
-  GtkSortType result = GTK_SORT_ASCENDING;
-  BlxViewContext *bc = treeGetContext(tree);
-
-  switch (columnId)
-    {
-      case BLXCOL_SCORE: /* fall through */
-      case BLXCOL_ID:
-	result = GTK_SORT_DESCENDING;
-	break;
-	
-      default: /* all others ascending */
-	break;
-    };
-
-  if (bc->flags[BLXFLAG_INVERT_SORT])
-    {
-      result = (result == GTK_SORT_ASCENDING) ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING;
-    }
-
-  return result;
-}
-
-
 /* Update the cached path pointer for each msp in this tree row. Should be called
  * after the paths have changed, e.g. after a sort. */
 static gboolean updateMspPaths(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
@@ -1156,28 +1147,113 @@ static gboolean onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *ev
 }
 
 
+/* The given renderer is an MSP. This function checks if there is a base index
+ * selected and, if so, colors the background for that base with the given color. */
+static void treeHighlightSelectedBase(GtkWidget *tree, GdkDrawable *drawable)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  
+  if (properties->selectedBaseIdx != UNSET_INT && valueWithinRange(properties->selectedBaseIdx, &properties->displayRange))
+    {
+      /* Convert the display-range index to a 0-based index in the display range */
+      const int charIdx = properties->selectedBaseIdx - properties->displayRange.min;
+      
+      /* Get the x coords for the start and end of the sequence column */
+      IntRange xRange;
+      detailViewGetColumnXCoords(properties, BLXCOL_SEQUENCE, &xRange);
+      
+      const int x = xRange.min + (charIdx * properties->charWidth);
+      const int y = 0;
+      
+      BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+      GdkColor *color = getGdkColor(BLXCOLOR_SELECTION, bc->defaultColors, FALSE, bc->usePrintColors);
+      
+      drawRect(drawable, color, x, y, roundNearest(properties->charWidth), tree->allocation.height, 0.3, CAIRO_OPERATOR_XOR);
+    }
+}
 
+
+/* Expose function for a detail-view tree 
+ * 
+ * There is a bit of hacky code in here to try to speed up the redraw of the
+ * tree, which can be very slow on some systems (I'm not sure why but it seems
+ * quite a common problem with GtkTreeView, sadly).
+ * 
+ * The way the drawing works is as follows:
+ *  - First time round, there is no cached drawable, so it creates the drawable
+ *    and saves it in the widget. It is blank at this point. The default handler
+ *    then continues.
+ *  - The default handler gets the cell renderer to draw each row. The cell
+ *    renderer draws to the cached drawable as well as the window.
+ *  - Even though we have a cached drawable, we always let the default handler
+ *    do the drawing and overwrite the cached drawable (see notes below) ...
+ *  - ... EXCEPT when middle-dragging. The default handler would have to re-draw
+ *    everything when middle-dragging, because the highlighted column on
+ *    every row changes, and this can be slow. We therefore use the cached 
+ *    drawable instead and draw the highlighted column over the top of it.
+ *
+ * Notes:
+ *  - Ideally on subsequent calls we would just push the cached drawable to screen,
+ *    (unless it has been cleared to force a re-draw). However, this does not
+ *    work well for vertical scrolling, because it slows things down if we clear 
+ *    and re-draw everything (I think the renderer normally just draws the
+ *    relevant rows, so is quicker). This is why we let the default handler do 
+ *    the drawing in most cases.  (We could perhaps implement some cleverer
+ *    caching for vertical scrolling. Ideally caching needs to be done by the
+ *    renderer, not by the tree.)
+ *  - It should be safe to use the cached drawable while middle-dragging because the
+ *    user should not be doing any other operations that will change what is
+ *    shown in the trees (although we might need to introduce some blocks to avoid 
+ *    other inputs happening by accident). We make sure the cached drawable is 
+ *    up to date by forcing a re-draw when the user clicks the mouse, and then
+ *    set the "mouse drag mode" flag to indicate that we want to use it (and
+ *    to also stop it being overwritten).
+ *  - The previously-highlighted column will still be highlighted for the duration 
+ *    of a drag, but the highlighting is in a slightly different color, so this is
+ *    actually quite a useful effect because you can see where you started dragging
+ *    from.
+ * */
 static gboolean onExposeDetailViewTree(GtkWidget *tree, GdkEventExpose *event, gpointer data)
 {
-  /* Create a new drawable to draw to. Our custom cell renderer will draw to this as
-   * well as the widget's window. (Ideally we'd just draw to the bitmap and then push
-   * this to the screen, but I'm not sure if it's possible to detect when the 
-   * cell renderer has finished drawing.) */
-  GdkDrawable *drawable = gdk_pixmap_new(tree->window, tree->allocation.width, tree->allocation.height, -1);
-  gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
-  widgetSetDrawable(tree, drawable);
+  gboolean handled = FALSE;
+  GdkDrawable *drawable = widgetGetDrawable(tree);
 
-  /* Draw a blank rectangle of the required widget background color */
-  GdkGC *gc = gdk_gc_new(drawable);
+  if (g_mouse_drag_mode && drawable)
+    {
+      /* Push the cached drawable to the window */
+      GdkGC *gc = gdk_gc_new(drawable);
+      GdkWindow *window = gtk_tree_view_get_bin_window(GTK_TREE_VIEW(tree));
+      gdk_draw_drawable(window, gc, drawable, 0, 0, 0, 0, -1, -1);
+      g_object_unref(gc);
+      
+      treeHighlightSelectedBase(tree, window);
+
+      handled = TRUE;
+    }
+  else
+    {
+      /* Create a new drawable to draw to. Our custom cell renderer will draw 
+       * to this as well as the widget's window. The cached drawable is used
+       * for printing and for mouse-drag mode. */
+      GdkDrawable *drawable = gdk_pixmap_new(tree->window, tree->allocation.width, tree->allocation.height, -1);
+      gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
+      widgetSetDrawable(tree, drawable);
+
+      /* Draw a blank rectangle of the required widget background color */
+      GdkGC *gc = gdk_gc_new(drawable);
+      
+      GdkColor *bgColor = tree->style->bg;
+      gdk_gc_set_foreground(gc, bgColor);
+      gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, tree->allocation.width, tree->allocation.height);
+      
+      g_object_unref(gc);
+      
+      /* Let the default handler continue to do the actual drawing */
+      handled = FALSE;
+    }
   
-  GdkColor *bgColor = tree->style->bg;
-  gdk_gc_set_foreground(gc, bgColor);
-  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, tree->allocation.width, tree->allocation.height);
-  
-  g_object_unref(gc);
-  
-  /* Let the default handler continue */
-  return FALSE;
+  return handled;
 }
 
 
@@ -1674,7 +1750,7 @@ static gboolean onMouseMoveTreeHeader(GtkWidget *header, GdkEventMotion *event, 
        * the start of the sequence column, so offset the coords before propagating. */
       GtkWidget *detailView = treeGetDetailView(tree);
       IntRange xRange;
-      detailViewGetColumnXCoords(detailView, BLXCOL_SEQUENCE, &xRange);
+      detailViewGetColumnXCoords(detailViewGetProperties(detailView), BLXCOL_SEQUENCE, &xRange);
       event->x += xRange.min;
 
       propagateEventMotion(tree, treeGetDetailView(tree), event);
@@ -2628,218 +2704,6 @@ static void addColumnsToTreeHeader(GtkWidget *headerBar, GList *columnList)
 }
 
 
-/* Sort comparison function for sorting by group */
-static gint sortByGroupCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *tree)
-{
-  gint result = 0;
-  
-  /* Get the order number out of the group and sort on that. If the sequence
-   * is not in a group, its order number is UNSET_INT, and it gets sorted after
-   * any sequences that are in groups. */
-  GtkWidget *blxWindow = treeGetBlxWindow(tree);
-  const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sSequence);
-  const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sSequence);
-  
-  if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
-    {
-      result = 1;
-    }
-  else if (msp1Order != UNSET_INT && msp2Order == UNSET_INT)
-    {
-      result = -1;
-    }
-  else
-    {
-      result = msp1Order - msp2Order;
-    }
-
-  return result;
-}
-
-/* Sort comparison function for sorting by the start position on the 
- * reference sequence. (Does a secondary sort by the alignment length) */
-static gint sortByStartCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *tree)
-{
-  gint result = 0;
-
-  if (treeGetDisplayRev(tree))
-    {
-      /* Display is reversed (i.e. numbers shown descending) so use compare on the max coord
-       * and look for the max */
-      result = msp2->qRange.max - msp1->qRange.max;
-    }
-  else 
-    {
-      result = msp1->qRange.min - msp2->qRange.min;
-    }
-  
-  if (result == 0)
-    {
-      /* If the MSPs have the same start coord, do a secondary sort 
-       * by alignment length */
-      result = getRangeLength(&msp1->qRange) - getRangeLength(&msp2->qRange);
-    }
-
-  return result;
-}
-
-/* Sort comparison function for sorting by doubles */
-static gint sortByDoubleCompareFunc(const MSP *msp1, const MSP *msp2)
-{
-  gint result = 0;
-  
-  gdouble dResult = msp1->id - msp2->id;
-  
-  if (dResult == 0)
-    result = 0;
-  else if (dResult > 0)
-    result = 1;
-  else 
-    result = -1;
-  
-  return result;
-}
-
-/* Sort comparison function for sorting by the start position on the reference sequence
- * when we have multiple MSPs to compare (does a secondary sort by alignment length) */
-static gint sortByStartCompareFuncMultiple(GList *mspList1, GList *mspList2, const gboolean msp1Fwd, const gboolean msp2Fwd, GtkWidget *tree)
-{
-  gint result = 0;
-
-  const gboolean displayRev = treeGetDisplayRev(tree);
-
-  const int coord1 = findMspListQExtent(mspList1, !displayRev, BLXSTRAND_NONE); /* find min coord unless display rev */
-  const int coord2 = findMspListQExtent(mspList2, !displayRev, BLXSTRAND_NONE);
-
-  result = coord1 - coord2;
-
-  if (displayRev)
-    {
-      /* Display is reversed (i.e. numbers shown descending) so reverse the result */
-      result *= -1;
-    }
-
-  return result;
-}
-
-/* Sort comparison function for sorting by string values. Allows NULL values and
- * sorts them AFTER non-null values. Comparison is case-insensitive. */
-static int sortByStringCompareFunc(const char *str1, const char *str2)
-{
-  int result = 0;
-
-  if (!str1 && !str2)
-    {
-      result = 0;
-    }
-  else if (!str1)
-    {
-      result = 1;
-    }
-  else if (!str2)
-    {
-      result = -1;
-    }
-  else
-    {
-      const int len = min(strlen(str1), strlen(str2));
-      result = g_ascii_strncasecmp(str1, str2, len);
-    }
-  
-  return result;
-}
-
-
-/* Sort comparison function for sorting by a particular column of the tree view. */
-static gint sortByColumnCompareFunc(GtkTreeModel *model, 
-                                    GtkTreeIter *iter1, 
-                                    GtkTreeIter *iter2, 
-                                    GtkWidget *detailView, 
-                                    GtkWidget *tree, 
-                                    const BlxColumnId sortColumn)
-{
-  gint result = UNSET_INT;
-  
-  /* Extract the MSPs for the two rows that we're comparing */
-  GList *mspGList1 = treeGetMsps(model, iter1);
-  GList *mspGList2 = treeGetMsps(model, iter2);
-  
-  /* Get the first MSP in each list. */
-  MSP *msp1 = (MSP*)(mspGList1->data);
-  MSP *msp2 = (MSP*)(mspGList2->data);
-  
-  /* Check whether either row has more than one MSP. If so, it means some options
-   * aren't applicable (unless they're short reads, which should be identical if
-   * they're in the same row, so we can treat those as singular). */
-  const gboolean multipleMsps = (!mspIsShortRead(msp1) || !mspIsShortRead(msp2)) && (g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1);
-  
-  /* Get details about this column */
-  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, sortColumn);
-  
-  switch (sortColumn)
-  {
-    case BLXCOL_NONE:
-      result = 0;
-      break;
-      
-    case BLXCOL_SEQNAME:
-      result = sortByStringCompareFunc(msp1->sname, msp2->sname);
-      break;
-      
-    case BLXCOL_SOURCE:
-      result = sortByStringCompareFunc(mspGetSource(msp1), mspGetSource(msp2));
-      break;
-      
-    case BLXCOL_SCORE:
-      result = multipleMsps ? 0 : (int)(msp1->score - msp2->score);
-      break;
-      
-    case BLXCOL_ID:
-      result = multipleMsps ? 0 : sortByDoubleCompareFunc(msp1, msp2);
-      break;
-      
-    case BLXCOL_START:
-      if (multipleMsps)
-        result = sortByStartCompareFuncMultiple(mspGList1, mspGList2, msp1->qStrand == BLXSTRAND_FORWARD, msp2->qStrand == BLXSTRAND_FORWARD, tree);
-      else
-        result = sortByStartCompareFunc(msp1, msp2, tree);
-      break;
-      
-    case BLXCOL_GROUP:
-      result = sortByGroupCompareFunc(msp1, msp2, tree);
-      break;
-      
-    case BLXCOL_ORGANISM:
-      result = sortByStringCompareFunc(mspGetOrganism(msp1), mspGetOrganism(msp2));
-      break;
-      
-    case BLXCOL_GENE_NAME:
-      result = sortByStringCompareFunc(mspGetGeneName(msp1), mspGetGeneName(msp2));
-      break;
-      
-    case BLXCOL_TISSUE_TYPE:
-      result = sortByStringCompareFunc(mspGetTissueType(msp1), mspGetTissueType(msp2));
-      break;
-      
-    case BLXCOL_STRAIN:
-      result = sortByStringCompareFunc(mspGetStrain(msp1), mspGetStrain(msp2));
-      break;
-      
-    default:
-      g_warning("Sort function not implemented for column '%s'.\n", columnInfo->title);
-      break;
-  };
-
-  /* Invert the result if we need to sort descending instead of ascending. */
-  if (treeGetColumnSortOrder(tree, sortColumn) == GTK_SORT_DESCENDING)
-    {
-      result *= -1;
-    }
-  
-  return result;
-}
-
-
 /* This is the main sort comparison function for comparing two rows of a 
  * tree view. The sort criteria are specified in the detailView properties;
  * we may sort by multiple columns.
@@ -2870,8 +2734,12 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
           if (sortColumn == BLXCOL_NONE)
             break;
 
+          /* Extract the MSPs for the two rows that we're comparing */
+          GList *mspGList1 = treeGetMsps(model, iter1);
+          GList *mspGList2 = treeGetMsps(model, iter2);
+  
           /* Do the comparison on this column */
-          result = sortByColumnCompareFunc(model, iter1, iter2, detailView, tree, sortColumn);
+          result = sortByColumnCompareFunc(mspGList1, mspGList2, detailView, sortColumn);
           
           /* If rows are equal, continue to sort; otherwise we're done */
           if (result != 0)
@@ -2961,7 +2829,7 @@ static void setTreeStyle(GtkTreeView *tree)
 	  "GtkTreeView::horizontal-separator  = 0\n"
 	  "}"
 	  "widget \"*%s*\" style \"packedTree\"", DETAIL_VIEW_TREE_NAME);
-  gtk_rc_parse_string(parseString);
+  gtk_rc_parse_string(parseString);  
 }
 
 

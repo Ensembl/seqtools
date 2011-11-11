@@ -73,7 +73,7 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
 
 //gboolean	exonViewGetBumped(GtkWidget *exonView);
 //void		exonViewSetBumped(GtkWidget *exonView, const gboolean bumped);
-//void		exonViewToggleBumped(GtkWidget *exonView);
+void		exonViewToggleBumped(GtkWidget *exonView);
 //
 //void            callFuncOnAllChildExonViews(GtkWidget *widget, gpointer data);
 void		calculateDotterExonViewHeight(GtkWidget *exonView);

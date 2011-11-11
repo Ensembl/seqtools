@@ -57,7 +57,7 @@ static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkCol
 /* Properties specific to the belvu alignment */
 typedef struct _BelvuAlignmentProperties
 {
-  BelvuContext *bc;	            /* The belvu context */
+  BelvuContext *bc;                 /* The belvu context */
   
   GtkWidget *columnsArea;           /* Drawing widget for the columns (i.e. name and coord columns) */
   GtkWidget *columnsHeader;         /* Drawing widget for the header for the the columns area */
@@ -404,7 +404,19 @@ static void drawSequenceChar(BelvuAlignmentProperties *properties,
 }
 
 
-/* Draw a single line in the sequence area */
+/* Draw a single line in the sequence area.
+ * 
+ * This is rather convoluted in an attempt to maximise speed.  Drawing of text in
+ * GTK is particularly slow, and is best done a whole line at a time, rather than
+ * drawing individual characters.  The characters may each have a different background
+ * colour, so we draw the background colours first and then draw the text over the top
+ * a whole line at a time.  A further problem, though, is that some characters may
+ * have a different foreground colour to others on the same line (in colour-by-conservation
+ * mode), so some characters do need to be drawn individually.  There are usually
+ * relatively few characters that this affects, though, so we continue to draw the
+ * whole line in the default colour first, and then we look to see if any individual
+ * characters have a different foreground colour and just draw those over the top.
+*/
 static void drawSingleSequence(GtkWidget *widget,
                                 GdkDrawable *drawable, 
                                 BelvuAlignmentProperties *properties,
@@ -454,13 +466,19 @@ static void drawSingleSequence(GtkWidget *widget,
     {
       GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
       gdk_gc_set_foreground(gc, textColor);
+
+      /* Start at the number of characters into the string where the horizontal 
+       * scrollbar indicates we are (making sure that's not out of the end of the
+       * string) */
+      if ((int)hAdjustment->value < alnGetSeqLen(alnp))
+        {
+          char *cp = alnGetSeq(alnp) + (int)hAdjustment->value;
+          char *displayText = g_strndup(cp, iMax - properties->hAdjustment->value);
       
-      char *cp = alnGetSeq(alnp) + (int)hAdjustment->value;
-      char *displayText = g_strndup(cp, iMax - properties->hAdjustment->value);
+          drawText(widget, drawable, gc, startX, y, displayText, NULL, NULL);
       
-      drawText(widget, drawable, gc, startX, y, displayText, NULL, NULL);
-      
-      g_free(displayText);
+          g_free(displayText);
+        }
     }
   
   /* Loop again and draw any characters that are not in the default text color.
@@ -534,7 +552,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
   int numSpaces = WRAP_DISPLAY_PADDING_CHARS;
   char collapseStr[10],
   ch[2] = " ";
-  static int *pos=0;			/* Current residue position of sequence j */
+  static int *pos=0;                    /* Current residue position of sequence j */
   
   GdkColor bgColor;
   GdkColor *pBgColor = &bgColor;
@@ -574,7 +592,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
       gboolean emptyPara = TRUE;
       
       for (j = 0; j < bc->alignArr->len; ++j)
-	{
+        {
           ALN *alnp = g_array_index(bc->alignArr, ALN*, j);
           char *alnpSeq = alnGetSeq(alnp);
           
@@ -607,7 +625,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                 }
 
               for (collapsePos = 0, oldpos = pos[j], i = alnstart; i < alnend; i++) 
-                {	
+                {       
                   const int xpos = bc->maxNameLen + bc->maxEndLen + numSpaces + i - alnstart - collapsePos;
                   const int x = xpos * properties->charWidth;
                   
@@ -895,9 +913,9 @@ static gboolean onExposeBelvuColumns(GtkWidget *widget, GdkEventExpose *event, g
           g_object_unref(gc);
         }
       else
-	{
-	  g_warning("Failed to draw Belvu alignment [%p] - could not create bitmap.\n", widget);
-	}
+        {
+          g_warning("Failed to draw Belvu alignment [%p] - could not create bitmap.\n", widget);
+        }
     }
 
   return TRUE;
@@ -971,9 +989,9 @@ static gboolean onExposeBelvuSequenceHeader(GtkWidget *widget, GdkEventExpose *e
           g_object_unref(gc);
         }
       else
-	{
-	  g_warning("Failed to draw Belvu alignment header [%p] - could not create bitmap.\n", widget);
-	}
+        {
+          g_warning("Failed to draw Belvu alignment header [%p] - could not create bitmap.\n", widget);
+        }
     }
   
   return TRUE;
@@ -1006,9 +1024,9 @@ static gboolean onExposeBelvuColumnsHeader(GtkWidget *widget, GdkEventExpose *ev
           g_object_unref(gc);
         }
       else
-	{
-	  g_warning("Failed to draw Belvu columns header [%p] - could not create bitmap.\n", widget);
-	}
+        {
+          g_warning("Failed to draw Belvu columns header [%p] - could not create bitmap.\n", widget);
+        }
     }
   
   return TRUE;
@@ -1536,13 +1554,13 @@ static gboolean onButtonPressColumnsArea(GtkWidget *widget, GdkEventButton *even
   else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* double click left button */
     {
       if (properties->bc->removingSeqs)
-	{
-	  /* Removed the clicked sequence (which will be the selected one) */
-	  removeSelectedSequence(properties->bc, belvuAlignment);
-	}
+        {
+          /* Removed the clicked sequence (which will be the selected one) */
+          removeSelectedSequence(properties->bc, belvuAlignment);
+        }
       else 
         {
-	  /* Fetch the clicked sequence (i.e. the currently selected one) */
+          /* Fetch the clicked sequence (i.e. the currently selected one) */
           fetchAln(properties->bc, properties->bc->selectedAln);
         }
     }
@@ -1581,13 +1599,13 @@ static gboolean onButtonPressSeqArea(GtkWidget *widget, GdkEventButton *event, g
   else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* double click left button */
     {
       if (properties->bc->removingSeqs)
-	{
-	  /* Removed the clicked sequence (i.e. the currently selected one) */
-	  removeSelectedSequence(properties->bc, belvuAlignment);
-	}
+        {
+          /* Removed the clicked sequence (i.e. the currently selected one) */
+          removeSelectedSequence(properties->bc, belvuAlignment);
+        }
       else 
         {
-	  /* Fetch the clicked sequence (i.e. the currently selected one) */
+          /* Fetch the clicked sequence (i.e. the currently selected one) */
           fetchAln(properties->bc, properties->bc->selectedAln);
         }
     }
@@ -1624,10 +1642,10 @@ static gboolean onButtonReleaseSeqArea(GtkWidget *widget, GdkEventButton *event,
   else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* double click left button */
     {
       if (properties->bc->removingSeqs)
-	{
-	  /* Removed the clicked sequence (which will be the selected one) */
-	  removeSelectedSequence(properties->bc, belvuAlignment);
-	}
+        {
+          /* Removed the clicked sequence (which will be the selected one) */
+          removeSelectedSequence(properties->bc, belvuAlignment);
+        }
     }
   
   return handled;

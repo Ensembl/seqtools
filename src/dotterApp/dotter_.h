@@ -120,6 +120,7 @@ typedef enum
   DOTCOLOR_UTR_LINE,                        /* line color for an UTR in the exon view (non-coding/untranslated region) */
   DOTCOLOR_CROSSHAIR,                       /* color of the dotplot crosshair */
   DOTCOLOR_GRID,                            /* color of the dotplot grid */
+  DOTCOLOR_BORDER,                          /* color of the dotplot border */
   DOTCOLOR_MARKER_FILL,                     /* fill color of the position markers on the greyramp */
   DOTCOLOR_MARKER_LINE,                     /* line color of the position markers on the greyramp */
   DOTCOLOR_THRESHOLD_MARKER,                /* line color of the threshold marker on the greyramp */
@@ -315,6 +316,7 @@ int		    convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, Dotter
 int                 getDotplotWidth(DotplotProperties *properties);
 int                 getDotplotHeight(DotplotProperties *properties);
 DotplotProperties*  dotplotGetProperties(GtkWidget *widget);
+void                dotplotToggleBumpExons(GtkWidget *dotplot);
 
 DotterHspMode       dotplotGetHspMode(GtkWidget *dotplot);
 int                 dotplotGetSlidingWinSize(GtkWidget *dotplot);

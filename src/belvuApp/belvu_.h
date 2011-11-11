@@ -407,7 +407,7 @@ typedef struct BelvuContextStruct
   char *dirName;		   /* Default directory for file browser */
   char organismLabel[3];
   
-  int **conservCount;              /* Matrix of conservation values  - 21 x maxLen */
+  int **conservCount;              /* Matrix of conservation values (1st index is amino acid code; 2nd index is column index; value is the number of that residue in that column) - 21 x maxLen */
   int **colorMap;                  /* Matrix of conservation colours - 21 x maxLen */
   int *conservResidues;            /* Array of number of residues present in each column */
   double *conservation;            /* The max conservation in each column [0..maxLen] */

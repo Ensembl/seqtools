@@ -186,6 +186,7 @@ static void                       onAboutMenu(GtkAction *action, gpointer data);
 static void                       onCopyHCoordMenu(GtkAction *action, gpointer data);
 static void                       onCopyVCoordMenu(GtkAction *action, gpointer data);
 static void                       onToggleUsePrintColorsMenu(GtkAction *action, gpointer data);
+static void                       onToggleBumpExonsMenu(GtkAction *action, gpointer data);
 
 
 /* Menu builders: the action entry list lists menu actions for all menus */
@@ -215,7 +216,8 @@ static GtkToggleActionEntry toggleMenuEntries[] = {
 { "ToggleCrosshair",  NULL, "Crosshair",             NULL,  "Show the crosshair",             G_CALLBACK(onToggleCrosshairMenu),       TRUE},
 { "ToggleCoords",     NULL, "Crosshair label",       NULL,  "Show the crosshair label",       G_CALLBACK(onToggleCoordsMenu),          TRUE},
 { "ToggleFullscreen", NULL, "Crosshair fullscreen",  NULL,  "Show the crosshair full screen", G_CALLBACK(onToggleFullscreenMenu),      TRUE},
-{ "TogglePrintColors",NULL, "Use print colors",      NULL,  "Use print _colors",              G_CALLBACK(onToggleUsePrintColorsMenu),  FALSE}
+{ "TogglePrintColors",NULL, "Use print colors",      NULL,  "Use print _colors",              G_CALLBACK(onToggleUsePrintColorsMenu),  FALSE},
+{ "ToggleBumpExons",  NULL, "Bump exons",            "B",   "_Bump exons",                    G_CALLBACK(onToggleBumpExonsMenu),       FALSE}
 };
 
 /* Radio-button menu entries are listed here: */
@@ -262,6 +264,8 @@ static const char mainMenuDescription[] =
 "      <menuitem action='HspsGrey'/>"
 "      <menuitem action='HspsLine'/>"
 "      <menuitem action='HspsFunc'/>"
+"     <separator/>"
+"      <menuitem action='ToggleBumpExons'/>"
 "    </menu>"
 "    <menu action='HelpMenuAction'>"
 "      <menuitem action='Help'/>"
@@ -406,6 +410,7 @@ static void createDotterColors(DotterContext *dc)
   /* dot plot */
   createBlxColor(dc->defaultColors, DOTCOLOR_CROSSHAIR, "Crosshair", "Color of the crosshair on the dot plot", BLX_BLUE, BLX_BLUE, NULL, NULL);
   createBlxColor(dc->defaultColors, DOTCOLOR_GRID, "Grid", "Line color of the grid on the dot plot", BLX_LIGHT_RED, BLX_LIGHT_RED, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_BORDER, "Grid", "Highlight color for the border where the alignment cannot be calculated", "#ffeeee", "#bbbbbb", NULL, NULL);
 
   /* greyramp */
   createBlxColor(dc->defaultColors, DOTCOLOR_THRESHOLD_MARKER, "Greyramp threshold marker color", "Outline color of the threshold marker on the greyramp tool", BLX_RED, BLX_RED, BLX_GREEN, BLX_GREEN);
@@ -2923,6 +2928,12 @@ static void onToggleUsePrintColorsMenu(GtkAction *action, gpointer data)
   refreshAll(dotterWindow, NULL);
 }
 
+static void onToggleBumpExonsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  dotplotToggleBumpExons(properties->dotplot);
+}
 
 /* Mouse button handler */
 static gboolean onButtonPressDotter(GtkWidget *window, GdkEventButton *event, gpointer data)

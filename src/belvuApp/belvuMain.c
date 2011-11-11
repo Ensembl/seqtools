@@ -54,7 +54,7 @@
 \n\
  Belvu - View multiple alignments in good-looking colours.\n\
 \n\
- Usage: belvu [options] <multiple_alignment>|- [X options]\n\
+ Usage: belvu [options] <multiple_alignment>|-\n\
 \n\
    <multiple_alignment>|- = alignment file or pipe.\n\
 \n\
@@ -111,24 +111,191 @@
   -O <label>  Read organism info after this label (default OS)\n\
   -t <title>  Set window title.\n\
   -u          Start up with uncoloured alignment (faster).\n\
-  -h, --help  Show this usage information\n\
+  -h, --help  Show more detailed usage information\n\
   --compiled  Show package compile date\n\
   --version   Show package version number\n\
 \n\
- Some X options:\n\
-  -acefont <font>   Main font.\n\
-  -font    <font>   Menu font.\n\
-\n\
- Note: X options only work after \"setenv POSIXLY_CORRECT\"\n\
-\n\
- setenv BELVU_FETCH to desired sequence fetching program.\n\
- setenv BELVU_FONT_SIZE to specify window font size.\n\
- setenv BELVU_STATUSBAR_SIZE to specify statusbar font size (0 => hide statusbar).\n\n\
 "
 
 
-/* Text to show the authors, version and compile date */
+#define HELP_TEXT "\
+ Belvu - View multiple alignments in pretty colours.\n\
+\n\
+ Usage: belvu [options]  <multiple_alignment>|-\n\
+\n\
+ <multiple_alignment>|- = file or pipe in Stockholm/Selex/MSF/Fasta format (see below).\n\
+\n\
+\n\
+ Options:\n\
+\n\
+  -c          Print Conservation table.\n\
+  -l <file>   Load residue color code file.\n\
+\n\
+              Format: <symbol> <color>\n\
+              (Lines starting with # are ignored (comment lines))\n\
+\n\
+              Example of color code file:\n\
+\n\
+                  # Aroma\n\
+                  F YELLOW\n\
+                  Y YELLOW\n\
+                  W YELLOW\n\
+\n\
+                  # Yuck\n\
+                  D RED \n\
+                  N GREEN\n\
+                  X BLUE\n\
+\n\
+              Available colors:\n\
+\n\
+                    WHITE \n\
+                    BLACK \n\
+                    LIGHTGRAY\n\
+                    DARKGRAY\n\
+                    RED \n\
+                    GREEN\n\
+                    BLUE\n\
+                    YELLOW\n\
+                    CYAN \n\
+                    MAGENTA\n\
+                    LIGHTRED \n\
+                    LIGHTGREEN \n\
+                    LIGHTBLUE\n\
+                    DARKRED \n\
+                    DARKGREEN \n\
+                    DARKBLUE\n\
+                    PALERED \n\
+                    PALEGREEN \n\
+                    PALEBLUE\n\
+                    PALEYELLOW \n\
+                    PALECYAN \n\
+                    PALEMAGENTA\n\
+                    BROWN \n\
+                    ORANGE \n\
+                    PALEORANGE\n\
+                    PURPLE \n\
+                    VIOLET \n\
+                    PALEVIOLET\n\
+                    GRAY \n\
+                    PALEGRAY\n\
+                    CERISE \n\
+                    MIDBLUE\n\
+\n\
+\n\
+  -L <file>  Load markup and organism color code file.\n\
+             Colour the markup text by residue or colour organism in tree.\n\
+\n\
+	     Example to set color of letters A and B:\n\
+	     A GREEN\n\
+	     B YELLOW\n\
+\n\
+	     Example to set color of organism human:\n\
+	     #=OS BLUE human\n\
+\n\
+\n\
+  -m <file>   Read file with matching sequences segments. This is used to\n\
+              display a match of  a query sequence to a family.  The format\n\
+              of the match is :\n\
+\n\
+              Line 1: Name/start-end score\n\
+              Line 2: Query sequence in matching segment, no pads!\n\
+              Line 3: Sequence of matching segments (qstart1 qend1 fstart1\n\
+              fend2 qstart2 qend2 fstart2 fend2  etc...).\n\
+\n\
+              Example:\n\
+\n\
+              ZK673.9/238-260 21.58\n\
+              CPENWVQFTGNGTQYGVCLRGFT\n\
+              1 2 1 2  4 7 8 11  \n\
+\n\
+              NOTE: A sometimes easier way of doing this is to concatenate\n\
+              the match to the end of the alignment, after a line with\n\
+              exactly this string within the quotes: # matchFooter\n\
+\n\
+\n\
+  -r          Read alignment in 'raw' format (Name sequence).\n\
+\n\
+              Example of raw alignment file: \n\
+\n\
+                  seq1_name MFILKTP\n\
+                  seq1_name MYI.RTP\n\
+\n\
+  -R          Do not parse coordinates when reading alignment.\n\
+  -o <format> Write alignment or tree to stdout in this format and exit.\n\
+                Valid formats: Mul(Stockholm), Selex, MSF, \n\
+                FastaAlign, Fasta, tree.\n\
+  -X <cutoff> Print UPGMA-based subfamilies at cutoff <cutoff>.\n\
+  -n <cutoff> Make non-redundant to <cutoff> %identity at startup.\n\
+  -Q <cutoff> Remove columns more gappy than <cutoff>.\n\
+  -q <cutoff> Remove sequences more gappy than <cutoff>.\n\
+  -G          Penalize gaps in pairwise comparisons.\n\
+  -i          Ignore gaps in conservation calculation.\n\
+  -P          Remove partial sequences at startup.\n\
+  -C          Don't write coordinates to saved file.\n\
+  -z <char>   Separator char between name and coordinates in saved file.\n\
+  -a          Show alignment annotations on screen (Stockholm format only).\n\
+  -p          Output random model probabilites for HMMER.\n\
+              (Based on all residues.)\n\
+  -S <order>  Sort sequences in this order.\n\
+                a -> alphabetically\n\
+                o -> by Swissprot organism, alphabetically\n\
+                s -> by score\n\
+                n -> by Neighbor-joining tree\n\
+                u -> by UPGMA tree\n\
+                S -> by similarity to first sequence\n\
+                i -> by identity to first sequence\n\
+  -s <file>   Read in file of scores.A column with scores will\n\
+              automatically appear after the coordinates.\n\
+\n\
+              Format: <score> <sequence_id>\n\
+\n\
+              Example of score file:\n\
+\n\
+                  2.78 seq_1/180-206\n\
+                  2.78 seq_2/180-206\n\
+                  3.79 seq_3/42-94\n\
+\n\
+\n\
+  -T <method> Tree options:\n\
+                i -> Start up showing tree\n\
+                I -> Start up showing only tree\n\
+                d -> Show distances in tree\n\
+                n -> Neighbor-joining\n\
+                u -> UPGMA\n\
+                c -> Don't color tree by organism\n\
+                o -> Don't display sequence coordinates in tree\n\
+                b -> Use Scoredist distance correction (default)\n\
+                j -> Use Jukes-Cantor distance correction\n\
+                k -> Use Kimura distance correction\n\
+                s -> Use Storm & Sonnhammer distance correction\n\
+                r -> Use uncorrected distances\n\
+                p -> Print distance matrix and exit\n\
+                R -> Read distance matrix instead of alignment\n\
+                     (only in combination with Tree routines)\n\
+  -b <n>      Apply boostrap analysis with <n> bootstrap samples\n\
+  -B          Print out bootstrap trees and exit\n\
+              (Negative value -> display bootstrap trees on screen)\n\
+  -O <label>  Read organism info after this label (default OS)\n\
+  -t <title>  Set window title.\n\
+  -u          Start up with uncoloured alignment (faster).\n\
+  -h, --help  Show this help information\n\
+  --compiled  Show package compile date\n\
+  --version   Show package version number\n\
+\
+\
+\
+\
+\
+\
+"
+
+
+/* Common text to show at the bottom of help/usage text */
 #define FOOTER_TEXT "\
+ setenv BELVU_FETCH to desired sequence fetching program.\n\
+ setenv BELVU_FONT_SIZE to specify window font size.\n\
+ setenv BELVU_STATUSBAR_SIZE to specify statusbar font size (0 => hide statusbar).\n\
+\n\
 -----\n\
 "AUTHOR_TEXT_FULL" \n\
 \n\
@@ -155,6 +322,13 @@ static void showUsageText()
 {
   /* Pring usage info followed by authors */
   fprintf(stderr, "%s%s", USAGE_TEXT, FOOTER_TEXT);
+}
+
+/* Prints more detailed usage/help info to stderr */
+static void showHelpText()
+{
+  /* Pring usage info followed by authors */
+  fprintf(stderr, "%s%s", HELP_TEXT, FOOTER_TEXT);
 }
 
 /* Prints version info to stderr */
@@ -351,7 +525,7 @@ int main(int argc, char **argv)
   
   double   
   makeNRinit = 0.0,
-  init_rmEmptyColumns = 0.0,
+  init_rmGappyColumns = 0.0,
   init_rmGappySeqs = 0.0;
   
   
@@ -448,7 +622,7 @@ int main(int argc, char **argv)
           case 'O': strncpy(OrganismLabel, optarg, 2);                  break;
           case 'o': output_format = g_strdup(optarg);                   break;
           case 'P': init_rmPartial = TRUE;                              break;
-          case 'Q': init_rmEmptyColumns = atof(optarg);                 break;
+          case 'Q': init_rmGappyColumns = atof(optarg);                 break;
           case 'q': init_rmGappySeqs = atof(optarg);                    break;
           case 'p': output_probs = 1;                                   break;
           case 'R': bc->stripCoordTokensOn = bc->saveCoordsOn = FALSE;  break;
@@ -546,7 +720,13 @@ int main(int argc, char **argv)
     }
   
   
-  if (argc-optind < 1 || showHelp) 
+  if (showHelp)
+    { 
+      showHelpText();
+      exit(1);
+    }
+  
+  if (argc-optind < 1) 
     { 
       showUsageText();
       exit(1);
@@ -695,8 +875,8 @@ int main(int argc, char **argv)
   if (init_rmPartial)
     rmPartialSeqs(bc);
   
-  if (init_rmEmptyColumns)
-    rmEmptyColumns(bc, init_rmEmptyColumns/100.0);
+  if (init_rmGappyColumns)
+    rmEmptyColumns(bc, init_rmGappyColumns/100.0);
   
   if (init_rmGappySeqs) {
     rmGappySeqs(bc, init_rmGappySeqs);
@@ -780,21 +960,6 @@ int main(int argc, char **argv)
   if (show_ann) 
     showAnnotationWindow(bc);
 
-  /* Calculate screen width of alignment */
-  double cw = 1 + bc->maxNameLen + 1;      /* character width of initial alignment */
-  
-  if (bc->maxStartLen) 
-    cw += bc->maxStartLen + 1;
-  
-  if (bc->maxEndLen)   
-    cw += bc->maxEndLen + 1;
-  
-  if (bc->maxScoreLen) 
-    cw += bc->maxScoreLen + 1;
-
-  int scrollbarWidth = 20; /* to do: calculate scrollbar width properly */
-  cw += bc->maxLen + scrollbarWidth + 2;
-  
   if (bc->outputBootstrapTrees && bc->treebootstraps < 0)
     {	
       /* Display [treebootstraps] bootstrap trees */

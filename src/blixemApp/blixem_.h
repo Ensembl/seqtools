@@ -156,7 +156,8 @@ typedef enum
     BLXCOLOR_CLIP_MARKER,   /* color of the marker line used to indicate a match has been clipped */
     BLXCOLOR_COVERAGE_PLOT, /* color of the coverage plot */
     BLXCOLOR_ASSEMBLY_GAP,  /* highlight color for assembly gaps */
-
+    BLXCOLOR_SELECTION,     /* highlight color for selections */
+    
     BLXCOL_NUM_COLORS
   } BlxColorId;
   
@@ -413,6 +414,7 @@ gboolean                            blxview(CommandLineOptions *options,
                                             gboolean External) ;
 
 void                               blviewRedraw(void);
+GtkWidget*                         getBlixemWindow(void);
 const IntRange*                    mspGetFullSRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
 const IntRange*                    mspGetDisplayRange(const MSP const *msp);
 const IntRange*                    mspGetFullDisplayRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);

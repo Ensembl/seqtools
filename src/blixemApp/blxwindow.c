@@ -417,6 +417,7 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
       boundsLimitValue(&newSelectedBaseIdx, fullRange);
       
       detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, detailViewProperties->selectedBaseNum, TRUE, TRUE);
+      detailViewRedrawAll(detailView);
     }
 }
 
@@ -1198,6 +1199,7 @@ static void blxWindowFindDnaString(GtkWidget *blxWindow,
       result = convertDnaIdxToDisplayIdx(result, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
       
       detailViewSetSelectedBaseIdx(detailView, result, frame, baseNum, TRUE, FALSE);
+      detailViewRedrawAll(detailView);
     }
   else
     {
@@ -1540,7 +1542,7 @@ static void blxWindowGroupsChanged(GtkWidget *blxWindow)
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
   /* Re-sort all trees, because grouping affects sort order */
-  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+  detailViewResortTrees(detailView);
   
   /* Refilter the trees (because groups affect whether sequences are visible) */
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
@@ -1880,23 +1882,29 @@ static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
         {
           /* Try the full sequence name e.g. AB123456.1 */
           dataToCompare = blxSequenceGetFullName(seq);
-          found = wildcardSearch(dataToCompare, searchData->searchStr);
+          
+          if (dataToCompare)
+            found = wildcardSearch(dataToCompare, searchData->searchStr);
         }
   
       if (!found)
         {
           /* Try without the postfix. e.g. AB123456 */
           dataToCompare = blxSequenceGetShortName(seq);
-          char *seqName = g_strdup(dataToCompare);
-          char *cutPoint = strchr(seqName, '.');
           
-          if (cutPoint)
+          if (dataToCompare)
             {
-              *cutPoint = '\0';
-              found = wildcardSearch(seqName, searchData->searchStr);
+              char *seqName = g_strdup(dataToCompare);
+              char *cutPoint = strchr(seqName, '.');
+              
+              if (cutPoint)
+                {
+                  *cutPoint = '\0';
+                  found = wildcardSearch(seqName, searchData->searchStr);
+                }
+              
+              g_free(seqName);
             }
-          
-          g_free(seqName);
         }
     }
   
@@ -2671,7 +2679,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
       
       /* Re-sort the trees, because the new data may affect the sort order. Also
        * resize them, because whether data is loaded affects whether columns are shown. */
-      callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+      detailViewResortTrees(detailView);
       updateDynamicColumnWidths(detailView);
 
       /* Force a of resize the tree columns (updateDynamicColumnWidths won't resize them
@@ -3514,7 +3522,7 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
         }
       
       /* Re-sort trees */
-      callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+      detailViewResortTrees(detailView);
     }
   
   return TRUE;
@@ -4489,7 +4497,13 @@ static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpoin
 
 static BlxWindowProperties* blxWindowGetProperties(GtkWidget *widget)
 {
-  return widget ? (BlxWindowProperties*)(g_object_get_data(G_OBJECT(widget), "BlxWindowProperties")) : NULL;
+  /* optimisation: cache result, because we know there is only ever one main window */
+  static BlxWindowProperties *properties = NULL;
+  
+  if (!properties && widget)
+    properties = (BlxWindowProperties*)(g_object_get_data(G_OBJECT(widget), "BlxWindowProperties"));
+  
+  return properties;
 }
 
 BlxViewContext* blxWindowGetContext(GtkWidget *blxWindow)
@@ -4671,6 +4685,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc->defaultColors, BLXCOLOR_CLIP_MARKER, "Clipped-match indicator", "Marker to indicate a match has been clipped to the display range", BLX_RED, BLX_DARK_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_COVERAGE_PLOT, "Coverage plot", "Coverage plot", BLX_ROYAL_BLUE, BLX_DARK_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_ASSEMBLY_GAP, "Assembly gaps", "Highlight color for assembly gaps", "#D14553", BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_SELECTION, "Selection color", "Highlight color for selections", BLX_DARK_GREY, BLX_DARK_GREY, NULL, NULL);
   
   g_free(defaultBgColorStr);
 }
@@ -5754,7 +5769,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   if (blxContext->modelId == BLXMODEL_SQUASHED)
     {
       callFuncOnAllDetailViewTrees(detailView, treeUpdateSquashMatches, NULL);
-      gtk_widget_queue_draw(detailView);
+      detailViewRedrawAll(detailView);
     }
   
   /* If the options say to hide the inactive strand, hide it now. (This must be done
@@ -5784,7 +5799,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Just once, at the start, update the visibility of all tree rows. (After this,
    * filter updates will be done on affected rows only.) */
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+  detailViewResortTrees(detailView);
   
   /* Calculate initial size of the exon views (depends on big picture range) */
   calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));

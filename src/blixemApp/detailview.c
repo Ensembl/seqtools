@@ -666,7 +666,7 @@ void updateDetailViewFontDesc(GtkWidget *detailView)
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   callFuncOnAllDetailViewTrees(detailView, treeUpdateFontSize, NULL);
-  gtk_widget_queue_draw(detailView);
+  detailViewRedrawAll(detailView);
 }
 
 
@@ -930,14 +930,331 @@ void detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash)
       callFuncOnAllDetailViewTrees(detailView, treeUpdateSquashMatches, NULL);
     }
 
-  gtk_widget_queue_draw(detailView);
+  detailViewRedrawAll(detailView);
+}
+
+
+
+/* Sort comparison function for sorting by group */
+static gint sortByGroupCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *blxWindow)
+{
+  gint result = 0;
+  
+  /* Get the order number out of the group and sort on that. If the sequence
+   * is not in a group, its order number is UNSET_INT, and it gets sorted after
+   * any sequences that are in groups. */
+  const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sSequence);
+  const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sSequence);
+  
+  if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
+    {
+      result = 1;
+    }
+  else if (msp1Order != UNSET_INT && msp2Order == UNSET_INT)
+    {
+      result = -1;
+    }
+  else
+    {
+      result = msp1Order - msp2Order;
+    }
+
+  return result;
+}
+
+/* Sort comparison function for sorting by the start position on the 
+ * reference sequence. (Does a secondary sort by the alignment length) */
+static gint sortByStartCompareFunc(const MSP *msp1, const MSP *msp2, const gboolean displayRev)
+{
+  gint result = 0;
+
+  if (displayRev)
+    {
+      /* Display is reversed (i.e. numbers shown descending) so use compare on the max coord
+       * and look for the max */
+      result = msp2->qRange.max - msp1->qRange.max;
+    }
+  else 
+    {
+      result = msp1->qRange.min - msp2->qRange.min;
+    }
+  
+  if (result == 0)
+    {
+      /* If the MSPs have the same start coord, do a secondary sort 
+       * by alignment length */
+      result = getRangeLength(&msp1->qRange) - getRangeLength(&msp2->qRange);
+    }
+
+  return result;
+}
+
+/* Sort comparison function for sorting by doubles */
+static gint sortByDoubleCompareFunc(const MSP *msp1, const MSP *msp2)
+{
+  gint result = 0;
+  
+  gdouble dResult = msp1->id - msp2->id;
+  
+  if (dResult == 0)
+    result = 0;
+  else if (dResult > 0)
+    result = 1;
+  else 
+    result = -1;
+  
+  return result;
+}
+
+/* Sort comparison function for sorting by the start position on the reference sequence
+ * when we have multiple MSPs to compare (does a secondary sort by alignment length) */
+static gint sortByStartCompareFuncMultiple(GList *mspList1, GList *mspList2, const gboolean msp1Fwd, const gboolean msp2Fwd, const gboolean displayRev)
+{
+  gint result = 0;
+
+  const int coord1 = findMspListQExtent(mspList1, !displayRev, BLXSTRAND_NONE); /* find min coord unless display rev */
+  const int coord2 = findMspListQExtent(mspList2, !displayRev, BLXSTRAND_NONE);
+
+  result = coord1 - coord2;
+
+  if (displayRev)
+    {
+      /* Display is reversed (i.e. numbers shown descending) so reverse the result */
+      result *= -1;
+    }
+
+  return result;
+}
+
+/* Sort comparison function for sorting by string values. Allows NULL values and
+ * sorts them AFTER non-null values. Comparison is case-insensitive. */
+static int sortByStringCompareFunc(const char *str1, const char *str2)
+{
+  int result = 0;
+
+  if (!str1 && !str2)
+    {
+      result = 0;
+    }
+  else if (!str1)
+    {
+      result = 1;
+    }
+  else if (!str2)
+    {
+      result = -1;
+    }
+  else
+    {
+      const int len = min(strlen(str1), strlen(str2));
+      result = g_ascii_strncasecmp(str1, str2, len);
+    }
+  
+  return result;
+}
+
+
+/* Determine the sort order for this column. Columns may have a different default
+ * sort order (e.g. name is sorted ascending, but score is sorted descending.)
+ * However, the opposite sort order is returned if the detail view's invert-sort-
+ * order flag is set. */
+static GtkSortType getColumnSortOrder(BlxViewContext *bc, const BlxColumnId columnId)
+{
+  GtkSortType result = GTK_SORT_ASCENDING;
+
+  switch (columnId)
+    {
+      case BLXCOL_SCORE: /* fall through */
+      case BLXCOL_ID:
+	result = GTK_SORT_DESCENDING;
+	break;
+	
+      default: /* all others ascending */
+	break;
+    };
+
+  if (bc->flags[BLXFLAG_INVERT_SORT])
+    {
+      result = (result == GTK_SORT_ASCENDING) ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING;
+    }
+
+  return result;
+}
+
+
+  /* We're only interested in sorting exons and matches */
+static gboolean mspIsSortable(const MSP const *msp)
+{
+  return (typeIsMatch(msp->type) || mspIsExon(msp));
+}
+
+
+/* Sort comparison function for sorting by a particular column of the tree view. */
+gint sortByColumnCompareFunc(GList *mspGList1,
+                             GList *mspGList2,
+                             GtkWidget *detailView, 
+                             const BlxColumnId sortColumn)
+{
+  gint result = 0;
+  
+  /* Get the first MSP in each list. */
+  MSP *msp1 = (MSP*)(mspGList1->data);
+  MSP *msp2 = (MSP*)(mspGList2->data);
+
+  /* If an msp is of a type that we don't bother sorting, place it before any that we do sort */
+  if (!mspIsSortable(msp1) && !mspIsSortable(msp2))
+    return 0;
+  else if (!mspIsSortable(msp1))
+    return -1;
+  else if (!mspIsSortable(msp2))
+    return 1;
+
+  /* Check whether either row has more than one MSP. If so, it means some options
+   * aren't applicable (unless they're short reads, which should be identical if
+   * they're in the same row, so we can treat those as singular). */
+  const gboolean multipleMsps = 
+    (!mspIsShortRead(msp1) || !mspIsShortRead(msp2)) && 
+    (g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1);
+  
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  gboolean displayRev = bc->displayRev;
+
+  /* Get details about this column */
+  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, sortColumn);
+  
+  switch (sortColumn)
+  {
+    case BLXCOL_NONE:
+      result = 0;
+      break;
+      
+    case BLXCOL_SEQNAME:
+      result = sortByStringCompareFunc(mspGetSName(msp1), mspGetSName(msp2));
+      break;
+      
+    case BLXCOL_SOURCE:
+      result = sortByStringCompareFunc(mspGetSource(msp1), mspGetSource(msp2));
+      break;
+      
+    case BLXCOL_SCORE:
+      result = multipleMsps ? 0 : (int)(msp1->score - msp2->score);
+      break;
+      
+    case BLXCOL_ID:
+      result = multipleMsps ? 0 : sortByDoubleCompareFunc(msp1, msp2);
+      break;
+      
+    case BLXCOL_START:
+      if (multipleMsps)
+        result = sortByStartCompareFuncMultiple(mspGList1, mspGList2, msp1->qStrand == BLXSTRAND_FORWARD, msp2->qStrand == BLXSTRAND_FORWARD, displayRev);
+      else
+        result = sortByStartCompareFunc(msp1, msp2, displayRev);
+      break;
+      
+    case BLXCOL_GROUP:
+      result = sortByGroupCompareFunc(msp1, msp2, detailViewGetBlxWindow(detailView));
+      break;
+      
+    case BLXCOL_ORGANISM:
+      result = sortByStringCompareFunc(mspGetOrganism(msp1), mspGetOrganism(msp2));
+      break;
+      
+    case BLXCOL_GENE_NAME:
+      result = sortByStringCompareFunc(mspGetGeneName(msp1), mspGetGeneName(msp2));
+      break;
+      
+    case BLXCOL_TISSUE_TYPE:
+      result = sortByStringCompareFunc(mspGetTissueType(msp1), mspGetTissueType(msp2));
+      break;
+      
+    case BLXCOL_STRAIN:
+      result = sortByStringCompareFunc(mspGetStrain(msp1), mspGetStrain(msp2));
+      break;
+      
+    default:
+      g_warning("Sort function not implemented for column '%s'.\n", columnInfo->title);
+      break;
+  };
+
+  /* Invert the result if we need to sort descending instead of ascending. */
+  if (getColumnSortOrder(bc, sortColumn) == GTK_SORT_DESCENDING)
+    {
+      result *= -1;
+    }
+  
+  return result;
+}
+
+
+/* This is the main sort comparison function for comparing two BlxSequences.
+ * The sort criteria are specified in the detailView properties;
+ * we may sort by multiple columns.
+ * 
+ * Returns a negative value if the first row appears before the second,
+ * positive if the second appears before the first, or 0 if they are 
+ * equivalent. */
+static gint detailViewSortByColumns(gconstpointer a, gconstpointer b)
+{
+  gint result = UNSET_INT;
+
+  const BlxSequence *seq1 = (const BlxSequence*)a;
+  const BlxSequence *seq2 = (const BlxSequence*)b;
+
+  GtkWidget *blxWindow = getBlixemWindow();
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+
+  /* Sort by each requested column in order of priority */
+  BlxColumnId *sortColumns = detailViewGetSortColumns(detailView);
+  
+  if (sortColumns)
+    {
+      int priority = 0;
+
+      for ( ; priority < BLXCOL_NUM_COLUMNS; ++priority)
+        {
+          BlxColumnId sortColumn = sortColumns[priority];
+        
+          /* NONE indicates an unused entry in the priority array; if we reach
+           * an unset value, there should be no more values after it */
+          if (sortColumn == BLXCOL_NONE)
+            break;
+
+          /* Extract the MSPs for the two rows that we're comparing */
+          GList *mspGList1 = seq1->mspList;
+          GList *mspGList2 = seq2->mspList;
+  
+          /* Do the comparison on this column */
+          result = sortByColumnCompareFunc(mspGList1, mspGList2, detailView, sortColumn);
+          
+          /* If rows are equal, continue to sort; otherwise we're done */
+          if (result != 0)
+            break;
+        }
+    }
+  
+  return result;
+}
+
+
+
+/* Re-sort all trees */
+void detailViewResortTrees(GtkWidget *detailView)
+{
+  /* Sort the data for each tree */
+  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+
+  /* Sort the list of BlxSequences (uesd by the exon view) */
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  bc->matchSeqs = g_list_sort(bc->matchSeqs, detailViewSortByColumns);
+
+  bigPictureRedrawAll(detailViewGetBigPicture(detailView));
 }
 
 
 /* Set the value of the 'invert sort order' flag */
 void detailViewUpdateSortInverted(GtkWidget *detailView, const gboolean invert)
 {
-  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+  detailViewResortTrees(detailView);
 }
 
 
@@ -970,9 +1287,9 @@ void detailViewUpdateMspLengths(GtkWidget *detailView, const int numUnalignedBas
   
   /* Do a full re-sort and re-filter because the lengths of the displayed match
    * sequences may have changed (and we need to make sure they're sorted by start pos) */
-  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+  detailViewResortTrees(detailView);
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-  gtk_widget_queue_draw(detailView);
+  detailViewRedrawAll(detailView);
 }
 
 
@@ -2111,13 +2428,13 @@ static void detailViewCentreOnSelection(GtkWidget *detailView)
 
 /* Gets the x coords at the start/end of the given column and populate them into the range
  * return argument. */
-void detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnId, IntRange *xRange)
+void detailViewGetColumnXCoords(DetailViewProperties *properties, const BlxColumnId columnId, IntRange *xRange)
 {
   xRange->min = 0;
   xRange->max = 0;
   
   /* Loop through all visible columns up to the given column, summing their widths. */
-  GList *columnItem = detailViewGetColumnList(detailView);
+  GList *columnItem = properties->columnList;
   
   for ( ; columnItem; columnItem = columnItem->next)
     {
@@ -2148,20 +2465,21 @@ void detailViewGetColumnXCoords(GtkWidget *detailView, const BlxColumnId columnI
 static int getBaseIndexAtDetailViewCoords(GtkWidget *detailView, const int x, const int y)
 {
   int baseIdx = UNSET_INT;
-
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  
   /* Get the x coords at the start/end of the sequence column */
   IntRange xRange;
-  detailViewGetColumnXCoords(detailView, BLXCOL_SEQUENCE, &xRange);
+  detailViewGetColumnXCoords(properties, BLXCOL_SEQUENCE, &xRange);
   
   /* See if our x coord lies inside the sequence column */
   if (x >= xRange.min && x <= xRange.max)
     {
       /* Get the 0-based char index at x */
-      gdouble charWidth = detailViewGetCharWidth(detailView);
+      gdouble charWidth = properties->charWidth;
       int charIdx = (int)(((gdouble)x - xRange.min) / charWidth);
 
       /* Add the start of the scroll range to convert this to the display index */
-      GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+      GtkAdjustment *adjustment = properties->adjustment;
       baseIdx = charIdx + adjustment->value;
     }
   
@@ -2213,7 +2531,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
       callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
-      gtk_widget_queue_draw(detailView);
+      detailViewRedrawAll(detailView);
 
       /* Update the big picture because the highlight box has moved (and changed size) */
       GtkWidget *bigPicture = detailViewGetBigPicture(detailView);
@@ -2255,7 +2573,7 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
       callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
-      gtk_widget_queue_draw(detailView);
+      detailViewRedrawAll(detailView);
 
       /* Update the big picture because the highlight box has moved */
       GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
@@ -2525,7 +2843,7 @@ void refilterDetailView(GtkWidget *detailView, const IntRange const *oldRange)
         }
     }
   
-  gtk_widget_queue_draw(detailView);
+  detailViewRedrawAll(detailView);
   
   DEBUG_EXIT("refilterDetailView returning ");
 }
@@ -2908,7 +3226,13 @@ static GtkWidget *detailViewGetBigPicture(GtkWidget *detailView)
 
 DetailViewProperties* detailViewGetProperties(GtkWidget *widget)
 {
-  return widget ? (DetailViewProperties*)(g_object_get_data(G_OBJECT(widget), "DetailViewProperties")) : NULL;
+  /* optimisation: cache result, because we know there is only ever one detail view */
+  static DetailViewProperties *properties = NULL;
+
+  if (!properties && widget)
+    properties = (DetailViewProperties*)(g_object_get_data(G_OBJECT(widget), "DetailViewProperties"));
+  
+  return properties;
 }
 
 static BlxViewContext* detailViewGetContext(GtkWidget *detailView)
@@ -3048,14 +3372,11 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       for ( ; i < BLXCOL_NUM_COLUMNS; ++i)
         properties->sortColumns[i] = BLXCOL_NONE;
 
-      if (BLXCOL_NUM_COLUMNS > 0)
-        properties->sortColumns[0] = sortColumn;
       
-      /* to do: bit of a hack to do a secondary sort by position by default;
-       * ideally we'd be more generic here (and also allow the caller to specify
-       * secondary sort orders on the command line) */
-      if (BLXCOL_NUM_COLUMNS > 1)
-        properties->sortColumns[1] = BLXCOL_START;
+      /* Sort by the default/input column, and then by name and then position */
+      properties->sortColumns[0] = sortColumn;
+      properties->sortColumns[1] = BLXCOL_SEQNAME;
+      properties->sortColumns[2] = BLXCOL_START;
       
       g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
       g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
@@ -3273,6 +3594,14 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
     case 2:
     {
       /* Middle button: select the base index at the clicked coords */
+      
+      /* First make sure the detail view trees are fully drawn (so that the
+       * cached drawable is up to date - see notes in onExposeDetailViewTree)
+       * and then set the mouse-drag flag. */
+      detailViewRedrawAll(detailView);
+      gdk_window_process_all_updates();
+      setMouseDragMode(TRUE);
+      
       int baseIdx = getBaseIndexAtDetailViewCoords(detailView, event->x, event->y);
       
       if (baseIdx != UNSET_INT)
@@ -3342,6 +3671,9 @@ static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton 
   /* Middle button: scroll the selected base index to the centre (unless CTRL is pressed) */
   if (event->button == 2)
     {
+      /* Cancel middle-drag mode */
+      setMouseDragMode(FALSE);
+      
       guint modifiers = gtk_accelerator_get_default_mod_mask();
       const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
       
@@ -3360,6 +3692,8 @@ static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton 
 	      setDetailViewStartIdx(detailView, newStart, seqType);
 	    }
 	}
+
+      detailViewRedrawAll(detailView);
       
       handled = TRUE;
     }
@@ -3608,10 +3942,10 @@ void toggleStrand(GtkWidget *detailView)
   /* Redraw the tree and detail-view headers. Also need to resort because if the display is
    * reversed it affects sorting by position. */
   refreshDetailViewHeaders(detailView);
-  callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+  detailViewResortTrees(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-  gtk_widget_queue_draw(detailView);
+  detailViewRedrawAll(detailView);
   
   /* Redraw the grids and grid headers */
   refreshBigPictureDisplayRange(bigPicture, FALSE);
@@ -3682,6 +4016,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
             {
 	      const int activeFrame = detailViewGetActiveFrame(detailView);
 	      detailViewSetSelectedDnaBaseIdx(detailView, coord, activeFrame, TRUE, FALSE);
+              detailViewRedrawAll(detailView);
             }
           else
             {
@@ -3706,9 +4041,7 @@ void detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColumn
       if (properties->sortColumns[0] != sortColumn)
         {
           properties->sortColumns[0] = sortColumn;
-      
-          /* Update all of the trees */
-          callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
+          detailViewResortTrees(detailView);
         }
     }
 }
@@ -3829,6 +4162,7 @@ static MSP* goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
       /* Offset the start coord by the found amount. */
       int newDnaIdx = searchData.startDnaIdx + (searchData.offset * searchDirection);
       detailViewSetSelectedDnaBaseIdx(detailView, newDnaIdx, searchData.foundFrame, TRUE, FALSE);
+      detailViewRedrawAll(detailView);
     }
   
   return searchData.foundMsp;
@@ -4130,7 +4464,10 @@ static GtkWidget* createSeqColHeader(GtkWidget *detailView,
 
 	  gtk_widget_set_name(line, DNA_TRACK_HEADER_NAME);
 	  seqColHeaderSetRow(line, frame + 1);
-	  
+
+          /* Disable double buffering to try to speed up drawing */
+          GTK_WIDGET_UNSET_FLAGS (line, GTK_DOUBLE_BUFFERED);
+
 	  gtk_widget_add_events(line, GDK_BUTTON_PRESS_MASK);
 	  gtk_widget_add_events(line, GDK_BUTTON_RELEASE_MASK);
 	  gtk_widget_add_events(line, GDK_POINTER_MOTION_MASK);
@@ -4413,9 +4750,6 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   GtkWidget *panedWin = gtk_vpaned_new();
   gtk_widget_set_name(panedWin, DETAIL_VIEW_WIDGET_NAME);
 
-  /* Create a custom cell renderer to render the sequences in the detail view */
-  GtkCellRenderer *renderer = sequence_cell_renderer_new();
-
   /* Create the columns */
   GList *columnList = createColumns(detailView, seqType, numFrames, optionalDataLoaded);
 
@@ -4428,7 +4762,10 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   GtkWidget *feedbackBox = NULL;
   GtkWidget *statusBar = NULL;
   GtkWidget *buttonBar = createDetailViewButtonBar(detailView, toolbar, mode, sortColumn, columnList, &feedbackBox, &statusBar);
-  
+
+  /* Create a custom cell renderer to render the sequences in the detail view */
+  GtkCellRenderer *renderer = sequence_cell_renderer_new();
+
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
   createDetailViewPanes(detailView, 

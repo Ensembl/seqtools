@@ -431,24 +431,9 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     FALSE
   };
   
-  /* If the view is compressed (i.e. exons will overlap each other), then
-   * only draw "normal" MSPs the first time round, and draw grouped/selected
-   * MSPs afterwards, so that they appear on top. If the view is bumped, 
-   * we can draw them all in a single loop, because they will not overlap. */
-  drawData.normalOnly = !properties->bumped;
-  
   /* Loop through all sequences, drawing all msps that are exons/introns */
   GList *seqList = dc->seqList;
   g_list_foreach(seqList, drawExonIntronItem, &drawData);
-
-  if (!properties->bumped)
-    {
-      /* we don't currently support selected sequences in dotter */
-    }
-
-  /* Set the height based on the height of the exons that were actually drawn */
-//  const int newHeight = drawData.y - properties->exonViewRect.y + drawData.yPad;
-//  gtk_layout_set_size(GTK_LAYOUT(exonView), exonView->allocation.width, newHeight);
 
   g_object_unref(gc);
   DEBUG_EXIT("drawExonView returning ");
@@ -493,9 +478,18 @@ void calculateDotterExonViewHeight(GtkWidget *exonView)
 	}
     }
   
-  properties->exonViewRect.height = (numExons * (properties->exonHeight + properties->yPad)) + (2 * properties->yPad);
-  
-  gtk_widget_set_size_request(exonView, -1, properties->exonViewRect.height);
+  if (properties->horizontal)
+    {
+      properties->exonViewRect.height = (numExons * (properties->exonHeight + 2 * properties->yPad)) + (2 * properties->yPad);
+      gtk_widget_set_size_request(exonView, -1, properties->exonViewRect.height);
+      gtk_layout_set_size(GTK_LAYOUT(exonView), exonView->allocation.width, properties->exonViewRect.height);
+    }
+  else
+    {
+      properties->exonViewRect.width = (numExons * (properties->exonHeight + 2 * properties->yPad)) + (2 * properties->yPad);
+      gtk_widget_set_size_request(exonView, properties->exonViewRect.width, -1);
+      gtk_layout_set_size(GTK_LAYOUT(exonView), properties->exonViewRect.width, exonView->allocation.height);
+    }
 }
 
 
@@ -524,6 +518,11 @@ void calculateDotterExonViewBorders(GtkWidget *exonView, const int width, const 
   gtk_layout_set_size(GTK_LAYOUT(exonView), properties->exonViewRect.x + properties->exonViewRect.width, properties->exonViewRect.y + properties->exonViewRect.height);
   gtk_widget_set_size_request(exonView, properties->exonViewRect.x + properties->exonViewRect.width, properties->exonViewRect.y + properties->exonViewRect.height);
   
+  /* If the display is bumped, we need to do more work to determine the height
+   * because it depends on the number of exons that are visible */
+  if (properties->bumped)
+    calculateDotterExonViewHeight(exonView);
+
   widgetClearCachedDrawable(exonView, NULL);
   gtk_widget_queue_draw(exonView);
   
@@ -621,6 +620,10 @@ void exonViewSetBumped(GtkWidget *exonView, const gboolean bumped)
   /* Refresh the parent */
   if (properties->refreshFunc)
     properties->refreshFunc(properties->parent, NULL);
+
+  /* Redraw all */
+  widgetClearCachedDrawable(exonView, NULL);
+  gtk_widget_queue_draw(exonView);
 }
 
 
@@ -674,7 +677,7 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
 
 static void onSizeAllocateExonView(GtkWidget *exonView, GtkAllocation *allocation, gpointer data)
 {
-//  calculateDotterExonViewBorders(exonView);
+
 }
 
 
