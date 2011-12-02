@@ -63,24 +63,31 @@ EXTRA_DIST = $(PFETCH_EXTRA_DIST) $(TEST) $(DOC)/Design_notes $(DOC)/index.html 
 #
 # Executables
 #
+if USE_LIBCURL
 bin_PROGRAMS = dotter blixem blixemh belvu
+else
+bin_PROGRAMS = dotter blixem belvu
+endif
+
 
 # blixem and blixemh have the same source files, most of which are compiled into libBlixemApp.a. However, there are a 
 # few that need to be compiled with different flags/libraries, and those are specified here
 blixem_SOURCES = $(top_srcdir)/blixemApp/blxmain.c $(top_srcdir)/blixemApp/blxview.c $(top_srcdir)/blixemApp/blxFetch.c
-blixemh_SOURCES = $(blixem_SOURCES)
 dotter_SOURCES = $(top_srcdir)/dotterApp/dotterMain.c
 belvu_SOURCES = $(top_srcdir)/belvuApp/belvuMain.c
 
 AM_CPPFLAGS = $(DEPS_CFLAGS) -I$(top_srcdir)
-blixemh_CPPFLAGS = $(AM_CPPFLAGS) -DPFETCH_HTML
-
 AM_LDFLAGS = -L$(top_builddir)
 COMMON_LIBS = $(DEPS_LIBS) $(top_builddir)/libSeqtoolsUtils.a
 
 blixem_LDADD = $(COMMON_LIBS) $(top_builddir)/libBlixemApp.a -lSeqtoolsUtils -lBlixemApp
-blixemh_LDADD = $(COMMON_LIBS) $(top_builddir)/libBlixemApp.a $(top_builddir)/libpfetch.a -lcurl -lSeqtoolsUtils -lBlixemApp
 dotter_LDADD = $(COMMON_LIBS) $(top_builddir)/libDotterApp.a -lSeqtoolsUtils -lDotterApp
 belvu_LDADD = $(COMMON_LIBS) $(top_builddir)/libBelvuApp.a -lSeqtoolsUtils -lBelvuApp
 
+# Only compile the blixemh target if we have the libcurl library
+if USE_LIBCURL
+blixemh_SOURCES = $(blixem_SOURCES)
+blixemh_CPPFLAGS = $(AM_CPPFLAGS) -DPFETCH_HTML
+blixemh_LDADD = $(COMMON_LIBS) $(top_builddir)/libBlixemApp.a $(top_builddir)/libpfetch.a -lcurl -lSeqtoolsUtils -lBlixemApp
+endif
 

@@ -31,7 +31,7 @@ Supported platforms are Linux and Mac OS X.  The installation procedure for both
 To install package in the default location (usually /usr/bin), type the following commands on a command line:
 
 > ./configure
-> make all
+> make
 > make install
 
 You may need to run 'make install' using sudo if you do not have root privileges:
@@ -43,6 +43,7 @@ Alternatively, to install in a different location (e.g. one that does not requir
 > ./configure --prefix=~/foo/bar
 
 
+
 USAGE
 -----
 
@@ -51,42 +52,37 @@ Run the individual programs without arguments to see their usage information, or
 Help pages can also be accessed from within the programs using the 'Help' menu, the lifebuoy icon on the toolbar or the Ctrl-H shortcut key.
 
 
+
 DEPENDENCIES
 ------------
 
 This section describes what to do if the installation fails due to missing dependencies.
 
 
+Compiler
+--------
+The ./configure script will fail if you do not have a compiler installed. You can install a compiler on Debian-like systems as follows:
+> sudo apt-get install build-essential
+
+
 GTK and GLib
 ------------
-The SeqTools programs require the GTK and GLib libraries to be installed on your system.  The configure script will give an error if these libraries are not found.  If they are installed but are in a different location to the default pkg-config directory, then you may need to set the PKG_CONFIG_PATH environment variable to tell pkg-config to look in that path.
+The SeqTools programs require the GTK and GLib libraries to be installed on your system.  The configure script will give an error if these libraries are not found.
 
-If you have more than one version of these libraries on your system, you may also need to use the -rpath linker option to force the program to use the correct version.  The -rpath option can be specified using the LDFLAGS enviroment variable.  If your program is using an incorrect version of one of these libraries, you will probably see errors about missing GTK or GLib functions when you try to run the program.
+If you do not have GTK and GLib installed, you can install them on Debian-like systems as follows:
+> sudo apt-get install libgtk2.0-dev
 
-For example:
+If they are installed but are in a different location to the default pkg-config directory, then you may need to set the PKG_CONFIG_PATH environment variable to tell pkg-config to look in that path.  Common locations where GTK might be installed are: /usr/lib, /usr/local/lib, /opt/lib, /opt/local/lib.  It is a good idea to also use the -rpath linker option when you do this, to make sure the programs always link to the correct version.  If your program links to an incorrect version of one of these libraries, you will probably see errors about missing GTK or GLib functions when you try to run the program.
 
-> ./configure PKG_CONFIG_PATH=/my/dir/lib/pkgconfig LDFLAGS="-Xlinker -rpath -Xlinker /my/dir/lib"
+You can specify the pkg-config path and the -rpath option when you run configure, e.g.
+> ./configure PKG_CONFIG_PATH=/opt/local/lib/pkgconfig LDFLAGS="-Xlinker -rpath -Xlinker /opt/local/lib"
 
 
 libcurl
 -------
-blixemh also requires the libcurl library to be installed on your system - "make all" will fail if it is not found.
+blixemh also requires the libcurl library to be installed on your system - "./configure" will give a warning if libcurl is not found, and will exclude blixemh from the installation process. 
 
-Firstly, if you do not require the facility to fetch sequences using HTTP, then you can use blixem instead of blixemh.  Run the following commands to install blixem, dotter and belvu without installing blixemh:
+Firstly, if you do not require the facility to fetch sequences using HTTP, then you can use blixem instead of blixemh, and you do not need to worry about this.
 
-> make blixem
-> make dotter
-> make belvu
-
-To install the individual programs, copy the executables to the desired destination, e.g.
-
-> cp blixem dotter belvu /usr/bin
-
-or with root privileges:
-
-> sudo cp blixem dotter belvu /usr/bin
-
-
-If you DO require the HTTP functionality, you need to install the development version of the libcurl library.  For example, on Debian this can be installed as follows:
-
+If you DO require the HTTP functionality, you need to install the development version of the libcurl library.  On Debian-like systems this can be installed as follows:
 > sudo apt-get install libcurl4-gnutls-dev

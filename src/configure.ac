@@ -44,8 +44,18 @@ AC_FUNC_FORK
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([dup2 floor gethostbyname memset socket sqrt strcasecmp strchr strcspn strerror strncasecmp strrchr strstr strtol uname])
 
+# Check for dependencies required by all executables
+PKG_CHECK_MODULES([DEPS], [glib-2.0 gtk+-2.0 >= 2.10])
 
-PKG_CHECK_MODULES(DEPS, [glib-2.0 gtk+-2.0 >= 2.10])
+# Check for the curl library. This is only required by blixemh, so don't fail
+# if we can't find it, but set the USE_LIBCURL to false. Note: I think we should 
+# probably be using pkg-config to find the curl dependencies, but that doesn't work
+# on my mac (perhaps because it's in /usr instead of /opt/local), so I just check for
+# the header and set the dependencies manually in Makefile.am.
+#PKG_CHECK_MODULES([LIBCURL_DEPS], [curl], [HAVE_LIBCURL=1], [HAVE_LIBCURL=0])
+AC_CHECK_HEADERS([curl/mycurl.h], [HAVE_LIBCURL=1], [HAVE_LIBCURL=0])
+AM_CONDITIONAL([USE_LIBCURL], [test "$HAVE_LIBCURL" -eq 1])
+
 
 AC_OUTPUT
 
@@ -63,5 +73,13 @@ echo \
      all       - build all binaries (default)
      install   - build and install everything
      <program> - build specific program
+"
 
---------------------------------------------------"
+if test "$HAVE_LIBCURL" -eq 0; then
+echo " Warning: libcurl not found; excluding blixemh
+"
+fi
+
+echo "-------------------------------------------------
+"
+
