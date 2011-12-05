@@ -53,7 +53,7 @@ PKG_CHECK_MODULES([DEPS], [glib-2.0 gtk+-2.0 >= 2.10])
 # on my mac (perhaps because it's in /usr instead of /opt/local), so I just check for
 # the header and set the dependencies manually in Makefile.am.
 #PKG_CHECK_MODULES([LIBCURL_DEPS], [curl], [HAVE_LIBCURL=1], [HAVE_LIBCURL=0])
-AC_CHECK_HEADERS([curl/mycurl.h], [HAVE_LIBCURL=1], [HAVE_LIBCURL=0])
+AC_CHECK_HEADERS([curl/curl.h], [HAVE_LIBCURL=1], [HAVE_LIBCURL=0])
 AM_CONDITIONAL([USE_LIBCURL], [test "$HAVE_LIBCURL" -eq 1])
 
 
