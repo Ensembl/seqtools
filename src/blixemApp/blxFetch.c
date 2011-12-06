@@ -848,11 +848,7 @@ gboolean blxInitConfig(char *config_file, GError **error)
     }
   
   /* Load the given config file, if any */
-  if (!config_file)
-    {
-      result = TRUE ;
-    }
-  else if (readConfigFile(blx_config_G, config_file, error))
+  if (config_file && readConfigFile(blx_config_G, config_file, error))
     {
       result = TRUE;
 
@@ -883,8 +879,10 @@ gboolean blxInitConfig(char *config_file, GError **error)
           g_free(content2);
         }
     }
-  else
+  else if (!content1)
     {
+      /* Neither the config file or the settings file had any content, so
+       * delete the key file. */
       g_key_file_free(blx_config_G) ;
       blx_config_G = NULL ;
     }
@@ -1571,12 +1569,6 @@ gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **error)
 	    }
 	}
 
-      if (!config_loaded)
-	{
-          g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_GROUPS, "No groups found in config file.\n") ;
-	  result = FALSE ;
-	}
-        
       g_strfreev(groups);
     }
 
