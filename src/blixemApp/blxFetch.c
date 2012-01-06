@@ -858,7 +858,7 @@ gboolean blxInitConfig(char *config_file, GError **error)
           gsize len2 = 0;
           gchar *content2 = g_key_file_to_data(blx_config_G, &len2, NULL);
 
-          gsize len = len1 + len2 + 1;
+          gsize len = len1 + len2 + 2; /* need 2 extra chars for the sprintf below; newline and terminating nul */
           gchar *content = g_malloc(len);
           sprintf(content, "%s\n%s", content1, content2);
 
