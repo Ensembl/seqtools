@@ -306,15 +306,16 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
   GtkWidget *parent = gtk_widget_get_parent(widget);
   
   /* Only widgets that have a pixmap set will be shown in print output */
-  GdkDrawable *drawable =  gdk_pixmap_new(parent->window, widget->allocation.width, widget->allocation.height, -1);
+  GdkDrawable *drawable = gdk_pixmap_new(parent->window, widget->allocation.width, widget->allocation.height, -1);
   gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
-  widgetSetDrawable(widget, drawable);
+  widgetSetDrawable(widget, drawable); /* takes ownership of drawable (and frees any previous drawable) */
   
   GdkGC *gc = gdk_gc_new(drawable);
   GtkStyle *style = gtk_widget_get_style(widget);
   GdkColor *bgColor = &style->bg[GTK_STATE_NORMAL];
   gdk_gc_set_foreground(gc, bgColor);
   gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, widget->allocation.width, widget->allocation.height);
+  g_object_unref(gc);
 
   PangoLayout *layout = NULL;
   

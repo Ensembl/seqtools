@@ -315,6 +315,8 @@ BlxSequence*          readBlxSequenceFromText(char *text, int *numMsps);
 void                  writeMspToOutput(FILE *pipe, const MSP const *msp);
 void                  readMspFromText(MSP *msp, char *text);
 
+void                  destroyMspList(MSP **mspList);
+void                  destroyBlxSequenceList(GList **seqList);
 void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
 MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 

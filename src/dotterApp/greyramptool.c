@@ -743,8 +743,13 @@ static GtkWidget* createGreyrampToolMenu(GtkWidget *window)
       prefixError(error, "Building menus failed: ");
       reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
     }
+
+  GtkWidget *result = gtk_ui_manager_get_widget (ui_manager, "/MainMenu");
+
+  g_object_unref(action_group);
+  g_object_unref(ui_manager);
   
-  return gtk_ui_manager_get_widget (ui_manager, "/MainMenu");
+  return result;
 }
 
 

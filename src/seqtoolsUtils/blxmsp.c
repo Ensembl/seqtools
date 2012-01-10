@@ -1016,6 +1016,22 @@ BlxSequence* blxSequenceGetVariantParent(const BlxSequence *variant, GList *allS
 }
 
 
+/* Destroy all of the BlxSequences */
+void destroyBlxSequenceList(GList **seqList)
+{
+  GList *seqItem = *seqList;
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+      destroyBlxSequence(blxSeq);
+    }
+  
+  g_list_free(*seqList);
+  *seqList = NULL;
+}
+
+
 /* Frees all memory used by a BlxSequence */
 void destroyBlxSequence(BlxSequence *seq)
 {
@@ -1590,6 +1606,31 @@ static void freeStringPointer(char **ptr)
 }
 
 
+/* Destroy all of the MSPs in the given list */
+void destroyMspList(MSP **mspList)
+{
+  /* Free the allocated sequences and names */
+  MSP *msp = NULL;
+  for (msp = *mspList; msp; msp = msp->next)
+    {
+      destroyMspData(msp);
+    }
+  
+  /* Now free the MSPs themselves. */
+  MSP *fmsp = NULL;
+  for (msp = *mspList; msp; )
+    {
+      fmsp = msp;
+      msp = msp->next;
+      g_free(fmsp);
+    }
+  
+  *mspList = NULL;
+  
+  return ;
+}
+
+
 /* Free all of the memory used by an MSP */
 void destroyMspData(MSP *msp)
 {
@@ -1600,6 +1641,10 @@ void destroyMspData(MSP *msp)
   
   if (msp->gaps)
     {
+      GSList *item = msp->gaps;
+      for ( ; item; item = item->next)
+        g_free(item->data);
+      
       g_slist_free(msp->gaps);
       msp->gaps = NULL;
     }
@@ -1961,7 +2006,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
               if (curExon && newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
                   createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, blxSeq->source, 
-                               curExon->score, curExon->id, 0, g_strdup(curExon->url), blxSeq->idTag, 
+                               curExon->score, curExon->id, 0, curExon->url, blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
                                blxSeq->fullName, UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
                   

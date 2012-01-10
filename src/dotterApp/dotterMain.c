@@ -842,6 +842,11 @@ int main(int argc, char **argv)
       gtk_main();
     }
   
-
+  /* destroy the feature lists. note that the stored msps are owned
+   * by the msplist, not by the feature lists */
+  typeId = 0;
+  for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
+    g_array_free(featureLists[typeId], FALSE);
+  
   return (0) ;
 }

@@ -127,6 +127,7 @@ typedef struct _DotterProperties
   
   DotterWindowContext *dotterWinCtx;
   const char *exportFileName;
+  GtkUIManager *uiManager;                  /* the ui manager for this dotter window */
 } DotterProperties;
 
 
@@ -146,7 +147,7 @@ static void DNAmatrix(int mtx[24][24]);
 
 static void		      showGreyrampTool(GtkWidget *dotterWindow);
 static void		      showAlignmentTool(GtkWidget *dotterWindow);
-static GtkWidget*	      createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot, const char *exportFileName);
+static GtkWidget*	      createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot, const char *exportFileName, GtkUIManager **uiManager);
 static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
@@ -328,7 +329,6 @@ static int    MATRIX[24][24];
 //static char fsPlotHeighttx[10];
 
        float fsPlotHeight=2.0;	/* The height of feature series XY plots */
-static MSP   *MSPlist=0;     /* List of MSPs - the first object contains data */
 //static MSP   *msp;
 
 /*  BLOSUM62 930809
@@ -376,6 +376,25 @@ int BLOSUM62[24][24] = {
 /***********************************************************
  *                       Properties                        *
  ***********************************************************/
+
+/* free memory used by color structs */
+static void destroyDotterColors(DotterContext *dc)
+{
+  if (!dc || !dc->defaultColors)
+    return;
+
+  int i = DOTCOLOR_MIN + 1;
+  
+  for ( ; i < DOTCOLOR_NUM_COLORS; ++i)
+    {
+      BlxColor *blxColor = &g_array_index(dc->defaultColors, BlxColor, i);
+      destroyBlxColor(blxColor);
+    }
+
+  g_array_free(dc->defaultColors, FALSE);
+  dc->defaultColors = NULL;
+}
+
 
 /* Create the colors that Dotter will use for various specific purposes */
 static void createDotterColors(DotterContext *dc)
@@ -603,54 +622,66 @@ static DotterContext* createDotterContext(DotterOptions *options,
 }
 
 
-static void destroyDotterContext(DotterContext *dc)
+static void destroyDotterContext(DotterContext **dc)
 {
   DEBUG_ENTER("destroyDotterContext");
 
-  if (dc)
+  if ((*dc))
     {
-    if (dc->blastMode == BLXMODE_BLASTX)
+    if ((*dc)->blastMode == BLXMODE_BLASTX)
       {
 	int i = 0;
-	for ( ; i < dc->numFrames; i++)
+	for ( ; i < (*dc)->numFrames; i++)
 	  {
-            if (dc->peptideSeqs && dc->peptideSeqs[i])
+            if ((*dc)->peptideSeqs && (*dc)->peptideSeqs[i])
               {
-                g_free(dc->peptideSeqs[i]);
-                dc->peptideSeqs[i] = NULL;
+                g_free((*dc)->peptideSeqs[i]);
+                (*dc)->peptideSeqs[i] = NULL;
               }
 	  }
       }
     
-    /* Free stuff g_malloc'ed in calling routine (usually dotterMain) */
-    g_free(dc->refSeq);
-    dc->refSeq = NULL;
-    
-    g_free(dc->refSeqName);
-    dc->refSeqName = NULL;
-    
-    g_free(dc->matchSeq);
-    dc->matchSeq = NULL;
-    
-    g_free(dc->matchSeqName);
-    dc->matchSeqName = NULL;
+    /* destroy the msps, sequence structs and colors */
+    destroyMspList(&(*dc)->mspList);
+    destroyBlxSequenceList(&(*dc)->seqList);
+    destroyDotterColors((*dc));
 
-    /* To do: free MSP's */
+    /* Free stuff g_malloc'ed in calling routine (usually dotterMain) */
+    g_free((*dc)->refSeq);
+    (*dc)->refSeq = NULL;
     
-      if (dc->matrixName)
+    g_free((*dc)->refSeqName);
+    (*dc)->refSeqName = NULL;
+    
+    g_free((*dc)->matchSeq);
+    (*dc)->matchSeq = NULL;
+    
+    g_free((*dc)->matchSeqName);
+    (*dc)->matchSeqName = NULL;
+
+      if ((*dc)->matrixName)
         {
-          g_free(dc->matrixName);
-          dc->matrixName = NULL;
+          g_free((*dc)->matrixName);
+          (*dc)->matrixName = NULL;
         }
     }  
+
+  /* free the context struct itself */
+  g_free(*dc);
+  *dc = NULL;
   
   DEBUG_EXIT("destroyDotterContext returning ");
 }
 
-static void destroyDotterWindowContext(DotterWindowContext *dwc)
+static void destroyDotterWindowContext(DotterWindowContext **dwc)
 {
   DEBUG_ENTER("destroyDotterWindowContext");
-  /* nothing to do */
+
+  if ((*dwc)->printSettings)
+    g_object_unref((*dwc)->printSettings);
+  
+  g_free(*dwc);
+  *dwc = NULL;
   
   DEBUG_EXIT("destroyDotterWindowContext returning ");
 }
@@ -680,25 +711,33 @@ static void onDestroyDotterWindow(GtkWidget *dotterWindow)
           properties->alignmentTool = NULL;
         }
     
+      if (properties->uiManager)
+        {
+          g_object_unref(properties->uiManager);
+          properties->uiManager = NULL;
+        }
+
       if (properties->dotterWinCtx)
 	{
-	  if (properties->dotterWinCtx->dotterCtx && properties->dotterWinCtx->dotterCtx->windowList)
-	    {
-	      properties->dotterWinCtx->dotterCtx->windowList = g_slist_remove(properties->dotterWinCtx->dotterCtx->windowList, dotterWindow);
+          DotterContext *dc = properties->dotterWinCtx->dotterCtx;
 
-	      if (g_slist_length(properties->dotterWinCtx->dotterCtx->windowList) < 1)
+          /* free the context for this window */
+	  destroyDotterWindowContext(&properties->dotterWinCtx);
+
+          /* if it's the last window, then we also need to destroy the main context
+           * and quit the program */
+	  if (dc && dc->windowList)
+	    {
+	      dc->windowList = g_slist_remove(dc->windowList, dotterWindow);
+
+	      if (g_slist_length(dc->windowList) < 1)
 		{
-		  /* It's the last window in the context, so destroy the context
-                   * and quit the program */
-		  g_slist_free(properties->dotterWinCtx->dotterCtx->windowList);
-		  properties->dotterWinCtx->dotterCtx->windowList = NULL;
-		  destroyDotterContext(properties->dotterWinCtx->dotterCtx);
+		  g_slist_free(dc->windowList);
+		  dc->windowList = NULL;
+		  destroyDotterContext(&dc);
                   gtk_main_quit();
 		}
 	    }
-	
-	  destroyDotterWindowContext(properties->dotterWinCtx);
-	  properties->dotterWinCtx = NULL;
 	}
 
       g_free(properties);
@@ -868,7 +907,8 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
 				   GtkWidget *alignmentTool,
                                    GtkWidget *dotplot,
                                    DotterWindowContext *dotterWinCtx,
-                                   const char *exportFileName)
+                                   const char *exportFileName,
+                                   GtkUIManager *uiManager)
 {
   DEBUG_ENTER("dotterCreateProperties");
 
@@ -881,6 +921,7 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
       properties->dotplot = dotplot;
       properties->dotterWinCtx = dotterWinCtx;
       properties->exportFileName = exportFileName;
+      properties->uiManager = uiManager;
       
       g_object_set_data(G_OBJECT(dotterWindow), "DotterProperties", properties);
       g_signal_connect(G_OBJECT(dotterWindow), "destroy", G_CALLBACK(onDestroyDotterWindow), NULL); 
@@ -953,14 +994,12 @@ void dotter (const BlxBlastMode blastMode,
 	     const BlxStrand matchSeqStrand,
 	      int   qcenter,
 	      int   scenter,
-	      MSP  *MSPs,
+	      MSP  *mspList,
 	      GList *seqList,
 	      int   MSPoff)
 {
   DEBUG_ENTER("dotter(mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d)",
               blastMode, options->qname, options->qoffset, refSeqStrand, options->sname, options->soffset, matchSeqStrand);
-  
-  MSPlist = MSPs;
   
   const int qlen = strlen(options->qseq);
   const int slen = strlen(options->sseq);
@@ -1013,7 +1052,7 @@ void dotter (const BlxBlastMode blastMode,
     }
   
   /* Create the main dotter context (shared properties for all dotter windows in this process) */
-  DotterContext *dotterCtx = createDotterContext(options, blastMode, createWindow, refSeqStrand, matchSeqStrand, MSPlist, seqList, MATRIX, matrixName);
+  DotterContext *dotterCtx = createDotterContext(options, blastMode, createWindow, refSeqStrand, matchSeqStrand, mspList, seqList, MATRIX, matrixName);
 
   /* Create a context specific to the initial dotter window */
   DotterWindowContext *dotterWinCtx = createDotterWindowContext(dotterCtx, &dotterCtx->refSeqFullRange, &dotterCtx->matchSeqFullRange, options->dotterZoom);
@@ -1082,7 +1121,8 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
       GtkWidget *alignmentTool = createAlignmentTool(dotterWinCtx);
   
       const DotterHspMode hspMode = dotplotGetHspMode(dotplot);
-      dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, greyrampTool, dotplotWidget, dotplot, exportFileName);
+      GtkUIManager *uiManager = NULL;
+      dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, greyrampTool, dotplotWidget, dotplot, exportFileName, &uiManager);
 
       /* Set the handlers for the alignment and greyramp tools. Connect them here so we can pass
        * the main window as data. */
@@ -1095,7 +1135,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
        * the last one is closed */
       dotterCtx->windowList = g_slist_append(dotterCtx->windowList, dotterWindow);
       
-      dotterCreateProperties(dotterWindow, greyrampTool, alignmentTool, dotplot, dotterWinCtx, exportFileName);
+      dotterCreateProperties(dotterWindow, greyrampTool, alignmentTool, dotplot, dotterWinCtx, exportFileName, uiManager);
       DotterProperties *properties = dotterGetProperties(dotterWindow);
       
       setInitSelectedCoords(dotterWindow, qcenter, scenter);
@@ -3394,7 +3434,9 @@ static GtkUIManager* createUiManager(GtkWidget *window, const DotterHspMode hspM
   
   GtkAccelGroup *accel_group = gtk_ui_manager_get_accel_group (ui_manager);
   gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
-  
+
+  g_object_unref(action_group);
+    
   return ui_manager;
 }
 
@@ -3424,7 +3466,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
                                      GtkWidget *greyrampTool, 
                                      GtkWidget *dotplotContainer, 
                                      GtkWidget *dotplot,
-                                     const char *exportFileName)
+                                     const char *exportFileName,
+                                     GtkUIManager **uiManager)
 { 
   DEBUG_ENTER("createDotterWindow");
 
@@ -3439,9 +3482,9 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   dc->msgData->parent = GTK_WINDOW(dotterWindow);
   
   /* Create the menu bar, and a right-click context menu */
-  GtkUIManager *uiManager = createUiManager(dotterWindow, hspMode);
-  GtkWidget *menuBar = createDotterMenu(dotterWindow, mainMenuDescription, "/MenuBar", uiManager);
-  GtkWidget *contextMenu = createDotterMenu(dotterWindow, mainMenuDescription, "/ContextMenu", uiManager);
+  *uiManager = createUiManager(dotterWindow, hspMode);
+  GtkWidget *menuBar = createDotterMenu(dotterWindow, mainMenuDescription, "/MenuBar", *uiManager);
+  GtkWidget *contextMenu = createDotterMenu(dotterWindow, mainMenuDescription, "/ContextMenu", *uiManager);
   
   /* We'll put everything in a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);

@@ -105,6 +105,26 @@ static void           addGffType(GSList **supportedTypes, char *name, char *soId
 static void           destroyGffType(BlxGffType **gffType);
 
 
+/* utility to free a given string and set it to null */
+static void freeAndNullString(char **ptr)
+{
+  g_free(*ptr);
+  *ptr = NULL;
+}
+
+/* free all the memory used by the given gffdata struct (but not the struct itself) */
+static void freeGffData(BlxGffData *gffData)
+{
+  freeAndNullString(&gffData->qName);
+  freeAndNullString(&gffData->sName);
+  freeAndNullString(&gffData->source);
+  freeAndNullString(&gffData->url);
+  freeAndNullString(&gffData->idTag);
+  freeAndNullString(&gffData->parentIdTag);
+  freeAndNullString(&gffData->sequence);
+  freeAndNullString(&gffData->gapString);
+}
+
 
 /* Free all memory used by the given list of supported GFF types */
 void blxDestroyGffTypeList(GSList **supportedTypes)
@@ -352,7 +372,7 @@ static void createBlixemObject(BlxGffData *gffData,
        * source, so use that as the name */
       if (gffData->mspType == BLXMSP_REGION && !gffData->sName)
         {
-          gffData->sName = gffData->source;
+          gffData->sName = g_strdup(gffData->source);
         }
       
       if (!gffData->sName && !gffData->parentIdTag && 
@@ -414,7 +434,9 @@ static void createBlixemObject(BlxGffData *gffData,
 	  parseGapString(gffData->gapString, msp, resFactor, &tmpError);
 	}
     }
-    
+
+  freeGffData(gffData);
+
   if (tmpError)
     {
       g_propagate_error(error, tmpError);
@@ -865,7 +887,7 @@ static void parseSequenceTag(const char *text, const int lineNum, BlxGffData *gf
 
 
 /* Parse the data from the "gaps" string, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
- * Populates the Gaps array in the given MSP. Frees the given gap string when finished with. */
+ * Populates the Gaps array in the given MSP.  */
 static void parseGapString(char *text, MSP *msp, const int resFactor, GError **error)
 {
   if (!text)
@@ -910,7 +932,6 @@ static void parseGapString(char *text, MSP *msp, const int resFactor, GError **e
     }
   
   g_strfreev(tokens);
-  g_free(text);
 }
 
 
