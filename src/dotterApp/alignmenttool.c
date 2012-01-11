@@ -156,6 +156,12 @@ static void onDestroySequenceWidget(GtkWidget *widget)
   
   if (properties)
     {
+      if (properties->compSeqs)
+        {
+          g_slist_free(properties->compSeqs);
+          properties->compSeqs = NULL;
+        }
+
       g_free(properties);
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "SequenceProperties", NULL);

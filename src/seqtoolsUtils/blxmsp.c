@@ -1041,6 +1041,7 @@ void destroyBlxSequence(BlxSequence *seq)
       g_free(seq->shortName);
       
       if (seq->source)        g_free(seq->source);
+      if (seq->idTag)         g_free(seq->idTag);
       if (seq->sequence)      g_string_free(seq->sequence, TRUE);
       if (seq->organism)      g_string_free(seq->organism, TRUE);
       if (seq->geneName)      g_string_free(seq->geneName, TRUE);
@@ -1641,6 +1642,14 @@ void destroyMspData(MSP *msp)
   
   if (msp->gaps)
     {
+      /* free the child msp list */
+      if (msp->childMsps)
+        {
+          g_list_free(msp->childMsps);
+          msp->childMsps = NULL;
+        }
+
+      /* free memory allocated for the gap ranges */
       GSList *item = msp->gaps;
       for ( ; item; item = item->next)
         g_free(item->data);
