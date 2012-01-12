@@ -918,9 +918,8 @@ static char *blxConfigGetDefaultFetchMode(const gboolean bulk)
   GError *error = NULL ;
 
   key_file = blxGetConfig() ;
-  g_assert(key_file) ;
 
-  if (bulk)
+  if (key_file && bulk)
     {
       fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, SEQTOOLS_BULK_FETCH, &error) ;
       
@@ -930,7 +929,7 @@ static char *blxConfigGetDefaultFetchMode(const gboolean bulk)
           fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, BLIXEM_OLD_BULK_FETCH, NULL) ;
         }
     }
-  else
+  else if (key_file)
     {
       fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, SEQTOOLS_USER_FETCH, &error) ;
     }
