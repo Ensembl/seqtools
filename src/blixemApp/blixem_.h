@@ -458,7 +458,7 @@ void                               fetchSeqsIndividually(GList *seqsToFetch, Gtk
 gboolean                           populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, const gboolean loadOptionalData) ;
 gboolean                           populateFastaDataPfetch(GList *seqsToFetch, const char* pfetchIP, int port, gboolean External, const BlxSeqType seqType, GError **error) ;
 gboolean                           populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, const BlxSeqType seqType, GError **error);
-gboolean                           blxInitConfig(char *config_file, GError **error) ;
+void                               blxInitConfig(char *config_file, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 gboolean                           blxConfigSetPFetchSocketPrefs(char *node, int port) ;
 gboolean                           blxConfigGetPFetchSocketPrefs(const char **node, int *port) ;

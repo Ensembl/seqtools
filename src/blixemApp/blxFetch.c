@@ -825,11 +825,11 @@ gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int po
 
 
 /* Set/Get global config, necessary because we don't have some blixem context pointer....
- * To do: we do have a context now, so this should be moved to there. */
-gboolean blxInitConfig(char *config_file, GError **error)
+ * To do: we do have a context now, so this should be moved to there. 
+ * Sets the error if there were any problems. Note that the error is not set if the
+ * config file does not exist or is empty  */
+void blxInitConfig(char *config_file, GError **error)
 {
-  gboolean result = FALSE ;
-
   g_assert(!blx_config_G) ;
 
   blx_config_G = g_key_file_new() ;
@@ -850,8 +850,6 @@ gboolean blxInitConfig(char *config_file, GError **error)
   /* Load the given config file, if any */
   if (config_file && readConfigFile(blx_config_G, config_file, error))
     {
-      result = TRUE;
-
       if (content1)
         {
           /* Merge both file contents. First, get the new content as a string and concatenate */
@@ -889,8 +887,6 @@ gboolean blxInitConfig(char *config_file, GError **error)
 
   if (content1)
     g_free(content1);
-  
-  return result ;
 }
 
 

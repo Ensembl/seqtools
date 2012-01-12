@@ -736,7 +736,9 @@ int main(int argc, char **argv)
     }
   
   /* Set up program configuration. */
-  if (!blxInitConfig(config_file, &error))
+  blxInitConfig(config_file, &error);
+  
+  if (error)
     {
       g_error("Config File Error: %s\n", error->message) ;
     }

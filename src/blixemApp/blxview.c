@@ -903,17 +903,16 @@ gboolean blxview(CommandLineOptions *options,
 
   if (!External)
     {
-      char *config_file = NULL ;
-      GError *error = NULL ;
-      GKeyFile *blxGetConfig(void) ;
+      if (blxGetConfig())
+        {
+          GError *error = NULL;
+          blxInitConfig(NULL, &error);
 
-      /* Set up program configuration. */
-      if (!(blxGetConfig()) && !blxInitConfig(config_file, &error))
-	{
-	  g_error("Config File Error: %s\n", error->message) ;
-	}
+          if (error)
+            g_error("Config File Error: %s\n", error->message);
+        }
     }
-
+  
   validateInput(options);
   
   const char *net_id = NULL;
