@@ -152,7 +152,7 @@ void widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable)
   if (widget)
     { 
       /* Delete the old one first, if there is one */
-      GdkDrawable *oldDrawable = widgetGetDrawable(widget);
+      GdkDrawable *oldDrawable = widgetGetDrawableAllowInvalid(widget);
       if (oldDrawable)
         {
           g_object_unref(oldDrawable);
@@ -304,19 +304,12 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
 
   /* Get the window. (Labels don't have their own so get the parent's window) */
   GtkWidget *parent = gtk_widget_get_parent(widget);
-  
-  /* Only widgets that have a pixmap set will be shown in print output */
-  GdkDrawable *drawable = gdk_pixmap_new(parent->window, widget->allocation.width, widget->allocation.height, -1);
-  gdk_drawable_set_colormap(drawable, gdk_colormap_get_system());
-  widgetSetDrawable(widget, drawable); /* takes ownership of drawable (and frees any previous drawable) */
-  
-  GdkGC *gc = gdk_gc_new(drawable);
-  GtkStyle *style = gtk_widget_get_style(widget);
-  GdkColor *bgColor = &style->bg[GTK_STATE_NORMAL];
-  gdk_gc_set_foreground(gc, bgColor);
-  gdk_draw_rectangle(drawable, gc, TRUE, 0, 0, widget->allocation.width, widget->allocation.height);
-  g_object_unref(gc);
 
+  /* Create a pixmap and store it in the widget properties. (Only widgets with
+   * a drawable are shown in print output.) */
+  GdkDrawable *drawable = createBlankSizedPixmap(parent, parent->window, widget->allocation.width, widget->allocation.height);
+
+  /* Draw the widget contents onto the pixmap */
   PangoLayout *layout = NULL;
   
   if (GTK_IS_LABEL(widget))
