@@ -1389,13 +1389,16 @@ GtkWidget* getNamedChildWidget(GtkWidget *widget, const gchar *searchName)
   else if (GTK_IS_CONTAINER(widget))
     {
       /* recurse over children until we find the detail view (assumes there is only one!) */
-      GList *child = gtk_container_get_children(GTK_CONTAINER(widget));
+      GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
+      GList *child = children;
       
       for ( ; child && !result; child = child->next)
         {
           GtkWidget *childWidget = GTK_WIDGET(child->data);
           result = getNamedChildWidget(childWidget, searchName);
         }
+
+      g_list_free(children);
     }
     
   return result;
@@ -1671,7 +1674,8 @@ gboolean widgetCallAllCallbacks(GtkWidget *widget, gpointer data)
   
       if (GTK_IS_CONTAINER(widget))
         {
-          GList *childItem = gtk_container_get_children(GTK_CONTAINER(widget));
+          GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
+          GList *childItem = children;
           
           for ( ; childItem; childItem = childItem->next)
             {
@@ -1682,6 +1686,8 @@ gboolean widgetCallAllCallbacks(GtkWidget *widget, gpointer data)
                   result = FALSE;
                 }
             }
+
+          g_list_free(children);
         }
     }
   
@@ -1750,7 +1756,8 @@ void dialogClearContentArea(GtkDialog *dialog)
   GtkWidget *contentArea = dialog->vbox;
   GtkWidget *actionArea = dialog->action_area;
   
-  GList *child = gtk_container_get_children(GTK_CONTAINER(contentArea));
+  GList *children = gtk_container_get_children(GTK_CONTAINER(contentArea));
+  GList *child = children;
   
   for ( ; child; child = child->next)
     {
@@ -1762,6 +1769,8 @@ void dialogClearContentArea(GtkDialog *dialog)
           child->data = NULL;
         }
     }
+
+  g_list_free(children);
   
 //  gtk_container_foreach(GTK_CONTAINER(contentArea), destroyWidget, NULL);
 }

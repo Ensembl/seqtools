@@ -2298,7 +2298,8 @@ static GtkNotebook* containerGetChildNotebook(GtkContainer *container)
 {
   GtkNotebook *result = NULL;
   
-  GList *child = gtk_container_get_children(container);
+  GList *children = gtk_container_get_children(container);
+  GList *child = children;
   
   for ( ; child; child = child->next)
     {
@@ -2315,7 +2316,9 @@ static GtkNotebook* containerGetChildNotebook(GtkContainer *container)
          containerGetChildNotebook(GTK_CONTAINER(childWidget));
        }
     }
-  
+
+  g_list_free(children);
+ 
   return result;
 }
 
@@ -3510,7 +3513,8 @@ static GtkComboBox* widgetGetComboBox(GtkWidget *widget)
     }
   else if (GTK_IS_CONTAINER(widget))
     {
-      GList *childItem = gtk_container_get_children(GTK_CONTAINER(widget));
+      GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
+      GList *childItem = children;
       
       for ( ; childItem; childItem = childItem->next)
         {
@@ -3520,6 +3524,8 @@ static GtkComboBox* widgetGetComboBox(GtkWidget *widget)
           if (result)
             break;
         }
+
+      g_list_free(children);
     }
   
   return result;
@@ -3576,7 +3582,8 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
     {
       /* Loop through each child of the given widget (assumes that each child is or
        * contains one combo box) */
-      GList *childItem = gtk_container_get_children(GTK_CONTAINER(widget));
+      GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
+      GList *childItem = children;
       int priority = 0;
       
       for ( ; childItem; childItem = childItem->next, ++priority)
@@ -3597,6 +3604,8 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
             }
         }
       
+      g_list_free(children);
+
       /* Re-sort trees */
       detailViewResortTrees(detailView);
     }
@@ -4693,6 +4702,9 @@ static void saveBlixemSettings(GtkWidget *blxWindow)
       
   if (!g_file_set_contents(filename, file_content, -1, NULL))
     g_warning("Error saving settings to '%s'.\n", filename);
+
+  g_free(file_content);
+  g_key_file_free(key_file);
 }
 
 
