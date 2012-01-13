@@ -199,6 +199,12 @@ static void onDestroyDotplot(GtkWidget *widget)
 	g_free(properties->hspPixmap);
 	properties->hspPixmap = NULL;
       }
+
+    if (properties->image)
+      {
+        gdk_image_unref(properties->image);
+        properties->image = NULL;
+      }
     
       g_free(properties);
       properties = NULL;
@@ -2567,8 +2573,6 @@ static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properti
 
 static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
 {
-  GdkGC *gc = gdk_gc_new(drawable);
-
   DotplotProperties *properties = dotplotGetProperties(dotplot);
 
   if (properties->hspMode != DOTTER_HSPS_LINE && properties->hspMode != DOTTER_HSPS_FUNC)
@@ -2576,7 +2580,9 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
       /* Greyscale hsps are drawn as a pixmap via the drawImage function, so do nothing here */
       return;
     }
-  
+
+  GdkGC *gc = gdk_gc_new(drawable);
+
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   
   /* we'll clip the hsp lines to the dotplot drawing area */

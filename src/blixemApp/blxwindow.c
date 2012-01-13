@@ -4654,7 +4654,13 @@ static void destroyBlxContext(BlxViewContext **bc)
 	  g_array_free((*bc)->defaultColors, TRUE);
 	  (*bc)->defaultColors = NULL;
 	}
-    
+
+      /* destroy the feature lists. note that the stored msps are owned
+      * by the msplist, not by the feature lists */
+      int typeId = 0;
+      for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
+        g_array_free((*bc)->featureLists[typeId], FALSE);
+      
       destroyMspList(&((*bc)->mspList));
       destroyBlxSequenceList(&((*bc)->matchSeqs));
       blxDestroyGffTypeList(&((*bc)->supportedTypes));

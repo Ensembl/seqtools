@@ -468,8 +468,6 @@ void                               loadGffFile(const char *fileName, GKeyFile *k
 void                               appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
 
 /* Create/destroy sequences and MSPs */
-void                               destroyMspList(MSP **mspList);
-void                               destroyBlxSequenceList(GList **seqList);
 void                               blviewResetGlobals();
 
 BlxStyle*                          createBlxStyle(const char *styleName, const char *fillColor, const char *fillColorSelected, const char *fillColorPrint, const char *fillColorPrintSelected, const char *lineColor, const char *lineColorSelected, const char *lineColorPrint, const char *lineColorPrintSelected, GError **error);

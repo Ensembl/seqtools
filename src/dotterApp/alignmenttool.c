@@ -156,6 +156,12 @@ static void onDestroySequenceWidget(GtkWidget *widget)
   
   if (properties)
     {
+      if (properties->compSeqs)
+        {
+          g_slist_free(properties->compSeqs);
+          properties->compSeqs = NULL;
+        }
+
       g_free(properties);
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "SequenceProperties", NULL);
@@ -330,6 +336,7 @@ static GtkWidget* createAlignmentToolMenu(GtkWidget *window)
   
   GtkUIManager *ui_manager = gtk_ui_manager_new ();
   gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
+  g_object_unref(action_group);
   
   GtkAccelGroup *accel_group = gtk_ui_manager_get_accel_group (ui_manager);
   gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
@@ -854,11 +861,11 @@ static void drawSequenceHeaderText(GtkWidget *widget,
   
   if (layout)
     {
-    /* Offset the text so that the middle of the text is lined up with the coord of interest */
-    const int offset = ceil((((gdouble)numDigitsInInt(coord) / 2.0) - 1) * dc->charWidth);
+      /* Offset the text so that the middle of the text is lined up with the coord of interest */
+      const int offset = ceil((((gdouble)numDigitsInInt(coord) / 2.0) - 1) * dc->charWidth);
     
-    gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, x - offset, y, layout);
-    g_object_unref(layout);
+      gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, x - offset, y, layout);
+      g_object_unref(layout);
     }
   
   g_free(displayText);

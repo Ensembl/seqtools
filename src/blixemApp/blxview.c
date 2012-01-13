@@ -1160,47 +1160,6 @@ gboolean mspHasFs(const MSP *msp)
 }
 
 
-/* Destroy all of the MSPs */
-void destroyMspList(MSP **mspList)
-{
-  /* Free the allocated sequences and names */
-  MSP *msp = NULL;
-  for (msp = *mspList; msp; msp = msp->next)
-    {
-      destroyMspData(msp);
-    }
-  
-  /* Now free the MSPs themselves. */
-  MSP *fmsp = NULL;
-  for (msp = *mspList; msp; )
-    {
-      fmsp = msp;
-      msp = msp->next;
-      g_free(fmsp);
-    }
-  
-  *mspList = NULL;
-  
-  return ;
-}
-
-
-/* Destroy all of the BlxSequences */
-void destroyBlxSequenceList(GList **seqList)
-{
-  GList *seqItem = *seqList;
-  
-  for ( ; seqItem; seqItem = seqItem->next)
-    {
-      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      destroyBlxSequence(blxSeq);
-    }
-  
-  g_list_free(*seqList);
-  *seqList = NULL;
-}
-
-
 /* Return the (cached) full extent of the match that we're showing in match seq coords */
 const IntRange* mspGetFullSRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc)
 {
