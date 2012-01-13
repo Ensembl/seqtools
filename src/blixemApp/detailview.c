@@ -502,7 +502,8 @@ static GtkWidget *treeContainerGetTree(GtkContainer *container)
 {
   GtkWidget *result = NULL;
   
-  GList *child = gtk_container_get_children(container);
+  GList *children = gtk_container_get_children(container);
+  GList *child = children;
   
   for ( ; child && !result; child = child->next)
     {
@@ -520,6 +521,8 @@ static GtkWidget *treeContainerGetTree(GtkContainer *container)
 	   }
 	}
     }
+
+  g_list_free(children);
   
   return result;
 }

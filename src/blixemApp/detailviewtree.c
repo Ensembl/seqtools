@@ -2355,11 +2355,10 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
       const char *refSeqName = blxWindowGetRefSeqName(treeGetBlxWindow(tree));
       const int maxLen = (int)((gdouble)colWidth / treeGetCharWidth(tree));
       
-      char stringToAppend[] = "(+0)";
-      stringToAppend[1] = (treeGetStrand(tree) == BLXSTRAND_FORWARD ? '+' : '-');
-      stringToAppend[2] = *convertIntToString(treeGetFrame(tree));
+      char strandChar = (treeGetStrand(tree) == BLXSTRAND_FORWARD ? '+' : '-');
+      char *stringToAppend = g_strdup_printf("(%c%d)", strandChar, treeGetFrame(tree));
       const int numCharsToAppend = strlen(stringToAppend);
-
+      
       gchar *displayText = NULL;
       
       if (maxLen > numCharsToAppend)
@@ -2374,6 +2373,8 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
 	  /* No space to concatenate the frame and strand. Just include whatever of the name we can */
 	  displayText = abbreviateText(refSeqName, maxLen);
 	}
+
+      g_free(stringToAppend);
 
       if (displayText)
 	{

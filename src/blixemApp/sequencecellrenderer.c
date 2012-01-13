@@ -417,6 +417,9 @@ sequence_cell_renderer_new (void)
 
 static void setAllPropertiesNull(SequenceCellRenderer *renderer)
 {
+  if (renderer->text)
+    g_free(renderer->text);
+
   renderer->text = NULL;
   renderer->mspGList = NULL;
 }
@@ -437,11 +440,15 @@ sequence_cell_renderer_set_property (GObject      *object,
       break;
       
     case PROP_MSP:
+      /* We set either the msp data or the text data, not both;
+       * so make sure nothing else is set */
       setAllPropertiesNull(renderer);
       renderer->mspGList = (GList*)g_value_get_pointer(value);
       break;
 
     case PROP_TEXT:
+      /* We set either the msp data or the text data, not both;
+       * so make sure nothing else is set */
       setAllPropertiesNull(renderer);
       renderer->text = g_strdup(g_value_get_string(value));
       break;
