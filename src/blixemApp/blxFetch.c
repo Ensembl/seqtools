@@ -938,8 +938,9 @@ static char *blxConfigGetDefaultFetchMode(const gboolean bulk)
 }
 
 
-
-gboolean blxConfigGetPFetchSocketPrefs(const char **node, int *port)
+/* Get the pfetch node and port from the config file. node gets populated with
+ * a newly allocated string, which should be freed with g_free. */
+gboolean blxConfigGetPFetchSocketPrefs(char **node, int *port)
 {
   gboolean result = FALSE ;
   GKeyFile *key_file ;
@@ -1679,8 +1680,9 @@ static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error
 }
 
 
-/* Set up the net id and port for the pfetch mode, if these are available */
-static gboolean setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, const char **net_id, int *port, GError **error)
+/* Set up the net id and port for the pfetch mode, if these are available. net_id gets populated
+ * with a new string, which should be freed with g_free.  */
+static gboolean setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, char **net_id, int *port, GError **error)
 {
   gboolean success = TRUE;
   
@@ -1697,11 +1699,11 @@ static gboolean setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, con
   
   if (pfetch)
     {
-      *net_id = pfetch->net_id ;
+      *net_id = g_strdup(pfetch->net_id) ;
       if (!(*port = pfetch->port))
         *port = PFETCH_PORT ;
     }
-  else if ((*net_id = g_getenv("BLIXEM_PFETCH")))
+  else if ((*net_id = g_strdup(g_getenv("BLIXEM_PFETCH"))))
     {
       const char *port_str = g_getenv("BLIXEM_PORT");
       
@@ -1730,8 +1732,9 @@ static gboolean setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, con
 
 
 /* Set up the fetch modes. Sets required properties for each fetch mode, e.g.
- * net_id and port for pfetch-socket etc. */
-void setupFetchModes(PfetchParams *pfetch, char **bulkFetchMode, char **userFetchMode, const char **net_id, int *port)
+ * net_id and port for pfetch-socket etc. net_id gets populated with a new
+ * string, which should be freed with g_free. */
+void setupFetchModes(PfetchParams *pfetch, char **bulkFetchMode, char **userFetchMode, char **net_id, int *port)
 {
   *bulkFetchMode = g_malloc(32 * sizeof(char));
   *userFetchMode = g_malloc(32 * sizeof(char));

@@ -915,7 +915,7 @@ gboolean blxview(CommandLineOptions *options,
   
   validateInput(options);
   
-  const char *net_id = NULL;
+  char *net_id = NULL;
   int port = UNSET_INT;
   setupFetchModes(pfetch, &options->bulkFetchMode, &options->userFetchMode, &net_id, &port);
 
