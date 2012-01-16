@@ -384,6 +384,7 @@ static GArray *readFastaSeqsFromFile(FILE *seqfile, char *seqName, int *startCoo
           /* This line contains the sequence name (and possibly coords), so start a new sequence */
           SeqStruct currentSeq = {g_string_new(NULL), g_string_new(NULL)};
           g_array_append_val(resultArr, currentSeq);
+
           ++curIdx;
           currentSeqPtr = &g_array_index(resultArr, SeqStruct, curIdx);
           
@@ -438,6 +439,9 @@ static char *concatenateFastaSeqs(FILE *seqfile, char *seqName, int *startCoord,
       
       if (seqName[0] == 0 && curSeq && curSeq->seqName)
         strcpy(seqName, curSeq->seqName->str);
+
+      g_string_free(curSeq->seqName, TRUE);
+      g_string_free(curSeq->seq, TRUE);
     }
 
   g_array_unref(resultArr);

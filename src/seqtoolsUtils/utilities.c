@@ -3770,6 +3770,7 @@ void onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum
   gdk_draw_rectangle(pagePixmap, gc, TRUE, 0, 0, ctxWidth, ctxHeight);
   
   gdk_draw_drawable(pagePixmap, gc, drawable, x, y, 0, 0, ctxWidth, ctxHeight);
+  g_object_unref(gc);
 
   /* Scale the image */
   cairo_scale(cr, scale, scale); 

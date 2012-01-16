@@ -1506,7 +1506,7 @@ static gboolean isCancelledProgressBar(ProgressBar bar)
 static void destroyProgressBar(ProgressBar bar)
 {
   gtk_widget_destroy(bar->top_level) ;
-
+  
   return ;
 }
 
