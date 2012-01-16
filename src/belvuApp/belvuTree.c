@@ -204,6 +204,12 @@ static void onDestroyBelvuTree(GtkWidget *belvuTree)
   /* If it is the main tree, also set the pointer in the context to null */
   if (properties->isMainTree)
     properties->bc->belvuTree = NULL;
+
+  if (properties->tree)
+    {
+      destroyTree(properties->tree);
+      properties->tree = NULL;
+    }
   
   if (properties)
     {
@@ -2016,9 +2022,9 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
       
       char *tmpStr = NULL;
 #ifdef DEBUG
-      blxprintf("Tree balance = %.1f (%.1f-%.1f)", fabsf(lweight - rweight), lweight, rweight);
+      tmpStr = blxprintf("Tree balance = %.1f (%.1f-%.1f)", fabsf(lweight - rweight), lweight, rweight);
 #else
-      blxprintf("Tree balance = %.1f", fabsf(lweight - rweight));
+      tmpStr = blxprintf("Tree balance = %.1f", fabsf(lweight - rweight));
 #endif
       
       drawText(widget, drawable, gc, xMax + 2 * DEFAULT_XPAD, y - markerHt, tmpStr, NULL, NULL);
