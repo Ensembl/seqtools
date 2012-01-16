@@ -62,6 +62,7 @@ static gboolean		isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpoint
 static gboolean		onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 static GList*		treeGetSequenceRows(GtkWidget *tree, const BlxSequence *clickedSeq);
 static BlxSequence*	treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter);
+static void             destroyTreePathList(GList **list);
 
 /***********************************************************
  *                Tree - utility functions                 *
@@ -307,6 +308,8 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
           MSP *curMsp = (MSP*)(mspItem->data);
           curMsp->treePaths[BLXMODEL_SQUASHED] = gtk_tree_path_to_string(path);
         }
+
+      gtk_tree_path_free(path);
     }
 }
 
@@ -420,6 +423,7 @@ static void addShortReadsToCompactTree(GtkWidget *tree, GtkListStore *store, Gtk
                   curMsp->treePaths[BLXMODEL_SQUASHED] = gtk_tree_path_to_string(path);
                 }
 
+              gtk_tree_path_free(path);
           
               /* Reset the list pointer ready for the next row. Note that
                * we do not free the list because it is now owned by the tree */
@@ -715,6 +719,8 @@ void treeScrollSelectionIntoView(GtkWidget *tree, gpointer data)
       GtkTreePath *path = (GtkTreePath*)(rows->data);
       gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree), path, NULL, FALSE, 0.0, 0.0);
     }
+
+  destroyTreePathList(&rows);
 }
 
 
@@ -749,6 +755,11 @@ static gboolean updateMspPaths(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
   for ( ; mspItem; mspItem = mspItem->next)
     {
       MSP *msp = (MSP*)(mspItem->data);
+      
+      /* clear any existing path string */
+      if (msp->treePaths[modelId])
+        g_free(msp->treePaths[modelId]);
+      
       msp->treePaths[modelId] = gtk_tree_path_to_string(path);
     }
   
@@ -1110,7 +1121,8 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
     }
   
   drawColumnSeparatorLine(headerWidget, drawable, gc, bc);
-  
+ 
+  g_hash_table_unref(basesToHighlight);
   g_free(segmentToDisplay);
   g_object_unref(gc);
 }
@@ -1304,6 +1316,8 @@ static void treeSelectRowRange(GtkWidget *blxWindow, GtkTreeModel *model, GtkTre
 	{
 	  currentIdx += incrementValue;
 	}
+
+      gtk_tree_path_free(currentPath);
     }
 }
 
@@ -1366,12 +1380,16 @@ static gboolean treeSelectRow(GtkWidget *tree, GdkEventButton *event)
 		  GtkTreePath *lastSelectedPath = (GtkTreePath*)(lastSelectedRows->data);
 		  treeSelectRowRange(blxWindow, model, lastSelectedPath, clickedPath);
 		}
+
+              destroyTreePathList(&lastSelectedRows);
 	    }
 	}
 
       GtkWidget *detailView = treeGetDetailView(tree);
       detailViewSetSelectedStrand(detailView, treeGetStrand(tree));
       detailViewRedrawAll(detailView);
+
+      gtk_tree_path_free(clickedPath);
     }
   
   return TRUE; /* handled */
@@ -1507,7 +1525,25 @@ static BlxSequence* treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter)
 }
 
 
-/* Get all the tree rows that contain MSPs from the given sequence */
+/* utility to destroy a GList of GtkTreePaths: destroys the data and the list
+ * and sets the list pointer to null */
+static void destroyTreePathList(GList **list)
+{
+  GList *item = *list;
+
+  for ( ; item; item = item->next)
+    {
+      GtkTreePath *path = (GtkTreePath*)(item->data);
+      gtk_tree_path_free(path);
+    }
+
+  g_list_free(*list);
+  *list = NULL;
+}
+
+
+/* Get all the tree rows that contain MSPs from the given sequence. Returns
+ * a GList of GtkTreePaths; the result must be freed by calling destroyTreePathList */
 static GList *treeGetSequenceRows(GtkWidget *tree, const BlxSequence *clickedSeq)
 {
   GList *resultList = NULL;
@@ -1594,6 +1630,8 @@ gboolean treeMoveRowSelection(GtkWidget *tree, const gboolean moveUp, const gboo
 	  treeScrollSelectionIntoView(tree, NULL);
 	}
     }
+
+  destroyTreePathList(&rows);
   
   return TRUE;
 }
@@ -1699,6 +1737,8 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
                     }
                 }
             }
+
+          gtk_tree_path_free(path);
         }
 	
       return TRUE;
@@ -1883,6 +1923,8 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
           MSP *curMsp = (MSP*)(mspItem->data);
           curMsp->treePaths[BLXMODEL_NORMAL] = gtk_tree_path_to_string(path);
         }
+
+      gtk_tree_path_free(path);
     }
 }
 
@@ -2355,11 +2397,10 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
       const char *refSeqName = blxWindowGetRefSeqName(treeGetBlxWindow(tree));
       const int maxLen = (int)((gdouble)colWidth / treeGetCharWidth(tree));
       
-      char stringToAppend[] = "(+0)";
-      stringToAppend[1] = (treeGetStrand(tree) == BLXSTRAND_FORWARD ? '+' : '-');
-      stringToAppend[2] = *convertIntToString(treeGetFrame(tree));
+      char strandChar = (treeGetStrand(tree) == BLXSTRAND_FORWARD ? '+' : '-');
+      char *stringToAppend = g_strdup_printf("(%c%d)", strandChar, treeGetFrame(tree));
       const int numCharsToAppend = strlen(stringToAppend);
-
+      
       gchar *displayText = NULL;
       
       if (maxLen > numCharsToAppend)
@@ -2374,6 +2415,8 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
 	  /* No space to concatenate the frame and strand. Just include whatever of the name we can */
 	  displayText = abbreviateText(refSeqName, maxLen);
 	}
+
+      g_free(stringToAppend);
 
       if (displayText)
 	{

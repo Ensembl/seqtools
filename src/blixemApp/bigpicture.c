@@ -1023,7 +1023,8 @@ void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentreIn, GdkRec
  * that are grid or exon-view widgets. */
 static int getBigPictureChildrenHeights(GtkWidget *widget, const int heightIn)
 {
-  GList *child = gtk_container_get_children(GTK_CONTAINER(widget));
+  GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
+  GList *child = children;
   int height = heightIn;
   
   for ( ; child; child = child->next)
@@ -1046,6 +1047,8 @@ static int getBigPictureChildrenHeights(GtkWidget *widget, const int heightIn)
 	    }
 	}
     }
+
+  g_list_free(children);
     
   return height;
 }

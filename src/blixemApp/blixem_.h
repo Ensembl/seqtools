@@ -461,7 +461,7 @@ gboolean                           populateFullDataPfetch(GList *seqsToFetch, co
 void                               blxInitConfig(char *config_file, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 gboolean                           blxConfigSetPFetchSocketPrefs(char *node, int port) ;
-gboolean                           blxConfigGetPFetchSocketPrefs(const char **node, int *port) ;
+gboolean                           blxConfigGetPFetchSocketPrefs(char **node, int *port) ;
 gboolean                           blxConfigGetPFetchWWWPrefs();
 
 void                               loadGffFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs);
@@ -474,7 +474,7 @@ BlxStyle*                          createBlxStyle(const char *styleName, const c
 void                               destroyBlxStyle(BlxStyle *style);
 
 void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);
-void                               setupFetchModes(PfetchParams *pfetch, char **bulkFetchMode, char **userFetchMode, const char **net_id, int *port);
+void                               setupFetchModes(PfetchParams *pfetch, char **bulkFetchMode, char **userFetchMode, char **net_id, int *port);
 
 gboolean                           blxviewFetchSequences(gboolean External, 
                                                          const gboolean parseFullEmblInfo,

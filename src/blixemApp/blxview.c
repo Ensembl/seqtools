@@ -915,7 +915,7 @@ gboolean blxview(CommandLineOptions *options,
   
   validateInput(options);
   
-  const char *net_id = NULL;
+  char *net_id = NULL;
   int port = UNSET_INT;
   setupFetchModes(pfetch, &options->bulkFetchMode, &options->userFetchMode, &net_id, &port);
 
@@ -942,7 +942,10 @@ gboolean blxview(CommandLineOptions *options,
     {
       blviewCreate(align_types, padseq, featureLists, seqList, supportedTypes, options, net_id, port, External) ;
     }
-  
+
+  if (net_id)
+    g_free(net_id);
+
   return status;
 }
 

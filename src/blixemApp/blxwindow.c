@@ -2298,7 +2298,8 @@ static GtkNotebook* containerGetChildNotebook(GtkContainer *container)
 {
   GtkNotebook *result = NULL;
   
-  GList *child = gtk_container_get_children(container);
+  GList *children = gtk_container_get_children(container);
+  GList *child = children;
   
   for ( ; child; child = child->next)
     {
@@ -2315,7 +2316,9 @@ static GtkNotebook* containerGetChildNotebook(GtkContainer *container)
          containerGetChildNotebook(GTK_CONTAINER(childWidget));
        }
     }
-  
+
+  g_list_free(children);
+ 
   return result;
 }
 
@@ -3510,7 +3513,8 @@ static GtkComboBox* widgetGetComboBox(GtkWidget *widget)
     }
   else if (GTK_IS_CONTAINER(widget))
     {
-      GList *childItem = gtk_container_get_children(GTK_CONTAINER(widget));
+      GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
+      GList *childItem = children;
       
       for ( ; childItem; childItem = childItem->next)
         {
@@ -3520,6 +3524,8 @@ static GtkComboBox* widgetGetComboBox(GtkWidget *widget)
           if (result)
             break;
         }
+
+      g_list_free(children);
     }
   
   return result;
@@ -3576,7 +3582,8 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
     {
       /* Loop through each child of the given widget (assumes that each child is or
        * contains one combo box) */
-      GList *childItem = gtk_container_get_children(GTK_CONTAINER(widget));
+      GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
+      GList *childItem = children;
       int priority = 0;
       
       for ( ; childItem; childItem = childItem->next, ++priority)
@@ -3597,6 +3604,8 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
             }
         }
       
+      g_list_free(children);
+
       /* Re-sort trees */
       detailViewResortTrees(detailView);
     }
@@ -4616,59 +4625,68 @@ static void killAllSpawned(BlxViewContext *bc)
 }
 
 
-static void destroyBlxContext(BlxViewContext **bc)
+/* utility to free the given pointer and set it to null */
+static void freeAndNull(gpointer *ptr)
 {
-  if (bc && *bc)
+  if (ptr && *ptr)
     {
+      g_free(*ptr);
+      *ptr = NULL;
+    }
+}
+
+
+static void destroyBlxContext(BlxViewContext **bcPtr)
+{
+  if (bcPtr && *bcPtr)
+    {
+      BlxViewContext *bc = *bcPtr;
+
+      /* Free allocated strings */
+      freeAndNull((gpointer*)(&bc->dataset));
+      freeAndNull((gpointer*)(&bc->bulkFetchMode));
+      freeAndNull((gpointer*)(&bc->userFetchMode));
+      freeAndNull((gpointer*)(&bc->refSeqName));
+      freeAndNull((gpointer*)(&bc->net_id));
+      
       /* Free the list of selected sequence names (not the names themselves
        * because we don't own them). */
-      if ((*bc)->selectedSeqs)
+      if (bc->selectedSeqs)
 	{
-	  g_list_free((*bc)->selectedSeqs);
-	  (*bc)->selectedSeqs = NULL;
+	  g_list_free(bc->selectedSeqs);
+	  bc->selectedSeqs = NULL;
 	}
       
-      blxContextDeleteAllSequenceGroups(*bc);
-      
-      if ((*bc)->bulkFetchMode)
-	{
-	  g_free((*bc)->bulkFetchMode);
-	  (*bc)->bulkFetchMode = NULL;
-	}
+      blxContextDeleteAllSequenceGroups(bc);
 
-      if ((*bc)->userFetchMode)
-	{
-	  g_free((*bc)->userFetchMode);
-	  (*bc)->userFetchMode = NULL;
-	}
-      
-      if ((*bc)->defaultColors)
+      /* Free the color array */
+      if (bc->defaultColors)
 	{
 	  BlxColorId i = BLXCOLOR_MIN + 1;
 	  for (; i < BLXCOL_NUM_COLORS; ++i)
 	    {
-	      BlxColor *blxColor = &g_array_index((*bc)->defaultColors, BlxColor, i);
+	      BlxColor *blxColor = &g_array_index(bc->defaultColors, BlxColor, i);
 	      destroyBlxColor(blxColor);
 	    }
 
-	  g_array_free((*bc)->defaultColors, TRUE);
-	  (*bc)->defaultColors = NULL;
+	  g_array_free(bc->defaultColors, TRUE);
+	  bc->defaultColors = NULL;
 	}
 
       /* destroy the feature lists. note that the stored msps are owned
       * by the msplist, not by the feature lists */
       int typeId = 0;
       for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
-        g_array_free((*bc)->featureLists[typeId], FALSE);
+        g_array_free(bc->featureLists[typeId], FALSE);
       
-      destroyMspList(&((*bc)->mspList));
-      destroyBlxSequenceList(&((*bc)->matchSeqs));
-      blxDestroyGffTypeList(&((*bc)->supportedTypes));
-      killAllSpawned(*bc);
+      destroyMspList(&(bc->mspList));
+      destroyBlxSequenceList(&(bc->matchSeqs));
+      blxDestroyGffTypeList(&(bc->supportedTypes));
+      killAllSpawned(bc);
       
       /* Free the context struct itself */
-      g_free((*bc));
-      *bc = NULL;
+      g_free(bc);
+      *bcPtr = NULL;
     }
 }
 
@@ -4693,6 +4711,9 @@ static void saveBlixemSettings(GtkWidget *blxWindow)
       
   if (!g_file_set_contents(filename, file_content, -1, NULL))
     g_warning("Error saving settings to '%s'.\n", filename);
+
+  g_free(file_content);
+  g_key_file_free(key_file);
 }
 
 
@@ -4926,7 +4947,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->supportedTypes = supportedTypes;
   
   blxContext->displayRev = FALSE;
-  blxContext->net_id = net_id;
+  blxContext->net_id = g_strdup(net_id);
   blxContext->port = port;
   blxContext->external = External;
   

@@ -118,6 +118,7 @@ static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite
 static int                    getNumSnpTrackRows(const BlxViewContext *bc, DetailViewProperties *properties, const BlxStrand strand, const int frame);
 static int                    getVariationRowNumber(const IntRange const *rangeIn, const int numRows, GSList **rows);
 static void                   freeRowsList(GSList *rows);
+static void                   destroyColumnList(GList **columnList);
 
 
 /***********************************************************
@@ -414,6 +415,8 @@ static GtkWidget *findNestedPanedWidget(GtkContainer *parentWidget)
       child = child->next;
     }
   
+  g_list_free(children);
+
   return result;
 }
 
@@ -502,7 +505,8 @@ static GtkWidget *treeContainerGetTree(GtkContainer *container)
 {
   GtkWidget *result = NULL;
   
-  GList *child = gtk_container_get_children(container);
+  GList *children = gtk_container_get_children(container);
+  GList *child = children;
   
   for ( ; child && !result; child = child->next)
     {
@@ -520,6 +524,8 @@ static GtkWidget *treeContainerGetTree(GtkContainer *container)
 	   }
 	}
     }
+
+  g_list_free(children);
   
   return result;
 }
@@ -2850,6 +2856,8 @@ static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxViewContext *bc)
               gtk_tree_model_row_changed(model, path, &iter);
             }
         }
+
+      gtk_tree_path_free(path);
     }
   
   DEBUG_EXIT("refilterMspRow returning ");
@@ -3467,8 +3475,7 @@ static void onDestroyDetailView(GtkWidget *widget)
   
   if (properties->columnList > 0)
     {
-      g_list_free(properties->columnList);
-      properties->columnList = NULL;
+      destroyColumnList(&properties->columnList);
     }
     
   if (properties->fwdStrandTrees)
@@ -4501,6 +4508,20 @@ static void getColumnConfig(DetailViewColumnInfo *columnInfo)
             }
         }
     }
+}
+
+
+static void destroyColumnList(GList **columnList)
+{
+  GList *column = *columnList;
+  
+  for ( ; column; column = column->next)
+    {
+      g_free(column->data);
+    }
+    
+  g_list_free(*columnList);
+  *columnList = NULL;
 }
 
 

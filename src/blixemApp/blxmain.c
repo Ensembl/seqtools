@@ -891,7 +891,11 @@ int main(int argc, char **argv)
     {
       gtk_main();
     }
-    
+ 
+  g_free(key_file);
+  g_free(config_file);
+  
+   
   /* We should not get here.... */
   return (EXIT_FAILURE) ;
 }
