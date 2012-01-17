@@ -204,12 +204,6 @@ static void onDestroyBelvuTree(GtkWidget *belvuTree)
   /* If it is the main tree, also set the pointer in the context to null */
   if (properties->isMainTree)
     properties->bc->belvuTree = NULL;
-
-  if (properties->tree)
-    {
-      destroyTree(properties->tree);
-      properties->tree = NULL;
-    }
   
   if (properties)
     {
