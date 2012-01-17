@@ -4007,8 +4007,8 @@ void showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   char rel_path[100] = "../share/doc/seqtools/blixem_quick_start.html";
 
   /* Find the executable's path */
-  char *exe = NULL;
-  gboolean ok = findCommand(g_get_prgname(), &exe);
+  char *exe = g_find_program_in_path(g_get_prgname());
+  gboolean ok = (exe != NULL);
 
   if (ok)
     {
@@ -4033,6 +4033,8 @@ void showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
           g_free(dir);
         }
+
+      g_free(exe);
     }
   
   if (!ok)

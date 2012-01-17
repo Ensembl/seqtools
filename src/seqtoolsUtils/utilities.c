@@ -3869,38 +3869,6 @@ void setWidgetBackgroundColor(GtkWidget *widget, gpointer data)
 }
 
 
-/* Find an executable and return its complete pathname.
- */
-gboolean findCommand (char *command, char **resultOut)
-{
-  gboolean found = FALSE;
-  
-  static char result[1025];
-
-  char *path = g_find_program_in_path(command);
-  
-  if (path)
-    {
-      found = TRUE;
-      strcpy(result, path);
-      g_free(path);
-    }
-  else 
-    {
-      char *msg = blxprintf("Can't find executable '%s' in path.\n", command);
-      strcpy(result, msg);
-      g_free(msg);
-    }
-  
-  if (resultOut)
-    {
-      *resultOut = result;
-    }
-  
-  return found;
-}
-
-
 /* Emits the size-allocate signal on the given widget */
 void forceResize(GtkWidget *widget)
 {

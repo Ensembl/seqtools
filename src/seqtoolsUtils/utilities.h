@@ -90,7 +90,8 @@ typedef enum
   SEQTOOLS_ERROR_SEQ_SEGMENT,	      /* error getting the requested segment of a sequence */
   SEQTOOLS_ERROR_NO_STYLE,            /* style does not exist */
   SEQTOOLS_ERROR_EXECUTING_CMD,       /* error executing command */
-  SEQTOOLS_ERROR_SEQ_TYPE	      /* error determining sequence type */
+  SEQTOOLS_ERROR_SEQ_TYPE,	      /* error determining sequence type */
+  SEQTOOLS_ERROR_NO_EXE	      /* executable does not exist */
 } SeqToolsError;
 
 
@@ -520,7 +521,6 @@ void                               collatePixmaps(GtkWidget *widget, gpointer da
 void                               onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data);
 void                               setWidgetBackgroundColor(GtkWidget *widget, gpointer data);
 
-gboolean                           findCommand (char *command, char **resultOut);
 void                               forceResize(GtkWidget *widget);
 
 gboolean                           onComboChanged(GtkWidget *combo, const gint responseId, gpointer data);

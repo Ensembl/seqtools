@@ -1312,13 +1312,14 @@ gboolean callDotterExternal(BlxViewContext *bc,
   boundsLimitRange(seq1Range, &bc->refSeqRange, FALSE);
 
   static char *dotterBinary = NULL;
-  
+
   /* Open pipe to new dotterBinary */
   if (!dotterBinary) 
     { 
       g_debug("Looking for Dotter ...\n");
-      
-      if (!findCommand("dotter", &(dotterBinary))) 
+      dotterBinary = g_find_program_in_path("dotter");
+
+      if (!dotterBinary)
         {
           g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_EXE, "No dotter executable found in path.\n$PATH=%s\n", getenv("PATH"));
           dotterBinary = NULL;

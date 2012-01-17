@@ -2801,8 +2801,8 @@ static void showHelpDialog(GtkWidget *dotterWindow)
   char rel_path[100] = "../share/doc/seqtools/dotter_quick_start.html";
   
   /* Find the executable's path */
-  char *exe = NULL;
-  gboolean ok = findCommand(g_get_prgname(), &exe);
+  char *exe = g_find_program_in_path(g_get_prgname());
+  gboolean ok = (exe != NULL);
   
   if (ok)
     {
@@ -2827,6 +2827,8 @@ static void showHelpDialog(GtkWidget *dotterWindow)
           
           g_free(dir);
         }
+
+      g_free(exe);
     }
   
   if (!ok)
