@@ -121,7 +121,6 @@ static void freeGffData(BlxGffData *gffData)
   freeAndNullString(&gffData->url);
   freeAndNullString(&gffData->idTag);
   freeAndNullString(&gffData->parentIdTag);
-  freeAndNullString(&gffData->sequence);
   freeAndNullString(&gffData->gapString);
 }
 
