@@ -76,7 +76,6 @@ AUTHOR_TEXT "\n"
 #define BLIXEM_GROUP               "blixem"
 #define BLIXEM_OLD_BULK_FETCH      "default-fetch-mode" /* for compatibility with old config files (new config files use SEQTOOLS_BULK_FETCH) */
 
-
 /* For http pfetch proxy fetching of sequences/entries by name */
 #define PFETCH_PROXY_GROUP         "pfetch-http"
 #define PFETCH_PROXY_LOCATION      "pfetch"
@@ -112,6 +111,21 @@ AUTHOR_TEXT "\n"
 
 /* For settings */
 #define BLIXEM_SETTINGS_FILE             ".blixemrc"  /* default file name for saving blixem settings to */
+#define SETTINGS_GROUP             "user-settings"
+
+#define SETTING_NAME_INVERT_SORT "invert-sort"
+#define SETTING_NAME_HIGHLIGHT_DIFFS "highlight-diffs"
+#define SETTING_NAME_HIGHLIGHT_VARIATIONS "highlight-variations"
+#define SETTING_NAME_SHOW_VARIATION_TRACK "show-variations-track"
+#define SETTING_NAME_SHOW_UNALIGNED "show-unaligned"
+#define SETTING_NAME_SHOW_UNALIGNED_SELECTED "show-unaligned-selected-seq"
+#define SETTING_NAME_LIMIT_UNALIGNED_BASES "limit-unaligned"
+#define SETTING_NAME_SHOW_POLYA_SITE "show-polya-site"
+#define SETTING_NAME_SHOW_POLYA_SITE_SELECTED "show-poly-site-selected-seq"
+#define SETTING_NAME_SHOW_POLYA_SIG "show-poly-sig"
+#define SETTING_NAME_SHOW_POLYA_SIG_SELECTED "show-polya-sig-selected-seq"
+#define SETTING_NAME_SHOW_SPLICE_SITES "show-splice-sites"
+#define SETTING_NAME_SQUASH_MATCHES "squash-matches"
 
 
 /* would be good to get rid of this.... */
@@ -190,7 +204,7 @@ typedef enum
     BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
     BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
     
-    BLXFLAG_NUM_FLAGS		    /* Number of flags, for looping through flags or creating an array */
+    BLXFLAG_NUM_FLAGS		    /* Total number of flags e.g. for creating arrays and loops etc */
   } BlxFlag;
 
 

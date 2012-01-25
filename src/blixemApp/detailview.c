@@ -76,7 +76,7 @@
 #define BLXCOL_TISSUE_TYPE_WIDTH        100   /* default width for tissue-type column  */
 
 #define COLUMN_WIDTHS_GROUP             "column-widths"  /* group name in the config file */
-
+#define SETTING_NAME_NUM_UNALIGNED_BASES "num-unaligned-bases"
 
 
 typedef struct 
@@ -164,7 +164,7 @@ const char* detailViewGetColumnTitle(GtkWidget *detailView, const BlxColumnId co
 
 
 /* Save the column widths to the given config file. */
-void detailViewSaveColumnWidths(GtkWidget *detailView, GKeyFile *key_file)
+static void detailViewSaveColumnWidths(GtkWidget *detailView, GKeyFile *key_file)
 {
   /* Loop through each column */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -183,6 +183,16 @@ void detailViewSaveColumnWidths(GtkWidget *detailView, GKeyFile *key_file)
             g_key_file_set_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, 0);
         }
     }
+}
+
+
+/* Save any user-settings that are stored in the detail-view properties */
+void detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  
+  g_key_file_set_integer(key_file, SETTINGS_GROUP, SETTING_NAME_NUM_UNALIGNED_BASES, properties->numUnalignedBases);
+  detailViewSaveColumnWidths(detailView, key_file);
 }
 
 
@@ -3554,6 +3564,17 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
       properties->numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
       
+      /* The numunalignedbases may be set in the config file; if so, override the default */
+      GKeyFile *key_file = blxGetConfig();
+      if (key_file)
+        {
+          GError *error = NULL;
+          int numUnaligned = g_key_file_get_integer(key_file, SETTINGS_GROUP, SETTING_NAME_NUM_UNALIGNED_BASES, &error);
+          
+          if (!error) /* we don't care if it wasn't found */
+            properties->numUnalignedBases = numUnaligned;
+        }
+
       /* Add the splice sites that we want Blixem to identify as canonical */
       properties->spliceSites = NULL;
       addBlxSpliceSite(&properties->spliceSites, "GT", "AG", FALSE);

@@ -90,7 +90,6 @@ typedef struct _BlxWindowProperties
   } BlxWindowProperties;
 
 
-
 /* Local function declarations */
 static BlxWindowProperties*	  blxWindowGetProperties(GtkWidget *widget);
 
@@ -3401,11 +3400,14 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   if (!dialog)
     {
+      /* note: reset-to-defaults option commented out because it is incomplete:
+       * for now, the help page tells the user to delete the ~/.blixemrc file
+       * to reset to defaults */
       dialog = gtk_dialog_new_with_buttons("Blixem - Settings", 
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
-                                           "Reset to defaults",
-                                           BLX_RESPONSE_RESET,
+//                                           "Reset to defaults",
+//                                           BLX_RESPONSE_RESET,
                                            GTK_STOCK_CANCEL,
                                            GTK_RESPONSE_REJECT,
                                            GTK_STOCK_APPLY,
@@ -4693,11 +4695,58 @@ static void destroyBlxContext(BlxViewContext **bcPtr)
 }
 
 
+/* This returns the name for the given flag enum. It returns null if the name
+ * has not been set. This is used to save settings in the config file; only 
+ * flags whose name is set in this function will be saved. */
+static const char* getFlagName(const BlxFlag flag)
+{
+  /* Create an array of names for all of the relevant settings */
+  static const char* names[BLXFLAG_NUM_FLAGS] = {0, 0};
+  
+  if (!names[1]) /* only populate it once */
+    {
+      names[BLXFLAG_HIGHLIGHT_DIFFS] = SETTING_NAME_HIGHLIGHT_DIFFS;
+      names[BLXFLAG_HIGHLIGHT_VARIATIONS] = SETTING_NAME_HIGHLIGHT_VARIATIONS;
+      names[BLXFLAG_SHOW_VARIATION_TRACK] = SETTING_NAME_SHOW_VARIATION_TRACK;
+      names[BLXFLAG_SHOW_UNALIGNED] = SETTING_NAME_SHOW_UNALIGNED;
+      names[BLXFLAG_SHOW_UNALIGNED_SELECTED] = SETTING_NAME_SHOW_UNALIGNED_SELECTED;
+      names[BLXFLAG_LIMIT_UNALIGNED_BASES] = SETTING_NAME_LIMIT_UNALIGNED_BASES;
+      names[BLXFLAG_SHOW_POLYA_SITE] = SETTING_NAME_SHOW_POLYA_SITE;
+      names[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = SETTING_NAME_SHOW_POLYA_SITE_SELECTED;
+      names[BLXFLAG_SHOW_POLYA_SIG] = SETTING_NAME_SHOW_POLYA_SIG;
+      names[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = SETTING_NAME_SHOW_POLYA_SIG_SELECTED;
+      names[BLXFLAG_SHOW_SPLICE_SITES] = SETTING_NAME_SHOW_SPLICE_SITES;
+    }
+
+  if (flag <= BLXFLAG_MIN || flag >= BLXFLAG_NUM_FLAGS)
+    return NULL;
+  else
+    return names[flag];
+}
+
+
+/* Called by saveBlixemSettings; does the work to save the boolean flags */
+static void saveBlixemSettingsFlags(BlxViewContext *bc, GKeyFile *key_file)
+{
+  /* loop through each (save-able) setting */
+  BlxFlag flag = BLXFLAG_MIN + 1;
+  
+  for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
+    {
+      const char *flagName = getFlagName(flag);
+
+      if (flagName)
+        g_key_file_set_integer(key_file, SETTINGS_GROUP, flagName, bc->flags[flag]);
+    }
+}
+
+
 /* This function saves all of blixem's customisable settings to
  * a config file. */
 static void saveBlixemSettings(GtkWidget *blxWindow)
 {
   char *filename = blxprintf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
   GKeyFile *key_file = g_key_file_new();
   GKeyFileFlags flags = G_KEY_FILE_NONE;
@@ -4705,10 +4754,14 @@ static void saveBlixemSettings(GtkWidget *blxWindow)
   
   /* Load existing contents so they can be merged, if the file already exists */
   g_key_file_load_from_file(key_file, filename, flags, &error);
-  
   g_message("Saving Blixem settings to '%s'.\n", filename);
-  detailViewSaveColumnWidths(blxWindowGetDetailView(blxWindow), key_file);
 
+  /* Write the settings */
+  saveBlixemSettingsFlags(blxWindowGetContext(blxWindow), key_file);
+  g_key_file_set_integer(key_file, SETTINGS_GROUP, SETTING_NAME_SQUASH_MATCHES, (bc->modelId == BLXMODEL_SQUASHED));
+  detailViewSaveProperties(blxWindowGetDetailView(blxWindow), key_file);
+
+  /* Output to the config file */
   gchar *file_content = g_key_file_to_data(key_file, NULL, NULL);
       
   if (!g_file_set_contents(filename, file_content, -1, NULL))
@@ -4903,6 +4956,80 @@ static void calculateDepth(BlxViewContext *bc)
 }
 
 
+/* Called on startup to set the initial state of the flags. Gets the state for
+ * the settings from the config file if specified, otherwises uses hard-coded
+ * defaults. */
+static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *options)
+{
+  /* Initialise all the flags to false */
+  int flag = BLXFLAG_MIN + 1;
+  for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
+    {
+      blxContext->flags[flag] = FALSE;
+    }
+  
+  /* Set any specific flags that we want initialised to TRUE */
+  blxContext->flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
+  blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
+  blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
+  blxContext->flags[BLXFLAG_EMBL_DATA_LOADED] = options->parseFullEmblInfo;
+  blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
+  blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
+  blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
+}
+
+
+/* load settings from the config file */
+static void loadBlixemSettings(BlxViewContext *blxContext)
+{
+  /* Override the defaults settings with those given in the config file, if any */
+  GKeyFile *key_file = blxGetConfig();
+
+  if (!key_file)
+    return;
+  
+  GError *error = NULL;
+
+  /* squash-matches */
+  int squashMatches = g_key_file_get_integer(blxGetConfig(), SETTINGS_GROUP, SETTING_NAME_SQUASH_MATCHES, &error);
+  
+  if (error)
+    {
+      /* we don't care if it wasn't found; just clear the error */
+      g_error_free(error);
+      error = NULL;
+    }
+  else
+    {
+      blxContext->modelId = squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
+    }
+
+  /* loop through all the flags and see if any of them are given */
+  BlxFlag flag = BLXFLAG_MIN + 1;
+  
+  for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
+    {
+      const char *flagName = getFlagName(flag);
+      
+      if (flagName)
+        {
+          int result = g_key_file_get_integer(key_file, SETTINGS_GROUP, flagName, &error);
+          
+          if (error)
+            {
+              g_error_free(error);
+              error = NULL;
+            }
+          else
+            {
+              blxContext->flags[flag] = result;
+            }
+        }
+    }
+}
+
+
+
 static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 					      const IntRange const *refSeqRange,
 					      const IntRange const *fullDisplayRange,
@@ -4969,22 +5096,8 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   createBlxColors(blxContext, widget);
   
-  /* Initialise all the flags to false */
-  int flag = BLXFLAG_MIN + 1;
-  for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
-    {
-      blxContext->flags[flag] = FALSE;
-    }
-  
-  /* Set any specific flags that we want initialised to TRUE */
-  blxContext->flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
-  blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
-  blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
-  blxContext->flags[BLXFLAG_EMBL_DATA_LOADED] = options->parseFullEmblInfo;
-  blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
-  blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
-  blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
-  
+  initialiseFlags(blxContext, options);
+    
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;
   for ( ; dialogId < BLXDIALOG_NUM_DIALOGS; ++dialogId)
@@ -4997,7 +5110,9 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->depthArray = NULL;
   blxContext->minDepth = 0;
   blxContext->maxDepth = 0;
-  
+ 
+  loadBlixemSettings(blxContext);
+
   return blxContext;
 }
 
@@ -5481,7 +5596,7 @@ static void setStyleProperties(GtkWidget *widget)
 
 
 /* Create the main menu */
-static void createMainMenu(GtkWidget *window, CommandLineOptions *options, GtkWidget **mainmenu, GtkWidget **toolbar, GtkActionGroup **actionGroupOut)
+static void createMainMenu(GtkWidget *window, BlxViewContext *bc, GtkWidget **mainmenu, GtkWidget **toolbar, GtkActionGroup **actionGroupOut)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
   
@@ -5489,7 +5604,7 @@ static void createMainMenu(GtkWidget *window, CommandLineOptions *options, GtkWi
     *actionGroupOut = action_group;
 
   /* Set the squash-matches toggle button depending on the initial state */
-  toggleMenuEntries[0].is_active = options->squashMatches;  
+  toggleMenuEntries[0].is_active = (bc->modelId == BLXMODEL_SQUASHED);  
 
   gtk_action_group_add_actions (action_group, mainMenuEntries, G_N_ELEMENTS (mainMenuEntries), window);
   gtk_action_group_add_toggle_actions(action_group, toggleMenuEntries, G_N_ELEMENTS (toggleMenuEntries), window);
@@ -5818,12 +5933,6 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(window), vbox);
   
-  /* Create the main menu */
-  GtkWidget *mainmenu = NULL;
-  GtkWidget *toolbar = NULL;
-  GtkActionGroup *actionGroup = NULL;
-  createMainMenu(window, options, &mainmenu, &toolbar, &actionGroup);
-  
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */
   GtkAdjustment *detailAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, /* initial value = 0 */
@@ -5845,6 +5954,12 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                                       net_id, 
                                                       port, 
                                                       External);
+
+  /* Create the main menu */
+  GtkWidget *mainmenu = NULL;
+  GtkWidget *toolbar = NULL;
+  GtkActionGroup *actionGroup = NULL;
+  createMainMenu(window, blxContext, &mainmenu, &toolbar, &actionGroup);
   
   const gdouble lowestId = calculateMspData(options->mspList, blxContext);
   
