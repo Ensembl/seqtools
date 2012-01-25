@@ -1416,6 +1416,7 @@ void stringProtect(FILE *file, const char *string)
   if (string)
     for(cp = string; *cp; ++cp)
       {
+        /* Escape any internal quotes (or the escape char itself) by placing '$' in front */
         if (*cp == '"' || *cp == '$')
           fputc('$', file);
         fputc(*cp, file);
@@ -1425,7 +1426,10 @@ void stringProtect(FILE *file, const char *string)
 }
 
 
-/* Read a protected string */
+/* Read a protected string. If 'target' is given, then this function will 
+ * populate it with the result and return a pointer to it. If target is NULL, 
+ * then memory will be allocated for the result and this must be freed by the 
+ * caller using g_free. */
 char *stringUnprotect(char **textp, char *target)
 {
   char *cp, *cpd;
@@ -1437,6 +1441,8 @@ char *stringUnprotect(char **textp, char *target)
   
   while (*cp)
     {
+      /* Protected strings are enclosed in quotes, so find the opening quote
+       * Note that any internal quotes are escaped. */
       if (*cp == '"')
         {
           cp++;                                             /* skip quote */
@@ -1446,11 +1452,18 @@ char *stringUnprotect(char **textp, char *target)
         cp++ ;
     }
 
+  /* Loop through each character until we find the closing quote */
   while (*cp != '"' && *cp)
     {
+      /* If it's the escape character, skip it and process the next character
+       * instead (this avoids the escaped character being processed by the 
+       * while statement, so internal quotes do not cause the loop to exit). */
       if (*cp == '$')
         cp++;
 
+      /* If the target pointer exists, set the current char and increment.
+       * Otherwise, on the first run through we maintain a count of how 
+       * many chars there are so we can allocate the correct memory for the target */
       if (cpd)
         *cpd++ = *cp;
       else
@@ -1461,7 +1474,8 @@ char *stringUnprotect(char **textp, char *target)
   
   if (!target)
     {
-      target = g_malloc(count+1);
+      /* Allocate the memory for the target and then re-do the loops to populate it. */
+      target = g_malloc0(count+1);
       goto redo;
     }
   
