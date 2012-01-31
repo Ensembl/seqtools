@@ -3437,8 +3437,6 @@ static GtkUIManager* createUiManager(GtkWidget *window, const DotterHspMode hspM
   GtkAccelGroup *accel_group = gtk_ui_manager_get_accel_group (ui_manager);
   gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
 
-  g_object_unref(action_group);
-    
   return ui_manager;
 }
 
