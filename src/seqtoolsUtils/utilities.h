@@ -335,6 +335,7 @@ gboolean              rangesAdjacent(const IntRange const *range1, const IntRang
 gboolean	      rangesEqual(const IntRange const *range1, const IntRange const *range2);
 void		      boundsLimitValue(int *value, const IntRange const *range);
 void                  boundsLimitRange(IntRange *range, const IntRange const *limit, const gboolean maintainLen);
+gboolean              pointInRect(const int x, const int y, const GdkRectangle const *rect);
 char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
 
 void                  convertDisplayRangeToDnaRange(const IntRange const * displayRange, 

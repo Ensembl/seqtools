@@ -345,20 +345,6 @@ static void getThresholdMarkerRect(GreyrampProperties *properties, GdkRectangle 
 }
 
 
-/* Return true if the given point is inside the given rect */
-static gboolean pointInRect(const int x, const int y, GdkRectangle *rect)
-{
-  gboolean result = FALSE;
-  
-  if (x >= rect->x && x <= rect->x + rect->width && y >= rect->y && y <= rect->y + rect->height)
-    {
-      result = TRUE;
-    }
-  
-  return result;
-}
-
-
 /* Determine whether the given point is inside the white marker */
 static gboolean pointInWhiteMarker(GreyrampProperties *properties, const int x, const int y)
 {

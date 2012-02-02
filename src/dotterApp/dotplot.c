@@ -168,6 +168,9 @@ static void                       initWindow(const char *winsizeIn, DotplotPrope
 static void                       calculateImage(DotplotProperties *properties);
 static void                       drawDotplot(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable);
+static void                       clearPixmaps(DotplotProperties *properties);
+static PangoLayout*               createTextLayout(GtkWidget *dotplot, const char *text, const gboolean horizontal);
+
 
 #ifdef ALPHA
 static void                       reversebytes(void *ptr, int n);
@@ -554,7 +557,7 @@ void toggleCrosshairFullscreen(GtkWidget *dotplot)
 /* Expose handler for dot-plot window */
 static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpointer data)
 {
-  GdkDrawable *window = GTK_LAYOUT(dotplot)->bin_window;
+  GdkDrawable *window = (dotplot)->window;
   DotplotProperties *properties = dotplotGetProperties(dotplot);
 
   if (window)
@@ -748,6 +751,40 @@ static void initCrosshairCoords(const int qcenter, const int scenter, DotterWind
 }
 
 
+/* Create a GdkImage of the given size. If the given dimensions are
+ * too big for GDK to handle, they are reduced and the zoom level
+ * is also adjusted. */
+static GdkImage* createImage(DotplotProperties *properties)
+{
+  GdkImage *image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
+
+  /* The bpl (bytes per line) should equal the width multiplied by
+   * the bpp (bytes per pixel). I'm not sure why, but sometimes this
+   * is not the case. If this happens, reduce the width (and the zoom)
+   * to match the bpl (actually we make it less than the bpl, because
+   * we get crashing when drawing labels if the total width including
+   * labels etc. is more than the bpl). */
+  if (image->bpl != image->width * image->bpp)
+    {
+      DotterWindowContext *dwc = properties->dotterWinCtx;
+      const int origLen = properties->imageWidth * dwc->zoomFactor;
+
+      properties->imageWidth = image->bpl / image->bpp;
+      properties->imageWidth -= 500; /* fudge factor to allow space for labels */
+      dwc->zoomFactor = origLen / properties->imageWidth;
+
+      properties->imageWidth = getImageDimension(properties, TRUE);   /* rounds new value to nearest 4 etc. */
+      properties->imageHeight = getImageDimension(properties, FALSE); /* re-do height as well because zoom has changed */
+
+      gdk_image_unref(image);
+      image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
+    }
+
+  return image;
+}
+
+
+
 /* Create the actual drawing area for the dotplot */
 static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc, 
                                            const char *loadFileName,
@@ -768,7 +805,7 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
   gboolean batch = (saveFileName || exportFileName);
   gboolean showPlot = (exportFileName || !batch);
 
-  GtkWidget *dotplot = (showPlot ? gtk_layout_new(NULL, NULL) : NULL);
+  GtkWidget *dotplot = (showPlot ? gtk_drawing_area_new() : NULL);
   
   DotplotProperties *properties = dotplotCreateProperties(dotplot, dwc, hspsOn, breaklinesOn, exportFileName);
   
@@ -792,7 +829,13 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
       /* Calculate the image size */
       properties->imageWidth = getImageDimension(properties, TRUE);
       properties->imageHeight = getImageDimension(properties, FALSE);
+
+      /* Create the GdkImage (adjusts the width/height/zoom if original dimensions are too big) */
+      if (showPlot)
+        properties->image = createImage(properties);
+
       properties->lineLen = properties->imageWidth;
+      
       DEBUG_OUT("Set image w=%d, h=%d, line len=%d\n", properties->imageWidth, properties->imageHeight, properties->lineLen);
       
       unsigned char **pixmap = NULL; /* which pixelmap we're displaying at the start */
@@ -808,15 +851,10 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
           initPixmap(pixmap, properties->imageWidth, properties->imageHeight);
           calculateImage(properties);
         }
-
-      if (showPlot)
-        {
-          /* Create the image and push the pixelmap to it */
-          properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
-          
-          if (pixmap)
-            transformGreyRampImage(properties->image, *pixmap, properties);
-        }
+      
+      /* Push the pixelmap to the GdkImage */
+      if (showPlot && pixmap)
+        transformGreyRampImage(properties->image, *pixmap, properties);
     }
   
   if (saveFileName)
@@ -1714,7 +1752,7 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
   if (properties->image)
     gdk_image_unref(properties->image);
 
-  properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
+  properties->image = createImage(properties);
 }
 
 
@@ -1900,7 +1938,7 @@ static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *pro
   if (properties->image)
     gdk_image_unref(properties->image);
     
-  properties->image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
+  properties->image = createImage(properties);
 
   /* Create the new pixmap */
   if (properties->hspMode == DOTTER_HSPS_GREYSCALE)
@@ -1922,13 +1960,23 @@ static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *pro
 
 
 /* Utility to get the total height required for the dotplot */
-int getDotplotHeight(DotplotProperties *properties)
+int getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties)
 {
+  /* The basic height is the height of the dotplot plus padding and scale */
   int result = properties->plotRect.y + 
                properties->plotRect.height + 		  
                DEFAULT_Y_PADDING + 
                SCALE_LINE_WIDTH;
   
+  /* Make sure the plot is tall enough to fit the vertical label */
+  PangoLayout *layout = createTextLayout(dotplot, properties->dotterWinCtx->dotterCtx->matchSeqName, FALSE);
+  int height = 0;
+  pango_layout_get_pixel_size(layout, NULL, &height);
+  g_object_unref(layout);
+  
+  if (result < height)
+    result = height;
+
   if (properties->breaklinesOn && properties->hozLabelsOn)
     {
       /* Add space for breakline labels */
@@ -1939,7 +1987,7 @@ int getDotplotHeight(DotplotProperties *properties)
 }
 
 /* Utility to get the total width of the dotplot */
-int getDotplotWidth(DotplotProperties *properties)
+int getDotplotWidth(GtkWidget *dotplot, DotplotProperties *properties)
 {
   int result = properties->plotRect.x +
                properties->plotRect.width + 
@@ -1968,13 +2016,11 @@ static void calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *prope
   properties->plotRect.width = properties->imageWidth;
   properties->plotRect.height = properties->imageHeight;
   
-  const int totalWidth = getDotplotWidth(properties);
-  
-  const int totalHeight = getDotplotHeight(properties);
+  const int totalWidth = getDotplotWidth(dotplot, properties);
+  const int totalHeight = getDotplotHeight(dotplot, properties);
   
   if (dotplot)
     {
-      gtk_layout_set_size(GTK_LAYOUT(dotplot), totalWidth, totalHeight);
       gtk_widget_set_size_request(dotplot, totalWidth, totalHeight);
 
       widgetClearCachedDrawable(dotplot, NULL);
@@ -2121,11 +2167,19 @@ static void drawGridline(GdkDrawable *drawable, DotplotProperties *properties, c
 
 
 /* Utility used by drawScaleMarkers to draw labels on tick marks */
-static void drawTickmarkLabel(GtkWidget *dotplot, DotterContext *dc, GdkDrawable *drawable, GdkGC *gc, const int coordIn, int x, int y, const gboolean horizontal)
+static void drawTickmarkLabel(GtkWidget *dotplot, 
+                              DotterContext *dc, 
+                              GdkDrawable *drawable, 
+                              GdkGC *gc, 
+                              const int coordIn,
+                              const int xIn,
+                              const int yIn,
+                              const GdkRectangle const *rect,
+                              const gboolean horizontal)
 {
   int coord = getDisplayCoord(coordIn, dc, horizontal);
   char *displayText = convertIntToString(coord);
-  PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, displayText);
+  PangoLayout *layout = createTextLayout(dotplot, displayText, TRUE);
   g_free(displayText);
   
   /* We'll centre the text at half the text width for the horizontal axis, or half the 
@@ -2133,8 +2187,8 @@ static void drawTickmarkLabel(GtkWidget *dotplot, DotterContext *dc, GdkDrawable
   int width = UNSET_INT, height = UNSET_INT;
   pango_layout_get_pixel_size(layout, &width, &height);
   
-  x -= horizontal ? width / 2 : width;
-  y -= horizontal ? height : height / 2;;
+  const int x = xIn - (horizontal ? width / 2 : width);
+  const int y = yIn - (horizontal ? height : height / 2);
   
   gdk_draw_layout(drawable, gc, x, y, layout);
   g_object_unref(layout);  
@@ -2215,51 +2269,59 @@ static void drawScaleMarkers(GtkWidget *dotplot,
       /* Draw a lable on major tick marks */
       if (isMajorTick)
         {
-	  drawTickmarkLabel(dotplot, dc, drawable, gc, coord, x1, y1, horizontal);
+	  drawTickmarkLabel(dotplot, dc, drawable, gc, coord, x1, y1, &properties->plotRect, horizontal);
         }
     }
 }
+
+
+static PangoLayout *createTextLayout(GtkWidget *dotplot, 
+                                     const char *text,
+                                     const gboolean horizontal)
+{
+  PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, text);
+
+  PangoContext *pangoCtx = pango_layout_get_context(layout);
+  PangoGravity gravity = (horizontal ? PANGO_GRAVITY_SOUTH : PANGO_GRAVITY_EAST);
+  pango_context_set_base_gravity(pangoCtx, gravity);
+
+  /* If it's the vertical label, rotate the text 90 degrees */
+  PangoMatrix pangoMtx = PANGO_MATRIX_INIT;
+
+  if (!horizontal)
+    pango_matrix_rotate(&pangoMtx, 90.0);
+
+  pango_context_set_matrix(pangoCtx, &pangoMtx);
+  
+  return layout;
+}
+
 
 static void drawLabel(GtkWidget *dotplot, GdkDrawable *drawable, GdkGC *gc)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+  int textWidth = UNSET_INT;
+  int textHeight = UNSET_INT;
 
-  PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, dc->refSeqName);
-
-  int textWidth = UNSET_INT, textHeight = UNSET_INT;
+  PangoLayout *layout = createTextLayout(dotplot, dc->refSeqName, TRUE);
   pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
 
   int x = properties->plotRect.x + (properties->plotRect.width / 2) - (textWidth / 2);
   int y = properties->plotRect.y - (dc->scaleHeight + dc->charHeight);
 
   gdk_draw_layout(drawable, gc, x, y, layout);
-
   g_object_unref(layout);
 
   /* Vertical label */
-  layout = gtk_widget_create_pango_layout(dotplot, dc->matchSeqName);
-
-  PangoMatrix pangoMtx = PANGO_MATRIX_INIT;
-  pango_matrix_rotate(&pangoMtx, 90.0);
-
-  PangoContext *pangoCtx = pango_layout_get_context(layout);
-  pango_context_set_base_gravity(pangoCtx, PANGO_GRAVITY_EAST);
-  pango_context_set_matrix(pangoCtx, &pangoMtx);
-  
+  layout = createTextLayout(dotplot, dc->matchSeqName, FALSE);
   pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
   
   x = properties->plotRect.x - (dc->scaleWidth + dc->charHeight);
   y = properties->plotRect.y + (properties->plotRect.height / 2) - (textHeight / 2);
   
   gdk_draw_layout(drawable, gc, x, y, layout);
-  
   g_object_unref(layout);
-
-  /* revert context */
-  pango_context_set_base_gravity(pangoCtx, PANGO_GRAVITY_SOUTH);
-  PangoMatrix pangoMtxOrig = PANGO_MATRIX_INIT;
-  pango_context_set_matrix(pangoCtx, &pangoMtxOrig);
 }
 
 
@@ -2313,7 +2375,7 @@ static void drawBreakline(const MSP const *msp, GtkWidget *dotplot, DotplotPrope
       /* Draw a label at the bottom (if labels enabled) */
       if (properties->hozLabelsOn && msp->desc)
 	{
-	  PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, msp->desc);
+	  PangoLayout *layout = createTextLayout(dotplot, msp->desc, TRUE);
 	  gdk_draw_layout(drawable, gc, ex, ey, layout);
 	  g_object_unref(layout);
 	}
@@ -2339,7 +2401,7 @@ static void drawBreakline(const MSP const *msp, GtkWidget *dotplot, DotplotPrope
       /* Draw a label at the RHS (if labels enabled) */
       if (properties->vertLabelsOn && msp->desc)
 	{
-	  PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, msp->desc);
+	  PangoLayout *layout = createTextLayout(dotplot, msp->desc, TRUE);
 	  gdk_draw_layout(drawable, gc, ex, ey, layout);
 	  g_object_unref(layout);
 	}
@@ -2418,7 +2480,7 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
           
           if (displayText && strlen(displayText) > 0)
             {
-              PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, displayText);
+              PangoLayout *layout = createTextLayout(dotplot, displayText, TRUE);
               
               int textWidth = UNSET_INT, textHeight = UNSET_INT;
               pango_layout_get_pixel_size(layout, &textWidth, &textHeight);

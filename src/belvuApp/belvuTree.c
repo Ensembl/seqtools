@@ -2076,12 +2076,6 @@ static gboolean onExposeBelvuTree(GtkWidget *widget, GdkEventExpose *event, gpoi
  *                       Mouse events                      *
  ***********************************************************/
 
-static gboolean pointInRect(const int x, const int y, GdkRectangle *rect)
-{
-  return (x >= rect->x && x <= rect->x + rect->width && y >= rect->y && y <= rect->y + rect->height);
-}
-
-
 /* Called when the tree has been left-clicked */
 static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
 {

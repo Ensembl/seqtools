@@ -316,8 +316,8 @@ GtkWidget*	    createDotplot(DotterWindowContext *dwc,
 
 void                dotplotPrepareForPrinting(GtkWidget *dotplot);
 int		    convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frame, int *baseNum);
-int                 getDotplotWidth(DotplotProperties *properties);
-int                 getDotplotHeight(DotplotProperties *properties);
+int                 getDotplotWidth(GtkWidget *dotplot, DotplotProperties *properties);
+int                 getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties);
 DotplotProperties*  dotplotGetProperties(GtkWidget *widget);
 void                dotplotToggleBumpExons(GtkWidget *dotplot);
 

@@ -3507,8 +3507,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   
   const int exonViewHeight = 2 * (DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
   DotplotProperties *dotplotProperties = dotplotGetProperties(dotplot);
-  int width = getDotplotWidth(dotplotProperties) + exonViewHeight + 100;
-  int height = getDotplotHeight(dotplotProperties) + exonViewHeight + 100;
+  int width = getDotplotWidth(dotplot, dotplotProperties) + exonViewHeight + 100;
+  int height = getDotplotHeight(dotplot, dotplotProperties) + exonViewHeight + 100;
   
   width = min(width, maxWidth);
   height = min(height, maxHeight);

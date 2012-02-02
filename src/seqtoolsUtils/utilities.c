@@ -430,6 +430,18 @@ void boundsLimitRange(IntRange *range, const IntRange const *limit, const gboole
 }
 
 
+/* Return true if the given point is inside the given rect */
+gboolean pointInRect(const int x, const int y, const GdkRectangle const *rect)
+{
+  gboolean result = FALSE;
+  
+  if (x >= rect->x && x <= rect->x + rect->width && y >= rect->y && y <= rect->y + rect->height)
+    {
+      result = TRUE;
+    }
+  
+  return result;
+}
 /* Utility to calculate how many digits are in an integer (including the '-'
  * sign if the integer is negative) */
 int numDigitsInInt(int val)
