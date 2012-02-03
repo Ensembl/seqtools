@@ -244,7 +244,6 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
     }
   
   properties->image = NULL;
-  properties->lineLen = UNSET_INT;
 
   properties->pixelmap = NULL;
   properties->hspPixmap = NULL;
@@ -709,13 +708,6 @@ static int getImageDimension(DotplotProperties *properties, const gboolean horiz
   
   int imageLen = (int)ceil((double)seqLen / getScaleFactor(properties, horizontal));
   DEBUG_OUT("Image length = %d\n", imageLen);
-  
-  if (imageLen % 4)
-    {
-      imageLen += 4 - (imageLen % 4);
-    }
-
-  DEBUG_OUT("Image length mod4 = %d\n", imageLen);
 
   if (seqLen / dc->numFrames > imageLen * dwc->zoomFactor)
     {
@@ -834,9 +826,7 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
       if (showPlot)
         properties->image = createImage(properties);
 
-      properties->lineLen = properties->imageWidth;
-      
-      DEBUG_OUT("Set image w=%d, h=%d, line len=%d\n", properties->imageWidth, properties->imageHeight, properties->lineLen);
+      DEBUG_OUT("Set image w=%d, h=%d\n", properties->imageWidth, properties->imageHeight);
       
       unsigned char **pixmap = NULL; /* which pixelmap we're displaying at the start */
       
@@ -1632,8 +1622,6 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
   reversebytes(&properties->imageHeight, sizeof(gint32));
 #endif
   
-  properties->lineLen = properties->imageWidth;
-  
   if (format == 1) 
     {
       /* Don't actually know these variables for sure - guess the most common */
@@ -1930,9 +1918,8 @@ static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *pro
   /* Recalculate the image size */
   properties->imageWidth = getImageDimension(properties, TRUE);
   properties->imageHeight = getImageDimension(properties, FALSE);
-  properties->lineLen = properties->imageWidth;
   
-  DEBUG_OUT("Set image w=%d, h=%d, line len=%d\n", properties->imageWidth, properties->imageHeight, properties->lineLen);
+  DEBUG_OUT("Set image w=%d, h=%d\n", properties->imageWidth, properties->imageHeight);
 
   /* Create the image */
   if (properties->image)
@@ -2793,7 +2780,7 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
       for (row = 0; row < image->height; row++)
 	{ 
 	  guint8 *ptr = ((guint8 *)image->mem) + row * image->bpl;
-	  guint8 *sptr = ((guint8 *)pixmap) + row * properties->lineLen; 
+	  guint8 *sptr = ((guint8 *)pixmap) + row * image->width; 
 	  for (col = 0 ; col < image->width; col++)
 	    *ptr++ = (guint8) properties->greyMap[*sptr++];
 	}
@@ -2802,7 +2789,7 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
       for (row = 0; row < image->height; row++)
 	{ 
 	  guint16 *ptr = (guint16 *)(((guint8 *)(image->mem))+row*image->bpl);
-	  guint8 *sptr = ((guint8 *)pixmap) +row*properties->lineLen;
+	  guint8 *sptr = ((guint8 *)pixmap) +row * image->width;
 	  if (byterev)
 	    for (col = 0 ; col < image->width; col++)
 	      { 
@@ -2818,7 +2805,7 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
       for (row = 0; row < image->height; row++)
 	{ 
 	  guint8 *ptr = ((guint8 *)image->mem) + row*image->bpl;
-	  guint8 *sptr = ((guint8 *)pixmap) +row*properties->lineLen;
+	  guint8 *sptr = ((guint8 *)pixmap) +row * image->width;
 	  for (col = 0 ; col < image->width; col++)
 	    {
 	      register guint32 pixel = properties->greyMap[*sptr++]; 
@@ -2832,7 +2819,7 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
       for (row = 0; row < image->height; row++)
 	{ 
 	  guint32 *ptr = (guint32 *)(((guint8 *)image->mem) + row*image->bpl);
-	  guint8 *sptr = ((guint8 *)pixmap) +row*properties->lineLen;
+	  guint8 *sptr = ((guint8 *)pixmap) +row * image->width;
 	  if (byterev)
 	    for (col = 0 ; col < image->width; col++)
 	      { 

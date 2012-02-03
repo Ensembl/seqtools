@@ -239,8 +239,6 @@ typedef struct _DotplotProperties
     int imageWidth;
     int imageHeight;
     GdkImage *image;                    /* the greyramp image */
-    int lineLen;                        /* line length of the image */
-    
     
     double expResScore;
     int pixelFac;
