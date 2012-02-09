@@ -1233,6 +1233,9 @@ static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
  * change that affects the length of the text displayed in the columns area. */
 void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
 {
+  if (!belvuAlignment)
+    return;
+  
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
   
   if (properties->columnsArea)
@@ -1267,6 +1270,9 @@ void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
  * the same height as the sequence area. */
 void calculateDrawingSizes(GtkWidget *belvuAlignment)
 {
+  if (!belvuAlignment)
+    return;
+  
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
 
   /* Recalculate the size of the drawing area for the sequences (both height
