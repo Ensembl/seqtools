@@ -12,77 +12,23 @@ Author:   Gemma Barson <gemma.barson@sanger.ac.uk>
 
 THE TOOLS
 ---------
-
 blixem - an interactive browser of pairwise alignments that have been stacked up in a "master-slave" multiple alignment; it is not a 'true' multiple alignment but a 'one-to-many' alignment. It displays an overview section showing the positions of genes and alignments around the alignment window, and a detail section showing the actual alignment of protein or nucleotide sequences to the genomic DNA sequence.
 
-blixemh - the same as blixem but with additional functionality for fetching sequences via HTTP.
+blixemh - the same as blixem but with additional functionality for fetching sequences via HTTP (currently only supported for authorised users).
 
 dotter - a graphical dot-matrix program for detailed comparison of two sequences. Every residue in one sequence is compared to every residue in the other, with one sequence plotted on the x-axis and the other on the y-axis. Noise is filtered out so that alignments appear as diagonal lines.
 
 belvu - a multiple sequence alignment viewer and phylogenetic tool. It has an extensive set of user-configurable modes to color residues by conservation or by residue type, and some basic alignment editing capabilities. It can generate distance matrices between sequences and construct distance-based trees, either graphically or as part of a phylogenetic software pipeline. 
 
 
-
 INSTALLATION
 ------------
-
-Supported platforms are Linux and Mac OS X.  The installation procedure for both is as follows.
-
-To install package in the default location (usually /usr/bin), type the following commands on a command line:
-
-> ./configure
-> make
-> make install
-
-You may need to run 'make install' using sudo if you do not have root privileges:
-
-> sudo make install
-
-Alternatively, to install in a different location (e.g. one that does not require root privileges), use the --prefix argument with ./configure.  For example, the following would tell 'make' to install the programs in the directory foo/bar in your home directory:
-
-> ./configure --prefix=~/foo/bar
-
+See the INSTALL file.
 
 
 USAGE
 -----
-
-Run the individual programs without arguments to see their usage information, or view the documentation here: doc/User_doc/index.html
+Run the individual programs without arguments to see their usage information, or view the documentation from this folder: doc/User_doc/index.html
 
 Help pages can also be accessed from within the programs using the 'Help' menu, the lifebuoy icon on the toolbar or the Ctrl-H shortcut key.
 
-
-
-DEPENDENCIES
-------------
-
-This section describes what to do if the installation fails due to missing dependencies.
-
-
-Compiler
---------
-The ./configure script will fail if you do not have a compiler installed. You can install a compiler on Debian-like systems as follows:
-> sudo apt-get install build-essential
-
-
-GTK and GLib
-------------
-The SeqTools programs require the GTK and GLib libraries to be installed on your system.  The configure script will give an error if these libraries are not found.
-
-If you do not have GTK and GLib installed, you can install them on Debian-like systems as follows:
-> sudo apt-get install libgtk2.0-dev
-
-If they are installed but are in a different location to the default pkg-config directory, then you may need to set the PKG_CONFIG_PATH environment variable to tell pkg-config to look in that path.  Common locations where GTK might be installed are: /usr/lib, /usr/local/lib, /opt/lib, /opt/local/lib.  It is a good idea to also use the -rpath linker option when you do this, to make sure the programs always link to the correct version.  If your program links to an incorrect version of one of these libraries, you will probably see errors about missing GTK or GLib functions when you try to run the program.
-
-You can specify the pkg-config path and the -rpath option when you run configure, e.g.
-> ./configure PKG_CONFIG_PATH=/opt/local/lib/pkgconfig LDFLAGS="-Xlinker -rpath -Xlinker /opt/local/lib"
-
-
-libcurl
--------
-blixemh also requires the libcurl library to be installed on your system - "./configure" will give a warning if libcurl is not found, and will exclude blixemh from the installation process. 
-
-Firstly, if you do not require the facility to fetch sequences using HTTP, then you can use blixem instead of blixemh, and you do not need to worry about this.
-
-If you DO require the HTTP functionality, you need to install the development version of the libcurl library.  On Debian-like systems this can be installed as follows:
-> sudo apt-get install libcurl4-gnutls-dev
