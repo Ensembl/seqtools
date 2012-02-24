@@ -238,7 +238,7 @@ void                    detailViewUpdateMspLengths(GtkWidget *detailView, const 
 void                    detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases);
 void			detailViewToggleSnpTrack(GtkWidget *detailView);
 
-GtkWidget*		createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const int strand);
+GtkWidget*		createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const BlxStrand strand);
 void			refreshTextHeader(GtkWidget *widget, gpointer data);
 gboolean		onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 
@@ -271,7 +271,8 @@ gboolean                coordAffectedByVariation(const int dnaIdx,
                                                  gboolean *drawStartBoundary, 
                                                  gboolean *drawEndBoundary, 
                                                  gboolean *drawJoiningLines, 
-                                                 gboolean *drawBackground);
+                                                 gboolean *drawBackground,
+                                                 gboolean *multipleVariations);
 
 void			drawHeaderChar(BlxViewContext *bc,
 				       DetailViewProperties *properties,
