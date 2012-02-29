@@ -331,11 +331,11 @@ static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
     {
       result = msp1->qRange.min - msp2->qRange.min;
 
-      if (result == 0) result = msp1->sRange.min - msp2->sRange.min;
+      if (result == 0) result = getRangeLength(&msp1->sRange) - getRangeLength(&msp2->sRange);
       if (result == 0) result = msp1->score - msp2->score;
       if (result == 0) result = msp1->id - msp2->id;
       if (result == 0) result = strcmp(msp1->sSequence->source, msp2->sSequence->source);
-      if (result == 0) result = strcmp(msp1->sSequence->sequence->str, msp2->sSequence->sequence->str);
+      if (result == 0) result = strncmp(msp1->sSequence->sequence->str + msp1->sRange.min - 1, msp2->sSequence->sequence->str + msp2->sRange.min - 1, getRangeLength(&msp1->sRange));
     }
   else if (!msp1HasSeq && !msp2HasSeq)
     {
@@ -1405,7 +1405,7 @@ static gboolean treePfetchRow(GtkWidget *tree)
   if (selectedSeqs)
     {
       const BlxSequence *clickedSeq = (const BlxSequence*)selectedSeqs->data;
-      char *seqName = clickedSeq->fullName;
+      const char *seqName = blxSequenceGetFullName(clickedSeq);
       fetchAndDisplaySequence(seqName, blxWindow);
     }
 

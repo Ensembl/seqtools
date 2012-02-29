@@ -1735,7 +1735,7 @@ static const MSP* sequenceGetNextMsp(const MSP const *msp,
   
   if (!found && error)
     {
-      g_set_error(error, BLX_ERROR, 1, "The given MSP '%s' was not found in the given sequence '%s'.\n", mspGetSName(msp), blxSeq->fullName);
+      g_set_error(error, BLX_ERROR, 1, "The given MSP '%s' was not found in the given sequence '%s'.\n", mspGetSName(msp), blxSequenceGetFullName(blxSeq));
     }
   
   return result;

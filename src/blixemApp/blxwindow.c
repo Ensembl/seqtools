@@ -5687,8 +5687,23 @@ static void calcID(MSP *msp, BlxViewContext *bc)
             }
 	  else
 	    {
-	      /* If there's an error but the sequence was still returned it's a non-critical warning */
-	      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+	      /* If there's an error but the sequence was still returned it's 
+               * a non-critical warning. Only issue one warning because we can
+               * get many thousands and it can fill up the terminal if we output
+               * them all. */
+              if (error)
+                {
+                  static gboolean done = FALSE;
+                  
+                  if (!done)
+                    {
+                      g_warning("There were errors calculating the percent ID for some sequences because the match extends out of the reference sequence range; some IDs may be incorrect.\n");
+                      done = TRUE;
+                    }
+                  
+                  g_error_free(error);
+                  error = NULL;
+                }
 	    }
           
           /* We need to find the number of characters that match out of the total number */

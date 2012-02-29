@@ -94,11 +94,11 @@ static void           parseTagDataPair(char *text, const int lineNum, GList **se
 static void           parseNameTag(char *data, char **sName, const int lineNum, GError **error);
 static void           parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseSequenceTag(const char *text, const int lineNum, BlxGffData *gffData, GError **error);
-static void           parseGapString(char *text, MSP *msp, const int resFactor, GError **error);
+static void           parseGapString(char *text, MSP *msp, const int resFactor, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
 
 static BlxStrand      readStrand(char *token, GError **error);
 //static void           parseMspType(char *token, MSP *msp, GSList *supportedTypes, GError **error);
-static void           parseCigarStringSection(const char *text, MSP *msp, const int qDirection, const int sDirection, const int resFactor, int *q, int *s, GError **error);
+static void           parseCigarStringSection(const char *text, MSP **msp, const int qDirection, const int sDirection, const int resFactor, int *q, int *s, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
 static int            validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error);
 //static void           validateMsp(const MSP *msp, GError **error);
 static void           addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType);
@@ -430,7 +430,7 @@ static void createBlixemObject(BlxGffData *gffData,
 	    }
 
 	  /* populate the gaps array */
-	  parseGapString(gffData->gapString, msp, resFactor, &tmpError);
+	  parseGapString(gffData->gapString, msp, resFactor, featureLists, lastMsp, mspList, seqList, &tmpError);
 	}
     }
 
@@ -887,7 +887,14 @@ static void parseSequenceTag(const char *text, const int lineNum, BlxGffData *gf
 
 /* Parse the data from the "gaps" string, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
  * Populates the Gaps array in the given MSP.  */
-static void parseGapString(char *text, MSP *msp, const int resFactor, GError **error)
+static void parseGapString(char *text,
+                           MSP *msp,
+                           const int resFactor,
+                           GArray* featureLists[],
+                           MSP **lastMsp, 
+                           MSP **mspList, 
+                           GList **seqList, 
+                           GError **error)
 {
   if (!text)
     {
@@ -915,7 +922,8 @@ static void parseGapString(char *text, MSP *msp, const int resFactor, GError **e
 
   while (token && *token && **token && !tmpError)
     {
-      parseCigarStringSection(*token, msp, qDirection, sDirection, resFactor, &q, &s, &tmpError);
+      parseCigarStringSection(*token, &msp, qDirection, sDirection, resFactor, &q, &s,
+                              featureLists, lastMsp, mspList, seqList, &tmpError);
       
       if (tmpError)
         {
@@ -954,14 +962,20 @@ static void parseGapString(char *text, MSP *msp, const int resFactor, GError **e
  *  qDirection and sDirection are 1 if coords are in an increasing direction or -1 if decreasing.
  */
 static void parseCigarStringSection(const char *text, 
-                                    MSP *msp, 
+                                    MSP **mspPtr, 
                                     const int qDirection, 
                                     const int sDirection, 
                                     const int resFactor,
                                     int *q, 
                                     int *s,
+                                    GArray* featureLists[],
+                                    MSP **lastMsp, 
+                                    MSP **mspList, 
+                                    GList **seqList, 
                                     GError **error)
 {
+  MSP *msp = *mspPtr;
+  
   /* Get the digit part of the string, which indicates the number of display coords (peptides in peptide matches,
    * nucleotides in nucelotide matches). */
   const int numPeptides = convertStringToInt(text+1);
@@ -987,6 +1001,37 @@ static void parseCigarStringSection(const char *text,
       
       *q = newQ;
       *s = newS;
+    }
+  else if (text[0] == 'N' || text[0] == 'n')
+    {
+      /* Intron. Create a separate msp under the same sequence. */
+      MSP *newMsp = copyMsp(msp, featureLists, lastMsp, mspList, seqList, error);
+
+      /* end current msp at the current coords */
+      if (qDirection > 0)
+        msp->qRange.max = *q;
+      else
+        msp->qRange.min = *q;
+      
+      if (sDirection > 0)
+        msp->sRange.max = *s;
+      else
+        msp->sRange.min = *s;
+      
+      /* start new msp at new coords */
+      *q += qDirection * numNucleotides;
+      
+      if (qDirection > 0)
+        newMsp->qRange.min = *q;
+      else
+        newMsp->qRange.max = *q;
+
+      if (sDirection > 0)
+        newMsp->sRange.min = *s;
+      else
+        newMsp->sRange.max = *s;
+
+      *mspPtr = newMsp;
     }
   else if (text[0] == 'D' || text[0] == 'd')
     {
