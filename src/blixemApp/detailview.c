@@ -1226,7 +1226,7 @@ static GtkSortType getColumnSortOrder(BlxViewContext *bc, const BlxColumnId colu
   /* We're only interested in sorting exons and matches */
 static gboolean mspIsSortable(const MSP const *msp)
 {
-  return (typeIsMatch(msp->type) || mspIsExon(msp));
+  return (msp && (typeIsMatch(msp->type) || mspIsExon(msp)));
 }
 
 
@@ -1239,8 +1239,8 @@ gint sortByColumnCompareFunc(GList *mspGList1,
   gint result = 0;
   
   /* Get the first MSP in each list. */
-  MSP *msp1 = (MSP*)(mspGList1->data);
-  MSP *msp2 = (MSP*)(mspGList2->data);
+  MSP *msp1 = mspGList1 ? (MSP*)(mspGList1->data) : NULL;
+  MSP *msp2 = mspGList2 ? (MSP*)(mspGList2->data) : NULL;
 
   /* If an msp is of a type that we don't bother sorting, place it before any that we do sort */
   if (!mspIsSortable(msp1) && !mspIsSortable(msp2))
