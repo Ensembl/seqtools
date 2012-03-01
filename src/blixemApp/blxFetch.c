@@ -622,7 +622,7 @@ static void pfetchHttpEntry(const char *sequence_name,
       
       g_signal_connect(G_OBJECT(pfetch), "closed", G_CALLBACK(pfetch_closed_func), pfetch_data);
       
-      PFetchHandleFetch(pfetch, sequence_name) ;
+      PFetchHandleFetch(pfetch, (char*)sequence_name) ;
     }
   else
     {

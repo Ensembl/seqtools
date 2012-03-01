@@ -360,7 +360,9 @@ static void createBlixemObject(BlxGffData *gffData,
       if (gffData->mspType == BLXMSP_TRANSCRIPT)
         {
           /* For transcripts, although we don't create an MSP we do create a sequence */
-          addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand, dataType, gffData->source, seqList, gffData->sequence, NULL, &tmpError);
+          addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand,
+                         dataType, gffData->source, seqList, gffData->sequence, NULL, 
+                         &tmpError);
         }
     }
   else
@@ -1022,14 +1024,14 @@ static void parseCigarStringSection(const char *text,
       *q += qDirection * numNucleotides;
       
       if (qDirection > 0)
-        newMsp->qRange.min = *q;
+        newMsp->qRange.min = *q + 1;
       else
-        newMsp->qRange.max = *q;
+        newMsp->qRange.max = *q - 1;
 
       if (sDirection > 0)
-        newMsp->sRange.min = *s;
+        newMsp->sRange.min = *s + 1;
       else
-        newMsp->sRange.max = *s;
+        newMsp->sRange.max = *s - 1;
 
       *mspPtr = newMsp;
     }

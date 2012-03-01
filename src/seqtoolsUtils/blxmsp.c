@@ -1258,8 +1258,11 @@ BlxSequence* addBlxSequence(const char *name,
           strand = msp->qStrand;
         }
     
-      /* See if this strand for this sequence already exists. */
-      blxSeq = findBlxSequence(lookupTable, name, idTag, strand);
+      /* See if this sequence already exists.  This matches on name or tag and strand.
+       * Don't do this for short reads because they can have the same name as a different
+       * read (with different sequence data). */
+      if (!msp || msp->type != BLXMSP_SHORT_READ)
+        blxSeq = findBlxSequence(lookupTable, name, idTag, strand);
       
       if (!blxSeq)
         {
