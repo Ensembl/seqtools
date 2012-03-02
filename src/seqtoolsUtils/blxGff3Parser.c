@@ -909,8 +909,8 @@ static void parseGapString(char *text,
   /* Start at the MSP's min coord and increase values as we progress through
    * the cigar string IF the strand is forward. If it is the reverse strand, 
    * start at the max coord and decrease values. */
-  const gboolean qForward = (mspGetRefStrand(msp) != BLXSTRAND_REVERSE);
-  const gboolean sForward = (mspGetMatchStrand(msp) != BLXSTRAND_REVERSE);
+  const gboolean qForward = TRUE;//(mspGetRefStrand(msp) != BLXSTRAND_REVERSE);
+  const gboolean sForward = TRUE;//(mspGetMatchStrand(msp) != BLXSTRAND_REVERSE);
   const int qDirection = qForward ? 1 : -1;
   const int sDirection = sForward ? 1 : -1;
 

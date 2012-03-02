@@ -1786,8 +1786,8 @@ MSP* copyMsp(const MSP const *src,
   MSP *msp = createEmptyMsp(lastMsp, mspList);
   
   msp->type = src->type;
-  msp->score = src->score; 
-  msp->id = src->id; 
+  msp->score = UNSET_INT; 
+  msp->id = UNSET_INT; 
   msp->phase = src->phase;
   msp->url = g_strdup(src->url);
   
