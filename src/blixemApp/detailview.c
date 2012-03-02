@@ -4523,6 +4523,7 @@ static MSP* goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
       /* Offset the start coord by the found amount. */
       int newDnaIdx = searchData.startDnaIdx + (searchData.offset * searchDirection);
       detailViewSetSelectedDnaBaseIdx(detailView, newDnaIdx, searchData.foundFrame, TRUE, FALSE);
+      callFuncOnAllDetailViewTrees(detailView, treeScrollSelectionIntoView, NULL);
       detailViewRedrawAll(detailView);
     }
   
