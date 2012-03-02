@@ -1554,15 +1554,23 @@ static GList *treeGetSequenceRows(GtkWidget *tree, const BlxSequence *clickedSeq
   
   while (validIter)
     {
-      GList *mspGList = treeGetMsps(model, &iter);
+      /* Loop through all msps in this row and see if any belong
+       * to the clicked sequence. (For normal matches we could just
+       * check one msp because they should all belong to the same
+       * BlxSequence, but for short reads we squash matches from 
+       * different sequences onto the same row, so we can't assume
+       * this) */
+      GList *mspItem = treeGetMsps(model, &iter);
       
-      if (g_list_length(mspGList) > 0)
+      for ( ; mspItem; mspItem = mspItem->next)
 	{
-	  const MSP *firstMsp = (const MSP*)(mspGList->data);
+	  const MSP *firstMsp = (const MSP*)(mspItem->data);
+          
 	  if (firstMsp->sSequence == clickedSeq)
 	    {
 	      GtkTreePath *path = gtk_tree_model_get_path(model, &iter);
 	      resultList = g_list_append(resultList, path);
+              break;
 	    }
 	}
       
