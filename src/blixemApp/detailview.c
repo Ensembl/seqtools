@@ -1226,7 +1226,7 @@ static GtkSortType getColumnSortOrder(BlxViewContext *bc, const BlxColumnId colu
   /* We're only interested in sorting exons and matches */
 static gboolean mspIsSortable(const MSP const *msp)
 {
-  return (msp && (typeIsMatch(msp->type) || mspIsExon(msp)));
+  return (msp && (typeIsMatch(msp->type) || typeIsShortRead(msp->type) || mspIsExon(msp)));
 }
 
 
