@@ -334,7 +334,6 @@ static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
       if (result == 0) result = getRangeLength(&msp1->sRange) - getRangeLength(&msp2->sRange);
       if (result == 0) result = msp1->score - msp2->score;
       if (result == 0) result = msp1->id - msp2->id;
-      if (result == 0) result = strcmp(msp1->sSequence->source, msp2->sSequence->source);
       if (result == 0) result = strncmp(msp1->sSequence->sequence->str + msp1->sRange.min - 1, msp2->sSequence->sequence->str + msp2->sRange.min - 1, getRangeLength(&msp1->sRange));
     }
   else if (!msp1HasSeq && !msp2HasSeq)
@@ -2254,13 +2253,17 @@ static void cellDataFunctionStrainCol(GtkTreeViewColumn *column, GtkCellRenderer
 static void cellDataFunctionSourceCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
   GList	*mspGList = treeGetMsps(model, iter);
-  if (g_list_length(mspGList) > 0)
+  if (g_list_length(mspGList) == 1)
     {
       const MSP const *msp = (const MSP const*)(mspGList->data);
       if (mspGetSource(msp))
 	{
 	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, mspGetSource(msp), NULL);
 	}
+    }
+  else
+    {
+      g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
     }
 }
 
