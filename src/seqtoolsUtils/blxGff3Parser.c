@@ -908,12 +908,12 @@ static void parseGapString(char *text,
 
   /* Start at the MSP's min coord and increase values as we progress through
    * the cigar string.
-   * to do: used to start at the max coord and decrease values for the reverse
-   * strand but this seems incorrect; need more example data to verify. */
-  const gboolean qForward = TRUE;//(mspGetRefStrand(msp) != BLXSTRAND_REVERSE);
-  const gboolean sForward = TRUE;//(mspGetMatchStrand(msp) != BLXSTRAND_REVERSE);
-  const int qDirection = qForward ? 1 : -1;
-  const int sDirection = sForward ? 1 : -1;
+   * Start at the max ref seq coord and work backwards if the match strand is 
+   * opposite to the ref strand. to do: is this correct?? */
+  const gboolean qForward = (mspGetRefStrand(msp) ==  mspGetMatchStrand(msp));
+  const gboolean sForward = TRUE;
+  const int qDirection = (qForward ? 1 : -1);
+  const int sDirection = (sForward ? 1 : -1);;
 
   /* Start at one beyond the edge of the range, because it will be incremented (or decremented if
    * direction is reverse) when we construct the first range. */
