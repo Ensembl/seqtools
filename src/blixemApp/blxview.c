@@ -1548,10 +1548,7 @@ static GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData
  * Returns lists of all the sequences that require the requested data, categorised by the fetch 
  * mode that should be used to fetch them. The return value is a map of a GQuark (representing the
  * fetch-mode string) to the GList of sequences. */
-static GHashTable* getSeqsToPopulateByMode(GList *inputList, 
-                                           const gboolean getSequenceData, 
-                                           const gboolean getOptionalData, 
-                                           const char *defaultFetchMode)
+static GHashTable* getSeqsToPopulateByMode(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData, const char *defaultFetchMode)
 {
   GHashTable *resultTable = g_hash_table_new(g_direct_hash, g_direct_equal);
   
