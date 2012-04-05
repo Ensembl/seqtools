@@ -227,8 +227,8 @@ void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
 void			updateDetailViewFontDesc(GtkWidget *detailView);
 void			updateDetailViewRange(GtkWidget *detailView);
 void			resizeDetailViewHeaders(GtkWidget *detailView);
-void			refreshDetailViewHeaders(GtkWidget *detailView);
 void			detailViewRedrawAll(GtkWidget *detailView);
+void                    detailViewRefreshAllHeaders(GtkWidget *detailView);
 
 void			detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash);
 void			detailViewUpdateSortInverted(GtkWidget *detailView, const gboolean invert);

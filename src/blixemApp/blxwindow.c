@@ -452,10 +452,9 @@ void blxWindowRedrawAll(GtkWidget *blxWindow)
   bigPictureRedrawAll(bigPicture);
 
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  refreshDetailViewHeaders(detailView);
+  detailViewRefreshAllHeaders(detailView);
   
   callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable, NULL);
-  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   
   gtk_widget_queue_draw(blxWindow);
 }

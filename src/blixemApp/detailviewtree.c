@@ -1473,8 +1473,7 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 
                 selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
 	    
-                refreshDetailViewHeaders(detailView);
-                callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
+                detailViewRefreshAllHeaders(detailView);
               }
 	  }
 	else if (event->type == GDK_2BUTTON_PRESS)
