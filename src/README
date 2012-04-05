@@ -28,7 +28,9 @@ See the INSTALL file.
 
 USAGE
 -----
-Run the individual programs without arguments to see their usage information, or view the documentation from this folder: doc/User_doc/index.html
+Run the individual programs without arguments to see their usage information, or view the documentation from this folder: doc/User_doc/index.html.
 
 Help pages can also be accessed from within the programs using the 'Help' menu, the lifebuoy icon on the toolbar or the Ctrl-H shortcut key.
+
+Sample data and examples can be found in the 'examples' directory.
 

@@ -896,8 +896,7 @@ int main(int argc, char **argv)
   g_free(config_file);
   
    
-  /* We should not get here.... */
-  return (EXIT_FAILURE) ;
+  return (EXIT_SUCCESS) ;
 }
 
 
