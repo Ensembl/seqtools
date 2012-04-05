@@ -9,6 +9,7 @@ The directory contents are:
 - scripts/manual: contains tests that must be run manually, e.g. graphical tests for checking that colors are displayed correctly etc. Tests are organised into subdirectories by program. These tests start up the graphical user interface and require user interaction/verification.  See the description inside the individual test scripts for details of what the script is testing and the expected results.
 - test_plan.ods: an Open Office spreadsheet detailing the manual tests.
 
+Note that the blixem/dotter/belvu executables must be in your path for the test scripts to work.
 
 ISSUES
 The test scripts are a work in progress and there are the following outstanding issues:
