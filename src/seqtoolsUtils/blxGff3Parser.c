@@ -906,13 +906,14 @@ static void parseGapString(char *text,
   /* Split on spaces */
   char **tokens = g_strsplit_set(text, " ", -1); /* -1 means do all tokens */
 
-  /* If we have the forward strand of either sequence, start at the min coord
-   * and increase values as we progress through the cigar string; if we have the
-   * reverse strand, start at the max coord and decrease. */
-  const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
-  const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
+  /* Start at the MSP's min coord and increase values as we progress through
+   * the cigar string.
+   * Start at the max ref seq coord and work backwards if the match strand is 
+   * opposite to the ref strand. to do: is this correct?? */
+  const gboolean qForward = (mspGetRefStrand(msp) ==  mspGetMatchStrand(msp));
+  const gboolean sForward = TRUE;
   const int qDirection = (qForward ? 1 : -1);
-  const int sDirection = (sForward ? 1 : -1);
+  const int sDirection = (sForward ? 1 : -1);;
 
   /* Start at one beyond the edge of the range, because it will be incremented (or decremented if
    * direction is reverse) when we construct the first range. */
