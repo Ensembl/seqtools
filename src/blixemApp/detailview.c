@@ -113,7 +113,6 @@ static GtkWidget*             detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*             detailViewGetFeedbackBox(GtkWidget *detailView);
 static int                    detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
 static int                    detailViewGetSnpConnectorHeight(GtkWidget *detailView);
-static void                   refreshDetailViewHeaders(GtkWidget *detailView);
 
 static void                   snpTrackSetStrand(GtkWidget *snpTrack, const BlxStrand strand);
 static BlxStrand              snpTrackGetStrand(GtkWidget *snpTrack, GtkWidget *detailView);
@@ -153,8 +152,7 @@ void callFuncOnChildren(GtkWidget *widget, gpointer data)
 }
 
 
-/* Refresh headers for the detail view and its children */
-void detailViewRefreshAllHeaders(GtkWidget *detailView)
+static void detailViewRefreshHeaders(GtkWidget *detailView)
 {
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
@@ -719,9 +717,8 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
 }
 
 
-/* Refresh the headers for the detail view. NOte: does not refresh tree view
- * headers; use detailViewRefreshAllHeaders if you want to do that */
-static void refreshDetailViewHeaders(GtkWidget *detailView)
+/* Refresh the headers for the detail view. */
+void refreshDetailViewHeaders(GtkWidget *detailView)
 {
   /* Loop through all widgets in the header and call refreshTextHeader. This
    * updates the font etc. if it is a type of widget that requires that. */
@@ -3470,7 +3467,7 @@ static void updateFollowingBaseSelection(GtkWidget *detailView,
   updateFeedbackBox(detailView);
   
   /* Update the headers so that the newly-selected index is highlighted */
-  detailViewRefreshAllHeaders(detailView);
+  detailViewRefreshHeaders(detailView);
 }
 
 
@@ -3905,7 +3902,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
 
             selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
             
-            detailViewRefreshAllHeaders(detailView);
+            detailViewRefreshHeaders(detailView);
           }      
         else if (event->type == GDK_2BUTTON_PRESS) /* double-click */
           {
@@ -4085,7 +4082,7 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 
             selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
             
-            detailViewRefreshAllHeaders(detailView);
+            detailViewRefreshHeaders(detailView);
           }
         else if (event->type == GDK_2BUTTON_PRESS)
           {
