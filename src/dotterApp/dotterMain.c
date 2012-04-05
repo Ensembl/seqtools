@@ -857,5 +857,5 @@ int main(int argc, char **argv)
 
   freeOptions(&options);
   
-  return (0) ;
+  return (EXIT_SUCCESS) ;
 }
