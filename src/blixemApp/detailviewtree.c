@@ -331,11 +331,10 @@ static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
     {
       result = msp1->qRange.min - msp2->qRange.min;
 
-      if (result == 0) result = msp1->sRange.min - msp2->sRange.min;
+      if (result == 0) result = getRangeLength(&msp1->sRange) - getRangeLength(&msp2->sRange);
       if (result == 0) result = msp1->score - msp2->score;
       if (result == 0) result = msp1->id - msp2->id;
-      if (result == 0) result = strcmp(msp1->sSequence->source, msp2->sSequence->source);
-      if (result == 0) result = strcmp(msp1->sSequence->sequence->str, msp2->sSequence->sequence->str);
+      if (result == 0) result = strncmp(msp1->sSequence->sequence->str + msp1->sRange.min - 1, msp2->sSequence->sequence->str + msp2->sRange.min - 1, getRangeLength(&msp1->sRange));
     }
   else if (!msp1HasSeq && !msp2HasSeq)
     {
@@ -1405,7 +1404,7 @@ static gboolean treePfetchRow(GtkWidget *tree)
   if (selectedSeqs)
     {
       const BlxSequence *clickedSeq = (const BlxSequence*)selectedSeqs->data;
-      char *seqName = clickedSeq->fullName;
+      const char *seqName = blxSequenceGetFullName(clickedSeq);
       fetchAndDisplaySequence(seqName, blxWindow);
     }
 
@@ -1555,15 +1554,23 @@ static GList *treeGetSequenceRows(GtkWidget *tree, const BlxSequence *clickedSeq
   
   while (validIter)
     {
-      GList *mspGList = treeGetMsps(model, &iter);
+      /* Loop through all msps in this row and see if any belong
+       * to the clicked sequence. (For normal matches we could just
+       * check one msp because they should all belong to the same
+       * BlxSequence, but for short reads we squash matches from 
+       * different sequences onto the same row, so we can't assume
+       * this) */
+      GList *mspItem = treeGetMsps(model, &iter);
       
-      if (g_list_length(mspGList) > 0)
+      for ( ; mspItem; mspItem = mspItem->next)
 	{
-	  const MSP *firstMsp = (const MSP*)(mspGList->data);
+	  const MSP *firstMsp = (const MSP*)(mspItem->data);
+          
 	  if (firstMsp->sSequence == clickedSeq)
 	    {
 	      GtkTreePath *path = gtk_tree_model_get_path(model, &iter);
 	      resultList = g_list_append(resultList, path);
+              break;
 	    }
 	}
       
@@ -2254,13 +2261,17 @@ static void cellDataFunctionStrainCol(GtkTreeViewColumn *column, GtkCellRenderer
 static void cellDataFunctionSourceCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
   GList	*mspGList = treeGetMsps(model, iter);
-  if (g_list_length(mspGList) > 0)
+  if (g_list_length(mspGList) == 1)
     {
       const MSP const *msp = (const MSP const*)(mspGList->data);
       if (mspGetSource(msp))
 	{
 	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, mspGetSource(msp), NULL);
 	}
+    }
+  else
+    {
+      g_object_set(renderer, RENDERER_TEXT_PROPERTY, "", NULL);
     }
 }
 

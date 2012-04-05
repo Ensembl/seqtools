@@ -759,7 +759,7 @@ int main(int argc, char **argv)
           }
           else 
             {
-      	for (cq = line; *cq; cq++) 
+              for (cq = line; *cq; cq++) 
                 {
                   /* Don't know yet what type of sequence it is, so accept chars for both types */
                   if (isValidIupacChar(*cq, BLXSEQ_DNA) || isValidIupacChar(*cq, BLXSEQ_PEPTIDE))

@@ -144,7 +144,7 @@ typedef struct
   GtkWidget *dialog;
   GtkTextBuffer *text_buffer;
   char *title;
-  char *sequence_name;
+  const char *sequence_name;
 
   gulong widget_destroy_handler_id;
   PFetchHandle pfetch;
@@ -212,14 +212,14 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
 static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_data) ;
 static void sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
 static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequence fetch_data) ;
-static void pfetchHttpEntry(char *sequence_name, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const gboolean fetchFullEntry);
+static void pfetchHttpEntry(const char *sequence_name, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const gboolean fetchFullEntry);
 #endif
 
 static int socketConstruct(const char *ipAddress, int port, gboolean External) ;
-static gboolean socketSend(int sock, char *text) ;
+static gboolean socketSend(int sock, const char *text) ;
 
 static ProgressBar makeProgressBar(int seq_total) ;
-static void updateProgressBar(ProgressBar bar, char *sequence, int numFetched, gboolean fetch_ok) ;
+static void updateProgressBar(ProgressBar bar, const char *sequence, int numFetched, gboolean fetch_ok) ;
 static gboolean isCancelledProgressBar(ProgressBar bar) ;
 static void destroyProgressBar(ProgressBar bar) ;
 static void destroyProgressCB(GtkWidget *widget, gpointer cb_data) ; /* internal to progress bar. */
@@ -230,7 +230,7 @@ ConfigGroup getConfig(char *config_name) ;
 static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
 
 static char *blxConfigGetDefaultFetchMode(const gboolean bulk);
-static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out);
+static void pfetchEntry(const char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out);
 
 /* Pfetch local functions */
 static void                     appendCharToString(const char curChar, GString **result);
@@ -275,7 +275,7 @@ static GKeyFile *blx_config_G = NULL ;
 
 
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
-void fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow)
+void fetchAndDisplaySequence(const char *seqName, GtkWidget *blxWindow)
 {
   const char *fetchMode = blxWindowGetDefaultFetchMode(blxWindow, FALSE);
   
@@ -371,7 +371,7 @@ char *blxGetFetchProg(const char *fetchMode)
 /* Use the 'pfetch' command to fetch an entry and optionally display the results.
  * If the given result argument is given it is populated with the result text and the
  * caller takes ownership; otherwise the result text is cleared up internally. */
-static void pfetchEntry(char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out)
+static void pfetchEntry(const char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out)
 {
   /* --client gives logging information to pfetch server;
    * -F requests the full sequence entry record. For protein variants, pfetch does not
@@ -495,7 +495,7 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
       for ( ; seqItem; seqItem = seqItem->next)
 	{
           BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-	  g_string_append_printf(seq_string, "%s ", blxSeq->fullName);
+	  g_string_append_printf(seq_string, "%s ", blxSequenceGetFullName(blxSeq));
 	}
 
       /* Set up pfetch/curl connection routines, this is non-blocking so if connection
@@ -544,7 +544,7 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
 
 
 /* Use the http proxy to pfetch an entry */
-static void pfetchHttpEntry(char *sequence_name,
+static void pfetchHttpEntry(const char *sequence_name,
                             GtkWidget *blxWindow, 
                             GtkWidget *dialog, 
                             GtkTextBuffer *text_buffer, 
@@ -622,7 +622,7 @@ static void pfetchHttpEntry(char *sequence_name,
       
       g_signal_connect(G_OBJECT(pfetch), "closed", G_CALLBACK(pfetch_closed_func), pfetch_data);
       
-      PFetchHandleFetch(pfetch, sequence_name) ;
+      PFetchHandleFetch(pfetch, (char*)sequence_name) ;
     }
   else
     {
@@ -1073,7 +1073,7 @@ static int socketConstruct (const char *ipAddress, int port, gboolean External)
 }
 
 
-static gboolean socketSend (int sock, char *text)
+static gboolean socketSend (int sock, const char *text)
 {
   gboolean status = TRUE ;
   int len, bytes_to_send, bytes_written ;
@@ -1475,7 +1475,7 @@ static ProgressBar makeProgressBar(int seq_total)
   return bar ;
 }
 
-static void updateProgressBar(ProgressBar bar, char *sequence, int numFetched, gboolean fetch_ok)
+static void updateProgressBar(ProgressBar bar, const char *sequence, int numFetched, gboolean fetch_ok)
 {
   char *label_text ;
 
@@ -1886,7 +1886,7 @@ static gboolean pfetchInit(char *pfetchOptions, GList *seqsToFetch, const char *
       for ( ; seqItem && status ; seqItem = seqItem->next)
 	{
           BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-	  status = socketSend(*sock, blxSeq->fullName);
+	  status = socketSend(*sock, blxSequenceGetFullName(blxSeq));
 	}
     }
   
@@ -1966,7 +1966,7 @@ static void pfetchGetNextSequence(BlxSequence **currentSeq,
       /* Check that another BlxSequence item exists in the list */
       if ((*currentSeqItem)->next)
         {
-          updateProgressBar(bar, (*currentSeq)->fullName, numFetched, pfetch_ok) ;
+          updateProgressBar(bar, blxSequenceGetFullName(*currentSeq), numFetched, pfetch_ok) ;
           
           /* Move to the next BlxSequence */
           *currentSeqItem = (*currentSeqItem)->next;
