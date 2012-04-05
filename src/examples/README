@@ -1,0 +1,18 @@
+EXAMPLES
+
+This directory contains sample data that you can try out the programs with. Below are minimal incantations for each program to use this sample data.
+
+There are more examples available in the 'test' directory.
+
+
+Blixem in DNA mode:
+blixem -t N chr4_ref_seq.fasta chr4_dna_align.gff
+
+Blixem in protein mode:
+blixem -t P chr4_ref_seq.fasta chr4_protein_align.gff
+
+Dotter:
+dotter chr4_ref_seq_short.fasta DA730641.fasta
+
+Belvu:
+belvu PF02171_seed.stock
