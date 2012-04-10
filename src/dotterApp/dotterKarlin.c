@@ -1,6 +1,6 @@
 /*  File: dotterKarlin.c
  *  Author: Erik Sonnhammer, 1995-08-28
- *  Copyright (c) 2010 Genome Research Ltd
+ *  Copyright (c) 2010 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

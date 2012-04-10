@@ -1,6 +1,6 @@
 /*  File: coverageview.c
  *  Author: Gemma Barson, 2011-03-21
- *  Copyright (c) 2011 Genome Research Ltd
+ *  Copyright (c) 2011 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
