@@ -1113,9 +1113,10 @@ static void sequenceFinishDragging(GtkWidget *sequenceWidget, GtkWidget *alignme
       minCoord = maxCoord;
       maxCoord = tmp;
     }
-  
-  char *result = getSequenceBetweenCoords(sequenceWidget, minCoord, maxCoord, dwc);
 
-  printf("Dragged %d to %d; seq=%s\n", startCoord, endCoord, result);
-  
+  /* Get the sequence between these coords and place it on the clipboard */
+  char *result = getSequenceBetweenCoords(sequenceWidget, minCoord, maxCoord, dwc);
+  setPrimaryClipboardText(result);
+
+  g_free(result);
 }
