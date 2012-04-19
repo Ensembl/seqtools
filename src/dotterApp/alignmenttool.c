@@ -48,7 +48,7 @@
 #include <string.h>
 
 
-static int atob[]	/* OLD (starting at 1) ASCII-to-binary translation table  (Inherited from blast) */
+static int atob[]       /* OLD (starting at 1) ASCII-to-binary translation table  (Inherited from blast) */
 = {
 NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
 NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
@@ -74,7 +74,11 @@ NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
 #define DEFAULT_ALIGNMENT_LENGTH                    125   /* default number of sequence chars to display in the alignment tool */
 #define MAX_ALIGNMENT_LENGTH                        501   /* max number of sequence chars to display in the alignment tool */
 #define MIN_ALIGNMENT_LENGTH                        0     /* min number of sequence chars to display in the alignment tool */
-#define	SELECTED_COORD_MARKER_HEIGHT		    12	  /* the height of the marker that indicates the currently-selected coord */
+#define SELECTED_COORD_MARKER_HEIGHT                12    /* the height of the marker that indicates the currently-selected coord */
+
+
+/* Function pointer for expose functions */
+typedef gboolean (*ExposeFunc)(GtkWidget *widget, GdkEventExpose *event, gpointer data);
 
 
 typedef struct _SequenceProperties
@@ -84,19 +88,23 @@ typedef struct _SequenceProperties
   BlxSeqType seqType;               /* whether this sequence is in nucleotide or peptide coords */
   BlxStrand strand;
   int frame;
-  IntRange *displayRange;	    /* the displayed range; pointer to refDisplayRange or matchDisplayRange */
+  IntRange *displayRange;           /* the displayed range; pointer to refDisplayRange or matchDisplayRange */
   IntRange *fullRange;              /* the full range of the sequence; pointer to refSeqRange or matchSeqRange */
-  gboolean scaleReversed;	    /* whether the scale for this sequence is shown reversed (i.e. high-to-low rather than low-to-high) */
+  gboolean scaleReversed;           /* whether the scale for this sequence is shown reversed (i.e. high-to-low rather than low-to-high) */
   GSList *compSeqs;                 /* list of other sequence widgets that this sequence will be compared against */
-  gboolean isMatchSeq;		    /* true if this is the match seq, false if it's the ref seq */
+  gboolean isMatchSeq;              /* true if this is the match seq, false if it's the ref seq */
 } SequenceProperties;
 
 
 typedef struct _AlignmentToolProperties
 {
   int alignmentLen;                 /* the number of coords wide the alignment too displays */
-  IntRange refDisplayRange;	    /* the current ref seq range displayed in the tool */
-  IntRange matchDisplayRange;	    /* the current match seq range displayed in the tool */
+  IntRange refDisplayRange;         /* the current ref seq range displayed in the tool */
+  IntRange matchDisplayRange;       /* the current match seq range displayed in the tool */
+
+  gboolean dragging;                /* true when a drag is in progress */
+  int dragStart;                    /* set to the start coord where the user initiates a drag */
+  int dragPos;                      /* current position during dragging */
   
   DotterWindowContext *dotterWinCtx;
 } AlignmentToolProperties;
@@ -104,23 +112,27 @@ typedef struct _AlignmentToolProperties
 
 
 /* Local function declarations */
-static void                       onCloseMenu(GtkAction *action, gpointer data);
-static void                       onPrintMenu(GtkAction *action, gpointer data);
-static void                       onSetLengthMenu(GtkAction *action, gpointer data);
-static void                       onCopyHCoordMenu(GtkAction *action, gpointer data);
-static void                       onCopyVCoordMenu(GtkAction *action, gpointer data);
+static void                        onCloseMenu(GtkAction *action, gpointer data);
+static void                        onPrintMenu(GtkAction *action, gpointer data);
+static void                        onSetLengthMenu(GtkAction *action, gpointer data);
+static void                        onCopyHCoordMenu(GtkAction *action, gpointer data);
+static void                        onCopyVCoordMenu(GtkAction *action, gpointer data);
 
-static void                       drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
-static void			  drawSequenceHeader(GtkWidget *widget, GtkWidget *alignmentTool, GdkDrawable *drawable, const gboolean horizontal);
+static void                        drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
+static void                        drawSequenceHeader(GtkWidget *widget, GtkWidget *alignmentTool, GdkDrawable *drawable, const gboolean horizontal);
+static int                         getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart);
+static int                         getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alignmentTool);
+static void                        connectSequenceSignals(GtkWidget *widget, GtkWidget *alignmentTool);
+
 
 
 /* Menu builders - standard menu entries */
 static const GtkActionEntry alignmentToolMenuEntries[] = {
-{ "Close",        NULL, "_Close tool\t\t\tCtrl-W",  NULL,	"Close the alignment tool",             G_CALLBACK(onCloseMenu)},
-{ "Print",        NULL, "_Print...\t\t\t\tCtrl-P",  NULL,	"Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
-{ "SetLength",    NULL, "_Set alignment length",    NULL,	"Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)},
-{ "CopyHCoord",   NULL, "Copy _horizontal coord",   NULL,	"Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
-{ "CopyVCoord",   NULL, "Copy _vertical coord",     NULL,	"Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)}
+{ "Close",        NULL, "_Close tool\t\t\tCtrl-W",  NULL,       "Close the alignment tool",             G_CALLBACK(onCloseMenu)},
+{ "Print",        NULL, "_Print...\t\t\t\tCtrl-P",  NULL,       "Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
+{ "SetLength",    NULL, "_Set alignment length",    NULL,       "Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)},
+{ "CopyHCoord",   NULL, "Copy _horizontal coord",   NULL,       "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
+{ "CopyVCoord",   NULL, "Copy _vertical coord",     NULL,       "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)}
 };
 
 
@@ -163,16 +175,16 @@ static void onDestroySequenceWidget(GtkWidget *widget)
 }
 
 static void sequenceCreateProperties(GtkWidget *widget, 
-				     const char *seqName,
-				     const char *sequence,
+                                     const char *seqName,
+                                     const char *sequence,
                                      const BlxSeqType seqType,
-				     const BlxStrand strand,
-				     const int frame,
-				     IntRange *displayRange,
+                                     const BlxStrand strand,
+                                     const int frame,
+                                     IntRange *displayRange,
                                      IntRange *fullRange,
-				     gboolean scaleReversed,
+                                     gboolean scaleReversed,
                                      GSList *compSeqs,
-				     gboolean isMatchSeq)
+                                     gboolean isMatchSeq)
 {
   if (widget)
     {
@@ -225,14 +237,18 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
       properties->matchDisplayRange.min = 0;
       properties->matchDisplayRange.max = 20; /* to do: put real values in here for the ranges */
 
-    g_object_set_data(G_OBJECT(widget), "AlignmentToolProperties", properties);
+      properties->dragging = FALSE;
+      properties->dragStart = 0;
+      properties->dragPos = 0;
+      
+      g_object_set_data(G_OBJECT(widget), "AlignmentToolProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyAlignmentTool), NULL); 
     }
 }
 
 
 /***********************************************************
- *                       Events				   *
+ *                       Events                            *
  ***********************************************************/
 
 /* Called when the alignment tool window changes size */
@@ -347,17 +363,45 @@ static GtkWidget* createAlignmentToolMenu(GtkWidget *window)
 }
 
 
-/* Mouse button handler */
-static gboolean onButtonPressAlignmentTool(GtkWidget *window, GdkEventButton *event, gpointer data)
+/* General mouse button handler */
+static gboolean onButtonPressAlignmentTool(GtkWidget *alignmentTool, GdkEventButton *event, gpointer data)
 {
+  gboolean result = TRUE;
+  
   if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
     {
       gtk_menu_popup (GTK_MENU (data), NULL, NULL, NULL, NULL, event->button, event->time);
-      return TRUE;
+      result = TRUE;
     }
   
-  return TRUE;
+  
+  return result;
 }
+
+
+/* Mouse button handler when clicking on a sequence */
+static gboolean onButtonPressSequence(GtkWidget *sequenceWidget, GdkEventButton *event, gpointer data)
+{
+  gboolean result = FALSE;
+  
+  if (event->type == GDK_BUTTON_PRESS && event->button == 1) /* left click */
+    {
+      /* initiate dragging */
+      GtkWidget *alignmentTool = GTK_WIDGET(data);
+      AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+      atProperties->dragging = TRUE;
+      atProperties->dragStart = getCoordAtPos(event->x, sequenceWidget, alignmentTool);
+            
+      printf("Drag start=%d\n", atProperties->dragStart);
+      result = TRUE;
+    }
+
+  return result;
+}
+
+
+
 
 
 /***********************************************************
@@ -523,16 +567,89 @@ static void onCopyVCoordMenu(GtkAction *action, gpointer data)
  *                       Initialisation                    *
  ***********************************************************/
 
+/* Create a widget that will display the reference sequence for the given
+ * frame/strand. Add it to the given row in the given table and increment
+ * the row number. Also add it to the given refSeqList */
+static void createRefSeqWidget(GtkWidget *alignmentTool,
+                               AlignmentToolProperties *properties,
+                               const int frame,
+                               const BlxStrand strand,
+                               const char strandChar,
+                               GSList *matchSeqList,
+                               GtkTable *table,
+                               const int xpad,
+                               const int ypad,
+                               int *row,
+                               GSList **refSeqList)
+{
+  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+  
+  /* Create a label containing the name */
+  char *text = blxprintf("%s (%c%d):", dc->refSeqName, strandChar, frame);
+  GtkWidget *label = createLabel(text, 0.0, 0.0, FALSE, TRUE);
+  gtk_widget_modify_font(label, dc->fontDesc);
+  gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+  g_free(text);
+  gtk_table_attach(table, label, 1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  
+  /* Find which sequence is applicable (fwd or rev strand or translated peptide seq) */
+  char *sequence = dc->refSeq;
+  
+  if (dc->displaySeqType == BLXSEQ_DNA && strand == BLXSTRAND_REVERSE)
+    sequence = dc->refSeqRev;
+  else if (dc->blastMode == BLXMODE_BLASTX)
+    sequence = dc->peptideSeqs[frame - 1];
+  
+  /* Create the widget that will render the sequence data. */
+  GtkWidget *refSeqWidget = gtk_drawing_area_new();
+  gtk_widget_set_size_request(refSeqWidget, -1, roundNearest(dc->charHeight));
+  *refSeqList = g_slist_append(*refSeqList, refSeqWidget);
+  
+  sequenceCreateProperties(refSeqWidget, dc->refSeqName, sequence, dc->refSeqType, strand, 
+                           frame, &properties->refDisplayRange, &dc->refSeqFullRange,
+                           dc->hozScaleRev, matchSeqList, FALSE);
+
+  gtk_table_attach(table, refSeqWidget, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_widget_add_events(refSeqWidget, GDK_EXPOSURE_MASK);
+
+  connectSequenceSignals(refSeqWidget, alignmentTool);
+  
+  *row += 1;
+}
+
+
+/* Create a drawing-area widget and add it to the given table in the
+ * given row. Increments the row number when done. the given expose
+ * function will draw the widget. */
+                          
+static void createDrawingAreaWidget(DotterContext *dc,
+                                    GCallback exposeFunc,
+                                    gpointer exposeFuncData,
+                                    const int height,
+                                    GtkTable *table,
+                                    const int xpad,
+                                    const int ypad,
+                                    int *row)
+{
+  GtkWidget *widget = gtk_drawing_area_new();
+  gtk_widget_set_size_request(widget, -1, height);
+  gtk_table_attach(table, widget, 2, 3, *row, *row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  g_signal_connect(G_OBJECT(widget), "expose-event", exposeFunc, exposeFuncData);
+
+  *row += 1;
+}
+
+
+
 /* Create the section of the alignment tool for the given strand */
 static GtkWidget* createAlignmentToolSection(BlxStrand strand,
-					     DotterWindowContext *dwc,
-					     GtkWidget *alignmentTool,
-					     AlignmentToolProperties *properties)
+                                             GtkWidget *alignmentTool,
+                                             AlignmentToolProperties *properties)
 {
   /* We'll pack everything into a table */
-  DotterContext *dc = dwc->dotterCtx;
+  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   const int numRows = dc->numFrames + 3;  /* 2 rows for the headers, 1 for the sseq and 1 for each ref seq frame */
-  const int numCols = 2;	      /* 2 columns: label and sequence */
+  const int numCols = 2;              /* 2 columns: label and sequence */
   const int xpad = 2;
   const int ypad = 0;
   const char strandChar = (strand == BLXSTRAND_FORWARD ? '+' : '-');
@@ -554,46 +671,15 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   
   /* Create a header line for this strand of the reference sequence. This widget will display
    * the currently-selected ref seq coord. */
-  GtkWidget *refSeqHeader = gtk_drawing_area_new();
-  gtk_widget_set_size_request(refSeqHeader, -1, roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT);
-  gtk_table_attach(table, refSeqHeader, 2, 3, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  g_signal_connect(G_OBJECT(refSeqHeader), "expose-event", G_CALLBACK(onExposeRefSequenceHeader), alignmentTool);
-  ++row;
-  
+  createDrawingAreaWidget(dc, G_CALLBACK(onExposeRefSequenceHeader), alignmentTool,
+                          roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT,
+                          table, xpad, ypad, &row);
+    
   /* Add a line for each frame of the reference sequence */
   int frame = 1;
   for (frame = 1; frame <= dc->numFrames; ++frame)
     {
-      /* Create a label containing the name */
-      char *text = blxprintf("%s (%c%d):", dc->refSeqName, strandChar, frame);
-      GtkWidget *label = createLabel(text, 0.0, 0.0, FALSE, TRUE);
-      gtk_widget_modify_font(label, dc->fontDesc);
-      gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
-      g_free(text);
-      gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-      
-      /* Find which sequence is applicable (fwd or rev strand or translated peptide seq) */
-      char *sequence = dc->refSeq;
-      
-      if (dc->displaySeqType == BLXSEQ_DNA && strand == BLXSTRAND_REVERSE)
-        sequence = dc->refSeqRev;
-      else if (dc->blastMode == BLXMODE_BLASTX)
-        sequence = dc->peptideSeqs[frame - 1];
-      
-      /* Create the widget that will render the sequence data. */
-      GtkWidget *refSeqWidget = gtk_drawing_area_new();
-      gtk_widget_set_size_request(refSeqWidget, -1, roundNearest(dc->charHeight));
-      refSeqList = g_slist_append(refSeqList, refSeqWidget);
-
-      sequenceCreateProperties(refSeqWidget, dc->refSeqName, sequence, dc->refSeqType, strand, 
-                               frame, &properties->refDisplayRange, &dc->refSeqFullRange,
-                               dc->hozScaleRev, matchSeqList, FALSE);
-      
-      gtk_table_attach(table, refSeqWidget, 2, 3, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-      gtk_widget_add_events(refSeqWidget, GDK_EXPOSURE_MASK);
-      g_signal_connect(G_OBJECT(refSeqWidget), "expose-event", G_CALLBACK(onExposeSequence), alignmentTool);
-      
-      ++row;
+      createRefSeqWidget(alignmentTool, properties, frame, strand, strandChar, matchSeqList, table, xpad, ypad, &row, &refSeqList);
     }
   
   /* Add a label for the match sequence */
@@ -612,16 +698,15 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   
   gtk_table_attach(table, matchSeqWidget, 2, 3, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   gtk_widget_add_events(matchSeqWidget, GDK_EXPOSURE_MASK);
-  g_signal_connect(G_OBJECT(matchSeqWidget), "expose-event", G_CALLBACK(onExposeSequence), alignmentTool);
-  
+
+  connectSequenceSignals(matchSeqWidget, alignmentTool);
+    
   ++row;
   
-  /* Create the bottom header */
-  GtkWidget *matchSeqHeader = gtk_drawing_area_new();
-  gtk_widget_set_size_request(matchSeqHeader, -1, roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT + roundNearest(dc->charHeight)); /* add an extra charheight just for spacing */
-  gtk_table_attach(table, matchSeqHeader, 2, 3, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
-  g_signal_connect(G_OBJECT(matchSeqHeader), "expose-event", G_CALLBACK(onExposeMatchSequenceHeader), alignmentTool);
-  ++row;
+  /* Create the bottom label. This will display the currently-selected match seq coord.  */
+  createDrawingAreaWidget(dc, G_CALLBACK(onExposeMatchSequenceHeader), alignmentTool,
+                          roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT + roundNearest(dc->charHeight), /* extra charheight for spacing */
+                          table, xpad, ypad, &row);
   
   return GTK_WIDGET(table);
 }
@@ -652,20 +737,20 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
   
   /* Put the forward ref seq strand on top, unless the display is reversed */
   BlxStrand qStrand = dc->hozScaleRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
-  GtkWidget *section1 = createAlignmentToolSection(qStrand, dotterWinCtx, alignmentTool, properties);
+  GtkWidget *section1 = createAlignmentToolSection(qStrand, alignmentTool, properties);
   gtk_box_pack_start(GTK_BOX(vbox), section1, FALSE, FALSE, 0);
 
   /* Only show the other reference sequence strand if we're displaying sequences as nucleotides */
   if (dc->displaySeqType == BLXSEQ_DNA)
     {
       qStrand = (qStrand == BLXSTRAND_FORWARD ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD);
-      GtkWidget *section2 = createAlignmentToolSection(qStrand, dotterWinCtx, alignmentTool, properties);
+      GtkWidget *section2 = createAlignmentToolSection(qStrand, alignmentTool, properties);
       gtk_box_pack_start(GTK_BOX(vbox), section2, FALSE, FALSE, 0);
     }
 
   /* Create the right-click menu */
   GtkWidget *menu = createAlignmentToolMenu(alignmentTool);
-
+  
   gtk_widget_add_events(alignmentTool, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(alignmentTool), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
   g_signal_connect(G_OBJECT(alignmentTool), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
@@ -680,44 +765,8 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
 
 
 /***********************************************************
- *                       Internal routines                 *
+ *                           Drawing                       *
  ***********************************************************/
-
-/* Calculate how many bases into the alignment tool's display range the given sequence starts.
- * Also return the start coord of the alignment tool. */
-static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart)
-{
-  const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
-
-  /* Find the coord that the display starts at */
-  *displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
-
-  /* Get the start coord of the sequence data */
-  int seqStart = forward ? properties->fullRange->min : properties->fullRange->max;
-  
-  /* Offset this coord so that we have the first coord that starts our reading frame */
-  int reqdFrame = properties->frame;
-  int frame = UNSET_INT;
-  convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, 1, &frame);
-  
-  int offset = reqdFrame - frame;
-  if (offset < 0)
-    {
-      offset += dc->numFrames;
-    }
-
-  seqStart = forward ? seqStart + offset : seqStart - offset;
-  
-  /* Convert both sets of coords to display coords. */
-  seqStart = convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
-  *displayStart = convertToDisplayIdx(*displayStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
-  
-  /* Calculate the offset. Note that this may be positive or negative because it
-   * can be in either direction. */
-  int result = forward ? seqStart - *displayStart - 1 : *displayStart - seqStart;
-  
-  return result;
-}
 
 /* Draw the sequence data for the given sequence-widget */
 static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool)
@@ -764,7 +813,7 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
           gboolean consMatch = FALSE;
 
           GSList *item = seq1Properties->compSeqs;
-          
+         
           for ( ; item; item = item->next)
             {
               /* Get info about the other sequence */
@@ -773,11 +822,11 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
               const gchar *seq2 = seq2Properties->sequence;
               const int seq2Len = strlen(seq2);
 
-	      int seq2DisplayStart = UNSET_INT;
-	      const int seq2Offset = getSequenceOffset(seq2Properties, dc, &seq2DisplayStart);
-	    
+              int seq2DisplayStart = UNSET_INT;
+              const int seq2Offset = getSequenceOffset(seq2Properties, dc, &seq2DisplayStart);
+            
               /* Get the zero-based index into the sequence and compare the bases to determine the highlight color */
-	      const int seq2Idx = displayIdx - seq2Offset;
+              const int seq2Idx = displayIdx - seq2Offset;
               
               if (seq2Idx >= 0 && seq2Idx < seq2Len)
                 {
@@ -843,12 +892,12 @@ static void drawSequenceHeaderMarker(GdkDrawable *drawable, const int x, const i
 
 /* Utility called by drawSequenceHeader to draw the header text at the given coords */
 static void drawSequenceHeaderText(GtkWidget *widget, 
-				   GdkDrawable *drawable, 
-				   const int x, 
-				   const int y, 
-				   const int coordIn, 
-				   DotterContext *dc,
-				   const gboolean horizontal)
+                                   GdkDrawable *drawable, 
+                                   const int x, 
+                                   const int y, 
+                                   const int coordIn, 
+                                   DotterContext *dc,
+                                   const gboolean horizontal)
 {
   int coord = getDisplayCoord(coordIn, dc, horizontal);
   char *displayText = convertIntToString(coord);
@@ -874,8 +923,8 @@ static void drawSequenceHeaderText(GtkWidget *widget,
  * markerFirst is true the marker is drawn above the text, otherwise below. */
 static void drawSequenceHeader(GtkWidget *widget, 
                                GtkWidget *alignmentTool,
-			       GdkDrawable *drawable, 
-			       const gboolean horizontal)
+                               GdkDrawable *drawable, 
+                               const gboolean horizontal)
 {
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
   DotterWindowContext *dwc = properties->dotterWinCtx;
@@ -907,3 +956,89 @@ static void drawSequenceHeader(GtkWidget *widget,
     }
 }
 
+
+
+/***********************************************************
+ *                      Utility functions                  *
+ ***********************************************************/
+
+/* Calculate how many bases into the alignment tool's display range the given sequence starts.
+ * Also return the start coord of the alignment tool. */
+static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart)
+{
+  const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
+
+  /* Find the coord that the display starts at */
+  *displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
+
+  /* Get the start coord of the sequence data */
+  int seqStart = forward ? properties->fullRange->min : properties->fullRange->max;
+  
+  /* Offset this coord so that we have the first coord that starts our reading frame */
+  int reqdFrame = properties->frame;
+  int frame = UNSET_INT;
+  convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, 1, &frame);
+  
+  int offset = reqdFrame - frame;
+  if (offset < 0)
+    {
+      offset += dc->numFrames;
+    }
+
+  seqStart = forward ? seqStart + offset : seqStart - offset;
+  
+  /* Convert both sets of coords to display coords. */
+  seqStart = convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
+  *displayStart = convertToDisplayIdx(*displayStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
+  
+  /* Calculate the offset. Note that this may be positive or negative because it
+   * can be in either direction. */
+  int result = forward ? seqStart - *displayStart - 1 : *displayStart - seqStart;
+  
+  return result;
+}
+
+
+/* Get the sequence coordinate at the given x position within the given sequence widget */
+static int getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alignmentTool)
+{
+  int coord = 0;
+  
+  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+  SequenceProperties *properties = sequenceGetProperties(sequenceWidget);
+  DotterWindowContext *dwc = atProperties->dotterWinCtx;
+  DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
+
+  /* Get the 0-based character index from the leftmost edge of the widget */
+  const int displayIdx = (int)((double)x / (double)dc->charWidth);
+
+  /* Get the coord of the first (leftmost) character in the display */
+  int displayStart = 0;
+  getSequenceOffset(properties, dc, &displayStart);
+
+  /* Calculate the coord of the selected index. Note that coords decrease left-to-right
+   * rather than increase if we have the reverse strand. */
+  if (properties->strand == BLXSTRAND_REVERSE)
+    coord = atProperties->dragStart = displayStart - displayIdx;
+  else
+    coord = displayStart + displayIdx + 1;
+
+  /* Bounds-limit the result */
+  const IntRange * const seqRange = properties->isMatchSeq ? &dwc->matchSeqRange : &dwc->refSeqRange;
+  boundsLimitValue(&atProperties->dragStart, seqRange);
+  
+  return coord;
+}
+
+
+/* Connect signals for a sequence widget */
+static void connectSequenceSignals(GtkWidget *widget, GtkWidget *alignmentTool)
+{
+  //gtk_widget_add_events(widget, GDK_EXPOSURE_MASK);
+  gtk_widget_add_events(widget, GDK_BUTTON_PRESS_MASK);
+  //  gtk_widget_add_events(widget, GDK_POINTER_MOTION_MASK);
+  
+  g_signal_connect(G_OBJECT(widget), "expose-event", G_CALLBACK(onExposeSequence), alignmentTool);
+  g_signal_connect(G_OBJECT(widget), "button-press-event", G_CALLBACK(onButtonPressSequence), alignmentTool);
+  //  g_signal_connect(G_OBJECT(widget), "motion-notify-event", G_CALLBACK(onMouseMoveSequence), NULL);
+}
