@@ -104,7 +104,6 @@ typedef struct _AlignmentToolProperties
 
   gboolean dragging;                /* true when a drag is in progress */
   int dragStart;                    /* set to the start coord where the user initiates a drag */
-  int dragPos;                      /* current position during dragging */
   
   DotterWindowContext *dotterWinCtx;
 } AlignmentToolProperties;
@@ -123,6 +122,8 @@ static void                        drawSequenceHeader(GtkWidget *widget, GtkWidg
 static int                         getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart);
 static int                         getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alignmentTool);
 static void                        connectSequenceSignals(GtkWidget *widget, GtkWidget *alignmentTool);
+static void                        sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *alignmentTool, const int x);
+static void                        sequenceFinishDragging(GtkWidget *sequenceWidget, GtkWidget *alignmentTool, const int x);
 
 
 
@@ -239,7 +240,6 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
 
       properties->dragging = FALSE;
       properties->dragStart = 0;
-      properties->dragPos = 0;
       
       g_object_set_data(G_OBJECT(widget), "AlignmentToolProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyAlignmentTool), NULL); 
@@ -366,41 +366,49 @@ static GtkWidget* createAlignmentToolMenu(GtkWidget *window)
 /* General mouse button handler */
 static gboolean onButtonPressAlignmentTool(GtkWidget *alignmentTool, GdkEventButton *event, gpointer data)
 {
-  gboolean result = TRUE;
+  gboolean handled = TRUE;
   
   if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
     {
       gtk_menu_popup (GTK_MENU (data), NULL, NULL, NULL, NULL, event->button, event->time);
-      result = TRUE;
+      handled = TRUE;
     }
   
   
-  return result;
+  return handled;
 }
 
 
 /* Mouse button handler when clicking on a sequence */
 static gboolean onButtonPressSequence(GtkWidget *sequenceWidget, GdkEventButton *event, gpointer data)
 {
-  gboolean result = FALSE;
+  gboolean handled = FALSE;
   
   if (event->type == GDK_BUTTON_PRESS && event->button == 1) /* left click */
     {
-      /* initiate dragging */
       GtkWidget *alignmentTool = GTK_WIDGET(data);
-      AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
-
-      atProperties->dragging = TRUE;
-      atProperties->dragStart = getCoordAtPos(event->x, sequenceWidget, alignmentTool);
-            
-      printf("Drag start=%d\n", atProperties->dragStart);
-      result = TRUE;
+      sequenceInitiateDragging(sequenceWidget, alignmentTool, event->x);
+      handled = TRUE;
     }
 
-  return result;
+  return handled;
 }
 
 
+/* Mouse button handler when releasing from a click on a sequence widget */
+static gboolean onButtonReleaseSequence(GtkWidget *sequenceWidget, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+
+  if (event->button == 1) /* left click */
+    {
+      GtkWidget *alignmentTool = GTK_WIDGET(data);
+      sequenceFinishDragging(sequenceWidget, alignmentTool, event->x);
+      handled = TRUE;
+    }
+    
+  return handled;
+}
 
 
 
@@ -1019,13 +1027,13 @@ static int getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alig
   /* Calculate the coord of the selected index. Note that coords decrease left-to-right
    * rather than increase if we have the reverse strand. */
   if (properties->strand == BLXSTRAND_REVERSE)
-    coord = atProperties->dragStart = displayStart - displayIdx;
+    coord = displayStart - displayIdx;
   else
     coord = displayStart + displayIdx + 1;
 
   /* Bounds-limit the result */
   const IntRange * const seqRange = properties->isMatchSeq ? &dwc->matchSeqRange : &dwc->refSeqRange;
-  boundsLimitValue(&atProperties->dragStart, seqRange);
+  boundsLimitValue(&coord, seqRange);
   
   return coord;
 }
@@ -1034,11 +1042,80 @@ static int getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alig
 /* Connect signals for a sequence widget */
 static void connectSequenceSignals(GtkWidget *widget, GtkWidget *alignmentTool)
 {
-  //gtk_widget_add_events(widget, GDK_EXPOSURE_MASK);
+  gtk_widget_add_events(widget, GDK_EXPOSURE_MASK);
   gtk_widget_add_events(widget, GDK_BUTTON_PRESS_MASK);
-  //  gtk_widget_add_events(widget, GDK_POINTER_MOTION_MASK);
+  gtk_widget_add_events(widget, GDK_BUTTON_RELEASE_MASK);
   
   g_signal_connect(G_OBJECT(widget), "expose-event", G_CALLBACK(onExposeSequence), alignmentTool);
   g_signal_connect(G_OBJECT(widget), "button-press-event", G_CALLBACK(onButtonPressSequence), alignmentTool);
-  //  g_signal_connect(G_OBJECT(widget), "motion-notify-event", G_CALLBACK(onMouseMoveSequence), NULL);
+  g_signal_connect(G_OBJECT(widget), "button-release-event", G_CALLBACK(onButtonReleaseSequence), alignmentTool);
+}
+
+
+/* Initiate dragging on a sequence widget */
+static void sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *alignmentTool, const int x)
+{
+  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+  /* flag that we're dragging */
+  atProperties->dragging = TRUE;
+  atProperties->dragStart = getCoordAtPos(x, sequenceWidget, alignmentTool);
+}
+
+
+static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
+                                      const int startCoord,
+                                      const int endCoord,
+                                      DotterWindowContext *dwc)
+{
+  char *result = NULL;
+  
+  SequenceProperties *properties = sequenceGetProperties(sequenceWidget);
+  DotterContext *dc = dwc->dotterCtx;
+  
+  const char *seq = properties->isMatchSeq ? dc->matchSeq : dc->refSeq;
+  const IntRange* const seqRange = properties->isMatchSeq ? &dwc->matchSeqRange : &dwc->refSeqRange;
+  
+  const int startIdx = startCoord - seqRange->min;
+  const int numChars = endCoord - startCoord + 1;
+  
+  result = g_strndup(seq + startIdx, numChars);
+
+  if (properties->strand == BLXSTRAND_REVERSE)
+    {
+      char *new = g_strdup(result);
+      revComplement(new, result);
+      g_free(result);
+      result = new;
+    }
+  
+  return result;
+}
+
+
+
+/* Finish dragging on a sequence widget */
+static void sequenceFinishDragging(GtkWidget *sequenceWidget, GtkWidget *alignmentTool, const int x)
+{
+  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+  DotterWindowContext *dwc = atProperties->dotterWinCtx;
+
+  /* cancel the dragging flag */
+  atProperties->dragging = FALSE;
+
+  /* get the range of coords that the user dragged over */
+  int minCoord = atProperties->dragStart;
+  int maxCoord = getCoordAtPos(x, sequenceWidget, alignmentTool);
+
+  if (minCoord > maxCoord)
+    {
+      int tmp = minCoord;
+      minCoord = maxCoord;
+      maxCoord = tmp;
+    }
+  
+  char *result = getSequenceBetweenCoords(sequenceWidget, minCoord, maxCoord, dwc);
+
+  printf("Dragged %d to %d; seq=%s\n", startCoord, endCoord, result);
+  
 }
