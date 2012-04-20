@@ -119,15 +119,16 @@ static void                        onPrintMenu(GtkAction *action, gpointer data)
 static void                        onSetLengthMenu(GtkAction *action, gpointer data);
 static void                        onCopyHCoordMenu(GtkAction *action, gpointer data);
 static void                        onCopyVCoordMenu(GtkAction *action, gpointer data);
-
 static void                        drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
 static void                        drawSequenceHeader(GtkWidget *widget, GtkWidget *alignmentTool, GdkDrawable *drawable, const gboolean horizontal);
-static int                         getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart);
+static int                         getSequenceOffset(SequenceProperties *properties, DotterContext *dc);
 static int                         getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alignmentTool);
 static void                        connectSequenceSignals(GtkWidget *widget, GtkWidget *alignmentTool);
 static void                        sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *alignmentTool, const int x);
 static void                        sequenceFinishDragging(GtkWidget *sequenceWidget, GtkWidget *alignmentTool, const int x);
 static void                        highlightSequenceBase(SequenceProperties *seq1, AlignmentToolProperties *atProperties, DotterWindowContext *dwc, const int displayIdx, const int seq1Idx, const int seq1Start, const gboolean highlight, GdkGC *gc, GdkDrawable *drawable);
+static void                        selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmentTool);
+static int                         getDisplayStart(SequenceProperties *properties, DotterContext *dc);
 
 
 /* Menu builders - standard menu entries */
@@ -394,6 +395,12 @@ static gboolean onButtonPressSequence(GtkWidget *sequenceWidget, GdkEventButton 
     {
       GtkWidget *alignmentTool = GTK_WIDGET(data);
       sequenceInitiateDragging(sequenceWidget, alignmentTool, event->x);
+      handled = TRUE;
+    }
+  else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* left double-click */
+    {
+      GtkWidget *alignmentTool = GTK_WIDGET(data);
+      selectVisibleSequence(sequenceWidget, alignmentTool);
       handled = TRUE;
     }
 
@@ -823,8 +830,8 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   const gboolean highlight = (atProperties->selectionWidget != NULL);
 
   /* Get the sequence coord at the start of the display (leftmost edge) */
-  int seq1Start = UNSET_INT;
-  const int seq1Offset = getSequenceOffset(seq1, dc, &seq1Start);
+  int seq1Start = getDisplayStart(seq1, dc);
+  const int seq1Offset = getSequenceOffset(seq1, dc);
   
   /* Loop through each display coord (0-based from left edge of display) */
   int displayIdx = 0;
@@ -945,14 +952,38 @@ static void drawSequenceHeader(GtkWidget *widget,
  *                      Utility functions                  *
  ***********************************************************/
 
-/* Calculate how many bases into the alignment tool's display range the given sequence starts.
- * Also return the start coord of the alignment tool. */
-static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart_out)
+/* Return the coord that the alignment tool display starts at (adjusted for strand direction
+ * and converted from dna to peptide coords if applicable). */
+static int getDisplayStart(SequenceProperties *properties, DotterContext *dc)
 {
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
-
-  /* Find the coord that the display starts at */
   int displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
+
+  displayStart = convertToDisplayIdx(displayStart, !properties->isMatchSeq, dc, properties->frame, NULL);
+
+  return displayStart;
+}
+
+
+/* Return the coord that the alignment tool display ends at (adjusted for strand direction
+ * and converted from dna to peptide coords if applicable). */
+static int getDisplayEnd(SequenceProperties *properties, DotterContext *dc)
+{
+  const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
+  int displayEnd = forward ? properties->displayRange->max : properties->displayRange->min;
+
+  displayEnd = convertToDisplayIdx(displayEnd, !properties->isMatchSeq, dc, properties->frame, NULL);
+
+  return displayEnd;
+}
+
+
+/* Calculate how many bases into the alignment tool's display range the given sequence starts.
+ * Also return the coord that the alignment tool display starts at (adjusted for strand direction
+ * and converted from dna to peptide coords if applicable). */
+static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc)
+{
+  const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
 
   /* Get the start coord of the sequence data */
   int seqStart = forward ? properties->fullRange->min : properties->fullRange->max;
@@ -970,17 +1001,14 @@ static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, 
 
   seqStart = forward ? seqStart + offset : seqStart - offset;
   
-  /* Convert both sets of coords to display coords. */
+  /* Convert to display coords. */
   seqStart = convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
-  displayStart = convertToDisplayIdx(displayStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
   
   /* Calculate the offset. Note that this may be positive or negative because it
    * can be in either direction. */
+  const int displayStart = getDisplayStart(properties, dc);
   int result = forward ? seqStart - displayStart - 1 : displayStart - seqStart;
 
-  if (displayStart_out)
-    *displayStart_out = displayStart;
-  
   return result;
 }
 
@@ -996,8 +1024,7 @@ static int getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alig
   const int displayIdx = (int)((double)x / (double)dc->charWidth);
 
   /* Get the coord of the first (leftmost) character in the display */
-  int displayStart = 0;
-  getSequenceOffset(properties, dc, &displayStart);
+  int displayStart = getDisplayStart(properties, dc);
 
   /* Apply the offset to get the 0-based coord into the sequence, and add the range
    * min to get the real coord */
@@ -1121,6 +1148,44 @@ static void sequenceFinishDragging(GtkWidget *sequenceWidget, GtkWidget *alignme
 }
 
 
+/* Select all of the visible text in a sequence widget */
+static void selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmentTool)
+{
+  SequenceProperties *properties = sequenceGetProperties(sequenceWidget);
+  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+  DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
+  
+  /* flag that we should highlight the selected sequence (clear any current
+   * selection first) and set the coords of the highlighted bit */
+  clearSequenceSelection(alignmentTool);
+  atProperties->selectionWidget = sequenceWidget;
+
+  int start = getDisplayStart(properties, dc);
+  int end = getDisplayEnd(properties, dc);
+
+  if (properties->strand == BLXSTRAND_FORWARD)
+    {
+      ++start;
+      ++end;
+    }
+  
+  boundsLimitValue(&start, properties->fullRange);
+  boundsLimitValue(&end, properties->fullRange);
+  
+  intrangeSetValues(&atProperties->selectionRange, start, end);
+  
+  /* copy the selection to the primary clipboard */
+  char *result = getSequenceBetweenCoords(sequenceWidget,
+                                          atProperties->selectionRange.min,
+                                          atProperties->selectionRange.max,
+                                          atProperties->dotterWinCtx);
+  printf("start=%d, end=%d, seq=%s\n", start, end, result);
+  
+  setPrimaryClipboardText(result);
+  g_free(result);
+}
+
+
 /* Get the colour that the given base in the given sequence should
  * be highlighted according to how well it matches the other sequences
  * at the same display index. */
@@ -1146,8 +1211,7 @@ static DotterColorId getBaseHighlightColor(SequenceProperties *seq1,
       const int seq2Len = strlen(seq2->sequence);
 
       /* Get the sequence coord at the start of the display (leftmost edge) */
-      int seq2Start = UNSET_INT;
-      const int seq2Offset = getSequenceOffset(seq2, dc, &seq2Start);
+      const int seq2Offset = getSequenceOffset(seq2, dc);
     
       /* Get the zero-based index into the sequence and compare the bases to determine the highlight color */
       const int seq2Idx = displayIdx - seq2Offset;
@@ -1198,3 +1262,4 @@ static void highlightSequenceBase(SequenceProperties *seq1,
       gdk_draw_rectangle(drawable, gc, TRUE, x, 0, ceil(dc->charWidth), roundNearest(dc->charHeight));
     }
 }
+
