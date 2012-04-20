@@ -104,6 +104,9 @@ typedef struct _AlignmentToolProperties
 
   gboolean dragging;                /* true when a drag is in progress */
   int dragStart;                    /* set to the start coord where the user initiates a drag */
+
+  GtkWidget *selectionWidget;       /* text in this widget should be highlighted (null if none) */
+  IntRange selectionRange;
   
   DotterWindowContext *dotterWinCtx;
 } AlignmentToolProperties;
@@ -124,7 +127,7 @@ static int                         getCoordAtPos(const int x, GtkWidget *sequenc
 static void                        connectSequenceSignals(GtkWidget *widget, GtkWidget *alignmentTool);
 static void                        sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *alignmentTool, const int x);
 static void                        sequenceFinishDragging(GtkWidget *sequenceWidget, GtkWidget *alignmentTool, const int x);
-
+static void                        highlightSequenceBase(SequenceProperties *seq1, AlignmentToolProperties *atProperties, DotterWindowContext *dwc, const int displayIdx, const int seq1Idx, const int seq1Start, const gboolean highlight, GdkGC *gc, GdkDrawable *drawable);
 
 
 /* Menu builders - standard menu entries */
@@ -240,6 +243,9 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
 
       properties->dragging = FALSE;
       properties->dragStart = 0;
+      properties->selectionWidget = NULL;
+      properties->selectionRange.min = UNSET_INT;
+      properties->selectionRange.max = UNSET_INT;
       
       g_object_set_data(G_OBJECT(widget), "AlignmentToolProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyAlignmentTool), NULL); 
@@ -407,6 +413,29 @@ static gboolean onButtonReleaseSequence(GtkWidget *sequenceWidget, GdkEventButto
       handled = TRUE;
     }
     
+  return handled;
+}
+
+
+static gboolean onMouseMoveSequence(GtkWidget *sequenceWidget, GdkEventMotion *event, gpointer data)
+{
+  gboolean handled = FALSE;
+
+  if (event->state & GDK_BUTTON1_MASK) /* left drag */
+    {
+      /* Update the current selection range */
+      GtkWidget *alignmentTool = GTK_WIDGET(data);
+      
+      AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+      const int newCoord = getCoordAtPos(event->x, sequenceWidget, alignmentTool);
+      
+      intrangeSetValues(&atProperties->selectionRange, atProperties->dragStart, newCoord);
+      widgetClearCachedDrawable(sequenceWidget, NULL);
+      gtk_widget_queue_draw(sequenceWidget);
+      
+      handled = TRUE;
+    }
+  
   return handled;
 }
 
@@ -785,100 +814,46 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
 
   GdkGC *gc = gdk_gc_new(drawable);
 
-  GdkColor *matchColor = getGdkColor(DOTCOLOR_MATCH, dc->defaultColors, FALSE, dwc->usePrintColors);
-  GdkColor *consColor = getGdkColor(DOTCOLOR_CONS, dc->defaultColors, FALSE, dwc->usePrintColors);
-
   /* Get the sequence info for this widget */
-  SequenceProperties *seq1Properties = sequenceGetProperties(widget);
-  const gchar *seq1 = seq1Properties->sequence;
-  const int seq1Len = strlen(seq1);
+  SequenceProperties *seq1 = sequenceGetProperties(widget);
+  const int seq1Len = strlen(seq1->sequence);
   
-  int seq1DisplayStart = UNSET_INT;
-  const int seq1Offset = getSequenceOffset(seq1Properties, dc, &seq1DisplayStart);
+  /* If text on this widget is selected, then we'll highlight any bases within
+   * the selection range. */
+  const gboolean highlight = (atProperties->selectionWidget != NULL);
+
+  /* Get the sequence coord at the start of the display (leftmost edge) */
+  int seq1Start = UNSET_INT;
+  const int seq1Offset = getSequenceOffset(seq1, dc, &seq1Start);
   
-  /* Loop through each display coord */
+  /* Loop through each display coord (0-based from left edge of display) */
   int displayIdx = 0;
   char seq1Text[atProperties->alignmentLen + 1];
-  int y = 0;
-  int x = 0;
 
   for ( ; displayIdx <= atProperties->alignmentLen; ++displayIdx)
     {
       seq1Text[displayIdx] = ' ';
     
-      x = (int)((gdouble)displayIdx * dc->charWidth);
-
-      /* Get the 0-based index into sequence 1 and if it's in range extract the character at this index */
+      /* Get the 0-based index into sequence 1 and extract the character at this index */
       const int seq1Idx = displayIdx - seq1Offset;
       
       if (seq1Idx >= 0 && seq1Idx < seq1Len)
         {
-          seq1Text[displayIdx] = seq1[seq1Idx];
-          
-          /* Loop through the sequences to compare against and color the background of this seq according
-           * to how well it matches. Exact matches take precedence over conserved matches. */
-          gboolean match = FALSE;
-          gboolean consMatch = FALSE;
-
-          GSList *item = seq1Properties->compSeqs;
-         
-          for ( ; item; item = item->next)
-            {
-              /* Get info about the other sequence */
-              GtkWidget *seq2Widget = GTK_WIDGET(item->data);
-              SequenceProperties *seq2Properties = sequenceGetProperties(seq2Widget);
-              const gchar *seq2 = seq2Properties->sequence;
-              const int seq2Len = strlen(seq2);
-
-              int seq2DisplayStart = UNSET_INT;
-              const int seq2Offset = getSequenceOffset(seq2Properties, dc, &seq2DisplayStart);
-            
-              /* Get the zero-based index into the sequence and compare the bases to determine the highlight color */
-              const int seq2Idx = displayIdx - seq2Offset;
-              
-              if (seq2Idx >= 0 && seq2Idx < seq2Len)
-                {
-                  if (seq1[seq1Idx] == seq2[seq2Idx])
-                    {
-                      match = TRUE;
-                      break;
-                    }
-                  else if (dc->blastMode != BLXMODE_BLASTN && 
-                           dc->matrix[atob[(unsigned int)seq1[seq1Idx]] - 1 ][atob[(unsigned int)seq2[seq2Idx]] - 1 ] > 0)
-                    {
-                      consMatch = TRUE;
-                    }
-                }
-            } /* end of loop through comparison sequences */
-      
-          if (match)
-            {
-              gdk_gc_set_foreground(gc, matchColor);
-              gdk_draw_rectangle(drawable, gc, TRUE, x, y, ceil(dc->charWidth), roundNearest(dc->charHeight));
-            }
-          else if (consMatch)
-            {
-              gdk_gc_set_foreground(gc, consColor);
-              gdk_draw_rectangle(drawable, gc, TRUE, x, y, ceil(dc->charWidth), roundNearest(dc->charHeight));
-            }
-          
-        } /* end if base within range */
-    } /* end for each display index */  
+          seq1Text[displayIdx] = seq1->sequence[seq1Idx];
+          highlightSequenceBase(seq1, atProperties, dwc, displayIdx, seq1Idx, seq1Start, highlight, gc, drawable);
+        }
+    }
   
-
   /* terminate the display text string */
   seq1Text[displayIdx] = '\0';
   
   /* Draw the sequence text. */
-  x = 0;
-  y = 0;
-  
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, seq1Text);
   pango_layout_set_font_description(layout, dc->fontDesc);
   
   if (layout)
     {
-      gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, x, y, layout);
+      gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, 0, 0, layout);
       g_object_unref(layout);
     }
   
@@ -972,12 +947,12 @@ static void drawSequenceHeader(GtkWidget *widget,
 
 /* Calculate how many bases into the alignment tool's display range the given sequence starts.
  * Also return the start coord of the alignment tool. */
-static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart)
+static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, int *displayStart_out)
 {
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
 
   /* Find the coord that the display starts at */
-  *displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
+  int displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
 
   /* Get the start coord of the sequence data */
   int seqStart = forward ? properties->fullRange->min : properties->fullRange->max;
@@ -997,11 +972,14 @@ static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, 
   
   /* Convert both sets of coords to display coords. */
   seqStart = convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
-  *displayStart = convertToDisplayIdx(*displayStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
+  displayStart = convertToDisplayIdx(displayStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
   
   /* Calculate the offset. Note that this may be positive or negative because it
    * can be in either direction. */
-  int result = forward ? seqStart - *displayStart - 1 : *displayStart - seqStart;
+  int result = forward ? seqStart - displayStart - 1 : displayStart - seqStart;
+
+  if (displayStart_out)
+    *displayStart_out = displayStart;
   
   return result;
 }
@@ -1010,11 +988,8 @@ static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc, 
 /* Get the sequence coordinate at the given x position within the given sequence widget */
 static int getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alignmentTool)
 {
-  int coord = 0;
-  
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
   SequenceProperties *properties = sequenceGetProperties(sequenceWidget);
-  DotterWindowContext *dwc = atProperties->dotterWinCtx;
   DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
 
   /* Get the 0-based character index from the leftmost edge of the widget */
@@ -1024,16 +999,16 @@ static int getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alig
   int displayStart = 0;
   getSequenceOffset(properties, dc, &displayStart);
 
-  /* Calculate the coord of the selected index. Note that coords decrease left-to-right
-   * rather than increase if we have the reverse strand. */
+  /* Apply the offset to get the 0-based coord into the sequence, and add the range
+   * min to get the real coord */
+  int coord = 0;
   if (properties->strand == BLXSTRAND_REVERSE)
     coord = displayStart - displayIdx;
   else
     coord = displayStart + displayIdx + 1;
 
   /* Bounds-limit the result */
-  const IntRange * const seqRange = properties->isMatchSeq ? &dwc->matchSeqRange : &dwc->refSeqRange;
-  boundsLimitValue(&coord, seqRange);
+  boundsLimitValue(&coord, properties->fullRange);
   
   return coord;
 }
@@ -1045,10 +1020,59 @@ static void connectSequenceSignals(GtkWidget *widget, GtkWidget *alignmentTool)
   gtk_widget_add_events(widget, GDK_EXPOSURE_MASK);
   gtk_widget_add_events(widget, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(widget, GDK_BUTTON_RELEASE_MASK);
+    gtk_widget_add_events(widget, GDK_BUTTON_MOTION_MASK);
   
   g_signal_connect(G_OBJECT(widget), "expose-event", G_CALLBACK(onExposeSequence), alignmentTool);
   g_signal_connect(G_OBJECT(widget), "button-press-event", G_CALLBACK(onButtonPressSequence), alignmentTool);
   g_signal_connect(G_OBJECT(widget), "button-release-event", G_CALLBACK(onButtonReleaseSequence), alignmentTool);
+  g_signal_connect(G_OBJECT(widget), "motion-notify-event", G_CALLBACK(onMouseMoveSequence), alignmentTool);
+}
+
+
+/* Get the bit of sequence from the given sequence widget between
+ * the given coords. Returns a new string which should be freed by
+ * the caller using g_free. */
+static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
+                                      const int startCoord,
+                                      const int endCoord,
+                                      DotterWindowContext *dwc)
+{
+  char *result = NULL;
+  
+  SequenceProperties *properties = sequenceGetProperties(sequenceWidget);
+  
+  int startIdx = startCoord - properties->fullRange->min;
+  const int numChars = endCoord - startCoord + 1;
+
+  //  if (properties->strand == BLXSTRAND_REVERSE)
+  //startIdx = properties->fullRange->max - endCoord;
+    
+  if (properties->strand == BLXSTRAND_REVERSE)
+    {
+      /* Sequence is stored rev-comp'd but supplied coords are
+       * on the forward strand, so invert the coords */
+      startIdx = properties->fullRange->max - endCoord;
+    }
+
+  result = g_strndup(properties->sequence + startIdx, numChars);
+
+  return result;
+}
+
+
+/* This clears the current selection */
+static void clearSequenceSelection(GtkWidget *alignmentTool)
+{
+  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+  if (atProperties->selectionWidget)
+    {
+      /* clear current selection widget and redraw it */
+      GtkWidget *widget = atProperties->selectionWidget;
+      atProperties->selectionWidget = NULL;  
+      widgetClearCachedDrawable(widget, NULL);
+      gtk_widget_queue_draw(widget);
+    }
 }
 
 
@@ -1060,38 +1084,13 @@ static void sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *align
   /* flag that we're dragging */
   atProperties->dragging = TRUE;
   atProperties->dragStart = getCoordAtPos(x, sequenceWidget, alignmentTool);
+
+  /* flag that we should highlight the selected sequence (clear any current selection first) */
+  clearSequenceSelection(alignmentTool);
+  atProperties->selectionWidget = sequenceWidget;
+  atProperties->selectionRange.min = atProperties->dragStart;
+  atProperties->selectionRange.max = atProperties->dragStart;
 }
-
-
-static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
-                                      const int startCoord,
-                                      const int endCoord,
-                                      DotterWindowContext *dwc)
-{
-  char *result = NULL;
-  
-  SequenceProperties *properties = sequenceGetProperties(sequenceWidget);
-  DotterContext *dc = dwc->dotterCtx;
-  
-  const char *seq = properties->isMatchSeq ? dc->matchSeq : dc->refSeq;
-  const IntRange* const seqRange = properties->isMatchSeq ? &dwc->matchSeqRange : &dwc->refSeqRange;
-  
-  const int startIdx = startCoord - seqRange->min;
-  const int numChars = endCoord - startCoord + 1;
-  
-  result = g_strndup(seq + startIdx, numChars);
-
-  if (properties->strand == BLXSTRAND_REVERSE)
-    {
-      char *new = g_strdup(result);
-      revComplement(new, result);
-      g_free(result);
-      result = new;
-    }
-  
-  return result;
-}
-
 
 
 /* Finish dragging on a sequence widget */
@@ -1100,9 +1099,9 @@ static void sequenceFinishDragging(GtkWidget *sequenceWidget, GtkWidget *alignme
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
   DotterWindowContext *dwc = atProperties->dotterWinCtx;
 
-  /* cancel the dragging flag */
+  /* cancel the dragging and highlighting flags */
   atProperties->dragging = FALSE;
-
+  
   /* get the range of coords that the user dragged over */
   int minCoord = atProperties->dragStart;
   int maxCoord = getCoordAtPos(x, sequenceWidget, alignmentTool);
@@ -1119,4 +1118,83 @@ static void sequenceFinishDragging(GtkWidget *sequenceWidget, GtkWidget *alignme
   setPrimaryClipboardText(result);
 
   g_free(result);
+}
+
+
+/* Get the colour that the given base in the given sequence should
+ * be highlighted according to how well it matches the other sequences
+ * at the same display index. */
+static DotterColorId getBaseHighlightColor(SequenceProperties *seq1,
+                                           DotterContext *dc,
+                                           const int displayIdx,
+                                           const int seq1Idx,
+                                           const int seq1DisplayStart)
+{
+  /* Compare the base in the current sequence to the base at the
+   * same display position in all other sequences and find whether
+   * any match. Exact matches take precedence over conserved matches.
+   * If none match, just use the background colour (i.e. no highlighting). */
+  DotterColorId colorId = DOTCOLOR_BACKGROUND;
+ 
+  GSList *item = seq1->compSeqs;
+ 
+  for ( ; item; item = item->next)
+    {
+      /* Get info about the other sequence */
+      GtkWidget *seq2Widget = GTK_WIDGET(item->data);
+      SequenceProperties *seq2 = sequenceGetProperties(seq2Widget);
+      const int seq2Len = strlen(seq2->sequence);
+
+      /* Get the sequence coord at the start of the display (leftmost edge) */
+      int seq2Start = UNSET_INT;
+      const int seq2Offset = getSequenceOffset(seq2, dc, &seq2Start);
+    
+      /* Get the zero-based index into the sequence and compare the bases to determine the highlight color */
+      const int seq2Idx = displayIdx - seq2Offset;
+      
+      if (seq2Idx >= 0 && seq2Idx < seq2Len)
+        {
+          if (seq1->sequence[seq1Idx] == seq2->sequence[seq2Idx])
+            {
+              colorId = DOTCOLOR_MATCH;
+              break;
+            }
+          else if (dc->blastMode != BLXMODE_BLASTN && 
+                   dc->matrix[atob[(unsigned int)seq1->sequence[seq1Idx]] - 1 ][atob[(unsigned int)seq2->sequence[seq2Idx]] - 1 ] > 0)
+            {
+              colorId = DOTCOLOR_CONS;
+            }
+        }
+    }
+
+  return colorId;
+}
+
+
+static void highlightSequenceBase(SequenceProperties *seq1,
+                                  AlignmentToolProperties *atProperties,
+                                  DotterWindowContext *dwc,
+                                  const int displayIdx,
+                                  const int seq1Idx,
+                                  const int seq1Start,
+                                  const gboolean highlight,
+                                  GdkGC *gc,
+                                  GdkDrawable *drawable)
+{
+  DotterContext *dc = dwc->dotterCtx;
+  
+  DotterColorId colorId = getBaseHighlightColor(seq1, dc, displayIdx, seq1Idx, seq1Start);
+  const int seq1Coord = (seq1->strand == BLXSTRAND_REVERSE ? seq1Start - displayIdx : seq1Start + displayIdx + 1);
+  const gboolean selected = highlight && valueWithinRange(seq1Coord, &atProperties->selectionRange);
+  
+  /* We don't need to bother drawing the background if it's the standard
+   * (non-selected) background color */
+  if (colorId != DOTCOLOR_BACKGROUND || selected)
+    {
+      GdkColor *color = getGdkColor(colorId, dc->defaultColors, selected, dwc->usePrintColors);
+      gdk_gc_set_foreground(gc, color);
+
+      const int x = (int)((gdouble)displayIdx * dc->charWidth);
+      gdk_draw_rectangle(drawable, gc, TRUE, x, 0, ceil(dc->charWidth), roundNearest(dc->charHeight));
+    }
 }
