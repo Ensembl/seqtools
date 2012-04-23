@@ -45,18 +45,18 @@
 
           Pending (this is an old list - may be out of date):
 
-	  change filqueryopen to filqueryeditopen (.dotter) when getting new code.
+          change filqueryopen to filqueryeditopen (.dotter) when getting new code.
 
-	  Fix revcomp when zooming in.
+          Fix revcomp when zooming in.
 
-	  Add to alignment tool the extent and score of the current window.
+          Add to alignment tool the extent and score of the current window.
 
-	  (Raise initial cutoffs when compressed. ?)
+          (Raise initial cutoffs when compressed. ?)
 
-	  HSP drawing bugged for reverse matches and for reversed scale
-	  (Huge job to fix ... do only if really necessary)
+          HSP drawing bugged for reverse matches and for reversed scale
+          (Huge job to fix ... do only if really necessary)
 
-      	  Score matrix for DNA w/ transversions/transitions...? literature?
+          Score matrix for DNA w/ transversions/transitions...? literature?
 
 -------------------------------------------------------------------------------- */
 
@@ -84,8 +84,8 @@
 */
 
 //#define TINT_WHITE      0x00
-//#define TINT_HIGHLIGHT1 0x01	/* highest priority, dna highlighting */
-//#define TINT_HIGHLIGHT2 0x02	/* highlight friends */
+//#define TINT_HIGHLIGHT1 0x01  /* highest priority, dna highlighting */
+//#define TINT_HIGHLIGHT2 0x02  /* highlight friends */
 //#define TINT_RED        0x04 
 //#define TINT_LIGHTGRAY  0x08 
 //#define TINT_MAGENTA    0x10 
@@ -94,7 +94,7 @@
 //#define TINT_YELLOW     0x80 
 
 //static int tints[8] = { LIGHTRED, MIDBLUE, RED, LIGHTGRAY, 
-//			MAGENTA, CYAN, LIGHTGREEN, YELLOW } ;
+//                      MAGENTA, CYAN, LIGHTGREEN, YELLOW } ;
 
 #define MAX_WINDOW_WIDTH_FRACTION             0.7 /* max init width of dotter window as fraction of screen size */
 #define MAX_WINDOW_HEIGHT_FRACTION            0.7 /* max init height of dotter window as fraction of screen size */
@@ -122,7 +122,7 @@
 typedef struct _DotterProperties
 {
   GtkWidget *greyrampTool;                  /* the greyramp tool */
-  GtkWidget *alignmentTool;		    /* the alignment tool */
+  GtkWidget *alignmentTool;                 /* the alignment tool */
   GtkWidget *dotplot;                       /* the dotplot drawing area */
   
   DotterWindowContext *dotterWinCtx;
@@ -130,6 +130,8 @@ typedef struct _DotterProperties
   GtkUIManager *uiManager;                  /* the ui manager for this dotter window */
 } DotterProperties;
 
+
+/* Local function declarations */
 
 static void showSettingsDialog(GtkWidget *dotterWindow);
 static void readmtx(int mtx[24][24], char *mtxfile);
@@ -145,17 +147,17 @@ static void DNAmatrix(int mtx[24][24]);
 //static void drawMSPGene(MSP *msp, float y_offset) ;
 //static int gArrayGetLen(GArray *array);
 
-static void		      showGreyrampTool(GtkWidget *dotterWindow);
-static void		      showAlignmentTool(GtkWidget *dotterWindow);
-static GtkWidget*	      createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot, const char *exportFileName, GtkUIManager **uiManager);
+static void                   showGreyrampTool(GtkWidget *dotterWindow);
+static void                   showAlignmentTool(GtkWidget *dotterWindow);
+static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot, const char *exportFileName, GtkUIManager **uiManager);
 static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
 static gboolean               onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data);
 static gboolean               onKeyPressDotterCoords(GtkWidget *widget, GdkEventKey *event, gpointer data);
-static gboolean		      negateDisplayCoord(DotterContext *dc, const gboolean horizontal);
-static gboolean		      setStartCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
-static gboolean		      setEndCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
+static gboolean               negateDisplayCoord(DotterContext *dc, const gboolean horizontal);
+static gboolean               setStartCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
+static gboolean               setEndCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
 static void                   printDotterWindow(GtkWidget *dotterWindow);
 static DotterProperties*      dotterGetProperties(GtkWidget *dotterWindow);
 
@@ -192,6 +194,7 @@ static void                       onCopyHCoordMenu(GtkAction *action, gpointer d
 static void                       onCopyVCoordMenu(GtkAction *action, gpointer data);
 static void                       onToggleUsePrintColorsMenu(GtkAction *action, gpointer data);
 static void                       onToggleBumpExonsMenu(GtkAction *action, gpointer data);
+static void                       onPrintColorsChanged(GtkWidget *dotterWindow);
 
 
 /* Menu builders: the action entry list lists menu actions for all menus */
@@ -313,7 +316,7 @@ static const char mainMenuDescription[] =
 /* Global variables */
 
 static int    MATRIX[24][24];
-//              MSPoffset,	/* Difference between real MSP coord and coord stored in MSP */
+//              MSPoffset,      /* Difference between real MSP coord and coord stored in MSP */
 //              HSPgaps = 0.
 //              fsBoxStart,
 //              fsRightOn = 1,
@@ -328,7 +331,7 @@ static int    MATRIX[24][24];
 
 //static char fsPlotHeighttx[10];
 
-       float fsPlotHeight=2.0;	/* The height of feature series XY plots */
+       float fsPlotHeight=2.0;  /* The height of feature series XY plots */
 //static MSP   *msp;
 
 /*  BLOSUM62 930809
@@ -363,14 +366,14 @@ int BLOSUM62[24][24] = {
 
 
 //GArray *fsArr = NULL;  /* Stores Feature Series - t he actual segments are stored
-//			   as MSPs, using these fields:
-//			   msp->sframe  = [1..2] sequence
-//			   msp->qstart = segment start
-//			   msp->qend   = segment end
-//			   msp->fs     = Ordinal number of series that this MSP belongs to.
-//			   msp->fsColor  = color
-//			   msp->desc   = annotation
-//			   */
+//                         as MSPs, using these fields:
+//                         msp->sframe  = [1..2] sequence
+//                         msp->qstart = segment start
+//                         msp->qend   = segment end
+//                         msp->fs     = Ordinal number of series that this MSP belongs to.
+//                         msp->fsColor  = color
+//                         msp->desc   = annotation
+//                         */
 
 
 /***********************************************************
@@ -477,7 +480,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
                                           const BlxStrand refSeqStrand,
                                           const BlxStrand matchSeqStrand,
                                           MSP *mspList,
-					  GList *seqList,
+                                          GList *seqList,
                                           int matrix[24][24],
                                           char *matrixName)
 {
@@ -583,12 +586,12 @@ static DotterContext* createDotterContext(DotterOptions *options,
       int i = 0;
       for (i = 0; i < result->numFrames; i++)
         {
-	  /* Get the start coord at this index and calculate which reading frame it really is
-	   * (because the first coord in the sequence might not be base 1 in frame 1). */
-	  const int startCoord = rev ? result->refSeqFullRange.max - i : result->refSeqFullRange.min + i;
-	
-	  int frame = UNSET_INT;
-	  convertToDisplayIdx(startCoord, TRUE, result, 1, &frame);
+          /* Get the start coord at this index and calculate which reading frame it really is
+           * (because the first coord in the sequence might not be base 1 in frame 1). */
+          const int startCoord = rev ? result->refSeqFullRange.max - i : result->refSeqFullRange.min + i;
+        
+          int frame = UNSET_INT;
+          convertToDisplayIdx(startCoord, TRUE, result, 1, &frame);
 
           result->peptideSeqs[frame - 1] = blxTranslate(refSeqToUse + i, result->geneticCode);
 
@@ -630,15 +633,15 @@ static void destroyDotterContext(DotterContext **dc)
     {
     if ((*dc)->blastMode == BLXMODE_BLASTX)
       {
-	int i = 0;
-	for ( ; i < (*dc)->numFrames; i++)
-	  {
+        int i = 0;
+        for ( ; i < (*dc)->numFrames; i++)
+          {
             if ((*dc)->peptideSeqs && (*dc)->peptideSeqs[i])
               {
                 g_free((*dc)->peptideSeqs[i]);
                 (*dc)->peptideSeqs[i] = NULL;
               }
-	  }
+          }
       }
     
     /* destroy the msps, sequence structs and colors */
@@ -718,27 +721,27 @@ static void onDestroyDotterWindow(GtkWidget *dotterWindow)
         }
 
       if (properties->dotterWinCtx)
-	{
+        {
           DotterContext *dc = properties->dotterWinCtx->dotterCtx;
 
           /* free the context for this window */
-	  destroyDotterWindowContext(&properties->dotterWinCtx);
+          destroyDotterWindowContext(&properties->dotterWinCtx);
 
           /* if it's the last window, then we also need to destroy the main context
            * and quit the program */
-	  if (dc && dc->windowList)
-	    {
-	      dc->windowList = g_slist_remove(dc->windowList, dotterWindow);
+          if (dc && dc->windowList)
+            {
+              dc->windowList = g_slist_remove(dc->windowList, dotterWindow);
 
-	      if (g_slist_length(dc->windowList) < 1)
-		{
-		  g_slist_free(dc->windowList);
-		  dc->windowList = NULL;
-		  destroyDotterContext(&dc);
+              if (g_slist_length(dc->windowList) < 1)
+                {
+                  g_slist_free(dc->windowList);
+                  dc->windowList = NULL;
+                  destroyDotterContext(&dc);
                   gtk_main_quit();
-		}
-	    }
-	}
+                }
+            }
+        }
 
       g_free(properties);
       properties = NULL;
@@ -903,8 +906,8 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
 
 /* properties specific to a particular dotter window */
 static void dotterCreateProperties(GtkWidget *dotterWindow, 
-				   GtkWidget *greyrampTool, 
-				   GtkWidget *alignmentTool,
+                                   GtkWidget *greyrampTool, 
+                                   GtkWidget *alignmentTool,
                                    GtkWidget *dotplot,
                                    DotterWindowContext *dotterWinCtx,
                                    const char *exportFileName,
@@ -989,14 +992,14 @@ static void setInitSelectedCoords(GtkWidget *dotterWindow, const int refCoord, c
 
 
 void dotter (const BlxBlastMode blastMode,
-	     DotterOptions *options,
-	     const BlxStrand refSeqStrand,
-	     const BlxStrand matchSeqStrand,
-	      int   qcenter,
-	      int   scenter,
-	      MSP  *mspList,
-	      GList *seqList,
-	      int   MSPoff)
+             DotterOptions *options,
+             const BlxStrand refSeqStrand,
+             const BlxStrand matchSeqStrand,
+              int   qcenter,
+              int   scenter,
+              MSP  *mspList,
+              GList *seqList,
+              int   MSPoff)
 {
   DEBUG_ENTER("dotter(mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d)",
               blastMode, options->qname, options->qoffset, refSeqStrand, options->sname, options->soffset, matchSeqStrand);
@@ -1019,7 +1022,7 @@ void dotter (const BlxBlastMode blastMode,
   /* Get score matrix */
   char *matrixName = g_malloc((MAX_MATRIX_NAME_LENGTH + 1) * sizeof(char));
   
-  if (options->mtxfile)	
+  if (options->mtxfile) 
     {
       readmtx(MATRIX, options->mtxfile);
       strncpy(matrixName, options->mtxfile, MAX_MATRIX_NAME_LENGTH);
@@ -1045,10 +1048,10 @@ void dotter (const BlxBlastMode blastMode,
     {
       /* Don't do batch processing if output file can't be opened */
       if (options->savefile && !fopen (options->savefile, "wb"))
-	g_error("Failed to open %s\n", options->savefile);
+        g_error("Failed to open %s\n", options->savefile);
 
       if (options->exportfile && !fopen (options->exportfile, "wb"))
-	g_error("Failed to open %s\n", options->exportfile);
+        g_error("Failed to open %s\n", options->exportfile);
     }
   
   /* Create the main dotter context (shared properties for all dotter windows in this process) */
@@ -1245,9 +1248,9 @@ static void rmExp(void){}
 //    x = ceil((float)(pos + MSPoffset - qoffset)/zoom/resfac);
 //
 //    if (reversedScale)
-//	x = RightBorder - x;
+//      x = RightBorder - x;
 //    else
-//	x += LeftBorder-1;
+//      x += LeftBorder-1;
 //
 //    return x;
 //}
@@ -1269,15 +1272,15 @@ static void rmExp(void){}
 //    /* Horizontal axis */
 //
 //    float  
-//	sx = seq2graphX(mspGetQStart(msp)), 
-//	ex = seq2graphX(mspGetQEnd(msp));
+//      sx = seq2graphX(mspGetQStart(msp)), 
+//      ex = seq2graphX(mspGetQEnd(msp));
 //    
 //    offset += TopBorder + slen4 -1;
 //    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
 //
 //    if (fsEndLinesOn) {
-//	graphLine(sx, TopBorder, sx, TopBorder+slen4-2);
-//	graphLine(ex, TopBorder, ex, TopBorder+slen4-2);
+//      graphLine(sx, TopBorder, sx, TopBorder+slen4-2);
+//      graphLine(ex, TopBorder, ex, TopBorder+slen4-2);
 //    }
 //
 //    graphFillRectangle(sx, offset, ex, offset - msp->score/100.0 * fonth);
@@ -1286,7 +1289,7 @@ static void rmExp(void){}
 //
 //    graphColor(BLACK);
 //    if (fsAnnBottomOn && msp->desc) {
-//	graphText(msp->desc, sx, offset);
+//      graphText(msp->desc, sx, offset);
 //    }    
 //    graphColor(oldcolor); graphLinewidth(oldLinew);
 //}
@@ -1296,42 +1299,42 @@ static void rmExp(void){}
 //{
 //    int i, inNotFilled=0, descShown=0;
 //    float  
-//	x, y, 
-//	xold=0, yold=0;
+//      x, y, 
+//      xold=0, yold=0;
 //
 //    offset += TopBorder + slen4 -1;
 //    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
 //
 //    for (i = 0; i < qlen; i++)
 //      {
-//	const int xyVal = g_array_index(msp->xy, int, i);
+//      const int xyVal = g_array_index(msp->xy, int, i);
 //
-//	if (xyVal == XY_NOT_FILLED)
-//	  {
-//	    inNotFilled = 1;
-//	  }
-//	else
-//	  {
-//	    x = seq2graphX(i);
-//	    y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
-//	    
-//	    if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE))
-//	      {
-//	        graphLine(xold, yold, x, y);
-//		
-//		if (fsAnnBottomOn && msp->desc && !descShown)
-//		  {
-//		    int linecolor = graphColor(BLACK);
-//		    graphText(msp->desc, xold, offset);
-//		    graphColor(linecolor);
-//		    descShown = 1;
-//		  }
-//	      }
-//		
-//	    xold = x;
-//	    yold = y;
-//	    inNotFilled = 0;
-//	  }
+//      if (xyVal == XY_NOT_FILLED)
+//        {
+//          inNotFilled = 1;
+//        }
+//      else
+//        {
+//          x = seq2graphX(i);
+//          y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
+//          
+//          if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE))
+//            {
+//              graphLine(xold, yold, x, y);
+//              
+//              if (fsAnnBottomOn && msp->desc && !descShown)
+//                {
+//                  int linecolor = graphColor(BLACK);
+//                  graphText(msp->desc, xold, offset);
+//                  graphColor(linecolor);
+//                  descShown = 1;
+//                }
+//            }
+//              
+//          xold = x;
+//          yold = y;
+//          inNotFilled = 0;
+//        }
 //      }
 //    
 //    graphColor(oldcolor); graphLinewidth(oldLinew);
@@ -1343,15 +1346,15 @@ static void rmExp(void){}
 //    /* Vertical axis */
 //
 //    float  
-//	sx = seq2graphY(mspGetQStart(msp)), 
-//	ex = seq2graphY(mspGetQEnd(msp));
+//      sx = seq2graphY(mspGetQStart(msp)), 
+//      ex = seq2graphY(mspGetQEnd(msp));
 //    
 //    offset += LeftBorder + qlen4 -1;
 //    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
 //
 //    if (fsEndLinesOn) {
-//	graphLine(LeftBorder, sx, LeftBorder+qlen4-2, sx);
-//	graphLine(LeftBorder, ex, LeftBorder+qlen4-2, ex);
+//      graphLine(LeftBorder, sx, LeftBorder+qlen4-2, sx);
+//      graphLine(LeftBorder, ex, LeftBorder+qlen4-2, ex);
 //    }
 //
 //    graphFillRectangle(offset, sx, offset - msp->score/100.0 * fonth, ex);
@@ -1360,7 +1363,7 @@ static void rmExp(void){}
 //
 //    graphColor(BLACK);
 //    if (fsAnnRightOn && msp->desc) {
-//	graphText(msp->desc, offset, sx);
+//      graphText(msp->desc, offset, sx);
 //    }    
 //    graphColor(oldcolor); graphLinewidth(oldLinew);
 //}
@@ -1370,42 +1373,42 @@ static void rmExp(void){}
 //{
 //    int i, inNotFilled=0, descShown=0;
 //    float  
-//	x, y, 
-//	xold=0, yold=0;
+//      x, y, 
+//      xold=0, yold=0;
 //
 //    offset += LeftBorder + qlen4 -1;
 //    oldcolor = graphColor(msp->fsColor); oldLinew = graphLinewidth(.25);
 //
 //    for (i = 0; i < qlen; i++)
 //      {
-//	const int xyVal = g_array_index(msp->xy, int, i);
-//	
-//	if (xyVal == XY_NOT_FILLED)
-//	  {
-//	    inNotFilled = 1;
-//	  }
-//	else
-//	  {
-//	    x = seq2graphY(i);
-//	    y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
-//	    
-//	    if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE)) 
-//	      {
-//		graphLine(yold, xold, y, x);
-//		
-//		if (fsAnnRightOn && msp->desc && !descShown) 
-//		  {
-//		    int linecolor = graphColor(BLACK);
-//		    graphText(msp->desc, offset, xold);
-//		    graphColor(linecolor);
-//		    descShown = 1;
-//		  }
-//	      }
+//      const int xyVal = g_array_index(msp->xy, int, i);
+//      
+//      if (xyVal == XY_NOT_FILLED)
+//        {
+//          inNotFilled = 1;
+//        }
+//      else
+//        {
+//          x = seq2graphY(i);
+//          y = offset-1 - (float)xyVal / 100 * fsPlotHeight * fonth;
+//          
+//          if (xold && (x != xold || y != yold) && (!inNotFilled || msp->fsShape == BLXCURVE_INTERPOLATE)) 
+//            {
+//              graphLine(yold, xold, y, x);
+//              
+//              if (fsAnnRightOn && msp->desc && !descShown) 
+//                {
+//                  int linecolor = graphColor(BLACK);
+//                  graphText(msp->desc, offset, xold);
+//                  graphColor(linecolor);
+//                  descShown = 1;
+//                }
+//            }
 //
-//	    xold = x;
-//	    yold = y;
-//	    inNotFilled = 0;
-//	  }
+//          xold = x;
+//          yold = y;
+//          inNotFilled = 0;
+//        }
 //      }
 //    
 //    graphColor(oldcolor); graphLinewidth(oldLinew);
@@ -1440,12 +1443,12 @@ static void rmExp(void){}
 //{
 //  float sx, ex, 
 //    y, 
-//    height,		/* box height/width */
+//    height,           /* box height/width */
 //    boxHeight=10,
 //    textHeight,
 //    oldLinew;
 //  int i;
-//  float posx=0, posy=0;		/* Next series to be drawn */
+//  float posx=0, posy=0;               /* Next series to be drawn */
 //
 //  int top, bottom ;
 //  float feature_boundary, feature_top, feature_bottom, feature_strand ;
@@ -1455,7 +1458,7 @@ static void rmExp(void){}
 //
 //  /* Set forward/reverse strand gene drawing positions. */
 //  graphGetBounds(&top, &bottom) ;
-//  feature_boundary = 3.0 ;				    /* Allows for line thickness etc... */
+//  feature_boundary = 3.0 ;                                /* Allows for line thickness etc... */
 //  feature_top = TopBorder + slen4 ;
 //  feature_bottom = bottom ;
 //  feature_strand = feature_top + ((feature_bottom - feature_top + 1) / 2) ;
@@ -1479,10 +1482,10 @@ static void rmExp(void){}
 //    {
 //      /* Loop through each feature-series in the feature-series array and set coords to 0 */
 //      for (i = 0; i < gArrayGetLen(fsArr); i++)
-//	{
-//	  FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
-//	  fs->y = fs->x = 0;
-//	}
+//      {
+//        FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+//        fs->y = fs->x = 0;
+//      }
 //    }
 //
 //  textHeight = fonth;
@@ -1503,55 +1506,55 @@ static void rmExp(void){}
 //      height = boxHeight;
 //
 //      if (mspHasFs(msp))
-//	{
-//	  sx = seq2graphX(mspGetQStart(msp));
-//	  ex = seq2graphX(mspGetQEnd(msp));
+//      {
+//        sx = seq2graphX(mspGetQStart(msp));
+//        ex = seq2graphX(mspGetQEnd(msp));
 //
-//	  if (msp->qStrand != strand)
-//	    y = reverse_y ;
-//	  else
-//	    y = forward_y ;
+//        if (msp->qStrand != strand)
+//          y = reverse_y ;
+//        else
+//          y = forward_y ;
 //
 //          if (!mspShowFs(msp))
-//	    continue;
+//          continue;
 //
-//	  /* Adjust height to score */
-//	  if (msp->score > 0)
-//	    {
-//	      height = boxHeight * msp->score / 100.0;
-//	    }
+//        /* Adjust height to score */
+//        if (msp->score > 0)
+//          {
+//            height = boxHeight * msp->score / 100.0;
+//          }
 //
-//	  if (fsBottomOn && (isHorizontalMSP(msp) || (selfcomp && isVerticalMSP(msp))))
-//	    {
-//	      /* HORIZONTAL AXIS (X) */
-//		    
-//	      if (msp->type == BLXMSP_XY_PLOT)
-//		{
-//		  XdrawSEGxy(msp, mspGetFsRightEdge(msp, &posx, fonth*(fsPlotHeight+1)));
-//		}
-//	      else if (msp->type == BLXMSP_FS_SEG)
-//		{
-//		  XdrawSEG(msp, mspGetFsRightEdge(msp, &posx, boxHeight+textHeight));
-//		}
-//	    }
+//        if (fsBottomOn && (isHorizontalMSP(msp) || (selfcomp && isVerticalMSP(msp))))
+//          {
+//            /* HORIZONTAL AXIS (X) */
+//                  
+//            if (msp->type == BLXMSP_XY_PLOT)
+//              {
+//                XdrawSEGxy(msp, mspGetFsRightEdge(msp, &posx, fonth*(fsPlotHeight+1)));
+//              }
+//            else if (msp->type == BLXMSP_FS_SEG)
+//              {
+//                XdrawSEG(msp, mspGetFsRightEdge(msp, &posx, boxHeight+textHeight));
+//              }
+//          }
 //
-//	  if (fsRightOn &&  (isVerticalMSP(msp) || (selfcomp && isHorizontalMSP(msp))))
-//	    {
-//	      /* VERTICAL AXIS (Y) */
+//        if (fsRightOn &&  (isVerticalMSP(msp) || (selfcomp && isHorizontalMSP(msp))))
+//          {
+//            /* VERTICAL AXIS (Y) */
 //
-//	      if (msp->type == BLXMSP_XY_PLOT)
-//		{
-//		  YdrawSEGxy(msp, mspGetFsBottomEdge(msp, &posy, fonth*(fsPlotHeight+1)));
-//		}
-//	      else if (msp->type == BLXMSP_FS_SEG)
-//		{
-//		  YdrawSEG(msp, mspGetFsBottomEdge(msp, &posy, boxHeight+textHeight));
-//		}
-//	    }
+//            if (msp->type == BLXMSP_XY_PLOT)
+//              {
+//                YdrawSEGxy(msp, mspGetFsBottomEdge(msp, &posy, fonth*(fsPlotHeight+1)));
+//              }
+//            else if (msp->type == BLXMSP_FS_SEG)
+//              {
+//                YdrawSEG(msp, mspGetFsBottomEdge(msp, &posy, boxHeight+textHeight));
+//              }
+//          }
 //
-//	  graphColor(oldcolor); 
-//	  graphLinewidth(oldLinew);
-//	}
+//        graphColor(oldcolor); 
+//        graphLinewidth(oldLinew);
+//      }
 //    }
 //
 //  return ;
@@ -1560,9 +1563,9 @@ static void rmExp(void){}
 
 //static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth)
 //{
-//  gboolean bump_genes = FALSE ;				    /* Make this user settable... */
+//  gboolean bump_genes = FALSE ;                                   /* Make this user settable... */
 //
-//  float height,		/* box height/width */
+//  float height,               /* box height/width */
 //    sy, ey, midy, x, y, oldLinew ;
 //
 //  height = fonth ;
@@ -1588,10 +1591,10 @@ static void rmExp(void){}
 //      /* Sort all introns/exons by gene and position within gene. */
 //      gene_msp = tmp = msp ;
 //      for ( ; tmp ; tmp = tmp->next)
-//	{
-//	  if (tmp->score < 0)
-//	    exon_intron_list = g_list_append(exon_intron_list, tmp) ;
-//	}
+//      {
+//        if (tmp->score < 0)
+//          exon_intron_list = g_list_append(exon_intron_list, tmp) ;
+//      }
 //      exon_intron_list = g_list_sort(exon_intron_list, compareMSPs) ;
 //
 //
@@ -1637,45 +1640,45 @@ static void rmExp(void){}
 //  else
 //    {
 //      for (; msp; msp = msp->next)
-//	{    
-//	  if (msp->score < 0)
-//	    {
-//	      if (msp->qStrand != strand)
-//		y = reverse_y ;
-//	      else
-//		y = forward_y ;
+//      {    
+//        if (msp->score < 0)
+//          {
+//            if (msp->qStrand != strand)
+//              y = reverse_y ;
+//            else
+//              y = forward_y ;
 //
-//	      oldcolor = graphColor(BLUE); 
-//	      drawMSPGene(msp, y) ;
+//            oldcolor = graphColor(BLUE); 
+//            drawMSPGene(msp, y) ;
 //
-//	      if (selfcomp) /* Draw the boxes on vertical axes too */
-//		{
-//		  sy = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/zoom);
-//		  ey = ceil((float)(mspGetQEnd(msp)+MSPoffset - qoffset)/zoom);
-//		
-//		  sy += TopBorder-1;
-//		  ey += TopBorder-1;
-//		
-//		  x = LeftBorder + qlen4 + 10;
-//		  if (msp->qStrand != strand) x += 20;
-//		
-//		  if (msp->score == -1.0) /* EXON */
-//		    {
-//		      oldcolor = graphColor(BLUE); 
-//		      graphRectangle(x, sy, x + height, ey);
-//		    }
-//		  else if (msp->score == -2.0) /* INTRON */
-//		    {
-//		      oldcolor = graphColor(BLUE); 
-//		      midy = 0.5 * (sy + ey) ;
-//		      graphLine (x + height/2, sy, x, midy) ;
-//		      graphLine (x + height/2, ey, x, midy) ;
-//		    }
-//		}
+//            if (selfcomp) /* Draw the boxes on vertical axes too */
+//              {
+//                sy = ceil((float)(mspGetQStart(msp)+MSPoffset - qoffset)/zoom);
+//                ey = ceil((float)(mspGetQEnd(msp)+MSPoffset - qoffset)/zoom);
+//              
+//                sy += TopBorder-1;
+//                ey += TopBorder-1;
+//              
+//                x = LeftBorder + qlen4 + 10;
+//                if (msp->qStrand != strand) x += 20;
+//              
+//                if (msp->score == -1.0) /* EXON */
+//                  {
+//                    oldcolor = graphColor(BLUE); 
+//                    graphRectangle(x, sy, x + height, ey);
+//                  }
+//                else if (msp->score == -2.0) /* INTRON */
+//                  {
+//                    oldcolor = graphColor(BLUE); 
+//                    midy = 0.5 * (sy + ey) ;
+//                    graphLine (x + height/2, sy, x, midy) ;
+//                    graphLine (x + height/2, ey, x, midy) ;
+//                  }
+//              }
 //
-//	      graphColor(oldcolor) ;
-//	    }
-//	}
+//            graphColor(oldcolor) ;
+//          }
+//      }
 //    }
 //
 //  graphLinewidth(oldLinew) ;
@@ -1693,20 +1696,20 @@ static void rmExp(void){}
 //  if (!(result = strcmp(msp_a->sname, msp_b->sname)))
 //    {
 //      if (mspGetSStart(msp_a) < mspGetSStart(msp_b))
-//	result = -1 ;
+//      result = -1 ;
 //      else if (mspGetSStart(msp_a) > mspGetSStart(msp_b))
-//	result = 1 ;
+//      result = 1 ;
 //      else
-//	{
-//	  /* I actually don't think this should ever happen as it means either there are
-//	   * duplicates or worse there are overlapping introns/exons within a gene.... */
-//	  if (mspGetSEnd(msp_a) < mspGetSEnd(msp_b))
-//	    result = -1 ;
-//	  else if (mspGetSEnd(msp_a) > mspGetSEnd(msp_b))
-//	    result = 1 ;
-//	  else
-//	    result = 0 ;
-//	}
+//      {
+//        /* I actually don't think this should ever happen as it means either there are
+//         * duplicates or worse there are overlapping introns/exons within a gene.... */
+//        if (mspGetSEnd(msp_a) < mspGetSEnd(msp_b))
+//          result = -1 ;
+//        else if (mspGetSEnd(msp_a) > mspGetSEnd(msp_b))
+//          result = 1 ;
+//        else
+//          result = 0 ;
+//      }
 //    }
 //
 //  return result ;
@@ -1728,44 +1731,44 @@ static void rmExp(void){}
 //      int curr_length ;
 //
 //      if (strand_genes->strand == '+')
-//	gene_list = strand_genes->forward_genes ;
+//      gene_list = strand_genes->forward_genes ;
 //      else
-//	gene_list = strand_genes->reverse_genes ;
+//      gene_list = strand_genes->reverse_genes ;
 //
 //      if (gene_list)
-//	{
-//	  /* Look at last element, this is the last gene we added. */
-//	  gene_list = g_list_last(gene_list) ;
+//      {
+//        /* Look at last element, this is the last gene we added. */
+//        gene_list = g_list_last(gene_list) ;
 //
-//	  curr_name = (((GeneData)(gene_list->data))->name) ;
-//	  curr_length = strlen(curr_name) - 1 ;
-//	}
+//        curr_name = (((GeneData)(gene_list->data))->name) ;
+//        curr_length = strlen(curr_name) - 1 ;
+//      }
 //
 //      /* If there's no gene or we are starting a new gene then just add to the list,
 //       * otherwise record latest msp end position. */
 //      if (!gene_list || strncmp(mspGetSName(msp), curr_name, curr_length) != 0)
-//	{
-//	  gene = g_new0(GeneDataStruct, 1) ;
-//	  gene->name = mspGetSName(msp) ;
-//	  gene->start = mspGetSStart(msp) ;
-//	  gene->end = mspGetSEnd(msp) ;
-//	  gene->strand = msp->qframe[1] ;
-//	  gene->msp_start = msp ;
+//      {
+//        gene = g_new0(GeneDataStruct, 1) ;
+//        gene->name = mspGetSName(msp) ;
+//        gene->start = mspGetSStart(msp) ;
+//        gene->end = mspGetSEnd(msp) ;
+//        gene->strand = msp->qframe[1] ;
+//        gene->msp_start = msp ;
 //
-//	  gene_list = g_list_append(gene_list, gene) ;
-//	}
+//        gene_list = g_list_append(gene_list, gene) ;
+//      }
 //      else
-//	{
-//	  gene = (GeneData)(gene_list->data) ;
+//      {
+//        gene = (GeneData)(gene_list->data) ;
 //
-//	  gene->end = mspGetSEnd(msp) ;
-//	  gene->msp_end = msp ;
-//	}
+//        gene->end = mspGetSEnd(msp) ;
+//        gene->msp_end = msp ;
+//      }
 //
 //      if (strand_genes->strand == '+')
-//	strand_genes->forward_genes = gene_list ;
+//      strand_genes->forward_genes = gene_list ;
 //      else
-//	strand_genes->reverse_genes = gene_list ;
+//      strand_genes->reverse_genes = gene_list ;
 //    }
 //
 //  return ;
@@ -1786,11 +1789,11 @@ static void rmExp(void){}
 //  else
 //    {
 //      if (gene_a->start < gene_b->start)
-//	result = -1 ;
+//      result = -1 ;
 //      else if (gene_a->start > gene_b->start)
-//	result = 1 ;
+//      result = 1 ;
 //      else
-//	result = 0 ;
+//      result = 0 ;
 //    }
 //
 //  return result ;
@@ -1818,43 +1821,43 @@ static void rmExp(void){}
 //      /* For each gene look at all the preceding genes and to decide its y offset so it is
 //       * bumped correctly. */
 //      while (list_ptr)
-//	{
-//	  GeneData list_gene = (GeneData)list_ptr->data ;
-//	  GeneData curr_gene = (GeneData)curr_ptr->data ;
+//      {
+//        GeneData list_gene = (GeneData)list_ptr->data ;
+//        GeneData curr_gene = (GeneData)curr_ptr->data ;
 //
-//	  if (list_ptr == curr_ptr)
-//	    {
-//	      /* This gene overlaps all previous ones and needs a new offset. */
-//	      curr_y += bump_incr ;
-//	      if (curr_y > max_offset)
-//		curr_y = max_offset ;
+//        if (list_ptr == curr_ptr)
+//          {
+//            /* This gene overlaps all previous ones and needs a new offset. */
+//            curr_y += bump_incr ;
+//            if (curr_y > max_offset)
+//              curr_y = max_offset ;
 //
-//	      curr_gene->y_pos = curr_y ;
-//	      break ;
-//	    }
-//	  else if (curr_gene->start > list_gene->end)
-//	    {
-//	      /* This gene coes not overlap the list gene so give is the same offset. */
-//	      curr_gene->y_pos = list_gene->y_pos ;
+//            curr_gene->y_pos = curr_y ;
+//            break ;
+//          }
+//        else if (curr_gene->start > list_gene->end)
+//          {
+//            /* This gene coes not overlap the list gene so give is the same offset. */
+//            curr_gene->y_pos = list_gene->y_pos ;
 //
-//	      if (list_ptr->next != curr_ptr)
-//		{
-//		  list_ptr = g_list_remove(list_ptr, curr_gene) ;
-//		  list_ptr = g_list_insert_before(gene_list, list_ptr->next, curr_gene) ;
-//		}
+//            if (list_ptr->next != curr_ptr)
+//              {
+//                list_ptr = g_list_remove(list_ptr, curr_gene) ;
+//                list_ptr = g_list_insert_before(gene_list, list_ptr->next, curr_gene) ;
+//              }
 //
-//	      break ;
-//	    }
-//	  else
-//	    {
-//	      /* This gene overlaps the list gene so move on to the next one. */
-//	      list_ptr = g_list_next(list_ptr) ;
-//	    }
-//	}
+//            break ;
+//          }
+//        else
+//          {
+//            /* This gene overlaps the list gene so move on to the next one. */
+//            list_ptr = g_list_next(list_ptr) ;
+//          }
+//      }
 //
 //      /* update curr/next until we get to the end of the list... */
 //      if ((curr_ptr = next_ptr))
-//	next_ptr = curr_ptr->next ;
+//      next_ptr = curr_ptr->next ;
 //    }
 //
 //  return ;
@@ -1881,7 +1884,7 @@ static void rmExp(void){}
 //
 //static void drawMSPGene(MSP *msp, float y_offset)
 //{
-//  float height,		/* box height/width */
+//  float height,               /* box height/width */
 //    sx, ex, midx ;
 //
 //  height = fonth ;
@@ -1910,7 +1913,7 @@ static void rmExp(void){}
 //  MSP *msp = (MSP *)data ;
 //  
 //  printf("%s:\t%d,%d\t->\t%d,%d\n",
-//	 msp->sname, msp->sstart, msp->send, msp->qstart, msp->qend) ;
+//       msp->sname, msp->sstart, msp->send, msp->qstart, msp->qend) ;
 //  
 //
 //  return ;
@@ -1922,7 +1925,7 @@ static void rmExp(void){}
 //  GeneData gene = (GeneData)data ;
 //  
 //  printf("%s: '%c' %d -> %d   is at position: %f\n",
-//	 gene->name, gene->strand, gene->start, gene->end, gene->y_pos) ;
+//       gene->name, gene->strand, gene->start, gene->end, gene->y_pos) ;
 //  
 //
 //  return ;
@@ -1965,10 +1968,10 @@ static void rmExp(void){}
 //      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
 //      
 //      if (fs->xy) 
-//	{
-//	  fs->on = 0;
-//	  graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
-//	}
+//      {
+//        fs->on = 0;
+//        graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
+//      }
 //    }
 //}
 //
@@ -1982,10 +1985,10 @@ static void rmExp(void){}
 //      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
 //      
 //      if (!fs->xy) 
-//	{
-//	  fs->on = 0;
-//	  graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
-//	}
+//      {
+//        fs->on = 0;
+//        graphBoxDraw(fsBoxStart+i, BLACK, WHITE);
+//      }
 //    }
 //}
 //
@@ -2017,7 +2020,7 @@ static void rmExp(void){}
 //static void fsSel(int box, double x_unused, double y_unused, int modifier_unused)
 //{
 //    if (box-fsBoxStart < 0 || box-fsBoxStart > gArrayGetLen(fsArr))
-//	return;
+//      return;
 //    
 //    FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, box - fsBoxStart);
 //    int *on = &fs->on;
@@ -2026,12 +2029,12 @@ static void rmExp(void){}
 //
 //
 //    if (*on) {
-//	*on = 0;
-//	graphBoxDraw(box, BLACK, WHITE);
+//      *on = 0;
+//      graphBoxDraw(box, BLACK, WHITE);
 //    }
 //    else {
-//	*on = 1;
-//	graphBoxDraw(box, WHITE, BLACK);
+//      *on = 1;
+//      graphBoxDraw(box, WHITE, BLACK);
 //    }
 //
 //}
@@ -2111,14 +2114,14 @@ static void rmExp(void){}
 //      graphBoxEnd();
 //
 //      if (!fs->on) 
-//	{
-//	  graphBoxDraw(box, BLACK, WHITE);
-//	}
+//      {
+//        graphBoxDraw(box, BLACK, WHITE);
+//      }
 //      else 
-//	{
-//	  graphBoxDraw(box, WHITE, BLACK);
-//	}
-//	
+//      {
+//        graphBoxDraw(box, WHITE, BLACK);
+//      }
+//      
 //      y += 1.5;
 //    }
 //
@@ -2132,31 +2135,31 @@ static void rmExp(void){}
 //{
 //    int i;
 //    float maxy = 0;
-//	
+//      
 //    if (!fsArr || !gArrayGetLen(fsArr))
 //      {
-//	return 0.0;
+//      return 0.0;
 //      }
 //
 //    for (i = 0; i < gArrayGetLen(fsArr); i++) 
 //      {
-//	FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
-//	fs->y = fs->x = 0;
+//      FeatureSeries *fs = &g_array_index(fsArr, FeatureSeries, i);
+//      fs->y = fs->x = 0;
 //      }
-//	
+//      
 //    for (msp = msplist; msp; msp = msp->next) 
 //      {
 //        if (mspShowFs(msp))
-//	  {
-//	    if (msp->type == BLXMSP_XY_PLOT) 
-//	      {
-//		mspGetFsBottomEdge(msp, &maxy, fsPlotHeight+1);
-//	      }
-//	    else if (msp->type == BLXMSP_FS_SEG) 
-//	      {
-//		mspGetFsBottomEdge(msp, &maxy, 1+1);
-//	      }
-//	  }
+//        {
+//          if (msp->type == BLXMSP_XY_PLOT) 
+//            {
+//              mspGetFsBottomEdge(msp, &maxy, fsPlotHeight+1);
+//            }
+//          else if (msp->type == BLXMSP_FS_SEG) 
+//            {
+//              mspGetFsBottomEdge(msp, &maxy, 1+1);
+//            }
+//        }
 //      }
 //    
 //    return maxy + 2;
@@ -2608,10 +2611,10 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
     char *mtxfileText = blxprintf("%s/%s", getenv("BLASTMAT"), mtxfile);
   
     if (!(fil = fopen(mtxfile, "r")) &&
-	!(fil = fopen(mtxfileText, "r")))
+        !(fil = fopen(mtxfileText, "r")))
       {
         char *msg = blxprintf("Failed to open score matrix file %s - not found in ./ or $BLASTMAT/.\n");
-	g_error(msg, mtxfile);
+        g_error(msg, mtxfile);
         g_free(msg);
       }
   
@@ -2620,27 +2623,27 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
     
     /* Ignore header ... */
     while (!feof(fil) && *line == '#') 
-	fgets(line, 1024, fil);
+        fgets(line, 1024, fil);
 
     /* Read in the pairwise scores */
     for (row = 0; row < 24; row++)
     {
-	if (!(fgets(line, 1024, fil)))
-	    g_error("Wrong number of rows in matrix file: %d (should be 24).\n", row);
+        if (!(fgets(line, 1024, fil)))
+            g_error("Wrong number of rows in matrix file: %d (should be 24).\n", row);
 
-	p = strtok(line, " \t\n");
-	for (col = 0; col < 24; col++) 
-	{
-	    while (*p == '*' || isalpha((int) *p))
-		p = strtok(NULL, " \t\n");
+        p = strtok(line, " \t\n");
+        for (col = 0; col < 24; col++) 
+        {
+            while (*p == '*' || isalpha((int) *p))
+                p = strtok(NULL, " \t\n");
           
-	    if (!p) 
+            if (!p) 
               g_error("Error on row %d in matrix file.\n", row);
 
-	    MATRIX[row][col] = atoi(p);
+            MATRIX[row][col] = atoi(p);
 
-	    p = strtok(NULL, " \t\n");
-	}
+            p = strtok(NULL, " \t\n");
+        }
     }
 
     g_message("I read your score matrix %s.\n", mtxfile);
@@ -2652,8 +2655,8 @@ static void mtxcpy(int dest[24][24], int src[24][24])
     int i, j;
 
     for (i = 0 ; i < 24 ; i++)
-	for (j = 0 ; j < 24 ; j++)
-	    dest[i][j] = src[i][j];
+        for (j = 0 ; j < 24 ; j++)
+            dest[i][j] = src[i][j];
 }
 
 
@@ -2662,12 +2665,12 @@ static void DNAmatrix(int mtx[24][24])
     int i, j;
 
     for (i = 0 ; i < 6 ; i++)
-	for (j = 0 ; j < 6 ; j++) {
-	    if ( i < 4 && j < 4) 
-		mtx[i][j] = (i == j ? 5 : -4);
-	    else 
-		mtx[i][j] = -4;
-	}
+        for (j = 0 ; j < 6 ; j++) {
+            if ( i < 4 && j < 4) 
+                mtx[i][j] = (i == j ? 5 : -4);
+            else 
+                mtx[i][j] = -4;
+        }
 }
 
 
@@ -2692,9 +2695,9 @@ static void showGreyrampTool(GtkWidget *dotterWindow)
       gtk_widget_show_all(properties->greyrampTool);
       
       if (GTK_IS_WINDOW(properties->greyrampTool))
-	{
-	  gtk_window_present(GTK_WINDOW(properties->greyrampTool));
-	}
+        {
+          gtk_window_present(GTK_WINDOW(properties->greyrampTool));
+        }
     }
   else
     {
@@ -2712,9 +2715,9 @@ static void showAlignmentTool(GtkWidget *dotterWindow)
       gtk_widget_show_all(properties->alignmentTool);
       
       if (GTK_IS_WINDOW(properties->alignmentTool))
-	{
-	  gtk_window_present(GTK_WINDOW(properties->alignmentTool));
-	}
+        {
+          gtk_window_present(GTK_WINDOW(properties->alignmentTool));
+        }
     }
   else
     {
@@ -2777,14 +2780,14 @@ static void showAboutDialog(GtkWidget *parent)
   const gchar *authors[] = {AUTHOR_LIST, NULL} ;
   
   gtk_show_about_dialog(GTK_WINDOW(parent),
-			"authors", authors,
-			"comments", dotterGetCommentsString(), 
-			"copyright", dotterGetCopyrightString(),
-			"license", dotterGetLicenseString(),
-			"name", dotterGetAppName(),
-			"version", dotterGetVersionString(),
-			"website", dotterGetWebSiteString(),
-			NULL) ;
+                        "authors", authors,
+                        "comments", dotterGetCommentsString(), 
+                        "copyright", dotterGetCopyrightString(),
+                        "license", dotterGetLicenseString(),
+                        "name", dotterGetAppName(),
+                        "version", dotterGetVersionString(),
+                        "website", dotterGetWebSiteString(),
+                        NULL) ;
 #endif
   
   return ;
@@ -2888,8 +2891,8 @@ static void onExportPlotMenu(GtkAction *action, gpointer data)
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 
   /* Revert the background colour */
-  defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, properties->dotterWinCtx->dotterCtx->defaultColors, FALSE, properties->dotterWinCtx->usePrintColors);
-  setWidgetBackgroundColor(dotterWindow, defaultBgColor);
+  onPrintColorsChanged(dotterWindow);
+
   redrawAll(dotterWindow, NULL);
 }
 
@@ -2991,6 +2994,21 @@ static void onToggleHspMode(GtkRadioAction *action, GtkRadioAction *current, gpo
   setHspMode(properties->dotplot, hspMode);
 }
 
+static void onPrintColorsChanged(GtkWidget *dotterWindow)
+{
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+
+  /* Refresh the background colors for both the main window and the alignment tool */
+  GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, dwc->usePrintColors);
+  
+  setWidgetBackgroundColor(dotterWindow, defaultBgColor);
+  setWidgetBackgroundColor(properties->alignmentTool, defaultBgColor);
+  
+  /* Redraw everything */
+  refreshAll(dotterWindow, NULL);
+}
+
 static void onToggleUsePrintColorsMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *dotterWindow = GTK_WIDGET(data);
@@ -2999,15 +3017,7 @@ static void onToggleUsePrintColorsMenu(GtkAction *action, gpointer data)
   
   /* Toggle the flag*/
   dwc->usePrintColors = !dwc->usePrintColors;
-  
-  /* Refresh the background colors */
-  GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, dwc->usePrintColors);
-  
-  setWidgetBackgroundColor(dotterWindow, defaultBgColor);
-  setWidgetBackgroundColor(properties->alignmentTool, defaultBgColor);
-  
-  /* Redraw everything */
-  refreshAll(dotterWindow, NULL);
+  onPrintColorsChanged(dotterWindow);
 }
 
 static void onToggleBumpExonsMenu(GtkAction *action, gpointer data)
@@ -3172,12 +3182,12 @@ static gboolean setEndCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, c
  * in the decreasing direction. 'horizontal' indicates whether it's the horizontal or vertical
  * sequence that we're modifying and 'reverse' indicates whether that sequence's scale is shown reversed. */
 static void incrementCoord(GtkWidget *dotterWindow, 
-			   DotterContext *dc,
-			   int *coord, 
-			   const gboolean reverse, 
-			   const gboolean horizontal, 
-			   const gboolean convertCoords,
-			   const int numCoords)
+                           DotterContext *dc,
+                           int *coord, 
+                           const gboolean reverse, 
+                           const gboolean horizontal, 
+                           const gboolean convertCoords,
+                           const int numCoords)
 {
   const int incValue = convertCoords ? numCoords * getResFactor(dc, horizontal) : numCoords;
 
@@ -3338,33 +3348,33 @@ gboolean onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data)
   
   GtkWidget *dotterWindow = GTK_WIDGET(data);
   
-  const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;	
+  const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;  
   
   switch (event->keyval)
     {
       case GDK_Q:   /* fall through */
-      case GDK_q:   handled = onKeyPressQ(dotterWindow, ctrlModifier);		    break;
+      case GDK_q:   handled = onKeyPressQ(dotterWindow, ctrlModifier);              break;
 
       case GDK_W:   /* fall through */
       case GDK_w:   handled = onKeyPressW(widget, ctrlModifier);                    break;
         
       case GDK_H:   /* fall through */
-      case GDK_h:   handled = onKeyPressH(dotterWindow, ctrlModifier);		    break;
+      case GDK_h:   handled = onKeyPressH(dotterWindow, ctrlModifier);              break;
 
       case GDK_P:   /* fall through */
       case GDK_p:   handled = onKeyPressP(widget, dotterWindow, ctrlModifier);      break;
 
       case GDK_S:   /* fall through */
-      case GDK_s:   handled = onKeyPressS(dotterWindow, ctrlModifier);		    break;
+      case GDK_s:   handled = onKeyPressS(dotterWindow, ctrlModifier);              break;
 
       case GDK_G:   /* fall through */
-      case GDK_g:   handled = onKeyPressG(dotterWindow, ctrlModifier);		    break;
+      case GDK_g:   handled = onKeyPressG(dotterWindow, ctrlModifier);              break;
 
       case GDK_A:   /* fall through */
-      case GDK_a:   handled = onKeyPressA(dotterWindow, ctrlModifier);		    break;
+      case GDK_a:   handled = onKeyPressA(dotterWindow, ctrlModifier);              break;
 
       case GDK_D:   /* fall through */
-      case GDK_d:   handled = onKeyPressD(dotterWindow, ctrlModifier);		    break;
+      case GDK_d:   handled = onKeyPressD(dotterWindow, ctrlModifier);              break;
 
       default: break;
   }
@@ -3387,25 +3397,25 @@ gboolean onKeyPressDotterCoords(GtkWidget *widget, GdkEventKey *event, gpointer 
       //  const gboolean altModifier = (event->state & GDK_MOD1_MASK) == GDK_MOD1_MASK;
       
       switch (event->keyval)
-	{
-	  case GDK_Up:            handled = onKeyPressUpDown(dotterWindow, TRUE, shiftModifier);        break;
-	  case GDK_Down:          handled = onKeyPressUpDown(dotterWindow, FALSE, shiftModifier);       break;
-	    
-	  case GDK_Left:          handled = onKeyPressLeftRight(dotterWindow, TRUE, shiftModifier);     break;
-	  case GDK_Right:         handled = onKeyPressLeftRight(dotterWindow, FALSE, shiftModifier);    break;
-	    
-	  case GDK_comma:         handled = onKeyPressCommaPeriod(dotterWindow, TRUE, shiftModifier);   break;
-	  case GDK_less:          handled = onKeyPressCommaPeriod(dotterWindow, TRUE, shiftModifier);   break;
-	  case GDK_period:        handled = onKeyPressCommaPeriod(dotterWindow, FALSE, shiftModifier);  break;
-	  case GDK_greater:       handled = onKeyPressCommaPeriod(dotterWindow, FALSE, shiftModifier);  break;
-	    
-	  case GDK_bracketleft:   handled = onKeyPressLeftRightBracket(dotterWindow, TRUE, shiftModifier);	  break;
-	  case GDK_braceleft:     handled = onKeyPressLeftRightBracket(dotterWindow, TRUE, shiftModifier);	  break;
-	  case GDK_bracketright:  handled = onKeyPressLeftRightBracket(dotterWindow, FALSE, shiftModifier);	  break;
-	  case GDK_braceright:    handled = onKeyPressLeftRightBracket(dotterWindow, FALSE, shiftModifier);	  break;
-	    
-	  default: break;
-	}
+        {
+          case GDK_Up:            handled = onKeyPressUpDown(dotterWindow, TRUE, shiftModifier);        break;
+          case GDK_Down:          handled = onKeyPressUpDown(dotterWindow, FALSE, shiftModifier);       break;
+            
+          case GDK_Left:          handled = onKeyPressLeftRight(dotterWindow, TRUE, shiftModifier);     break;
+          case GDK_Right:         handled = onKeyPressLeftRight(dotterWindow, FALSE, shiftModifier);    break;
+            
+          case GDK_comma:         handled = onKeyPressCommaPeriod(dotterWindow, TRUE, shiftModifier);   break;
+          case GDK_less:          handled = onKeyPressCommaPeriod(dotterWindow, TRUE, shiftModifier);   break;
+          case GDK_period:        handled = onKeyPressCommaPeriod(dotterWindow, FALSE, shiftModifier);  break;
+          case GDK_greater:       handled = onKeyPressCommaPeriod(dotterWindow, FALSE, shiftModifier);  break;
+            
+          case GDK_bracketleft:   handled = onKeyPressLeftRightBracket(dotterWindow, TRUE, shiftModifier);        break;
+          case GDK_braceleft:     handled = onKeyPressLeftRightBracket(dotterWindow, TRUE, shiftModifier);        break;
+          case GDK_bracketright:  handled = onKeyPressLeftRightBracket(dotterWindow, FALSE, shiftModifier);       break;
+          case GDK_braceright:    handled = onKeyPressLeftRightBracket(dotterWindow, FALSE, shiftModifier);       break;
+            
+          default: break;
+        }
     }
   
   return handled;
@@ -3461,7 +3471,7 @@ static GtkWidget* createDotterMenu(GtkWidget *window,
 
 
 static GtkWidget* createDotterWindow(DotterContext *dc, 
-				     DotterWindowContext *dwc,
+                                     DotterWindowContext *dwc,
                                      const DotterHspMode hspMode, 
                                      GtkWidget *greyrampTool, 
                                      GtkWidget *dotplotContainer, 
@@ -3559,8 +3569,7 @@ static void printDotterWindow(GtkWidget *dotterWindow)
   blxPrintWidget(parent, NULL, GTK_WINDOW(dotterWindow), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
   
   /* Revert the background colour */
-  defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, properties->dotterWinCtx->dotterCtx->defaultColors, FALSE, properties->dotterWinCtx->usePrintColors);
-  setWidgetBackgroundColor(dotterWindow, defaultBgColor);
+  onPrintColorsChanged(dotterWindow);
 
   /* Redraw the entire dotplot to make sure the crosshair we added gets cleared */
   redrawAll(dotterWindow, NULL);
