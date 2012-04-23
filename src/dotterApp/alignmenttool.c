@@ -392,11 +392,15 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
 static void setAlignmentLength(GtkWidget *alignmentTool, const int length, GError **error)
 {
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-  
+
   if (length > MIN_ALIGNMENT_LENGTH && length <= MAX_ALIGNMENT_LENGTH)
     {
-      /* Input length is in display coords: convert to nucleotide coords */
-      properties->alignmentLen = length;
+      /* The display code assumes we always have an odd length; if we
+       * are given an even length, round it up */
+      if (length % 2 == 0)
+        properties->alignmentLen = length + 1;
+      else
+        properties->alignmentLen = length;
     }
   else
     {
