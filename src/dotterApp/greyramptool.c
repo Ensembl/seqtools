@@ -732,9 +732,6 @@ static GtkWidget* createGreyrampToolMenu(GtkWidget *window)
 
   GtkWidget *result = gtk_ui_manager_get_widget (ui_manager, "/MainMenu");
 
-  g_object_unref(action_group);
-  g_object_unref(ui_manager);
-  
   return result;
 }
 
