@@ -123,6 +123,7 @@ static void                        onCopyHCoordMenu(GtkAction *action, gpointer 
 static void                        onCopyVCoordMenu(GtkAction *action, gpointer data);
 static void                        onCopySelnMenu(GtkAction *action, gpointer data);
 static void                        onCopySelnCoordsMenu(GtkAction *action, gpointer data);
+static void                        onClearSelnMenu(GtkAction *action, gpointer data);
 static void                        drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
 static void                        drawSequenceHeader(GtkWidget *widget, GtkWidget *alignmentTool, GdkDrawable *drawable, const gboolean horizontal);
 static int                         getSequenceOffset(SequenceProperties *properties, DotterContext *dc);
@@ -144,6 +145,7 @@ static const GtkActionEntry alignmentToolMenuEntries[] = {
 { "CopyHCoord",     NULL, "Copy _horizontal coord",   NULL,         "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
 { "CopyVCoord",     NULL, "Copy _vertical coord",     NULL,         "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)},
 { "CopySeln",       NULL, "Copy selectio_n",          "<control>C", "Copy the current selection to the clipboard", G_CALLBACK(onCopySelnMenu)},
+{ "ClearSeln",      NULL, "C_lear current selection",  "Escape","Clear the current selection", G_CALLBACK(onClearSelnMenu)},
 { "CopySelnCoords", NULL, "Copy selection coor_ds",   "<shift><control>C","Copy the start/end coords of the current selection to the clipboard", G_CALLBACK(onCopySelnCoordsMenu)}
 };
 
@@ -156,6 +158,7 @@ static const char alignmentToolMenuDescription[] =
 "      <menuitem action='CopyVCoord'/>"
 "      <menuitem action='CopySeln'/>"
 "      <menuitem action='CopySelnCoords'/>"
+"      <menuitem action='ClearSeln'/>"
 "      <separator/>"
 "      <menuitem action='Close'/>"
 "      <menuitem action='Print'/>"
@@ -362,6 +365,7 @@ static GtkWidget* createAlignmentToolMenu(GtkWidget *window, GtkActionGroup **ac
   gtk_action_group_add_actions (action_group, alignmentToolMenuEntries, G_N_ELEMENTS (alignmentToolMenuEntries), window);
   enableMenuAction(action_group, "CopySeln", FALSE);
   enableMenuAction(action_group, "CopySelnCoords", FALSE);
+  enableMenuAction(action_group, "ClearSeln", FALSE);
 
   GtkUIManager *ui_manager = gtk_ui_manager_new ();
   gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
@@ -457,37 +461,6 @@ static gboolean onMouseMoveSequence(GtkWidget *sequenceWidget, GdkEventMotion *e
       
       handled = TRUE;
     }
-  
-  return handled;
-}
-
-
-/* Handle Esc key press (cancel selection) */
-static gboolean onKeyPressEscape(GtkWidget *alignmentTool, const gboolean ctrlModifier)
-{
-  gboolean handled = TRUE;
-  
-  clearSequenceSelection(alignmentTool);
-
-  return handled;
-}
-
-
-/* Main entry point for key press handling */
-gboolean onKeyPressAlignmentTool(GtkWidget *widget, GdkEventKey *event, gpointer data)
-{
-  gboolean handled = FALSE;
-  
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  
-  const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;  
-  
-  switch (event->keyval)
-    {
-      case GDK_Escape: handled = onKeyPressEscape(alignmentTool, ctrlModifier);    break;
-
-      default: break;
-  }
   
   return handled;
 }
@@ -704,6 +677,13 @@ static void onCopySelnCoordsMenu(GtkAction *action, gpointer data)
     }
 }
 
+/* Callback called when the user selects the 'clear selection' menu option */
+static void onClearSelnMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *alignmentTool = GTK_WIDGET(data);
+  clearSequenceSelection(alignmentTool);
+}
+
 
 /***********************************************************
  *                       Initialisation                    *
@@ -899,7 +879,6 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
   g_signal_connect(G_OBJECT(alignmentTool), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
   g_signal_connect(G_OBJECT(alignmentTool), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
   g_signal_connect(G_OBJECT(alignmentTool), "size-allocate", G_CALLBACK(onSizeAllocateAlignmentTool), NULL);
-  g_signal_connect(G_OBJECT(alignmentTool), "key-press-event", G_CALLBACK(onKeyPressAlignmentTool), alignmentTool);
   gtk_widget_show_all(alignmentTool);
   
   onAlignmentToolRangeChanged(alignmentTool);
@@ -1195,6 +1174,7 @@ static void setSelectionWidget(AlignmentToolProperties *atProperties, GtkWidget 
   atProperties->selectionWidget = selectionWidget;
   enableMenuAction(atProperties->actionGroup, "CopySelnCoords", selectionWidget != NULL);
   enableMenuAction(atProperties->actionGroup, "CopySeln", selectionWidget != NULL);
+  enableMenuAction(atProperties->actionGroup, "ClearSeln", selectionWidget != NULL);
 }
 
 
