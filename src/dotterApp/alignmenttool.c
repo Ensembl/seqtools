@@ -652,6 +652,14 @@ static void onSetLengthMenu(GtkAction *action, gpointer data)
 }
 
 
+/* Utility to copy an integer value as a string to the primary clipboard */
+static void copyIntToPrimaryClipboard(const int val)
+{
+  char *displayText = convertIntToString(val);
+  setPrimaryClipboardText(displayText);
+  g_free(displayText); 
+}
+
 /* Callback called when the user selects the 'copy horizontal coord' menu option */
 static void onCopyHCoordMenu(GtkAction *action, gpointer data)
 {
@@ -659,6 +667,7 @@ static void onCopyHCoordMenu(GtkAction *action, gpointer data)
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
   
   copyIntToDefaultClipboard(properties->dotterWinCtx->refCoord);
+  copyIntToPrimaryClipboard(properties->dotterWinCtx->refCoord);
 }
 
 /* Callback called when the user selects the 'copy vertical coord' menu option */
@@ -668,6 +677,7 @@ static void onCopyVCoordMenu(GtkAction *action, gpointer data)
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
 
   copyIntToDefaultClipboard(properties->dotterWinCtx->matchCoord);
+  copyIntToPrimaryClipboard(properties->dotterWinCtx->matchCoord);
 }
 
 
