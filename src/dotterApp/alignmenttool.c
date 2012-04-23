@@ -46,6 +46,7 @@
 #include <gtk/gtk.h>
 #include <math.h>
 #include <string.h>
+#include <gdk/gdkkeysyms.h>
 
 
 static int atob[]       /* OLD (starting at 1) ASCII-to-binary translation table  (Inherited from blast) */
@@ -129,6 +130,7 @@ static void                        sequenceFinishDragging(GtkWidget *sequenceWid
 static void                        highlightSequenceBase(SequenceProperties *seq1, AlignmentToolProperties *atProperties, DotterWindowContext *dwc, const int displayIdx, const int seq1Idx, const int seq1Start, const gboolean highlight, GdkGC *gc, GdkDrawable *drawable);
 static void                        selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmentTool);
 static int                         getDisplayStart(SequenceProperties *properties, DotterContext *dc);
+static char*                       getSequenceBetweenCoords(GtkWidget *sequenceWidget, const int startCoord, const int endCoord, DotterWindowContext *dwc);
 
 
 /* Menu builders - standard menu entries */
@@ -446,6 +448,55 @@ static gboolean onMouseMoveSequence(GtkWidget *sequenceWidget, GdkEventMotion *e
   return handled;
 }
 
+
+/* Handle C key press (Ctrl-C => copy selection) */
+static gboolean onKeyPressC(GtkWidget *alignmentTool, const gboolean ctrlModifier)
+{
+  gboolean handled = FALSE;
+
+  if (ctrlModifier)
+    {
+      /* Get the sequence between these coords and place it on the clipboard */
+      AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+      
+      if (atProperties->selectionWidget)
+        {
+          char *result = getSequenceBetweenCoords(atProperties->selectionWidget,
+                                                  atProperties->selectionRange.min,
+                                                  atProperties->selectionRange.max,
+                                                  atProperties->dotterWinCtx);
+          
+          setDefaultClipboardText(result);
+          g_free(result);
+
+        }
+
+      handled = TRUE;
+    }
+  
+  return handled;
+}
+
+
+/* Main entry point for key press handling */
+gboolean onKeyPressAlignmentTool(GtkWidget *widget, GdkEventKey *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  GtkWidget *alignmentTool = GTK_WIDGET(data);
+  
+  const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;  
+  
+  switch (event->keyval)
+    {
+      case GDK_C:   /* fall through */
+      case GDK_c:   handled = onKeyPressC(alignmentTool, ctrlModifier);             break;
+
+      default: break;
+  }
+  
+  return handled;
+}
 
 
 /***********************************************************
@@ -796,9 +847,12 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
   GtkWidget *menu = createAlignmentToolMenu(alignmentTool);
   
   gtk_widget_add_events(alignmentTool, GDK_BUTTON_PRESS_MASK);
+  gtk_widget_add_events(alignmentTool, GDK_KEY_PRESS_MASK);
+
   g_signal_connect(G_OBJECT(alignmentTool), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
   g_signal_connect(G_OBJECT(alignmentTool), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
   g_signal_connect(G_OBJECT(alignmentTool), "size-allocate", G_CALLBACK(onSizeAllocateAlignmentTool), NULL);
+  g_signal_connect(G_OBJECT(alignmentTool), "key-press-event", G_CALLBACK(onKeyPressAlignmentTool), alignmentTool);
   gtk_widget_show_all(alignmentTool);
   
   onAlignmentToolRangeChanged(alignmentTool);
