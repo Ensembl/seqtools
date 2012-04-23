@@ -121,6 +121,7 @@ static void                        onPrintMenu(GtkAction *action, gpointer data)
 static void                        onSetLengthMenu(GtkAction *action, gpointer data);
 static void                        onCopyHCoordMenu(GtkAction *action, gpointer data);
 static void                        onCopyVCoordMenu(GtkAction *action, gpointer data);
+static void                        onCopySelnMenu(GtkAction *action, gpointer data);
 static void                        onCopySelnCoordsMenu(GtkAction *action, gpointer data);
 static void                        drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
 static void                        drawSequenceHeader(GtkWidget *widget, GtkWidget *alignmentTool, GdkDrawable *drawable, const gboolean horizontal);
@@ -137,21 +138,23 @@ static void                        clearSequenceSelection(GtkWidget *alignmentTo
 
 /* Menu builders - standard menu entries */
 static const GtkActionEntry alignmentToolMenuEntries[] = {
-{ "Close",          NULL, "_Close tool\t\t\tCtrl-W",  NULL,       "Close the alignment tool",             G_CALLBACK(onCloseMenu)},
-{ "Print",          NULL, "_Print...\t\t\t\tCtrl-P",  NULL,       "Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
-{ "SetLength",      NULL, "_Set alignment length",    NULL,       "Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)},
-{ "CopyHCoord",     NULL, "Copy _horizontal coord",   NULL,       "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
-{ "CopyVCoord",     NULL, "Copy _vertical coord",     NULL,       "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)},
-{ "CopySelnCoords", NULL, "Copy _selection coords",   NULL,       "Copy the start/end coords of the current selection to the clipboard", G_CALLBACK(onCopySelnCoordsMenu)}
+{ "Close",          NULL, "_Close tool",              "<control>W", "Close the alignment tool",             G_CALLBACK(onCloseMenu)},
+{ "Print",          NULL, "_Print...",                "<control>P", "Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
+{ "SetLength",      NULL, "_Set alignment length",    "<control>L", "Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)},
+{ "CopyHCoord",     NULL, "Copy _horizontal coord",   NULL,         "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
+{ "CopyVCoord",     NULL, "Copy _vertical coord",     NULL,         "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)},
+{ "CopySeln",       NULL, "Copy selectio_n",          "<control>C", "Copy the current selection to the clipboard", G_CALLBACK(onCopySelnMenu)},
+{ "CopySelnCoords", NULL, "Copy selection coor_ds",   "<shift><control>C","Copy the start/end coords of the current selection to the clipboard", G_CALLBACK(onCopySelnCoordsMenu)}
 };
 
 
 /* This defines the layout of the menu */
 static const char alignmentToolMenuDescription[] =
 "<ui>"
-"  <popup name='MainMenu'>"
+"  <popup name='MainMenu' accelerators='true'>"
 "      <menuitem action='CopyHCoord'/>"
 "      <menuitem action='CopyVCoord'/>"
+"      <menuitem action='CopySeln'/>"
 "      <menuitem action='CopySelnCoords'/>"
 "      <separator/>"
 "      <menuitem action='Close'/>"
@@ -357,6 +360,7 @@ static GtkWidget* createAlignmentToolMenu(GtkWidget *window, GtkActionGroup **ac
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
   gtk_action_group_add_actions (action_group, alignmentToolMenuEntries, G_N_ELEMENTS (alignmentToolMenuEntries), window);
+  enableMenuAction(action_group, "CopySeln", FALSE);
   enableMenuAction(action_group, "CopySelnCoords", FALSE);
 
   GtkUIManager *ui_manager = gtk_ui_manager_new ();
@@ -469,35 +473,6 @@ static gboolean onKeyPressEscape(GtkWidget *alignmentTool, const gboolean ctrlMo
 }
 
 
-/* Handle C key press (Ctrl-C => copy selection) */
-static gboolean onKeyPressC(GtkWidget *alignmentTool, const gboolean ctrlModifier)
-{
-  gboolean handled = FALSE;
-
-  if (ctrlModifier)
-    {
-      /* Get the sequence between these coords and place it on the clipboard */
-      AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
-      
-      if (atProperties->selectionWidget)
-        {
-          char *result = getSequenceBetweenCoords(atProperties->selectionWidget,
-                                                  atProperties->selectionRange.min,
-                                                  atProperties->selectionRange.max,
-                                                  atProperties->dotterWinCtx);
-          
-          setDefaultClipboardText(result);
-          g_free(result);
-
-        }
-
-      handled = TRUE;
-    }
-  
-  return handled;
-}
-
-
 /* Main entry point for key press handling */
 gboolean onKeyPressAlignmentTool(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
@@ -509,9 +484,6 @@ gboolean onKeyPressAlignmentTool(GtkWidget *widget, GdkEventKey *event, gpointer
   
   switch (event->keyval)
     {
-      case GDK_C:      /* fall through */
-      case GDK_c:      handled = onKeyPressC(alignmentTool, ctrlModifier);         break;
-
       case GDK_Escape: handled = onKeyPressEscape(alignmentTool, ctrlModifier);    break;
 
       default: break;
@@ -689,6 +661,27 @@ static void onCopyVCoordMenu(GtkAction *action, gpointer data)
   copyIntToPrimaryClipboard(properties->dotterWinCtx->matchCoord);
 }
 
+/* Callback called when the user selects the 'copy selection' menu option */
+static void onCopySelnMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *alignmentTool = GTK_WIDGET(data);
+  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+  if (atProperties->selectionWidget)
+    {
+      /* copy the selection to the clipboard */
+      char *text = getSequenceBetweenCoords(atProperties->selectionWidget,
+                                            atProperties->selectionRange.min,
+                                            atProperties->selectionRange.max,
+                                            atProperties->dotterWinCtx);
+
+      setDefaultClipboardText(text);
+      setPrimaryClipboardText(text);
+      
+      g_free(text);
+    }
+}
+
 /* Callback called when the user selects the 'copy selection coords' menu option */
 static void onCopySelnCoordsMenu(GtkAction *action, gpointer data)
 {
@@ -735,7 +728,7 @@ static void createRefSeqWidget(GtkWidget *alignmentTool,
   
   /* Create a label containing the name */
   char *text = blxprintf("%s (%c%d):", dc->refSeqName, strandChar, frame);
-  GtkWidget *label = createLabel(text, 0.0, 0.0, FALSE, TRUE);
+  GtkWidget *label = createLabel(text, 0.0, 0.0, TRUE, TRUE);
   gtk_widget_modify_font(label, dc->fontDesc);
   gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
   g_free(text);
@@ -833,7 +826,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   
   /* Add a label for the match sequence */
   char *text = blxprintf("%s:", dc->matchSeqName);
-  GtkWidget *label = createLabel(text, 0.0, 0.0, FALSE, TRUE);
+  GtkWidget *label = createLabel(text, 0.0, 0.0, TRUE, TRUE);
   gtk_widget_modify_font(label, dc->fontDesc);
   gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
   g_free(text);
@@ -1201,6 +1194,7 @@ static void setSelectionWidget(AlignmentToolProperties *atProperties, GtkWidget 
 {
   atProperties->selectionWidget = selectionWidget;
   enableMenuAction(atProperties->actionGroup, "CopySelnCoords", selectionWidget != NULL);
+  enableMenuAction(atProperties->actionGroup, "CopySeln", selectionWidget != NULL);
 }
 
 
