@@ -131,7 +131,7 @@ static void                        highlightSequenceBase(SequenceProperties *seq
 static void                        selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmentTool);
 static int                         getDisplayStart(SequenceProperties *properties, DotterContext *dc);
 static char*                       getSequenceBetweenCoords(GtkWidget *sequenceWidget, const int startCoord, const int endCoord, DotterWindowContext *dwc);
-
+static void                        clearSequenceSelection(GtkWidget *alignmentTool);
 
 /* Menu builders - standard menu entries */
 static const GtkActionEntry alignmentToolMenuEntries[] = {
@@ -449,6 +449,17 @@ static gboolean onMouseMoveSequence(GtkWidget *sequenceWidget, GdkEventMotion *e
 }
 
 
+/* Handle Esc key press (cancel selection) */
+static gboolean onKeyPressEscape(GtkWidget *alignmentTool, const gboolean ctrlModifier)
+{
+  gboolean handled = TRUE;
+  
+  clearSequenceSelection(alignmentTool);
+
+  return handled;
+}
+
+
 /* Handle C key press (Ctrl-C => copy selection) */
 static gboolean onKeyPressC(GtkWidget *alignmentTool, const gboolean ctrlModifier)
 {
@@ -489,8 +500,10 @@ gboolean onKeyPressAlignmentTool(GtkWidget *widget, GdkEventKey *event, gpointer
   
   switch (event->keyval)
     {
-      case GDK_C:   /* fall through */
-      case GDK_c:   handled = onKeyPressC(alignmentTool, ctrlModifier);             break;
+      case GDK_C:      /* fall through */
+      case GDK_c:      handled = onKeyPressC(alignmentTool, ctrlModifier);         break;
+
+      case GDK_Escape: handled = onKeyPressEscape(alignmentTool, ctrlModifier);    break;
 
       default: break;
   }
