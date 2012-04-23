@@ -928,7 +928,7 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   
   /* If text on this widget is selected, then we'll highlight any bases within
    * the selection range. */
-  const gboolean highlight = (atProperties->selectionWidget != NULL);
+  const gboolean highlight = (atProperties->selectionWidget == widget);
 
   /* Get the sequence coord at the start of the display (leftmost edge) */
   int seq1Start = getDisplayStart(seq1, dc);
