@@ -110,6 +110,7 @@ typedef struct _AlignmentToolProperties
   IntRange selectionRange;
   
   DotterWindowContext *dotterWinCtx;
+  GtkActionGroup *actionGroup;
 } AlignmentToolProperties;
 
 
@@ -120,6 +121,7 @@ static void                        onPrintMenu(GtkAction *action, gpointer data)
 static void                        onSetLengthMenu(GtkAction *action, gpointer data);
 static void                        onCopyHCoordMenu(GtkAction *action, gpointer data);
 static void                        onCopyVCoordMenu(GtkAction *action, gpointer data);
+static void                        onCopySelnCoordsMenu(GtkAction *action, gpointer data);
 static void                        drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
 static void                        drawSequenceHeader(GtkWidget *widget, GtkWidget *alignmentTool, GdkDrawable *drawable, const gboolean horizontal);
 static int                         getSequenceOffset(SequenceProperties *properties, DotterContext *dc);
@@ -135,11 +137,12 @@ static void                        clearSequenceSelection(GtkWidget *alignmentTo
 
 /* Menu builders - standard menu entries */
 static const GtkActionEntry alignmentToolMenuEntries[] = {
-{ "Close",        NULL, "_Close tool\t\t\tCtrl-W",  NULL,       "Close the alignment tool",             G_CALLBACK(onCloseMenu)},
-{ "Print",        NULL, "_Print...\t\t\t\tCtrl-P",  NULL,       "Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
-{ "SetLength",    NULL, "_Set alignment length",    NULL,       "Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)},
-{ "CopyHCoord",   NULL, "Copy _horizontal coord",   NULL,       "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
-{ "CopyVCoord",   NULL, "Copy _vertical coord",     NULL,       "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)}
+{ "Close",          NULL, "_Close tool\t\t\tCtrl-W",  NULL,       "Close the alignment tool",             G_CALLBACK(onCloseMenu)},
+{ "Print",          NULL, "_Print...\t\t\t\tCtrl-P",  NULL,       "Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
+{ "SetLength",      NULL, "_Set alignment length",    NULL,       "Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)},
+{ "CopyHCoord",     NULL, "Copy _horizontal coord",   NULL,       "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
+{ "CopyVCoord",     NULL, "Copy _vertical coord",     NULL,       "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)},
+{ "CopySelnCoords", NULL, "Copy _selection coords",   NULL,       "Copy the start/end coords of the current selection to the clipboard", G_CALLBACK(onCopySelnCoordsMenu)}
 };
 
 
@@ -149,6 +152,7 @@ static const char alignmentToolMenuDescription[] =
 "  <popup name='MainMenu'>"
 "      <menuitem action='CopyHCoord'/>"
 "      <menuitem action='CopyVCoord'/>"
+"      <menuitem action='CopySelnCoords'/>"
 "      <separator/>"
 "      <menuitem action='Close'/>"
 "      <menuitem action='Print'/>"
@@ -238,6 +242,7 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
       AlignmentToolProperties *properties = g_malloc(sizeof *properties);
     
       properties->dotterWinCtx = dotterWinCtx;
+      properties->actionGroup = NULL;
       properties->alignmentLen = DEFAULT_ALIGNMENT_LENGTH;
       properties->refDisplayRange.min = 0;
       properties->refDisplayRange.max = 20;
@@ -348,11 +353,12 @@ static void onAlignmentToolRangeChanged(GtkWidget *alignmentTool)
 
 
 /* Create the menu */
-static GtkWidget* createAlignmentToolMenu(GtkWidget *window)
+static GtkWidget* createAlignmentToolMenu(GtkWidget *window, GtkActionGroup **actionGroup_out)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
   gtk_action_group_add_actions (action_group, alignmentToolMenuEntries, G_N_ELEMENTS (alignmentToolMenuEntries), window);
-  
+  enableMenuAction(action_group, "CopySelnCoords", FALSE);
+
   GtkUIManager *ui_manager = gtk_ui_manager_new ();
   gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
   
@@ -367,6 +373,9 @@ static GtkWidget* createAlignmentToolMenu(GtkWidget *window)
       prefixError(error, "Building menus failed: ");
       reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
     }
+
+  if (actionGroup_out)
+    *actionGroup_out = action_group;
   
   return gtk_ui_manager_get_widget (ui_manager, "/MainMenu");
 }
@@ -680,6 +689,28 @@ static void onCopyVCoordMenu(GtkAction *action, gpointer data)
   copyIntToPrimaryClipboard(properties->dotterWinCtx->matchCoord);
 }
 
+/* Callback called when the user selects the 'copy selection coords' menu option */
+static void onCopySelnCoordsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *alignmentTool = GTK_WIDGET(data);
+  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+  if (atProperties->selectionWidget)
+    {
+      SequenceProperties *properties = sequenceGetProperties(atProperties->selectionWidget);
+      
+      const int start = (properties->strand  == BLXSTRAND_REVERSE ? atProperties->selectionRange.max : atProperties->selectionRange.min);
+      const int end = (properties->strand  == BLXSTRAND_REVERSE ? atProperties->selectionRange.min : atProperties->selectionRange.max);
+      
+      char *text = g_strdup_printf("%d, %d", start, end);
+
+      setDefaultClipboardText(text);
+      setPrimaryClipboardText(text);
+      
+      g_free(text);
+    }
+}
+
 
 /***********************************************************
  *                       Initialisation                    *
@@ -867,7 +898,7 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
     }
 
   /* Create the right-click menu */
-  GtkWidget *menu = createAlignmentToolMenu(alignmentTool);
+  GtkWidget *menu = createAlignmentToolMenu(alignmentTool, &properties->actionGroup);
   
   gtk_widget_add_events(alignmentTool, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(alignmentTool, GDK_KEY_PRESS_MASK);
@@ -1165,6 +1196,14 @@ static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
 }
 
 
+/* Set the widget that contains the current sequence selection. */
+static void setSelectionWidget(AlignmentToolProperties *atProperties, GtkWidget *selectionWidget)
+{
+  atProperties->selectionWidget = selectionWidget;
+  enableMenuAction(atProperties->actionGroup, "CopySelnCoords", selectionWidget != NULL);
+}
+
+
 /* This clears the current selection */
 static void clearSequenceSelection(GtkWidget *alignmentTool)
 {
@@ -1174,7 +1213,7 @@ static void clearSequenceSelection(GtkWidget *alignmentTool)
     {
       /* clear current selection widget and redraw it */
       GtkWidget *widget = atProperties->selectionWidget;
-      atProperties->selectionWidget = NULL;  
+      setSelectionWidget(atProperties, NULL);
       widgetClearCachedDrawable(widget, NULL);
       gtk_widget_queue_draw(widget);
     }
@@ -1192,9 +1231,11 @@ static void sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *align
 
   /* flag that we should highlight the selected sequence (clear any current selection first) */
   clearSequenceSelection(alignmentTool);
-  atProperties->selectionWidget = sequenceWidget;
+  
   atProperties->selectionRange.min = atProperties->dragStart;
   atProperties->selectionRange.max = atProperties->dragStart;
+
+  setSelectionWidget(atProperties, sequenceWidget);
 }
 
 
@@ -1242,7 +1283,6 @@ static void selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmen
   /* flag that we should highlight the selected sequence (clear any current
    * selection first) and set the coords of the highlighted bit */
   clearSequenceSelection(alignmentTool);
-  atProperties->selectionWidget = sequenceWidget;
 
   int start = getDisplayStart(properties, dc);
   int end = getDisplayEnd(properties, dc);
@@ -1257,7 +1297,8 @@ static void selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmen
   boundsLimitValue(&end, properties->fullRange);
   
   intrangeSetValues(&atProperties->selectionRange, start, end);
-  
+  setSelectionWidget(atProperties, sequenceWidget);
+
   /* copy the selection to the primary clipboard */
   char *result = getSequenceBetweenCoords(sequenceWidget,
                                           atProperties->selectionRange.min,
