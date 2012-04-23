@@ -1081,7 +1081,8 @@ static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
       startIdx = properties->fullRange->max - endCoord;
     }
 
-  result = g_strndup(properties->sequence + startIdx, numChars);
+  result = g_strndup(properties->sequence + startIdx, numChars + 1);
+  result[numChars] = '\0';
 
   return result;
 }
@@ -1126,25 +1127,28 @@ static void sequenceFinishDragging(GtkWidget *sequenceWidget, GtkWidget *alignme
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
   DotterWindowContext *dwc = atProperties->dotterWinCtx;
 
-  /* cancel the dragging and highlighting flags */
-  atProperties->dragging = FALSE;
-  
-  /* get the range of coords that the user dragged over */
-  int minCoord = atProperties->dragStart;
-  int maxCoord = getCoordAtPos(x, sequenceWidget, alignmentTool);
-
-  if (minCoord > maxCoord)
+  if (atProperties->dragging)
     {
-      int tmp = minCoord;
-      minCoord = maxCoord;
-      maxCoord = tmp;
+      /* cancel the dragging and highlighting flags */
+      atProperties->dragging = FALSE;
+  
+      /* get the range of coords that the user dragged over */
+      int minCoord = atProperties->dragStart;
+      int maxCoord = getCoordAtPos(x, sequenceWidget, alignmentTool);
+
+      if (minCoord > maxCoord)
+        {
+          int tmp = minCoord;
+          minCoord = maxCoord;
+          maxCoord = tmp;
+        }
+      
+      /* Get the sequence between these coords and place it on the clipboard */
+      char *result = getSequenceBetweenCoords(sequenceWidget, minCoord, maxCoord, dwc);
+      setPrimaryClipboardText(result);
+      
+      g_free(result);
     }
-
-  /* Get the sequence between these coords and place it on the clipboard */
-  char *result = getSequenceBetweenCoords(sequenceWidget, minCoord, maxCoord, dwc);
-  setPrimaryClipboardText(result);
-
-  g_free(result);
 }
 
 
@@ -1155,6 +1159,9 @@ static void selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmen
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
   DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
   
+  /* cancel any dragging operation */
+  atProperties->dragging = FALSE;
+
   /* flag that we should highlight the selected sequence (clear any current
    * selection first) and set the coords of the highlighted bit */
   clearSequenceSelection(alignmentTool);
@@ -1179,7 +1186,6 @@ static void selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmen
                                           atProperties->selectionRange.min,
                                           atProperties->selectionRange.max,
                                           atProperties->dotterWinCtx);
-  printf("start=%d, end=%d, seq=%s\n", start, end, result);
   
   setPrimaryClipboardText(result);
   g_free(result);
