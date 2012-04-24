@@ -857,6 +857,36 @@ int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterConte
 }
 
 
+/* Convert a display index (dna or peptide) to a dna index (original sequence coord),
+ * if applicable. If horizontal is true we have the horizontal (reference) sequence, 
+ * otherwise the vertical (match) sequence. */
+int convertToDnaIdx(const int displayIdx, 
+                    const gboolean horizontal, 
+                    DotterContext *dc, 
+                    const int frame, 
+                    int baseNum)
+{
+  DEBUG_ENTER("convertToDnaIdx(displayIdx=%d, hoz=%d, frame=%d, base=%d)", displayIdx, horizontal, frame, baseNum);
+
+  int result = displayIdx;
+  
+  /* Match seq coords are always in display coords already, so only do anything if this is the
+   * ref seq. Also, we only need to convert if it's peptide-nucleotide match. */
+  if (horizontal && dc->blastMode == BLXMODE_BLASTX)
+    {
+      if (dc->hozScaleRev)
+        result = (displayIdx * dc->numFrames) - dc->numFrames - frame + baseNum + 1;
+      else
+        result = (displayIdx * dc->numFrames) - dc->numFrames + frame + baseNum - 1;
+      
+      DEBUG_OUT("dnaIdx=%d\n", result);
+    }
+  
+  DEBUG_EXIT("convertToDnaIdx returning %d", result);
+  return result;
+}
+
+
 static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
                                                       const IntRange const *refSeqRange,
                                                       const IntRange const *matchSeqRange,

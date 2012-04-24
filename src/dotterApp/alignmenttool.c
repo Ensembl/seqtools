@@ -91,6 +91,7 @@ typedef struct _SequenceProperties
   int frame;
   IntRange *displayRange;           /* the displayed range; pointer to refDisplayRange or matchDisplayRange */
   IntRange *fullRange;              /* the full range of the sequence; pointer to refSeqRange or matchSeqRange */
+  IntRange fullRangeDisplayCoords;  /* the full range of the sequence in display coords (i.e. converted to peptide coords where appropriate) */
   gboolean scaleReversed;           /* whether the scale for this sequence is shown reversed (i.e. high-to-low rather than low-to-high) */
   GSList *compSeqs;                 /* list of other sequence widgets that this sequence will be compared against */
   gboolean isMatchSeq;              /* true if this is the match seq, false if it's the ref seq */
@@ -136,6 +137,9 @@ static void                        selectVisibleSequence(GtkWidget *sequenceWidg
 static int                         getDisplayStart(SequenceProperties *properties, DotterContext *dc);
 static char*                       getSequenceBetweenCoords(GtkWidget *sequenceWidget, const int startCoord, const int endCoord, DotterWindowContext *dwc);
 static void                        clearSequenceSelection(GtkWidget *alignmentTool);
+static int                         getSequenceStart(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords);
+static int                         getSequenceEnd(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords);
+
 
 /* Menu builders - standard menu entries */
 static const GtkActionEntry alignmentToolMenuEntries[] = {
@@ -192,6 +196,7 @@ static void onDestroySequenceWidget(GtkWidget *widget)
 }
 
 static void sequenceCreateProperties(GtkWidget *widget, 
+                                     DotterContext *dc,
                                      const char *seqName,
                                      const char *sequence,
                                      const BlxSeqType seqType,
@@ -217,6 +222,10 @@ static void sequenceCreateProperties(GtkWidget *widget,
       properties->scaleReversed = scaleReversed;
       properties->compSeqs = compSeqs;
       properties->isMatchSeq = isMatchSeq;
+
+      intrangeSetValues(&properties->fullRangeDisplayCoords,
+                        getSequenceStart(properties, dc, TRUE),
+                        getSequenceEnd(properties, dc, TRUE));
       
       g_object_set_data(G_OBJECT(widget), "SequenceProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroySequenceWidget), NULL); 
@@ -664,10 +673,24 @@ static void onCopySelnCoordsMenu(GtkAction *action, gpointer data)
   if (atProperties->selectionWidget)
     {
       SequenceProperties *properties = sequenceGetProperties(atProperties->selectionWidget);
-      
-      const int start = (properties->strand  == BLXSTRAND_REVERSE ? atProperties->selectionRange.max : atProperties->selectionRange.min);
-      const int end = (properties->strand  == BLXSTRAND_REVERSE ? atProperties->selectionRange.min : atProperties->selectionRange.max);
-      
+      DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
+
+      /* Convert the selected coords to dna coords */
+      int start = convertToDnaIdx(atProperties->selectionRange.min, !properties->isMatchSeq, dc, properties->frame, 1);
+      int end = convertToDnaIdx(atProperties->selectionRange.max, !properties->isMatchSeq, dc, properties->frame, dc->numFrames);
+
+      /* Negate the coords for display, if necessary */
+      start = getDisplayCoord(start, dc, !properties->isMatchSeq);
+      end = getDisplayCoord(end, dc, !properties->isMatchSeq);
+
+      /* Swap start and end if strand is reversed */
+      if (properties->strand == BLXSTRAND_REVERSE)
+        {
+          int tmp = start;
+          start = end;
+          end = tmp;
+        }    
+
       char *text = g_strdup_printf("%d, %d", start, end);
 
       setDefaultClipboardText(text);
@@ -727,7 +750,7 @@ static void createRefSeqWidget(GtkWidget *alignmentTool,
   gtk_widget_set_size_request(refSeqWidget, -1, roundNearest(dc->charHeight));
   *refSeqList = g_slist_append(*refSeqList, refSeqWidget);
   
-  sequenceCreateProperties(refSeqWidget, dc->refSeqName, sequence, dc->refSeqType, strand, 
+  sequenceCreateProperties(refSeqWidget, dc, dc->refSeqName, sequence, dc->refSeqType, strand, 
                            frame, &properties->refDisplayRange, &dc->refSeqFullRange,
                            dc->hozScaleRev, matchSeqList, FALSE);
 
@@ -815,7 +838,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   /* Now add the data to the match-sequence widget and add it to the bottom row of the table */
   char *matchSequence = dc->matchSeqStrand == BLXSTRAND_REVERSE ? dc->matchSeqRev : dc->matchSeq;
   
-  sequenceCreateProperties(matchSeqWidget, dc->matchSeqName, matchSequence, dc->matchSeqType, dc->matchSeqStrand,
+  sequenceCreateProperties(matchSeqWidget, dc, dc->matchSeqName, matchSequence, dc->matchSeqType, dc->matchSeqStrand,
                            1, &properties->matchDisplayRange, &dc->matchSeqFullRange, dc->vertScaleRev, refSeqList, TRUE);
   
   gtk_table_attach(table, matchSeqWidget, 2, 3, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
@@ -1058,10 +1081,11 @@ static int getDisplayEnd(SequenceProperties *properties, DotterContext *dc)
 }
 
 
-/* Calculate how many bases into the alignment tool's display range the given sequence starts.
- * Also return the coord that the alignment tool display starts at (adjusted for strand direction
- * and converted from dna to peptide coords if applicable). */
-static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc)
+/* Get the start coord of the bit of sequence displayed by a given 
+ * sequence widget. Adjusts the start so that we have the correct
+ * coord for the relevant frame/strand. Converts to display coords
+ * if requested, otherwise returns the nucleotide coord. */
+static int getSequenceStart(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords)
 {
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
 
@@ -1080,14 +1104,56 @@ static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc)
     }
 
   seqStart = forward ? seqStart + offset : seqStart - offset;
+
+  if (convertToDisplayCoords)
+    seqStart = convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
+
+  return seqStart;
+}
+
+
+/* Get the end coord of the bit of sequence displayed by a given 
+ * sequence widget. Adjusts the end so that we have the correct
+ * coord for the relevant frame/strand. Converts to display coords
+ * if requested, otherwise returns the nucleotide coord. */
+static int getSequenceEnd(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords)
+{
+  const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
+
+  /* Get the end coord of the sequence data */
+  int seqEnd = forward ? properties->fullRange->max : properties->fullRange->min;
   
-  /* Convert to display coords. */
-  seqStart = convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
+  /* Offset this coord so that we have the last coord that ends our reading frame */
+  int reqdFrame = properties->frame;
+  int frame = UNSET_INT;
+  convertToDisplayIdx(seqEnd, !properties->isMatchSeq, dc, dc->numFrames, &frame);
+  
+  int offset = reqdFrame - frame;
+  seqEnd = forward ? seqEnd + offset : seqEnd - offset;
+
+  if (convertToDisplayCoords)
+    seqEnd = convertToDisplayIdx(seqEnd, !properties->isMatchSeq, dc, reqdFrame, NULL);
+
+  return seqEnd;
+}
+
+
+/* Calculate how many bases into the alignment tool's display range the 
+ * given sequence starts. */
+static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc)
+{
+  int result = 0;
+  
+  const int seqStart = getSequenceStart(properties, dc, TRUE);
   
   /* Calculate the offset. Note that this may be positive or negative because it
    * can be in either direction. */
   const int displayStart = getDisplayStart(properties, dc);
-  int result = forward ? seqStart - displayStart - 1 : displayStart - seqStart;
+
+  if (properties->strand == BLXSTRAND_REVERSE)
+    result = displayStart - seqStart;
+  else
+    result = seqStart - displayStart - 1;
 
   return result;
 }
@@ -1115,7 +1181,7 @@ static int getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alig
     coord = displayStart + displayIdx + 1;
 
   /* Bounds-limit the result */
-  boundsLimitValue(&coord, properties->fullRange);
+  boundsLimitValue(&coord, &properties->fullRangeDisplayCoords);
   
   return coord;
 }
@@ -1147,22 +1213,26 @@ static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
   char *result = NULL;
   
   SequenceProperties *properties = sequenceGetProperties(sequenceWidget);
-  
-  int startIdx = startCoord - properties->fullRange->min;
-  const int numChars = endCoord - startCoord + 1;
+  DotterContext *dc = dwc->dotterCtx;
 
-  //  if (properties->strand == BLXSTRAND_REVERSE)
-  //startIdx = properties->fullRange->max - endCoord;
-    
+  /* Get the 0-based index into the bit of sequence for this frame/strand */
+  int startIdx = 0;
+  const int seqStart = getSequenceStart(properties, dc, TRUE);
+  const int seqEnd = getSequenceEnd(properties, dc, TRUE);
+  
   if (properties->strand == BLXSTRAND_REVERSE)
-    {
-      /* Sequence is stored rev-comp'd but supplied coords are
-       * on the forward strand, so invert the coords */
-      startIdx = properties->fullRange->max - endCoord;
-    }
+    startIdx = seqStart - endCoord;
+  else
+    startIdx = startCoord - seqStart;
+  
+  
+  /* Get the length of sequence we want to show */
+  const int numChars = endCoord - startCoord + 1;
 
   result = g_strndup(properties->sequence + startIdx, numChars + 1);
   result[numChars] = '\0';
+
+  printf("start=%d, end=%d, seq=%d,%d, idx=%d, seq=%s\n", startCoord, endCoord, seqStart, seqEnd, startIdx, result);
 
   return result;
 }
@@ -1267,8 +1337,8 @@ static void selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmen
       ++end;
     }
   
-  boundsLimitValue(&start, properties->fullRange);
-  boundsLimitValue(&end, properties->fullRange);
+  boundsLimitValue(&start, &properties->fullRangeDisplayCoords);
+  boundsLimitValue(&end, &properties->fullRangeDisplayCoords);
   
   intrangeSetValues(&atProperties->selectionRange, start, end);
   setSelectionWidget(atProperties, sequenceWidget);
@@ -1344,9 +1414,11 @@ static void highlightSequenceBase(SequenceProperties *seq1,
                                   GdkDrawable *drawable)
 {
   DotterContext *dc = dwc->dotterCtx;
-  
   DotterColorId colorId = getBaseHighlightColor(seq1, dc, displayIdx, seq1Idx, seq1Start);
-  const int seq1Coord = (seq1->strand == BLXSTRAND_REVERSE ? seq1Start - displayIdx : seq1Start + displayIdx + 1);
+
+  /* Get the real display coordinate */
+  int seq1Coord = (seq1->strand == BLXSTRAND_REVERSE ? seq1Start - displayIdx : seq1Start + displayIdx + 1);
+
   const gboolean selected = highlight && valueWithinRange(seq1Coord, &atProperties->selectionRange);
   
   /* We don't need to bother drawing the background if it's the standard
