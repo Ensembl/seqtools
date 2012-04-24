@@ -1227,8 +1227,16 @@ static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
   
   
   /* Get the length of sequence we want to show */
-  const int numChars = endCoord - startCoord + 1;
-
+  int numChars = endCoord - startCoord + 1;
+  
+  /* Sanity check that we're not going to try to index out of range */
+  if (startIdx + numChars > strlen(properties->sequence))
+    {
+      /* We shouldn't get here, but if we do then just limiting
+       * it to the string length should give something sensible */
+      numChars = strlen(properties->sequence) - startIdx;
+    }
+  
   result = g_strndup(properties->sequence + startIdx, numChars + 1);
   result[numChars] = '\0';
 
