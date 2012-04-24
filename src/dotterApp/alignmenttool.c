@@ -94,7 +94,7 @@ typedef struct _SequenceProperties
   IntRange fullRangeDisplayCoords;  /* the full range of the sequence in display coords (i.e. converted to peptide coords where appropriate) */
   gboolean scaleReversed;           /* whether the scale for this sequence is shown reversed (i.e. high-to-low rather than low-to-high) */
   GSList *compSeqs;                 /* list of other sequence widgets that this sequence will be compared against */
-  gboolean isMatchSeq;              /* true if this is the match seq, false if it's the ref seq */
+  gboolean horizontal;              /* true if this is the horizontal (ref) seq, false if it's the vertical (match) seq */
 } SequenceProperties;
 
 
@@ -206,7 +206,7 @@ static void sequenceCreateProperties(GtkWidget *widget,
                                      IntRange *fullRange,
                                      gboolean scaleReversed,
                                      GSList *compSeqs,
-                                     gboolean isMatchSeq)
+                                     gboolean horizontal)
 {
   if (widget)
     {
@@ -221,7 +221,7 @@ static void sequenceCreateProperties(GtkWidget *widget,
       properties->fullRange = fullRange;
       properties->scaleReversed = scaleReversed;
       properties->compSeqs = compSeqs;
-      properties->isMatchSeq = isMatchSeq;
+      properties->horizontal = horizontal;
 
       intrangeSetValues(&properties->fullRangeDisplayCoords,
                         getSequenceStart(properties, dc, TRUE),
@@ -676,12 +676,12 @@ static void onCopySelnCoordsMenu(GtkAction *action, gpointer data)
       DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
 
       /* Convert the selected coords to dna coords */
-      int start = convertToDnaIdx(atProperties->selectionRange.min, !properties->isMatchSeq, dc, properties->frame, 1);
-      int end = convertToDnaIdx(atProperties->selectionRange.max, !properties->isMatchSeq, dc, properties->frame, dc->numFrames);
+      int start = convertToDnaIdx(atProperties->selectionRange.min, properties->horizontal, dc, properties->frame, 1);
+      int end = convertToDnaIdx(atProperties->selectionRange.max, properties->horizontal, dc, properties->frame, dc->numFrames);
 
       /* Negate the coords for display, if necessary */
-      start = getDisplayCoord(start, dc, !properties->isMatchSeq);
-      end = getDisplayCoord(end, dc, !properties->isMatchSeq);
+      start = getDisplayCoord(start, dc, properties->horizontal);
+      end = getDisplayCoord(end, dc, properties->horizontal);
 
       /* Swap start and end if strand is reversed */
       if (properties->strand == BLXSTRAND_REVERSE)
@@ -752,7 +752,7 @@ static void createRefSeqWidget(GtkWidget *alignmentTool,
   
   sequenceCreateProperties(refSeqWidget, dc, dc->refSeqName, sequence, dc->refSeqType, strand, 
                            frame, &properties->refDisplayRange, &dc->refSeqFullRange,
-                           dc->hozScaleRev, matchSeqList, FALSE);
+                           dc->hozScaleRev, matchSeqList, TRUE);
 
   gtk_table_attach(table, refSeqWidget, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   gtk_widget_add_events(refSeqWidget, GDK_EXPOSURE_MASK);
@@ -839,7 +839,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   char *matchSequence = dc->matchSeqStrand == BLXSTRAND_REVERSE ? dc->matchSeqRev : dc->matchSeq;
   
   sequenceCreateProperties(matchSeqWidget, dc, dc->matchSeqName, matchSequence, dc->matchSeqType, dc->matchSeqStrand,
-                           1, &properties->matchDisplayRange, &dc->matchSeqFullRange, dc->vertScaleRev, refSeqList, TRUE);
+                           1, &properties->matchDisplayRange, &dc->matchSeqFullRange, dc->vertScaleRev, refSeqList, FALSE);
   
   gtk_table_attach(table, matchSeqWidget, 2, 3, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   gtk_widget_add_events(matchSeqWidget, GDK_EXPOSURE_MASK);
@@ -1062,7 +1062,7 @@ static int getDisplayStart(SequenceProperties *properties, DotterContext *dc)
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
   int displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
 
-  displayStart = convertToDisplayIdx(displayStart, !properties->isMatchSeq, dc, properties->frame, NULL);
+  displayStart = convertToDisplayIdx(displayStart, properties->horizontal, dc, properties->frame, NULL);
 
   return displayStart;
 }
@@ -1075,7 +1075,7 @@ static int getDisplayEnd(SequenceProperties *properties, DotterContext *dc)
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
   int displayEnd = forward ? properties->displayRange->max : properties->displayRange->min;
 
-  displayEnd = convertToDisplayIdx(displayEnd, !properties->isMatchSeq, dc, properties->frame, NULL);
+  displayEnd = convertToDisplayIdx(displayEnd, properties->horizontal, dc, properties->frame, NULL);
 
   return displayEnd;
 }
@@ -1095,7 +1095,7 @@ static int getSequenceStart(SequenceProperties *properties, DotterContext *dc, c
   /* Offset this coord so that we have the first coord that starts our reading frame */
   int reqdFrame = properties->frame;
   int frame = UNSET_INT;
-  convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, 1, &frame);
+  convertToDisplayIdx(seqStart, properties->horizontal, dc, 1, &frame);
   
   int offset = reqdFrame - frame;
   if (offset < 0)
@@ -1106,7 +1106,7 @@ static int getSequenceStart(SequenceProperties *properties, DotterContext *dc, c
   seqStart = forward ? seqStart + offset : seqStart - offset;
 
   if (convertToDisplayCoords)
-    seqStart = convertToDisplayIdx(seqStart, !properties->isMatchSeq, dc, reqdFrame, NULL);
+    seqStart = convertToDisplayIdx(seqStart, properties->horizontal, dc, reqdFrame, NULL);
 
   return seqStart;
 }
@@ -1126,13 +1126,13 @@ static int getSequenceEnd(SequenceProperties *properties, DotterContext *dc, con
   /* Offset this coord so that we have the last coord that ends our reading frame */
   int reqdFrame = properties->frame;
   int frame = UNSET_INT;
-  convertToDisplayIdx(seqEnd, !properties->isMatchSeq, dc, dc->numFrames, &frame);
+  convertToDisplayIdx(seqEnd, properties->horizontal, dc, dc->numFrames, &frame);
   
   int offset = reqdFrame - frame;
   seqEnd = forward ? seqEnd + offset : seqEnd - offset;
 
   if (convertToDisplayCoords)
-    seqEnd = convertToDisplayIdx(seqEnd, !properties->isMatchSeq, dc, reqdFrame, NULL);
+    seqEnd = convertToDisplayIdx(seqEnd, properties->horizontal, dc, reqdFrame, NULL);
 
   return seqEnd;
 }
