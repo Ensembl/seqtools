@@ -1218,13 +1218,11 @@ static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
   /* Get the 0-based index into the bit of sequence for this frame/strand */
   int startIdx = 0;
   const int seqStart = getSequenceStart(properties, dc, TRUE);
-  const int seqEnd = getSequenceEnd(properties, dc, TRUE);
   
   if (properties->strand == BLXSTRAND_REVERSE)
     startIdx = seqStart - endCoord;
   else
     startIdx = startCoord - seqStart;
-  
   
   /* Get the length of sequence we want to show */
   int numChars = endCoord - startCoord + 1;
@@ -1239,8 +1237,6 @@ static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
   
   result = g_strndup(properties->sequence + startIdx, numChars + 1);
   result[numChars] = '\0';
-
-  printf("start=%d, end=%d, seq=%d,%d, idx=%d, seq=%s\n", startCoord, endCoord, seqStart, seqEnd, startIdx, result);
 
   return result;
 }
