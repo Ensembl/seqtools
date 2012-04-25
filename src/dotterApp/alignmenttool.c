@@ -280,11 +280,17 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
  *                       Events                            *
  ***********************************************************/
 
-/* Called when the alignment tool window changes size */
-static void onSizeAllocateAlignmentTool(GtkWidget *alignmentTool, GtkAllocation *allocation, gpointer data)
+static void redrawAll(GtkWidget *alignmentTool)
 {
   callFuncOnAllChildWidgets(alignmentTool, widgetClearCachedDrawable);
   gtk_widget_queue_draw(alignmentTool);
+}
+
+
+/* Called when the alignment tool window changes size */
+static void onSizeAllocateAlignmentTool(GtkWidget *alignmentTool, GtkAllocation *allocation, gpointer data)
+{
+  redrawAll(alignmentTool);
 }
 
 
@@ -361,9 +367,7 @@ static gboolean onExposeMatchSequenceHeader(GtkWidget *widget, GdkEventExpose *e
 /* This should be called when the range displayed by the alignment tool has changed */
 static void onAlignmentToolRangeChanged(GtkWidget *alignmentTool)
 {
-  /* Clear any cached drawables on this or any child widgets */
-  callFuncOnAllChildWidgets(alignmentTool, widgetClearCachedDrawable);
-  gtk_widget_queue_draw(alignmentTool);
+  redrawAll(alignmentTool);
 }
 
 
@@ -547,8 +551,21 @@ static void onPrintMenu(GtkAction *action, gpointer data)
   GtkWidget *alignmentTool = GTK_WIDGET(data);
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
   DotterWindowContext *dwc = properties->dotterWinCtx;
+
+  /* Set the background colour to something sensible for printing */
+  GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, TRUE);
+  setWidgetBackgroundColor(alignmentTool, defaultBgColor);
+  redrawAll(alignmentTool);
+
+  /* Make sure cached drawables are re-drawn before we print them. */
+  gdk_window_process_all_updates();
   
   blxPrintWidget(alignmentTool, NULL, GTK_WINDOW(alignmentTool), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
+
+  /* Revert the background colour */
+  defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, dwc->usePrintColors);
+  setWidgetBackgroundColor(alignmentTool, defaultBgColor);
+  redrawAll(alignmentTool);
 }
 
 
