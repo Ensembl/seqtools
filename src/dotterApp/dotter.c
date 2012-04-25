@@ -3263,26 +3263,6 @@ static gboolean onKeyPressH(GtkWidget *dotterWindow, const gboolean ctrlModifier
   return ctrlModifier;
 }
 
-/* Handle P key press (Ctrl-P => prints the given widget) */
-static gboolean onKeyPressP(GtkWidget *widget, GtkWidget *dotterWindow, const gboolean ctrlModifier)
-{
-  if (ctrlModifier)
-    {    
-      if (widget == dotterWindow)
-        {
-          /* Special function for printing the main dotter window */
-          printDotterWindow(dotterWindow);
-        }
-      else
-        {
-          /* Generic widget printing */
-          printDotterWindow(dotterWindow);
-        }
-    }
-  
-  return ctrlModifier;
-}
-
 
 /* Handle S key press (Ctrl-S => show settings dialog) */
 static gboolean onKeyPressS(GtkWidget *dotterWindow, const gboolean ctrlModifier)
@@ -3390,9 +3370,6 @@ gboolean onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data)
         
       case GDK_H:   /* fall through */
       case GDK_h:   handled = onKeyPressH(dotterWindow, ctrlModifier);              break;
-
-      case GDK_P:   /* fall through */
-      case GDK_p:   handled = onKeyPressP(widget, dotterWindow, ctrlModifier);      break;
 
       case GDK_S:   /* fall through */
       case GDK_s:   handled = onKeyPressS(dotterWindow, ctrlModifier);              break;
