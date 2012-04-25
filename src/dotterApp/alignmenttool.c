@@ -852,7 +852,13 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   createDrawingAreaWidget(dc, G_CALLBACK(onExposeMatchSequenceHeader), alignmentTool,
                           roundNearest(dc->charHeight) + SELECTED_COORD_MARKER_HEIGHT + roundNearest(dc->charHeight), /* extra charheight for spacing */
                           table, xpad, ypad, &row);
+ 
   
+  /* Make sure neither header is focused at the start because if it is
+   * then its text will be selected and we will inadvertently overwrite the
+   * contents of the primary clipboard. */
+  gtk_container_set_focus_child(GTK_CONTAINER(table), matchSeqWidget);
+ 
   return GTK_WIDGET(table);
 }
 
