@@ -283,15 +283,46 @@ GtkWidget* createLabel(const char *text,
   
   gtk_misc_set_padding(GTK_MISC(label), DEFAULT_LABEL_X_PAD, 0);
   
+  GtkWidget *parent = NULL;
+  
   if (label && showWhenPrinting)
     {
       /* Connect to the expose event handler that will create the drawable object required for printing */
+      parent = gtk_event_box_new();
+      gtk_container_add(GTK_CONTAINER(parent), label);
       g_signal_connect(G_OBJECT(label), "expose-event", G_CALLBACK(onExposePrintable), NULL);
     }
 
+  return parent ? parent : label;
+}
+
+
+/* We use labels that might be GtkLabel widgets or might be
+ * a GtkLabel inside a GtkEventBox. This checks for the latter
+ * case and returns the actual label; otherwise it returns the
+ * original widget. */
+GtkWidget* getLabelWidget(GtkWidget *widget)
+{
+  GtkWidget *label = widget;
+  
+  if (GTK_IS_EVENT_BOX(widget))
+    {
+      GList *childItem = gtk_container_get_children(GTK_CONTAINER(widget));
+      label = GTK_WIDGET(childItem->data);
+    }
+  
   return label;
 }
 
+
+/* Set the font for a widget. If the widget is a GtkEventBox then
+ * we actually want to set the font on its child rather than the
+ * event box itself, so this function takes care of that. */
+void labelSetFont(GtkWidget *widget, PangoFontDescription *fontDesc)
+{
+  GtkWidget *label = getLabelWidget(widget);
+  gtk_widget_modify_font(label, fontDesc);
+}
 
 
 /* Expose-event handler for labels/entrys that are required to be shown during printing. */
@@ -2708,7 +2739,7 @@ int invertCoord(const int coord, const IntRange const *range, const gboolean inv
 
 
 /* Tries to return a fixed font from the list given in pref_families, returns
- * TRUE if it succeeded in finding a matching font, FALSE otherwise.
+ * the font family name if it succeeded in finding a matching font, FALSE otherwise.
  * The list of preferred fonts is treated with most preferred first and least
  * preferred last.  The function will attempt to return the most preferred font
  * it finds.
@@ -2716,11 +2747,7 @@ int invertCoord(const int coord, const IntRange const *range, const gboolean inv
  * @param widget         Needed to get a context, ideally should be the widget you want to
  *                       either set a font in or find out about a font for.
  * @param pref_families  List of font families (as text strings).
- * @param points         Size of font in points.
- * @param weight         Weight of font (e.g. PANGO_WEIGHT_NORMAL)
- * @param font_out       If non-NULL, the font is returned.
- * @param desc_out       If non-NULL, the font description is returned.
- * @return               TRUE if font found, FALSE otherwise.
+ * @return               font family name if font found, NULL otherwise.
  */
 const char* findFixedWidthFontFamily(GtkWidget *widget, GList *pref_families)
 {

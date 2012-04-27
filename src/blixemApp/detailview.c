@@ -4688,13 +4688,6 @@ static void createColumn(BlxColumnId columnId,
   
   gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
   
-  if (GTK_IS_MISC(headerWidget))
-    {
-      /* Align the text bottom-left */
-      gtk_misc_set_alignment(GTK_MISC(headerWidget), 0.0, 1.0);
-      gtk_misc_set_padding(GTK_MISC(headerWidget), DEFAULT_LABEL_X_PAD, 0);
-    }
-  
   /* Create the column info */
   DetailViewColumnInfo *columnInfo = g_malloc(sizeof(DetailViewColumnInfo));
   
