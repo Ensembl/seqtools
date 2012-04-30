@@ -1,6 +1,6 @@
 /*  File: utilities.c
  *  Author: Gemma Barson, 2010-01-05
- *  Copyright (c) 2010 Genome Research Ltd
+ *  Copyright (c) 2010 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -2613,7 +2613,11 @@ gchar *getSequenceSegment(const char const *dnaSequence,
        * show a partial triplet at the start/end. (It's a bit tricky for the caller to
        * specify the exact bases they want here so we allow it but just limit it to 
        * the actual range so that they can't index beyond the end of the range.) Any
-       * further out than one triplet is probably indicative of an error, so give a warning. */
+       * further out than one triplet is probably indicative of an error, so give a warning.
+       * If it doesn't overlap the ref seq range at all, just return NULL. */
+      if (!rangesOverlap(qRangeIn, refSeqRange))
+        return NULL;
+
       if (qRange.min < refSeqRange->min - (numFrames + 1) || qRange.max > refSeqRange->max + (numFrames + 1))
         {
           g_set_error(&tmpError, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT, "Requested query sequence %d - %d out of available range: %d - %d.\n", qRange.min, qRange.max, refSeqRange->min, refSeqRange->max);

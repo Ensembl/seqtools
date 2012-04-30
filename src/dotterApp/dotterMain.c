@@ -1,6 +1,6 @@
 /*  File: dotterMain.c
  *  Author: esr, 1999-08-26
- *  Copyright (c) 2010 Genome Research Ltd
+ *  Copyright (c) 2010 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -759,7 +759,7 @@ int main(int argc, char **argv)
           }
           else 
             {
-      	for (cq = line; *cq; cq++) 
+              for (cq = line; *cq; cq++) 
                 {
                   /* Don't know yet what type of sequence it is, so accept chars for both types */
                   if (isValidIupacChar(*cq, BLXSEQ_DNA) || isValidIupacChar(*cq, BLXSEQ_PEPTIDE))

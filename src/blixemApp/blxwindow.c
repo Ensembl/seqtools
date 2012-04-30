@@ -1,6 +1,6 @@
 /*  File: blxWindow.c
  *  Author: Gemma Barson, 2009-11-24
- *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ *  Copyright (c) 2009 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -452,10 +452,9 @@ void blxWindowRedrawAll(GtkWidget *blxWindow)
   bigPictureRedrawAll(bigPicture);
 
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  refreshDetailViewHeaders(detailView);
+  detailViewRefreshAllHeaders(detailView);
   
   callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable, NULL);
-  callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   
   gtk_widget_queue_draw(blxWindow);
 }
@@ -3448,7 +3447,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   GtkWidget *vbox1 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Features");
 
   GtkContainer *variationContainer = createParentCheckButton(vbox1, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS, NULL, G_CALLBACK(onParentBtnToggled));
-  createCheckButton(GTK_BOX(variationContainer), "Show varations _track", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
+  createCheckButton(GTK_BOX(variationContainer), "Show variations _track", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
 
   /* show-polyA-tails option and its sub-options. Connect onToggleFlag twice to the 'when selected' button to also toggle the 'show signals when selected' button in unison. */
   GtkWidget *polyAParentBtn = NULL;
@@ -5688,8 +5687,23 @@ static void calcID(MSP *msp, BlxViewContext *bc)
             }
 	  else
 	    {
-	      /* If there's an error but the sequence was still returned it's a non-critical warning */
-	      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+	      /* If there's an error but the sequence was still returned it's 
+               * a non-critical warning. Only issue one warning because we can
+               * get many thousands and it can fill up the terminal if we output
+               * them all. */
+              if (error)
+                {
+                  static gboolean done = FALSE;
+                  
+                  if (!done)
+                    {
+                      g_warning("There were errors calculating the percent ID for some sequences because the match extends out of the reference sequence range; some IDs may be incorrect.\n");
+                      done = TRUE;
+                    }
+                  
+                  g_error_free(error);
+                  error = NULL;
+                }
 	    }
           
           /* We need to find the number of characters that match out of the total number */

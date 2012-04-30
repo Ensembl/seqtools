@@ -1,6 +1,6 @@
 /*  File: blxmsp.c
  *  Author: Gemma Barson, 2010-09-02
- *  Copyright (c) 2010 Genome Research Ltd
+ *  Copyright (c) 2010 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -766,31 +766,6 @@ char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
 }
 
 
-/* Find a blxsequence with the given name or id in the given list */
-static BlxSequence *findBlxSequence(GList *seqList, const char *reqdName, const char *reqdIdTag, const BlxStrand reqdStrand)
-{
-  BlxSequence *result = NULL;
-
-  /* Loop through all sequences in the list */
-  GList *listItem = seqList;
-
-  for ( ; listItem; listItem = listItem->next)
-    {
-      BlxSequence *currentSeq = (BlxSequence*)(listItem->data);
-				  
-      if (currentSeq->strand == reqdStrand &&
-	  ( (reqdName && currentSeq->fullName && !strcmp(currentSeq->fullName, reqdName)) ||
-	    (reqdIdTag && currentSeq->idTag && !strcmp(currentSeq->idTag, reqdIdTag)) ))
-	{
-	  result = currentSeq;
-	  break;
-	}
-    }
-  
-  return result;
-}
-
-
 /* Return the full name of a BlxSequence (including prefix and variant) */
 const char *blxSequenceGetFullName(const BlxSequence *seq)
 {
@@ -799,7 +774,7 @@ const char *blxSequenceGetFullName(const BlxSequence *seq)
   if (seq)
     {
       if (seq->fullName)
-        result = seq->fullName;
+        result = g_quark_to_string(seq->fullName);
       else if (seq->idTag)
         result = seq->idTag;
       else
@@ -826,14 +801,14 @@ const char *blxSequenceGetSource(const BlxSequence *seq)
 /* Return the display name of a BlxSequence (same as full name for now) */
 const char *blxSequenceGetDisplayName(const BlxSequence *seq)
 {
-  return seq->fullName;
+  return blxSequenceGetFullName(seq);
 }
 
 /* Return the short name of a BlxSequence (excludes prefix and variant number) */
 const char *blxSequenceGetShortName(const BlxSequence *seq)
 {
   /* Only applicable to matches */
-  return (seq->type == BLXSEQUENCE_MATCH ? seq->shortName : seq->fullName);
+  return (seq->type == BLXSEQUENCE_MATCH ? seq->shortName : blxSequenceGetFullName(seq));
 }
 
 /* Return the length of the given blxsequence's sequence data */
@@ -914,7 +889,7 @@ char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, cons
     char strand = blxSeq->strand == BLXSTRAND_REVERSE ? '-' : '+';
     char unloadedStr[] = "(optional data not loaded)";
     
-    g_string_append_printf(resultStr, "SEQUENCE NAME:\t%s%c%c", blxSeq->fullName, strand, separator);
+    g_string_append_printf(resultStr, "SEQUENCE NAME:\t%s%c%c", blxSequenceGetFullName(blxSeq), strand, separator);
     g_string_append_printf(resultStr, "ORGANISM:\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetOrganism(blxSeq), separator);
     g_string_append_printf(resultStr, "GENE NAME:\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetGeneName(blxSeq), separator);
     g_string_append_printf(resultStr, "TISSUE TYPE:\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetTissueType(blxSeq), separator);
@@ -944,16 +919,17 @@ static BlxSequence* blxSequenceFindByName(const char *name, GList *allSeqs)
 {
   BlxSequence *result = NULL;
   GList *listItem = allSeqs;
+  GQuark nameQuark = g_quark_from_string(name);
   
   for ( ; listItem; listItem = listItem->next)
     {
-    BlxSequence *curSeq = (BlxSequence*)(listItem->data);
+      BlxSequence *curSeq = (BlxSequence*)(listItem->data);
     
-    if (stringsEqual(curSeq->fullName, name, FALSE))
-      {
-      result = curSeq;
-      break;
-      }
+      if (curSeq->fullName == nameQuark)
+        {
+          result = curSeq;
+          break;
+        }
     }
   
   return result;
@@ -1037,7 +1013,6 @@ void destroyBlxSequence(BlxSequence *seq)
 {
   if (seq)
     {
-      g_free(seq->fullName);
       g_free(seq->shortName);
       
       if (seq->source)        g_free(seq->source);
@@ -1059,7 +1034,7 @@ void blxSequenceSetName(BlxSequence *seq, const char *fullName)
 {  
   if (fullName && !seq->fullName)
     {
-      seq->fullName = fullName ? g_strdup(fullName) : NULL;
+      seq->fullName = g_quark_from_string(fullName);
       
       /* To do: short name is only applicable to matches so 
        * ideally we wouldn't even attempt to calculate it for other types; 
@@ -1067,7 +1042,7 @@ void blxSequenceSetName(BlxSequence *seq, const char *fullName)
       
       /* The short name: cut off the variant number (after the '.'). Need to 
        * duplicate the string to change the end of it. */
-      seq->shortName = g_strdup(seq->fullName);
+      seq->shortName = fullName ? g_strdup(fullName) : NULL;
       char *cutPoint = strchr(seq->shortName, '.');
       
       if (cutPoint)
@@ -1088,7 +1063,7 @@ BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GEr
   seq->idTag = idTag ? g_strdup(idTag) : NULL;
   seq->source = NULL;
   
-  seq->fullName = NULL;
+  seq->fullName = 0;
   seq->shortName = NULL;
   blxSequenceSetName(seq, fullName);
   
@@ -1209,6 +1184,47 @@ static BlxSequenceType getBlxSequenceTypeForMsp(const BlxMspType mspType)
 }
 
 
+/* Utility to get the unique key for a given text string and strand */
+static GQuark getLookupKey(const char *text, const BlxStrand strand)
+{
+  char *keyStr = g_strdup_printf("%s%c", text, (strand == BLXSTRAND_FORWARD ? '+' : '-'));
+  GQuark key = g_quark_from_string(keyStr);
+  g_free(keyStr);
+  
+  return key;
+}
+
+
+/* Utility to find a blxsequence with the given name/id/strand in the 
+ * given hash table. Returns null if it is not there. */
+static BlxSequence* findBlxSequence(GHashTable *lookupTable,
+                                    const char *name, 
+                                    const char *idTag,
+                                    const BlxStrand strand)
+{
+  BlxSequence *result = NULL;
+  
+  /* We compare on sequence name (or id if name not given) and strand, so combine
+   * these into a single string and convert it to a quark for quicker comparisions.
+   * (This is the key for the hash table.) */
+  if (name)
+    {
+      GQuark key = getLookupKey(name, strand);
+      result = (BlxSequence*)g_hash_table_lookup(lookupTable, GINT_TO_POINTER(key));
+    }
+  
+  /* If not found, also check the id tag and strand because the name may have been null
+   * when the sequence was added. */
+  if (!result && idTag)
+    {
+      GQuark key = getLookupKey(idTag, strand);
+      result = (BlxSequence*)g_hash_table_lookup(lookupTable, GINT_TO_POINTER(key));
+    }
+  
+  return result;
+}
+
+
 /* Add or create a BlxSequence struct, creating the BlxSequence if one does not
  * already exist for the MSP's sequence name. Seperate BlxSequence structs are created
  * for the forward and reverse strands of the same sequence. The passed-in sequence 
@@ -1226,6 +1242,13 @@ BlxSequence* addBlxSequence(const char *name,
 {
   BlxSequence *blxSeq = NULL;
   
+  /* Put all blxseqs in a hash table indexed on a quark of the name
+   * so that we can quickly check if the same one already exists */
+  static GHashTable *lookupTable =  NULL;
+
+  if (!lookupTable)
+    lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
+    
   if (name || idTag)
     {
       /* If this is an exon or intron the match strand is not applicable. The exon should 
@@ -1235,19 +1258,25 @@ BlxSequence* addBlxSequence(const char *name,
           strand = msp->qStrand;
         }
     
-      /* See if this strand for this sequence already exists. Horrible hack for backwards compatibility:
-       * if the msp is an exon/intron, cut off the old-style 'x' or 'i' postfix from the name, if it has one. */
-      char *seqName = g_strdup(name);
-      blxSeq = findBlxSequence(*seqList, seqName, idTag, strand);
+      /* See if this sequence already exists.  This matches on name or tag and strand.
+       * Don't do this for short reads because they can have the same name as a different
+       * read (with different sequence data). */
+      if (!msp || msp->type != BLXMSP_SHORT_READ)
+        blxSeq = findBlxSequence(lookupTable, name, idTag, strand);
       
       if (!blxSeq)
         {
           /* Create a new BlxSequence, and take ownership of the passed in sequence (if any) */
-          blxSeq = createEmptyBlxSequence(seqName, idTag, NULL);
-          *seqList = g_list_prepend(*seqList, blxSeq);
+          blxSeq = createEmptyBlxSequence(name, idTag, NULL);
           blxSeq->strand = strand;
           blxSeq->dataType = dataType;
           blxSeq->source = g_strdup(source);
+          
+          /* Add it to the return sequence list, as well as our local lookup table */
+          *seqList = g_list_prepend(*seqList, blxSeq);
+
+          GQuark key = getLookupKey((name ? name : idTag), strand);
+          g_hash_table_insert(lookupTable, GINT_TO_POINTER(key), blxSeq);
         }
       else
         {
@@ -1262,11 +1291,11 @@ BlxSequence* addBlxSequence(const char *name,
             g_warning("Duplicate sequences have different sources [name=%s, ID=%s, strand=%d, orig source=%s, new source=%s].\n", name, idTag, strand, blxSeq->source, source);
         }
       
-      if (seqName && !blxSeq->fullName)
+      if (name && !blxSeq->fullName)
 	{
 	  /* It's possible that the BlxSequence was created without a name if we found an
 	   * unnamed child exon before we found the parent transcript, so set the name if we have it. */
-	  blxSequenceSetName(blxSeq, seqName);
+	  blxSequenceSetName(blxSeq, name);
 	}
       
       if (msp)
@@ -1288,8 +1317,6 @@ BlxSequence* addBlxSequence(const char *name,
       
       /* Add the sequence data */
       addBlxSequenceData(blxSeq, sequence, error);
-      
-      g_free(seqName);
     }
   else
     {
@@ -1322,13 +1349,13 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
           /* Sequence does not yet exist, so add it */
           blxSeq->sequence = g_string_new(sequence);
           sequenceUsed = TRUE;
-          }
+        }
       else if (error && *error)
         {
           /* Sequence already exists. Validate that it's the same as the existing one. */
           if (!stringsEqual(sequence, blxSeq->sequence->str, FALSE))
             {
-              g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_DATA_MISMATCH, "Sequence data for '%s' does not match previously-found data.\n", blxSeq->fullName);
+              g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_DATA_MISMATCH, "Sequence data for '%s' does not match previously-found data.\n", blxSequenceGetFullName(blxSeq));
             }
         }
     }      
@@ -1383,7 +1410,7 @@ void writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *r
               blxSeq->strand,
               numMsps); /* output number of msps so we know how many to read in */
       
-      stringProtect(pipe, blxSeq->fullName);
+      stringProtect(pipe, blxSequenceGetFullName(blxSeq));
       stringProtect(pipe, blxSeq->idTag);
       
       fputc('\n', pipe);
@@ -1439,7 +1466,10 @@ BlxSequence* readBlxSequenceFromText(char *text, int *numMsps)
   *numMsps = strtol(curChar, &curChar, 10);
   nextChar(&curChar);
   
-  blxSeq->fullName = stringUnprotect(&curChar, NULL);
+  char *fullName = stringUnprotect(&curChar, NULL);
+  blxSeq->fullName = g_quark_from_string(fullName);
+  g_free(fullName);
+
   blxSeq->idTag = stringUnprotect(&curChar, NULL);
   
   DEBUG_EXIT("readBlxSequenceFromText returning numMsps=%d", *numMsps);
@@ -1745,6 +1775,53 @@ MSP* createNewMsp(GArray* featureLists[],
 }
 
 
+/* Make a copy of an MSP */
+MSP* copyMsp(const MSP const *src,
+             GArray* featureLists[],             
+             MSP **lastMsp, 
+             MSP **mspList,
+             GList **seqList,
+             GError **error)
+{
+  MSP *msp = createEmptyMsp(lastMsp, mspList);
+  
+  msp->type = src->type;
+  msp->score = UNSET_INT; 
+  msp->id = UNSET_INT; 
+  msp->phase = src->phase;
+  msp->url = g_strdup(src->url);
+  
+  msp->qname = src->qname ? g_strdup(src->qname) : NULL;
+  
+  msp->qFrame = src->qFrame;
+  msp->qStrand = src->qStrand;
+  
+  msp->sname = src->sname ? g_strdup(src->sname) : NULL;
+  
+  intrangeSetValues(&msp->qRange, src->qRange.min, src->qRange.max);  
+  intrangeSetValues(&msp->sRange, src->sRange.min, src->sRange.max);
+  
+  /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
+  if (src->sSequence)
+    {
+      src->sSequence->mspList = g_list_insert_sorted(src->sSequence->mspList, msp, compareFuncMspPos);
+      msp->sSequence = src->sSequence;
+    }
+
+  /* Add it to the relevant feature list. */
+  featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
+
+  if (error && *error)
+    {
+      prefixError(*error, "Error creating MSP (ref seq='%s' [%d - %d], match seq = '%s' [%d - %d]). ",
+                  src->qname, src->qRange.min, src->qRange.max, src->sname, src->sRange.min, src->sRange.max);
+    }
+  
+  return msp;
+}
+
+
+
 /* Set the given child list in the given exon. Takes ownership of the child list
  * (and frees it if exon is null).
  * Exons and UTRs don't have phase, but we want to display them in the same reading frame
@@ -1818,13 +1895,13 @@ static MSP* createMissingMsp(const BlxMspType newType,
   if (newType != BLXMSP_INVALID)
     {
       /* Create the new exon/cds/utr */
-      DEBUG_OUT("Creating MSP for transcript '%s' of type %d.\n", blxSeq->fullName, newType);
+      DEBUG_OUT("Creating MSP for transcript '%s' of type %d.\n", blxSequenceGetFullName(blxSeq), newType);
       
       GError *tmpError = NULL;
       
       result = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, blxSeq->source,
                             UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
-                            qname, newStart, newEnd, blxSeq->strand, newFrame, blxSeq->fullName,
+                            qname, newStart, newEnd, blxSeq->strand, newFrame, g_quark_to_string(blxSeq->fullName),
                             UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
       
       result->style = newStyle;
@@ -2017,7 +2094,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
                   createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, blxSeq->source, 
                                curExon->score, curExon->id, 0, curExon->url, blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
-                               blxSeq->fullName, UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
+                               g_quark_to_string(blxSeq->fullName), UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
                   
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }

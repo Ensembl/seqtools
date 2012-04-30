@@ -1,6 +1,6 @@
 /*  File: dotter_.h
  *  Author: esr, 1999-08-26
- *  Copyright (c) 2010 Genome Research Ltd
+ *  Copyright (c) 2010 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

@@ -1,6 +1,6 @@
 /*  File: blixem_.h
  *  Author: Ed Griffiths, 2001-11-29
- *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ *  Copyright (c) 2009 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -464,7 +464,7 @@ gboolean                           mspHasFs(const MSP *msp);
 char*                              readFastaSeq(FILE *seqfile, char *qname, int *startCoord, int *endCoord, const BlxSeqType seqType);
 
 /* blxFetch.c */
-void                               fetchAndDisplaySequence(char *seqName, GtkWidget *blxWindow) ;
+void                               fetchAndDisplaySequence(const char *seqName, GtkWidget *blxWindow) ;
 void                               blxPfetchMenu(void) ;
 char*                              blxGetFetchProg(const char *fetchMode) ;
 

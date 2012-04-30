@@ -1,6 +1,6 @@
 /*  File: detailview.c
  *  Author: Gemma Barson, 2009-11-23
- *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ *  Copyright (c) 2009 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -227,8 +227,8 @@ void			detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
 void			updateDetailViewFontDesc(GtkWidget *detailView);
 void			updateDetailViewRange(GtkWidget *detailView);
 void			resizeDetailViewHeaders(GtkWidget *detailView);
-void			refreshDetailViewHeaders(GtkWidget *detailView);
 void			detailViewRedrawAll(GtkWidget *detailView);
+void                    detailViewRefreshAllHeaders(GtkWidget *detailView);
 
 void			detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash);
 void			detailViewUpdateSortInverted(GtkWidget *detailView, const gboolean invert);
@@ -238,7 +238,7 @@ void                    detailViewUpdateMspLengths(GtkWidget *detailView, const 
 void                    detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases);
 void			detailViewToggleSnpTrack(GtkWidget *detailView);
 
-GtkWidget*		createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const int strand);
+GtkWidget*		createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const BlxStrand strand);
 void			refreshTextHeader(GtkWidget *widget, gpointer data);
 gboolean		onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 
@@ -271,7 +271,8 @@ gboolean                coordAffectedByVariation(const int dnaIdx,
                                                  gboolean *drawStartBoundary, 
                                                  gboolean *drawEndBoundary, 
                                                  gboolean *drawJoiningLines, 
-                                                 gboolean *drawBackground);
+                                                 gboolean *drawBackground,
+                                                 gboolean *multipleVariations);
 
 void			drawHeaderChar(BlxViewContext *bc,
 				       DetailViewProperties *properties,

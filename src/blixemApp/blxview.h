@@ -1,6 +1,6 @@
 /*  File: blxview.h
  *  Author: Erik Sonnhammer, 1992-02-20
- *  Copyright (c) 2009 - 2010 Genome Research Ltd
+ *  Copyright (c) 2009 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

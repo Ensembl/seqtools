@@ -1,6 +1,6 @@
 /*  File: blxmsp.h
  *  Author: Gemma Barson, 2010-09-02
- *  Copyright (c) 2010 Genome Research Ltd
+ *  Copyright (c) 2010 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -152,7 +152,7 @@ typedef struct _BlxSequence
   char *idTag;			   /* Unique identifier e.g. from ID tag in GFF files */
   char *source;                    /* Optional source text for the sequence */
 
-  char *fullName;                  /* full name of the sequence, including variant postfix, e.g. AV274505.2 */
+  GQuark fullName;                 /* full name of the sequence, including variant postfix, e.g. AV274505.2 */
   char *shortName;                 /* short name of the sequence, excluding variant, e.g. AV274505 */
   
   GString *organism;               /* organism from the EMBL data OS line */
@@ -324,6 +324,7 @@ MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **
 				   const char *url, const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
                                    const BlxStrand sStrand, char *sequence, GError **error);  
+MSP*                  copyMsp(const MSP const *src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
 
 //void                  insertFS(MSP *msp, char *series);
 
