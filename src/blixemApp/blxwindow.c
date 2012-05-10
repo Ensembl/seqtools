@@ -5105,12 +5105,15 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
     }
     
   blxContext->spawnedProcesses = NULL;
-  blxContext->modelId = options->squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
   blxContext->depthArray = NULL;
   blxContext->minDepth = 0;
   blxContext->maxDepth = 0;
  
   loadBlixemSettings(blxContext);
+
+  /* do this after loading settings because the passed-in squashed 
+   * matches option should override the saved option in the settings */
+  blxContext->modelId = options->squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
 
   return blxContext;
 }
