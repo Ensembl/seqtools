@@ -882,7 +882,7 @@ char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
   const BlxBlastMode blastMode = bc->blastMode;
   if (blastMode != BLXMODE_TBLASTN)
     {
-      const char *fetchMode = bc->bulkFetchMode;
+      const char *fetchMode = bc->bulkFetchDefault;
       dotterSSeq = fetchSeqRaw(blxSequenceGetFullName(blxSeq), fetchMode);
     }
 

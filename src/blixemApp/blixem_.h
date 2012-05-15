@@ -76,37 +76,38 @@ AUTHOR_TEXT "\n"
 #define BLIXEM_GROUP               "blixem"
 #define BLIXEM_OLD_BULK_FETCH      "default-fetch-mode" /* for compatibility with old config files (new config files use SEQTOOLS_BULK_FETCH) */
 
-/* For http pfetch proxy fetching of sequences/entries by name */
-#define PFETCH_PROXY_GROUP         "pfetch-http"
-#define PFETCH_PROXY_LOCATION      "pfetch"
-#define PFETCH_PROXY_COOKIE_JAR    "cookie-jar"
-#define PFETCH_PROXY_MODE          "pfetch-mode"
-#define PFETCH_PROXY_PORT          "port"
+/* Fetch settings */
+#define FETCH_MODE_KEY             "fetch-mode"  /* any group with this key is a fetch method, and this specifies what type of fetch to do */
 
-/* For direct pfetch socket fetching of sequences/entries by name */
-#define PFETCH_SOCKET_GROUP        "pfetch-socket"
-#define PFETCH_SOCKET_NODE         "node"
-#define PFETCH_SOCKET_PORT         "port"
-
-/* For fetching sequences/entries from a database by name */
-#define DB_FETCH_GROUP             "db-fetch"
-#define DB_FETCH_DATABASE          "db"
-
-/* For fetching sequences/entries that lie within a given region. */
-#define REGION_FETCH_GROUP         "region-fetch"
-#define REGION_FETCH_SCRIPT        "script"
-#define REGION_FETCH_ARGS          "args"
-
-
-/* Fetch programs for sequence entries. */
-#define BLX_FETCH_PFETCH           PFETCH_SOCKET_GROUP
+/* These are the supported fetch modes. */
 #ifdef PFETCH_HTML 
-#define BLX_FETCH_PFETCH_HTML      PFETCH_PROXY_GROUP
+#define FETCH_MODE_HTTP            "http"
 #endif
-#define BLX_FETCH_EFETCH           "efetch"
-#define BLX_FETCH_WWW_EFETCH       "WWW-efetch"
-#define BLX_FETCH_DB               DB_FETCH_GROUP
-#define BLX_FETCH_REGION           REGION_FETCH_GROUP
+#define FETCH_MODE_WWW             "www"
+#define FETCH_MODE_SOCKET          "socket"
+#define FETCH_MODE_DB              "db"
+#define FETCH_MODE_COMMAND         "command"
+#define FETCH_MODE_NONE            "none"
+
+/* Required keys for http-fetch groups */
+#define HTTP_FETCH_LOCATION       "url"
+#define HTTP_FETCH_PORT           "port"
+#define HTTP_FETCH_COOKIE_JAR     "cookie-jar"
+
+/* Required keys for www-fetch groups */
+#define WWW_FETCH_LOCATION       "url"
+
+/* Required keys for socket-fetch groups */
+#define SOCKET_FETCH_NODE         "node"
+#define SOCKET_FETCH_PORT         "port"
+
+/* Required keys for db-fetch groups */
+/* not implemented yet */
+
+/* Required keys for command-fetch groups */
+#define COMMAND_FETCH_SCRIPT        "command"
+#define COMMAND_FETCH_ARGS          "args"
+
 
 
 /* For settings */
@@ -130,6 +131,24 @@ AUTHOR_TEXT "\n"
 
 /* would be good to get rid of this.... */
 #define FULLNAMESIZE               255
+
+
+
+/* Function pointer to a function that performs a fetch */
+typedef void(*FetchFunc)(gpointer fetchMethod, const gboolean bulk);
+
+
+/* struct to hold info about a fetch method */
+typedef struct _BlxFetchMethod
+{
+  const char *name;                 /* fetch method name */
+  FetchFunc func;                   /* the function that performs the fetch */
+  
+  char *location;                   /* e.g. url, script, command, node etc. */
+  int port;
+  char *cookie_jar;
+  char *args;
+} BlxFetchMethod;
 
 
 /* The following are used to define default colors for certain types of features in Blixem.
@@ -343,8 +362,9 @@ typedef struct _CommandLineOptions
   BlxBlastMode blastMode;         /* the blast match mode */
   BlxSeqType seqType;             /* whether the display shows sequences as peptides or nucleotides */
   int numFrames;                  /* the number of reading frames */
-  char *bulkFetchMode;            /* the default method for bulk fetching sequences (can be overridden by an MSPs data-type properties) */
-  char *userFetchMode;            /* the default method for fetching individual sequences interactively */
+  GHashTable *fetchMethods;       /* table of fetch methods (keyed on name as a GQuark) */
+  GQuark bulkFetchDefault;        /* the default method for bulk fetching sequences (can be overridden by an MSPs data-type properties) */
+  GQuark userFetchDefault;        /* the default method for fetching individual sequences interactively */
   char *dataset;		  /* the name of a dataset, e.g. 'human' */
   BlxMessageData msgData;         /* data to be passed to the message handlers */
   gboolean mapCoords;             /* whether the map-coords command-line argument was specified */
@@ -370,8 +390,10 @@ typedef struct _BlxViewContext
     char **geneticCode;		            /* The genetic code used to translate DNA <-> peptide */
     int numFrames;		            /* The number of reading frames */
 
-    char* bulkFetchMode;                    /* The default method of bulk fetching sequences (can be overridden by an MSPs data-type properties) */
-    char* userFetchMode;                    /* The default method for interactively fetching individual sequences */
+    GQuark bulkFetchDefault;                /* The default method of bulk fetching sequences (can be overridden by an MSPs data-type properties) */
+    GQuark userFetchDefault;                /* The default method for interactively fetching individual sequences */
+    GHashTable *fetchMethods;               /* List of fetch methods, keyed on name as a GQuark */
+
     char* dataset;			    /* the name of a dataset, e.g. 'human' */
     gboolean loadOptionalData;              /* parse the full EMBL files on startup to populate additional info like tissue-type */
 
@@ -384,8 +406,6 @@ typedef struct _BlxViewContext
                                              * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
     
     gboolean displayRev;		    /* True if the display is reversed (i.e. coords decrease as you read from left to right, rather than increase). */
-    const char *net_id;                     /* pfetch-socket net id */
-    int port;                               /* pfetch-socket port */
     gboolean external;                      /* True if Blixem was run externally or false if it was run internally from another program */
     
     GList *selectedSeqs;		    /* A list of sequences that are selected (as BlxSequences) */
@@ -464,7 +484,7 @@ gboolean                           mspHasFs(const MSP *msp);
 char*                              readFastaSeq(FILE *seqfile, char *qname, int *startCoord, int *endCoord, const BlxSeqType seqType);
 
 /* blxFetch.c */
-void                               fetchAndDisplaySequence(const BlxSequence *blxSeq, GtkWidget *blxWindow) ;
+void                               fetchAndDisplaySequence(const char *seqName, BlxFetchMethod *fetchMethod, GtkWidget *blxWindow) ;
 void                               blxPfetchMenu(void) ;
 char*                              blxGetFetchProg(const char *fetchMode) ;
 
@@ -472,11 +492,8 @@ void                               fetchSeqsIndividually(GList *seqsToFetch, Gtk
 gboolean                           populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, const gboolean loadOptionalData) ;
 gboolean                           populateFastaDataPfetch(GList *seqsToFetch, const char* pfetchIP, int port, gboolean External, const BlxSeqType seqType, GError **error) ;
 gboolean                           populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, const BlxSeqType seqType, GError **error);
-void                               blxInitConfig(char *config_file, GError **error) ;
+void                               blxInitConfig(char *config_file, CommandLineOptions *options, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
-gboolean                           blxConfigSetPFetchSocketPrefs(char *node, int port) ;
-gboolean                           blxConfigGetPFetchSocketPrefs(char **node, int *port) ;
-gboolean                           blxConfigGetPFetchWWWPrefs();
 
 void                               loadGffFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs);
 void                               appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
@@ -488,17 +505,12 @@ BlxStyle*                          createBlxStyle(const char *styleName, const c
 void                               destroyBlxStyle(BlxStyle *style);
 
 void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);
-void                               setupFetchModes(PfetchParams *pfetch, char **bulkFetchMode, char **userFetchMode, char **net_id, int *port);
 
 gboolean                           blxviewFetchSequences(gboolean External, 
-                                                         const gboolean parseFullEmblInfo,
-                                                         const gboolean parseSequenceData,
                                                          const gboolean saveTempFiles,
                                                          const BlxSeqType seqType,
                                                          GList **seqList, /* list of BlxSequence structs for all required sequences */
                                                          char *bulkFetchMode,
-                                                         const char *net_id,
-                                                         const int port,
 							 MSP **mspList,
 							 BlxBlastMode *blastMode,
 							 GArray* featureLists[],

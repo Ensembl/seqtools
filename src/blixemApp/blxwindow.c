@@ -551,9 +551,10 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   loadGffFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs);
 
   /* Fetch any missing sequence data and finalise the new sequences */
-  blxviewFetchSequences(FALSE, bc->loadOptionalData, TRUE, FALSE, bc->seqType, &newSeqs, 
-                        bc->bulkFetchMode, bc->net_id, bc->port, &newMsps, &bc->blastMode,
-                        bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
+  blxviewFetchSequences(FALSE, FALSE, bc->seqType, &newSeqs, 
+                        bc->bulkFetchDefault, &newMsps, &bc->blastMode,
+                        bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
+                        &bc->refSeqRange, bc->dataset);
 
   finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->refSeqOffset, bc->seqType, 
                        bc->numFrames, &bc->refSeqRange, TRUE);
@@ -2696,9 +2697,10 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
 
   GError *error = NULL;
   gboolean success = blxviewFetchSequences(
-    bc->external, getOptionalData, getSequenceData, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
-    bc->seqType, &bc->matchSeqs, bc->bulkFetchMode, bc->net_id, bc->port, &bc->mspList,
-    &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
+    bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
+    bc->seqType, &bc->matchSeqs, bc->bulkFetchDefault, &bc->mspList,
+    &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
+    &bc->refSeqRange, bc->dataset);
   
   if (error)
     {
@@ -4647,10 +4649,12 @@ static void destroyBlxContext(BlxViewContext **bcPtr)
 
       /* Free allocated strings */
       freeAndNull((gpointer*)(&bc->dataset));
-      freeAndNull((gpointer*)(&bc->bulkFetchMode));
-      freeAndNull((gpointer*)(&bc->userFetchMode));
+      freeAndNull((gpointer*)(&bc->bulkFetchDefault));
+      freeAndNull((gpointer*)(&bc->userFetchDefault));
       freeAndNull((gpointer*)(&bc->refSeqName));
-      freeAndNull((gpointer*)(&bc->net_id));
+
+      /* Free table of fetch methods and the fetch-method structs */
+      /* to do */
       
       /* Free the list of selected sequence names (not the names themselves
        * because we don't own them). */
@@ -5068,15 +5072,14 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->seqType = options->seqType;
   blxContext->numFrames = options->numFrames;
   blxContext->paddingSeq = paddingSeq;
-  blxContext->bulkFetchMode = g_strdup(options->bulkFetchMode);
-  blxContext->userFetchMode = g_strdup(options->userFetchMode);
+  blxContext->bulkFetchDefault = options->bulkFetchDefault;
+  blxContext->userFetchDefault = options->userFetchDefault;
+  blxContext->fetchMethods = options->fetchMethods;
   blxContext->dataset = g_strdup(options->dataset);
   blxContext->matchSeqs = seqList;
   blxContext->supportedTypes = supportedTypes;
   
   blxContext->displayRev = FALSE;
-  blxContext->net_id = g_strdup(net_id);
-  blxContext->port = port;
   blxContext->external = External;
   
   blxContext->selectedSeqs = NULL;
@@ -5183,20 +5186,6 @@ BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->blastMode : FALSE;
-}
-
-const char* blxWindowGetDefaultFetchMode(GtkWidget *blxWindow, const gboolean bulk)
-{
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  
-  char *result = NULL;
-  
-  if (blxContext)
-    {
-      result = bulk ? blxContext->bulkFetchMode : blxContext->userFetchMode;
-    }
-  
-  return result;
 }
 
 char * blxWindowGetRefSeq(GtkWidget *blxWindow)

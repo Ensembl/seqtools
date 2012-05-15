@@ -95,25 +95,6 @@ typedef enum
     PARSING_CANCELLED            /* cancelled by user */
   } BlxEmblParserState;
 
-/* 
- * config file structs/keywords
- */
-
-typedef enum {KEY_TYPE_INVALID, KEY_TYPE_BOOL, KEY_TYPE_INT, KEY_TYPE_DOUBLE, KEY_TYPE_STRING} ConfigKeyType ;
-
-typedef struct
-{
-  char *name ;
-  ConfigKeyType type ;
-} ConfigKeyValueStruct, *ConfigKeyValue ;
-
-typedef struct
-{
-  char *name ;
-  ConfigKeyValue key_values ;
-} ConfigGroupStruct, *ConfigGroup ;
-
-
 
 /* Used to draw/update a progress meter, consider as private. */
 typedef struct
@@ -212,7 +193,7 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
 static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_data) ;
 static void sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
 static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequence fetch_data) ;
-static void pfetchHttpEntry(const BlxSequence *blxSeq, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const gboolean fetchFullEntry);
+static void httpFetchEntry(const char *sequence_name, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const gboolean fetchFullEntry);
 #endif
 
 static int socketConstruct(const char *ipAddress, int port, gboolean External) ;
@@ -226,11 +207,8 @@ static void destroyProgressCB(GtkWidget *widget, gpointer cb_data) ; /* internal
 static void cancelCB(GtkWidget *widget, gpointer cb_data) ; /* internal to progress bar. */
 
 static gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **error) ;
-ConfigGroup getConfig(char *config_name) ;
-static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
 
-static char *blxConfigGetDefaultFetchMode(const gboolean bulk);
-static void pfetchEntry(const BlxSequence *blxSeq, GtkWidget *blxWindow, const gboolean displayResults, char **result_out);
+static void socketFetchEntry(const char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out);
 
 /* Pfetch local functions */
 static void                     appendCharToString(const char curChar, GString **result);
@@ -275,30 +253,29 @@ static GKeyFile *blx_config_G = NULL ;
 
 
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
-void fetchAndDisplaySequence(const BlxSequence *blxSeq, GtkWidget *blxWindow)
+void fetchAndDisplaySequence(const char *seqName, BlxFetchMethod *fetchMethod, GtkWidget *blxWindow)
 {
-  const char *fetchMode = blxWindowGetDefaultFetchMode(blxWindow, FALSE);
-  const char *seqName = blxSequenceGetFullName(blxSeq);
-
   GError *error = NULL;
+
+  fetchMethod->func(seqName, fetchMethod, FALSE);
   
-  if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
+  if (!strcmp(fetchMode, FETCH_MODE_SOCKET))
     {
-      pfetchEntry(blxSeq, blxWindow, TRUE, NULL);
+      socketFetchEntry(seqName, blxWindow, TRUE, NULL);
     }
 #ifdef PFETCH_HTML 
-  else if (!strcmp(fetchMode, BLX_FETCH_PFETCH_HTML))
+  else if (!strcmp(fetchMode, FETCH_MODE_HTTP))
     {
-      pfetchHttpEntry(blxSeq, blxWindow, NULL, NULL, TRUE) ;
+      httpFetchEntry(seqName, blxWindow, NULL, NULL, TRUE) ;
     }
 #endif
-  else if (!strcmp(fetchMode, BLX_FETCH_EFETCH))
+  else if (!strcmp(fetchMode, FETCH_MODE_COMMAND))
     {
       char *command = blxprintf("efetch '%s' &", seqName);
       externalCommand(command, BLIXEM_TITLE, blxWindowGetDetailView(blxWindow), &error);
       g_free(command);
     }
-  else if (!strcmp(fetchMode, BLX_FETCH_WWW_EFETCH))
+  else if (!strcmp(fetchMode, FETCH_MODE_URL))
     {
       char *link = blxprintf("%s%s", URL, seqName);
       seqtoolsLaunchWebBrowser(link, &error);
@@ -312,44 +289,6 @@ void fetchAndDisplaySequence(const BlxSequence *blxSeq, GtkWidget *blxWindow)
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 
   return ;
-}
-
-
-/* Needs a better name really, sets the fetch mode by looking at env. vars etc. */
-static void blxFindDefaultFetchMode(char *fetchMode)
-{
-  char *tmp_mode ;
-
-  /* Check env. vars to see how to fetch EMBL entries for sequences.         */
-  if ((g_getenv("BLIXEM_FETCH_PFETCH")))
-    {
-      strcpy(fetchMode, BLX_FETCH_PFETCH);
-    }
-  else if (g_getenv("BLIXEM_FETCH_WWW"))
-    {
-      strcpy(fetchMode, BLX_FETCH_WWW_EFETCH);
-    }
-  else if (g_getenv("BLIXEM_FETCH_EFETCH"))
-    {
-      strcpy(fetchMode, BLX_FETCH_EFETCH);
-    }
-  else if (g_getenv("BLIXEM_FETCH_DB"))
-    {
-      strcpy(fetchMode, BLX_FETCH_DB);
-    }
-  else if (g_getenv("BLIXEM_FETCH_REGION"))
-    {
-      strcpy(fetchMode, BLX_FETCH_REGION);
-    }
-  else if ((tmp_mode = blxConfigGetDefaultFetchMode(TRUE)))
-    {
-      strcpy(fetchMode, tmp_mode) ;
-      g_free(tmp_mode);
-    }
-  else
-    {
-      fetchMode[0] = 0;
-    }
 }
 
 
@@ -369,10 +308,10 @@ char *blxGetFetchProg(const char *fetchMode)
 
 
 
-/* Use the 'pfetch' command to fetch an entry and optionally display the results.
+/* Use the given socket-fetch method to fetch an entry and optionally display the results.
  * If the given result argument is given it is populated with the result text and the
  * caller takes ownership; otherwise the result text is cleared up internally. */
-static void pfetchEntry(const BlxSequence *blxSeq, GtkWidget *blxWindow, const gboolean displayResults, char **result_out)
+static void socketFetchEntry(const char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out)
 {
   const char *seqName = blxSequenceGetFullName(blxSeq);
 
@@ -557,11 +496,11 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
 
 
 /* Use the http proxy to pfetch an entry */
-static void pfetchHttpEntry(const BlxSequence *blxSeq,
-                            GtkWidget *blxWindow, 
-                            GtkWidget *dialog, 
-                            GtkTextBuffer *text_buffer, 
-                            const gboolean fetchFullEntry)
+static void httpFetchEntry(const char *sequence_name,
+                           GtkWidget *blxWindow, 
+                           GtkWidget *dialog, 
+                           GtkTextBuffer *text_buffer, 
+                           const gboolean fetchFullEntry)
 {
   const char *sequence_name = blxSequenceGetFullName(blxSeq);
   
@@ -843,7 +782,7 @@ gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int po
  * To do: we do have a context now, so this should be moved to there. 
  * Sets the error if there were any problems. Note that the error is not set if the
  * config file does not exist or is empty  */
-void blxInitConfig(char *config_file, GError **error)
+void blxInitConfig(char *config_file, CommandLineOptions *options, GError **error)
 {
   g_assert(!blx_config_G) ;
 
@@ -909,126 +848,6 @@ void blxInitConfig(char *config_file, GError **error)
 GKeyFile *blxGetConfig(void)
 {
   return blx_config_G ;
-}
-
-
-//gboolean blxConfigSetFetchMode(char *mode)
-//{
-//  gboolean result = FALSE ;
-//  GKeyFile *key_file ;
-//
-//  key_file = blxGetConfig() ;
-//  g_assert(key_file) ;
-//
-//  g_key_file_set_string(key_file, BLIXEM_GROUP, BLIXEM_DEFAULT_FETCH_MODE, mode) ;
-//
-//  return result ;
-//}
-
-
-static char *blxConfigGetDefaultFetchMode(const gboolean bulk)
-{
-  char *fetch_mode = NULL ;
-  GKeyFile *key_file ;
-  GError *error = NULL ;
-
-  key_file = blxGetConfig() ;
-
-  if (key_file && bulk)
-    {
-      fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, SEQTOOLS_BULK_FETCH, &error) ;
-      
-      if (error)
-        {
-          /* For backwards compatibility with old config files, try the old key name... */
-          fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, BLIXEM_OLD_BULK_FETCH, NULL) ;
-        }
-    }
-  else if (key_file)
-    {
-      fetch_mode = g_key_file_get_string(key_file, BLIXEM_GROUP, SEQTOOLS_USER_FETCH, &error) ;
-    }
-  
-  return fetch_mode ;
-}
-
-
-/* Get the pfetch node and port from the config file. node gets populated with
- * a newly allocated string, which should be freed with g_free. */
-gboolean blxConfigGetPFetchSocketPrefs(char **node, int *port)
-{
-  gboolean result = FALSE ;
-  GKeyFile *key_file ;
-  GError *error = NULL ;
-
-  if ((key_file = blxGetConfig()) && g_key_file_has_group(key_file, PFETCH_SOCKET_GROUP))
-    {
-      *node = g_key_file_get_string(key_file, PFETCH_SOCKET_GROUP, PFETCH_SOCKET_NODE, &error) ;
-      *port = g_key_file_get_integer(key_file, PFETCH_SOCKET_GROUP, PFETCH_SOCKET_PORT, &error) ;
-
-      /* By the time we get here _all_ the fields should have been filled in the config. */
-      g_assert(!error) ;
-
-      result = TRUE ;
-    }
-
-  return result ;
-}
-
-/* Set the preferences for pfetch mode from the config file */
-gboolean blxConfigSetPFetchSocketPrefs(char *node, int port)
-{
-  gboolean result = TRUE ;				    /* Can't fail. */
-  GKeyFile *key_file ;
-
-  key_file = blxGetConfig() ;
-  g_assert(key_file) ;
-
-  /* Note that these calls will create the group and key if they don't exist but will
-   * overwrite any existing values. */
-  g_key_file_set_string(key_file, PFETCH_SOCKET_GROUP, PFETCH_SOCKET_NODE, node) ;
-  g_key_file_set_integer(key_file, PFETCH_SOCKET_GROUP, PFETCH_SOCKET_PORT, port) ;
-
-  return result ;
-}
-
-
-/* Set the preferences for pfetch-www mode from the config file */
-gboolean blxConfigGetPFetchWWWPrefs()
-{
-  gboolean result = TRUE ;				    /* Can't fail. */
-
-  /* Try the environment var first */
-  URL = g_getenv("BLIXEM_FETCH_WWW");
-
-  if (!URL)
-    {
-      GKeyFile *key_file = blxGetConfig() ;
-
-      if (key_file && g_key_file_has_group(key_file, PFETCH_PROXY_GROUP))
-        {
-          /* Note that this call will create the URL if it doesn't exist but will
-           * overwrite any existing value. */
-          GError *error = NULL;
-
-          char *tmpUrl = g_malloc(256);
-          tmpUrl = g_key_file_get_string(key_file, PFETCH_PROXY_GROUP, PFETCH_PROXY_LOCATION, &error) ;
-          reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-
-          URL = blxprintf("%s?request=", tmpUrl);
-          g_free(tmpUrl);
-        }
-
-      if (!URL || *URL == '\0')
-        {
-          char *tmpUrl = g_malloc(256);
-          strcpy(tmpUrl, "http://www.sanger.ac.uk/cgi-bin/seq-query?");
-          URL = tmpUrl;
-        }
-    }
-
-
-  return result ;
 }
 
 
@@ -1199,18 +1018,7 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
        * not return anything with the -F option for protein variants.) */
       if (pfetch_data->requested_full_entry && !strncasecmp(text, "no match", 8))
         {
-          pfetchHttpEntry(pfetch_data->blxSeq, pfetch_data->blxWindow, pfetch_data->dialog, pfetch_data->text_buffer, FALSE);
-        }
-      else if (!text || 
-               stringsEqual(text, "", FALSE) || 
-               !strncasecmp(text, "no match", 8) || 
-               !strncasecmp(text, "not authorized", 14))
-        {
-          /* The fetch failed; just display the stored sequence data */
-          g_warning("Fetch failed: displaying stored sequence data.\n");
-          char *tmp = blxSequenceGetFasta(pfetch_data->blxSeq);
-          gtk_text_buffer_insert_at_cursor(text_buffer, tmp, strlen(tmp));
-          g_free(tmp);
+          httpFetchEntry(pfetch_data->sequence_name, pfetch_data->blxWindow, pfetch_data->dialog, pfetch_data->text_buffer, FALSE);
         }
       else
         {
@@ -1567,12 +1375,123 @@ static void cancelCB(GtkWidget *widget, gpointer cb_data)
  *            Configuration file reading.
  */
 
-gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **error)
+/* Get default blixem options from the "blixem" stanza */
+static void readBlixemConfigGroup(GKeyFile *key_file,
+                                  const char *group, 
+                                  CommandLineOptions *options, G
+                                  Error **error)
 {
-  gboolean result = FALSE ;
+  options->bulkFetchDefault = g_quark_from_string(g_key_file_get_string(key_file, group, SEQTOOLS_BULK_FETCH, NULL));
+  options->userFetchDefault = g_quark_from_string(g_key_file_get_string(key_file, group, SEQTOOLS_USER_FETCH, NULL));
+}
+
+
+/* Create a fetch method struct */
+static BlxFetchMethod* createBlxFetchMethod(const char *fetchName, const char *fetchMode)
+{
+  BlxFetchMethod *result = g_malloc(sizeof *result);
+
+  result->name = fetchName;
+  result->mode = fetchMode;
+
+  result->location = NULL;
+  result->port = 0;
+  result->cookie_jar = NULL;
+  result->args = NULL;
+
+  return result;
+}
+
+/* Get details about the given fetch method stanza and add it to 
+ * the list of fetch methods in 'options' */
+static void readFetchConfigGroup(GKeyFile *key_file, 
+                                 const char *group, 
+                                 const char *fetchMode,
+                                 CommandLineOptions *options, 
+                                 GError **error)
+{
+  BlxFetchMethod *result = createBlxFetchMethod(group, fetchMode);
+
+  /* Set the relevant properties for this type of fetch method */
+  if (stringsEqual(fetchMode, FETCH_MODE_HTTP, FALSE))
+    {
+      result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, &tmpError);
+      result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, &tmpError);
+      result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, &tmpError);
+    }
+  else if (stringsEqual(fetchMode, FETCH_MODE_SOCKET, FALSE))
+    {
+      result->location = g_key_file_get_string(key_file, group, SOCKET_FETCH_NODE, &tmpError);
+      result->port = g_key_file_get_integer(key_file, group, SOCKET_FETCH_PORT, &tmpError);
+    }
+  else if (stringsEqual(fetchMode, FETCH_MODE_WWW, FALSE))
+    {
+      result->location = g_key_file_get_string(key_file, group, WWW_FETCH_LOCATION, &tmpError);
+    }
+  else if (stringsEqual(fetchMode, FETCH_MODE_DB, FALSE))
+    {
+      /* to do: not implemented */
+    }
+  else if (stringsEqual(fetchMode, FETCH_MODE_REGION, FALSE))
+    {
+      result->location = g_key_file_get_string(key_file, group, COMMAND_FETCH_SCRIPT, &tmpError);
+      result->args = g_key_file_get_string(key_file, group, COMMAND_FETCH_ARGS, &tmpError);
+    }
+  else if (stringsEqual(fetchMode, FETCH_MODE_NONE, FALSE))
+    {
+      /* none */
+    }
+
+  /* Add to list */
+  GQuark fetchName = g_quark_from_string(group);
+  g_hash_table_insert(options->fetchMethods, GINT_TO_POINTER(fetchName), result);
+}
+
+
+/* Tries to load values for this group if it is a standard, recognised group or 
+ * group type. If any required values are missing, sets the error. */
+static void loadConfig(GKeyFile *key_file, const char *group, CommandLineOptions *options, GError **error)
+{
+  GError *tmpError = NULL;
+  
+  /* Check for known group names first */
+  if (stringsEqual(group, BLIXEM_GROUP))
+    {
+      readBlixemConfigGroup(key_file, group, options, error);
+    }
+  else
+    {
+      /* Check if this is a fetch method; if it is it the group will have a fetch-mode key */
+      char *fetchMode = g_key_file_get_string(key_file, group, FETCH_MODE_KEY, &tmpError);
+      
+      if (fetchMode && !tmpError)
+        readFetchConfigGroup(key_file, group, fetchMode, options, error);
+    }
+  
+      
+      /* If we got an error, record what group we were reading and then quit the loop */
+      if (tmpError)
+        {
+          g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_MISSING_KEY, 
+                      "Group [%s] does not have the required key '%s': ", group->name, key_value->name);
+
+          g_error_free(tmpError);
+          tmpError = NULL;
+          
+          result = FALSE;
+        }
+      
+      key_value++ ;
+    }
+}
+
+
+/* Read standard stanzas from the given config file. Sets the error if any problems */
+static void readConfigFile(GKeyFile *key_file, char *config_file, CommandLineOptions *options, GError **error)
+{
   GKeyFileFlags flags = G_KEY_FILE_NONE ;
   
-  if ((result = g_key_file_load_from_file(key_file, config_file, flags, error)))
+  if (g_key_file_load_from_file(key_file, config_file, flags, error))
     {
       ConfigGroup config ;
       char **groups, **group ;
@@ -1584,295 +1503,11 @@ gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **error)
 
       for (i = 0, group = groups ; result && i < num_groups ; i++, group++)
 	{
-	  if ((config = getConfig(*group)))
-	    {
-	      config_loaded = TRUE ;
-	      result = loadConfig(key_file, config, error) ;
-	    }
+          loadConfig(key_file, *group, options, error) ;
 	}
 
       g_strfreev(groups);
     }
-
-  
-  return result ;
-}
-
-
-/* Returns the config keyvalues pairs of the group config_name or NULL if that group cannot be found. */
-ConfigGroup getConfig(char *config_name)
-{
-  ConfigGroup config = NULL ;
-  static ConfigKeyValueStruct pfetch_http[] = {{PFETCH_PROXY_LOCATION, KEY_TYPE_STRING},
-					       {PFETCH_PROXY_COOKIE_JAR, KEY_TYPE_STRING},
-					       {PFETCH_PROXY_MODE, KEY_TYPE_STRING},
-					       {PFETCH_PROXY_PORT, KEY_TYPE_INT},
-					       {NULL, KEY_TYPE_INVALID}} ;
-  
-  static ConfigKeyValueStruct pfetch_socket[] = {{PFETCH_SOCKET_NODE, KEY_TYPE_STRING},
-						 {PFETCH_SOCKET_PORT, KEY_TYPE_INT},
-						 {NULL, KEY_TYPE_INVALID}} ;
-  
-  static ConfigKeyValueStruct db_fetch[] = {{DB_FETCH_DATABASE, KEY_TYPE_STRING},
-                                            {NULL, KEY_TYPE_INVALID}} ;
-
-  static ConfigKeyValueStruct region_fetch[] = {{REGION_FETCH_SCRIPT, KEY_TYPE_STRING},
-                                                {NULL, KEY_TYPE_INVALID}} ;
-  
-  static ConfigGroupStruct groups[] = {{PFETCH_PROXY_GROUP, pfetch_http},
-				       {PFETCH_SOCKET_GROUP, pfetch_socket},
-                                       {DB_FETCH_GROUP, db_fetch},
-                                       {REGION_FETCH_GROUP, region_fetch},
-				       {NULL, NULL}} ;
-  ConfigGroup tmp ;
-
-  tmp = &(groups[0]) ;
-  while (tmp->name)
-    {
-      if (g_ascii_strcasecmp(config_name, tmp->name) == 0)
-	{
-	  config = tmp ;
-	  break ;
-	}
-
-      tmp++ ;
-    }
-
-  return config ;
-}
-
-
-/* Tries to load values for all keyvalues given in ConfigGroup fails if any are missing. */
-static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error)
-{
-  gboolean result = TRUE;
-  GError *tmpError = NULL;
-  
-  ConfigKeyValue key_value = group->key_values ;
-  
-  while (key_value->name && result)
-    {
-      switch(key_value->type)
-	{
-	case KEY_TYPE_BOOL:
-	  {
-	    g_key_file_get_boolean(key_file, group->name, key_value->name, &tmpError);
-	    break ;
-	  }
-	case KEY_TYPE_INT:
-	  {
-	    g_key_file_get_integer(key_file, group->name, key_value->name, &tmpError);
-	    break ;
-	  }
-	case KEY_TYPE_DOUBLE:
-	  {
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-	    /* We can do this by steam using our own funcs in fact.... */
-
-	    /* Needs 2.12.... */
-
-	    g_key_file_get_double(key_file, group->name, key_value->name, &tmpError);
-
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
-
-	    break ;
-	  }
-	case KEY_TYPE_STRING:
-	  {
-	    g_key_file_get_string(key_file, group->name, key_value->name, &tmpError);
-	    break ;
-	  }
-	default:
-          {
-            g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_KEY_TYPE, "Invalid key type in configuration file.\n") ;
-            break ;
-          }
-        }
-
-      /* If we got an error, record what group we were reading and then quit the loop */
-      if (tmpError)
-        {
-          g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_MISSING_KEY, "Group [%s] does not have the required key '%s': ", group->name, key_value->name);
-          g_error_free(tmpError);
-          tmpError = NULL;
-          
-          result = FALSE;
-        }
-      
-      key_value++ ;
-    }
-
-  return result ;
-}
-
-
-/* Set up the net id and port for the pfetch mode, if these are available. net_id gets populated
- * with a new string, which should be freed with g_free.  */
-static gboolean setupPfetchMode(PfetchParams *pfetch, const char *fetchMode, char **net_id, int *port, GError **error)
-{
-  gboolean success = TRUE;
-  
-  /* three ways to determine this:
-   *    1) call blixem main with "-P node:port" commandline option
-   *    2) setenv BLIXEM_PFETCH to a dotted quad IP address for the
-   *       pfetch server, e.g. "193.62.206.200" = Plato's IP address
-   *       or to the name of the machine, e.g. "plato"
-   *       and optionally setenv BLIXEM_PORT to the port number for
-   *       the pfetch server.
-   *    3) call blixem with the -c option to specify a config file*/
-  enum {PFETCH_PORT = 22100} ;			    /* default port to connect on */
-  *port = PFETCH_PORT ;
-  
-  if (pfetch)
-    {
-      *net_id = g_strdup(pfetch->net_id) ;
-      if (!(*port = pfetch->port))
-        *port = PFETCH_PORT ;
-    }
-  else if ((*net_id = g_strdup(g_getenv("BLIXEM_PFETCH"))))
-    {
-      const char *port_str = g_getenv("BLIXEM_PORT");
-      
-      *port = port_str ? atoi(port_str) : 0 ;
-      
-      if (*port <= 0)
-        {
-          *port = PFETCH_PORT ;
-        }
-    }
-  else
-    {
-      /* Lastly try for a config file. */
-      blxConfigGetPFetchSocketPrefs(net_id, port) ;
-    }
-
-  if (strcmp(fetchMode, BLX_FETCH_PFETCH) == 0 && 
-      (*net_id == NULL || *port == UNSET_INT))
-    {
-      g_set_error(error, BLX_ERROR, 1, "Network ID and port number were not found. These must be specified in the Blixem command line options, in the Blixem config file or in the BLIXEM_PFETCH and BLIXEM_PORT enviroment variables.");
-      success = FALSE;
-    }
-  
-  return success;
-}
-
-
-/* Set up the fetch modes. Sets required properties for each fetch mode, e.g.
- * net_id and port for pfetch-socket etc. net_id gets populated with a new
- * string, which should be freed with g_free. */
-void setupFetchModes(PfetchParams *pfetch, char **bulkFetchMode, char **userFetchMode, char **net_id, int *port)
-{
-  *bulkFetchMode = g_malloc(32 * sizeof(char));
-  *userFetchMode = g_malloc(32 * sizeof(char));
-  
-  /* Set up the pfetch and www-pfetch config from the file / env vars etc. We need
-   * to set them up even if we're not using that mode initially, because the user can 
-   * change the mode */
-  blxConfigGetPFetchWWWPrefs();
-      
-  /* Set the fetch mode for bulk fetch. */
-  if (pfetch && blxConfigSetPFetchSocketPrefs(pfetch->net_id, pfetch->port))
-    {
-      *bulkFetchMode = BLX_FETCH_PFETCH;
-    }
-  else
-    {
-      blxFindDefaultFetchMode(*bulkFetchMode);
-    }
-
-  /* For pfetch mode, find the net_id and port */
-  setupPfetchMode(pfetch, *bulkFetchMode, net_id, port, NULL);
-
-  /* Get the user fetch mode. This is only supplied via the config file and is
-   * optional - if it is not set, use the same as the bulk fetch mode. */
-  char *tmp_mode = blxConfigGetDefaultFetchMode(FALSE);
-
-  if (tmp_mode)
-    {
-      strcpy(*userFetchMode, tmp_mode);
-      g_free(tmp_mode);
-    }
-  else
-    {
-      strcpy(*userFetchMode, *bulkFetchMode);
-    }
-}
-
-
-/* Callback called when the user has changed the fetch mode */
-static gboolean onUserFetchModeChanged(GtkWidget *widget, const gint responseId, gpointer data)
-{
-  BlxViewContext *bc = (BlxViewContext*)data;
-  GtkComboBox *combo = GTK_COMBO_BOX(widget);
-  
-  GtkTreeIter iter;
-  
-  if (gtk_combo_box_get_active_iter(combo, &iter))
-    {
-      GtkTreeModel *model = gtk_combo_box_get_model(combo);
-      
-      GValue val = {0};
-      gtk_tree_model_get_value(model, &iter, 0, &val);
-      
-      const char *userFetchMode = g_value_get_string(&val);
-      
-      g_free(bc->userFetchMode);
-      bc->userFetchMode = g_strdup(userFetchMode);
-    }
-    
-  return TRUE;
-}
-
-
-/* Add an item to the drop-down list for selecting a user fetch mode */
-static void addUserFetchItem(GtkTreeStore *store, GtkTreeIter *parent, const char *itemName, const char *currentFetchMode, GtkComboBox *combo)
-{
-  GtkTreeIter iter;
-  gtk_tree_store_append(store, &iter, parent);
-  
-  gtk_tree_store_set(store, &iter, 0, itemName, -1);
-  
-  if (stringsEqual(itemName, currentFetchMode, FALSE))
-    {
-      gtk_combo_box_set_active_iter(combo, &iter);
-    }
-}
-
-
-/* Create a drop-down box for selecting which pfetch mode blixem should use */
-void createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow)
-{
-  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
-  gtk_box_pack_start(box, hbox, FALSE, FALSE, 0);
-  
-  /* Label */
-  GtkWidget *label = gtk_label_new("   Select the fetch mode:    ");
-  gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-  
-  /* Create a tree store for the list, and create the combo box itself */
-  GtkTreeStore *store = gtk_tree_store_new(1, G_TYPE_STRING);
-  GtkComboBox *combo = GTK_COMBO_BOX(gtk_combo_box_new_with_model(GTK_TREE_MODEL(store)));
-  g_object_unref(store);
-  gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(combo), FALSE, FALSE, 0);
-  
-  /* Create a cell renderer to display the list text. */
-  GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
-  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), renderer, FALSE);
-  gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo), renderer, "text", 0, NULL);
-  
-  /* Set the callback function */
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  widgetSetCallbackData(GTK_WIDGET(combo), onUserFetchModeChanged, bc);
-  
-  /* Add the list items */
-  addUserFetchItem(store, NULL, BLX_FETCH_PFETCH, bc->userFetchMode, combo);
-  
-#ifdef PFETCH_HTML
-  addUserFetchItem(store, NULL, BLX_FETCH_PFETCH_HTML, bc->userFetchMode, combo);
-#endif
-  
-  addUserFetchItem(store, NULL, BLX_FETCH_EFETCH, bc->userFetchMode, combo);
-  addUserFetchItem(store, NULL, BLX_FETCH_WWW_EFETCH, bc->userFetchMode, combo);
 }
 
 

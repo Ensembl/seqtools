@@ -797,6 +797,22 @@ const char *blxSequenceGetSource(const BlxSequence *seq)
   return result;
 }
 
+/* Return the fetch method of a BlxSequence. If 'bulk' is true,
+ * get the bulk-fetch method, otherwise the user-fetch method */
+GQuark blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk)
+{
+  GQuark result = 0;
+
+  if (seq && seq->dataType)
+    {
+      if (bulk)
+        result = seq->dataType->bulkFetch;
+      else
+        result = seq->dataType->userFetch;
+    }
+
+  return result;
+}
 
 /* Return the display name of a BlxSequence (same as full name for now) */
 const char *blxSequenceGetDisplayName(const BlxSequence *seq)
@@ -849,7 +865,7 @@ gboolean blxSequenceRequiresSeqData(const BlxSequence *seq)
  * as organism and tissue-type, if this data is available. */
 gboolean blxSequenceRequiresOptionalData(const BlxSequence *seq)
 {
-  return (seq && seq->type == BLXSEQUENCE_MATCH);
+  return (seq && seq->type == BLXSEQUENCE_MATCH && seq->dataType);
 }
 
 char *blxSequenceGetOrganism(const BlxSequence *seq)
@@ -1099,8 +1115,9 @@ BlxDataType* createBlxDataType()
 {
   BlxDataType *result = g_malloc(sizeof *result);
   
-  result->name = NULL;
-  result->bulkFetch = NULL;
+  result->name = 0;
+  result->bulkFetch = 0;
+  result->userFetch = 0;
   
   return result;
 }
@@ -1110,14 +1127,24 @@ void destroyBlxDataType(BlxDataType **blxDataType)
   if (!blxDataType)
     return;
   
-  if ((*blxDataType) && (*blxDataType)->name)
-    g_free((*blxDataType)->name);
-  
-  if ((*blxDataType) && (*blxDataType)->bulkFetch)
-    g_free((*blxDataType)->bulkFetch);
-  
   g_free((*blxDataType));
   *blxDataType = NULL;
+}
+
+/* The following functions get the data type values as strings */
+const char* getDataTypeName(BlxDataType *blxDataType)
+{
+  return blxDataType ? g_quark_to_string(blxDataType->name) : NULL;
+}
+
+const char* getDataTypeBulkFetch(BlxDataType *blxDataType)
+{
+  return blxDataType ? g_quark_to_string(blxDataType->bulkFetch) : NULL;
+}
+
+const char* getDataTypeUserFetch(BlxDataType *blxDataType)
+{
+  return blxDataType ? g_quark_to_string(blxDataType->userFetch) : NULL;
 }
 
 
@@ -1302,7 +1329,7 @@ BlxSequence* addBlxSequence(const char *name,
           if (dataType && !blxSeq->dataType)
             blxSeq->dataType = dataType;
           else if (dataType && blxSeq->dataType != dataType)
-            g_warning("Duplicate sequences have different data types [name=%s, ID=%s, strand=%d, orig type=%s, new type=%s].\n", name, idTag, strand, blxSeq->dataType->name, dataType->name);
+            g_warning("Duplicate sequences have different data types [name=%s, ID=%s, strand=%d, orig type=%s, new type=%s].\n", name, idTag, strand, g_quark_to_string(blxSeq->dataType->name), g_quark_to_string(dataType->name));
           
           if (source && !blxSeq->source)
             blxSeq->source = g_strdup(source);

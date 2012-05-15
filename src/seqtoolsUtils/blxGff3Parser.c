@@ -42,6 +42,9 @@
 
 
 
+#define BLX_GFF_DATA_TYPES_GROUP "gff-data-types" /* group name for stanza where default data types are specified for gff types */
+
+
 /* Error codes and domain */
 #define BLX_GFF3_ERROR g_quark_from_string("GFF 3 parser")
 
@@ -55,7 +58,8 @@ typedef enum {
   BLX_GFF3_ERROR_INVALID_MSP,                 /* MSP has invalid/missing data */
   BLX_GFF3_ERROR_UNKNOWN_MODE,                /* unknown blast mode */
   BLX_GFF3_ERROR_BAD_COLOR,                   /* Bad color string found when parsing color */
-  BLX_GFF3_ERROR_OUT_OF_RANGE                /* Feature is not in the reference sequence range */
+  BLX_GFF3_ERROR_OUT_OF_RANGE,                /* Feature is not in the reference sequence range */
+  BLX_GFF3_ERROR_DATA_TYPE                   /* Error finding data type */
 } BlxGff3Error;
 
 
@@ -66,7 +70,7 @@ typedef struct _BlxGffData
     char *qName;	/* ref seq name */
     char *source;	/* source */
     char *url;          /* URL */
-    BlxMspType mspType;	/* type */
+    BlxMspType mspType;	/* type (converted to display type) */
     int qStart;		/* start coord on the ref seq */
     int qEnd;		/* end coord on the ref seq */
     gdouble score;	/* score */
@@ -260,14 +264,40 @@ void parseGff3Header(const int lineNum,
 }
 
 
+/* Look in the given config file to see if there is a default
+ * datatype specified for the given source. If so, return its
+ * name as a quark. Otherwise, return 0. */
+static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
+{
+  GQuark dataType = 0;
+
+  if (keyFile && g_key_file_has_group(keyFile, BLX_GFF_DATA_TYPES_GROUP))
+    {
+      char *dataTypeName = g_key_file_get_string(keyFile, BLX_GFF_DATA_TYPES_GROUP, source, NULL);
+      
+      if (dataTypeName)
+        {
+          dataType = g_quark_from_string(dataTypeName);
+          g_free(dataTypeName);
+        }
+    }
+
+  return dataType;
+}
+
+
 /* Get the BlxDataType with the given name. Returns null and sets the error if 
  * we expected to find the name but didn't. */
-BlxDataType* getBlxDataType(GQuark dataType, GKeyFile *keyFile, GError **error)
+BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFile, GError **error)
 {
+  /* If no data type was specified in the gff, see if there is a default for this gff type */
+  if (!dataType)
+    dataType = getBlxDataTypeDefault(source, keyFile);
+
   /* A keyfile might not be supplied if the calling program is not interested
    * in the data-type data (i.e. the data-type data is currently only used to
    * supply fetch methods, which are not used by Dotter). */
-  if (!keyFile)
+  if (!keyFile || !dataType)
     return NULL;
   
   BlxDataType *result = NULL;
@@ -303,24 +333,23 @@ BlxDataType* getBlxDataType(GQuark dataType, GKeyFile *keyFile, GError **error)
            * and if we find it then create a new BlxDataType struct for it. */
           const gchar *typeName = g_quark_to_string(dataType);
 
-          result = createBlxDataType();
-          GError *tmpError = NULL;
-
-          result->name = g_strdup(typeName);
-          result->bulkFetch = g_key_file_get_string(keyFile, typeName, SEQTOOLS_BULK_FETCH, &tmpError);
-          
-          if (!tmpError)
+          if (g_key_file_has_group(keyFile, typeName))
             {
+              result = createBlxDataType();
+              result->name = dataType;
+
+              /* Get the values. They're all optional so just ignore any errors.
+               * Valid keys are bulk-fetch and user-fetch */
+              result->bulkFetch = g_quark_from_string(g_key_file_get_string(keyFile, typeName, SEQTOOLS_BULK_FETCH, NULL));
+              result->userFetch = g_quark_from_string(g_key_file_get_string(keyFile, typeName, SEQTOOLS_USER_FETCH, NULL));
+          
               /* Insert it into the table of data types */
               g_hash_table_insert(dataTypes, &dataType, result);
             }
           else
             {
-              /* There was a problem parsing this data-type, so return NULL */
-              destroyBlxDataType(&result);
-              prefixError(tmpError, "Config file error: Error parsing data type '%s': ", typeName);
-              postfixError(tmpError, "\n");
-              g_propagate_error(error, tmpError);
+              g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_DATA_TYPE, 
+                          "Config file error: data type '%s' not found", typeName);
             }
         }
     }
@@ -349,7 +378,7 @@ static void createBlixemObject(BlxGffData *gffData,
   GError *tmpError = NULL;
 
   /* Get the data type struct */
-  BlxDataType *dataType = getBlxDataType(gffData->dataType, keyFile, &tmpError);
+  BlxDataType *dataType = getBlxDataType(gffData->dataType, gffData->source, keyFile, &tmpError);
   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
 
   
@@ -627,7 +656,7 @@ static void parseGffColumns(GString *line_string,
             gffData->source = g_uri_unescape_string(tokens[1], NULL);
           }
       
-      /* Type (needs to converting to a seqtools type) */
+      /* Type (converted to a seqtools type) */
       gffData->mspType = getBlxType(supportedTypes, tokens[2], &tmpError);
       updateInputMspType(gffData);
     }
