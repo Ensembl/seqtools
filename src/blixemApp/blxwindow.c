@@ -552,7 +552,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
 
   /* Fetch any missing sequence data and finalise the new sequences */
   blxviewFetchSequences(FALSE, FALSE, bc->seqType, &newSeqs, 
-                        bc->bulkFetchDefault, &newMsps, &bc->blastMode,
+                        &bc->bulkFetchDefault, &newMsps, &bc->blastMode,
                         bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
                         &bc->refSeqRange, bc->dataset);
 
@@ -2691,14 +2691,10 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  /* Load the optional data. (Note that we don't need to re-fetch sequence data.) */
-  const gboolean getSequenceData = FALSE;
-  const gboolean getOptionalData = TRUE;
-
   GError *error = NULL;
   gboolean success = blxviewFetchSequences(
     bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
-    bc->seqType, &bc->matchSeqs, bc->bulkFetchDefault, &bc->mspList,
+    bc->seqType, &bc->matchSeqs, &bc->bulkFetchDefault, &bc->mspList,
     &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
     &bc->refSeqRange, bc->dataset);
   

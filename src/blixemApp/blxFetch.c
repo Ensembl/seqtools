@@ -72,6 +72,7 @@ typedef enum
     BLX_CONFIG_ERROR_NO_GROUPS,             /* no groups in config file */
     BLX_CONFIG_ERROR_INVALID_KEY_TYPE,      /* invalid key type given in config file */
     BLX_CONFIG_ERROR_MISSING_KEY,           /* a required key is missing */
+    BLX_CONFIG_ERROR_INVALID_FETCH_MODE     /* invalid fetch mode specified */
   } BlxConfigError;
 
 
@@ -208,7 +209,7 @@ static void cancelCB(GtkWidget *widget, gpointer cb_data) ; /* internal to progr
 
 static gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **error) ;
 
-static void socketFetchEntry(const char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out);
+static void socketFetchEntry(const char *seqName, BlxFetchMethod *fetchMethod, const gboolean bulk, GtkWidget *blxWindow);
 
 /* Pfetch local functions */
 static void                     appendCharToString(const char curChar, GString **result);
@@ -253,15 +254,15 @@ static GKeyFile *blx_config_G = NULL ;
 
 
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
-void fetchAndDisplaySequence(const char *seqName, BlxFetchMethod *fetchMethod, GtkWidget *blxWindow)
+void fetchAndDisplaySequence(const char *seqName, BlxFetchMethod *fetchMethod, const gboolean bulk, GtkWidget *blxWindow)
 {
   GError *error = NULL;
 
-  fetchMethod->func(seqName, fetchMethod, FALSE);
+  fetchMethod->func(seqName, fetchMethod, bulk, blxWindow);
   
   if (!strcmp(fetchMode, FETCH_MODE_SOCKET))
     {
-      socketFetchEntry(seqName, blxWindow, TRUE, NULL);
+      socketFetchEntry(seqName, fetchMethod, bulk, blxWindow);
     }
 #ifdef PFETCH_HTML 
   else if (!strcmp(fetchMode, FETCH_MODE_HTTP))
@@ -307,17 +308,86 @@ char *blxGetFetchProg(const char *fetchMode)
 }
 
 
+/*
+#    %p:      program name
+#    %h:      host name
+#    %u:      user name
+#    %m:      match sequence name
+#    %r:      reference sequence name
+#    %s:      start coord
+#    %e:      end coord
+#    %d:      dataset
+*/
+static void getFetchCommand(BlxFetchMethod *fetchMethod,
+                            const char *seqName,
+                            GtkWidget *blxWindow)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
+  GString *result = g_string_new("");  
+  char *c = args;
+  
+  for ( ; c && *c; ++c)
+    {
+      /* If it's preceded by the special char, substitute it for the real value */
+      if (*c == '%')
+        {
+          /* Move to the next char, which should tell us what type of substitution to make */
+          ++c;
+
+          if (c && *c)
+            {
+              switch (*c) {
+                case 'p': 
+                  g_string_append(result, g_get_prgname());
+                  break;
+                case 'h': 
+                  g_string_append(result, g_get_host_name());
+                  break;
+                case 'u': 
+                  g_string_append(result, g_get_user_name());
+                  break;
+                case 'm': 
+                  g_string_append(result, g_get_prgname);
+                  break;
+                case 'r': 
+                  g_string_append(result, g_get_prgname);
+                  break;
+                case 's': 
+                  g_string_append(result, g_get_prgname);
+                  break;
+                case 'e': 
+                  g_string_append(result, g_get_prgname);
+                  break;
+                default:
+                  break;
+              };
+            }
+        }
+      else
+        {
+          /* Normal char; just append to the result */
+          g_string_append_char(result, *c);
+        }
+    }
+}
+
 
 /* Use the given socket-fetch method to fetch an entry and optionally display the results.
  * If the given result argument is given it is populated with the result text and the
  * caller takes ownership; otherwise the result text is cleared up internally. */
-static void socketFetchEntry(const char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out)
+static void socketFetchEntry(const char *seqName, BlxFetchMethod *fetchMethod, const gboolean bulk, GtkWidget *blxWindow)
 {
   const char *seqName = blxSequenceGetFullName(blxSeq);
 
   /* --client gives logging information to pfetch server;
-   * -F requests the full sequence entry record. */
-  char *command = g_strdup_printf("pfetch --client=%s_%s_%s -F '%s' &", g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
+   * -F requests the full sequence entry record. For protein variants, pfetch does not
+   * return anything with the -F option, so if it fails we need to re-try without -F so
+   * that at least we can display the fasta sequence. */
+  GString *command = getFetchCommand(fetchMethod, seqName, blxWindow);
+
+  g_string_append_printf(command, "pfetch --client=%s_%s_%s -F '%s' &", 
+                         g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
   
   GError *error = NULL;
   char *result = getExternalCommandOutput(command, &error);
@@ -353,12 +423,8 @@ static void socketFetchEntry(const char *seqName, GtkWidget *blxWindow, const gb
       displayFetchResults(title, result, blxWindow, NULL);
       g_free(title);
     }
-
-  /* set return value if requested, and clean up */
-  if (result_out)
-    *result_out = result;
-  else
-    g_free(result);
+  
+  g_string_free(resultText, TRUE);
   
   g_free(command);
 }
@@ -1387,12 +1453,12 @@ static void readBlixemConfigGroup(GKeyFile *key_file,
 
 
 /* Create a fetch method struct */
-static BlxFetchMethod* createBlxFetchMethod(const char *fetchName, const char *fetchMode)
+static BlxFetchMethod* createBlxFetchMethod(const char *fetchName, const GQuark fetchMode)
 {
   BlxFetchMethod *result = g_malloc(sizeof *result);
 
-  result->name = fetchName;
-  result->mode = fetchMode;
+  result->name = g_quark_from_string(fetchName);
+  result->mode = BLXFETCH_NONE;
 
   result->location = NULL;
   result->port = 0;
@@ -1406,40 +1472,50 @@ static BlxFetchMethod* createBlxFetchMethod(const char *fetchName, const char *f
  * the list of fetch methods in 'options' */
 static void readFetchConfigGroup(GKeyFile *key_file, 
                                  const char *group, 
-                                 const char *fetchMode,
+                                 const char *fetchModeName,
                                  CommandLineOptions *options, 
                                  GError **error)
 {
-  BlxFetchMethod *result = createBlxFetchMethod(group, fetchMode);
+  BlxFetchMethod *result = createBlxFetchMethod(group);
 
   /* Set the relevant properties for this type of fetch method */
   if (stringsEqual(fetchMode, FETCH_MODE_HTTP, FALSE))
     {
+      result->mode = BLXFETCH_HTTP;
       result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, &tmpError);
       result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, &tmpError);
       result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, &tmpError);
     }
   else if (stringsEqual(fetchMode, FETCH_MODE_SOCKET, FALSE))
     {
+      result->mode = BLXFETCH_SOCKET;
       result->location = g_key_file_get_string(key_file, group, SOCKET_FETCH_NODE, &tmpError);
       result->port = g_key_file_get_integer(key_file, group, SOCKET_FETCH_PORT, &tmpError);
     }
   else if (stringsEqual(fetchMode, FETCH_MODE_WWW, FALSE))
     {
+      result->mode = BLXFETCH_WWW;
       result->location = g_key_file_get_string(key_file, group, WWW_FETCH_LOCATION, &tmpError);
     }
   else if (stringsEqual(fetchMode, FETCH_MODE_DB, FALSE))
     {
+      result->mode = BLXFETCH_DB;
       /* to do: not implemented */
     }
-  else if (stringsEqual(fetchMode, FETCH_MODE_REGION, FALSE))
+  else if (stringsEqual(fetchMode, FETCH_MODE_COMMAND, FALSE))
     {
+      result->mode = BLXFETCH_COMMAND;
       result->location = g_key_file_get_string(key_file, group, COMMAND_FETCH_SCRIPT, &tmpError);
       result->args = g_key_file_get_string(key_file, group, COMMAND_FETCH_ARGS, &tmpError);
     }
   else if (stringsEqual(fetchMode, FETCH_MODE_NONE, FALSE))
     {
-      /* none */
+      result->mode = BLXFETCH_NONE;
+    }
+  else
+    {
+      g_set_error(BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_FETCH_MODE, "Unrecognised fetch mode '%s'\n", fetchModeName);
+      result->mode = BLXFETCH_NONE;
     }
 
   /* Add to list */

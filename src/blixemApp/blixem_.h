@@ -80,26 +80,40 @@ AUTHOR_TEXT "\n"
 #define FETCH_MODE_KEY             "fetch-mode"  /* any group with this key is a fetch method, and this specifies what type of fetch to do */
 
 /* These are the supported fetch modes. */
+typedef enum
+  {
+    BLXFETCH_HTTP,
+    BLXFETCH_SOCKET,
+    BLXFETCH_WWW,
+    BLXFETCH_DB,
+    BLXFETCH_COMMAND,
+    BLXFETCH_NONE,
+
+    BLXFETCH_NUM_MODES /* must be last in list */
+  } BlxFetchMode;
+
 #ifdef PFETCH_HTML 
 #define FETCH_MODE_HTTP            "http"
 #endif
-#define FETCH_MODE_WWW             "www"
 #define FETCH_MODE_SOCKET          "socket"
+#define FETCH_MODE_WWW             "www"
 #define FETCH_MODE_DB              "db"
 #define FETCH_MODE_COMMAND         "command"
 #define FETCH_MODE_NONE            "none"
 
 /* Required keys for http-fetch groups */
+#ifdef PFETCH_HTML
 #define HTTP_FETCH_LOCATION       "url"
 #define HTTP_FETCH_PORT           "port"
 #define HTTP_FETCH_COOKIE_JAR     "cookie-jar"
-
-/* Required keys for www-fetch groups */
-#define WWW_FETCH_LOCATION       "url"
+#endif 
 
 /* Required keys for socket-fetch groups */
 #define SOCKET_FETCH_NODE         "node"
 #define SOCKET_FETCH_PORT         "port"
+
+/* Required keys for www-fetch groups */
+#define WWW_FETCH_LOCATION       "url"
 
 /* Required keys for db-fetch groups */
 /* not implemented yet */
@@ -134,19 +148,20 @@ AUTHOR_TEXT "\n"
 
 
 
-/* Function pointer to a function that performs a fetch */
-typedef void(*FetchFunc)(gpointer fetchMethod, const gboolean bulk);
+/* Function pointer to a function that performs a fetch of a particular sequence */
+typedef void(*FetchFunc)(const char *seqName, gpointer fetchMethod, const gboolean bulk, GtkWidget *blxWindow);
 
 
 /* struct to hold info about a fetch method */
 typedef struct _BlxFetchMethod
 {
-  const char *name;                 /* fetch method name */
+  GQuark name;                      /* fetch method name */
+  BlxFetchMode mode;                /* the type of fetch method */
   FetchFunc func;                   /* the function that performs the fetch */
   
   char *location;                   /* e.g. url, script, command, node etc. */
-  int port;
-  char *cookie_jar;
+  int port;                         /* for socket and http fetch modes */
+  char *cookie_jar;                 /* for http fetch mode */
   char *args;
 } BlxFetchMethod;
 
@@ -484,7 +499,7 @@ gboolean                           mspHasFs(const MSP *msp);
 char*                              readFastaSeq(FILE *seqfile, char *qname, int *startCoord, int *endCoord, const BlxSeqType seqType);
 
 /* blxFetch.c */
-void                               fetchAndDisplaySequence(const char *seqName, BlxFetchMethod *fetchMethod, GtkWidget *blxWindow) ;
+void                               fetchAndDisplaySequence(const char *seqName, BlxFetchMethod *fetchMethod, const gboolean bulk, GtkWidget *blxWindow) ;
 void                               blxPfetchMenu(void) ;
 char*                              blxGetFetchProg(const char *fetchMode) ;
 
