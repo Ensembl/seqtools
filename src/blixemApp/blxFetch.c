@@ -144,7 +144,7 @@ typedef struct
   GtkWidget *dialog;
   GtkTextBuffer *text_buffer;
   char *title;
-  const char *sequence_name;
+  const BlxSequence *blxSeq;
 
   gulong widget_destroy_handler_id;
   PFetchHandle pfetch;
@@ -212,7 +212,7 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
 static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_data) ;
 static void sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
 static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequence fetch_data) ;
-static void pfetchHttpEntry(const char *sequence_name, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const gboolean fetchFullEntry);
+static void pfetchHttpEntry(const BlxSequence *blxSeq, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const gboolean fetchFullEntry);
 #endif
 
 static int socketConstruct(const char *ipAddress, int port, gboolean External) ;
@@ -230,7 +230,7 @@ ConfigGroup getConfig(char *config_name) ;
 static gboolean loadConfig(GKeyFile *key_file, ConfigGroup group, GError **error) ;
 
 static char *blxConfigGetDefaultFetchMode(const gboolean bulk);
-static void pfetchEntry(const char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out);
+static void pfetchEntry(const BlxSequence *blxSeq, GtkWidget *blxWindow, const gboolean displayResults, char **result_out);
 
 /* Pfetch local functions */
 static void                     appendCharToString(const char curChar, GString **result);
@@ -275,20 +275,21 @@ static GKeyFile *blx_config_G = NULL ;
 
 
 /* Display the embl entry for a sequence via pfetch, efetch or whatever. */
-void fetchAndDisplaySequence(const char *seqName, GtkWidget *blxWindow)
+void fetchAndDisplaySequence(const BlxSequence *blxSeq, GtkWidget *blxWindow)
 {
   const char *fetchMode = blxWindowGetDefaultFetchMode(blxWindow, FALSE);
-  
+  const char *seqName = blxSequenceGetFullName(blxSeq);
+
   GError *error = NULL;
   
   if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
     {
-      pfetchEntry(seqName, blxWindow, TRUE, NULL);
+      pfetchEntry(blxSeq, blxWindow, TRUE, NULL);
     }
 #ifdef PFETCH_HTML 
   else if (!strcmp(fetchMode, BLX_FETCH_PFETCH_HTML))
     {
-      pfetchHttpEntry(seqName, blxWindow, NULL, NULL, TRUE) ;
+      pfetchHttpEntry(blxSeq, blxWindow, NULL, NULL, TRUE) ;
     }
 #endif
   else if (!strcmp(fetchMode, BLX_FETCH_EFETCH))
@@ -371,44 +372,56 @@ char *blxGetFetchProg(const char *fetchMode)
 /* Use the 'pfetch' command to fetch an entry and optionally display the results.
  * If the given result argument is given it is populated with the result text and the
  * caller takes ownership; otherwise the result text is cleared up internally. */
-static void pfetchEntry(const char *seqName, GtkWidget *blxWindow, const gboolean displayResults, GString **result_out)
+static void pfetchEntry(const BlxSequence *blxSeq, GtkWidget *blxWindow, const gboolean displayResults, char **result_out)
 {
+  const char *seqName = blxSequenceGetFullName(blxSeq);
+
   /* --client gives logging information to pfetch server;
-   * -F requests the full sequence entry record. For protein variants, pfetch does not
-   * return anything with the -F option, so if it fails we need to re-try without -F so
-   * that at least we can display the fasta sequence. */
-  GString *command = g_string_sized_new(100);
-  g_string_append_printf(command, "pfetch --client=%s_%s_%s -F '%s' &", g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
+   * -F requests the full sequence entry record. */
+  char *command = g_strdup_printf("pfetch --client=%s_%s_%s -F '%s' &", g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
   
   GError *error = NULL;
-  GString *resultText = getExternalCommandOutput(command->str, &error);
+  char *result = getExternalCommandOutput(command, &error);
 
-  if (!error && !strncasecmp(resultText->str, "no match", 8))
+  /* For protein variants, pfetch does not return anything with the -F option,
+   * so if it fails we need to re-try without -F so that at least we can 
+   * display the fasta sequence */
+  if (!error && !strncasecmp(result, "no match", 8))
     {
-      g_string_truncate(command, 0);
-      g_string_truncate(resultText, 0);
+      g_free(command);
+      g_free(result);
+      command = g_strdup_printf("pfetch --client=%s_%s_%s -C '%s' &", g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
+      result = getExternalCommandOutput(command, &error);
+    }
 
-      g_string_append_printf(command, "pfetch --client=%s_%s_%s -C '%s' &", g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
-      resultText = getExternalCommandOutput(command->str, &error);
+  if (error)
+    reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+
+  /* If the fetch still hasn't worked, just display the stored sequence
+   * data, along with a basic fasta header */
+  if (!result || 
+      stringsEqual(result, "", FALSE) || 
+      stringsEqual(result, "no match", FALSE) || 
+      stringsEqual(result, "not authorized", FALSE))
+    {
+      g_free(result);
+      result = blxSequenceGetFasta(blxSeq);
     }
   
   if (!error && displayResults)
     {
-      char *title = blxprintf("Blixem - %s", command->str);
-      displayFetchResults(title, resultText->str, blxWindow, NULL);
+      char *title = blxprintf("Blixem - %s", command);
+      displayFetchResults(title, result, blxWindow, NULL);
       g_free(title);
     }
-  
+
+  /* set return value if requested, and clean up */
   if (result_out)
-    {
-      *result_out = resultText;
-    }
+    *result_out = result;
   else
-    {
-      g_string_free(resultText, TRUE);
-    }
+    g_free(result);
   
-  g_string_free(command, TRUE);
+  g_free(command);
 }
 
 
@@ -544,12 +557,14 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
 
 
 /* Use the http proxy to pfetch an entry */
-static void pfetchHttpEntry(const char *sequence_name,
+static void pfetchHttpEntry(const BlxSequence *blxSeq,
                             GtkWidget *blxWindow, 
                             GtkWidget *dialog, 
                             GtkTextBuffer *text_buffer, 
                             const gboolean fetchFullEntry)
 {
+  const char *sequence_name = blxSequenceGetFullName(blxSeq);
+  
   PFetchUserPrefsStruct prefs = {NULL} ;
   gboolean debug_pfetch = FALSE ;
   
@@ -567,7 +582,7 @@ static void pfetchHttpEntry(const char *sequence_name,
       pfetch_data->pfetch = pfetch = PFetchHandleNew(pfetch_type);
       
       pfetch_data->blxWindow = blxWindow;
-      pfetch_data->sequence_name = sequence_name;
+      pfetch_data->blxSeq = blxSeq;
       pfetch_data->requested_full_entry = fetchFullEntry;
       
       if (fetchFullEntry)
@@ -1184,7 +1199,18 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
        * not return anything with the -F option for protein variants.) */
       if (pfetch_data->requested_full_entry && !strncasecmp(text, "no match", 8))
         {
-          pfetchHttpEntry(pfetch_data->sequence_name, pfetch_data->blxWindow, pfetch_data->dialog, pfetch_data->text_buffer, FALSE);
+          pfetchHttpEntry(pfetch_data->blxSeq, pfetch_data->blxWindow, pfetch_data->dialog, pfetch_data->text_buffer, FALSE);
+        }
+      else if (!text || 
+               stringsEqual(text, "", FALSE) || 
+               !strncasecmp(text, "no match", 8) || 
+               !strncasecmp(text, "not authorized", 14))
+        {
+          /* The fetch failed; just display the stored sequence data */
+          g_warning("Fetch failed: displaying stored sequence data.\n");
+          char *tmp = blxSequenceGetFasta(pfetch_data->blxSeq);
+          gtk_text_buffer_insert_at_cursor(text_buffer, tmp, strlen(tmp));
+          g_free(tmp);
         }
       else
         {

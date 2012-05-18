@@ -464,7 +464,7 @@ gboolean                           mspHasFs(const MSP *msp);
 char*                              readFastaSeq(FILE *seqfile, char *qname, int *startCoord, int *endCoord, const BlxSeqType seqType);
 
 /* blxFetch.c */
-void                               fetchAndDisplaySequence(const char *seqName, GtkWidget *blxWindow) ;
+void                               fetchAndDisplaySequence(const BlxSequence *blxSeq, GtkWidget *blxWindow) ;
 void                               blxPfetchMenu(void) ;
 char*                              blxGetFetchProg(const char *fetchMode) ;
 

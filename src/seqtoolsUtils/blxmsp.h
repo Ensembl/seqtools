@@ -48,7 +48,7 @@
 #include <gtk/gtk.h>
 
 
-//extern GArray    *fsArr;		   /* in dotter.c */
+//extern GArray    *fsArr;                 /* in dotter.c */
 
 /* These are used by both blixem and dotter */
 #define selectFeaturesStr          "Feature series selection tool"
@@ -66,7 +66,7 @@
 /* Error codes */
 typedef enum
 {
-  BLX_ERROR_SEQ_SEGMENT,	      /* error finding sequence segment */
+  BLX_ERROR_SEQ_SEGMENT,              /* error finding sequence segment */
   BLX_ERROR_EMPTY_STRING,           /* error code for when user entered a zero-length string */
   BLX_ERROR_STRING_NOT_FOUND,       /* error code for when a search string is not found */
   BLX_ERROR_SEQ_NAME_NOT_FOUND,     /* the sequence name(s) being searched for were not found */
@@ -86,9 +86,9 @@ typedef enum
   BLXMSP_CDS,                    /* CDS (coding) region of an exon */
   BLXMSP_UTR,                    /* UTR (untranslated) region of an exon */
   BLXMSP_INTRON,                 /* Intron */
-  BLXMSP_EXON,			 /* Exon (should appear AFTER CDS and UTR for sorting, as required by constructTranscriptData) */
-  BLXMSP_POLYA_SITE,		 /* polyA tail site */
-  BLXMSP_POLYA_SIGNAL,		 /* polyA signal */
+  BLXMSP_EXON,                   /* Exon (should appear AFTER CDS and UTR for sorting, as required by constructTranscriptData) */
+  BLXMSP_POLYA_SITE,             /* polyA tail site */
+  BLXMSP_POLYA_SIGNAL,           /* polyA signal */
   
   BLXMSP_VARIATION,              /* SNP, substitution, deletion, insertion */
   BLXMSP_SHORT_READ,             /* one fragment of a read-pair */
@@ -107,7 +107,7 @@ typedef enum
   BLXMSP_NUM_TYPES,               /* the number of valid MSP types - any types following this may be used
                                    * e.g. for parsing, but no real MSP will be created from them */
   
-  BLXMSP_TRANSCRIPT		 /* Transcript */
+  BLXMSP_TRANSCRIPT              /* Transcript */
 } BlxMspType;
 
 
@@ -149,7 +149,7 @@ typedef struct _BlxSequence
   BlxSequenceType type;            /* What type of collection of MSPs this is */
   BlxDataType *dataType;           /* Optional data type that specifies additional properties for this type of sequence data */
 
-  char *idTag;			   /* Unique identifier e.g. from ID tag in GFF files */
+  char *idTag;                     /* Unique identifier e.g. from ID tag in GFF files */
   char *source;                    /* Optional source text for the sequence */
 
   GQuark fullName;                 /* full name of the sequence, including variant postfix, e.g. AV274505.2 */
@@ -163,8 +163,8 @@ typedef struct _BlxSequence
   BlxStrand strand;                /* which strand of the sequence this is */
   GString *sequence;               /* the actual sequence data */
   gboolean sequenceReqd;           /* whether the sequence data is required (e.g. it is not needed for exons/introns etc.) */
-  IntRange qRangeFwd;		   /* the extent of alignments from this sequence on the ref sequence forward strand */ 
-  IntRange qRangeRev;		   /* the extent of alignments from this sequence on the ref sequence reverse strand */ 
+  IntRange qRangeFwd;              /* the extent of alignments from this sequence on the ref sequence forward strand */ 
+  IntRange qRangeRev;              /* the extent of alignments from this sequence on the ref sequence reverse strand */ 
   
   GList *mspList;                  /* list of MSPs from this sequence */
 } BlxSequence;
@@ -175,9 +175,9 @@ typedef struct _FeatureSeries
   char        *name;             /* Name of the Feature Series */
   int         on;                /* Flag to show/hide the Feature Series */
   int         order;             /* Order number used for sorting */
-  float       x;	           /* Series offset on x axis, to bump series on the screen */
-  float       y;	           /* Series offset on y axis */
-  int         xy;	           /* Flag for XY plot series */
+  float       x;                   /* Series offset on x axis, to bump series on the screen */
+  float       y;                   /* Series offset on y axis */
+  int         xy;                  /* Flag for XY plot series */
 } FeatureSeries;
 
 
@@ -203,24 +203,24 @@ typedef struct _MSP
   gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
   gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */
   int               phase;         /* phase: q start coord is offset by this amount to give the first base in the first complete codon (only relevant to CDSs) */
-  char		    *url;          /* URL to info about the MSP (e.g. variations have a URL which can be opened by double-clicking the variation) */
+  char              *url;          /* URL to info about the MSP (e.g. variations have a URL which can be opened by double-clicking the variation) */
   
   char              *qname;        /* For Dotter, the MSP can belong to either sequence */
-  IntRange	    qRange;	   /* the range of coords on the ref sequence where the alignment lies */
+  IntRange          qRange;        /* the range of coords on the ref sequence where the alignment lies */
   BlxStrand         qStrand;       /* which strand on the reference sequence the match is on */
   int               qFrame;        /* which frame on the reference sequence the match is on */
   
   BlxSequence       *sSequence;    /* pointer to a struct holding info about the sequence/strand this match is from */
   char              *sname;        /* sequence name (could be different to the sequence name in the blxSequence e.g. exons have a postfixed 'x') */
-  IntRange	    sRange;	   /* the range of coords on the match sequence where the alignment lies */
+  IntRange          sRange;        /* the range of coords on the match sequence where the alignment lies */
   
   /* The following ranges are all calculated from the above but are
    * cached in the MSP because they are used a lot. Note that these
    * these are not current used by dotter so dotter does not bother to
    * initialise them. */
-  IntRange	    displayRange;  /* the same range as qRange but in display coords */
-  IntRange	    fullRange;	   /* the full range of display coords to show this match against (includes any unaligned portions of sequence that we're showing) */
-  IntRange	    fullSRange;	   /* the full range of coords on the match sequence that we're showing (including any unaligned portions of sequence) */
+  IntRange          displayRange;  /* the same range as qRange but in display coords */
+  IntRange          fullRange;     /* the full range of display coords to show this match against (includes any unaligned portions of sequence that we're showing) */
+  IntRange          fullSRange;    /* the full range of coords on the match sequence that we're showing (including any unaligned portions of sequence) */
   
   char              *desc;         /* Optional description text for the MSP */
   GSList            *gaps;         /* Array of "gaps" in this homolgy (this is a bit of a misnomer because the array
@@ -246,38 +246,38 @@ gboolean              typeIsShortRead(const BlxMspType mspType);
 gboolean              typeIsRegion(const BlxMspType mspType);
 gboolean              typeShownInDetailView(const BlxMspType mspType);
 gboolean              blxSequenceShownInDetailView(const BlxSequence *blxSeq);
-gboolean	      blxSequenceShownInGrid(const BlxSequence *blxSeq);
+gboolean              blxSequenceShownInGrid(const BlxSequence *blxSeq);
 
-const char*	      mspGetRefName(const MSP const *msp);
-int		      mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
-BlxStrand	      mspGetRefStrand(const MSP const *msp);
-BlxStrand	      mspGetMatchStrand(const MSP const *msp);
+const char*           mspGetRefName(const MSP const *msp);
+int                   mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
+BlxStrand             mspGetRefStrand(const MSP const *msp);
+BlxStrand             mspGetMatchStrand(const MSP const *msp);
 const char*           mspGetMatchSeq(const MSP const *msp);
 const char*           mspGetSource(const MSP const *msp);
-const char*	      mspGetSName(const MSP *msp);
+const char*           mspGetSName(const MSP *msp);
 const IntRange const* mspGetRefCoords(const MSP const *msp);
 const IntRange const* mspGetMatchCoords(const MSP const *msp);
-int		      mspGetQStart(const MSP const *msp);
-int		      mspGetQEnd(const MSP const *msp);
-int		      mspGetSStart(const MSP const *msp);
-int		      mspGetSEnd(const MSP const *msp);
+int                   mspGetQStart(const MSP const *msp);
+int                   mspGetQEnd(const MSP const *msp);
+int                   mspGetSStart(const MSP const *msp);
+int                   mspGetSEnd(const MSP const *msp);
 char*                 mspGetSSeq(const MSP const *msp);
-int		      mspGetQRangeLen(const MSP const *msp);
-int		      mspGetSRangeLen(const MSP const *msp);
-int		      mspGetMatchSeqLen(const MSP const *msp);
+int                   mspGetQRangeLen(const MSP const *msp);
+int                   mspGetSRangeLen(const MSP const *msp);
+int                   mspGetMatchSeqLen(const MSP const *msp);
 
 const GdkColor*       mspGetColor(const MSP const *msp, 
-				  GArray *defaultColors, const 
-				  BlxSequence *blxSeq, 
-				  const gboolean selected, 
-				  const gboolean usePrintColors, 
-				  const gboolean fill,
-				  const int exonFillColorId,
-				  const int exonLineColorId,
-				  const int cdsFillColorId,
-				  const int cdsLineColorId,
-				  const int utrFillColorId,
-				  const int utrLineColorId);
+                                  GArray *defaultColors, const 
+                                  BlxSequence *blxSeq, 
+                                  const gboolean selected, 
+                                  const gboolean usePrintColors, 
+                                  const gboolean fill,
+                                  const int exonFillColorId,
+                                  const int exonLineColorId,
+                                  const int cdsFillColorId,
+                                  const int cdsLineColorId,
+                                  const int utrFillColorId,
+                                  const int utrLineColorId);
 
 char*                 mspGetOrganism(const MSP const *msp);
 char*                 mspGetGeneName(const MSP const *msp);
@@ -291,14 +291,14 @@ gint                  compareFuncMspPos(gconstpointer a, gconstpointer b);
 gint                  compareFuncMspArray(gconstpointer a, gconstpointer b);
 
 gboolean              mspLayerIsVisible(const MSP const *msp);
-gboolean	      mspIsExon(const MSP const *msp);
-gboolean	      mspIsIntron(const MSP const *msp);
-gboolean	      mspIsSnp(const MSP const *msp);
-gboolean	      mspIsBlastMatch(const MSP const *msp);
-gboolean	      mspIsPolyASite(const MSP const *msp);
-gboolean	      mspIsVariation(const MSP const *msp);
-gboolean	      mspIsShortRead(const MSP const *msp);
-gboolean	      mspIsZeroLenVariation(const MSP const *msp);
+gboolean              mspIsExon(const MSP const *msp);
+gboolean              mspIsIntron(const MSP const *msp);
+gboolean              mspIsSnp(const MSP const *msp);
+gboolean              mspIsBlastMatch(const MSP const *msp);
+gboolean              mspIsPolyASite(const MSP const *msp);
+gboolean              mspIsVariation(const MSP const *msp);
+gboolean              mspIsShortRead(const MSP const *msp);
+gboolean              mspIsZeroLenVariation(const MSP const *msp);
 
 gboolean              mspHasSName(const MSP const *msp);
 gboolean              mspHasSSeq(const MSP  const *msp);
@@ -321,7 +321,7 @@ void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
 MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
                                    BlxDataType *dataType, const char *source, const gdouble score, const gdouble percentId, const int phase,
-				   const char *url, const char *idTag, const char *qName, const int qStart, const int qEnd, 
+                                   const char *url, const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
                                    const BlxStrand sStrand, char *sequence, GError **error);  
 MSP*                  copyMsp(const MSP const *src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
@@ -333,35 +333,36 @@ int                   findMspListSExtent(GList *mspList, const gboolean findMin)
 int                   findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand);
 
 /* Feature series */
-gint		      fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in);
-gint		      fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in);
+gint                  fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in);
+gint                  fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in);
 
 /* BlxSequence */
-char*		      blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq);
+char*                 blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq);
 BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error);
 BlxDataType*          createBlxDataType();
 void                  destroyBlxDataType(BlxDataType **blxDataType);
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
 BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, char *sequence, MSP *msp, GError **error);
-void		      blxSequenceSetName(BlxSequence *seq, const char *fullName);
-const char*	      blxSequenceGetFullName(const BlxSequence *seq);
-const char*	      blxSequenceGetDisplayName(const BlxSequence *seq);
-const char*	      blxSequenceGetShortName(const BlxSequence *seq);
-int		      blxSequenceGetLength(const BlxSequence *seq);
+void                  blxSequenceSetName(BlxSequence *seq, const char *fullName);
+const char*           blxSequenceGetFullName(const BlxSequence *seq);
+const char*           blxSequenceGetDisplayName(const BlxSequence *seq);
+const char*           blxSequenceGetShortName(const BlxSequence *seq);
+int                   blxSequenceGetLength(const BlxSequence *seq);
 char*                 blxSequenceGetSeq(const BlxSequence *seq);
-gboolean	      blxSequenceRequiresSeqData(const BlxSequence *seq);
-gboolean	      blxSequenceRequiresOptionalData(const BlxSequence *seq);
+gboolean              blxSequenceRequiresSeqData(const BlxSequence *seq);
+gboolean              blxSequenceRequiresOptionalData(const BlxSequence *seq);
 BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs);
 char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, const gboolean dataLoaded);
-int		      blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand);
-int		      blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand);
+int                   blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand);
+int                   blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand);
 const char*           blxSequenceGetSource(const BlxSequence *seq);
 char*                 blxSequenceGetOrganism(const BlxSequence *seq);
 char*                 blxSequenceGetGeneName(const BlxSequence *seq);
 char*                 blxSequenceGetTissueType(const BlxSequence *seq);
 char*                 blxSequenceGetStrain(const BlxSequence *seq);
+char*                 blxSequenceGetFasta(const BlxSequence *seq);
 
 
-void		      destroyBlxSequence(BlxSequence *seq);
+void                  destroyBlxSequence(BlxSequence *seq);
 
 #endif /* _blxmsp_included_ */

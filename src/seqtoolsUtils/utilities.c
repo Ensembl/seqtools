@@ -4160,27 +4160,31 @@ GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GE
 
 #if !defined(MACINTOSH)
   
-  GString *resultText = getExternalCommandOutput(command, error);
+  char *result = getExternalCommandOutput(command, error);
   
   if (!error || *error == NULL)
     {
       char *title = blxprintf("%s - %s", progName, command);
-      resultWindow = displayFetchResults(title, resultText->str, widget, NULL);
+      resultWindow = displayFetchResults(title, result, widget, NULL);
       
       g_free(title);
-      g_string_free(resultText, TRUE);
+      g_free(result);
     }
   
+
 #endif
   
   return resultWindow;
 }
 
 
-/* Execute the given external command and return the output from the command as a GString. 
- * The result should be free'd with g_string_free. */
-GString* getExternalCommandOutput(const char *command, GError **error)
+/* Execute the given external command and return the output from the 
+ * command.
+ * The result should be free'd with g_free. */
+char* getExternalCommandOutput(const char *command, GError **error)
 {
+  char *result = NULL;
+  
   GString *resultText = g_string_new(NULL) ;
   char lineText[MAXLINE+1];
 
@@ -4216,7 +4220,10 @@ GString* getExternalCommandOutput(const char *command, GError **error)
 
   pclose (pipe);
 
-  return resultText;
+  result = resultText->str;
+  g_string_free(resultText, FALSE);
+  
+  return result;
 }
 
 

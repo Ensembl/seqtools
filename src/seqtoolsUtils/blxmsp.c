@@ -872,6 +872,20 @@ char *blxSequenceGetStrain(const BlxSequence *seq)
   return (seq && seq->strain ? seq->strain->str : "");
 }
 
+/* Return the sequence data as a string in fasta format.
+ * Result should be free'd with g_free */
+char *blxSequenceGetFasta(const BlxSequence *seq)
+{
+  char *result = NULL;
+  
+  if (seq && blxSequenceGetFullName(seq) && seq->sequence && seq->sequence->str)
+    {
+      result = g_strdup_printf(">%s\n%s", blxSequenceGetFullName(seq), seq->sequence->str);
+    }
+  
+  return result;
+}
+
 
 /* Return all the stored info about a blx sequenece (description, organism, tissue type etc.) 
  * in a single string. The result should be free'd by the caller using g_free. If 'allowNewlines'
