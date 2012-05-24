@@ -50,7 +50,7 @@
 #define CROSSHAIR_TEXT_PADDING                      5     /* padding between the crosshair and the coord display text */ 
 #define ANNOTATION_LABEL_PADDING		    5	  /* padding around annotation labels, if shown */
 #define ANNOTATION_LABEL_LEN			    8	  /* number of chars to allow to show for annotation labels */
-
+#define MAX_IMAGE_DIMENSION                         12000 /* max width / height to allow for a gdk image. Guesstimate based on the fact that it crashes for long skinny plots if we allow more than this. */
 
 int atob_0[]	/* NEW (starting at 0) ASCII-to-binary translation table */
 = {
@@ -756,13 +756,31 @@ static GdkImage* createImage(DotplotProperties *properties)
    * to match the bpl (actually we make it less than the bpl, because
    * we get crashing when drawing labels if the total width including
    * labels etc. is more than the bpl). */
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  const int origLen = properties->imageWidth * dwc->zoomFactor;
+
+  gboolean recalc = FALSE;
+
   if (image->bpl != image->width * image->bpp)
     {
-      DotterWindowContext *dwc = properties->dotterWinCtx;
-      const int origLen = properties->imageWidth * dwc->zoomFactor;
-
+      recalc = TRUE;
       properties->imageWidth = image->bpl / image->bpp;
       properties->imageWidth -= 500; /* fudge factor to allow space for labels */
+    }
+
+  if (image->width > MAX_IMAGE_DIMENSION)
+    {
+      recalc = TRUE;
+      properties->imageWidth = MAX_IMAGE_DIMENSION;
+    }
+  else if (image->height > MAX_IMAGE_DIMENSION)
+    {
+      recalc = TRUE;
+      properties->imageHeight = MAX_IMAGE_DIMENSION;
+    }
+
+  if (recalc)
+    {
       dwc->zoomFactor = origLen / properties->imageWidth;
 
       properties->imageWidth = getImageDimension(properties, TRUE);   /* rounds new value to nearest 4 etc. */
@@ -2176,8 +2194,9 @@ static void drawTickmarkLabel(GtkWidget *dotplot,
   
   const int x = xIn - (horizontal ? width / 2 : width);
   const int y = yIn - (horizontal ? height : height / 2);
-  
+
   gdk_draw_layout(drawable, gc, x, y, layout);
+  
   g_object_unref(layout);  
 }
 
