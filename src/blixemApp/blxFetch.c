@@ -381,10 +381,12 @@ GString* getFetchCommand(BlxFetchMethod *fetchMethod,
                 g_string_append(result, g_get_user_name());
                 break;
               case 'm': 
-                g_string_append(result, name);
+                if (name)
+                  g_string_append(result, name);
                 break;
               case 'r': 
-                g_string_append(result, refSeqName);
+                if (refSeqName)
+                  g_string_append(result, refSeqName);
                 break;
               case 's': 
                 g_string_append_printf(result, "%d", startCoord);
@@ -393,7 +395,8 @@ GString* getFetchCommand(BlxFetchMethod *fetchMethod,
                 g_string_append_printf(result, "%d", endCoord);
                 break;
               case 'd':
-                g_string_append(result, dataset);
+                if (dataset)
+                  g_string_append(result, dataset);
               default:
                 break;
               };
