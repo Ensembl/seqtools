@@ -731,16 +731,22 @@ gboolean bulkFetchSequences(const int attempt,
       
       while (g_hash_table_iter_next(&iter, &key, &value))
         {
+          GList *seqsToFetch = (GList*)value;          
           GQuark fetchMethodQuark = GPOINTER_TO_INT(key);
+
+          if (!fetchMethodQuark)
+            continue;
+          
+          g_message_info("Fetching %d sequences using method '%s' (attempt %d)\n", g_list_length(seqsToFetch), g_quark_to_string(fetchMethodQuark), attempt + 1);
           BlxFetchMethod *fetchMethod = (BlxFetchMethod*)g_hash_table_lookup(fetchMethods, GINT_TO_POINTER(fetchMethodQuark));
 
           if (!fetchMethod)
-            continue;
-
-          GList *seqsToFetch = (GList*)value;          
-          GError *tmpError = NULL;
+            {
+              g_warning("Fetch method '%s' not found\n", g_quark_to_string(fetchMethodQuark));
+              continue;
+            }
           
-          g_message_info("Fetching %d sequences (attempt %d, method=%s)\n", g_list_length(seqsToFetch), attempt + 1, g_quark_to_string(fetchMethod->name));
+          GError *tmpError = NULL;
           
           if (fetchList(seqsToFetch, seqList, fetchMethod, seqType, saveTempFiles, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, refSeqRange, dataset, &tmpError))
             {

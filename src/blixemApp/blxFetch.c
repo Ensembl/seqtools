@@ -275,7 +275,7 @@ void fetchSequence(const BlxSequence *blxSeq,
       return;
     }
 
-  g_message("Fetching sequence '%s' (attempt %d; method='%s')\n", blxSequenceGetFullName(blxSeq), attempt + 1, g_quark_to_string(fetchMethodQuark));
+  g_message("Fetching sequence '%s' using method '%s' (attempt %d))\n", blxSequenceGetFullName(blxSeq), g_quark_to_string(fetchMethodQuark), attempt + 1);
 
   
   if (fetchMethod->mode == BLXFETCH_MODE_SOCKET)

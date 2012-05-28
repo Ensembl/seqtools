@@ -814,12 +814,12 @@ GQuark blxSequenceGetFetchMethod(const BlxSequence *seq,
     {
       GArray *array = bulk ? seq->dataType->bulkFetch : seq->dataType->userFetch;
       
-      if (array)
+      if (array && index >= 0 && index < array->len)
         result = g_array_index(array, GQuark, index);
     }
 
   /* If not found, check if there's an entry in the default methods list */
-  if (!result) 
+  if (!result && index >= 0 && index < defaultMethods->len) 
     result = g_array_index(defaultMethods, GQuark, index);
 
   return result;
