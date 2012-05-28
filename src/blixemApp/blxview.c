@@ -427,11 +427,11 @@ void loadGffFile(const char *fileName,
 }
 
 
-/* Called by commandFetchList. Fetches the sequences for a specific region.
+/* Called by regionFetchList. Fetches the sequences for a specific region.
  *   tmpDir is the directory in which to place the temporary files
  *   script is the script to call to do the fetch
  *   dataset will be passed as the -dataset argument to the script if it is not null */
-static void commandFetchFeature(const MSP const *msp, 
+static void regionFetchFeature(const MSP const *msp, 
                                const BlxSequence const *blxSeq,
                                BlxFetchMethod *fetchMethod,
                                const char *script,
@@ -564,7 +564,7 @@ static void regionFetchList(GList *regionsToFetch,
           if (!rangesOverlap(&msp->qRange, refSeqRange))
             continue;
           
-          commandFetchFeature(msp, blxSeq, fetchMethod, script, dataset, tmpDir, refSeqOffset,
+          regionFetchFeature(msp, blxSeq, fetchMethod, script, dataset, tmpDir, refSeqOffset,
                              blastMode, seqList, mspListIn, featureLists, supportedTypes,
                              styles, saveTempFiles, refSeqRange, &tmpError);
         }
