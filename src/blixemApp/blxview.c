@@ -737,7 +737,7 @@ gboolean bulkFetchSequences(const int attempt,
           if (!fetchMethodQuark)
             continue;
           
-          g_message_info("Fetching %d sequences using method '%s' (attempt %d)\n", g_list_length(seqsToFetch), g_quark_to_string(fetchMethodQuark), attempt + 1);
+          g_message_info("Fetching %d items using method '%s' (attempt %d)\n", g_list_length(seqsToFetch), g_quark_to_string(fetchMethodQuark), attempt + 1);
           BlxFetchMethod *fetchMethod = (BlxFetchMethod*)g_hash_table_lookup(fetchMethods, GINT_TO_POINTER(fetchMethodQuark));
 
           if (!fetchMethod)
