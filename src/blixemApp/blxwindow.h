@@ -111,8 +111,6 @@ GtkWidget*		  createBlxWindow(CommandLineOptions *options,
                                           GArray* featureLists[], 
 					  GList *seqList, 
                                           GSList *supportedTypes,
-					  const char *net_id, 
-					  int port, 
 					  const gboolean External);
 
 

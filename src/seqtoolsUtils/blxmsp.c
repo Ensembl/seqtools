@@ -798,18 +798,29 @@ const char *blxSequenceGetSource(const BlxSequence *seq)
 }
 
 /* Return the fetch method of a BlxSequence. If 'bulk' is true,
- * get the bulk-fetch method, otherwise the user-fetch method */
-GQuark blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk)
+ * get the bulk-fetch method, otherwise the user-fetch method.
+ * 'index' indicates which method to choose if multiple methods
+ * are available; 0 is the first (preferred) method, 1 the second 
+ * etc. If no fetch method is set, return the given default method 
+ * instead (for index==0 only). Pass 'defaultMethod' as 0 if N/A. */
+GQuark blxSequenceGetFetchMethod(const BlxSequence *seq, 
+                                 const gboolean bulk,
+                                 const int index,
+                                 const GArray *defaultMethods)
 {
   GQuark result = 0;
 
   if (seq && seq->dataType)
     {
-      if (bulk)
-        result = seq->dataType->bulkFetch;
-      else
-        result = seq->dataType->userFetch;
+      GArray *array = bulk ? seq->dataType->bulkFetch : seq->dataType->userFetch;
+      
+      if (array)
+        result = g_array_index(array, GQuark, index);
     }
+
+  /* If not found, check if there's an entry in the default methods list */
+  if (!result) 
+    result = g_array_index(defaultMethods, GQuark, index);
 
   return result;
 }
@@ -837,15 +848,13 @@ int blxSequenceGetLength(const BlxSequence *seq)
  * given reference sequence strand */
 int blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand)
 {
-  g_assert(strand == BLXSTRAND_FORWARD || strand == BLXSTRAND_REVERSE);
-  return (strand == BLXSTRAND_FORWARD ? seq->qRangeFwd.min : seq->qRangeRev.min);
+  return (strand == BLXSTRAND_REVERSE ? seq->qRangeRev.min : seq->qRangeFwd.min);
 }
 
 /* Get the end extend of the sequence on the ref sequence */
 int blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand)
 {
-  g_assert(strand == BLXSTRAND_FORWARD || strand == BLXSTRAND_REVERSE);
-  return (strand == BLXSTRAND_FORWARD ? seq->qRangeFwd.max : seq->qRangeRev.max);
+  return (strand == BLXSTRAND_FORWARD ? seq->qRangeRev.max : seq->qRangeFwd.max);
 }
 
 /* Get the sequence data for the given blxsequence */
@@ -1116,8 +1125,8 @@ BlxDataType* createBlxDataType()
   BlxDataType *result = g_malloc(sizeof *result);
   
   result->name = 0;
-  result->bulkFetch = 0;
-  result->userFetch = 0;
+  result->bulkFetch = NULL;
+  result->userFetch = NULL;
   
   return result;
 }
@@ -1135,16 +1144,6 @@ void destroyBlxDataType(BlxDataType **blxDataType)
 const char* getDataTypeName(BlxDataType *blxDataType)
 {
   return blxDataType ? g_quark_to_string(blxDataType->name) : NULL;
-}
-
-const char* getDataTypeBulkFetch(BlxDataType *blxDataType)
-{
-  return blxDataType ? g_quark_to_string(blxDataType->bulkFetch) : NULL;
-}
-
-const char* getDataTypeUserFetch(BlxDataType *blxDataType)
-{
-  return blxDataType ? g_quark_to_string(blxDataType->userFetch) : NULL;
 }
 
 
@@ -2454,5 +2453,4 @@ int findMspListSExtent(GList *mspList, const gboolean findMin)
   
   return result;
 }
-
 

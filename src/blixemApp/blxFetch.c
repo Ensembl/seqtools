@@ -72,7 +72,9 @@ typedef enum
     BLX_CONFIG_ERROR_NO_GROUPS,             /* no groups in config file */
     BLX_CONFIG_ERROR_INVALID_KEY_TYPE,      /* invalid key type given in config file */
     BLX_CONFIG_ERROR_MISSING_KEY,           /* a required key is missing */
-    BLX_CONFIG_ERROR_INVALID_FETCH_MODE     /* invalid fetch mode specified */
+    BLX_CONFIG_ERROR_INVALID_FETCH_MODE,    /* invalid fetch mode specified */
+    BLX_CONFIG_ERROR_INVALID_OUTPUT_FORMAT, /* invalid output format specified for fetch mode */
+    BLX_CONFIG_ERROR_WARNINGS               /* warnings found while reading config file */
   } BlxConfigError;
 
 
@@ -116,8 +118,6 @@ typedef struct
 #ifdef PFETCH_HTML 
 #define PFETCH_READ_SIZE 80	/* about a line */
 #define PFETCH_FAILED_PREFIX "PFetch failed:"
-#define PFETCH_TITLE_FORMAT_F "blixem - pfetch -F \"%s\""
-#define PFETCH_TITLE_FORMAT "blixem - pfetch \"%s\""
 
 
 typedef struct
@@ -131,7 +131,7 @@ typedef struct
   gulong widget_destroy_handler_id;
   PFetchHandle pfetch;
   gboolean got_response;
-  gboolean requested_full_entry;
+  int attempt;
 } PFetchDataStruct, *PFetchData;
 
 
@@ -153,7 +153,7 @@ typedef struct
   BlxSequence *currentSeq ;                                 /* Keeps track of which BlxSequence we're currently fetching */
   GList *currentSeqItem ;                                   /* Keeps track of which BlxSequence list item we're currently fetching */
   BlxSeqType seq_type ;                                     /* Whether sequences are nucleotide or peptide */
-  gboolean full_entry;                                      /* Whether fetching the full EMBL entry or just the sequence data */
+  const BlxFetchMethod *fetchMethod ;                       /* Details about this fetch method */
   
   ProgressBar bar ;                                         /* Provides graphical feedback about how many sequences have been fetched */
   PFetchHandle pfetch ;
@@ -164,19 +164,10 @@ typedef struct
   GString *tag_name;                                        /* When parsing the FT section, the current tag name is stored this field */
 } PFetchSequenceStruct, *PFetchSequence ;
 
-
-typedef struct
-{
-  char    *location;
-  char    *cookie_jar;
-  char    *mode;
-  int      port;
-} PFetchUserPrefsStruct ;
 #endif
 
 
 #ifdef PFETCH_HTML 
-static gboolean getPFetchUserPrefs(PFetchUserPrefsStruct *pfetch) ;
 static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
 				       char         *text,
 				       guint        *actual_read,
@@ -194,7 +185,8 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
 static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_data) ;
 static void sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
 static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequence fetch_data) ;
-static void httpFetchEntry(const char *sequence_name, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const gboolean fetchFullEntry);
+
+static void httpFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const int attempt, char **result_out);
 #endif
 
 static int socketConstruct(const char *ipAddress, int port, gboolean External) ;
@@ -207,15 +199,17 @@ static void destroyProgressBar(ProgressBar bar) ;
 static void destroyProgressCB(GtkWidget *widget, gpointer cb_data) ; /* internal to progress bar. */
 static void cancelCB(GtkWidget *widget, gpointer cb_data) ; /* internal to progress bar. */
 
-static gboolean readConfigFile(GKeyFile *key_file, char *config_file, GError **error) ;
+static void readConfigFile(GKeyFile *key_file, char *config_file, CommandLineOptions *options, GError **error) ;
 
-static void socketFetchEntry(const char *seqName, BlxFetchMethod *fetchMethod, const gboolean bulk, GtkWidget *blxWindow);
+static void socketFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, char **result_out);
+static void commandFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, char **result_out);
+static void wwwFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, char **result_out);
 
 /* Pfetch local functions */
 static void                     appendCharToString(const char curChar, GString **result);
 static void                     appendCharToQuotedString(const char curChar, gboolean *foundEndQuote, GString **result);
 
-static gboolean                 pfetchInit(char *pfetchOptions, GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, int *sock);
+static gboolean                 socketFetchInit(char *pfetchOptions, GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, int *sock);
 static void                     checkProgressBar(ProgressBar bar, BlxEmblParserState *parserState, gboolean *status);
 
 static int                      pfetchReceiveBuffer(char *buffer, const int bufferSize, const int sock, 
@@ -245,88 +239,127 @@ static void                     pfetchFinishEmblFile(BlxSequence **currentSeq, G
 static void                     pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState);
 
 
-/* Some local globals.... */
-static const char *URL = NULL ;
-
 
 /* global configuration object for blixem. */
 static GKeyFile *blx_config_G = NULL ;
 
 
-/* Display the embl entry for a sequence via pfetch, efetch or whatever. */
-void fetchAndDisplaySequence(const char *seqName, BlxFetchMethod *fetchMethod, const gboolean bulk, GtkWidget *blxWindow)
+/* Fetch the given sequence and optionally display the results. Optionally
+ * return the sequence; if the result_out is supplied, its contents must be
+ * freed by the caller using g_free */
+void fetchSequence(const BlxSequence *blxSeq, 
+                   const gboolean displayResults,
+                   const int attempt,
+                   GtkWidget *blxWindow,
+                   char **result_out)
 {
-  GError *error = NULL;
-
-  fetchMethod->func(seqName, fetchMethod, bulk, blxWindow);
+  g_assert(blxSeq);
   
-  if (!strcmp(fetchMode, FETCH_MODE_SOCKET))
+  /* Look up the fetch method for this sequence */
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  GQuark fetchMethodQuark = blxSequenceGetFetchMethod(blxSeq, FALSE, attempt, bc->userFetchDefault);
+  BlxFetchMethod *fetchMethod = (BlxFetchMethod*)g_hash_table_lookup(bc->fetchMethods, GINT_TO_POINTER(fetchMethodQuark));
+
+  if (!fetchMethod)
     {
-      socketFetchEntry(seqName, fetchMethod, bulk, blxWindow);
+      /* If this is the first attempt then we should have a fetch method; 
+       * therefore give a warning if it was not found */
+      if (attempt == 0)
+        {
+          if (!fetchMethodQuark)
+            g_warning("Failed to find fetch method for sequence '%s'\n", blxSequenceGetFullName(blxSeq));
+          else
+            g_warning("Error fetching sequence '%s'; could not find details for fetch method '%s'\n", blxSequenceGetFullName(blxSeq), g_quark_to_string(fetchMethodQuark));
+        }
+
+      return;
+    }
+
+  g_message("Fetching sequence '%s' (attempt %d; method='%s')\n", blxSequenceGetFullName(blxSeq), attempt + 1, g_quark_to_string(fetchMethodQuark));
+
+  
+  if (fetchMethod->mode == BLXFETCH_MODE_SOCKET)
+    {
+      socketFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, result_out);
     }
 #ifdef PFETCH_HTML 
-  else if (!strcmp(fetchMode, FETCH_MODE_HTTP))
+  else if (fetchMethod->mode == BLXFETCH_MODE_HTTP || fetchMethod->mode == BLXFETCH_MODE_PIPE)
     {
-      httpFetchEntry(seqName, blxWindow, NULL, NULL, TRUE) ;
+      httpFetchSequence(blxSeq, fetchMethod, blxWindow, NULL, NULL, attempt, result_out);
     }
 #endif
-  else if (!strcmp(fetchMode, FETCH_MODE_COMMAND))
+  else if (fetchMethod->mode == BLXFETCH_MODE_COMMAND)
     {
-      char *command = blxprintf("efetch '%s' &", seqName);
-      externalCommand(command, BLIXEM_TITLE, blxWindowGetDetailView(blxWindow), &error);
-      g_free(command);
+      commandFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, result_out);
     }
-  else if (!strcmp(fetchMode, FETCH_MODE_URL))
+  else if (fetchMethod->mode == BLXFETCH_MODE_WWW)
     {
-      char *link = blxprintf("%s%s", URL, seqName);
-      seqtoolsLaunchWebBrowser(link, &error);
-      g_free(link);
+      wwwFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, result_out);
     }
   else
     {
-      g_critical("Unknown fetchMode: %s", fetchMode);
+      /* Invalid fetch method. Try again with the next fetch method, if one is specified */
+      g_warning("Unknown fetch method: %s\n", g_quark_to_string(fetchMethod->name));
+      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
     }
-
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-
-  return ;
 }
 
 
-/* Set program to be used for fetching sequences depending on setting
- * of fetchmode: if fetchmode is pfetch we use pfetch, _otherwise_ efetch. */
-char *blxGetFetchProg(const char *fetchMode)
-{
-  char *fetch_prog = NULL ;
 
-  if (!strcmp(fetchMode, BLX_FETCH_PFETCH))
-    fetch_prog = "pfetch" ;
-  else
-    fetch_prog = "efetch" ;
-
-  return fetch_prog ;
-}
-
-
-/*
-#    %p:      program name
-#    %h:      host name
-#    %u:      user name
-#    %m:      match sequence name
-#    %r:      reference sequence name
-#    %s:      start coord
-#    %e:      end coord
-#    %d:      dataset
+/* Get the command to call for the given fetch method. Parses
+ * the command and arguments and substitutes the following
+ * characters with values from the given sequence/msp. Note that 
+ * either blxSeq or msp must be given, but not both.
+ * 
+ *   %p:      program name
+ *   %h:      host name
+ *   %u:      user name
+ *   %m:      match sequence name
+ *   %r:      reference sequence name
+ *   %s:      start coord
+ *   %e:      end coord
+ *   %d:      dataset
+ * 
+ * Returns the command and args compiled into a single string.
+ * The caller must free the result with g_string_free.
+ * Returns an empty string if the command/args are empty.
 */
-static void getFetchCommand(BlxFetchMethod *fetchMethod,
-                            const char *seqName,
-                            GtkWidget *blxWindow)
+GString* getFetchCommand(BlxFetchMethod *fetchMethod,
+                         const BlxSequence *blxSeq,
+                         const MSP* const msp,
+                         const char *refSeqName,
+                         const int refSeqOffset,
+                         const IntRange* const refSeqRange,
+                         const char *dataset)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  g_assert(blxSeq || msp);
 
-  GString *result = g_string_new("");  
-  char *c = args;
+  GString *result = g_string_new("");
   
+  /* Compile the command and args into a single string */
+  char *command = NULL;
+  
+  if (fetchMethod->location && fetchMethod->args)
+    command = g_strdup_printf("%s %s", fetchMethod->location, fetchMethod->args);
+  else if (fetchMethod->location)
+    command = g_strdup(fetchMethod->location);
+  else if (fetchMethod->args)
+    command = g_strdup(fetchMethod->args);
+  else
+    return result;
+
+  /* Extract info about the sequence / feature */
+  const char *name = blxSeq ? blxSequenceGetFullName(blxSeq) : mspGetSName(msp);
+  int startCoord = blxSeq ? blxSequenceGetStart(blxSeq, blxSeq->strand) : mspGetQStart(msp);
+  int endCoord = blxSeq ? blxSequenceGetEnd(blxSeq, blxSeq->strand) : mspGetQEnd(msp);
+  startCoord += refSeqOffset;
+  endCoord += refSeqOffset;
+  boundsLimitValue(&startCoord, refSeqRange);
+  boundsLimitValue(&endCoord, refSeqRange);
+
+  /* Loop through the command and substitute any special chars with the relevant info  */
+  char *c = command;
+      
   for ( ; c && *c; ++c)
     {
       /* If it's preceded by the special char, substitute it for the real value */
@@ -334,252 +367,328 @@ static void getFetchCommand(BlxFetchMethod *fetchMethod,
         {
           /* Move to the next char, which should tell us what type of substitution to make */
           ++c;
-
+          
           if (c && *c)
             {
               switch (*c) {
-                case 'p': 
-                  g_string_append(result, g_get_prgname());
-                  break;
-                case 'h': 
-                  g_string_append(result, g_get_host_name());
-                  break;
-                case 'u': 
-                  g_string_append(result, g_get_user_name());
-                  break;
-                case 'm': 
-                  g_string_append(result, g_get_prgname);
-                  break;
-                case 'r': 
-                  g_string_append(result, g_get_prgname);
-                  break;
-                case 's': 
-                  g_string_append(result, g_get_prgname);
-                  break;
-                case 'e': 
-                  g_string_append(result, g_get_prgname);
-                  break;
-                default:
-                  break;
+              case 'p': 
+                g_string_append(result, g_get_prgname());
+                break;
+              case 'h': 
+                g_string_append(result, g_get_host_name());
+                break;
+              case 'u': 
+                g_string_append(result, g_get_user_name());
+                break;
+              case 'm': 
+                g_string_append(result, name);
+                break;
+              case 'r': 
+                g_string_append(result, refSeqName);
+                break;
+              case 's': 
+                g_string_append_printf(result, "%d", startCoord);
+                break;
+              case 'e': 
+                g_string_append_printf(result, "%d", endCoord);
+                break;
+              case 'd':
+                g_string_append(result, dataset);
+              default:
+                break;
               };
             }
         }
       else
         {
           /* Normal char; just append to the result */
-          g_string_append_char(result, *c);
+          g_string_append_c(result, *c);
         }
+    }
+
+  /* Clean up */
+  g_free(command);
+
+  return result;
+}
+
+
+/* Use the www-fetch method to fetch an entry and optionally display
+ * the results in a dialog.
+ * Opens a browser to display the results. Does nothing if 
+ * not displaying results! */
+static void wwwFetchSequence(const BlxSequence *blxSeq,
+                             BlxFetchMethod *fetchMethod, 
+                             const gboolean displayResults, 
+                             const int attempt,
+                             GtkWidget *blxWindow,
+                             char **result_out)
+{
+  if (displayResults)
+    {
+      BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
+      GString *url = getFetchCommand(fetchMethod, 
+                                     blxSeq, 
+                                     NULL, 
+                                     bc->refSeqName, 
+                                     bc->refSeqOffset,
+                                     &bc->refSeqRange,
+                                     bc->dataset);
+
+      GError *error = NULL;
+      seqtoolsLaunchWebBrowser(url->str, &error);
+
+      g_string_free(url, TRUE);
+
+      /* If failed, re-try with the next-preferred fetch method, if there is one */
+      if (error)
+        fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
     }
 }
 
 
-/* Use the given socket-fetch method to fetch an entry and optionally display the results.
- * If the given result argument is given it is populated with the result text and the
- * caller takes ownership; otherwise the result text is cleared up internally. */
-static void socketFetchEntry(const char *seqName, BlxFetchMethod *fetchMethod, const gboolean bulk, GtkWidget *blxWindow)
+/* Use the command-fetch method to fetch an entry and optionally display
+ * the results in a dialog. */
+static void commandFetchSequence(const BlxSequence *blxSeq,
+                                 BlxFetchMethod *fetchMethod, 
+                                 const gboolean displayResults, 
+                                 const int attempt,
+                                 GtkWidget *blxWindow,
+                                 char **result_out)
 {
   const char *seqName = blxSequenceGetFullName(blxSeq);
-
-  /* --client gives logging information to pfetch server;
-   * -F requests the full sequence entry record. For protein variants, pfetch does not
-   * return anything with the -F option, so if it fails we need to re-try without -F so
-   * that at least we can display the fasta sequence. */
-  GString *command = getFetchCommand(fetchMethod, seqName, blxWindow);
-
-  g_string_append_printf(command, "pfetch --client=%s_%s_%s -F '%s' &", 
-                         g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
+  char *command = blxprintf("efetch '%s' &", seqName);
   
   GError *error = NULL;
-  char *result = getExternalCommandOutput(command, &error);
+  GString *resultText = getExternalCommandOutput(command, &error);
 
-  /* For protein variants, pfetch does not return anything with the -F option,
-   * so if it fails we need to re-try without -F so that at least we can 
-   * display the fasta sequence */
-  if (!error && !strncasecmp(result, "no match", 8))
+  if (resultText && resultText->str)
     {
-      g_free(command);
-      g_free(result);
-      command = g_strdup_printf("pfetch --client=%s_%s_%s -C '%s' &", g_get_prgname(), g_get_host_name(), g_get_user_name(), seqName);
-      result = getExternalCommandOutput(command, &error);
-    }
+      if (displayResults && !error)
+        {
+          char *title = blxprintf("%s - %s", g_get_prgname(), command);
+          displayFetchResults(title, resultText->str, blxWindow, NULL);
+          g_free(title);
+        }
 
-  if (error)
-    reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
-
-  /* If the fetch still hasn't worked, just display the stored sequence
-   * data, along with a basic fasta header */
-  if (!result || 
-      stringsEqual(result, "", FALSE) || 
-      stringsEqual(result, "no match", FALSE) || 
-      stringsEqual(result, "not authorized", FALSE))
-    {
-      g_free(result);
-      result = blxSequenceGetFasta(blxSeq);
+      if (result_out)
+        {
+          *result_out = resultText->str;
+          g_string_free(resultText, FALSE);
+        }
+      else
+        {
+          g_string_free(resultText, TRUE);
+        }
     }
-  
-  if (!error && displayResults)
+  else
     {
-      char *title = blxprintf("Blixem - %s", command);
-      displayFetchResults(title, result, blxWindow, NULL);
-      g_free(title);
+      /* Try again with the next-preferred fetch method, if there is one */
+      g_string_free(resultText, TRUE);
+      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
     }
-  
-  g_string_free(resultText, TRUE);
   
   g_free(command);
+}
+
+
+/* Use the given socket-fetch method to fetch an entry and optionally display the results. */
+static void socketFetchSequence(const BlxSequence *blxSeq, 
+                                BlxFetchMethod *fetchMethod, 
+                                const gboolean displayResults, 
+                                const int attempt,
+                                GtkWidget *blxWindow,
+                                char **result_out)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
+  /* Run the fetch command */
+  GError *error = NULL;
+  GString *command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
+  GString *resultText = getExternalCommandOutput(command->str, &error);
+  
+  reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+
+  if (resultText->len)  /* Success */
+    {
+      if (displayResults)
+        {
+          char *title = blxprintf("Blixem - %s", command->str);
+          displayFetchResults(title, resultText->str, blxWindow, NULL);
+          g_free(title);
+        }
+
+      if (result_out)
+        {
+          /* caller takes ownership of str */
+          *result_out = resultText->str;
+          g_string_free(resultText, FALSE);
+        }
+      else
+        {
+          g_string_free(resultText, TRUE);
+        }
+    }
+  else   /* Failed */
+    {
+      g_string_free(resultText, TRUE);
+
+      /* Try again with the next fetch method, if there is one set */
+      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
+    }
+
+  g_string_free(command, TRUE);
 }
 
 
 #ifdef PFETCH_HTML 
 /* Gets all the sequences needed by blixem but from http proxy server instead of from
  * the pfetch server direct, this enables blixem to be run and get sequences from
- * anywhere that can see the http proxy server. If loadOptionalData is true then the full
+ * anywhere that can see the http proxy server. If fullEntry is true then the full
  * EMBL entry is fetched (if it exists) and data for the optional columns is parsed (e.g.
  * organism and tissue-type) */
-gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, const gboolean loadOptionalData)
+gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, const BlxFetchMethod* const fetchMethod)
 {
   gboolean status = FALSE ;
-  PFetchUserPrefsStruct prefs = {NULL} ;
   gboolean debug_pfetch = FALSE ;
+
+  GType pfetch_type = PFETCH_TYPE_HTTP_HANDLE ;
+  PFetchSequenceStruct fetch_data = {FALSE} ;
+
+  fetch_data.connection_closed = FALSE;
+  fetch_data.parser_state = PARSING_NEWLINE;
+  fetch_data.status = TRUE ;
+  fetch_data.err_txt = NULL;
   
+  fetch_data.seq_total = g_list_length(seqsToFetch);
+  fetch_data.num_fetched = 0;
+  fetch_data.num_succeeded = 0;
+  
+  fetch_data.stats = FALSE ;
+  fetch_data.min_bytes = INT_MAX ;
+  fetch_data.max_bytes = 0 ;
+  fetch_data.total_bytes = 0 ;
+  fetch_data.total_reads = 0 ;
 
-  if (getPFetchUserPrefs(&prefs))
+  fetch_data.seqList = seqsToFetch;
+  fetch_data.currentSeqItem = seqsToFetch;
+  fetch_data.currentSeq = seqsToFetch ? (BlxSequence*)(seqsToFetch->data) : NULL;
+  fetch_data.seq_type = seqType ;
+  fetch_data.fetchMethod = fetchMethod;
+
+  fetch_data.bar = makeProgressBar(fetch_data.seq_total) ;
+  fetch_data.pfetch = PFetchHandleNew(pfetch_type);
+
+  fetch_data.section_id[0] = ' ';
+  fetch_data.section_id[1] = ' ';
+  fetch_data.section_id[2] = '\0';
+  fetch_data.found_end_quote = FALSE;
+  fetch_data.tag_name = g_string_new("");
+  
+  g_signal_connect(G_OBJECT(fetch_data.bar->top_level), "destroy",
+    	       G_CALLBACK(sequence_dialog_closed), &fetch_data) ;
+  
+  const gboolean fullEntry = fetchMethod->output == BLXFETCH_OUTPUT_EMBL; /* fetching full embl entry */
+
+  PFetchHandleSettings(fetch_data.pfetch, 
+                       "full",       fullEntry,
+                       "port",       fetchMethod->port,
+                       "debug",      debug_pfetch,
+                       "pfetch",     fetchMethod->location,
+                       "cookie-jar", fetchMethod->cookie_jar,
+                       NULL);
+
+ if (!fullEntry)
+  {
+    PFetchHandleSettings(fetch_data.pfetch,
+                         "blixem-seqs",  TRUE, /* turns the next two on */
+                         "one-per-line", TRUE, /* one sequence per line */
+                         "case-by-type", TRUE, /* lowercase for DNA, uppercase for protein */
+                         NULL);
+  }
+  
+  g_signal_connect(G_OBJECT(fetch_data.pfetch), "reader", G_CALLBACK(sequence_pfetch_reader), &fetch_data) ;
+
+  g_signal_connect(G_OBJECT(fetch_data.pfetch), "closed", G_CALLBACK(sequence_pfetch_closed), &fetch_data) ;
+
+
+  /* Build up a string containing all the sequence names. */
+  GString *seq_string = g_string_sized_new(1000) ;
+  GList *seqItem = seqsToFetch;
+  
+  for ( ; seqItem; seqItem = seqItem->next)
     {
-      GType pfetch_type = PFETCH_TYPE_HTTP_HANDLE ;
-      PFetchSequenceStruct fetch_data = {FALSE} ;
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+      g_string_append_printf(seq_string, "%s ", blxSequenceGetFullName(blxSeq));
+    }
 
-      fetch_data.connection_closed = FALSE;
-      fetch_data.parser_state = PARSING_NEWLINE;
-      fetch_data.status = TRUE ;
-      fetch_data.err_txt = NULL;
+  /* Set up pfetch/curl connection routines, this is non-blocking so if connection
+   * is successful we block using our own flag. */
+  if (PFetchHandleFetch(fetch_data.pfetch, seq_string->str) == PFETCH_STATUS_OK)
+    {
+      status = TRUE ;
+
+      while (!(fetch_data.connection_closed))
+        {
+          gtk_main_iteration() ;
+        }
+
+      status = fetch_data.status ;
       
-      fetch_data.seq_total = g_list_length(seqsToFetch);
-      fetch_data.num_fetched = 0;
-      fetch_data.num_succeeded = 0;
-      
-      fetch_data.stats = FALSE ;
-      fetch_data.min_bytes = INT_MAX ;
-      fetch_data.max_bytes = 0 ;
-      fetch_data.total_bytes = 0 ;
-      fetch_data.total_reads = 0 ;
-
-      fetch_data.seqList = seqsToFetch;
-      fetch_data.currentSeqItem = seqsToFetch;
-      fetch_data.currentSeq = seqsToFetch ? (BlxSequence*)(seqsToFetch->data) : NULL;
-      fetch_data.seq_type = seqType ;
-      fetch_data.full_entry = loadOptionalData;
-
-      fetch_data.bar = makeProgressBar(fetch_data.seq_total) ;
-      fetch_data.pfetch = PFetchHandleNew(pfetch_type);
-
-      fetch_data.section_id[0] = ' ';
-      fetch_data.section_id[1] = ' ';
-      fetch_data.section_id[2] = '\0';
-      fetch_data.found_end_quote = FALSE;
-      fetch_data.tag_name = g_string_new("");
-      
-      g_signal_connect(G_OBJECT(fetch_data.bar->top_level), "destroy",
-		       G_CALLBACK(sequence_dialog_closed), &fetch_data) ;
-      
-      PFetchHandleSettings(fetch_data.pfetch, 
-                           "full",       loadOptionalData,
-			   "port",       prefs.port,
-			   "debug",      debug_pfetch,
-			   "pfetch",     prefs.location,
-			   "cookie-jar", prefs.cookie_jar,
-			   NULL);
-
-     if (!loadOptionalData)
-      {
-        PFetchHandleSettings(fetch_data.pfetch,
-                             "blixem-seqs",  TRUE, /* turns the next two on */
-                             "one-per-line", TRUE, /* one sequence per line */
-                             "case-by-type", TRUE, /* lowercase for DNA, uppercase for protein */
-                             NULL);
-      }
-      
-      g_free(prefs.location);
-      g_free(prefs.cookie_jar);
-
-      g_signal_connect(G_OBJECT(fetch_data.pfetch), "reader", G_CALLBACK(sequence_pfetch_reader), &fetch_data) ;
-
-      g_signal_connect(G_OBJECT(fetch_data.pfetch), "closed", G_CALLBACK(sequence_pfetch_closed), &fetch_data) ;
-
-
-      /* Build up a string containing all the sequence names. */
-      GString *seq_string = g_string_sized_new(1000) ;
-      GList *seqItem = seqsToFetch;
-      
-      for ( ; seqItem; seqItem = seqItem->next)
-	{
-          BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-	  g_string_append_printf(seq_string, "%s ", blxSequenceGetFullName(blxSeq));
-	}
-
-      /* Set up pfetch/curl connection routines, this is non-blocking so if connection
-       * is successful we block using our own flag. */
-      if (PFetchHandleFetch(fetch_data.pfetch, seq_string->str) == PFETCH_STATUS_OK)
-	{
-	  status = TRUE ;
-
-	  while (!(fetch_data.connection_closed))
+      if (!status)
+        {
+          if (fetch_data.parser_state != PARSING_CANCELLED)
             {
-              gtk_main_iteration() ;
+              g_critical("Sequence fetch from http server failed: %s\n", fetch_data.err_txt) ;
+              
+              if (fetch_data.err_txt)
+                { 
+                  g_free(fetch_data.err_txt) ;
+                }
             }
-
-	  status = fetch_data.status ;
-          
-	  if (!status)
-	    {
-	      if (fetch_data.parser_state != PARSING_CANCELLED)
-		{
-		  g_critical("Sequence fetch from http server failed: %s\n", fetch_data.err_txt) ;
-		
-		  if (fetch_data.err_txt)
-		    { 
-		      g_free(fetch_data.err_txt) ;
-		    }
-		}
-	    }
-	}
-      else
-	{
-	  status = FALSE ;
-	}
-
-      g_string_free(seq_string, TRUE);
-
-      destroyProgressBar(fetch_data.bar) ;
+        }
     }
   else
     {
-      g_critical("%s", "Failed to obtain preferences specifying how to pfetch.\n") ;
       status = FALSE ;
     }
+  
+  g_string_free(seq_string, TRUE);
+
+  destroyProgressBar(fetch_data.bar) ;
 
   return status ;
 }
 
 
 /* Use the http proxy to pfetch an entry */
-static void httpFetchEntry(const char *sequence_name,
-                           GtkWidget *blxWindow, 
-                           GtkWidget *dialog, 
-                           GtkTextBuffer *text_buffer, 
-                           const gboolean fetchFullEntry)
+/* Note that this uses a callback to update the display 
+ * window; it cannot return the result immediately and the 
+ * code is not currently structured to allow the callback to
+ * do anything other than update the display window, so if
+ * we're just requesting the sequence, this currently just 
+ * returns null. */
+static void httpFetchSequence(const BlxSequence *blxSeq,
+                              BlxFetchMethod *fetchMethod,
+                              GtkWidget *blxWindow, 
+                              GtkWidget *dialog, 
+                              GtkTextBuffer *text_buffer, 
+                              const int attempt,
+                              char **result_out)
 {
   const char *sequence_name = blxSequenceGetFullName(blxSeq);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  PFetchUserPrefsStruct prefs = {NULL} ;
   gboolean debug_pfetch = FALSE ;
   
-  if ((getPFetchUserPrefs(&prefs)) && (prefs.location != NULL))
+  if (fetchMethod->location != NULL)
     {
       PFetchData pfetch_data ;
       PFetchHandle pfetch = NULL ;
       GType pfetch_type = PFETCH_TYPE_HTTP_HANDLE ;
 
-      if (prefs.mode && g_ascii_strncasecmp(prefs.mode, "pipe", 4) == 0)
+      if (fetchMethod->mode == BLXFETCH_MODE_PIPE)
 	pfetch_type = PFETCH_TYPE_PIPE_HANDLE ;
 	
       pfetch_data = g_new0(PFetchDataStruct, 1);
@@ -588,16 +697,10 @@ static void httpFetchEntry(const char *sequence_name,
       
       pfetch_data->blxWindow = blxWindow;
       pfetch_data->blxSeq = blxSeq;
-      pfetch_data->requested_full_entry = fetchFullEntry;
-      
-      if (fetchFullEntry)
-        {
-          pfetch_data->title = g_strdup_printf(PFETCH_TITLE_FORMAT_F, sequence_name);
-        }
-      else
-        {
-          pfetch_data->title = g_strdup_printf(PFETCH_TITLE_FORMAT, sequence_name);
-        }
+      pfetch_data->attempt = attempt;
+
+      GString *command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
+      pfetch_data->title = g_strdup_printf("%s - %s", g_get_prgname(), command->str);
       
       if (pfetch_data->title)
 	{
@@ -617,26 +720,25 @@ static void httpFetchEntry(const char *sequence_name,
 			     G_CALLBACK(handle_dialog_close), pfetch_data); 
 	}
       
+      const gboolean fetchFullEntry = fetchMethod->output == BLXFETCH_OUTPUT_EMBL; /* fetching full embl entry */
+
       if (PFETCH_IS_HTTP_HANDLE(pfetch))
         {
             PFetchHandleSettings(pfetch, 
                                  "full",       fetchFullEntry,
-                                 "port",       prefs.port,
+                                 "port",       fetchMethod->port,
                                  "debug",      debug_pfetch,
-                                 "pfetch",     prefs.location,
-                                 "cookie-jar", prefs.cookie_jar,
+                                 "pfetch",     fetchMethod->location,
+                                 "cookie-jar", fetchMethod->cookie_jar,
                                  NULL);
         }
       else
         {
             PFetchHandleSettings(pfetch, 
                                  "full",       fetchFullEntry,
-                                 "pfetch",     prefs.location,
+                                 "pfetch",     fetchMethod->location,
                                  NULL);
         }
-      
-      g_free(prefs.location);
-      g_free(prefs.cookie_jar);
       
       g_signal_connect(G_OBJECT(pfetch), "reader", G_CALLBACK(pfetch_reader_func), pfetch_data);
       
@@ -648,8 +750,6 @@ static void httpFetchEntry(const char *sequence_name,
     {
       g_critical("%s", "Failed to obtain preferences specifying how to pfetch.\n") ;
     }
-
-  return ;
 }
 
 
@@ -662,20 +762,23 @@ static void httpFetchEntry(const char *sequence_name,
  *  - this version incorporates a progress monitor as a window,
  *    much easier for user to control + has a cancel button.
  */
-gboolean populateFastaDataPfetch(GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, const BlxSeqType seqType, GError **error)
+gboolean populateFastaDataPfetch(GList *seqsToFetch, 
+                                 BlxFetchMethod *fetchMethod,
+                                 gboolean External, 
+                                 const BlxSeqType seqType, 
+                                 GError **error)
 {
   /* Initialise and send the requests */
   int sock;
   
-  gboolean status = pfetchInit("-q -C", seqsToFetch, pfetchIP, port, External, &sock);
+  gboolean status = socketFetchInit(fetchMethod->args, seqsToFetch, fetchMethod->node, fetchMethod->port, External, &sock);
   
   /* Get the sequences back. They will be returned in the same order that we asked for them, i.e. 
    * in the order they are in our list. */
   GList *currentSeqItem = seqsToFetch;
   BlxSequence *currentSeq = (BlxSequence*)(currentSeqItem->data);
-  BlxEmblParserState parserState = PARSING_NEWLINE;
   
-  if (status && currentSeq != NULL)
+  if (status && currentSeq)
     {
       int numRequested = g_list_length(seqsToFetch); /* total number of sequences requested */
       ProgressBar bar = makeProgressBar(numRequested);
@@ -687,9 +790,11 @@ gboolean populateFastaDataPfetch(GList *seqsToFetch, const char *pfetchIP, int p
       int numSucceeded = 0;
 
       GError *tmpError = NULL;
-      
-      while (status && parserState != PARSING_FINISHED && parserState != PARSING_CANCELLED)
+      BlxEmblParserState parserState = PARSING_NEWLINE;
+
+      while (status && parserState != PARSING_CANCELLED && parserState != PARSING_FINISHED)
 	{
+          /* Receive and parse the next buffer */
           checkProgressBar(bar, &parserState, &status);
           int lenReceived = pfetchReceiveBuffer(buffer, RCVBUFSIZE, sock, &parserState, &status);
           
@@ -754,14 +859,15 @@ gboolean populateFastaDataPfetch(GList *seqsToFetch, const char *pfetchIP, int p
  *  - sequence data will also be ignored for sequences that do not 
  *    require sequence data
  */
-gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, const BlxSeqType seqType, GError **error)
+gboolean populateFullDataPfetch(GList *seqsToFetch, 
+                                BlxFetchMethod *fetchMethod,
+                                gboolean External, 
+                                const BlxSeqType seqType, 
+                                GError **error)
 {
-  int numRequested = g_list_length(seqsToFetch); /* total number of sequences requested */
-
   int sock;
-  gboolean status = pfetchInit("-q -C -F", seqsToFetch, pfetchIP, port, External, &sock);
+  gboolean status = socketFetchInit(fetchMethod->args, seqsToFetch, fetchMethod->node, fetchMethod->port, External, &sock);
 
-  
   /* Get the sequences back. They will be returned in the same order that we asked for them, i.e. 
    * in the order they are in our list. */
   GList *currentSeqItem = seqsToFetch;
@@ -769,6 +875,7 @@ gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int po
 
   if (status && currentSeq)
     {
+      int numRequested = g_list_length(seqsToFetch); /* total number of sequences requested */
       ProgressBar bar = makeProgressBar(numRequested);
       
       enum {RCVBUFSIZE = 256} ;               /* size of receive buffer */
@@ -816,7 +923,6 @@ gboolean populateFullDataPfetch(GList *seqsToFetch, const char *pfetchIP, int po
       
       /* Finish up */
       shutdown(sock, SHUT_RDWR);
-
       destroyProgressBar(bar);
       bar = NULL ;
       
@@ -868,8 +974,10 @@ void blxInitConfig(char *config_file, CommandLineOptions *options, GError **erro
     }
   
   /* Load the given config file, if any */
-  if (config_file && readConfigFile(blx_config_G, config_file, error))
+  if (config_file)
     {
+      readConfigFile(blx_config_G, config_file, options, error);
+
       if (content1)
         {
           /* Merge both file contents. First, get the new content as a string and concatenate */
@@ -1035,31 +1143,6 @@ static gboolean socketSend (int sock, const char *text)
 
 #ifdef PFETCH_HTML 
 
-
-static gboolean getPFetchUserPrefs(PFetchUserPrefsStruct *pfetch)
-{
-  gboolean result = FALSE ;
-  GKeyFile *key_file ;
-  GError *error = NULL ;
-
-  if ((key_file = blxGetConfig()) && g_key_file_has_group(key_file, PFETCH_PROXY_GROUP))
-    {
-      pfetch->location = g_key_file_get_string(key_file, PFETCH_PROXY_GROUP, PFETCH_PROXY_LOCATION, &error) ;
-      pfetch->cookie_jar = g_key_file_get_string(key_file, PFETCH_PROXY_GROUP, PFETCH_PROXY_COOKIE_JAR, &error) ;
-      pfetch->mode = g_key_file_get_string(key_file, PFETCH_PROXY_GROUP, PFETCH_PROXY_MODE, &error) ;
-      pfetch->port = g_key_file_get_integer(key_file, PFETCH_PROXY_GROUP, PFETCH_PROXY_PORT, &error) ;
-
-      /* By the time we get here _all_ the fields should have been filled in the config. */
-      g_assert(!error) ;
-
-      result = TRUE ;
-    }
-
-  return result ;
-}
-
-
-
 static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
 				       char         *text,
 				       guint        *actual_read,
@@ -1079,12 +1162,11 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
           gtk_text_buffer_set_text(text_buffer, "", 0);
         }
 
-      /* If we tried fetching the full entry and got 'no match', try again
-       * without the "full" option. (It is a "feature" of pfetch that it does 
-       * not return anything with the -F option for protein variants.) */
-      if (pfetch_data->requested_full_entry && !strncasecmp(text, "no match", 8))
+      /* If we tried fetching the full entry and failed, try again
+       * with the next fetch method, if there is one */
+      if (!strncasecmp(text, "no match", 8))
         {
-          httpFetchEntry(pfetch_data->sequence_name, pfetch_data->blxWindow, pfetch_data->dialog, pfetch_data->text_buffer, FALSE);
+          fetchSequence(pfetch_data->blxSeq, TRUE, pfetch_data->attempt + 1, pfetch_data->blxWindow, NULL);
         }
       else
         {
@@ -1266,7 +1348,7 @@ static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequenc
   
   GError *error = NULL;
   
-  if (fetch_data->full_entry)
+  if (fetch_data->fetchMethod->output == BLXFETCH_OUTPUT_EMBL)
     {
       /* We're fetching the full EMBL entries */
       pfetchParseEmblFileBuffer(read_text, 
@@ -1284,9 +1366,9 @@ static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequenc
                                 &fetch_data->parser_state,
                                 &fetch_data->status);
     }
-  else
+  else if (fetch_data->fetchMethod->output == BLXFETCH_OUTPUT_FASTA)
     {
-      /* The fetched entries just contain the sequence */
+      /* The fetched entries just contain the FASTA sequence */
       pfetchParseSequenceFileBuffer(read_text, 
                                     length, 
                                     &fetch_data->currentSeq, 
@@ -1299,6 +1381,12 @@ static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequenc
                                     &fetch_data->parser_state, 
                                     &fetch_data->status,
                                     &error);
+    }
+  else 
+    {
+      g_set_error(&error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_OUTPUT_FORMAT, 
+                  "Invalid output format specified for fetch method '%s'; expected '%s' or '%s'\n",
+                  g_quark_to_string(fetch_data->fetchMethod->name), FETCH_OUTPUT_EMBL, FETCH_OUTPUT_FASTA);
     }
   
   if (error)
@@ -1444,78 +1532,118 @@ static void cancelCB(GtkWidget *widget, gpointer cb_data)
 /* Get default blixem options from the "blixem" stanza */
 static void readBlixemConfigGroup(GKeyFile *key_file,
                                   const char *group, 
-                                  CommandLineOptions *options, G
-                                  Error **error)
+                                  CommandLineOptions *options,
+                                  GError **error)
 {
-  options->bulkFetchDefault = g_quark_from_string(g_key_file_get_string(key_file, group, SEQTOOLS_BULK_FETCH, NULL));
-  options->userFetchDefault = g_quark_from_string(g_key_file_get_string(key_file, group, SEQTOOLS_USER_FETCH, NULL));
+  /* Get the comma-separated list of possible fetch methods */
+  options->bulkFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_BULK_FETCH);
+  options->userFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_USER_FETCH);
 }
 
 
 /* Create a fetch method struct */
-static BlxFetchMethod* createBlxFetchMethod(const char *fetchName, const GQuark fetchMode)
+static BlxFetchMethod* createBlxFetchMethod(const char *fetchName, 
+                                            const GQuark fetchMode)
 {
   BlxFetchMethod *result = g_malloc(sizeof *result);
 
   result->name = g_quark_from_string(fetchName);
-  result->mode = BLXFETCH_NONE;
+  result->mode = BLXFETCH_MODE_NONE;
 
   result->location = NULL;
+  result->node = NULL;
   result->port = 0;
   result->cookie_jar = NULL;
   result->args = NULL;
+  result->output = 0;
 
   return result;
 }
+
+static BlxFetchOutput getFetchOutputFormat(GKeyFile *key_file, const char *group)
+{
+  BlxFetchOutput result = BLXFETCH_OUTPUT_INVALID;
+  
+  char *output = g_key_file_get_string(key_file, group, FETCH_OUTPUT, NULL);
+
+  if (stringsEqual(output, FETCH_OUTPUT_FASTA, FALSE))
+    result = BLXFETCH_OUTPUT_FASTA;
+  else if (stringsEqual(output, FETCH_OUTPUT_EMBL, FALSE))
+    result = BLXFETCH_OUTPUT_EMBL;
+  if (stringsEqual(output, FETCH_OUTPUT_GFF, FALSE))
+    result = BLXFETCH_OUTPUT_GFF;
+  
+  g_free(output);
+
+  return result;
+}
+
 
 /* Get details about the given fetch method stanza and add it to 
  * the list of fetch methods in 'options' */
 static void readFetchConfigGroup(GKeyFile *key_file, 
                                  const char *group, 
-                                 const char *fetchModeName,
+                                 const char *fetchMode,
                                  CommandLineOptions *options, 
                                  GError **error)
 {
-  BlxFetchMethod *result = createBlxFetchMethod(group);
+  BlxFetchMethod *result = createBlxFetchMethod(group, g_quark_from_string(fetchMode));
 
   /* Set the relevant properties for this type of fetch method */
-  if (stringsEqual(fetchMode, FETCH_MODE_HTTP, FALSE))
+#ifdef PFETCH_HTML
+  if (stringsEqual(fetchMode, FETCH_MODE_HTTP_STR, FALSE))
     {
-      result->mode = BLXFETCH_HTTP;
-      result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, &tmpError);
-      result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, &tmpError);
-      result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, &tmpError);
+      result->mode = BLXFETCH_MODE_HTTP;
+      result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, NULL);
+      result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
+      result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
+      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
+      result->output = getFetchOutputFormat(key_file, group);
     }
-  else if (stringsEqual(fetchMode, FETCH_MODE_SOCKET, FALSE))
+  else if (stringsEqual(fetchMode, FETCH_MODE_PIPE_STR, FALSE))
     {
-      result->mode = BLXFETCH_SOCKET;
-      result->location = g_key_file_get_string(key_file, group, SOCKET_FETCH_NODE, &tmpError);
-      result->port = g_key_file_get_integer(key_file, group, SOCKET_FETCH_PORT, &tmpError);
+      result->mode = BLXFETCH_MODE_PIPE;
+      result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, NULL);
+      result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
+      result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
+      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
+      result->output = getFetchOutputFormat(key_file, group);
     }
-  else if (stringsEqual(fetchMode, FETCH_MODE_WWW, FALSE))
+#endif
+  if (stringsEqual(fetchMode, FETCH_MODE_SOCKET_STR, FALSE))
     {
-      result->mode = BLXFETCH_WWW;
-      result->location = g_key_file_get_string(key_file, group, WWW_FETCH_LOCATION, &tmpError);
+      result->mode = BLXFETCH_MODE_SOCKET;
+      result->location = g_key_file_get_string(key_file, group, SOCKET_FETCH_LOCATION, NULL);
+      result->node = g_key_file_get_string(key_file, group, SOCKET_FETCH_NODE, NULL);
+      result->port = g_key_file_get_integer(key_file, group, SOCKET_FETCH_PORT, NULL);
+      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
+      result->output = getFetchOutputFormat(key_file, group);
     }
-  else if (stringsEqual(fetchMode, FETCH_MODE_DB, FALSE))
+  else if (stringsEqual(fetchMode, FETCH_MODE_WWW_STR, FALSE))
     {
-      result->mode = BLXFETCH_DB;
+      result->mode = BLXFETCH_MODE_WWW;
+      result->location = g_key_file_get_string(key_file, group, WWW_FETCH_LOCATION, NULL);
+    }
+  else if (stringsEqual(fetchMode, FETCH_MODE_DB_STR, FALSE))
+    {
+      result->mode = BLXFETCH_MODE_DB;
       /* to do: not implemented */
     }
-  else if (stringsEqual(fetchMode, FETCH_MODE_COMMAND, FALSE))
+  else if (stringsEqual(fetchMode, FETCH_MODE_COMMAND_STR, FALSE))
     {
-      result->mode = BLXFETCH_COMMAND;
-      result->location = g_key_file_get_string(key_file, group, COMMAND_FETCH_SCRIPT, &tmpError);
-      result->args = g_key_file_get_string(key_file, group, COMMAND_FETCH_ARGS, &tmpError);
+      result->mode = BLXFETCH_MODE_COMMAND;
+      result->location = g_key_file_get_string(key_file, group, COMMAND_FETCH_SCRIPT, NULL);
+      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
+      result->output = getFetchOutputFormat(key_file, group);
     }
-  else if (stringsEqual(fetchMode, FETCH_MODE_NONE, FALSE))
+  else if (stringsEqual(fetchMode, FETCH_MODE_NONE_STR, FALSE))
     {
-      result->mode = BLXFETCH_NONE;
+      result->mode = BLXFETCH_MODE_NONE;
     }
   else
     {
-      g_set_error(BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_FETCH_MODE, "Unrecognised fetch mode '%s'\n", fetchModeName);
-      result->mode = BLXFETCH_NONE;
+      g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_FETCH_MODE, "Unrecognised fetch mode '%s'\n", fetchMode);
+      result->mode = BLXFETCH_MODE_NONE;
     }
 
   /* Add to list */
@@ -1531,7 +1659,7 @@ static void loadConfig(GKeyFile *key_file, const char *group, CommandLineOptions
   GError *tmpError = NULL;
   
   /* Check for known group names first */
-  if (stringsEqual(group, BLIXEM_GROUP))
+  if (stringsEqual(group, BLIXEM_GROUP, FALSE))
     {
       readBlixemConfigGroup(key_file, group, options, error);
     }
@@ -1543,22 +1671,6 @@ static void loadConfig(GKeyFile *key_file, const char *group, CommandLineOptions
       if (fetchMode && !tmpError)
         readFetchConfigGroup(key_file, group, fetchMode, options, error);
     }
-  
-      
-      /* If we got an error, record what group we were reading and then quit the loop */
-      if (tmpError)
-        {
-          g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_MISSING_KEY, 
-                      "Group [%s] does not have the required key '%s': ", group->name, key_value->name);
-
-          g_error_free(tmpError);
-          tmpError = NULL;
-          
-          result = FALSE;
-        }
-      
-      key_value++ ;
-    }
 }
 
 
@@ -1569,17 +1681,29 @@ static void readConfigFile(GKeyFile *key_file, char *config_file, CommandLineOpt
   
   if (g_key_file_load_from_file(key_file, config_file, flags, error))
     {
-      ConfigGroup config ;
-      char **groups, **group ;
       gsize num_groups ;
-      int i ;
-      gboolean config_loaded = FALSE ;
 
-      groups = g_key_file_get_groups(key_file, (gsize*)(&num_groups)) ;
+      char **groups = g_key_file_get_groups(key_file, (gsize*)(&num_groups)) ;
 
-      for (i = 0, group = groups ; result && i < num_groups ; i++, group++)
+      char **group = groups;
+      int i = 0;
+      
+      for ( ; i < num_groups ; i++, group++)
 	{
-          loadConfig(key_file, *group, options, error) ;
+          GError *tmpError = NULL;
+          loadConfig(key_file, *group, options, &tmpError) ;
+          
+          if (tmpError && error)
+            {
+              /* Compile all errors into one message */
+              if (*error == NULL)
+                {
+                  g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_WARNINGS,
+                              "Errors found while reading config file '%s':\n", config_file);
+                }
+
+              postfixError(*error, "  Error reading [%s] stanza: %s", *group, tmpError->message);
+            }
 	}
 
       g_strfreev(groups);
@@ -1594,14 +1718,19 @@ static void readConfigFile(GKeyFile *key_file, char *config_file, CommandLineOpt
 
 /* Initialise a pfetch connection with the given options and calls pfetch on each of the 
  * sequences in the given list. */
-static gboolean pfetchInit(char *pfetchOptions, GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, int *sock)
+static gboolean socketFetchInit(char *fetchOptions, 
+                                GList *seqsToFetch, 
+                                const char *node, 
+                                int port, 
+                                gboolean External, 
+                                int *sock)
 {
   gboolean status = TRUE;
   
   /* open socket connection */
   if (status)
     {
-      *sock = socketConstruct (pfetchIP, port, External) ;
+      *sock = socketConstruct (node, port, External) ;
       if (*sock < 0)			/* we can't connect to the server */
 	{
 	  status = FALSE ;
@@ -1612,7 +1741,7 @@ static gboolean pfetchInit(char *pfetchOptions, GList *seqsToFetch, const char *
   if (status)
     {
       /* Send '-q' to get back one line per sequence, '-C' for lowercase DNA and uppercase protein. */
-      status = socketSend (*sock, pfetchOptions);
+      status = socketSend (*sock, fetchOptions);
     }
   
   if (status)
@@ -1999,6 +2128,7 @@ static void pfetchParseEmblFileBuffer(const char *buffer,
   for ( ; i < lenReceived && *status; ++i)
     {
       checkProgressBar(bar, parserState, status);
+
       if (*parserState == PARSING_CANCELLED)
         {
           break;

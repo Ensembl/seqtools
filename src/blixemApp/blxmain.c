@@ -287,8 +287,8 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->mapCoordsFrom = UNSET_INT;
   options->mapCoordsTo = 1; /* default to 1-based coordinate system if mapping coords but no 'to' value is specified */
   options->fetchMethods = g_hash_table_new(g_direct_hash, g_direct_equal);
-  options->bulkFetchDefault = 0;
-  options->userFetchDefault = 0;
+  options->bulkFetchDefault = NULL;
+  options->userFetchDefault = NULL;
   options->dataset = NULL;
 
   options->msgData.titlePrefix = g_strdup("Blixem - ");
@@ -738,11 +738,7 @@ int main(int argc, char **argv)
   
   /* Set up program configuration. */
   blxInitConfig(config_file, &options, &error);
-  
-  if (error)
-    {
-      g_error("Config File Error: %s\n", error->message) ;
-    }
+  reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
 
   /* Read in the key file, if there is one */
   GSList *styles = blxReadStylesFile(key_file, &error);

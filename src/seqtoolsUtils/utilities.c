@@ -362,6 +362,39 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
 
 
 /***********************************************************
+ *                       Misc utils                        * 
+ ***********************************************************/
+
+/* Get a comma-separated list of strings from a key file and place
+ * them into an array as GQuarks. Returns null if the group/key is not found. */
+GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key)
+{
+  GArray *result = NULL;
+  char *fetchStr = g_key_file_get_string(keyFile, group, key, NULL);
+
+  if (fetchStr)
+    {
+      result = g_array_sized_new(FALSE, TRUE, sizeof(GQuark), 1);
+
+      char **tokens = g_strsplit(fetchStr, ",", -1);   /* -1 means do all tokens. */
+      char **token = tokens;
+
+      while (token && *token && **token)
+        {
+          GQuark quark = g_quark_from_string(*token);
+          result = g_array_append_val(result, quark);
+          ++token;
+        }
+      
+      g_strfreev(tokens);
+      g_free(fetchStr);
+    }
+  
+  return result;
+}
+
+
+/***********************************************************
  *                       Ranges/values                     * 
  ***********************************************************/
 

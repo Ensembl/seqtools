@@ -42,7 +42,7 @@
 
 
 
-#define BLX_GFF_DATA_TYPES_GROUP "gff-data-types" /* group name for stanza where default data types are specified for gff types */
+#define SOURCE_DATA_TYPES_GROUP "source-data-types" /* group name for stanza where default data types are specified for sources */
 
 
 /* Error codes and domain */
@@ -271,9 +271,9 @@ static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
 {
   GQuark dataType = 0;
 
-  if (keyFile && g_key_file_has_group(keyFile, BLX_GFF_DATA_TYPES_GROUP))
+  if (keyFile && g_key_file_has_group(keyFile, SOURCE_DATA_TYPES_GROUP))
     {
-      char *dataTypeName = g_key_file_get_string(keyFile, BLX_GFF_DATA_TYPES_GROUP, source, NULL);
+      char *dataTypeName = g_key_file_get_string(keyFile, SOURCE_DATA_TYPES_GROUP, source, NULL);
       
       if (dataTypeName)
         {
@@ -340,9 +340,9 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
 
               /* Get the values. They're all optional so just ignore any errors.
                * Valid keys are bulk-fetch and user-fetch */
-              result->bulkFetch = g_quark_from_string(g_key_file_get_string(keyFile, typeName, SEQTOOLS_BULK_FETCH, NULL));
-              result->userFetch = g_quark_from_string(g_key_file_get_string(keyFile, typeName, SEQTOOLS_USER_FETCH, NULL));
-          
+              result->bulkFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_BULK_FETCH); 
+              result->userFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_USER_FETCH); 
+              
               /* Insert it into the table of data types */
               g_hash_table_insert(dataTypes, &dataType, result);
             }

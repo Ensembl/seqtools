@@ -139,9 +139,9 @@ typedef enum
  * to multiple sequences, e.g. which fetch method to use. */
 typedef struct _BlxDataType
   {
-    GQuark name;          /* the name of the data-type */
-    GQuark bulkFetch;     /* fetch method to use when bulk fetching sequences */
-    GQuark userFetch;     /* fetch method to use when user fetches a sequence */
+    GQuark name;           /* the name of the data-type */
+    GArray *bulkFetch;     /* list of fetch methods (by name as a GQuark) to use when bulk fetching sequences, in order of priority */
+    GArray *userFetch;     /* list of fetch methods (by name as a GQuark) to use when user fetches a sequence, in order of priority */
   } BlxDataType;
 
 
@@ -344,16 +344,14 @@ BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *i
 BlxDataType*          createBlxDataType();
 void                  destroyBlxDataType(BlxDataType **blxDataType);
 const char*           getDataTypeName(BlxDataType *blxDataType);
-const char*           getDataTypeBulkFetch(BlxDataType *blxDataType);
-const char*           getDataTypeUserFetch(BlxDataType *blxDataType);
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
 BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, char *sequence, MSP *msp, GError **error);
-void		      blxSequenceSetName(BlxSequence *seq, const char *fullName);
-const char*	      blxSequenceGetFullName(const BlxSequence *seq);
-const char*	      blxSequenceGetDisplayName(const BlxSequence *seq);
-GQuark                blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk);
-const char*	      blxSequenceGetShortName(const BlxSequence *seq);
-int		      blxSequenceGetLength(const BlxSequence *seq);
+void                  blxSequenceSetName(BlxSequence *seq, const char *fullName);
+const char*           blxSequenceGetFullName(const BlxSequence *seq);
+const char*           blxSequenceGetDisplayName(const BlxSequence *seq);
+GQuark                blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk, const int index, const GArray *defaultMethods);
+const char*           blxSequenceGetShortName(const BlxSequence *seq);
+int                   blxSequenceGetLength(const BlxSequence *seq);
 char*                 blxSequenceGetSeq(const BlxSequence *seq);
 gboolean              blxSequenceRequiresSeqData(const BlxSequence *seq);
 gboolean              blxSequenceRequiresOptionalData(const BlxSequence *seq);
@@ -367,7 +365,6 @@ char*                 blxSequenceGetGeneName(const BlxSequence *seq);
 char*                 blxSequenceGetTissueType(const BlxSequence *seq);
 char*                 blxSequenceGetStrain(const BlxSequence *seq);
 char*                 blxSequenceGetFasta(const BlxSequence *seq);
-
 
 void                  destroyBlxSequence(BlxSequence *seq);
 

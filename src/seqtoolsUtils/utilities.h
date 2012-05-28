@@ -328,6 +328,8 @@ void                  adjustColorBrightness(const GdkColor const *origColor, con
 
 void                  getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
+GArray*               keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key);
+
 int                   getRangeLength(const IntRange const *range);
 int                   getRangeCentre(const IntRange const *range);
 void                  centreRangeOnCoord(IntRange *range, const int coord, const int length);

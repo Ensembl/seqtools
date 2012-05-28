@@ -79,11 +79,10 @@ MSP score codes (for obsolete exblx file format):
 #define MIN_GAP_HIGHLIGHT_WIDTH		      5			  /* minimum width of assembly gaps markers */
 
 
-static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const char *net_id, int port, const gboolean External) ;
+static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const gboolean External) ;
 static void            processGeneName(BlxSequence *blxSeq);
 static void            processOrganism(BlxSequence *blxSeq);
-static GList*          getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData, const char *fetchMode);
-static GHashTable*     getSeqsToPopulateByMode(GList *inputList, const char *defaultFetchMode);
+static GHashTable*     getSeqsToPopulate(GList *inputList, const GArray *defaultFetchMethods, const int attempt);
 
 
 /* GLOBAL VARIABLES... sigh... */
@@ -279,95 +278,53 @@ static void validateInput(CommandLineOptions *options)
 
 
 /* Performs the work of fetching the given list of sequence via pfetch */
-static gboolean pfetchSequences(GList *seqsToFetch, 
-                                const char *fetchMode,
+static gboolean socketFetchList(GList *seqsToFetch, 
+                                BlxFetchMethod *fetchMethod,
                                 GList *seqList, 
-                                const char *net_id, 
-                                int port,
-                                const gboolean parseOptionalData,
-                                const gboolean parseSequenceData,
                                 const gboolean External,
                                 const BlxSeqType seqType,
                                 GError **error)
 {
   gboolean success = FALSE;
 
-  if (net_id && port != UNSET_INT)
+  if (fetchMethod->output == BLXFETCH_OUTPUT_EMBL)
     {
-      if (parseSequenceData && !parseOptionalData)
-        {
-          /* Just parse the minimal EMBL file containing just the fasta sequence */
-          success = populateFastaDataPfetch(seqsToFetch, net_id, port, External, seqType, error) ;
-        }
-      else if (parseOptionalData)
-        {
-          /* This first call tries fetching the full EMBL entry and parses
-           * additional information such as organism and tissue-type */
-          success = populateFullDataPfetch(seqsToFetch, net_id, port, External, seqType, error) ;
-          
-          /* If we were requested to populate the sequence fasta data but there are still 
-           * some empty sequences (which is likely in protein matches because pfetch -F 
-           * fails for protein variants), try fetching the EMBL entry containing just the 
-           * fasta sequence. */
-          if (success && parseSequenceData)
-            {
-              GList *remainingSeqs = getSeqsToPopulate(seqList, TRUE, FALSE, fetchMode);
-              
-              if (g_list_length(remainingSeqs) > 0)
-                {
-                  success = populateFastaDataPfetch(remainingSeqs, net_id, port, External, seqType, error) ;
-                }
-              
-              g_list_free(remainingSeqs);
-            }
-        }
+      success = populateFullDataPfetch(seqsToFetch,
+                                       fetchMethod,
+                                       External,
+                                       seqType,
+                                       error) ;
     }
-  else
+  else if (fetchMethod->output == BLXFETCH_OUTPUT_FASTA)
     {
-      g_set_error(error, BLX_ERROR, 1, "pfetch is not initialised: net_id = %s, port = %d.\n", net_id, port);
+      success = populateFastaDataPfetch(seqsToFetch,
+                                        fetchMethod,
+                                        External,
+                                        seqType,
+                                        error) ;
     }
- 
+  else 
+    {
+      g_set_error(error, BLX_ERROR, 1, "Invalid output format for fetch method %s (expected '%s' or '%s')\n", 
+                  g_quark_to_string(fetchMethod->name),
+                  FETCH_OUTPUT_FASTA,
+                  FETCH_OUTPUT_EMBL);
+    }
+
   return success;   
 }
 
 
 #ifdef PFETCH_HTML
-static gboolean pfetchSequencesHttp(GList *seqsToFetch, 
-                                    const char *fetchMode,
-                                    GList *seqList, 
-                                    const gboolean parseOptionalData,
-                                    const gboolean parseSequenceData,
-                                    const BlxSeqType seqType,
-                                    GError **error)
+static gboolean httpFetchList(GList *seqsToFetch, 
+                              BlxFetchMethod *fetchMethod,
+                              GList *seqList, 
+                              const BlxSeqType seqType,
+                              GError **error)
 {
   gboolean success = FALSE;
 
-  if (parseSequenceData && !parseOptionalData)
-    {
-      success = populateSequenceDataHtml(seqsToFetch, seqType, FALSE);
-    }
-  else if (parseOptionalData)
-    {
-      /* This first call tries fetching the full EMBL entry and parses
-       * additional information such as organism and tissue-type */
-      success = populateSequenceDataHtml(seqsToFetch, seqType, TRUE);
-      
-      /* If we were requested to populate the sequence fasta data but there are still 
-       * some empty sequences (which is likely in protein matches because pfetch -F 
-       * fails for protein variants), try fetching the EMBL entry containing just the 
-       * fasta sequence. */
-      if (success && parseSequenceData)
-        {
-          GList *remainingSeqs = getSeqsToPopulate(seqList, TRUE, FALSE, fetchMethod);
-          
-          if (g_list_length(remainingSeqs) > 0)
-            {
-              success = populateSequenceDataHtml(remainingSeqs, seqType, FALSE) ;
-            }
-          
-          g_list_free(remainingSeqs);
-        }
-    }
+  success = populateSequenceDataHtml(seqsToFetch, seqType, fetchMethod);
 
   return success;
 }
@@ -436,62 +393,6 @@ void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seq
 }
 
 
-/* Set up the region-fetch command to call the given script with the 
- * required args for this MSP. Returns a newly-allocated string which 
- * must be free'd with g_free */
-static char* getRegionFetchCommand(const MSP const *msp,
-                                   const BlxSequence const *blxSeq,
-                                   GKeyFile *keyFile,
-                                   const char *script,
-                                   const char *dataset,
-                                   const char *fileName,
-                                   const int refSeqOffset,
-                                   const IntRange const *refSeqRange)
-                                   
-{
-  GString *commandStr = g_string_new(script);
-
-  /* Note that we need the original input coords, so undo any offset 
-   * that was subtracted. */
-  int startCoord = mspGetQStart(msp) + refSeqOffset;
-  int endCoord = mspGetQEnd(msp) + refSeqOffset;
-  
-  /* Limit the region to our display range (anything outside this is not worth
-   * fetching because it won't be displayed). */
-  boundsLimitValue(&startCoord, refSeqRange);
-  boundsLimitValue(&endCoord, refSeqRange);
-  
-  /* Pass the reference sequence name and the start and end coords */
-  g_string_append_printf(commandStr, " -chr=%s -start=%d -end=%d", mspGetRefName(msp), startCoord, endCoord);
-
-  /* Also pass the dataset, if we have it */
-  if (dataset) 
-    g_string_append_printf(commandStr, " -dataset=%s", dataset);
-
-  /* There may also be some fixed arguments for this type of source specified
-   * in the config file. */
-  if (blxSeq->source)
-    {
-      gchar *args = g_key_file_get_string(keyFile, blxSeq->source, COMMAND_FETCH_ARGS, NULL); 
-      
-      if (args)
-        {
-          g_string_append_printf(commandStr, " %s", args);
-          g_free(args);
-        }
-    }
-
-  /* Send the output to the temp file */
-  if (fileName)
-    g_string_append_printf(commandStr, " > %s", fileName);
-
-  char *result = commandStr->str;
-  g_string_free(commandStr, FALSE);
-  
-  return result;
-}
-
-
 /* Utility function to load the contents of the given file into blixem. The 
  * new features are appended onto the existing sequence and MSP lists. */
 void loadGffFile(const char *fileName,
@@ -526,26 +427,26 @@ void loadGffFile(const char *fileName,
 }
 
 
-/* Called by regionFetchSequences. Fetches the sequences for a specific region.
+/* Called by regionFetchList. Fetches the sequences for a specific region.
  *   tmpDir is the directory in which to place the temporary files
  *   script is the script to call to do the fetch
  *   dataset will be passed as the -dataset argument to the script if it is not null */
-static void fetchSequencesForRegion(const MSP const *msp, 
-                                    const BlxSequence const *blxSeq,
-                                    GKeyFile *keyFile, 
-                                    const char *script,
-                                    const char *dataset,
-                                    const char *tmpDir,
-                                    const int refSeqOffset,
-                                    BlxBlastMode *blastMode,
-                                    GList **seqList,
-                                    MSP **mspListIn,
-                                    GArray* featureLists[],
-                                    GSList *supportedTypes, 
-                                    GSList *styles,
-                                    const gboolean saveTempFiles,
-                                    const IntRange const *refSeqRange,
-                                    GError **error)
+static void regionFetchFeature(const MSP const *msp, 
+                               const BlxSequence const *blxSeq,
+                               BlxFetchMethod *fetchMethod,
+                               const char *script,
+                               const char *dataset,
+                               const char *tmpDir,
+                               const int refSeqOffset,
+                               BlxBlastMode *blastMode,
+                               GList **seqList,
+                               MSP **mspListIn,
+                               GArray* featureLists[],
+                               GSList *supportedTypes, 
+                               GSList *styles,
+                               const gboolean saveTempFiles,
+                               const IntRange const *refSeqRange,
+                               GError **error)
 {
   /* Create a temp file for the results */
   char *fileName = blxprintf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
@@ -560,17 +461,22 @@ static void fetchSequencesForRegion(const MSP const *msp,
   
   close(fileDesc);
   
-  /* Execute the command */
-  char *command = getRegionFetchCommand(msp, blxSeq, keyFile, script, dataset, fileName, refSeqOffset, refSeqRange);
+  /* Get the command string, including the args */
+  GString *command = getFetchCommand(fetchMethod, NULL, msp, mspGetRefName(msp), refSeqOffset, refSeqRange, dataset);
+  
+  /* Send the output to the temp file */
+  if (fileName)
+    g_string_append_printf(command, " > %s", fileName);
+
   FILE *outputFile = fopen(fileName, "w");
 
-  g_debug("region-fetch command:\n%s\n", command);
+  g_debug("region-fetch command:\n%s\n", command->str);
 
   g_message_info("Calling region-fetch script...\n");
-  const gboolean success = (system(command) == 0);
+  const gboolean success = (system(command->str) == 0);
   
   fclose(outputFile);
-  g_free(command);
+  g_string_free(command, TRUE);
   
   if (success)
     {
@@ -579,6 +485,7 @@ static void fetchSequencesForRegion(const MSP const *msp,
       MSP *newMsps = NULL;
       GList *newSeqs = NULL;
 
+      GKeyFile *keyFile = blxGetConfig();
       loadGffFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, &newMsps, &newSeqs);
       appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
 
@@ -608,33 +515,28 @@ static void fetchSequencesForRegion(const MSP const *msp,
  * all sequences that lie within that region, and the results are placed in 
  * a temporary GFF file, which is then parsed to get the results. The GFF file
  * is deleted when finished, unless the saveTempFiles argument is true. */
-static void regionFetchSequences(GList *regionsToFetch, 
-				 GList **seqList, 
-				 const char *fetchMode, 
-				 MSP **mspListIn,
-				 BlxBlastMode *blastMode,
-				 GArray* featureLists[],
-				 GSList *supportedTypes, 
-				 GSList *styles,
-				 gboolean External,
-				 const gboolean parseFullEmblInfo,
-				 const gboolean parseSequenceData,
-				 const gboolean saveTempFiles,
-				 const BlxSeqType seqType,
-                                 const int refSeqOffset,
-				 const char *dataset,
-                                 const IntRange const *refSeqRange,
-				 GError **error)
+static void regionFetchList(GList *regionsToFetch, 
+                            GList **seqList, 
+                            BlxFetchMethod *fetchMethod, 
+                            MSP **mspListIn,
+                            BlxBlastMode *blastMode,
+                            GArray* featureLists[],
+                            GSList *supportedTypes, 
+                            GSList *styles,
+                            gboolean External,
+                            const gboolean saveTempFiles,
+                            const BlxSeqType seqType,
+                            const int refSeqOffset,
+                            const char *dataset,
+                            const IntRange const *refSeqRange,
+                            GError **error)
 {
-  GKeyFile *keyFile = blxGetConfig();
-  GError *tmpError = NULL;
-  
-  /* Get the 'script' field from the region-fetch stanza */
-  gchar *script = g_key_file_get_string(keyFile, fetchMode, COMMAND_FETCH_SCRIPT, &tmpError);
+  /* Get the command to run */
+  const gchar *script = fetchMethod->location;
 
-  if (tmpError || !script)
+  if (!script)
     {
-      g_set_error(error, BLX_ERROR, 1, "Error fetching sequences for fetch-mode [%s].\n", fetchMode);
+      g_set_error(error, BLX_ERROR, 1, "Error fetching sequences; no command given for fetch-method [%s].\n", g_quark_to_string(fetchMethod->name));
       return;
     }
 
@@ -647,6 +549,7 @@ static void regionFetchSequences(GList *regionsToFetch,
 
   /* Loop through each region, creating a GFF file with the results for each region */
   GList *regionItem = regionsToFetch;
+  GError *tmpError = NULL;
 
   for ( ; regionItem && !tmpError; regionItem = regionItem->next)
     {
@@ -661,101 +564,157 @@ static void regionFetchSequences(GList *regionsToFetch,
           if (!rangesOverlap(&msp->qRange, refSeqRange))
             continue;
           
-          fetchSequencesForRegion(msp, blxSeq, keyFile, script, dataset, tmpDir, refSeqOffset,
-                                  blastMode, seqList, mspListIn, featureLists, supportedTypes,
-                                  styles, saveTempFiles, refSeqRange, &tmpError);
+          regionFetchFeature(msp, blxSeq, fetchMethod, script, dataset, tmpDir, refSeqOffset,
+                             blastMode, seqList, mspListIn, featureLists, supportedTypes,
+                             styles, saveTempFiles, refSeqRange, &tmpError);
         }
     }
 
   if (tmpError)
     g_propagate_error(error, tmpError);
-  
-  g_free(script);
 }
 
 
-/* This function actually performs the work of fetching the given list of sequences.
- * The first argument is the list of sequences to fetch and the second is the list of all
- * sequences. */
-static gboolean fetchSequences(GList *seqsToFetch, 
-                               GList **seqList,
-                               const gchar *fetchMode, 
-                               const BlxSeqType seqType,
-                               const gboolean saveTempFiles,
-                               const gboolean External,
-			       MSP **mspList,
-			       BlxBlastMode *blastMode,
-			       GArray* featureLists[],
-			       GSList *supportedTypes, 
-			       GSList *styles,
-                               const int refSeqOffset,
-                               const IntRange const *refSeqRange,
-			       const char *dataset,
-                               GError **error)
+/* This function actually performs the work of fetching the 
+ * given list of features. The first argument is the list 
+ * of features to fetch and the second is the list of all
+ * features. */
+static gboolean fetchList(GList *seqsToFetch, 
+                          GList **seqList,
+                          BlxFetchMethod *fetchMethod,
+                          const BlxSeqType seqType,
+                          const gboolean saveTempFiles,
+                          const gboolean External,
+                          MSP **mspList,
+                          BlxBlastMode *blastMode,
+                          GArray* featureLists[],
+                          GSList *supportedTypes, 
+                          GSList *styles,
+                          const int refSeqOffset,
+                          const IntRange const *refSeqRange,
+                          const char *dataset,
+                          GError **error)
 {
   gboolean success = TRUE;
   
   if (g_list_length(seqsToFetch) > 0)
     {
-      if (strcmp(fetchMode, FETCH_MODE_SOCKET) == 0)
-        {  
-          success = pfetchSequences(seqsToFetch, fetchMode, *seqList, External, seqType, error);
-	}
+      if (fetchMethod)
+        {
+          if (fetchMethod->mode == BLXFETCH_MODE_SOCKET)
+            {  
+              success = socketFetchList(seqsToFetch,
+                                        fetchMethod,
+                                        *seqList,
+                                        External,
+                                        seqType,
+                                        error);
+            }
 #ifdef PFETCH_HTML 
-      else if (strcmp(fetchMode, FETCH_MODE_HTTP) == 0)
-	{
-          success = pfetchSequencesHttp(seqsToFetch, fetchMode, *seqList, seqType, error);
-	}
+          else if (fetchMethod->mode == BLXFETCH_MODE_HTTP || fetchMethod->mode == BLXFETCH_MODE_PIPE)
+            {
+              success = httpFetchList(seqsToFetch,
+                                      fetchMethod,
+                                      *seqList,
+                                      seqType,
+                                      error);
+            }
 #endif
-      else if (strcmp(fetchMode, FETCH_MODE_DB) == 0)
-        {
-          g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", fetchMode);
-        }
-      else if (strcmp(fetchMode, FETCH_MODE_COMMAND) == 0)
-        {
-          regionFetchSequences(seqsToFetch, seqList, fetchMode, mspList, blastMode, featureLists, 
-                               supportedTypes, styles, External, saveTempFiles, seqType, refSeqOffset,
-                               dataset, refSeqRange, error);
-        }
-      else if (strcmp(fetchMode, FETCH_MODE_NONE) == 0)
-        {
-          /* do nothing */
-        }
-      else if (fetchMode && fetchMode[0] != 0)
-        {
-          g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", fetchMode);
+          else if (fetchMethod->mode == BLXFETCH_MODE_DB)
+            {
+              g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", g_quark_to_string(fetchMethod->name));
+            }
+          else if (fetchMethod->mode == BLXFETCH_MODE_COMMAND)
+            {
+              regionFetchList(seqsToFetch, 
+                              seqList, 
+                              fetchMethod, 
+                              mspList,
+                              blastMode,
+                              featureLists,
+                              supportedTypes,
+                              styles,
+                              External,
+                              saveTempFiles,
+                              seqType,
+                              refSeqOffset,
+                              dataset,
+                              refSeqRange,
+                              error);
+            }
+          else if (fetchMethod->mode == BLXFETCH_MODE_NONE)
+            {
+              /* do nothing */
+            }
+          else
+            {
+              g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", g_quark_to_string(fetchMethod->name));
+            }
         }
       else
         {
           g_set_error(error, BLX_ERROR, 1, "Fetch mode not specified.\n");
         }
     }
-    
+  
   return success;
 }
 
 
-/* Find out if we need to fetch any sequences (they may all be contained in the input
- * files), if we do need to, then fetch them by the appropriate method. */
-gboolean blxviewFetchSequences(gboolean External, 
-                               const gboolean saveTempFiles,
-                               const BlxSeqType seqType,
-                               GList **seqList, /* list of BlxSequence structs for all required sequences */
-                               char *defaultFetchMode,
-			       MSP **mspList,
-			       BlxBlastMode *blastMode,
-			       GArray* featureLists[],
-			       GSList *supportedTypes, 
-			       GSList *styles,
-                               const int refSeqOffset,
-                               const IntRange const *refSeqRange,
-			       const char *dataset)
+/* Once we've fetched all the sequences we need to do some post-processing. Loop 
+ * twice: once to modify any fields in our own custom manner, and once more to
+ * see if any with missing data can copy it from their parent. (Need to do these in
+ * separate loops or we don't know if the data we're copying is processed or not.) */
+void finaliseFetch(GList *seqList)
+{
+  GList *seqItem = seqList;
+
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+      processGeneName(blxSeq);
+      processOrganism(blxSeq);
+    }
+  
+  for (seqItem = seqList; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+      populateMissingDataFromParent(blxSeq, seqList);
+    }
+}
+
+
+/* Find out if we need to fetch any sequences (they may all be 
+ * contained in the input files so there might not be anything to 
+ * fetch). If we do need to, then fetch them by the preferred method.
+ * If the preferred fetch method fails, recusively try any other
+ * fetch methods set up for each sequence until we have either fetched 
+ * everything or run out of fetch methods to try.
+ * 'attempt' should be passed as 0 for the first call. */
+gboolean bulkFetchSequences(const int attempt,
+                            gboolean External, 
+                            const gboolean saveTempFiles,
+                            const BlxSeqType seqType,
+                            GList **seqList, /* list of BlxSequence structs for all required sequences */
+                            const GArray *defaultFetchMethods,
+                            GHashTable *fetchMethods,
+                            MSP **mspList,
+                            BlxBlastMode *blastMode,
+                            GArray* featureLists[],
+                            GSList *supportedTypes, 
+                            GSList *styles,
+                            const int refSeqOffset,
+                            const IntRange const *refSeqRange,
+                            const char *dataset)
 {
   gboolean success = FALSE; /* will get set to true if any of the fetch methods succeed */
   
-  /* Fetch any sequences that do not have their sequence data already populated (or
-   * optional data too, if requested). */
-  GHashTable *seqsTable = getSeqsToPopulateByMode(*seqList, defaultFetchMode);
+  /* Fetch any sequences that do not have their sequence data
+   * already populated. If this is a re-try attempt, then use
+   * a secondary fetch method, if one is given; otherwise, exclude
+   * from the list (i.e. when we run out of fetch methods or everything
+   * has been successfully fetched, then this table will be empty). */
+  GHashTable *seqsTable = getSeqsToPopulate(*seqList, defaultFetchMethods, attempt);
 
   if (g_hash_table_size(seqsTable) < 1)
     {
@@ -772,15 +731,18 @@ gboolean blxviewFetchSequences(gboolean External,
       
       while (g_hash_table_iter_next(&iter, &key, &value))
         {
-          GQuark dataTypeQuark = GPOINTER_TO_INT(key);
-          const gchar *fetchMode = g_quark_to_string(dataTypeQuark);
-          GList *seqsToFetch = (GList*)value;
-          
+          GQuark fetchMethodQuark = GPOINTER_TO_INT(key);
+          BlxFetchMethod *fetchMethod = (BlxFetchMethod*)g_hash_table_lookup(fetchMethods, GINT_TO_POINTER(fetchMethodQuark));
+
+          if (!fetchMethod)
+            continue;
+
+          GList *seqsToFetch = (GList*)value;          
           GError *tmpError = NULL;
           
-          DEBUG_OUT("Fetching %d sequences via %s\n", g_list_length(seqsToFetch), fetchMode);
+          g_message_info("Fetching %d sequences (attempt %d, method=%s)\n", g_list_length(seqsToFetch), attempt + 1, g_quark_to_string(fetchMethod->name));
           
-          if (fetchSequences(seqsToFetch, seqList, fetchMode, seqType, saveTempFiles, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, refSeqRange, dataset, &tmpError))
+          if (fetchList(seqsToFetch, seqList, fetchMethod, seqType, saveTempFiles, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, refSeqRange, dataset, &tmpError))
             {
               success = TRUE;
               
@@ -802,9 +764,6 @@ gboolean blxviewFetchSequences(gboolean External,
           g_list_free(seqsToFetch);
         }
       
-      /* We're done with the hash table now */
-      g_hash_table_unref(seqsTable);
-      
       if (success && error)
         {
           /* Some fetches succeeded, so just issue a warning */
@@ -817,31 +776,20 @@ gboolean blxviewFetchSequences(gboolean External,
           prefixError(error, "Error fetching sequences:\n");
           reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
         }
-    }      
-  
-  if (parseFullEmblInfo)
-    {
-      /* Once we've fetched all the sequences we need to do some post-processing. Loop 
-       * twice: once to modify any fields in our own custom manner, and once more to
-       * see if any with missing data can copy it from their parent. (Need to do these in
-       * separate loops or we don't know if the data we're copying is processed or not.) */
-      GList *seqItem = *seqList;
-      for ( ; seqItem; seqItem = seqItem->next)
-	{
-	  BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-	  processGeneName(blxSeq);
-	  processOrganism(blxSeq);
-	}
-      
-      for (seqItem = *seqList; seqItem; seqItem = seqItem->next)
-	{
-	  BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-	  populateMissingDataFromParent(blxSeq, *seqList);
-	}
+
+      /* Recurse to re-try any that failed. This returns straight
+       * away everything was fetched successfully, or if there are
+       * no more fetch methods to try. */
+      success = bulkFetchSequences(attempt + 1, External, saveTempFiles, seqType, seqList,
+                                   defaultFetchMethods, fetchMethods, mspList,
+                                   blastMode, featureLists, supportedTypes, 
+                                   styles, refSeqOffset, refSeqRange, dataset);
     }
-  
-  /* Even if the fetch fails completely, it's not a fatal error for blixem, so return true. */
-  return TRUE;
+
+  /* Clean up */
+  g_hash_table_unref(seqsTable);
+
+  return success;
 }
 
 
@@ -917,13 +865,16 @@ gboolean blxview(CommandLineOptions *options,
   /* Find any assembly gaps (i.e. gaps in the reference sequence) */
   findAssemblyGaps(options->refSeq, featureLists, &options->mspList, &options->refSeqRange);
   
-  gboolean status = blxviewFetchSequences(
-    External, options->saveTempFiles, options->seqType, &seqList, 
-    options->bulkFetchDefault, &options->mspList, &options->blastMode, 
-    featureLists, supportedTypes, NULL, 0, &options->refSeqRange, options->dataset); /* offset has not been applied yet, so pass offset=0 */
-  
+  gboolean status = bulkFetchSequences(
+    0, External, options->saveTempFiles, options->seqType, &seqList, 
+    options->bulkFetchDefault, options->fetchMethods, &options->mspList, &options->blastMode, 
+    featureLists, supportedTypes, NULL, 0, &options->refSeqRange, 
+    options->dataset); /* offset has not been applied yet, so pass offset=0 */
+
   if (status)
     {
+      finaliseFetch(seqList);
+
       /* Construct missing data and do any other required processing now we have all the sequence data */
       finaliseBlxSequences(featureLists, &options->mspList, &seqList, 
                            options->refSeqOffset, options->seqType, 
@@ -935,11 +886,8 @@ gboolean blxview(CommandLineOptions *options,
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
     {
-      blviewCreate(align_types, padseq, featureLists, seqList, supportedTypes, options, net_id, port, External) ;
+      blviewCreate(align_types, padseq, featureLists, seqList, supportedTypes, options, External) ;
     }
-
-  if (net_id)
-    g_free(net_id);
 
   return status;
 }
@@ -994,14 +942,12 @@ static void blviewCreate(char *align_types,
                          GList *seqList,
                          GSList *supportedTypes,
 			 CommandLineOptions *options,
-                         const char *net_id,
-                         int port,
                          const gboolean External)
 {
   if (!blixemWindow)
     {
       /* Create the window */
-      blixemWindow = createBlxWindow(options, paddingSeq, featureLists, seqList, supportedTypes, net_id, port, External);
+      blixemWindow = createBlxWindow(options, paddingSeq, featureLists, seqList, supportedTypes, External);
 
       /* Set the window title. Get a description of all the alignment types 
        * (unless already supplied) */
@@ -1498,53 +1444,19 @@ void blviewResetGlobals()
 }
 
 
-/* Checks the list of sequences for blixem to display to see which ones need populating with
- * sequence data (if getSequenceData is true) and/or the optional-columns' data (if getOptionalData
- * is true. Only returns sequences that use the given fetch mode.
- * Returns a list of all the sequences that require the requested data. If you require a breakdown of
- * sequences-to-fetch by the fetch-mode that they should use, use getSeqsToPopulateByMode instead. */
-static GList* getSeqsToPopulate(GList *inputList, const gboolean getSequenceData, const gboolean getOptionalData, const char *fetchMode)
-{
-  GList *resultList = NULL;
-
-  /* Loop through the input list */
-  GList *inputItem = inputList;
-  
-  for ( ; inputItem; inputItem = inputItem->next)
-    {
-      BlxSequence *blxSeq = (BlxSequence*)(inputItem->data);
-      
-      /* Check if sequence data was requested and is not already set. */
-      gboolean getSeq = (blxSequenceRequiresSeqData(blxSeq) && getSequenceData && blxSeq->sequence == NULL);
-
-      /* Check if optional data was requested and is not already set. We can assume that
-       * if any of the data fields is set then the parsing has been done for all of them
-       * (and any remaining empty fields just don't have that data available) */
-      getSeq |= (blxSequenceRequiresOptionalData(blxSeq) &&
-                 getOptionalData && 
-                     !blxSeq->organism &&
-                     !blxSeq->geneName &&
-                     !blxSeq->tissueType &&
-                     !blxSeq->strain);
-          
-      if (getSeq && (!blxSeq->dataType || stringsEqual(getDataTypeBulkFetch(blxSeq->dataType), fetchMode, FALSE)))
-        {
-          resultList = g_list_prepend(resultList, blxSeq);
-        }
-    }
-
-  return resultList;
-}
-
-
-/* Checks the list of sequences for blixem to display to see which ones need populating with
- * sequence data (if getSequenceData is true) and/or the optional-columns' data (if getOptionalData
- * is true. 
- * Returns lists of all the sequences that require the requested data, categorised by the fetch 
- * mode that should be used to fetch them. The return value is a map of a GQuark (representing the
- * fetch-mode string) to the GList of sequences. */
-static GHashTable* getSeqsToPopulateByMode(GList *inputList, 
-                                           const char *defaultFetchMode)
+/* Checks the list of sequences for blixem to display to see which ones
+ * need fetching.
+ * Returns lists of all the sequences to be fetched, categorised by the fetch 
+ * mode that should be used to fetch them. The return value is a map of
+ * a GQuark (representing the fetch-mode string) to the GList of sequences
+ * to be fetched.
+ * This function can be called multiple times on the same sequences to
+ * re-try fetching sequences with different fetch methods if the original
+ * fetch method fails. Pass 'attempt' as 0 for the first try, 1 for 
+ * the second etc. */
+static GHashTable* getSeqsToPopulate(GList *inputList, 
+                                     const GArray *defaultFetchMethods,
+                                     const int attempt)
 {
   GHashTable *resultTable = g_hash_table_new(g_direct_hash, g_direct_equal);
   
@@ -1569,22 +1481,17 @@ static GHashTable* getSeqsToPopulateByMode(GList *inputList,
       
       if (getSeq)
         {
-          GQuark dataTypeQuark = 0;
-          
-          if (blxSeq->dataType && blxSeq->dataType->bulkFetch)
-            dataTypeQuark = blxSeq->dataType->bulkFetch;
-          else if (defaultFetchMode)
-            dataTypeQuark = g_quark_from_string(defaultFetchMode);
-          
-          if (dataTypeQuark)
+          GQuark fetchMethodQuark = blxSequenceGetFetchMethod(blxSeq, TRUE, attempt, defaultFetchMethods);
+
+          if (fetchMethodQuark)
             {
               /* Get the result list for this fetch method. It's ok if it is 
                * null because the list will be created by g_list_prepend. */
-              GList *resultList = g_hash_table_lookup(resultTable, GINT_TO_POINTER(dataTypeQuark));
+              GList *resultList = g_hash_table_lookup(resultTable, GINT_TO_POINTER(fetchMethodQuark));
               resultList = g_list_prepend(resultList, blxSeq);
               
               /* Update the existing (or insert the new) list */
-              g_hash_table_insert(resultTable, GINT_TO_POINTER(dataTypeQuark), resultList);
+              g_hash_table_insert(resultTable, GINT_TO_POINTER(fetchMethodQuark), resultList);
             }
         }
     }
@@ -1726,5 +1633,6 @@ void drawAssemblyGaps(GtkWidget *widget,
     }
   
 }
+
 
 /***************** end of file ***********************/

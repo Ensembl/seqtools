@@ -21,6 +21,7 @@
 #define g_marshal_value_peek_boxed(v)    g_value_get_boxed (v)
 #define g_marshal_value_peek_pointer(v)  g_value_get_pointer (v)
 #define g_marshal_value_peek_object(v)   g_value_get_object (v)
+#define g_marshal_value_peek_variant(v)  g_value_get_variant (v)
 #else /* !G_ENABLE_DEBUG */
 /* WARNING: This code accesses GValues directly, which is UNSUPPORTED API.
  *          Do not access GValues directly in your code. Instead, use the
@@ -44,10 +45,11 @@
 #define g_marshal_value_peek_boxed(v)    (v)->data[0].v_pointer
 #define g_marshal_value_peek_pointer(v)  (v)->data[0].v_pointer
 #define g_marshal_value_peek_object(v)   (v)->data[0].v_pointer
+#define g_marshal_value_peek_variant(v)  (v)->data[0].v_pointer
 #endif /* !G_ENABLE_DEBUG */
 
 
-/* ENUM:STRING,POINTER,POINTER (libpfetch-cmarshal.list:1) */
+/* ENUM:STRING,POINTER,POINTER (../src/libpfetch/libpfetch-cmarshal.list:1) */
 void
 libpfetch_cmarshal_ENUM__STRING_POINTER_POINTER (GClosure     *closure,
                                                  GValue       *return_value G_GNUC_UNUSED,
@@ -90,7 +92,7 @@ libpfetch_cmarshal_ENUM__STRING_POINTER_POINTER (GClosure     *closure,
   g_value_set_enum (return_value, v_return);
 }
 
-/* ENUM:VOID (libpfetch-cmarshal.list:2) */
+/* ENUM:VOID (../src/libpfetch/libpfetch-cmarshal.list:2) */
 void
 libpfetch_cmarshal_ENUM__VOID (GClosure     *closure,
                                GValue       *return_value G_GNUC_UNUSED,

@@ -551,10 +551,12 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   loadGffFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs);
 
   /* Fetch any missing sequence data and finalise the new sequences */
-  blxviewFetchSequences(FALSE, FALSE, bc->seqType, &newSeqs, 
-                        &bc->bulkFetchDefault, &newMsps, &bc->blastMode,
-                        bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
-                        &bc->refSeqRange, bc->dataset);
+  bulkFetchSequences(0, FALSE, FALSE, bc->seqType, &newSeqs, 
+                     bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
+                     bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
+                     &bc->refSeqRange, bc->dataset);
+
+  finaliseFetch(newSeqs);
 
   finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->refSeqOffset, bc->seqType, 
                        bc->numFrames, &bc->refSeqRange, TRUE);
@@ -2692,12 +2694,14 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   GError *error = NULL;
-  gboolean success = blxviewFetchSequences(
-    bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
-    bc->seqType, &bc->matchSeqs, &bc->bulkFetchDefault, &bc->mspList,
+  gboolean success = bulkFetchSequences(
+    0, bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
+    bc->seqType, &bc->matchSeqs, bc->bulkFetchDefault, bc->fetchMethods, &bc->mspList,
     &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
     &bc->refSeqRange, bc->dataset);
   
+  finaliseFetch(bc->matchSeqs);
+
   if (error)
     {
       prefixError(error, "Error loading optional data. ");
@@ -3473,7 +3477,6 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   /* Other boxes */
   GtkWidget *pfetchBox = createHBoxWithBorder(mainVBox, borderWidth, TRUE, "Settings");
   createFontSelectionButton(GTK_BOX(pfetchBox), blxWindow);
-  createPfetchDropDownBox(GTK_BOX(pfetchBox), blxWindow);
   
   createColumnSizeButtons(mainVBox, detailView);
   createGridSettingsButtons(mainVBox, bigPicture);
@@ -4645,8 +4648,6 @@ static void destroyBlxContext(BlxViewContext **bcPtr)
 
       /* Free allocated strings */
       freeAndNull((gpointer*)(&bc->dataset));
-      freeAndNull((gpointer*)(&bc->bulkFetchDefault));
-      freeAndNull((gpointer*)(&bc->userFetchDefault));
       freeAndNull((gpointer*)(&bc->refSeqName));
 
       /* Free table of fetch methods and the fetch-method structs */
@@ -5038,8 +5039,6 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
                                               GSList *supportedTypes,
 					      GtkWidget *widget,
 					      GtkWidget *statusBar,
-                                              const char *net_id,
-                                              int port,
                                               const gboolean External)
 {
   BlxViewContext *blxContext = g_malloc(sizeof *blxContext);
@@ -5882,8 +5881,6 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                            GArray* featureLists[],
                            GList *seqList, 
                            GSList *supportedTypes,
-                           const char *net_id, 
-                           int port,
                            const gboolean External)
 {
   IntRange refSeqRange;
@@ -5953,8 +5950,6 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                                       supportedTypes,
                                                       window, 
 						      statusBar,
-                                                      net_id, 
-                                                      port, 
                                                       External);
 
   /* Create the main menu */

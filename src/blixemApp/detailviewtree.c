@@ -1403,14 +1403,7 @@ static gboolean treePfetchRow(GtkWidget *tree)
   if (selectedSeqs)
     {
       const BlxSequence *clickedSeq = (const BlxSequence*)selectedSeqs->data;
-      const char *seqName = blxSequenceGetFullName(clickedSeq);
-      
-      GQuark fetchMethodQuark = blxSequenceGetFetchMethod(clickedSeq, TRUE);
-      
-      BlxViewContext *bc = blxWindowGetContext(blxWindow);
-      BlxFetchMethod *fetchMethod = (BlxFetchMethod*)g_hash_table_lookup(bc->fetchMethods, GINT_TO_POINTER(fetchMethodQuark));
-      
-      fetchAndDisplaySequence(seqName, fetchMethod, blxWindow);
+      fetchSequence(clickedSeq, TRUE, 0, blxWindow, NULL);
     }
 
   return TRUE;
