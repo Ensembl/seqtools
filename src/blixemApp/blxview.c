@@ -82,7 +82,7 @@ MSP score codes (for obsolete exblx file format):
 static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const gboolean External) ;
 static void            processGeneName(BlxSequence *blxSeq);
 static void            processOrganism(BlxSequence *blxSeq);
-static GHashTable*     getSeqsToPopulate(GList *inputList, const GArray *defaultFetchMethods, const int attempt);
+static GHashTable*     getSeqsToPopulate(GList *inputList, const GArray *defaultFetchMethods, const int attempt, GHashTable *fetchMethods);
 
 
 /* GLOBAL VARIABLES... sigh... */
@@ -714,7 +714,7 @@ gboolean bulkFetchSequences(const int attempt,
    * a secondary fetch method, if one is given; otherwise, exclude
    * from the list (i.e. when we run out of fetch methods or everything
    * has been successfully fetched, then this table will be empty). */
-  GHashTable *seqsTable = getSeqsToPopulate(*seqList, defaultFetchMethods, attempt);
+  GHashTable *seqsTable = getSeqsToPopulate(*seqList, defaultFetchMethods, attempt, fetchMethods);
 
   if (g_hash_table_size(seqsTable) < 1)
     {
@@ -1450,6 +1450,43 @@ void blviewResetGlobals()
 }
 
 
+/* Returns true if the given fetch method retrieves sequence 
+ * data. Note that fetch methods that return gff files for 
+ * re-parsing will cause this function to return true. */
+static gboolean fetchMethodReturnsSequence(const BlxFetchMethod* const fetchMethod)
+{
+  gboolean result = FALSE;
+  
+  if (fetchMethod)
+    {
+      result = 
+        fetchMethod->output == BLXFETCH_OUTPUT_FASTA ||
+        fetchMethod->output == BLXFETCH_OUTPUT_EMBL || 
+        fetchMethod->output == BLXFETCH_OUTPUT_GFF;
+    }
+  
+  return result;
+}
+
+
+/* Returns true if the given fetch method retrieves full embl 
+ * data. Note that fetch methods that return gff files for 
+ * re-parsing will cause this function to return true. */
+static gboolean fetchMethodReturnsEmbl(const BlxFetchMethod* const fetchMethod)
+{
+  gboolean result = FALSE;
+  
+  if (fetchMethod)
+    {
+      result = 
+        fetchMethod->output == BLXFETCH_OUTPUT_EMBL || 
+        fetchMethod->output == BLXFETCH_OUTPUT_GFF;
+    }
+  
+  return result;
+}
+
+
 /* Checks the list of sequences for blixem to display to see which ones
  * need fetching.
  * Returns lists of all the sequences to be fetched, categorised by the fetch 
@@ -1462,7 +1499,8 @@ void blviewResetGlobals()
  * the second etc. */
 static GHashTable* getSeqsToPopulate(GList *inputList, 
                                      const GArray *defaultFetchMethods,
-                                     const int attempt)
+                                     const int attempt,
+                                     GHashTable *fetchMethods)
 {
   GHashTable *resultTable = g_hash_table_new(g_direct_hash, g_direct_equal);
   
@@ -1472,24 +1510,32 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
   for ( ; inputItem; inputItem = inputItem->next)
     {
       BlxSequence *blxSeq = (BlxSequence*)(inputItem->data);
-      
-      /* Check if sequence data was requested and is not already set. */
-      gboolean getSeq = (blxSequenceRequiresSeqData(blxSeq) && blxSeq->sequence == NULL);
-      
-      /* Check if optional data was requested and is not already set. We can assume that
-       * if any of the data fields is set then the parsing has been done for all of them
-       * (and any remaining empty fields just don't have that data available) */
-      getSeq |= (blxSequenceRequiresOptionalData(blxSeq) &&
-                 !blxSeq->organism &&
-                 !blxSeq->geneName &&
-                 !blxSeq->tissueType &&
-                 !blxSeq->strain);
-      
-      if (getSeq)
-        {
-          GQuark fetchMethodQuark = blxSequenceGetFetchMethod(blxSeq, TRUE, attempt, defaultFetchMethods);
+      GQuark fetchMethodQuark = blxSequenceGetFetchMethod(blxSeq, TRUE, attempt, defaultFetchMethods);
 
-          if (fetchMethodQuark)
+      if (fetchMethodQuark)
+        {
+          BlxFetchMethod *fetchMethod = (BlxFetchMethod*)g_hash_table_lookup(fetchMethods, GINT_TO_POINTER(fetchMethodQuark));
+
+          /* Check if sequence data is required and is not already set.
+           * Also only attempt to fetch the sequence if this fetch method
+           * can return it! */
+          gboolean getSeq = (blxSequenceRequiresSeqData(blxSeq) && 
+                              fetchMethodReturnsSequence(fetchMethod) &&
+                              !blxSeq->sequence);
+          
+          /* Check if full embl data data is required and is not already set.
+           * Also only attempt to fetch the embl data if this fetch method
+           * can return it! */
+          getSeq |= (blxSequenceRequiresOptionalData(blxSeq) &&
+                     fetchMethodReturnsEmbl(fetchMethod) &&
+                     !blxSeq->organism &&
+                     !blxSeq->geneName &&
+                     !blxSeq->tissueType &&
+                     !blxSeq->strain);
+      
+          
+      
+          if (getSeq)
             {
               /* Get the result list for this fetch method. It's ok if it is 
                * null because the list will be created by g_list_prepend. */
