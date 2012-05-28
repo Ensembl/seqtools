@@ -275,6 +275,12 @@ void fetchSequence(const BlxSequence *blxSeq,
       return;
     }
 
+  if (fetchMethod->mode == BLXFETCH_MODE_NONE)
+    {
+      g_message("Fetch method for '%s' is '%s'\n", blxSequenceGetFullName(blxSeq), FETCH_MODE_NONE_STR);
+      return;
+    }
+  
   g_message("Fetching '%s' using method '%s' (attempt %d)\n", blxSequenceGetFullName(blxSeq), g_quark_to_string(fetchMethodQuark), attempt + 1);
 
   
