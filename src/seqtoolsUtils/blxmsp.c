@@ -817,11 +817,11 @@ GQuark blxSequenceGetFetchMethod(const BlxSequence *seq,
       if (array && index >= 0 && index < array->len)
         result = g_array_index(array, GQuark, index);
     }
-
-  /* If not found, check if there's an entry in the default methods list */
-  if (!result && index >= 0 && index < defaultMethods->len) 
-    result = g_array_index(defaultMethods, GQuark, index);
-
+  else if (index >= 0 && index < defaultMethods->len) 
+    {
+      result = g_array_index(defaultMethods, GQuark, index);
+    }
+  
   return result;
 }
 
