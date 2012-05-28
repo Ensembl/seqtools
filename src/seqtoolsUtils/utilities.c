@@ -4213,8 +4213,8 @@ GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GE
 
 /* Execute the given external command and return the output from the 
  * command.
- * The result should be free'd with g_free. */
-char* getExternalCommandOutput(const char *command, GError **error)
+ * The result should be free'd with g_string_free. */
+GString* getExternalCommandOutput(const char *command, GError **error)
 {
   char *result = NULL;
   
@@ -4253,10 +4253,7 @@ char* getExternalCommandOutput(const char *command, GError **error)
 
   pclose (pipe);
 
-  result = resultText->str;
-  g_string_free(resultText, FALSE);
-  
-  return result;
+  return resultText;
 }
 
 
