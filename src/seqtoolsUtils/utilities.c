@@ -4193,15 +4193,15 @@ GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GE
 
 #if !defined(MACINTOSH)
   
-  char *result = getExternalCommandOutput(command, error);
+  GString *result = getExternalCommandOutput(command, error);
   
   if (!error || *error == NULL)
     {
       char *title = blxprintf("%s - %s", progName, command);
-      resultWindow = displayFetchResults(title, result, widget, NULL);
+      resultWindow = displayFetchResults(title, result->str, widget, NULL);
       
       g_free(title);
-      g_free(result);
+      g_string_free(result, TRUE);
     }
   
 
