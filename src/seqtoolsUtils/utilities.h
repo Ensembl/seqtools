@@ -86,12 +86,12 @@
 /* Error codes */
 typedef enum
 {
-  SEQTOOLS_ERROR_PARSING_COLOR,	      /* error parsing color string */
-  SEQTOOLS_ERROR_SEQ_SEGMENT,	      /* error getting the requested segment of a sequence */
+  SEQTOOLS_ERROR_PARSING_COLOR,       /* error parsing color string */
+  SEQTOOLS_ERROR_SEQ_SEGMENT,         /* error getting the requested segment of a sequence */
   SEQTOOLS_ERROR_NO_STYLE,            /* style does not exist */
   SEQTOOLS_ERROR_EXECUTING_CMD,       /* error executing command */
-  SEQTOOLS_ERROR_SEQ_TYPE,	      /* error determining sequence type */
-  SEQTOOLS_ERROR_NO_EXE	      /* executable does not exist */
+  SEQTOOLS_ERROR_SEQ_TYPE,            /* error determining sequence type */
+  SEQTOOLS_ERROR_NO_EXE       /* executable does not exist */
 } SeqToolsError;
 
 
@@ -133,63 +133,63 @@ typedef enum
 
 
 /* Color strings that can be passed to create a GdkColor */
-#define BLX_BLACK	      "#000000"
-#define BLX_WHITE	      "#ffffff"
+#define BLX_BLACK             "#000000"
+#define BLX_WHITE             "#ffffff"
 
-#define BLX_GREY	      "#bebebe"
-#define BLX_LIGHT_GREY	      "#cacaca"
+#define BLX_GREY              "#bebebe"
+#define BLX_LIGHT_GREY        "#cacaca"
 #define BLX_VERY_LIGHT_GREY   "#eeeeee"
-#define BLX_DARK_GREY	      "#929292"
+#define BLX_DARK_GREY         "#929292"
 #define BLX_VERY_DARK_GREY    "#5f5f5f"
 
-#define BLX_YELLOW	      "#ffff00" 
+#define BLX_YELLOW            "#ffff00" 
 #define BLX_DARK_YELLOW       "#d0d000"
 #define BLX_PALE_YELLOW       "#ffffcc"
 
-#define BLX_BLUE	      "#0000ff"
-#define BLX_DARK_BLUE	      "#000080"
-#define BLX_ROYAL_BLUE	      "#4169e1"
+#define BLX_BLUE              "#0000ff"
+#define BLX_DARK_BLUE         "#000080"
+#define BLX_ROYAL_BLUE        "#4169e1"
 #define BLX_SKY_BLUE          "#87cefa"
 #define BLX_PALE_BLUE         "#c0d8f0"
-#define BLX_CYAN	      "#15ced2"
+#define BLX_CYAN              "#15ced2"
 #define BLX_LIGHT_CYAN        "#6defe9"
 #define BLX_VIOLET            "#78b4f0"
 #define BLX_DARK_VIOLET       "#5c98d5"
 #define BLX_MID_BLUE          "#6495ED"
 #define BLX_SLATE_BLUE        "#7C7FFF"
 
-#define BLX_RED		      "#ff0000"
-#define BLX_LIGHT_RED	      "#ff7373"
+#define BLX_RED               "#ff0000"
+#define BLX_LIGHT_RED         "#ff7373"
 #define BLX_SALMON_RED        "#ffa07a"
-#define BLX_DARK_RED	      "#800000"
+#define BLX_DARK_RED          "#800000"
 #define BLX_VERY_DARK_RED     "#400000"
-#define BLX_ORANGE_RED	      "#ff4500"
-#define BLX_ORANGE	      "#ffa500"
-#define BLX_PALE_ORANGE	      "#ff9c00"
-#define BLX_MAGENTA	      "#ff00ff"
+#define BLX_ORANGE_RED        "#ff4500"
+#define BLX_ORANGE            "#ffa500"
+#define BLX_PALE_ORANGE       "#ff9c00"
+#define BLX_MAGENTA           "#ff00ff"
 #define BLX_PALE_MAGENTA      "#ffccff"
 #define BLX_PURPLE            "#A020F0"
 #define BLX_PALE_VIOLET       "#EE82EE"
 #define BLX_CERISE            "#DE3163"
 
-#define BLX_GREEN	      "#00ff00"
-#define BLX_LIGHT_GREEN	      "#C1FFC1" 
-#define BLX_LAWN_GREEN	      "#7cfc00"
-#define BLX_DARK_GREEN	      "#00bb00"
+#define BLX_GREEN             "#00ff00"
+#define BLX_LIGHT_GREEN       "#C1FFC1" 
+#define BLX_LAWN_GREEN        "#7cfc00"
+#define BLX_DARK_GREEN        "#00bb00"
 #define BLX_VERY_DARK_GREEN   "#015800"
 
 #define BLX_BROWN             "#A52A2A"
 
 typedef struct _BlxColor
   {
-    char *name;			  /* meaningful name for the color e.g. "Match" */
-    char *desc;			  /* meaningful description for what the color is used for e.g. "background color for exact matches" */
-    gboolean transparent;	  /* if this is true, the colors below are not specified and the background color should be used instead */
+    char *name;                   /* meaningful name for the color e.g. "Match" */
+    char *desc;                   /* meaningful description for what the color is used for e.g. "background color for exact matches" */
+    gboolean transparent;         /* if this is true, the colors below are not specified and the background color should be used instead */
     
-    GdkColor normal;		  /* the color in normal operation */
-    GdkColor selected;		  /* the color in a selected state */
-    GdkColor print;		  /* the color used for printing */
-    GdkColor printSelected;	  /* the selected-state color used for printing */
+    GdkColor normal;              /* the color in normal operation */
+    GdkColor selected;            /* the color in a selected state */
+    GdkColor print;               /* the color used for printing */
+    GdkColor printSelected;       /* the selected-state color used for printing */
   } BlxColor;
   
   
@@ -269,7 +269,7 @@ typedef gboolean (*BlxResponseCallback)(GtkWidget *widget, const gint responseId
  * property and called on the widget on request (e.g. by a dialog when it applies changes). */
 typedef struct _CallbackData
   {
-    BlxResponseCallback func;	  /* Callback function to be called */
+    BlxResponseCallback func;     /* Callback function to be called */
     gpointer data;                /* User data to pass to the callback function */
   } CallbackData;
 
@@ -293,17 +293,19 @@ typedef struct _CoordRange
   
   
 
-GdkDrawable*	      widgetGetDrawable(GtkWidget *widget);
-void		      widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);
-gboolean	      widgetGetHidden(GtkWidget *widget);
-void		      widgetSetHidden(GtkWidget *widget, const gboolean hidden);
-void		      hideUserHiddenWidget(GtkWidget *widget, gpointer data);
-void		      widgetClearCachedDrawable(GtkWidget *widget, gpointer data);
+GdkDrawable*          widgetGetDrawable(GtkWidget *widget);
+void                  widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);
+gboolean              widgetGetHidden(GtkWidget *widget);
+void                  widgetSetHidden(GtkWidget *widget, const gboolean hidden);
+void                  hideUserHiddenWidget(GtkWidget *widget, gpointer data);
+void                  widgetClearCachedDrawable(GtkWidget *widget, gpointer data);
 void                  callFuncOnAllChildWidgets(GtkWidget *widget, gpointer data);
 
-gboolean	      onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer data);
-GtkWidget*	      createLabel(const char *text, const gdouble xalign, const gdouble yalign, const gboolean enableCopyPaste, const gboolean showWhenPrinting);
-GdkDrawable*	      createBlankPixmap(GtkWidget *widget);
+gboolean              onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer data);
+GtkWidget*            createLabel(const char *text, const gdouble xalign, const gdouble yalign, const gboolean enableCopyPaste, const gboolean showWhenPrinting);
+GtkWidget*            getLabelWidget(GtkWidget *widget);
+void                  labelSetFont(GtkWidget *widget, PangoFontDescription *fontDesc);
+GdkDrawable*          createBlankPixmap(GtkWidget *widget);
 GdkDrawable*          createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *window, const int width, const int height);
 
 gboolean              clickedInRect(GdkEventButton *event, GdkRectangle *rect, const int minWidth);
@@ -316,27 +318,27 @@ BlxHandle             handleCreate();
 void                  handleDestroy(BlxHandle *handle);
 BlxStyle*             getBlxStyle(const char *styleName, GSList *styles, GError **error);
 
-void		      sortValues(int *val1, int *val2, gboolean forwards);
-int		      numDigitsInInt(int val);
+void                  sortValues(int *val1, int *val2, gboolean forwards);
+int                   numDigitsInInt(int val);
 gboolean              getColorFromString(const char *colorStr, GdkColor *color, GError **error);
-void		      getSelectionColor(const GdkColor const *origColor, GdkColor *result);
-void		      getDropShadowColor(const GdkColor const *origColor, GdkColor *result);
-void		      convertToGrayscale(const GdkColor const *origColor, GdkColor *result);
-void		      adjustColorBrightness(const GdkColor const *origColor, const double factor, GdkColor *result);
+void                  getSelectionColor(const GdkColor const *origColor, GdkColor *result);
+void                  getDropShadowColor(const GdkColor const *origColor, GdkColor *result);
+void                  convertToGrayscale(const GdkColor const *origColor, GdkColor *result);
+void                  adjustColorBrightness(const GdkColor const *origColor, const double factor, GdkColor *result);
 
-void		      getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
+void                  getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
-int		      getRangeLength(const IntRange const *range);
-int		      getRangeCentre(const IntRange const *range);
+int                   getRangeLength(const IntRange const *range);
+int                   getRangeCentre(const IntRange const *range);
 void                  centreRangeOnCoord(IntRange *range, const int coord, const int length);
-gboolean	      valueWithinRange(const int value, const IntRange const *range);
+gboolean              valueWithinRange(const int value, const IntRange const *range);
 gboolean              rangesOverlap(const IntRange const *range1, const IntRange const *range2);
 gboolean              rangesAdjacent(const IntRange const *range1, const IntRange const *range2);
-gboolean	      rangesEqual(const IntRange const *range1, const IntRange const *range2);
-void		      boundsLimitValue(int *value, const IntRange const *range);
+gboolean              rangesEqual(const IntRange const *range1, const IntRange const *range2);
+void                  boundsLimitValue(int *value, const IntRange const *range);
 void                  boundsLimitRange(IntRange *range, const IntRange const *limit, const gboolean maintainLen);
 gboolean              pointInRect(const int x, const int y, const GdkRectangle const *rect);
-char		      convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
+char                  convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
 
 void                  convertDisplayRangeToDnaRange(const IntRange const * displayRange, 
                                                     const BlxSeqType displaySeqType,
@@ -345,177 +347,177 @@ void                  convertDisplayRangeToDnaRange(const IntRange const * displ
                                                     const IntRange const *refSeqRange,
                                                     IntRange *result);
 
-int		      convertDisplayIdxToDnaIdx(const int inputIdx, 
-						const BlxSeqType inputIdxType,
-						const int frame, 
-						const int baseNum, 
-						const int numFrames,
-						const gboolean displayRev,
-						const IntRange const *dnaIdxRange);
+int                   convertDisplayIdxToDnaIdx(const int inputIdx, 
+                                                const BlxSeqType inputIdxType,
+                                                const int frame, 
+                                                const int baseNum, 
+                                                const int numFrames,
+                                                const gboolean displayRev,
+                                                const IntRange const *dnaIdxRange);
 
-int		      convertDnaIdxToDisplayIdx(const int dnaIdx, 
-						const BlxSeqType displaySeqType,
-						const int frame,
-						const int numFrames, 
-						const gboolean displayRev,
-						const IntRange const *dnaIdxRange,
-						int *baseNum);
+int                   convertDnaIdxToDisplayIdx(const int dnaIdx, 
+                                                const BlxSeqType displaySeqType,
+                                                const int frame,
+                                                const int numFrames, 
+                                                const gboolean displayRev,
+                                                const IntRange const *dnaIdxRange,
+                                                int *baseNum);
 
 char                  getStrandAsChar(const BlxStrand strand);
 
 int                   roundNearest(const double val);
-int		      roundToValue(const int inputVal, const int roundTo);
+int                   roundToValue(const int inputVal, const int roundTo);
 
-char		      getSequenceIndex(char *seq, 
+char                  getSequenceIndex(char *seq, 
                                        const int qIdx, 
                                        const gboolean complement, 
                                        const IntRange const *seqRange,
                                        const BlxSeqType seqType);
 
-int		      getStartDnaCoord(const IntRange const *displayRange, 
-				       const int frame,
-				       const BlxSeqType displaySeqType, 
-				       const gboolean displayRev, 
-				       const int numFrames,
-				       const IntRange const *refSeqRange);
+int                   getStartDnaCoord(const IntRange const *displayRange, 
+                                       const int frame,
+                                       const BlxSeqType displaySeqType, 
+                                       const gboolean displayRev, 
+                                       const int numFrames,
+                                       const IntRange const *refSeqRange);
 
-int		      getEndDnaCoord(const IntRange const *displayRange, 
-				     const int frame,
-				     const BlxSeqType displaySeqType, 
-				     const gboolean displayRev, 
-				     const int numFrames,
-				     const IntRange const *refSeqRange);
+int                   getEndDnaCoord(const IntRange const *displayRange, 
+                                     const int frame,
+                                     const BlxSeqType displaySeqType, 
+                                     const gboolean displayRev, 
+                                     const int numFrames,
+                                     const IntRange const *refSeqRange);
 
-int		      wildcardSearch(const char *textToSearch, const char *searchStr);
+int                   wildcardSearch(const char *textToSearch, const char *searchStr);
 
-char*		      convertIntToString(const int value);
+char*                 convertIntToString(const int value);
 char*                 convertDoubleToString(const gdouble value, const int numDp);
-int		      convertStringToInt(const char *inputStr);
-gboolean	      isWhitespaceChar(const char curChar);
+int                   convertStringToInt(const char *inputStr);
+gboolean              isWhitespaceChar(const char curChar);
 gboolean              isNewlineChar(const char curChar);
-char*		      abbreviateText(const char *inputStr, const int maxLen);
+char*                 abbreviateText(const char *inputStr, const int maxLen);
 gboolean              stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive);
-gboolean	      isValidIupacChar(const char inputChar, const BlxSeqType seqType);
+gboolean              isValidIupacChar(const char inputChar, const BlxSeqType seqType);
 void                  stringProtect(FILE *file, const char *string);
 char*                 stringUnprotect(char **textp, char *target);
 
 int                   invertCoord(const int coord, const IntRange const *range, const gboolean invert);
 
 void                  popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
-void		      defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
+void                  defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 void                  g_message_info(char *formatStr, ...);
 
-GtkWidget*	      showMessageDialog(const char *title,  
-					const char *messageText,
-					GtkWidget *parent,
-					const int initWidth,
-					const int maxHeight,
-					const gboolean wrapText,
+GtkWidget*            showMessageDialog(const char *title,  
+                                        const char *messageText,
+                                        GtkWidget *parent,
+                                        const int initWidth,
+                                        const int maxHeight,
+                                        const gboolean wrapText,
                                         const gboolean useMarkup,
-					PangoFontDescription *fontDesc,
+                                        PangoFontDescription *fontDesc,
                                         GtkTextView **textView);
 
-void			destroyMessageList();
+void                    destroyMessageList();
 
-GtkWidget*		createScrollableTextView(const char *messageText,
-						 const gboolean wrapText,
-						 PangoFontDescription *fontDesc,
+GtkWidget*              createScrollableTextView(const char *messageText,
+                                                 const gboolean wrapText,
+                                                 PangoFontDescription *fontDesc,
                                                  const gboolean useMarkup,
-						 int *width,
-						 int *height,
+                                                 int *width,
+                                                 int *height,
                                                  GtkTextView **textViewOut);
-				    
-void		      widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback callbackFunc, gpointer callbackData);
+                                    
+void                  widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback callbackFunc, gpointer callbackData);
 gboolean              widgetCallAllCallbacks(GtkWidget *widget, gpointer data);
-void		      onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data);
+void                  onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data);
 void                  onCloseDialog(GtkDialog *dialog, gpointer data);
 void                  dialogClearContentArea(GtkDialog *dialog);
 GtkWidget*            getPersistentDialog(GtkWidget* dialogList[], const int dialogId);
 void                  addPersistentDialog(GtkWidget* dialogList[], const int dialogId, GtkWidget *widget);
 
-void		      setPrimaryClipboardText(const char *text);
-void		      setDefaultClipboardText(const char *text);
-void		      requestPrimaryClipboardText(GtkClipboardTextReceivedFunc callback, gpointer data);
-void		      requestDefaultClipboardText(GtkClipboardTextReceivedFunc callback, gpointer data);
+void                  setPrimaryClipboardText(const char *text);
+void                  setDefaultClipboardText(const char *text);
+void                  requestPrimaryClipboardText(GtkClipboardTextReceivedFunc callback, gpointer data);
+void                  requestDefaultClipboardText(GtkClipboardTextReceivedFunc callback, gpointer data);
 
-int		      parseMatchLine(const char *inputText,
-				     char **matchNameOut,
-				     int *matchStartOut, 
-				     int *matchEndOut, 
-				     int *matchLenOut);
+int                   parseMatchLine(const char *inputText,
+                                     char **matchNameOut,
+                                     int *matchStartOut, 
+                                     int *matchEndOut, 
+                                     int *matchLenOut);
 
-GList*		      parseMatchList(const char *inputText);
+GList*                parseMatchList(const char *inputText);
 
-GtkWidget*	      getNamedChildWidget(GtkWidget *widget, const gchar *searchName);
+GtkWidget*            getNamedChildWidget(GtkWidget *widget, const gchar *searchName);
 
-gint		      runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText);
+gint                  runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText);
 
-char*		      getSeqShortName(const char *longName);
+char*                 getSeqShortName(const char *longName);
 
-void		      prefixError(GError *error, char *prefixStr, ...);
+void                  prefixError(GError *error, char *prefixStr, ...);
 void                  postfixError(GError *error, char *formatStr, ...);
 void                  reportAndClearIfError(GError **error, GLogLevelFlags log_level);
 
-void		      intrangeSetValues(IntRange *range, const int val1, const int val2);
+void                  intrangeSetValues(IntRange *range, const int val1, const int val2);
 
 #ifdef DEBUG
-void		      debugLogLevel(const int increaseAmt);
+void                  debugLogLevel(const int increaseAmt);
 #endif
 
 void                  drawRect(GdkDrawable *drawable, GdkColor *color, const int x, const int y, const int width, const int height, const double alpha, cairo_operator_t op);
 void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle const *rect, const gint minWidth, GdkColor *color);
 
-void		      blxPrintWidget(GtkWidget *widget, GdkDrawable *drawable, GtkWindow *window, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const char *filename, const gboolean printCachedOnly, const PrintScaleType scaleType);
+void                  blxPrintWidget(GtkWidget *widget, GdkDrawable *drawable, GtkWindow *window, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const char *filename, const gboolean printCachedOnly, const PrintScaleType scaleType);
 char*                 blxprintf(char *formatStr, ...);
 void                  setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle);
 
-BlxColor*	      getBlxColor(GArray *defaultColors, const int colorId);
-GdkColor*	      getGdkColor(int colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors);
-const GdkColor*	      blxColorGetColor(const BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors);
-char*		      convertColorToString(GdkColor *color);
-void		      destroyBlxColor(BlxColor *blxColor);
+BlxColor*             getBlxColor(GArray *defaultColors, const int colorId);
+GdkColor*             getGdkColor(int colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors);
+const GdkColor*       blxColorGetColor(const BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors);
+char*                 convertColorToString(GdkColor *color);
+void                  destroyBlxColor(BlxColor *blxColor);
 gboolean              colorsEqual(GdkColor *color1, GdkColor *color2);
 
-void		      createBlxColor(GArray *defaultColors,
-				     int colorId,
-				     const char *name, 
-				     const char *desc, 
-				     const char *normalCol, 
-				     const char *printCol,
-				     const char *normalColSelected,
-				     const char *printColSelected);
+void                  createBlxColor(GArray *defaultColors,
+                                     int colorId,
+                                     const char *name, 
+                                     const char *desc, 
+                                     const char *normalCol, 
+                                     const char *printCol,
+                                     const char *normalColSelected,
+                                     const char *printColSelected);
 
-gdouble		      pixelsPerBase(const gint displayWidth, 
-				    const IntRange const *displayRange);
+gdouble               pixelsPerBase(const gint displayWidth, 
+                                    const IntRange const *displayRange);
 
-gdouble		      convertBaseIdxToRectPos(const gint dnaIdx, 
-					      const GdkRectangle const *rect, 
-					      const IntRange const *dnaDispRange,
+gdouble               convertBaseIdxToRectPos(const gint dnaIdx, 
+                                              const GdkRectangle const *rect, 
+                                              const IntRange const *dnaDispRange,
                                               const gboolean horizontal,
-					      const gboolean displayRev,
-					      const gboolean clip);
+                                              const gboolean displayRev,
+                                              const gboolean clip);
 
-gchar*			  getSequenceSegment(const char const *dnaSequence,
+gchar*                    getSequenceSegment(const char const *dnaSequence,
                                              IntRange *qRange,
-					     const BlxStrand strand,
-					     const BlxSeqType srcSeqType,
-					     const BlxSeqType destSeqType,
-					     const int frame,
-					     const int numFrames,
-					     const IntRange const *refSeqRange,
-					     const BlxBlastMode blastMode,
-					     char **geneticCode,
-					     const gboolean displayRev,
-					     const gboolean reverseResult,
-					     const gboolean allowComplement,
-					     GError **error);
+                                             const BlxStrand strand,
+                                             const BlxSeqType srcSeqType,
+                                             const BlxSeqType destSeqType,
+                                             const int frame,
+                                             const int numFrames,
+                                             const IntRange const *refSeqRange,
+                                             const BlxBlastMode blastMode,
+                                             char **geneticCode,
+                                             const gboolean displayRev,
+                                             const gboolean reverseResult,
+                                             const gboolean allowComplement,
+                                             GError **error);
 
-const char*			   findFixedWidthFont(GtkWidget *widget);
-const char*			   findFixedWidthFontFamily(GtkWidget *widget, GList *pref_families);
+const char*                        findFixedWidthFont(GtkWidget *widget);
+const char*                        findFixedWidthFontFamily(GtkWidget *widget, GList *pref_families);
 void                               getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble *width, gdouble *height);
 
 GtkWidget*                         createToolbarHandle();
-GtkToolItem*			   addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget, const int position);
+GtkToolItem*                       addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget, const int position);
 
 void                               onBeginPrint(GtkPrintOperation *print, GtkPrintContext *context, gpointer data);
 void                               collatePixmaps(GtkWidget *widget, gpointer data);

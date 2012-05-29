@@ -842,7 +842,8 @@ gboolean blxviewFetchSequences(gboolean External,
 	}
     }
   
-  return success;
+  /* Even if the fetch fails completely, it's not a fatal error for blixem, so return true. */
+  return TRUE;
 }
 
 

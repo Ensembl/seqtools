@@ -603,15 +603,14 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
       
       if (headerInfo && headerInfo->headerWidget)
 	{
-	  /* Set the background color (in the parent, seeing as the label doesn't have a window) */
+	  /* Set the background color  */
 	  BlxViewContext *bc = treeGetContext(tree);
-	  GtkWidget *parent = gtk_widget_get_parent(headerInfo->headerWidget);
 	  GdkColor *bgColor = getGdkColor(BLXCOLOR_REF_SEQ, bc->defaultColors, FALSE, bc->usePrintColors);
 	  gtk_widget_modify_bg(headerInfo->headerWidget, GTK_STATE_NORMAL, bgColor);
-	  gtk_widget_modify_bg(parent, GTK_STATE_NORMAL, bgColor);
+	  gtk_widget_modify_bg(headerInfo->headerWidget, GTK_STATE_NORMAL, bgColor);
 
 	  /* Update the font, in case its size has changed */
-	  gtk_widget_modify_font(headerInfo->headerWidget, fontDesc);
+	  labelSetFont(headerInfo->headerWidget, fontDesc);
 
 	  /* Call the refresh function, if there is one */
 	  if (headerInfo->refreshFunc)
@@ -2393,12 +2392,14 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
  * so we can re-abbreviate with more/less text as required. */
 static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
 {
-  if (GTK_IS_LABEL(headerWidget))
+  GtkWidget *label = getLabelWidget(headerWidget);
+  
+  if (GTK_IS_LABEL(label))
     {
       GtkWidget *tree = GTK_WIDGET(data);
 
       /* Update the font, in case its size has changed */
-      gtk_widget_modify_font(headerWidget , treeGetFontDesc(tree));
+      gtk_widget_modify_font(label , treeGetFontDesc(tree));
 
       TreeColumnHeaderInfo *headerInfo = treeColumnGetHeaderInfo(tree, BLXCOL_SEQNAME);
       const int colWidth = calculateColumnWidth(headerInfo, tree);
@@ -2430,7 +2431,7 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
 
       if (displayText)
 	{
-	  gtk_label_set_text(GTK_LABEL(headerWidget), displayText);
+	  gtk_label_set_text(GTK_LABEL(label), displayText);
 	  g_free(displayText);
 	}
     }
@@ -2444,13 +2445,15 @@ static void refreshNameColHeader(GtkWidget *headerWidget, gpointer data)
 /* Refresh the start column header. This displays the start index of the current display range */
 static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
 {
-  if (GTK_IS_LABEL(headerWidget))
+  GtkWidget *label = getLabelWidget(headerWidget);
+  
+  if (GTK_IS_LABEL(label))
     {
       GtkWidget *tree = GTK_WIDGET(data);
       BlxViewContext *bc = treeGetContext(tree);
 
       /* Update the font, in case its size has changed */
-      gtk_widget_modify_font(headerWidget, treeGetFontDesc(tree));
+      gtk_widget_modify_font(label, treeGetFontDesc(tree));
 
       int displayVal = getStartDnaCoord(treeGetDisplayRange(tree), 
 					treeGetFrame(tree),
@@ -2468,7 +2471,7 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
       sprintf(displayText, "%d", displayVal);
       displayText[displayTextLen - 1] = '\0';
       
-      gtk_label_set_text(GTK_LABEL(headerWidget), displayText);
+      gtk_label_set_text(GTK_LABEL(label), displayText);
     }
   else
     {
@@ -2480,7 +2483,9 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
 /* Refresh the start column header. This displays the end index of the current display range */
 static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
 {
-  if (GTK_IS_LABEL(headerWidget))
+  GtkWidget *label = getLabelWidget(headerWidget);
+
+  if (GTK_IS_LABEL(label))
     {
       GtkWidget *tree = GTK_WIDGET(data);
       BlxViewContext *bc = treeGetContext(tree);
@@ -2501,7 +2506,7 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
       sprintf(displayText, "%d", displayVal);
       displayText[displayTextLen - 1] = '\0';
       
-      gtk_label_set_text(GTK_LABEL(headerWidget), displayText);
+      gtk_label_set_text(GTK_LABEL(label), displayText);
     }
   else
     {
