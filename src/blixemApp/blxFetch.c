@@ -1734,11 +1734,16 @@ static void readConfigFile(GKeyFile *key_file, char *config_file, CommandLineOpt
                               "Errors found while reading config file '%s':\n", config_file);
                 }
 
-              postfixError(*error, "  Error reading [%s] stanza: %s", *group, tmpError->message);
+              postfixError(*error, "  [%s]: %s", *group, tmpError->message);
             }
 	}
 
       g_strfreev(groups);
+    }
+  else
+    {
+      prefixError(*error, "Error reading config file '%s': ", config_file);
+      postfixError(*error, "\n", config_file);
     }
 }
 

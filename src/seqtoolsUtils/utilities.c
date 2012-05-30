@@ -2381,8 +2381,7 @@ void prefixError(GError *error, char *formatStr, ...)
       va_end(argp);
 
       /* Append the error message */
-      char *resultStr = g_malloc(len + strlen(error->message));
-      snprintf(resultStr, len, "%s%s", tmpStr, error->message);
+      char *resultStr = g_strdup_printf("%s%s", tmpStr, error->message);
       
       /* Replace the error message text with the new string. */
       g_free(error->message);
@@ -2408,8 +2407,7 @@ void postfixError(GError *error, char *formatStr, ...)
   va_end(argp);
   
   /* Prepend the error message */
-  char *resultStr = g_malloc(len + strlen(error->message));
-  snprintf(resultStr, len, "%s%s", error->message, tmpStr);
+  char *resultStr = g_strdup_printf("%s%s", error->message, tmpStr);
   
   /* Replace the error message text with the new string. */
   g_free(error->message);
