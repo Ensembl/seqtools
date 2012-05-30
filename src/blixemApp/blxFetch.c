@@ -63,8 +63,9 @@
 
 
 
-/* Blixem config error domain */
+/* Blixem config/fetch error domain */
 #define BLX_CONFIG_ERROR g_quark_from_string("Blixem config")
+#define BLX_FETCH_ERROR g_quark_from_string("Blixem config")
 
 /* Error codes */
 typedef enum
@@ -74,8 +75,18 @@ typedef enum
     BLX_CONFIG_ERROR_MISSING_KEY,           /* a required key is missing */
     BLX_CONFIG_ERROR_INVALID_FETCH_MODE,    /* invalid fetch mode specified */
     BLX_CONFIG_ERROR_INVALID_OUTPUT_FORMAT, /* invalid output format specified for fetch mode */
-    BLX_CONFIG_ERROR_WARNINGS               /* warnings found while reading config file */
+    BLX_CONFIG_ERROR_WARNINGS,              /* warnings found while reading config file */
   } BlxConfigError;
+
+
+/* Error codes */
+typedef enum
+  {
+    BLX_FETCH_ERROR_SOCKET,                /* error creating socket */
+    BLX_FETCH_ERROR_HOST,                  /* unknown host */
+    BLX_FETCH_ERROR_CONNECT,               /* error connecting to host */
+    BLX_FETCH_ERROR_SEND                   /* error sending to socket */
+  } BlxFetchError;
 
 
 
@@ -189,8 +200,8 @@ static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequenc
 static void httpFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const int attempt, char **result_out);
 #endif
 
-static int socketConstruct(const char *ipAddress, int port, gboolean External) ;
-static gboolean socketSend(int sock, const char *text) ;
+static int socketConstruct(const char *ipAddress, int port, gboolean External, GError **error) ;
+static void socketSend(int sock, const char *text, GError **error) ;
 
 static ProgressBar makeProgressBar(int seq_total) ;
 static void updateProgressBar(ProgressBar bar, const char *sequence, int numFetched, gboolean fetch_ok) ;
@@ -209,7 +220,7 @@ static void wwwFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMet
 static void                     appendCharToString(const char curChar, GString **result);
 static void                     appendCharToQuotedString(const char curChar, gboolean *foundEndQuote, GString **result);
 
-static gboolean                 socketFetchInit(char *pfetchOptions, GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, int *sock);
+static void                     socketFetchInit(char *pfetchOptions, GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, int *sock, GError **error);
 static void                     checkProgressBar(ProgressBar bar, BlxEmblParserState *parserState, gboolean *status);
 
 static int                      pfetchReceiveBuffer(char *buffer, const int bufferSize, const int sock, 
@@ -779,15 +790,18 @@ gboolean populateFastaDataPfetch(GList *seqsToFetch,
 {
   /* Initialise and send the requests */
   int sock;
+  GError *tmpError = NULL;
   
-  gboolean status = socketFetchInit(fetchMethod->args, seqsToFetch, fetchMethod->node, fetchMethod->port, External, &sock);
+  socketFetchInit(fetchMethod->args, seqsToFetch, fetchMethod->node, fetchMethod->port, External, &sock, &tmpError);
+
+  gboolean status = (tmpError == NULL);
   
   /* Get the sequences back. They will be returned in the same order that we asked for them, i.e. 
    * in the order they are in our list. */
   GList *currentSeqItem = seqsToFetch;
   BlxSequence *currentSeq = (BlxSequence*)(currentSeqItem->data);
   
-  if (status && currentSeq)
+  if (!tmpError && currentSeq)
     {
       int numRequested = g_list_length(seqsToFetch); /* total number of sequences requested */
       ProgressBar bar = makeProgressBar(numRequested);
@@ -798,10 +812,12 @@ gboolean populateFastaDataPfetch(GList *seqsToFetch,
       int numFetched = 0;
       int numSucceeded = 0;
 
-      GError *tmpError = NULL;
       BlxEmblParserState parserState = PARSING_NEWLINE;
 
-      while (status && parserState != PARSING_CANCELLED && parserState != PARSING_FINISHED)
+      while (status && 
+             !tmpError &&
+             parserState != PARSING_CANCELLED && 
+             parserState != PARSING_FINISHED)
 	{
           /* Receive and parse the next buffer */
           checkProgressBar(bar, &parserState, &status);
@@ -826,7 +842,7 @@ gboolean populateFastaDataPfetch(GList *seqsToFetch,
       destroyProgressBar(bar);
       bar = NULL ;
       
-      if (status && numSucceeded != numRequested)
+      if (status && !tmpError && numSucceeded != numRequested)
 	{
 	  double proportionOk = (float)numSucceeded / (float)numRequested;
           
@@ -875,14 +891,17 @@ gboolean populateFullDataPfetch(GList *seqsToFetch,
                                 GError **error)
 {
   int sock;
-  gboolean status = socketFetchInit(fetchMethod->args, seqsToFetch, fetchMethod->node, fetchMethod->port, External, &sock);
+  GError *tmpError = NULL;
+  socketFetchInit(fetchMethod->args, seqsToFetch, fetchMethod->node, fetchMethod->port, External, &sock, &tmpError);
+
+  gboolean status = (tmpError == NULL);
 
   /* Get the sequences back. They will be returned in the same order that we asked for them, i.e. 
    * in the order they are in our list. */
   GList *currentSeqItem = seqsToFetch;
   BlxSequence *currentSeq = (BlxSequence*)(currentSeqItem->data);
 
-  if (status && currentSeq)
+  if (!tmpError && currentSeq)
     {
       int numRequested = g_list_length(seqsToFetch); /* total number of sequences requested */
       ProgressBar bar = makeProgressBar(numRequested);
@@ -908,7 +927,10 @@ gboolean populateFullDataPfetch(GList *seqsToFetch,
       
       BlxEmblParserState parserState = PARSING_NEWLINE;
       
-      while (status && parserState != PARSING_CANCELLED && parserState != PARSING_FINISHED)
+      while (status &&
+             !tmpError &&
+             parserState != PARSING_CANCELLED && 
+             parserState != PARSING_FINISHED)
 	{
           /* Receive and parse the next buffer */
           checkProgressBar(bar, &parserState, &status);
@@ -937,7 +959,7 @@ gboolean populateFullDataPfetch(GList *seqsToFetch,
       
       g_string_free(tagName, TRUE);
 
-      if (status && numSucceeded != numRequested)
+      if (status && !tmpError && numSucceeded != numRequested)
 	{
 	  double proportionOk = (float)numSucceeded / (float)numRequested;
 
@@ -954,6 +976,9 @@ gboolean populateFullDataPfetch(GList *seqsToFetch,
             }
 	}
     }
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
 
   return status ;
 }
@@ -1039,7 +1064,7 @@ GKeyFile *blxGetConfig(void)
  */
 
 
-static int socketConstruct (const char *ipAddress, int port, gboolean External)
+static int socketConstruct(const char *ipAddress, int port, gboolean External, GError **error)
 {
   int sock ;                       /* socket descriptor */
   struct sockaddr_in *servAddr ;   /* echo server address */
@@ -1049,7 +1074,8 @@ static int socketConstruct (const char *ipAddress, int port, gboolean External)
   /* Create a reliable, stream socket using TCP */
   if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0)
     {
-      g_critical ("socket() failed\n") ;
+      g_set_error(error, BLX_FETCH_ERROR, BLX_FETCH_ERROR_SOCKET,
+                  "Error creating socket\n") ;
       return -1 ;
     }
 
@@ -1057,20 +1083,14 @@ static int socketConstruct (const char *ipAddress, int port, gboolean External)
   /* Construct the server address structure */
   servAddr = (struct sockaddr_in *) g_malloc (sizeof (struct sockaddr_in)) ;
   hp = gethostbyname(ipAddress) ;
+  
   if (!hp)
-  {
-    if (External)
     {
-        g_critical("Failed to start external blixem: unknown host \"%s\"\n", ipAddress);
-        return -1;
+      g_set_error(error, BLX_FETCH_ERROR, BLX_FETCH_ERROR_HOST,
+                  "Unknown host \"%s\"\n", ipAddress);
+      return -1;
     }
-    else
-    {
-        g_critical("Failed to start internal blixem: unknown host \"%s\"\n", ipAddress);
-        return -1;
-    }
-  }
-
+  
   servAddr->sin_family = AF_INET ;			    /* Internet address family */
   bcopy((char*)hp->h_addr, (char*) &(servAddr->sin_addr.s_addr), hp->h_length) ;
 							    /* Server IP address */
@@ -1080,7 +1100,8 @@ static int socketConstruct (const char *ipAddress, int port, gboolean External)
   /* Establish the connection to the server */
   if (connect(sock, (struct sockaddr *) servAddr, sizeof(struct sockaddr_in)) < 0)
     {
-      g_critical ("socket connect() to BLIXEM_PFETCH = %s failed\n", ipAddress) ;
+      g_set_error(error, BLX_FETCH_ERROR, BLX_FETCH_ERROR_CONNECT, 
+                  "Error connecting socket to host '%s'\n", ipAddress) ;
       sock = -1 ;
     }
 
@@ -1090,9 +1111,8 @@ static int socketConstruct (const char *ipAddress, int port, gboolean External)
 }
 
 
-static gboolean socketSend (int sock, const char *text)
+static void socketSend (int sock, const char *text, GError **error)
 {
-  gboolean status = TRUE ;
   int len, bytes_to_send, bytes_written ;
   char *tmp ;
   struct sigaction oursigpipe, oldsigpipe ;
@@ -1121,9 +1141,9 @@ static gboolean socketSend (int sock, const char *text)
     {
       if (errno == EPIPE || errno == ECONNRESET || errno == ENOTCONN)
 	{
-	  status = FALSE ;
           char *msg = getSystemErrorText();
-	  g_critical("Socket connection to pfetch server has failed, error was: %s\n", msg) ;
+	  g_set_error(error, BLX_FETCH_ERROR, BLX_FETCH_ERROR_CONNECT,
+                      "Socket connection to server has failed, error was: %s\n", msg) ;
           g_free(msg);
 	}
       else
@@ -1145,8 +1165,6 @@ static gboolean socketSend (int sock, const char *text)
     }
 
   g_free(tmp) ;
-
-  return status ;
 }
 
 
@@ -1732,55 +1750,53 @@ static void readConfigFile(GKeyFile *key_file, char *config_file, CommandLineOpt
 
 /* Initialise a pfetch connection with the given options and calls pfetch on each of the 
  * sequences in the given list. */
-static gboolean socketFetchInit(char *fetchOptions, 
-                                GList *seqsToFetch, 
-                                const char *node, 
-                                int port, 
-                                gboolean External, 
-                                int *sock)
+static void socketFetchInit(char *fetchOptions, 
+                            GList *seqsToFetch, 
+                            const char *node, 
+                            int port, 
+                            gboolean External, 
+                            int *sock,
+                            GError **error)
 {
-  gboolean status = TRUE;
+  GError *tmpError = NULL;
   
   /* open socket connection */
-  if (status)
+  if (!tmpError)
     {
-      *sock = socketConstruct (node, port, External) ;
-      if (*sock < 0)			/* we can't connect to the server */
-	{
-	  status = FALSE ;
-	}
+      *sock = socketConstruct(node, port, External, &tmpError) ;
     }
   
   /* send the command/names to the server */
-  if (status)
+  if (!tmpError)
     {
       /* Send '-q' to get back one line per sequence, '-C' for lowercase DNA and uppercase protein. */
-      status = socketSend (*sock, fetchOptions);
+      socketSend(*sock, fetchOptions, &tmpError);
     }
   
-  if (status)
+  if (!tmpError)
     {
       /* For each sequence, send a command to fetch that sequence, in the order that they are in our list */
       GList *seqItem = seqsToFetch;
       
-      for ( ; seqItem && status ; seqItem = seqItem->next)
+      for ( ; seqItem && !tmpError ; seqItem = seqItem->next)
 	{
           BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-	  status = socketSend(*sock, blxSequenceGetFullName(blxSeq));
+	  socketSend(*sock, blxSequenceGetFullName(blxSeq), &tmpError);
 	}
     }
   
-  if (status)
+  if (!tmpError)
     {
       /* send a final newline to flush the socket */
       if (send(*sock, "\n", 1, 0) != 1)
 	{
-	  g_critical("failed to send final \\n to socket\n") ;
-	  status = FALSE ;
+	  g_set_error(&tmpError, BLX_FETCH_ERROR, BLX_FETCH_ERROR_SEND,
+                      "Failed to send final newline to socket\n") ;
 	}
     }
-  
-  return status;
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
 }
 
 
