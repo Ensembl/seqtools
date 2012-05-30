@@ -56,9 +56,11 @@
 
 
 /* Key names for values in data-type stanzas in the config file */
+#define BLIXEM_GROUP                 "blixem"
 #define SEQTOOLS_BULK_FETCH          "bulk-fetch"
 #define SEQTOOLS_USER_FETCH          "user-fetch"
-
+#define LINK_FEATURES_BY_NAME        "link-features-by-name"
+#define LINK_FEATURES_DEFAULT        TRUE
 
 /* Main Blixem error domain */
 #define BLX_ERROR g_quark_from_string("Blixem")
@@ -142,6 +144,7 @@ typedef struct _BlxDataType
     GQuark name;           /* the name of the data-type */
     GArray *bulkFetch;     /* list of fetch methods (by name as a GQuark) to use when bulk fetching sequences, in order of priority */
     GArray *userFetch;     /* list of fetch methods (by name as a GQuark) to use when user fetches a sequence, in order of priority */
+    gboolean linkFeaturesByName; /* whether features with the same name are part of the same parent */
   } BlxDataType;
 
 
@@ -325,12 +328,12 @@ MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **
                                    BlxDataType *dataType, const char *source, const gdouble score, const gdouble percentId, const int phase,
                                    const char *url, const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
-                                   const BlxStrand sStrand, char *sequence, GError **error);  
+                                   const BlxStrand sStrand, char *sequence, const gboolean linkFeaturesByName, GError **error);  
 MSP*                  copyMsp(const MSP const *src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
 
 //void                  insertFS(MSP *msp, char *series);
 
-void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame);
+void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame, const gboolean linkFeatures);
 int                   findMspListSExtent(GList *mspList, const gboolean findMin);
 int                   findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand);
 
@@ -345,7 +348,7 @@ BlxDataType*          createBlxDataType();
 void                  destroyBlxDataType(BlxDataType **blxDataType);
 const char*           getDataTypeName(BlxDataType *blxDataType);
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, char *sequence, MSP *msp, GError **error);
+BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, char *sequence, MSP *msp, const gboolean linkFeaturesByName, GError **error);
 void                  blxSequenceSetName(BlxSequence *seq, const char *fullName);
 const char*           blxSequenceGetFullName(const BlxSequence *seq);
 const char*           blxSequenceGetDisplayName(const BlxSequence *seq);
@@ -360,6 +363,7 @@ char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean all
 int                   blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand);
 int                   blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand);
 const char*           blxSequenceGetSource(const BlxSequence *seq);
+gboolean              blxSequenceGetLinkFeatures(const BlxSequence *seq, const gboolean defaultLinkFeatures);
 char*                 blxSequenceGetOrganism(const BlxSequence *seq);
 char*                 blxSequenceGetGeneName(const BlxSequence *seq);
 char*                 blxSequenceGetTissueType(const BlxSequence *seq);

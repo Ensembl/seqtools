@@ -797,6 +797,16 @@ const char *blxSequenceGetSource(const BlxSequence *seq)
   return result;
 }
 
+gboolean blxSequenceGetLinkFeatures(const BlxSequence *seq, const gboolean defaultLinkFeatures)
+{
+  gboolean result = defaultLinkFeatures;
+  
+  if (seq && seq->dataType)
+    result = seq->dataType->linkFeaturesByName;
+  
+  return result;
+}
+
 /* Return the fetch method of a BlxSequence. If 'bulk' is true,
  * get the bulk-fetch method, otherwise the user-fetch method.
  * 'index' indicates which method to choose if multiple methods
@@ -1127,6 +1137,7 @@ BlxDataType* createBlxDataType()
   result->name = 0;
   result->bulkFetch = NULL;
   result->userFetch = NULL;
+  result->linkFeaturesByName = FALSE;
   
   return result;
 }
@@ -1240,27 +1251,27 @@ static GQuark getLookupKey(const char *text, const BlxStrand strand)
 static BlxSequence* findBlxSequence(GHashTable *lookupTable,
                                     const char *name, 
                                     const char *idTag,
-                                    const BlxStrand strand)
+                                    const BlxStrand strand,
+                                    const gboolean linkFeaturesByName)
 {
   BlxSequence *result = NULL;
-  
-  /* We compare on sequence name (or id if name not given) and strand, so combine
-   * these into a single string and convert it to a quark for quicker comparisions.
-   * (This is the key for the hash table.) */
-  if (name)
+
+  if (idTag)
     {
-      GQuark key = getLookupKey(name, strand);
-      result = (BlxSequence*)g_hash_table_lookup(lookupTable, GINT_TO_POINTER(key));
-    }
-  
-  /* If not found, also check the id tag and strand because the name may have been null
-   * when the sequence was added. */
-  if (!result && idTag)
-    {
+      /* We compare on the id tag and strand, so combine these into a single
+       * string and convert it to a quark for quicker comparisions.
+       * (This is the key for the hash table.) */
       GQuark key = getLookupKey(idTag, strand);
       result = (BlxSequence*)g_hash_table_lookup(lookupTable, GINT_TO_POINTER(key));
     }
-  
+  else if (name && linkFeaturesByName)
+    {
+      /* No id tag is given but we are asked to link features with the same
+       * name, so do the comparison using name and strand */
+      GQuark key = getLookupKey(name, strand);
+      result = (BlxSequence*)g_hash_table_lookup(lookupTable, GINT_TO_POINTER(key));
+    }
+
   return result;
 }
 
@@ -1278,6 +1289,7 @@ BlxSequence* addBlxSequence(const char *name,
 			    GList **seqList, 
 			    char *sequence, 
 			    MSP *msp, 
+                            const gboolean linkFeaturesByName,
 			    GError **error)
 {
   BlxSequence *blxSeq = NULL;
@@ -1298,11 +1310,9 @@ BlxSequence* addBlxSequence(const char *name,
           strand = msp->qStrand;
         }
     
-      /* See if this sequence already exists.  This matches on name or tag and strand.
-       * Don't do this for short reads because they can have the same name as a different
-       * read (with different sequence data). */
-      if (!msp || msp->type != BLXMSP_SHORT_READ)
-        blxSeq = findBlxSequence(lookupTable, name, idTag, strand);
+      /* See if this sequence already exists. This matches on name (if linkFeaturesByName is
+       * true) or on tag, and strand. */
+      blxSeq = findBlxSequence(lookupTable, name, idTag, strand, linkFeaturesByName);
       
       if (!blxSeq)
         {
@@ -1773,6 +1783,7 @@ MSP* createNewMsp(GArray* featureLists[],
                   const int sEnd,
                   BlxStrand sStrand,
                   char *sequence,
+                  const gboolean linkFeaturesByName,
                   GError **error)
 {
   MSP *msp = createEmptyMsp(lastMsp, mspList);
@@ -1802,12 +1813,12 @@ MSP* createNewMsp(GArray* featureLists[],
       sStrand = qStrand;
     }
   
-  /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
+  /* For matches, exons and introns, add a new (or add to an existing) BlxSequence */
   if (typeIsExon(mspType) || typeIsIntron(mspType) || 
       typeIsMatch(mspType) || typeIsShortRead(mspType) || 
       typeIsVariation(mspType) || typeIsRegion(mspType))
     {
-      addBlxSequence(msp->sname, idTag, sStrand, dataType, source, seqList, sequence, msp, error);
+      addBlxSequence(msp->sname, idTag, sStrand, dataType, source, seqList, sequence, msp, linkFeaturesByName, error);
     }
 
   /* Add it to the relevant feature list. */
@@ -1935,7 +1946,8 @@ static MSP* createMissingMsp(const BlxMspType newType,
                              GArray* featureLists[], 
                              MSP **lastMsp, 
                              MSP **mspList, 
-                             GList **seqList, 
+                             GList **seqList,
+                             const gboolean linkFeatures,
                              GError **error)
 {
   MSP *result = NULL;
@@ -1950,7 +1962,8 @@ static MSP* createMissingMsp(const BlxMspType newType,
       result = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, blxSeq->source,
                             UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
                             qname, newStart, newEnd, blxSeq->strand, newFrame, g_quark_to_string(blxSeq->fullName),
-                            UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
+                            UNSET_INT, UNSET_INT, blxSeq->strand, NULL,
+                            blxSequenceGetLinkFeatures(blxSeq, linkFeatures), &tmpError);
       
       result->style = newStyle;
       
@@ -1974,6 +1987,7 @@ static void createMissingCdsUtr(MSP *exon,
                                 MSP **lastMsp, 
                                 MSP **mspList, 
                                 GList **seqList, 
+                                const gboolean linkFeatures,
                                 GError **error)
 {
   MSP *startMsp = (MSP*)(g_list_first(*childList)->data);
@@ -1982,14 +1996,14 @@ static void createMissingCdsUtr(MSP *exon,
   if (exon->qRange.min < startMsp->qRange.min)
     {
       const BlxMspType type = (startMsp->type == BLXMSP_CDS ? BLXMSP_UTR : BLXMSP_CDS);
-      MSP *result = createMissingMsp(type, exon->qRange.min, startMsp->qRange.min - 1, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+      MSP *result = createMissingMsp(type, exon->qRange.min, startMsp->qRange.min - 1, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, linkFeatures, error);
       *childList = g_list_append(*childList, result);
     }
 
   if (exon->qRange.max > endMsp->qRange.max)
     {
       const BlxMspType type = (endMsp->type == BLXMSP_CDS ? BLXMSP_UTR : BLXMSP_CDS);
-      MSP *result = createMissingMsp(type, endMsp->qRange.max + 1, exon->qRange.max, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+      MSP *result = createMissingMsp(type, endMsp->qRange.max + 1, exon->qRange.max, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, linkFeatures, error);
       *childList = g_list_append(*childList, result);
     }
 }
@@ -2003,9 +2017,10 @@ static void createMissingUtr(MSP *exon,
                              MSP **lastMsp, 
                              MSP **mspList, 
                              GList **seqList, 
+                             const gboolean linkFeatures,
                              GError **error)
 {
-  MSP *result = createMissingMsp(BLXMSP_UTR, exon->qRange.min, exon->qRange.max, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+  MSP *result = createMissingMsp(BLXMSP_UTR, exon->qRange.min, exon->qRange.max, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, linkFeatures, error);
   *childList = g_list_append(*childList, result);
 }
 
@@ -2018,6 +2033,7 @@ static MSP* createMissingExon(GList *childList,
                               MSP **lastMsp, 
                               MSP **mspList, 
                               GList **seqList, 
+                              const gboolean linkFeatures,
                               GError **error)
 {
   /* Get the max and min extent of the children. They should be in order
@@ -2025,7 +2041,7 @@ static MSP* createMissingExon(GList *childList,
   MSP *startMsp = (MSP*)(g_list_first(childList)->data);
   MSP *endMsp = (MSP*)(g_list_last(childList)->data);
   
-  MSP *result = createMissingMsp(BLXMSP_EXON, startMsp->qRange.min, endMsp->qRange.max, startMsp->qname, startMsp->qFrame, startMsp->style, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+  MSP *result = createMissingMsp(BLXMSP_EXON, startMsp->qRange.min, endMsp->qRange.max, startMsp->qname, startMsp->qFrame, startMsp->style, blxSeq, featureLists, lastMsp, mspList, seqList, linkFeatures, error);
   return result;
 }
 
@@ -2042,23 +2058,24 @@ static void createMissingExonCdsUtr(MSP **exon,
                                     MSP **lastMsp, 
                                     MSP **mspList, 
                                     GList **seqList, 
+                                    const gboolean linkFeatures,
                                     GError **error)
 {
   if (*exon && g_list_length(*childList) > 0)
     {
       /* We have an exon and one or more CDS/UTRs. Check if there any other
        * child CDS/UTRs that we need to create. */
-      createMissingCdsUtr(*exon, childList, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+      createMissingCdsUtr(*exon, childList, blxSeq, featureLists, lastMsp, mspList, seqList, linkFeatures, error);
     }
   else if (*exon)
     {
       /* We have an exon but no children. Assume the exon is a single UTR */
-      createMissingUtr(*exon, childList, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+      createMissingUtr(*exon, childList, blxSeq, featureLists, lastMsp, mspList, seqList, linkFeatures, error);
     }
   else if (g_list_length(*childList) > 0)
     {
       /* We have children but no exon; create the exon from the children */
-      *exon = createMissingExon(*childList, blxSeq, featureLists, lastMsp, mspList, seqList, error);
+      *exon = createMissingExon(*childList, blxSeq, featureLists, lastMsp, mspList, seqList, linkFeatures, error);
     }
 }
 
@@ -2066,7 +2083,7 @@ static void createMissingExonCdsUtr(MSP **exon,
 /* Construct any missing transcript data, i.e.
  *   - if we have a transcript and exons we can construct the introns;
  *   - if we have exons and CDSs we can construct the UTRs */
-static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
+static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const gboolean linkFeatures)
 {
   GError *tmpError = NULL;
   
@@ -2111,7 +2128,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
             {
               /* We've found a gap between exons, or reached the end. First, see if the current exon/cds or utr
                * is missing and construct it if possible. Also do this if we're at the last MSP. */
-              createMissingExonCdsUtr(&curExon, &curChildMsps, blxSeq, featureLists, lastMsp, mspList, seqList, &tmpError);
+              createMissingExonCdsUtr(&curExon, &curChildMsps, blxSeq, featureLists, lastMsp, mspList, seqList, linkFeatures, &tmpError);
               reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
               
               IntRange newRange = {UNSET_INT, UNSET_INT};
@@ -2142,7 +2159,8 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
                   createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, blxSeq->source, 
                                curExon->score, curExon->id, 0, curExon->url, blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
-                               g_quark_to_string(blxSeq->fullName), UNSET_INT, UNSET_INT, blxSeq->strand, NULL, &tmpError);
+                               g_quark_to_string(blxSeq->fullName), UNSET_INT, UNSET_INT, blxSeq->strand, NULL, 
+                               blxSequenceGetLinkFeatures(blxSeq, linkFeatures), &tmpError);
                   
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }
@@ -2336,7 +2354,8 @@ void finaliseBlxSequences(GArray* featureLists[],
 			  const BlxSeqType seqType, 
 			  const int numFrames,
 			  const IntRange const *refSeqRange,
-			  const gboolean calcFrame)
+			  const gboolean calcFrame,
+                          const gboolean linkFeatures)
 {
   /* Loop through all MSPs and adjust their coords by the offest, then calculate their reading
    * frame. Also find the last MSP in the list. */
@@ -2374,7 +2393,7 @@ void finaliseBlxSequences(GArray* featureLists[],
         }
       
       findSequenceExtents(blxSeq);
-      constructTranscriptData(blxSeq, featureLists, &lastMsp, mspList, seqList);
+      constructTranscriptData(blxSeq, featureLists, &lastMsp, mspList, seqList, linkFeatures);
     }
 
   /* Sort msp arrays by start coord (only applicable to msp types that

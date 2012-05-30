@@ -73,8 +73,7 @@ AUTHOR_TEXT "\n"
  */
 
 /* For overall blixem settings. */
-#define BLIXEM_GROUP               "blixem"
-#define BLIXEM_OLD_BULK_FETCH      "default-fetch-mode" /* for compatibility with old config files (new config files use SEQTOOLS_BULK_FETCH) */
+#define BLIXEM_OLD_BULK_FETCH      "default-fetch-mode"      /* for compatibility with old config files (new config files use SEQTOOLS_BULK_FETCH) */
 
 /* Fetch settings */
 #define FETCH_MODE_KEY             "fetch-mode"  /* any group with this key is a fetch method, and this specifies what type of fetch to do */
@@ -256,6 +255,7 @@ typedef enum
     BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */
     BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
     BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
+    BLXFLAG_LINK_FEATURES,          /* whether featuers with the same name should be linked */
     
     BLXFLAG_NUM_FLAGS               /* Total number of flags e.g. for creating arrays and loops etc */
   } BlxFlag;
@@ -392,6 +392,7 @@ typedef struct _CommandLineOptions
   gboolean parseFullEmblInfo;     /* parse the full EMBL files on startup to populate additional info like tissue-type */
   gboolean saveTempFiles;         /* save any temporary files that blixem creates */
   gboolean coverageOn;            /* show the coverage view on start-up */
+  gboolean linkFeaturesByName;    /* default for whether features with the same name are considered part of the same parent */
 
   BlxBlastMode blastMode;         /* the blast match mode */
   BlxSeqType seqType;             /* whether the display shows sequences as peptides or nucleotides */

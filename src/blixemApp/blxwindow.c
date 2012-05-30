@@ -559,7 +559,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   finaliseFetch(newSeqs);
 
   finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->refSeqOffset, bc->seqType, 
-                       bc->numFrames, &bc->refSeqRange, TRUE);
+                       bc->numFrames, &bc->refSeqRange, TRUE, bc->flags[BLXFLAG_LINK_FEATURES]);
 
   /* Add the msps/sequences to the tree data models (must be done after finalise because
    * finalise populates the child msp lists for parent feaatures) */
@@ -4976,6 +4976,7 @@ static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *opti
   blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
   blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
+  blxContext->flags[BLXFLAG_LINK_FEATURES] = options->linkFeaturesByName;
 }
 
 

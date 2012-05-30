@@ -286,7 +286,7 @@ void fetchSequence(const BlxSequence *blxSeq,
       return;
     }
 
-  if (fetchMethod->mode == BLXFETCH_MODE_NONE)
+  if (fetchMethod->mode == BLXFETCH_MODE_NONE && attempt == 0)
     {
       g_message("Fetch method for '%s' is '%s'\n", blxSequenceGetFullName(blxSeq), FETCH_MODE_NONE_STR);
       return;
@@ -1557,10 +1557,10 @@ static void cancelCB(GtkWidget *widget, gpointer cb_data)
  */
 
 /* Get default blixem options from the "blixem" stanza */
-static void readBlixemConfigGroup(GKeyFile *key_file,
-                                  const char *group, 
-                                  CommandLineOptions *options,
-                                  GError **error)
+static void readBlixemStanza(GKeyFile *key_file,
+                             const char *group, 
+                             CommandLineOptions *options,
+                             GError **error)
 {
   /* Get the comma-separated list of possible fetch methods */
   options->bulkFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_BULK_FETCH);
@@ -1570,6 +1570,9 @@ static void readBlixemConfigGroup(GKeyFile *key_file,
    * default-fetch-mode key, for backwards compatibility */
   if (!options->bulkFetchDefault)
       options->bulkFetchDefault = keyFileGetCsv(key_file, group, BLIXEM_OLD_BULK_FETCH);
+
+  /* Get the link-features-by-name value */
+  options->linkFeaturesByName = g_key_file_get_boolean(key_file, group, LINK_FEATURES_BY_NAME, NULL);
 }
 
 
@@ -1613,11 +1616,11 @@ static BlxFetchOutput getFetchOutputFormat(GKeyFile *key_file, const char *group
 
 /* Get details about the given fetch method stanza and add it to 
  * the list of fetch methods in 'options' */
-static void readFetchConfigGroup(GKeyFile *key_file, 
-                                 const char *group, 
-                                 const char *fetchMode,
-                                 CommandLineOptions *options, 
-                                 GError **error)
+static void readFetchMethodStanza(GKeyFile *key_file, 
+                                  const char *group, 
+                                  const char *fetchMode,
+                                  CommandLineOptions *options, 
+                                  GError **error)
 {
   BlxFetchMethod *result = createBlxFetchMethod(group, g_quark_from_string(fetchMode));
 
@@ -1693,7 +1696,7 @@ static void loadConfig(GKeyFile *key_file, const char *group, CommandLineOptions
   /* Check for known group names first */
   if (stringsEqual(group, BLIXEM_GROUP, FALSE))
     {
-      readBlixemConfigGroup(key_file, group, options, error);
+      readBlixemStanza(key_file, group, options, error);
     }
   else
     {
@@ -1701,7 +1704,7 @@ static void loadConfig(GKeyFile *key_file, const char *group, CommandLineOptions
       char *fetchMode = g_key_file_get_string(key_file, group, FETCH_MODE_KEY, &tmpError);
       
       if (fetchMode && !tmpError)
-        readFetchConfigGroup(key_file, group, fetchMode, options, error);
+        readFetchMethodStanza(key_file, group, fetchMode, options, error);
     }
 }
 

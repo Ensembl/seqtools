@@ -286,6 +286,33 @@ static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
 }
 
 
+/* Get the default value for the link-features-by-name option */
+static gboolean getLinkFeaturesDefault(GKeyFile *keyFile)
+{
+  gboolean result = FALSE;
+  GError *tmpError = NULL;
+  
+  result = g_key_file_get_boolean(keyFile, BLIXEM_GROUP, LINK_FEATURES_BY_NAME, &tmpError);
+
+  if (tmpError)
+    result = LINK_FEATURES_DEFAULT;
+
+  return result;
+}
+
+/* Get the value for the link-features-by-name option for the given 
+ * group */
+static gboolean getLinkFeatures(GKeyFile *keyFile, const char *group)
+{
+  GError *tmpError = NULL;
+  gboolean result = g_key_file_get_boolean(keyFile, group, LINK_FEATURES_BY_NAME, &tmpError);
+  
+  if (tmpError)
+    result = getLinkFeaturesDefault(keyFile);
+  
+  return result;
+}
+
 /* Get the BlxDataType with the given name. Returns null and sets the error if 
  * we expected to find the name but didn't. */
 BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFile, GError **error)
@@ -342,6 +369,7 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
                * Valid keys are bulk-fetch and user-fetch */
               result->bulkFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_BULK_FETCH); 
               result->userFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_USER_FETCH); 
+              result->linkFeaturesByName = getLinkFeatures(keyFile, typeName);
               
               /* Insert it into the table of data types */
               g_hash_table_insert(dataTypes, &dataType, result);
@@ -381,7 +409,8 @@ static void createBlixemObject(BlxGffData *gffData,
   BlxDataType *dataType = getBlxDataType(gffData->dataType, gffData->source, keyFile, &tmpError);
   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
 
-  
+  const gboolean linkFeaturesByName = dataType ? dataType->linkFeaturesByName : getLinkFeaturesDefault(keyFile);
+
   if (gffData->mspType > BLXMSP_NUM_TYPES)
     {
       /* "Invalid" MSP types, i.e. don't create a real MSP from these types. */
@@ -391,7 +420,7 @@ static void createBlixemObject(BlxGffData *gffData,
           /* For transcripts, although we don't create an MSP we do create a sequence */
           addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand,
                          dataType, gffData->source, seqList, gffData->sequence, NULL, 
-                         &tmpError);
+                         linkFeaturesByName, &tmpError);
         }
     }
   else
@@ -445,6 +474,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->sEnd, 
 			      gffData->sStrand, 
 			      gffData->sequence, 
+                              linkFeaturesByName,
 			      &tmpError);
 
     if (!tmpError)
