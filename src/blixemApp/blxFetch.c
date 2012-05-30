@@ -1547,6 +1547,11 @@ static void readBlixemConfigGroup(GKeyFile *key_file,
   /* Get the comma-separated list of possible fetch methods */
   options->bulkFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_BULK_FETCH);
   options->userFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_USER_FETCH);
+
+  /* If the bulk-fetch key wasn't found, try the old
+   * default-fetch-mode key, for backwards compatibility */
+  if (!options->bulkFetchDefault)
+      options->bulkFetchDefault = keyFileGetCsv(key_file, group, BLIXEM_OLD_BULK_FETCH);
 }
 
 
