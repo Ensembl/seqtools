@@ -1286,11 +1286,16 @@ BlxSequence* addBlxSequence(const char *name,
           blxSeq->dataType = dataType;
           blxSeq->source = g_strdup(source);
           
-          /* Add it to the return sequence list, as well as our local lookup table */
+          /* Add it to the return sequence list */
           *seqList = g_list_prepend(*seqList, blxSeq);
 
-          GQuark key = getLookupKey((name ? name : idTag), strand);
-          g_hash_table_insert(lookupTable, GINT_TO_POINTER(key), blxSeq);
+          /* Add an entry to the lookup table (add an entry for both id and name, if given,
+           * because the next feature may have only one or the other set.) */
+          if (idTag)
+            g_hash_table_insert(lookupTable, GINT_TO_POINTER(getLookupKey(idTag, strand)), blxSeq);
+
+          if (name)
+            g_hash_table_insert(lookupTable, GINT_TO_POINTER(getLookupKey(name, strand)), blxSeq);
         }
       else
         {
@@ -1310,6 +1315,9 @@ BlxSequence* addBlxSequence(const char *name,
 	  /* It's possible that the BlxSequence was created without a name if we found an
 	   * unnamed child exon before we found the parent transcript, so set the name if we have it. */
 	  blxSequenceSetName(blxSeq, name);
+
+          /* Add an entry to the lookup table keyed on name, now that we know it */
+          g_hash_table_insert(lookupTable, GINT_TO_POINTER(getLookupKey(name, strand)), blxSeq);
 	}
       
       if (msp)
