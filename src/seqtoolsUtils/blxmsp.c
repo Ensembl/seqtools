@@ -1264,7 +1264,8 @@ static BlxSequence* findBlxSequence(GHashTable *lookupTable,
       GQuark key = getLookupKey(idTag, strand);
       result = (BlxSequence*)g_hash_table_lookup(lookupTable, GINT_TO_POINTER(key));
     }
-  else if (name && linkFeaturesByName)
+
+  if (!result && name && linkFeaturesByName)
     {
       /* No id tag is given but we are asked to link features with the same
        * name, so do the comparison using name and strand */
@@ -1330,7 +1331,7 @@ BlxSequence* addBlxSequence(const char *name,
           if (idTag)
             g_hash_table_insert(lookupTable, GINT_TO_POINTER(getLookupKey(idTag, strand)), blxSeq);
 
-          if (name)
+          if (name && linkFeaturesByName)
             g_hash_table_insert(lookupTable, GINT_TO_POINTER(getLookupKey(name, strand)), blxSeq);
         }
       else
@@ -1353,7 +1354,8 @@ BlxSequence* addBlxSequence(const char *name,
 	  blxSequenceSetName(blxSeq, name);
 
           /* Add an entry to the lookup table keyed on name, now that we know it */
-          g_hash_table_insert(lookupTable, GINT_TO_POINTER(getLookupKey(name, strand)), blxSeq);
+          if (linkFeaturesByName)
+            g_hash_table_insert(lookupTable, GINT_TO_POINTER(getLookupKey(name, strand)), blxSeq);
 	}
       
       if (msp)
