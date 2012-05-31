@@ -76,6 +76,7 @@ typedef enum
     BLX_CONFIG_ERROR_INVALID_FETCH_MODE,    /* invalid fetch mode specified */
     BLX_CONFIG_ERROR_INVALID_OUTPUT_FORMAT, /* invalid output format specified for fetch mode */
     BLX_CONFIG_ERROR_WARNINGS,              /* warnings found while reading config file */
+    BLX_CONFIG_ERROR_SUBSTITUTION           /* error with substitution string */
   } BlxConfigError;
 
 
@@ -326,7 +327,8 @@ void fetchSequence(const BlxSequence *blxSeq,
 /* Get the command to call for the given fetch method. Parses
  * the command and arguments and substitutes the following
  * characters with values from the given sequence/msp. Note that 
- * either blxSeq or msp must be given, but not both.
+ * either blxSeq or msp must be given, but not both. '%%' is used
+ * to represent a normal '%' character.
  * 
  *   %p:      program name
  *   %h:      host name
@@ -347,11 +349,13 @@ GString* getFetchCommand(BlxFetchMethod *fetchMethod,
                          const char *refSeqName,
                          const int refSeqOffset,
                          const IntRange* const refSeqRange,
-                         const char *dataset)
+                         const char *dataset,
+                         GError **error)
 {
   g_assert(blxSeq || msp);
 
   GString *result = g_string_new("");
+  GString *errorMsg = NULL;
   
   /* Compile the command and args into a single string */
   char *command = NULL;
@@ -414,7 +418,14 @@ GString* getFetchCommand(BlxFetchMethod *fetchMethod,
               case 'd':
                 if (dataset)
                   g_string_append(result, dataset);
+                break;
+              case '%':
+                g_string_append_c(result, *c);
+                break;
               default:
+                if (!errorMsg)
+                  errorMsg = g_string_new("");
+                g_string_append_printf(errorMsg, "  Unknown substitution character '%%%c'\n", *c);
                 break;
               };
             }
@@ -426,6 +437,13 @@ GString* getFetchCommand(BlxFetchMethod *fetchMethod,
         }
     }
 
+  if (errorMsg)
+    {
+      g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_SUBSTITUTION, "%s", errorMsg->str);
+      prefixError(*error, "Error constructing fetch command:\n");
+      g_string_free(errorMsg, TRUE);
+    }
+  
   /* Clean up */
   g_free(command);
 
@@ -448,22 +466,31 @@ static void wwwFetchSequence(const BlxSequence *blxSeq,
     {
       BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
+      GError *error = NULL;
+      
       GString *url = getFetchCommand(fetchMethod, 
                                      blxSeq, 
                                      NULL, 
                                      bc->refSeqName, 
                                      bc->refSeqOffset,
                                      &bc->refSeqRange,
-                                     bc->dataset);
+                                     bc->dataset,
+                                     &error);
 
-      GError *error = NULL;
-      seqtoolsLaunchWebBrowser(url->str, &error);
 
+      if (!error)
+        {
+          seqtoolsLaunchWebBrowser(url->str, &error);
+        }
+      
       g_string_free(url, TRUE);
 
       /* If failed, re-try with the next-preferred fetch method, if there is one */
       if (error)
-        fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
+        {
+          fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
+          g_error_free(error);
+        }
     }
 }
 
@@ -524,13 +551,16 @@ static void socketFetchSequence(const BlxSequence *blxSeq,
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
   /* Run the fetch command */
+  GString *resultText = NULL;
   GError *error = NULL;
-  GString *command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
-  GString *resultText = getExternalCommandOutput(command->str, &error);
+  GString *command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset, &error);
+  
+  if (!error)
+    resultText = getExternalCommandOutput(command->str, &error);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
 
-  if (resultText->len)  /* Success */
+  if (resultText && resultText->len)  /* Success */
     {
       if (displayResults)
         {
@@ -701,11 +731,15 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   gboolean debug_pfetch = FALSE ;
+  PFetchData pfetch_data ;
+  GError *tmpError = NULL;
+  GString *command = NULL;
+
+  if (fetchMethod->location == NULL)
+    g_set_error(&tmpError, BLX_ERROR, 1, "%s", "Failed to obtain preferences specifying how to pfetch.\n");
   
-  if (fetchMethod->location != NULL)
+  if (!tmpError)
     {
-      PFetchData pfetch_data ;
-      PFetchHandle pfetch = NULL ;
       GType pfetch_type = PFETCH_TYPE_HTTP_HANDLE ;
 
       if (fetchMethod->mode == BLXFETCH_MODE_PIPE)
@@ -713,13 +747,25 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
 	
       pfetch_data = g_new0(PFetchDataStruct, 1);
 
-      pfetch_data->pfetch = pfetch = PFetchHandleNew(pfetch_type);
+      pfetch_data->pfetch = PFetchHandleNew(pfetch_type);
       
       pfetch_data->blxWindow = blxWindow;
       pfetch_data->blxSeq = blxSeq;
       pfetch_data->attempt = attempt;
 
-      GString *command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
+      command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset, &tmpError);
+    }
+  
+  if (tmpError)
+    {
+      /* Couldn't initiate the fetch; try again with a different fetch method */
+      g_free(pfetch_data->pfetch);
+      g_free(pfetch_data);
+      reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
+      fetchSequence(blxSeq, TRUE, attempt + 1, blxWindow, result_out);
+    }
+  else
+    {
       pfetch_data->title = g_strdup_printf("%s - %s", g_get_prgname(), command->str);
       
       if (pfetch_data->title)
@@ -742,9 +788,9 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
       
       const gboolean fetchFullEntry = fetchMethod->output == BLXFETCH_OUTPUT_EMBL; /* fetching full embl entry */
 
-      if (PFETCH_IS_HTTP_HANDLE(pfetch))
+      if (PFETCH_IS_HTTP_HANDLE(pfetch_data->pfetch))
         {
-            PFetchHandleSettings(pfetch, 
+            PFetchHandleSettings(pfetch_data->pfetch, 
                                  "full",       fetchFullEntry,
                                  "port",       fetchMethod->port,
                                  "debug",      debug_pfetch,
@@ -754,21 +800,17 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
         }
       else
         {
-            PFetchHandleSettings(pfetch, 
+            PFetchHandleSettings(pfetch_data->pfetch, 
                                  "full",       fetchFullEntry,
                                  "pfetch",     fetchMethod->location,
                                  NULL);
         }
       
-      g_signal_connect(G_OBJECT(pfetch), "reader", G_CALLBACK(pfetch_reader_func), pfetch_data);
+      g_signal_connect(G_OBJECT(pfetch_data->pfetch), "reader", G_CALLBACK(pfetch_reader_func), pfetch_data);
       
-      g_signal_connect(G_OBJECT(pfetch), "closed", G_CALLBACK(pfetch_closed_func), pfetch_data);
+      g_signal_connect(G_OBJECT(pfetch_data->pfetch), "closed", G_CALLBACK(pfetch_closed_func), pfetch_data);
       
-      PFetchHandleFetch(pfetch, (char*)sequence_name) ;
-    }
-  else
-    {
-      g_critical("%s", "Failed to obtain preferences specifying how to pfetch.\n") ;
+      PFetchHandleFetch(pfetch_data->pfetch, (char*)sequence_name) ;
     }
 }
 

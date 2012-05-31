@@ -448,62 +448,76 @@ static void regionFetchFeature(const MSP const *msp,
                                const IntRange const *refSeqRange,
                                GError **error)
 {
+  const char *fetchName = g_quark_to_string(fetchMethod->name);
+  
   /* Create a temp file for the results */
   char *fileName = blxprintf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
   int fileDesc = mkstemp(fileName);
+  GError *tmpError = NULL;
   
-  if (fileDesc == -1)
+  if (!fileName || fileDesc == -1)
+    g_set_error(&tmpError, BLX_ERROR, 1, "  %s: Error creating temp file for fetch results (filename=%s)\n", fetchName, fileName);
+
+  GString *command = NULL;
+  
+  if (!tmpError)
     {
-      g_set_error(error, BLX_ERROR, 1, "Error creating temp file for region-fetch results (filename=%s)\n", fileName);
-      g_free(fileName);
-      return;
+      close(fileDesc);
+      
+      /* Get the command string, including the args */
+      command = getFetchCommand(fetchMethod, NULL, 
+                                msp, mspGetRefName(msp), 
+                                refSeqOffset, refSeqRange, 
+                                dataset, &tmpError);
+      if (tmpError)
+        prefixError(tmpError, "  %s: Error constructing fetch command:\n", fetchName);
     }
   
-  close(fileDesc);
-  
-  /* Get the command string, including the args */
-  GString *command = getFetchCommand(fetchMethod, NULL, msp, mspGetRefName(msp), refSeqOffset, refSeqRange, dataset);
-  
-  /* Send the output to the temp file */
-  if (fileName)
-    g_string_append_printf(command, " > %s", fileName);
-
-  FILE *outputFile = fopen(fileName, "w");
-
-  g_debug("region-fetch command:\n%s\n", command->str);
-
-  g_message_info("Calling region-fetch script...\n");
-  const gboolean success = (system(command->str) == 0);
-  
-  fclose(outputFile);
-  g_string_free(command, TRUE);
-  
-  if (success)
+  if (!tmpError)
     {
-      /* Parse the results */
-      g_message_info("Parsing region-fetch results...");
-      MSP *newMsps = NULL;
-      GList *newSeqs = NULL;
-
-      GKeyFile *keyFile = blxGetConfig();
-      loadGffFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, &newMsps, &newSeqs);
-      appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
-
-      g_message_info(" complete.\n");
-    }
-  else
-    {
-      g_message_info("... failed.\n");
-      g_critical("Failed to fetch sequences for region [%d, %d].\n", msp->qRange.min, msp->qRange.max);
-    }
+      /* Send the output to the temp file */
+      g_string_append_printf(command, " > %s", fileName);
+      
+      FILE *outputFile = fopen(fileName, "w");
+      
+      g_debug("region-fetch command:\n%s\n", command->str);
+      
+      g_message_info("Calling region-fetch script...\n");
+      const gboolean success = (system(command->str) == 0);
   
-  /* Delete the temp file (unless the 'save temp files' option is on) */
-  if (!saveTempFiles)
-    {
-      if (unlink(fileName) != 0)
-        g_warning("Error removing temp file '%s'.\n", fileName);
+      fclose(outputFile);
+      g_string_free(command, TRUE);
+      
+      if (success)
+        {
+          /* Parse the results */
+          g_message_info("Parsing region-fetch results...");
+          MSP *newMsps = NULL;
+          GList *newSeqs = NULL;
+          
+          GKeyFile *keyFile = blxGetConfig();
+          loadGffFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, &newMsps, &newSeqs);
+          appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
+          
+          g_message_info(" complete.\n");
+        }
+      else
+        {
+          g_message_info("... failed.\n");
+          g_set_error(&tmpError, BLX_ERROR, 1, "  %s: Failed to fetch sequences for region [%d, %d].\n", fetchName, msp->qRange.min, msp->qRange.max);
+        }
+      
+      /* Delete the temp file (unless the 'save temp files' option is on) */
+      if (!saveTempFiles)
+        {
+          if (unlink(fileName) != 0)
+            g_warning("Error removing temp file '%s'.\n", fileName);
+        }
     }
   
+  if (tmpError)
+    g_propagate_error(error, tmpError);
+
   g_free(fileName);
 }
 
