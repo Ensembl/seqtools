@@ -289,14 +289,17 @@ static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
 /* Get the default value for the link-features-by-name option */
 static gboolean getLinkFeaturesDefault(GKeyFile *keyFile)
 {
-  gboolean result = FALSE;
-  GError *tmpError = NULL;
+  gboolean result = LINK_FEATURES_DEFAULT;
+
+  if (keyFile)
+    {
+      GError *tmpError = NULL;
+      gboolean value = g_key_file_get_boolean(keyFile, BLIXEM_GROUP, LINK_FEATURES_BY_NAME, &tmpError);
+
+      if (!tmpError)
+        result = value;
+    }
   
-  result = g_key_file_get_boolean(keyFile, BLIXEM_GROUP, LINK_FEATURES_BY_NAME, &tmpError);
-
-  if (tmpError)
-    result = LINK_FEATURES_DEFAULT;
-
   return result;
 }
 
