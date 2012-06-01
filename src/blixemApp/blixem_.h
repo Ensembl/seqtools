@@ -120,9 +120,6 @@ typedef enum
 /* Generic fetch keys (applicable to more than one method) */
 #define FETCH_ARGS         "args"
 #define FETCH_OUTPUT       "output"
-#define FETCH_OUTPUT_FASTA "fasta"
-#define FETCH_OUTPUT_EMBL  "embl"
-#define FETCH_OUTPUT_GFF   "gff"
 
 
 /* For settings */
@@ -159,7 +156,9 @@ typedef enum
   BLXFETCH_OUTPUT_FASTA,
   BLXFETCH_OUTPUT_EMBL,
   BLXFETCH_OUTPUT_GFF,
-} BlxFetchOutput;
+
+  BLXFETCH_NUM_OUTPUT_TYPES
+} BlxFetchOutputType;
 
 
 /* struct to hold info about a fetch method */
@@ -173,7 +172,7 @@ typedef struct _BlxFetchMethod
   int port;                         /* for socket and http/pipe fetch modes */
   char *cookie_jar;                 /* for http/pipe fetch mode */
   char *args;                       /* arguments for standard (full) fetch call */
-  BlxFetchOutput output;            /* the output format to expect from the fetch command */
+  BlxFetchOutputType outputType;    /* the output format to expect from the fetch command */
 } BlxFetchMethod;
 
 

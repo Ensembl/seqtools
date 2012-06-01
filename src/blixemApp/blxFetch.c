@@ -257,7 +257,7 @@ static GKeyFile *blx_config_G = NULL ;
 
 
 /* Utility to convert a fetch mode enum into a string (used in the config file) */
-const char *getFetchModeName(const BlxFetchMode fetchMode)
+const char *fetchModeStr(const BlxFetchMode fetchMode)
 {
   /* Values must be in the same order as BlxFetchMode */
   static const gchar* fetchModeNames[] = 
@@ -280,6 +280,30 @@ const char *getFetchModeName(const BlxFetchMode fetchMode)
   
   if (fetchMode < BLXFETCH_NUM_MODES)
     result = fetchModeNames[fetchMode];
+  
+  return result;
+}
+
+
+/* Utility to convert a fetch-method output type into a string (used in the config file) */
+const char *outputTypeStr(const BlxFetchOutputType outputType)
+{
+  /* Values must be in the same order as BlxFetchMode */
+  static const gchar* outputNames[] = 
+    {
+      "<invalid>",
+      "fasta",
+      "embl",
+      "gff",
+      NULL
+    }; 
+  
+  g_assert(g_strv_length((gchar**)outputNames) == BLXFETCH_NUM_OUTPUT_TYPES);
+
+  const char *result = NULL;
+  
+  if (outputType < BLXFETCH_NUM_OUTPUT_TYPES)
+    result = outputNames[outputType];
   
   return result;
 }
@@ -318,7 +342,7 @@ void fetchSequence(const BlxSequence *blxSeq,
 
   if (fetchMethod->mode == BLXFETCH_MODE_NONE && attempt == 0)
     {
-      g_message("Fetch method for '%s' is '%s'\n", blxSequenceGetFullName(blxSeq), getFetchModeName(BLXFETCH_MODE_NONE));
+      g_message("Fetch method for '%s' is '%s'\n", blxSequenceGetFullName(blxSeq), fetchModeStr(BLXFETCH_MODE_NONE));
       return;
     }
   
@@ -668,7 +692,7 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
   g_signal_connect(G_OBJECT(fetch_data.bar->top_level), "destroy",
                G_CALLBACK(sequence_dialog_closed), &fetch_data) ;
   
-  const gboolean fullEntry = fetchMethod->output == BLXFETCH_OUTPUT_EMBL; /* fetching full embl entry */
+  const gboolean fullEntry = (fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL); /* fetching full embl entry */
 
   PFetchHandleSettings(fetch_data.pfetch, 
                        "full",       fullEntry,
@@ -815,7 +839,7 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
                              G_CALLBACK(handle_dialog_close), pfetch_data); 
         }
       
-      const gboolean fetchFullEntry = fetchMethod->output == BLXFETCH_OUTPUT_EMBL; /* fetching full embl entry */
+      const gboolean fetchFullEntry = (fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL); /* fetching full embl entry */
 
       if (PFETCH_IS_HTTP_HANDLE(pfetch_data->pfetch))
         {
@@ -1446,7 +1470,7 @@ static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequenc
   
   GError *error = NULL;
   
-  if (fetch_data->fetchMethod->output == BLXFETCH_OUTPUT_EMBL)
+  if (fetch_data->fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL)
     {
       /* We're fetching the full EMBL entries */
       pfetchParseEmblFileBuffer(read_text, 
@@ -1464,7 +1488,7 @@ static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequenc
                                 &fetch_data->parser_state,
                                 &fetch_data->status);
     }
-  else if (fetch_data->fetchMethod->output == BLXFETCH_OUTPUT_FASTA)
+  else if (fetch_data->fetchMethod->outputType == BLXFETCH_OUTPUT_FASTA)
     {
       /* The fetched entries just contain the FASTA sequence */
       pfetchParseSequenceFileBuffer(read_text, 
@@ -1484,7 +1508,9 @@ static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequenc
     {
       g_set_error(&error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_OUTPUT_FORMAT, 
                   "Invalid output format specified for fetch method '%s'; expected '%s' or '%s'\n",
-                  g_quark_to_string(fetch_data->fetchMethod->name), FETCH_OUTPUT_EMBL, FETCH_OUTPUT_FASTA);
+                  g_quark_to_string(fetch_data->fetchMethod->name), 
+                  outputTypeStr(BLXFETCH_OUTPUT_EMBL), 
+                  outputTypeStr(BLXFETCH_OUTPUT_FASTA));
     }
   
   if (error)
@@ -1661,25 +1687,50 @@ static BlxFetchMethod* createBlxFetchMethod(const char *fetchName,
   result->port = 0;
   result->cookie_jar = NULL;
   result->args = NULL;
-  result->output = 0;
+  result->outputType = 0;
 
   return result;
 }
 
-static BlxFetchOutput getFetchOutputFormat(GKeyFile *key_file, const char *group)
-{
-  BlxFetchOutput result = BLXFETCH_OUTPUT_INVALID;
-  
-  char *output = g_key_file_get_string(key_file, group, FETCH_OUTPUT, NULL);
 
-  if (stringsEqual(output, FETCH_OUTPUT_FASTA, FALSE))
-    result = BLXFETCH_OUTPUT_FASTA;
-  else if (stringsEqual(output, FETCH_OUTPUT_EMBL, FALSE))
-    result = BLXFETCH_OUTPUT_EMBL;
-  if (stringsEqual(output, FETCH_OUTPUT_GFF, FALSE))
-    result = BLXFETCH_OUTPUT_GFF;
-  
-  g_free(output);
+/* Get the output type from the given fetch stanza. Sets the error if not found. */
+static BlxFetchOutputType readFetchOutputType(GKeyFile *key_file, const char *group, GError **error)
+{
+  BlxFetchOutputType result = BLXFETCH_OUTPUT_INVALID;
+
+  GError *tmpError = NULL;
+  char *outputTypeName = g_key_file_get_string(key_file, group, FETCH_OUTPUT, &tmpError);
+
+  if (tmpError)
+    {
+      prefixError(tmpError, "Error getting '%s' value for fetch method '%s': ", FETCH_OUTPUT, group);
+      postfixError(tmpError, "\n");
+    }
+  else
+    {
+      /* Loop through all output types looking for one with this name */
+      BlxFetchOutputType outputType = 0;
+      
+      for ( ; outputType < BLXFETCH_NUM_OUTPUT_TYPES; ++outputType)
+        {
+          if (stringsEqual(outputTypeName, outputTypeStr(outputType), FALSE))
+            {
+              result = outputType;
+              break;
+            }
+        }
+
+      if (result == BLXFETCH_OUTPUT_INVALID)
+        {
+          g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_OUTPUT_FORMAT,
+                      "Invalid output type '%s' for fetch method '%s'\n", outputTypeName, group);
+        }
+    }
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
+ 
+  g_free(outputTypeName);
 
   return result;
 }
@@ -1696,53 +1747,53 @@ static void readFetchMethodStanza(GKeyFile *key_file,
   BlxFetchMethod *result = createBlxFetchMethod(group, g_quark_from_string(fetchMode));
 
   /* Set the relevant properties for this type of fetch method */
-#ifdef PFETCH_HTML
-  if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_HTTP), FALSE))
-    {
-      result->mode = BLXFETCH_MODE_HTTP;
-      result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, NULL);
-      result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
-      result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
-      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
-      result->output = getFetchOutputFormat(key_file, group);
-    }
-  else if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_PIPE), FALSE))
-    {
-      result->mode = BLXFETCH_MODE_PIPE;
-      result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, NULL);
-      result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
-      result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
-      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
-      result->output = getFetchOutputFormat(key_file, group);
-    }
-#endif
-  if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_SOCKET), FALSE))
+  if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_SOCKET), FALSE))
     {
       result->mode = BLXFETCH_MODE_SOCKET;
       result->location = g_key_file_get_string(key_file, group, SOCKET_FETCH_LOCATION, NULL);
       result->node = g_key_file_get_string(key_file, group, SOCKET_FETCH_NODE, NULL);
       result->port = g_key_file_get_integer(key_file, group, SOCKET_FETCH_PORT, NULL);
       result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
-      result->output = getFetchOutputFormat(key_file, group);
+      result->outputType = readFetchOutputType(key_file, group, error);
     }
-  else if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_WWW), FALSE))
+#ifdef PFETCH_HTML
+  else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_HTTP), FALSE))
+    {
+      result->mode = BLXFETCH_MODE_HTTP;
+      result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, NULL);
+      result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
+      result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
+      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
+      result->outputType = readFetchOutputType(key_file, group, error);
+    }
+  else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_PIPE), FALSE))
+    {
+      result->mode = BLXFETCH_MODE_PIPE;
+      result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, NULL);
+      result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
+      result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
+      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
+      result->outputType = readFetchOutputType(key_file, group, error);
+    }
+#endif
+  else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_WWW), FALSE))
     {
       result->mode = BLXFETCH_MODE_WWW;
       result->location = g_key_file_get_string(key_file, group, WWW_FETCH_LOCATION, NULL);
     }
-  else if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_DB), FALSE))
+  else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_DB), FALSE))
     {
       result->mode = BLXFETCH_MODE_DB;
       /* to do: not implemented */
     }
-  else if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_COMMAND), FALSE))
+  else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_COMMAND), FALSE))
     {
       result->mode = BLXFETCH_MODE_COMMAND;
       result->location = g_key_file_get_string(key_file, group, COMMAND_FETCH_SCRIPT, NULL);
       result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
-      result->output = getFetchOutputFormat(key_file, group);
+      result->outputType = readFetchOutputType(key_file, group, error);
     }
-    else if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_NONE), FALSE))
+    else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_NONE), FALSE))
     {
       result->mode = BLXFETCH_MODE_NONE;
     }
@@ -2459,9 +2510,9 @@ static gboolean fetchMethodReturnsSequence(const BlxFetchMethod* const fetchMeth
   if (fetchMethod)
     {
       result = 
-        fetchMethod->output == BLXFETCH_OUTPUT_FASTA ||
-        fetchMethod->output == BLXFETCH_OUTPUT_EMBL || 
-        fetchMethod->output == BLXFETCH_OUTPUT_GFF;
+        fetchMethod->outputType == BLXFETCH_OUTPUT_FASTA ||
+        fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL || 
+        fetchMethod->outputType == BLXFETCH_OUTPUT_GFF;
     }
   
   return result;
@@ -2478,8 +2529,8 @@ static gboolean fetchMethodReturnsEmbl(const BlxFetchMethod* const fetchMethod)
   if (fetchMethod)
     {
       result = 
-        fetchMethod->output == BLXFETCH_OUTPUT_EMBL || 
-        fetchMethod->output == BLXFETCH_OUTPUT_GFF;
+        fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL || 
+        fetchMethod->outputType == BLXFETCH_OUTPUT_GFF;
     }
   
   return result;
@@ -2724,7 +2775,7 @@ static gboolean socketFetchList(GList *seqsToFetch,
 {
   gboolean success = FALSE;
 
-  if (fetchMethod->output == BLXFETCH_OUTPUT_EMBL)
+  if (fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL)
     {
       success = populateFullDataPfetch(seqsToFetch,
                                        fetchMethod,
@@ -2732,7 +2783,7 @@ static gboolean socketFetchList(GList *seqsToFetch,
                                        seqType,
                                        error) ;
     }
-  else if (fetchMethod->output == BLXFETCH_OUTPUT_FASTA)
+  else if (fetchMethod->outputType == BLXFETCH_OUTPUT_FASTA)
     {
       success = populateFastaDataPfetch(seqsToFetch,
                                         fetchMethod,
@@ -2744,8 +2795,8 @@ static gboolean socketFetchList(GList *seqsToFetch,
     {
       g_set_error(error, BLX_ERROR, 1, "Invalid output format for fetch method %s (expected '%s' or '%s')\n", 
                   g_quark_to_string(fetchMethod->name),
-                  FETCH_OUTPUT_FASTA,
-                  FETCH_OUTPUT_EMBL);
+                  outputTypeStr(BLXFETCH_OUTPUT_FASTA),
+                  outputTypeStr(BLXFETCH_OUTPUT_EMBL));
     }
 
   return success;   
@@ -2786,7 +2837,7 @@ static void commandFetchList(GList *regionsToFetch,
                             GError **error)
 {
   /* Currently we only support an output type of gff */
-  if (fetchMethod->output == BLXFETCH_OUTPUT_GFF)
+  if (fetchMethod->outputType == BLXFETCH_OUTPUT_GFF)
     {
       regionFetchList(regionsToFetch, seqList, fetchMethod, mspListIn,
                       blastMode, featureLists, supportedTypes, styles, 
