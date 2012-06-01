@@ -256,6 +256,35 @@ static void                     pfetchGetParserStateFromTagName(GString *tagName
 static GKeyFile *blx_config_G = NULL ;
 
 
+/* Utility to convert a fetch mode enum into a string (used in the config file) */
+const char *getFetchModeName(const BlxFetchMode fetchMode)
+{
+  /* Values must be in the same order as BlxFetchMode */
+  static const gchar* fetchModeNames[] = 
+    {
+#ifdef PFETCH_HTML 
+      "http",
+      "pipe",
+#endif
+      "socket",
+      "www",
+      "db",
+      "command",
+      "none",
+      NULL
+    }; 
+  
+  g_assert(g_strv_length((gchar**)fetchModeNames) == BLXFETCH_NUM_MODES);
+
+  const char *result = NULL;
+  
+  if (fetchMode < BLXFETCH_NUM_MODES)
+    result = fetchModeNames[fetchMode];
+  
+  return result;
+}
+
+
 /* Fetch the given sequence and optionally display the results. Optionally
  * return the sequence; if the result_out is supplied, its contents must be
  * freed by the caller using g_free */
@@ -289,7 +318,7 @@ void fetchSequence(const BlxSequence *blxSeq,
 
   if (fetchMethod->mode == BLXFETCH_MODE_NONE && attempt == 0)
     {
-      g_message("Fetch method for '%s' is '%s'\n", blxSequenceGetFullName(blxSeq), FETCH_MODE_NONE_STR);
+      g_message("Fetch method for '%s' is '%s'\n", blxSequenceGetFullName(blxSeq), getFetchModeName(BLXFETCH_MODE_NONE));
       return;
     }
   
@@ -1668,7 +1697,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
 
   /* Set the relevant properties for this type of fetch method */
 #ifdef PFETCH_HTML
-  if (stringsEqual(fetchMode, FETCH_MODE_HTTP_STR, FALSE))
+  if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_HTTP), FALSE))
     {
       result->mode = BLXFETCH_MODE_HTTP;
       result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, NULL);
@@ -1677,7 +1706,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
       result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
       result->output = getFetchOutputFormat(key_file, group);
     }
-  else if (stringsEqual(fetchMode, FETCH_MODE_PIPE_STR, FALSE))
+  else if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_PIPE), FALSE))
     {
       result->mode = BLXFETCH_MODE_PIPE;
       result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, NULL);
@@ -1687,7 +1716,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
       result->output = getFetchOutputFormat(key_file, group);
     }
 #endif
-  if (stringsEqual(fetchMode, FETCH_MODE_SOCKET_STR, FALSE))
+  if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_SOCKET), FALSE))
     {
       result->mode = BLXFETCH_MODE_SOCKET;
       result->location = g_key_file_get_string(key_file, group, SOCKET_FETCH_LOCATION, NULL);
@@ -1696,24 +1725,24 @@ static void readFetchMethodStanza(GKeyFile *key_file,
       result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
       result->output = getFetchOutputFormat(key_file, group);
     }
-  else if (stringsEqual(fetchMode, FETCH_MODE_WWW_STR, FALSE))
+  else if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_WWW), FALSE))
     {
       result->mode = BLXFETCH_MODE_WWW;
       result->location = g_key_file_get_string(key_file, group, WWW_FETCH_LOCATION, NULL);
     }
-  else if (stringsEqual(fetchMode, FETCH_MODE_DB_STR, FALSE))
+  else if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_DB), FALSE))
     {
       result->mode = BLXFETCH_MODE_DB;
       /* to do: not implemented */
     }
-  else if (stringsEqual(fetchMode, FETCH_MODE_COMMAND_STR, FALSE))
+  else if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_COMMAND), FALSE))
     {
       result->mode = BLXFETCH_MODE_COMMAND;
       result->location = g_key_file_get_string(key_file, group, COMMAND_FETCH_SCRIPT, NULL);
       result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
       result->output = getFetchOutputFormat(key_file, group);
     }
-  else if (stringsEqual(fetchMode, FETCH_MODE_NONE_STR, FALSE))
+    else if (stringsEqual(fetchMode, getFetchModeName(BLXFETCH_MODE_NONE), FALSE))
     {
       result->mode = BLXFETCH_MODE_NONE;
     }

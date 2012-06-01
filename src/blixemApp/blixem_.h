@@ -81,8 +81,10 @@ AUTHOR_TEXT "\n"
 /* These are the supported fetch modes. */
 typedef enum
   {
+#ifdef PFETCH_HTML 
     BLXFETCH_MODE_HTTP,
     BLXFETCH_MODE_PIPE,
+#endif
     BLXFETCH_MODE_SOCKET,
     BLXFETCH_MODE_WWW,
     BLXFETCH_MODE_DB,
@@ -92,15 +94,6 @@ typedef enum
     BLXFETCH_NUM_MODES /* must be last in list */
   } BlxFetchMode;
 
-#ifdef PFETCH_HTML 
-#define FETCH_MODE_HTTP_STR            "http"
-#define FETCH_MODE_PIPE_STR            "pipe"
-#endif
-#define FETCH_MODE_SOCKET_STR          "socket"
-#define FETCH_MODE_WWW_STR             "www"
-#define FETCH_MODE_DB_STR              "db"
-#define FETCH_MODE_COMMAND_STR         "command"
-#define FETCH_MODE_NONE_STR            "none"
 
 /* Required keys for http-and pipe-fetch groups */
 #ifdef PFETCH_HTML
