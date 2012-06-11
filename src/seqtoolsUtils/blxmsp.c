@@ -1650,7 +1650,6 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->score = 0.0;
   msp->id = 0.0;
   msp->phase = 0;
-  msp->url = NULL;
   
   msp->qname = NULL;
   msp->qFrame = UNSET_INT;
@@ -1728,7 +1727,6 @@ void destroyMspData(MSP *msp)
   freeStringPointer(&msp->qname);
   freeStringPointer(&msp->sname);
   freeStringPointer(&msp->desc);
-  freeStringPointer(&msp->url);
   
   if (msp->gaps)
     {
@@ -1773,7 +1771,6 @@ MSP* createNewMsp(GArray* featureLists[],
                   const gdouble score,
                   const gdouble percentId,
                   const int phase,
-                  const char *url,
 		  const char *idTag,
                   const char *qName,
                   const int qStart,
@@ -1794,7 +1791,6 @@ MSP* createNewMsp(GArray* featureLists[],
   msp->score = score; 
   msp->id = percentId; 
   msp->phase = phase;
-  msp->url = g_strdup(url);
   
   msp->qname = qName ? g_strdup(qName) : NULL;
   
@@ -1850,7 +1846,6 @@ MSP* copyMsp(const MSP const *src,
   msp->score = UNSET_INT; 
   msp->id = UNSET_INT; 
   msp->phase = src->phase;
-  msp->url = g_strdup(src->url);
   
   msp->qname = src->qname ? g_strdup(src->qname) : NULL;
   
@@ -1962,7 +1957,7 @@ static MSP* createMissingMsp(const BlxMspType newType,
       GError *tmpError = NULL;
       
       result = createNewMsp(featureLists, lastMsp, mspList, seqList, newType, NULL, blxSeq->source,
-                            UNSET_INT, UNSET_INT, UNSET_INT, NULL, blxSeq->idTag,
+                            UNSET_INT, UNSET_INT, UNSET_INT, blxSeq->idTag,
                             qname, newStart, newEnd, blxSeq->strand, newFrame, g_quark_to_string(blxSeq->fullName),
                             UNSET_INT, UNSET_INT, blxSeq->strand, NULL,
                             blxSequenceGetLinkFeatures(blxSeq, linkFeatures), &tmpError);
@@ -2159,7 +2154,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
               if (curExon && newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
                   createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_INTRON, NULL, blxSeq->source, 
-                               curExon->score, curExon->id, 0, curExon->url, blxSeq->idTag, 
+                               curExon->score, curExon->id, 0, blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
                                g_quark_to_string(blxSeq->fullName), UNSET_INT, UNSET_INT, blxSeq->strand, NULL, 
                                blxSequenceGetLinkFeatures(blxSeq, linkFeatures), &tmpError);

@@ -69,7 +69,6 @@ typedef struct _BlxGffData
     /* standard fields */
     char *qName;	/* ref seq name */
     char *source;	/* source */
-    char *url;          /* URL */
     BlxMspType mspType;	/* type (converted to display type) */
     int qStart;		/* start coord on the ref seq */
     int qEnd;		/* end coord on the ref seq */
@@ -122,7 +121,6 @@ static void freeGffData(BlxGffData *gffData)
   freeAndNullString(&gffData->qName);
   freeAndNullString(&gffData->sName);
   freeAndNullString(&gffData->source);
-  freeAndNullString(&gffData->url);
   freeAndNullString(&gffData->idTag);
   freeAndNullString(&gffData->parentIdTag);
   freeAndNullString(&gffData->gapString);
@@ -465,7 +463,6 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->score, 
 			      gffData->percentId, 
                               gffData->phase,
-                              gffData->url,
 			      idTag,
 			      gffData->qName, 
 			      gffData->qStart, 
@@ -524,7 +521,7 @@ void parseGff3Body(const int lineNum,
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
   /* Parse the data into a temporary struct */
-  BlxGffData gffData = {NULL, NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
+  BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
 			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, 0};
 		      
   GError *error = NULL;
@@ -849,15 +846,6 @@ static void parseTagDataPair(char *text,
       else if (!strcmp(tokens[0], "variant_sequence"))
         {
           gffData->sequence = g_strdup(tokens[1]);
-        }
-      else if (!strcmp(tokens[0], "url"))
-        {
-#if GLIB_MAJOR_VERSION >= 2 && GLIB_MINOR_VERSION >= 16
-          gffData->url = g_uri_unescape_string(tokens[1], NULL);
-#else
-          g_warning("Cannot unescape string (requires GTK version 2.16 or greater). URL may contain unescaped characters.\n");
-          gffData->url = g_strdup(tokens[1]);
-#endif
         }
       else if (!strcmp(tokens[0], "dataType"))
         {

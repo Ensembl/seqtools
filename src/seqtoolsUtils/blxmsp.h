@@ -326,7 +326,7 @@ void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
 MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
                                    BlxDataType *dataType, const char *source, const gdouble score, const gdouble percentId, const int phase,
-                                   const char *url, const char *idTag, const char *qName, const int qStart, const int qEnd, 
+                                   const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
                                    const BlxStrand sStrand, char *sequence, const gboolean linkFeaturesByName, GError **error);  
 MSP*                  copyMsp(const MSP const *src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
