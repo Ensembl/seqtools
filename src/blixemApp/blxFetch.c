@@ -62,8 +62,8 @@
 #endif
 
 
-#define MKSTEMP_CONST_CHARS		      "BLIXEM_gff"	  /* the prefix to use when creating a temp file name */
-#define MKSTEMP_REPLACEMENT_CHARS	      "XXXXXX"		  /* the required string that will be replaced by unique chars when creating a temp file name */
+#define MKSTEMP_CONST_CHARS                   "BLIXEM_gff"        /* the prefix to use when creating a temp file name */
+#define MKSTEMP_REPLACEMENT_CHARS             "XXXXXX"            /* the required string that will be replaced by unique chars when creating a temp file name */
 
 
 /* Blixem config/fetch error domain */
@@ -215,6 +215,7 @@ static void                        readConfigFile(GKeyFile *key_file, char *conf
 
 static void                        socketFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, char **result_out);
 static void                        commandFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, char **result_out);
+static void                        internalFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, char **result_out);
 static void                        wwwFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, char **result_out);
 
 /* Pfetch local functions */
@@ -270,6 +271,7 @@ const char *fetchModeStr(const BlxFetchMode fetchMode)
       "www",
       "db",
       "command",
+      "internal",
       "none",
       NULL
     }; 
@@ -366,6 +368,10 @@ void fetchSequence(const BlxSequence *blxSeq,
   else if (fetchMethod->mode == BLXFETCH_MODE_WWW)
     {
       wwwFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, result_out);
+    }
+  else if (fetchMethod->mode == BLXFETCH_MODE_INTERNAL)
+    {
+      internalFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, result_out);
     }
   else
     {
@@ -557,17 +563,25 @@ static void commandFetchSequence(const BlxSequence *blxSeq,
                                  GtkWidget *blxWindow,
                                  char **result_out)
 {
-  const char *seqName = blxSequenceGetFullName(blxSeq);
-  char *command = blxprintf("efetch '%s' &", seqName);
-  
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   GError *error = NULL;
-  GString *resultText = getExternalCommandOutput(command, &error);
+
+  GString *command = getFetchCommand(fetchMethod, blxSeq, NULL, 
+                                     bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange,
+                                     bc->dataset, &error);
+  
+  GString *resultText = NULL;
+
+  if (!error)
+    resultText = getExternalCommandOutput(command->str, &error);
+
+  reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
 
   if (resultText && resultText->str)
     {
       if (displayResults && !error)
         {
-          char *title = blxprintf("%s - %s", g_get_prgname(), command);
+          char *title = blxprintf("%s - %s", g_get_prgname(), command->str);
           displayFetchResults(title, resultText->str, blxWindow, NULL);
           g_free(title);
         }
@@ -589,7 +603,47 @@ static void commandFetchSequence(const BlxSequence *blxSeq,
       fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
     }
   
-  g_free(command);
+  g_string_free(command, TRUE);
+}
+
+
+/* This "fetch" method doesn't really fetch the sequence: it just
+ * returns the internally-stored sequence */
+static void internalFetchSequence(const BlxSequence *blxSeq,
+                                  BlxFetchMethod *fetchMethod, 
+                                  const gboolean displayResults, 
+                                  const int attempt,
+                                  GtkWidget *blxWindow,
+                                  char **result_out)
+{
+  const char *seq = blxSeq && blxSeq->sequence ? blxSeq->sequence->str : NULL;
+
+  if (seq)
+    {
+      const char *seqName = blxSequenceGetFullName(blxSeq) ? blxSequenceGetFullName(blxSeq) : "";
+      char *result = g_strdup_printf(">%s\n%s", seqName, seq);
+
+      if (displayResults)
+        {
+          char *title = g_strdup_printf("%s - %s", g_get_prgname(), seqName);
+          displayFetchResults(title, result, blxWindow, NULL);
+          g_free(title);
+        }
+
+      if (result_out)
+        {
+          *result_out = result;
+        }
+      else
+        {
+          g_free(result);
+        }
+    }
+  else
+    {
+      /* Try again with the next-preferred fetch method, if there is one */
+      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
+    }
 }
 
 
@@ -1781,6 +1835,10 @@ static void readFetchMethodStanza(GKeyFile *key_file,
       result->mode = BLXFETCH_MODE_WWW;
       result->location = g_key_file_get_string(key_file, group, WWW_FETCH_LOCATION, NULL);
     }
+  else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_INTERNAL), FALSE))
+    {
+      result->mode = BLXFETCH_MODE_INTERNAL;
+    }
   else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_DB), FALSE))
     {
       result->mode = BLXFETCH_MODE_DB;
@@ -2623,6 +2681,7 @@ static void regionFetchFeature(const MSP const *msp,
                                const IntRange const *refSeqRange,
                                GError **error)
 {
+  GKeyFile *keyFile = blxGetConfig();
   const char *fetchName = g_quark_to_string(fetchMethod->name);
   
   /* Create a temp file for the results */
@@ -2670,7 +2729,6 @@ static void regionFetchFeature(const MSP const *msp,
           MSP *newMsps = NULL;
           GList *newSeqs = NULL;
           
-          GKeyFile *keyFile = blxGetConfig();
           loadGffFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, &newMsps, &newSeqs);
           appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
           

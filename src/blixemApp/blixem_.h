@@ -78,7 +78,7 @@ AUTHOR_TEXT "\n"
 /* Fetch settings */
 #define FETCH_MODE_KEY             "fetch-mode"  /* any group with this key is a fetch method, and this specifies what type of fetch to do */
 
-/* These are the supported fetch modes. */
+/* These are the supported fetch modes. ***If you add anything here, also add it in fetchModeStr*** */
 typedef enum
   {
 #ifdef PFETCH_HTML 
@@ -89,6 +89,7 @@ typedef enum
     BLXFETCH_MODE_WWW,
     BLXFETCH_MODE_DB,
     BLXFETCH_MODE_COMMAND,
+    BLXFETCH_MODE_INTERNAL,
     BLXFETCH_MODE_NONE,
 
     BLXFETCH_NUM_MODES /* must be last in list */
@@ -150,6 +151,7 @@ typedef enum
 typedef void(*FetchFunc)(const char *seqName, gpointer fetchMethod, const gboolean bulk, GtkWidget *blxWindow);
 
 
+/* output types for fetch modes. *** if you add anything here, also add it in outputTypeStr *** */
 typedef enum
 {
   BLXFETCH_OUTPUT_INVALID,
