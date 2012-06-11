@@ -430,6 +430,7 @@ GString* getFetchCommand(BlxFetchMethod *fetchMethod,
 
   /* Extract info about the sequence / feature */
   const char *name = blxSeq ? blxSequenceGetFullName(blxSeq) : mspGetSName(msp);
+  const char *source = blxSeq ? blxSequenceGetSource(blxSeq) : NULL;
   int startCoord = blxSeq ? blxSequenceGetStart(blxSeq, blxSeq->strand) : mspGetQStart(msp);
   int endCoord = blxSeq ? blxSequenceGetEnd(blxSeq, blxSeq->strand) : mspGetQEnd(msp);
   startCoord += refSeqOffset;
@@ -477,6 +478,10 @@ GString* getFetchCommand(BlxFetchMethod *fetchMethod,
               case 'd':
                 if (dataset)
                   g_string_append(result, dataset);
+                break;
+              case 'S':
+                if (source)
+                  g_string_append(result, source);
                 break;
               case '%':
                 g_string_append_c(result, *c);
