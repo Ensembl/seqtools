@@ -362,6 +362,39 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
 
 
 /***********************************************************
+ *                       Misc utils                        * 
+ ***********************************************************/
+
+/* Get a comma-separated list of strings from a key file and place
+ * them into an array as GQuarks. Returns null if the group/key is not found. */
+GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key)
+{
+  GArray *result = NULL;
+  char *fetchStr = g_key_file_get_string(keyFile, group, key, NULL);
+
+  if (fetchStr)
+    {
+      result = g_array_sized_new(FALSE, TRUE, sizeof(GQuark), 1);
+
+      char **tokens = g_strsplit(fetchStr, ",", -1);   /* -1 means do all tokens. */
+      char **token = tokens;
+
+      while (token && *token && **token)
+        {
+          GQuark quark = g_quark_from_string(*token);
+          result = g_array_append_val(result, quark);
+          ++token;
+        }
+      
+      g_strfreev(tokens);
+      g_free(fetchStr);
+    }
+  
+  return result;
+}
+
+
+/***********************************************************
  *                       Ranges/values                     * 
  ***********************************************************/
 
@@ -2348,8 +2381,7 @@ void prefixError(GError *error, char *formatStr, ...)
       va_end(argp);
 
       /* Append the error message */
-      char *resultStr = g_malloc(len + strlen(error->message));
-      snprintf(resultStr, len, "%s%s", tmpStr, error->message);
+      char *resultStr = g_strdup_printf("%s%s", tmpStr, error->message);
       
       /* Replace the error message text with the new string. */
       g_free(error->message);
@@ -2375,8 +2407,7 @@ void postfixError(GError *error, char *formatStr, ...)
   va_end(argp);
   
   /* Prepend the error message */
-  char *resultStr = g_malloc(len + strlen(error->message));
-  snprintf(resultStr, len, "%s%s", error->message, tmpStr);
+  char *resultStr = g_strdup_printf("%s%s", error->message, tmpStr);
   
   /* Replace the error message text with the new string. */
   g_free(error->message);
@@ -4160,15 +4191,15 @@ GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GE
 
 #if !defined(MACINTOSH)
   
-  char *result = getExternalCommandOutput(command, error);
+  GString *result = getExternalCommandOutput(command, error);
   
   if (!error || *error == NULL)
     {
       char *title = blxprintf("%s - %s", progName, command);
-      resultWindow = displayFetchResults(title, result, widget, NULL);
+      resultWindow = displayFetchResults(title, result->str, widget, NULL);
       
       g_free(title);
-      g_free(result);
+      g_string_free(result, TRUE);
     }
   
 
@@ -4180,11 +4211,9 @@ GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GE
 
 /* Execute the given external command and return the output from the 
  * command.
- * The result should be free'd with g_free. */
-char* getExternalCommandOutput(const char *command, GError **error)
+ * The result should be free'd with g_string_free. */
+GString* getExternalCommandOutput(const char *command, GError **error)
 {
-  char *result = NULL;
-  
   GString *resultText = g_string_new(NULL) ;
   char lineText[MAXLINE+1];
 
@@ -4220,10 +4249,7 @@ char* getExternalCommandOutput(const char *command, GError **error)
 
   pclose (pipe);
 
-  result = resultText->str;
-  g_string_free(resultText, FALSE);
-  
-  return result;
+  return resultText;
 }
 
 

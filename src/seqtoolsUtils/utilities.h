@@ -328,6 +328,8 @@ void                  adjustColorBrightness(const GdkColor const *origColor, con
 
 void                  getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
+GArray*               keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key);
+
 int                   getRangeLength(const IntRange const *range);
 int                   getRangeCentre(const IntRange const *range);
 void                  centreRangeOnCoord(IntRange *range, const int coord, const int length);
@@ -538,7 +540,7 @@ void                               setToggleMenuStatus(GtkActionGroup *action_gr
 void                               setRadioMenuStatus(GtkActionGroup *action_group, const char *actionName, const gint value);
 
 GtkWidget*                         externalCommand(char *command, char *progName, GtkWidget *widget, GError **error);
-char*                              getExternalCommandOutput(const char *command, GError **error);
+GString*                           getExternalCommandOutput(const char *command, GError **error);
 GtkWidget*                         displayFetchResults(const char *title, const char *displayText, GtkWidget *widget, GtkTextBuffer **textBuffer);
 
 int                                scrollBarWidth();

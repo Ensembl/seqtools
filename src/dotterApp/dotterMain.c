@@ -799,7 +799,7 @@ int main(int argc, char **argv)
 
       parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL);
       
-      finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
+      finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE, LINK_FEATURES_DEFAULT);
       
       blxDestroyGffTypeList(&supportedTypes);
     }

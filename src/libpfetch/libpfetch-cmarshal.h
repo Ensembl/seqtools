@@ -6,7 +6,7 @@
 
 G_BEGIN_DECLS
 
-/* ENUM:STRING,POINTER,POINTER (libpfetch-cmarshal.list:1) */
+/* ENUM:STRING,POINTER,POINTER (../src/libpfetch/libpfetch-cmarshal.list:1) */
 extern void libpfetch_cmarshal_ENUM__STRING_POINTER_POINTER (GClosure     *closure,
                                                              GValue       *return_value,
                                                              guint         n_param_values,
@@ -14,7 +14,7 @@ extern void libpfetch_cmarshal_ENUM__STRING_POINTER_POINTER (GClosure     *closu
                                                              gpointer      invocation_hint,
                                                              gpointer      marshal_data);
 
-/* ENUM:VOID (libpfetch-cmarshal.list:2) */
+/* ENUM:VOID (../src/libpfetch/libpfetch-cmarshal.list:2) */
 extern void libpfetch_cmarshal_ENUM__VOID (GClosure     *closure,
                                            GValue       *return_value,
                                            guint         n_param_values,

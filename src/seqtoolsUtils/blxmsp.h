@@ -55,10 +55,13 @@
 #define XY_NOT_FILLED -1000        /* Magic value meaning "value not provided" */
 
 
-/* Value names for data-type group entries in the config file */
+/* Key names for values in data-type stanzas in the config file */
+#define BLIXEM_GROUP                 "blixem"
 #define SEQTOOLS_BULK_FETCH          "bulk-fetch"
 #define SEQTOOLS_USER_FETCH          "user-fetch"
-
+#define LINK_FEATURES_BY_NAME        "link-features-by-name"
+#define LINK_FEATURES_DEFAULT        TRUE
+#define SEQTOOLS_GFF_FILENAME_KEY    "file"
 
 /* Main Blixem error domain */
 #define BLX_ERROR g_quark_from_string("Blixem")
@@ -134,12 +137,15 @@ typedef enum
   } BlxModelId;
 
 
+
 /* Defines a data type for sequences. The data type contains properties applicable
  * to multiple sequences, e.g. which fetch method to use. */
 typedef struct _BlxDataType
   {
-    char *name;                   /* the name of the data-type */
-    char *bulkFetch;              /* fetch method to use when bulk fetching sequences */
+    GQuark name;           /* the name of the data-type */
+    GArray *bulkFetch;     /* list of fetch methods (by name as a GQuark) to use when bulk fetching sequences, in order of priority */
+    GArray *userFetch;     /* list of fetch methods (by name as a GQuark) to use when user fetches a sequence, in order of priority */
+    gboolean linkFeaturesByName; /* whether features with the same name are part of the same parent */
   } BlxDataType;
 
 
@@ -203,7 +209,7 @@ typedef struct _MSP
   gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
   gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */
   int               phase;         /* phase: q start coord is offset by this amount to give the first base in the first complete codon (only relevant to CDSs) */
-  char              *url;          /* URL to info about the MSP (e.g. variations have a URL which can be opened by double-clicking the variation) */
+  GQuark            filename;      /* optional filename, e.g. for features used to fetch data from a bam file */
   
   char              *qname;        /* For Dotter, the MSP can belong to either sequence */
   IntRange          qRange;        /* the range of coords on the ref sequence where the alignment lies */
@@ -321,14 +327,14 @@ void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
 MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
                                    BlxDataType *dataType, const char *source, const gdouble score, const gdouble percentId, const int phase,
-                                   const char *url, const char *idTag, const char *qName, const int qStart, const int qEnd, 
+                                   const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
-                                   const BlxStrand sStrand, char *sequence, GError **error);  
+                                   const BlxStrand sStrand, char *sequence, const gboolean linkFeaturesByName, const GQuark filename, GError **error);  
 MSP*                  copyMsp(const MSP const *src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
 
 //void                  insertFS(MSP *msp, char *series);
 
-void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame);
+void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame, const gboolean linkFeatures);
 int                   findMspListSExtent(GList *mspList, const gboolean findMin);
 int                   findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand);
 
@@ -341,11 +347,13 @@ char*                 blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
 BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error);
 BlxDataType*          createBlxDataType();
 void                  destroyBlxDataType(BlxDataType **blxDataType);
+const char*           getDataTypeName(BlxDataType *blxDataType);
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, char *sequence, MSP *msp, GError **error);
+BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, char *sequence, MSP *msp, const gboolean linkFeaturesByName, GError **error);
 void                  blxSequenceSetName(BlxSequence *seq, const char *fullName);
 const char*           blxSequenceGetFullName(const BlxSequence *seq);
 const char*           blxSequenceGetDisplayName(const BlxSequence *seq);
+GQuark                blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk, const int index, const GArray *defaultMethods);
 const char*           blxSequenceGetShortName(const BlxSequence *seq);
 int                   blxSequenceGetLength(const BlxSequence *seq);
 char*                 blxSequenceGetSeq(const BlxSequence *seq);
@@ -356,12 +364,12 @@ char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean all
 int                   blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand);
 int                   blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand);
 const char*           blxSequenceGetSource(const BlxSequence *seq);
+gboolean              blxSequenceGetLinkFeatures(const BlxSequence *seq, const gboolean defaultLinkFeatures);
 char*                 blxSequenceGetOrganism(const BlxSequence *seq);
 char*                 blxSequenceGetGeneName(const BlxSequence *seq);
 char*                 blxSequenceGetTissueType(const BlxSequence *seq);
 char*                 blxSequenceGetStrain(const BlxSequence *seq);
 char*                 blxSequenceGetFasta(const BlxSequence *seq);
-
 
 void                  destroyBlxSequence(BlxSequence *seq);
 
