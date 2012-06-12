@@ -222,7 +222,7 @@ static void                        wwwFetchSequence(const BlxSequence *blxSeq, B
 static void                        appendCharToString(const char curChar, GString **result);
 static void                        appendCharToQuotedString(const char curChar, gboolean *foundEndQuote, GString **result);
 
-static void                        socketFetchInit(char *pfetchOptions, GList *seqsToFetch, const char *pfetchIP, int port, gboolean External, int *sock, GError **error);
+static void                        socketFetchInit(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, gboolean External, int *sock, GError **error);
 static void                        checkProgressBar(ProgressBar bar, BlxEmblParserState *parserState, gboolean *status);
 
 static int                         pfetchReceiveBuffer(char *buffer, const int bufferSize, const int sock, 
@@ -547,7 +547,7 @@ static GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod,
   GString *seq_string = g_string_sized_new(1000) ;
   GList *seqItem = seqsToFetch;
 
-  const char *separator = fetchMethod->separator ? fetchMethod->separator : "";
+  const char *separator = fetchMethod->separator ? fetchMethod->separator : " ";
   
   for ( ; seqItem; seqItem = seqItem->next)
     {
@@ -617,6 +617,7 @@ GString* getFetchCommand(BlxFetchMethod *fetchMethod,
 }
 
 
+#ifdef PFETCH_HTML
 static GString* getFetchArgs(BlxFetchMethod *fetchMethod,
                              const BlxSequence *blxSeq,
                              const MSP* const msp,
@@ -647,6 +648,7 @@ static GString* getFetchArgs(BlxFetchMethod *fetchMethod,
   
   return result;
 }
+#endif 
 
 
 /* Use the www-fetch method to fetch an entry and optionally display
@@ -1077,7 +1079,7 @@ gboolean populateFastaDataPfetch(GList *seqsToFetch,
   int sock;
   GError *tmpError = NULL;
   
-  socketFetchInit(fetchMethod->args, seqsToFetch, fetchMethod->node, fetchMethod->port, External, &sock, &tmpError);
+  socketFetchInit(fetchMethod, seqsToFetch, External, &sock, &tmpError);
 
   gboolean status = (tmpError == NULL);
   
@@ -1176,8 +1178,9 @@ gboolean populateFullDataPfetch(GList *seqsToFetch,
                                 GError **error)
 {
   int sock;
+
   GError *tmpError = NULL;
-  socketFetchInit(fetchMethod->args, seqsToFetch, fetchMethod->node, fetchMethod->port, External, &sock, &tmpError);
+  socketFetchInit(fetchMethod, seqsToFetch, External, &sock, &tmpError);
 
   gboolean status = (tmpError == NULL);
 
@@ -1884,13 +1887,48 @@ static BlxFetchMethod* createBlxFetchMethod(const char *fetchName,
 }
 
 
+/* Return true if the given character is a delimiter */
+static gboolean isDelimiter(const char c)
+{
+  return (c == '\"' || c == '\'');
+}
+
+
+/* Remove any delimiters (" and ') surrounding the given text.
+ * Modifies the text in place and returns the same string. */
+static char* removeDelimiters(char *text)
+{
+  /* Remove enclosing quotes */
+  if (text)
+    {
+      char *c = text;
+      
+      if (isDelimiter(*c))
+        {
+          text = g_strdup(c+1);
+          g_free(c);
+          c = text;
+        }
+      
+      c = &text[strlen(text) - 1];
+      
+      if (isDelimiter(*c))
+        {
+          *c = '\0';
+        }
+    }
+
+  return text;
+}
+
+
 /* Get the output type from the given fetch stanza. Sets the error if not found. */
 static BlxFetchOutputType readFetchOutputType(GKeyFile *key_file, const char *group, GError **error)
 {
   BlxFetchOutputType result = BLXFETCH_OUTPUT_INVALID;
 
   GError *tmpError = NULL;
-  char *outputTypeName = g_key_file_get_string(key_file, group, FETCH_OUTPUT, &tmpError);
+  char *outputTypeName = removeDelimiters(g_key_file_get_string(key_file, group, FETCH_OUTPUT, &tmpError));
 
   if (tmpError)
     {
@@ -1927,6 +1965,13 @@ static BlxFetchOutputType readFetchOutputType(GKeyFile *key_file, const char *gr
 }
 
 
+/* Utilities to get a value from a key-file and remove delimiters (for strings) */
+static char* configGetString(GKeyFile *key_file, const char *group, const char *key, GError **error)
+{
+  return removeDelimiters(g_key_file_get_string(key_file, group, key, error));
+}
+
+
 /* Get details about the given fetch method stanza and add it to 
  * the list of fetch methods in 'options' */
 static void readFetchMethodStanza(GKeyFile *key_file, 
@@ -1941,36 +1986,37 @@ static void readFetchMethodStanza(GKeyFile *key_file,
   if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_SOCKET), FALSE))
     {
       result->mode = BLXFETCH_MODE_SOCKET;
-      result->location = g_key_file_get_string(key_file, group, SOCKET_FETCH_LOCATION, NULL);
-      result->node = g_key_file_get_string(key_file, group, SOCKET_FETCH_NODE, NULL);
+      result->location = configGetString(key_file, group, SOCKET_FETCH_LOCATION, NULL);
+      result->node = configGetString(key_file, group, SOCKET_FETCH_NODE, NULL);
       result->port = g_key_file_get_integer(key_file, group, SOCKET_FETCH_PORT, NULL);
-      result->args = g_key_file_get_string(key_file, group, SOCKET_FETCH_ARGS, NULL);
+      result->args = configGetString(key_file, group, SOCKET_FETCH_ARGS, NULL);
+      result->separator = configGetString(key_file, group, FETCH_SEPARATOR, NULL);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
 #ifdef PFETCH_HTML
   else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_HTTP), FALSE))
     {
       result->mode = BLXFETCH_MODE_HTTP;
-      result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, NULL);
+      result->location = configGetString(key_file, group, HTTP_FETCH_LOCATION, NULL);
       result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
-      result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
-      result->args = g_key_file_get_string(key_file, group, HTTP_FETCH_ARGS, NULL);
-      result->separator = g_key_file_get_string(key_file, group, FETCH_SEPARATOR, NULL);
+      result->cookie_jar = configGetString(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
+      result->args = configGetString(key_file, group, HTTP_FETCH_ARGS, NULL);
+      result->separator = configGetString(key_file, group, FETCH_SEPARATOR, NULL);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
   else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_PIPE), FALSE))
     {
       result->mode = BLXFETCH_MODE_PIPE;
-      result->location = g_key_file_get_string(key_file, group, PIPE_FETCH_LOCATION, NULL);
-      result->args = g_key_file_get_string(key_file, group, PIPE_FETCH_ARGS, NULL);
+      result->location = configGetString(key_file, group, PIPE_FETCH_LOCATION, NULL);
+      result->args = configGetString(key_file, group, PIPE_FETCH_ARGS, NULL);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
 #endif
   else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_WWW), FALSE))
     {
       result->mode = BLXFETCH_MODE_WWW;
-      result->location = g_key_file_get_string(key_file, group, WWW_FETCH_LOCATION, NULL);
-      result->args = g_key_file_get_string(key_file, group, WWW_FETCH_ARGS, NULL);
+      result->location = configGetString(key_file, group, WWW_FETCH_LOCATION, NULL);
+      result->args = configGetString(key_file, group, WWW_FETCH_ARGS, NULL);
     }
   else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_INTERNAL), FALSE))
     {
@@ -1984,8 +2030,8 @@ static void readFetchMethodStanza(GKeyFile *key_file,
   else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_COMMAND), FALSE))
     {
       result->mode = BLXFETCH_MODE_COMMAND;
-      result->location = g_key_file_get_string(key_file, group, COMMAND_FETCH_SCRIPT, NULL);
-      result->args = g_key_file_get_string(key_file, group, COMMAND_FETCH_ARGS, NULL);
+      result->location = configGetString(key_file, group, COMMAND_FETCH_SCRIPT, NULL);
+      result->args = configGetString(key_file, group, COMMAND_FETCH_ARGS, NULL);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
     else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_NONE), FALSE))
@@ -2018,7 +2064,7 @@ static void loadConfig(GKeyFile *key_file, const char *group, CommandLineOptions
   else
     {
       /* Check if this is a fetch method; if it is it the group will have a fetch-mode key */
-      char *fetchMode = g_key_file_get_string(key_file, group, FETCH_MODE_KEY, &tmpError);
+      char *fetchMode = configGetString(key_file, group, FETCH_MODE_KEY, &tmpError);
       
       if (fetchMode && !tmpError)
         readFetchMethodStanza(key_file, group, fetchMode, options, error);
@@ -2075,40 +2121,39 @@ static void readConfigFile(GKeyFile *key_file, char *config_file, CommandLineOpt
 
 /* Initialise a pfetch connection with the given options and calls pfetch on each of the 
  * sequences in the given list. */
-static void socketFetchInit(char *fetchOptions, 
+static void socketFetchInit(const BlxFetchMethod* const fetchMethod,
                             GList *seqsToFetch, 
-                            const char *node, 
-                            int port, 
                             gboolean External, 
                             int *sock,
                             GError **error)
 {
   GError *tmpError = NULL;
-  
+
   /* open socket connection */
   if (!tmpError)
     {
-      *sock = socketConstruct(node, port, External, &tmpError) ;
+      *sock = socketConstruct(fetchMethod->node, fetchMethod->port, External, &tmpError) ;
     }
   
   /* send the command/names to the server */
   if (!tmpError)
     {
-      /* Send '-q' to get back one line per sequence, '-C' for lowercase DNA and uppercase protein. */
-      socketSend(*sock, fetchOptions, &tmpError);
+      GString *command = getFetchArgsMultiple(fetchMethod, seqsToFetch, &tmpError);
+      socketSend(*sock, command->str, &tmpError);
+      g_string_free(command, TRUE);
     }
   
-  if (!tmpError)
-    {
-      /* For each sequence, send a command to fetch that sequence, in the order that they are in our list */
-      GList *seqItem = seqsToFetch;
-      
-      for ( ; seqItem && !tmpError ; seqItem = seqItem->next)
-        {
-          BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-          socketSend(*sock, blxSequenceGetFullName(blxSeq), &tmpError);
-        }
-    }
+//  if (!tmpError)
+//    {
+//      /* For each sequence, send a command to fetch that sequence, in the order that they are in our list */
+//      GList *seqItem = seqsToFetch;
+//      
+//      for ( ; seqItem && !tmpError ; seqItem = seqItem->next)
+//        {
+//          BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+//          socketSend(*sock, blxSequenceGetFullName(blxSeq), &tmpError);
+//        }
+//    }
   
   if (!tmpError)
     {
