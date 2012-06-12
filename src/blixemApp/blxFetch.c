@@ -629,10 +629,10 @@ static void internalFetchSequence(const BlxSequence *blxSeq,
                                   char **result_out)
 {
   const char *seq = blxSeq && blxSeq->sequence ? blxSeq->sequence->str : NULL;
+  const char *seqName = blxSequenceGetFullName(blxSeq) ? blxSequenceGetFullName(blxSeq) : "";
 
   if (seq)
     {
-      const char *seqName = blxSequenceGetFullName(blxSeq) ? blxSequenceGetFullName(blxSeq) : "";
       char *result = g_strdup_printf(">%s\n%s", seqName, seq);
 
       if (displayResults)
@@ -653,6 +653,8 @@ static void internalFetchSequence(const BlxSequence *blxSeq,
     }
   else
     {
+      g_warning("No sequence data found for '%s'\n", seqName);
+      
       /* Try again with the next-preferred fetch method, if there is one */
       fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
     }
