@@ -397,6 +397,8 @@ void fetchSequence(const BlxSequence *blxSeq,
  *   %s:      start coord
  *   %e:      end coord
  *   %d:      dataset
+ *   %S:      feature source
+ *   %f:      file name
  * 
  * Returns the command and args compiled into a single string.
  * The caller must free the result with g_string_free.
@@ -431,6 +433,7 @@ GString* getFetchCommand(BlxFetchMethod *fetchMethod,
   /* Extract info about the sequence / feature */
   const char *name = blxSeq ? blxSequenceGetFullName(blxSeq) : mspGetSName(msp);
   const char *source = blxSeq ? blxSequenceGetSource(blxSeq) : NULL;
+  const char *filename = msp && msp->filename ? g_quark_to_string(msp->filename) : NULL;
   int startCoord = blxSeq ? blxSequenceGetStart(blxSeq, blxSeq->strand) : mspGetQStart(msp);
   int endCoord = blxSeq ? blxSequenceGetEnd(blxSeq, blxSeq->strand) : mspGetQEnd(msp);
   startCoord += refSeqOffset;
@@ -482,6 +485,10 @@ GString* getFetchCommand(BlxFetchMethod *fetchMethod,
               case 'S':
                 if (source)
                   g_string_append(result, source);
+                break;
+              case 'f':
+                if (filename)
+                  g_string_append(result, filename);
                 break;
               case '%':
                 g_string_append_c(result, *c);

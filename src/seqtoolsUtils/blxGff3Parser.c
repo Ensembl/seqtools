@@ -87,6 +87,7 @@ typedef struct _BlxGffData
     char *sequence;	/* sequence data */
     char *gapString;	/* the gaps cigar string */
     GQuark dataType;    /* represents a string that should correspond to a data type in the config file */
+    GQuark filename;    /* optional filename e.g. for fetching data from a bam file */
   } BlxGffData;
 
 
@@ -387,6 +388,30 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
 }
 
 
+/* Return the filename from the gff if given, otherwise check 
+ * if the filename is given in the config and return that.
+ * Returns 0 if not found. */
+static GQuark getFeatureFilename(BlxGffData *gffData, GKeyFile *keyFile, GError **error)
+{
+  GQuark result = 0;
+  
+  if (gffData->filename)
+    {
+      /* Filename was given in the gff so use that */
+      result = gffData->filename;
+    }
+  else if (keyFile && gffData->source)
+    {
+      /* Check if filename is given in the keyfile for this source */
+      char *filename = g_key_file_get_string(keyFile, gffData->source, SEQTOOLS_GFF_FILENAME_KEY, error);
+      result = g_quark_from_string(filename);
+      g_free(filename);
+    }
+  
+  return result;
+}
+
+
 /* Create a blixem object from the given parsed GFF data. Creates an MSP if the type is
  * exon or match, or a BlxSequence if the type is transcript. Does nothing for other types. */
 static void createBlixemObject(BlxGffData *gffData, 
@@ -409,6 +434,8 @@ static void createBlixemObject(BlxGffData *gffData,
   /* Get the data type struct */
   BlxDataType *dataType = getBlxDataType(gffData->dataType, gffData->source, keyFile, &tmpError);
   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+
+  GQuark filename = getFeatureFilename(gffData, keyFile, NULL);
 
   const gboolean linkFeaturesByName = dataType ? dataType->linkFeaturesByName : getLinkFeaturesDefault(keyFile);
 
@@ -475,6 +502,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->sStrand, 
 			      gffData->sequence, 
                               linkFeaturesByName,
+                              filename,
 			      &tmpError);
 
     if (!tmpError)
@@ -522,7 +550,7 @@ void parseGff3Body(const int lineNum,
   
   /* Parse the data into a temporary struct */
   BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
-			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, 0};
+			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, 0, 0};
 		      
   GError *error = NULL;
   parseGffColumns(line_string, lineNum, seqList, supportedTypes, styles, refSeqRange, &gffData, &error);
@@ -850,6 +878,10 @@ static void parseTagDataPair(char *text,
       else if (!strcmp(tokens[0], "dataType"))
         {
           gffData->dataType = g_quark_from_string(tokens[1]);
+        }
+      else if (!strcmp(tokens[0], "file"))
+        {
+          gffData->filename = g_quark_from_string(tokens[1]);
         }
       else
         {

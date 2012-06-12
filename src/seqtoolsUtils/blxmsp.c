@@ -1783,6 +1783,7 @@ MSP* createNewMsp(GArray* featureLists[],
                   BlxStrand sStrand,
                   char *sequence,
                   const gboolean linkFeaturesByName,
+                  const GQuark filename,
                   GError **error)
 {
   MSP *msp = createEmptyMsp(lastMsp, mspList);
@@ -1791,6 +1792,7 @@ MSP* createNewMsp(GArray* featureLists[],
   msp->score = score; 
   msp->id = percentId; 
   msp->phase = phase;
+  msp->filename = filename;
   
   msp->qname = qName ? g_strdup(qName) : NULL;
   
@@ -1960,7 +1962,7 @@ static MSP* createMissingMsp(const BlxMspType newType,
                             UNSET_INT, UNSET_INT, UNSET_INT, blxSeq->idTag,
                             qname, newStart, newEnd, blxSeq->strand, newFrame, g_quark_to_string(blxSeq->fullName),
                             UNSET_INT, UNSET_INT, blxSeq->strand, NULL,
-                            blxSequenceGetLinkFeatures(blxSeq, linkFeatures), &tmpError);
+                            blxSequenceGetLinkFeatures(blxSeq, linkFeatures), 0, &tmpError);
       
       result->style = newStyle;
       
@@ -2157,7 +2159,7 @@ static void constructTranscriptData(BlxSequence *blxSeq, GArray* featureLists[],
                                curExon->score, curExon->id, 0, blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
                                g_quark_to_string(blxSeq->fullName), UNSET_INT, UNSET_INT, blxSeq->strand, NULL, 
-                               blxSequenceGetLinkFeatures(blxSeq, linkFeatures), &tmpError);
+                               blxSequenceGetLinkFeatures(blxSeq, linkFeatures), 0, &tmpError);
                   
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }

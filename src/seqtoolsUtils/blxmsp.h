@@ -61,6 +61,7 @@
 #define SEQTOOLS_USER_FETCH          "user-fetch"
 #define LINK_FEATURES_BY_NAME        "link-features-by-name"
 #define LINK_FEATURES_DEFAULT        TRUE
+#define SEQTOOLS_GFF_FILENAME_KEY    "file"
 
 /* Main Blixem error domain */
 #define BLX_ERROR g_quark_from_string("Blixem")
@@ -208,7 +209,7 @@ typedef struct _MSP
   gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
   gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */
   int               phase;         /* phase: q start coord is offset by this amount to give the first base in the first complete codon (only relevant to CDSs) */
-  char              *url;          /* URL to info about the MSP (e.g. variations have a URL which can be opened by double-clicking the variation) */
+  GQuark            filename;      /* optional filename, e.g. for features used to fetch data from a bam file */
   
   char              *qname;        /* For Dotter, the MSP can belong to either sequence */
   IntRange          qRange;        /* the range of coords on the ref sequence where the alignment lies */
@@ -328,7 +329,7 @@ MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **
                                    BlxDataType *dataType, const char *source, const gdouble score, const gdouble percentId, const int phase,
                                    const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
-                                   const BlxStrand sStrand, char *sequence, const gboolean linkFeaturesByName, GError **error);  
+                                   const BlxStrand sStrand, char *sequence, const gboolean linkFeaturesByName, const GQuark filename, GError **error);  
 MSP*                  copyMsp(const MSP const *src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
 
 //void                  insertFS(MSP *msp, char *series);
