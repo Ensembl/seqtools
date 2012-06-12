@@ -841,9 +841,7 @@ static void socketFetchSequence(const BlxSequence *blxSeq,
 #ifdef PFETCH_HTML 
 /* Gets all the sequences needed by blixem but from http proxy server instead of from
  * the pfetch server direct, this enables blixem to be run and get sequences from
- * anywhere that can see the http proxy server. If fullEntry is true then the full
- * EMBL entry is fetched (if it exists) and data for the optional columns is parsed (e.g.
- * organism and tissue-type) */
+ * anywhere that can see the http proxy server. */
 gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, const BlxFetchMethod* const fetchMethod)
 {
   gboolean status = FALSE ;
@@ -889,12 +887,9 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
   g_signal_connect(G_OBJECT(fetch_data.bar->top_level), "destroy",
                G_CALLBACK(sequence_dialog_closed), &fetch_data) ;
   
-  const gboolean fullEntry = (fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL); /* fetching full embl entry */
-
   if (PFETCH_IS_HTTP_HANDLE(fetch_data.pfetch))
     {
       PFetchHandleSettings(fetch_data.pfetch, 
-                           "full",       fullEntry,
                            "port",       fetchMethod->port,
                            "debug",      debug_pfetch,
                            "pfetch",     fetchMethod->location,
@@ -904,19 +899,9 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
   else
     {
       PFetchHandleSettings(fetch_data.pfetch, 
-                           "full",       fullEntry,
                            "pfetch",     fetchMethod->location,
                            NULL);
     }
-
- if (!fullEntry)
-  {
-    PFetchHandleSettings(fetch_data.pfetch,
-                         "blixem-seqs",  TRUE, /* turns the next two on */
-                         "one-per-line", TRUE, /* one sequence per line */
-                         "case-by-type", TRUE, /* lowercase for DNA, uppercase for protein */
-                         NULL);
-  }
   
   g_signal_connect(G_OBJECT(fetch_data.pfetch), "reader", G_CALLBACK(sequence_pfetch_reader), &fetch_data) ;
 
@@ -958,7 +943,7 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
     }
   
   destroyProgressBar(fetch_data.bar) ;
-  g_string_free(request, TRUE);
+  g_string_free(request, FALSE);
   
   return status ;
 }
@@ -1037,12 +1022,9 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
                              G_CALLBACK(handle_dialog_close), pfetch_data); 
         }
       
-      const gboolean fetchFullEntry = (fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL); /* fetching full embl entry */
-
       if (PFETCH_IS_HTTP_HANDLE(pfetch_data->pfetch))
         {
             PFetchHandleSettings(pfetch_data->pfetch, 
-                                 "full",       fetchFullEntry,
                                  "port",       fetchMethod->port,
                                  "debug",      debug_pfetch,
                                  "pfetch",     fetchMethod->location,
@@ -1052,7 +1034,6 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
       else
         {
             PFetchHandleSettings(pfetch_data->pfetch, 
-                                 "full",       fetchFullEntry,
                                  "pfetch",     fetchMethod->location,
                                  NULL);
         }
@@ -1070,7 +1051,7 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
 
       PFetchHandleFetch(pfetch_data->pfetch, request->str) ;
       
-      g_string_free(request, TRUE);
+      g_string_free(request, FALSE);
     }
 }
 
