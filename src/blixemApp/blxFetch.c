@@ -382,67 +382,21 @@ void fetchSequence(const BlxSequence *blxSeq,
 }
 
 
-
-/* Get the command to call for the given fetch method. Parses
- * the command and arguments and substitutes the following
- * characters with values from the given sequence/msp. Note that 
- * either blxSeq or msp must be given, but not both. '%%' is used
- * to represent a normal '%' character.
- * 
- *   %p:      program name
- *   %h:      host name
- *   %u:      user name
- *   %m:      match sequence name
- *   %r:      reference sequence name
- *   %s:      start coord
- *   %e:      end coord
- *   %d:      dataset
- *   %S:      feature source
- *   %f:      file name
- * 
- * Returns the command and args compiled into a single string.
- * The caller must free the result with g_string_free.
- * Returns an empty string if the command/args are empty.
-*/
-GString* getFetchCommand(BlxFetchMethod *fetchMethod,
-                         const BlxSequence *blxSeq,
-                         const MSP* const msp,
-                         const char *refSeqName,
-                         const int refSeqOffset,
-                         const IntRange* const refSeqRange,
-                         const char *dataset,
-                         GError **error)
+static GString* doFetchStringSubstitutions(const char *command,
+                                           const char *name,
+                                           const char *refSeqName,
+                                           const int startCoord,
+                                           const int endCoord,
+                                           const char *dataset,
+                                           const char *source,
+                                           const char *filename,
+                                           GError **error)
 {
-  g_assert(blxSeq || msp);
-
   GString *result = g_string_new("");
-  GString *errorMsg = NULL;
   
-  /* Compile the command and args into a single string */
-  char *command = NULL;
-  
-  if (fetchMethod->location && fetchMethod->args)
-    command = g_strdup_printf("%s %s", fetchMethod->location, fetchMethod->args);
-  else if (fetchMethod->location)
-    command = g_strdup(fetchMethod->location);
-  else if (fetchMethod->args)
-    command = g_strdup(fetchMethod->args);
-  else
-    return result;
-
-  /* Extract info about the sequence / feature */
-  const char *name = blxSeq ? blxSequenceGetFullName(blxSeq) : mspGetSName(msp);
-  const char *source = blxSeq ? blxSequenceGetSource(blxSeq) : NULL;
-  const char *filename = msp && msp->filename ? g_quark_to_string(msp->filename) : NULL;
-  int startCoord = blxSeq ? blxSequenceGetStart(blxSeq, blxSeq->strand) : mspGetQStart(msp);
-  int endCoord = blxSeq ? blxSequenceGetEnd(blxSeq, blxSeq->strand) : mspGetQEnd(msp);
-  startCoord += refSeqOffset;
-  endCoord += refSeqOffset;
-  boundsLimitValue(&startCoord, refSeqRange);
-  boundsLimitValue(&endCoord, refSeqRange);
-
   /* Loop through the command and substitute any special chars with the relevant info  */
-  char *c = command;
+  GString *errorMsg = NULL;
+  const char *c = command;
       
   for ( ; c && *c; ++c)
     {
@@ -514,10 +468,181 @@ GString* getFetchCommand(BlxFetchMethod *fetchMethod,
       prefixError(*error, "Error constructing fetch command:\n");
       g_string_free(errorMsg, TRUE);
     }
+
+  return result;
+}
+
+
+static GString* doGetFetchArgs(const BlxFetchMethod* const fetchMethod,
+                               const char *name,
+                               const char *refSeqName,
+                               const int startCoord,
+                               const int endCoord,
+                               const char *dataset,
+                               const char *source,
+                               const char *filename,
+                               GError **error)
+{
+  GString *result = doFetchStringSubstitutions(fetchMethod->args, name, refSeqName, startCoord, endCoord,
+                                      dataset, source, filename, error);
+
+  return result;
+}
+
+
+/* Return true if the given fetch method uses http */
+static gboolean fetchMethodUsesHttp(const BlxFetchMethod* const fetchMethod)
+{
+  return (fetchMethod->mode == BLXFETCH_MODE_WWW
+#ifdef PFETCH_HTML
+          || fetchMethod->mode == BLXFETCH_MODE_HTTP
+#endif
+          );
+}
+
+
+static GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
+                                  const char *name,
+                                  const char *refSeqName,
+                                  const int startCoord,
+                                  const int endCoord,
+                                  const char *dataset,
+                                  const char *source,
+                                  const char *filename,
+                                  GError **error)
+{
+  GString *result = NULL;
+
+  /* Compile the command and args into a single string */
+  char *command = NULL;
   
+  /* For http methods, append the args (i.e. the request) after a '?'.
+   * For other methods, append the args after a space. */
+  if (fetchMethod->location && fetchMethod->args && fetchMethodUsesHttp(fetchMethod))
+    command = g_strdup_printf("%s?%s", fetchMethod->location, fetchMethod->args);
+  else if (fetchMethod->location && fetchMethod->args)
+    command = g_strdup_printf("%s %s", fetchMethod->location, fetchMethod->args);
+  else if (fetchMethod->location)
+    command = g_strdup(fetchMethod->location);
+  else if (fetchMethod->args)
+    command = g_strdup(fetchMethod->args);
+  else
+    return result;
+
+  result = doFetchStringSubstitutions(command, name, refSeqName, startCoord, endCoord,
+                                      dataset, source, filename, error);
+
   /* Clean up */
   g_free(command);
 
+  return result;
+}
+
+
+static GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod,
+                                     GList *seqsToFetch,
+                                     GError **error)
+{
+  /* Build up a string containing all the sequence names. */
+  GString *seq_string = g_string_sized_new(1000) ;
+  GList *seqItem = seqsToFetch;
+  
+  for ( ; seqItem; seqItem = seqItem->next)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+      g_string_append_printf(seq_string, "%s ", blxSequenceGetFullName(blxSeq));
+    }
+
+  GString *result = doGetFetchArgs(fetchMethod, seq_string->str, NULL, 0, 0,
+                                   NULL, NULL, NULL, error);
+
+  g_string_free(seq_string, TRUE);
+  
+  return result;
+}
+
+
+/* Get the command to call for the given fetch method. Parses
+ * the command and arguments and substitutes the following
+ * characters with values from the given sequence/msp. Note that 
+ * either blxSeq or msp must be given, but not both. '%%' is used
+ * to represent a normal '%' character.
+ * 
+ *   %p:      program name
+ *   %h:      host name
+ *   %u:      user name
+ *   %m:      match sequence name
+ *   %r:      reference sequence name
+ *   %s:      start coord
+ *   %e:      end coord
+ *   %d:      dataset
+ *   %S:      feature source
+ *   %f:      file name
+ * 
+ * Returns the command and args compiled into a single string.
+ * The caller must free the result with g_string_free.
+ * Returns an empty string if the command/args are empty.
+*/
+GString* getFetchCommand(BlxFetchMethod *fetchMethod,
+                         const BlxSequence *blxSeq,
+                         const MSP* const msp,
+                         const char *refSeqName,
+                         const int refSeqOffset,
+                         const IntRange* const refSeqRange,
+                         const char *dataset,
+                         GError **error)
+{
+  g_assert(blxSeq || msp);
+
+  /* Extract info about the sequence / feature */
+  const char *name = blxSequenceGetFullName(blxSeq);
+  if (!name) name = mspGetSName(msp);
+  if (!name) name = "";
+  
+  const char *source = blxSeq ? blxSequenceGetSource(blxSeq) : NULL;
+  const char *filename = msp && msp->filename ? g_quark_to_string(msp->filename) : NULL;
+  int startCoord = blxSeq ? blxSequenceGetStart(blxSeq, blxSeq->strand) : mspGetQStart(msp);
+  int endCoord = blxSeq ? blxSequenceGetEnd(blxSeq, blxSeq->strand) : mspGetQEnd(msp);
+  startCoord += refSeqOffset;
+  endCoord += refSeqOffset;
+  boundsLimitValue(&startCoord, refSeqRange);
+  boundsLimitValue(&endCoord, refSeqRange);
+
+  /* Do the substitutions */
+  GString *result = doGetFetchCommand(fetchMethod, name, refSeqName, startCoord, endCoord, dataset, source, filename, error);
+  
+  return result;
+}
+
+
+static GString* getFetchArgs(BlxFetchMethod *fetchMethod,
+                             const BlxSequence *blxSeq,
+                             const MSP* const msp,
+                             const char *refSeqName,
+                             const int refSeqOffset,
+                             const IntRange* const refSeqRange,
+                             const char *dataset,
+                             GError **error)
+{
+  g_assert(blxSeq || msp);
+
+  /* Extract info about the sequence / feature */
+  const char *name = blxSequenceGetFullName(blxSeq);
+  if (!name) name = mspGetSName(msp);
+  if (!name) name = "";
+  
+  const char *source = blxSeq ? blxSequenceGetSource(blxSeq) : NULL;
+  const char *filename = msp && msp->filename ? g_quark_to_string(msp->filename) : NULL;
+  int startCoord = blxSeq ? blxSequenceGetStart(blxSeq, blxSeq->strand) : mspGetQStart(msp);
+  int endCoord = blxSeq ? blxSequenceGetEnd(blxSeq, blxSeq->strand) : mspGetQEnd(msp);
+  startCoord += refSeqOffset;
+  endCoord += refSeqOffset;
+  boundsLimitValue(&startCoord, refSeqRange);
+  boundsLimitValue(&endCoord, refSeqRange);
+
+  /* Do the substitutions */
+  GString *result = doGetFetchArgs(fetchMethod, name, refSeqName, startCoord, endCoord, dataset, source, filename, error);
+  
   return result;
 }
 
@@ -725,6 +850,10 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
   gboolean debug_pfetch = FALSE ;
 
   GType pfetch_type = PFETCH_TYPE_HTTP_HANDLE ;
+
+  if (fetchMethod->mode == BLXFETCH_MODE_PIPE)
+    pfetch_type = PFETCH_TYPE_PIPE_HANDLE ;
+
   PFetchSequenceStruct fetch_data = {FALSE} ;
 
   fetch_data.connection_closed = FALSE;
@@ -762,13 +891,23 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
   
   const gboolean fullEntry = (fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL); /* fetching full embl entry */
 
-  PFetchHandleSettings(fetch_data.pfetch, 
-                       "full",       fullEntry,
-                       "port",       fetchMethod->port,
-                       "debug",      debug_pfetch,
-                       "pfetch",     fetchMethod->location,
-                       "cookie-jar", fetchMethod->cookie_jar,
-                       NULL);
+  if (PFETCH_IS_HTTP_HANDLE(fetch_data.pfetch))
+    {
+      PFetchHandleSettings(fetch_data.pfetch, 
+                           "full",       fullEntry,
+                           "port",       fetchMethod->port,
+                           "debug",      debug_pfetch,
+                           "pfetch",     fetchMethod->location,
+                           "cookie-jar", fetchMethod->cookie_jar,
+                           NULL);
+    }
+  else
+    {
+      PFetchHandleSettings(fetch_data.pfetch, 
+                           "full",       fullEntry,
+                           "pfetch",     fetchMethod->location,
+                           NULL);
+    }
 
  if (!fullEntry)
   {
@@ -783,20 +922,13 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
 
   g_signal_connect(G_OBJECT(fetch_data.pfetch), "closed", G_CALLBACK(sequence_pfetch_closed), &fetch_data) ;
 
-
-  /* Build up a string containing all the sequence names. */
-  GString *seq_string = g_string_sized_new(1000) ;
-  GList *seqItem = seqsToFetch;
+  GError *error = NULL;
+  GString *request = getFetchArgsMultiple(fetchMethod, seqsToFetch, &error);
+  reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
   
-  for ( ; seqItem; seqItem = seqItem->next)
-    {
-      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      g_string_append_printf(seq_string, "%s ", blxSequenceGetFullName(blxSeq));
-    }
-
   /* Set up pfetch/curl connection routines, this is non-blocking so if connection
    * is successful we block using our own flag. */
-  if (PFetchHandleFetch(fetch_data.pfetch, seq_string->str) == PFETCH_STATUS_OK)
+  if (PFetchHandleFetch(fetch_data.pfetch, request->str) == PFETCH_STATUS_OK)
     {
       status = TRUE ;
 
@@ -825,10 +957,9 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
       status = FALSE ;
     }
   
-  g_string_free(seq_string, TRUE);
-
   destroyProgressBar(fetch_data.bar) ;
-
+  g_string_free(request, TRUE);
+  
   return status ;
 }
 
@@ -848,7 +979,6 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
                               const int attempt,
                               char **result_out)
 {
-  const char *sequence_name = blxSequenceGetFullName(blxSeq);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   gboolean debug_pfetch = FALSE ;
@@ -930,8 +1060,17 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
       g_signal_connect(G_OBJECT(pfetch_data->pfetch), "reader", G_CALLBACK(pfetch_reader_func), pfetch_data);
       
       g_signal_connect(G_OBJECT(pfetch_data->pfetch), "closed", G_CALLBACK(pfetch_closed_func), pfetch_data);
+
+      GError *error = NULL;
+      GString *request = getFetchArgs(fetchMethod, blxSeq, NULL, 
+                                      bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, 
+                                      bc->dataset, &error);
+
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+
+      PFetchHandleFetch(pfetch_data->pfetch, request->str) ;
       
-      PFetchHandleFetch(pfetch_data->pfetch, (char*)sequence_name) ;
+      g_string_free(request, TRUE);
     }
 }
 
@@ -1821,7 +1960,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
       result->location = g_key_file_get_string(key_file, group, SOCKET_FETCH_LOCATION, NULL);
       result->node = g_key_file_get_string(key_file, group, SOCKET_FETCH_NODE, NULL);
       result->port = g_key_file_get_integer(key_file, group, SOCKET_FETCH_PORT, NULL);
-      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
+      result->args = g_key_file_get_string(key_file, group, SOCKET_FETCH_ARGS, NULL);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
 #ifdef PFETCH_HTML
@@ -1831,16 +1970,14 @@ static void readFetchMethodStanza(GKeyFile *key_file,
       result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, NULL);
       result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
       result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
-      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
+      result->args = g_key_file_get_string(key_file, group, HTTP_FETCH_ARGS, NULL);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
   else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_PIPE), FALSE))
     {
       result->mode = BLXFETCH_MODE_PIPE;
-      result->location = g_key_file_get_string(key_file, group, HTTP_FETCH_LOCATION, NULL);
-      result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
-      result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
-      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
+      result->location = g_key_file_get_string(key_file, group, PIPE_FETCH_LOCATION, NULL);
+      result->args = g_key_file_get_string(key_file, group, PIPE_FETCH_ARGS, NULL);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
 #endif
@@ -1848,6 +1985,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
     {
       result->mode = BLXFETCH_MODE_WWW;
       result->location = g_key_file_get_string(key_file, group, WWW_FETCH_LOCATION, NULL);
+      result->args = g_key_file_get_string(key_file, group, WWW_FETCH_ARGS, NULL);
     }
   else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_INTERNAL), FALSE))
     {
@@ -1862,7 +2000,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
     {
       result->mode = BLXFETCH_MODE_COMMAND;
       result->location = g_key_file_get_string(key_file, group, COMMAND_FETCH_SCRIPT, NULL);
-      result->args = g_key_file_get_string(key_file, group, FETCH_ARGS, NULL);
+      result->args = g_key_file_get_string(key_file, group, COMMAND_FETCH_ARGS, NULL);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
     else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_NONE), FALSE))

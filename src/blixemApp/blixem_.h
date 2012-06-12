@@ -100,26 +100,32 @@ typedef enum
 #ifdef PFETCH_HTML
 #define HTTP_FETCH_LOCATION       "url"
 #define HTTP_FETCH_PORT           "port"
+#define HTTP_FETCH_ARGS           "request"
 #define HTTP_FETCH_COOKIE_JAR     "cookie-jar"
+
+#define PIPE_FETCH_LOCATION       "command"
+#define PIPE_FETCH_ARGS           "args"
 #endif 
 
 /* Required keys for socket-fetch groups */
 #define SOCKET_FETCH_LOCATION     "command"
 #define SOCKET_FETCH_NODE         "node"
 #define SOCKET_FETCH_PORT         "port"
+#define SOCKET_FETCH_ARGS         "args"
 
 /* Required keys for www-fetch groups */
 #define WWW_FETCH_LOCATION       "url"
+#define WWW_FETCH_ARGS           "request"
 
 /* Required keys for db-fetch groups */
 /* not implemented yet */
 
 /* Required keys for command-fetch groups */
 #define COMMAND_FETCH_SCRIPT        "command"
+#define COMMAND_FETCH_ARGS          "args"
 
 
 /* Generic fetch keys (applicable to more than one method) */
-#define FETCH_ARGS         "args"
 #define FETCH_OUTPUT       "output"
 
 

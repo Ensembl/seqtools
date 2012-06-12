@@ -117,7 +117,7 @@ PFetchStatus PFetchHandleSettings(PFetchHandle pfetch, const gchar *first_arg_na
   return status;
 }
 
-PFetchStatus PFetchHandleFetch(PFetchHandle pfetch, char *sequence)
+PFetchStatus PFetchHandleFetch(PFetchHandle pfetch, char *request)
 {
   PFetchStatus status = PFETCH_STATUS_OK;
 
@@ -136,7 +136,7 @@ PFetchStatus PFetchHandleFetch(PFetchHandle pfetch, char *sequence)
     }
 
   if(status == PFETCH_STATUS_OK)
-    status   = (* PFETCH_HANDLE_GET_CLASS(pfetch)->fetch)(pfetch, sequence);
+    status   = (* PFETCH_HANDLE_GET_CLASS(pfetch)->fetch)(pfetch, request);
 
   return status;
 }
@@ -423,34 +423,14 @@ static void pfetch_handle_finalize (GObject *object)
   return;
 }
 
-static void pfetch_get_argv(PFetchHandle handle, char *seq, char **argv)
+static void pfetch_get_argv(PFetchHandle handle, char *request, char **argv)
 {
   int current = 0;
   gboolean add_F = FALSE;
   argv[current++] = handle->location;
 
-  add_F = handle->opts.full;
-
-  if(handle->opts.isoform_seq)
-    {
-      if(g_strstr_len(seq, -1, "-"))
-	add_F = FALSE;
-    }
-
-  if(add_F)
-    argv[current++] = "-F";
-
-  if(handle->opts.one_per_line)
-    argv[current++] = "-q";
-
-  if(handle->opts.dna_PROTEIN)
-    argv[current++] = "-C";
-
-  if(handle->opts.archive)
-    argv[current++] = "-A";
-
-  if(seq != NULL)
-    argv[current++] = seq;
+  if(request != NULL)
+    argv[current++] = request;
 
   argv[current] = '\0';
   
@@ -590,7 +570,7 @@ static void pfetch_pipe_handle_init(PFetchHandlePipe pfetch)
 }
 
 
-static PFetchStatus pfetch_pipe_fetch(PFetchHandle handle, char *sequence)
+static PFetchStatus pfetch_pipe_fetch(PFetchHandle handle, char *request)
 {
   PFetchHandlePipe pipe = PFETCH_PIPE_HANDLE(handle);
   ChildWatchData child_data = NULL;
@@ -604,7 +584,7 @@ static PFetchStatus pfetch_pipe_fetch(PFetchHandle handle, char *sequence)
 
   child_data->watch_data = pipe;
 
-  pfetch_get_argv(handle, sequence, &argv[0]);
+  pfetch_get_argv(handle, request, &argv[0]);
 
   reader_id = g_signal_handler_find(G_OBJECT(handle),
 				    G_SIGNAL_MATCH_ID,
@@ -1144,12 +1124,11 @@ static void pfetch_http_handle_get_property(GObject    *gobject,
 					    GValue     *value, 
 					    GParamSpec *pspec);
 
-static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *sequence);
+static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request);
 
 static size_t http_curl_write_func (void *ptr, size_t size, size_t nmemb, void *stream);
 static size_t http_curl_header_func(void *ptr, size_t size, size_t nmemb, void *stream);
 
-static char *build_post_data(PFetchHandleHttp pfetch, char *sequence);
 static void conn_close_handler(CURLObject curl_object, PFetchHandleHttp pfetch);
 
 /* Public type function */
@@ -1337,12 +1316,12 @@ static void pfetch_http_handle_get_property(GObject *gobject, guint param_id,
   return ;
 }
 
-static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *sequence)
+static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request)
 {
   PFetchHandleHttp pfetch = PFETCH_HTTP_HANDLE(handle);
   PFetchStatus     status = PFETCH_STATUS_OK;
 
-  if((pfetch->post_data = build_post_data(pfetch, sequence)))
+  if((pfetch->post_data = request))
     {
       CURLObjectSet(pfetch->curl_object,
 		    /* general settings */
@@ -1448,38 +1427,6 @@ static size_t http_curl_header_func( void *ptr, size_t size, size_t nmemb, void 
   return size_handled;
 }
 /* end of curl functions */
-
-
-static char *build_post_data(PFetchHandleHttp pfetch, char *sequence)
-{
-  GString *post_string = NULL;
-  char *post = NULL;
-
-  if(sequence)
-    {
-      char *argv[256] = { '\0' };
-      char **argv_ptr = &argv[1];
-
-      post_string = g_string_sized_new(128);
-      
-      g_string_append_printf(post_string, "request=");
-      
-      pfetch_get_argv(PFETCH_HANDLE(pfetch), sequence, argv);
-
-      if(argv_ptr && *argv_ptr)
-	{
-	  while(argv_ptr && *argv_ptr)
-	    {
-	      g_string_append_printf(post_string, "%s ", *argv_ptr);
-	      argv_ptr++;
-	    }
-	}
-
-      post = g_string_free(post_string, FALSE);
-    }
-
-  return post;
-}
 
 
 static void conn_close_handler(CURLObject curl_object, PFetchHandleHttp pfetch)
