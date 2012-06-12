@@ -546,11 +546,13 @@ static GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod,
   /* Build up a string containing all the sequence names. */
   GString *seq_string = g_string_sized_new(1000) ;
   GList *seqItem = seqsToFetch;
+
+  const char *separator = fetchMethod->separator ? fetchMethod->separator : "";
   
   for ( ; seqItem; seqItem = seqItem->next)
     {
       BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      g_string_append_printf(seq_string, "%s ", blxSequenceGetFullName(blxSeq));
+      g_string_append_printf(seq_string, "%s%s", blxSequenceGetFullName(blxSeq), separator);
     }
 
   GString *result = doGetFetchArgs(fetchMethod, seq_string->str, NULL, 0, 0,
@@ -1875,6 +1877,7 @@ static BlxFetchMethod* createBlxFetchMethod(const char *fetchName,
   result->port = 0;
   result->cookie_jar = NULL;
   result->args = NULL;
+  result->separator = NULL;
   result->outputType = 0;
 
   return result;
@@ -1952,6 +1955,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
       result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
       result->cookie_jar = g_key_file_get_string(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
       result->args = g_key_file_get_string(key_file, group, HTTP_FETCH_ARGS, NULL);
+      result->separator = g_key_file_get_string(key_file, group, FETCH_SEPARATOR, NULL);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
   else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_PIPE), FALSE))

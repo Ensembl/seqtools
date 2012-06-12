@@ -141,7 +141,7 @@ PFetchStatus PFetchHandleFetch(PFetchHandle pfetch, char *request)
   return status;
 }
 
-PFetchStatus PFetchHandleFetchMultiple(PFetchHandle pfetch, char **sequences, int count)
+PFetchStatus PFetchHandleFetchMultiple(PFetchHandle pfetch, char **sequences, const char *separator, int count)
 {
   PFetchStatus status = PFETCH_STATUS_OK;
   GString *seq_string = NULL;
@@ -155,7 +155,7 @@ PFetchStatus PFetchHandleFetchMultiple(PFetchHandle pfetch, char **sequences, in
 
       for(i = 0; i < count; i++, seq_ptr++)
 	{
-	  g_string_append_printf(seq_string, "%s ", *seq_ptr);
+	  g_string_append_printf(seq_string, "%s%s", *seq_ptr, separator);
 	}
 
       status = PFetchHandleFetch(pfetch, seq_string->str);
@@ -426,7 +426,6 @@ static void pfetch_handle_finalize (GObject *object)
 static void pfetch_get_argv(PFetchHandle handle, char *request, char **argv)
 {
   int current = 0;
-  gboolean add_F = FALSE;
   argv[current++] = handle->location;
 
   if(request != NULL)

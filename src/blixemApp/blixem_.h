@@ -126,7 +126,8 @@ typedef enum
 
 
 /* Generic fetch keys (applicable to more than one method) */
-#define FETCH_OUTPUT       "output"
+#define FETCH_OUTPUT       "output"      /* output format */
+#define FETCH_SEPARATOR    "separator"   /* separator, when combining multiple sequences */
 
 
 /* For settings */
@@ -180,6 +181,7 @@ typedef struct _BlxFetchMethod
   int port;                         /* for socket and http/pipe fetch modes */
   char *cookie_jar;                 /* for http/pipe fetch mode */
   char *args;                       /* arguments for standard (full) fetch call */
+  char *separator;                  /* separator when combining multiple sequence names into a list */
   BlxFetchOutputType outputType;    /* the output format to expect from the fetch command */
 } BlxFetchMethod;
 
