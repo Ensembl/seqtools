@@ -878,14 +878,18 @@ char *blxSequenceGetSeq(const BlxSequence *seq)
  * (i.e. the actual dna or peptide sequence string) */
 gboolean blxSequenceRequiresSeqData(const BlxSequence *seq)
 {
-  return (seq && (seq->type == BLXSEQUENCE_MATCH || seq->type == BLXSEQUENCE_VARIATION || seq->type == BLXSEQUENCE_READ_PAIR || seq->type == BLXSEQUENCE_REGION));
+  return (seq && 
+          (seq->type == BLXSEQUENCE_MATCH || 
+           seq->type == BLXSEQUENCE_VARIATION || 
+           seq->type == BLXSEQUENCE_READ_PAIR || 
+           seq->type == BLXSEQUENCE_REGION));
 }
 
 /* This returns true if the given sequence object requires optional data such
  * as organism and tissue-type, if this data is available. */
 gboolean blxSequenceRequiresOptionalData(const BlxSequence *seq)
 {
-  return (seq && seq->type == BLXSEQUENCE_MATCH && seq->dataType);
+  return (seq && seq->type == BLXSEQUENCE_MATCH);
 }
 
 char *blxSequenceGetOrganism(const BlxSequence *seq)
