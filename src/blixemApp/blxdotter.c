@@ -876,12 +876,18 @@ char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
   
   const BlxSequence *blxSeq = (const BlxSequence*)(bc->selectedSeqs->data);
 
-  /* If we're in seqbl mode, only part of the sequence is in the MSP. */
+  /* If we're in seqbl mode, only part of the sequence is stored
+   * internally, so try to fetch the full sequence.
+   * gb10: I don't think this is applicable any more (or even if it
+   * will work if partial sequences are stored). If we do need to do
+   * a fetch here then we will need to look for a fetch method that
+   * returns the fasta sequence (rather than the embl entry). */
   const BlxBlastMode blastMode = bc->blastMode;
-  if (blastMode != BLXMODE_TBLASTN)
+  /*  if (blastMode != BLXMODE_TBLASTN)
     {
       fetchSequence(blxSeq, FALSE, 0, blxWindow, &dotterSSeq);
-    }
+      }
+  */
 
   if (!dotterSSeq && blastMode != BLXMODE_TBLASTX)
     {
