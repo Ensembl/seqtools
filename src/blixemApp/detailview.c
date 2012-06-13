@@ -3916,7 +3916,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
             if (seqItem)
               {
                 BlxSequence *seq = (BlxSequence*)(seqItem->data);
-                fetchSequence(seq, TRUE, 0, blxWindow, NULL);
+                fetchSequence(seq, TRUE, 0, blxWindow, NULL, NULL, NULL);
               }
           }
 

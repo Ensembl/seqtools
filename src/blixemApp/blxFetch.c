@@ -198,7 +198,7 @@ static PFetchStatus                sequence_pfetch_closed(PFetchHandle *handle, 
 static void                        sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
 static gboolean                    parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequence fetch_data) ;
 
-static void                        httpFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer *text_buffer, const int attempt, char **result_out);
+static void                        httpFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result_out);
 #endif
 
 static int                         socketConstruct(const char *ipAddress, int port, gboolean External, GError **error) ;
@@ -213,9 +213,9 @@ static void                        cancelCB(GtkWidget *widget, gpointer cb_data)
 
 static void                        readConfigFile(GKeyFile *key_file, char *config_file, CommandLineOptions *options, GError **error) ;
 
-static void                        socketFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, char **result_out);
-static void                        commandFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, char **result_out);
-static void                        internalFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, char **result_out);
+static void                        socketFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result_out);
+static void                        commandFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result_out);
+static void                        internalFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result_out);
 static void                        wwwFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, char **result_out);
 
 /* Pfetch local functions */
@@ -312,12 +312,16 @@ const char *outputTypeStr(const BlxFetchOutputType outputType)
 
 
 /* Fetch the given sequence and optionally display the results. Optionally
- * return the sequence; if the result_out is supplied, its contents must be
- * freed by the caller using g_free */
+ * return the sequence in result_out; if supplied, its contents must be
+ * freed by the caller using g_free. 
+ * dialog and text_buffer are only used when recursing via httpFetchSequence;
+ * they should be passed as NULL in all other cases. */
 void fetchSequence(const BlxSequence *blxSeq, 
                    const gboolean displayResults,
                    const int attempt,
                    GtkWidget *blxWindow,
+                   GtkWidget *dialog, 
+                   GtkTextBuffer **text_buffer,
                    char **result_out)
 {
   g_assert(blxSeq);
@@ -353,17 +357,17 @@ void fetchSequence(const BlxSequence *blxSeq,
   
   if (fetchMethod->mode == BLXFETCH_MODE_SOCKET)
     {
-      socketFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, result_out);
+      socketFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, dialog, text_buffer, result_out);
     }
 #ifdef PFETCH_HTML 
   else if (fetchMethod->mode == BLXFETCH_MODE_HTTP || fetchMethod->mode == BLXFETCH_MODE_PIPE)
     {
-      httpFetchSequence(blxSeq, fetchMethod, blxWindow, NULL, NULL, attempt, result_out);
+      httpFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, dialog, text_buffer, result_out);
     }
 #endif
   else if (fetchMethod->mode == BLXFETCH_MODE_COMMAND)
     {
-      commandFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, result_out);
+      commandFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, dialog, text_buffer, result_out);
     }
   else if (fetchMethod->mode == BLXFETCH_MODE_WWW)
     {
@@ -371,13 +375,13 @@ void fetchSequence(const BlxSequence *blxSeq,
     }
   else if (fetchMethod->mode == BLXFETCH_MODE_INTERNAL)
     {
-      internalFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, result_out);
+      internalFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, dialog, text_buffer, result_out);
     }
   else
     {
       /* Invalid fetch method. Try again with the next fetch method, if one is specified */
       g_warning("Unknown fetch method: %s\n", g_quark_to_string(fetchMethod->name));
-      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
+      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, dialog, text_buffer, result_out);
     }
 }
 
@@ -688,7 +692,7 @@ static void wwwFetchSequence(const BlxSequence *blxSeq,
       /* If failed, re-try with the next-preferred fetch method, if there is one */
       if (error)
         {
-          fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
+          fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, NULL, NULL, result_out);
           g_error_free(error);
         }
     }
@@ -702,6 +706,8 @@ static void commandFetchSequence(const BlxSequence *blxSeq,
                                  const gboolean displayResults, 
                                  const int attempt,
                                  GtkWidget *blxWindow,
+                                 GtkWidget *dialog,
+                                 GtkTextBuffer **text_buffer,
                                  char **result_out)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -723,7 +729,7 @@ static void commandFetchSequence(const BlxSequence *blxSeq,
       if (displayResults && !error)
         {
           char *title = blxprintf("%s - %s", g_get_prgname(), command->str);
-          displayFetchResults(title, resultText->str, blxWindow, NULL);
+          displayFetchResults(title, resultText->str, blxWindow, dialog, text_buffer);
           g_free(title);
         }
 
@@ -741,7 +747,7 @@ static void commandFetchSequence(const BlxSequence *blxSeq,
     {
       /* Try again with the next-preferred fetch method, if there is one */
       g_string_free(resultText, TRUE);
-      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
+      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, NULL, NULL, result_out);
     }
   
   g_string_free(command, TRUE);
@@ -755,6 +761,8 @@ static void internalFetchSequence(const BlxSequence *blxSeq,
                                   const gboolean displayResults, 
                                   const int attempt,
                                   GtkWidget *blxWindow,
+                                  GtkWidget *dialog,
+                                  GtkTextBuffer **text_buffer,
                                   char **result_out)
 {
   const char *seq = blxSeq && blxSeq->sequence ? blxSeq->sequence->str : NULL;
@@ -767,7 +775,7 @@ static void internalFetchSequence(const BlxSequence *blxSeq,
       if (displayResults)
         {
           char *title = g_strdup_printf("%s - %s", g_get_prgname(), seqName);
-          displayFetchResults(title, result, blxWindow, NULL);
+          displayFetchResults(title, result, blxWindow, dialog, text_buffer);
           g_free(title);
         }
 
@@ -785,7 +793,7 @@ static void internalFetchSequence(const BlxSequence *blxSeq,
       g_warning("No sequence data found for '%s'\n", seqName);
       
       /* Try again with the next-preferred fetch method, if there is one */
-      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
+      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, dialog, text_buffer, result_out);
     }
 }
 
@@ -796,6 +804,8 @@ static void socketFetchSequence(const BlxSequence *blxSeq,
                                 const gboolean displayResults, 
                                 const int attempt,
                                 GtkWidget *blxWindow,
+                                GtkWidget *dialog,
+                                GtkTextBuffer **text_buffer,
                                 char **result_out)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -815,7 +825,7 @@ static void socketFetchSequence(const BlxSequence *blxSeq,
       if (displayResults)
         {
           char *title = blxprintf("Blixem - %s", command->str);
-          displayFetchResults(title, resultText->str, blxWindow, NULL);
+          displayFetchResults(title, resultText->str, blxWindow, dialog, text_buffer);
           g_free(title);
         }
 
@@ -835,7 +845,7 @@ static void socketFetchSequence(const BlxSequence *blxSeq,
       g_string_free(resultText, TRUE);
 
       /* Try again with the next fetch method, if there is one set */
-      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, result_out);
+      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, NULL, NULL, result_out);
     }
 
   g_string_free(command, TRUE);
@@ -962,12 +972,24 @@ gboolean populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, 
  * returns null. */
 static void httpFetchSequence(const BlxSequence *blxSeq,
                               BlxFetchMethod *fetchMethod,
+                              const gboolean displayResults,
+                              const int attempt,
                               GtkWidget *blxWindow, 
                               GtkWidget *dialog, 
-                              GtkTextBuffer *text_buffer, 
-                              const int attempt,
+                              GtkTextBuffer **text_buffer, 
                               char **result_out)
 {
+  if (!displayResults)
+    {
+      g_warning("Program error: http-fetch expected to display results but displayResults is false.\n");
+      return;
+    }
+
+  if (result_out)
+    {
+      g_warning("Program error: http-fetch cannot return results except for display.\n");
+    }
+  
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   gboolean debug_pfetch = FALSE ;
@@ -1002,7 +1024,7 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
       g_free(pfetch_data->pfetch);
       g_free(pfetch_data);
       reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
-      fetchSequence(blxSeq, TRUE, attempt + 1, blxWindow, result_out);
+      fetchSequence(blxSeq, TRUE, attempt + 1, blxWindow, dialog, text_buffer, result_out);
     }
   else
     {
@@ -1010,15 +1032,15 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
       
       if (pfetch_data->title)
         {
-          if (dialog && text_buffer)
+          if (dialog && text_buffer && *text_buffer)
             {
               gtk_window_set_title(GTK_WINDOW(dialog), pfetch_data->title);
               pfetch_data->dialog = dialog;
-              pfetch_data->text_buffer = text_buffer;
+              pfetch_data->text_buffer = *text_buffer;
             }
           else
             {
-              pfetch_data->dialog = displayFetchResults(pfetch_data->title, "pfetching...\n", blxWindow, &pfetch_data->text_buffer);
+              pfetch_data->dialog = displayFetchResults(pfetch_data->title, "pfetching...\n", blxWindow, dialog, &pfetch_data->text_buffer);
             }
 
           pfetch_data->widget_destroy_handler_id = 
@@ -1469,7 +1491,7 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
 
   if (actual_read && *actual_read > 0 && pfetch_data)
     {
-      GtkTextBuffer *text_buffer = GTK_TEXT_BUFFER(pfetch_data->text_buffer);
+      GtkTextBuffer *text_buffer = pfetch_data->text_buffer;
 
       /* clear the buffer the first time... */
       if(pfetch_data->got_response == FALSE)
@@ -1477,18 +1499,15 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
           gtk_text_buffer_set_text(text_buffer, "", 0);
         }
 
+      gtk_text_buffer_insert_at_cursor(text_buffer, text, *actual_read);
+      pfetch_data->got_response = TRUE;
+
       /* If we tried fetching the full entry and failed, try again
        * with the next fetch method, if there is one */
       if (!strncasecmp(text, "no match", 8))
         {
-          fetchSequence(pfetch_data->blxSeq, TRUE, pfetch_data->attempt + 1, pfetch_data->blxWindow, NULL);
+          fetchSequence(pfetch_data->blxSeq, TRUE, pfetch_data->attempt + 1, pfetch_data->blxWindow, pfetch_data->dialog, &pfetch_data->text_buffer, NULL);
         }
-      else
-        {
-          gtk_text_buffer_insert_at_cursor(text_buffer, text, *actual_read);
-        }
-        
-      pfetch_data->got_response = TRUE;
     }
 
   return status;

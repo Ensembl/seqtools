@@ -4196,7 +4196,7 @@ GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GE
   if (!error || *error == NULL)
     {
       char *title = blxprintf("%s - %s", progName, command);
-      resultWindow = displayFetchResults(title, result->str, widget, NULL);
+      resultWindow = displayFetchResults(title, result->str, widget, NULL, NULL);
       
       g_free(title);
       g_string_free(result, TRUE);
@@ -4253,28 +4253,46 @@ GString* getExternalCommandOutput(const char *command, GError **error)
 }
 
 
-/* Display a message dialog showing the given display text. This utility functions sets
- * things like the font and default width based on properties of the main blixem window.
- * Returns a pointer to the dialog, and optionally sets a pointer to the text buffer in the
- * textBuffer return argument. */
+/* Display a message dialog showing the given display text. This
+ * utility function sets things like the font and default width
+ * based on properties of the main blixem window. Returns a pointer
+ * to the dialog, and optionally sets a pointer to the text buffer 
+ * in the textBuffer return argument.
+ * If the given dialog and text_buffer already contain values
+ * then those are updated rather than creating a new dialog */
 GtkWidget* displayFetchResults(const char *title, 
                                const char *displayText, 
                                GtkWidget *widget, 
-                               GtkTextBuffer **textBuffer)
+                               GtkWidget *dialog,
+                               GtkTextBuffer **text_buffer)
 {
-  /* Use a fixed-width font */
-  const char *fontFamily = findFixedWidthFont(widget);
-  PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
+  GtkWidget *result = NULL;
   
-  int maxWidth = 0, maxHeight = 0;
-  getScreenSizeFraction(widget, DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION, DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
-  
-  GtkTextView *textView = NULL;
-  GtkWidget *result = showMessageDialog(title, displayText, NULL, maxWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
-  
-  if (textBuffer && textView)
+  if (dialog && text_buffer && *text_buffer)
     {
-      *textBuffer = gtk_text_view_get_buffer(textView);
+      /* Just update the existing dialog and return that */
+      gtk_window_set_title(GTK_WINDOW(dialog), title);
+      gtk_text_buffer_set_text(*text_buffer, displayText, -1);
+      result = dialog;
+    }
+  else
+    {
+      /* Create a new dialog for the results */
+
+      /* Use a fixed-width font */
+      const char *fontFamily = findFixedWidthFont(widget);
+      PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
+      
+      int maxWidth = 0, maxHeight = 0;
+      getScreenSizeFraction(widget, DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION, DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
+      
+      GtkTextView *textView = NULL;
+      result = showMessageDialog(title, displayText, NULL, maxWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
+      
+      if (text_buffer && textView)
+        {
+          *text_buffer = gtk_text_view_get_buffer(textView);
+        }
     }
   
   return result;

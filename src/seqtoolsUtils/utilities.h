@@ -541,7 +541,7 @@ void                               setRadioMenuStatus(GtkActionGroup *action_gro
 
 GtkWidget*                         externalCommand(char *command, char *progName, GtkWidget *widget, GError **error);
 GString*                           getExternalCommandOutput(const char *command, GError **error);
-GtkWidget*                         displayFetchResults(const char *title, const char *displayText, GtkWidget *widget, GtkTextBuffer **textBuffer);
+GtkWidget*                         displayFetchResults(const char *title, const char *displayText, GtkWidget *widget, GtkWidget *dialog, GtkTextBuffer **textBuffer);
 
 int                                scrollBarWidth();
 void                               getTextSize(GtkWidget *widget, const char *text, int *width, int *height);
