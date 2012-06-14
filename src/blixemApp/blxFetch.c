@@ -147,6 +147,7 @@ typedef struct
   PFetchHandle pfetch;
   gboolean got_response;
   int attempt;
+  const BlxFetchMethod *fetchMethod;
 } PFetchDataStruct, *PFetchData;
 
 
@@ -196,7 +197,7 @@ static PFetchStatus pfetch_closed_func(gpointer user_data) ;
 static PFetchStatus                sequence_pfetch_reader(PFetchHandle *handle, char *text, guint *actual_read, GError *error, gpointer user_data) ;
 static PFetchStatus                sequence_pfetch_closed(PFetchHandle *handle, gpointer user_data) ;
 static void                        sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
-static gboolean                    parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequence fetch_data) ;
+static gboolean                    parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod, char *read_text, int length, PFetchSequence fetch_data) ;
 
 static void                        httpFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result_out);
 #endif
@@ -232,21 +233,21 @@ static void                        pfetchGetNextSequence(BlxSequence **currentSe
                                                          const int numRequested, const int numFetched, const gboolean pfetch_ok, 
                                                          gboolean *status, BlxEmblParserState *parserState);
 
-static void                        pfetchParseSequenceFileBuffer(const char *buffer, const int lenReceived, BlxSequence **currentSeq, GList **currentSeqItem,
+static void                        pfetchParseSequenceFileBuffer(const BlxFetchMethod* const fetchMethod, const char *buffer, const int lenReceived, BlxSequence **currentSeq, GList **currentSeqItem,
                                                                  ProgressBar bar, const int numRequested,int *numFetched, int *numSucceeded, 
                                                                  const BlxSeqType seqType, BlxEmblParserState *parserState, gboolean *status, GError **error);
 
 static gboolean                    pfetchGetParserStateFromId(const char *sectionId, BlxSequence *currentSeq, GString *tagName, BlxEmblParserState *parserState);
 
-static void                        pfetchParseEmblFileBuffer(const char *buffer, const int lenReceived, BlxSequence **currentSeq, GList **currentSeqItem,
+static void                        pfetchParseEmblFileBuffer(const BlxFetchMethod* const fetchMethod, const char *buffer, const int lenReceived, BlxSequence **currentSeq, GList **currentSeqItem,
                                                              ProgressBar bar, const int numRequested, int *numFetched, int *numSucceeded, char *sectionId,
                                                              GString *tagName, gboolean *foundEndQuote,
                                                              const BlxSeqType seqType, BlxEmblParserState *parserState, gboolean *status);
 
-static gboolean                    pfetchFinishSequence(BlxSequence *currentSeq, const BlxSeqType seqType, const int numRequested, int *numFetched, int *numSucceeded, 
+static gboolean                    pfetchFinishSequence(const BlxFetchMethod* const fetchMethod, BlxSequence *currentSeq, const BlxSeqType seqType, const int numRequested, int *numFetched, int *numSucceeded, 
                                                         BlxEmblParserState *parserState);
 
-static void                        pfetchFinishEmblFile(BlxSequence **currentSeq, GList **currentSeqItem, const int numRequested, int *numFetched, 
+static void                        pfetchFinishEmblFile(const BlxFetchMethod* const fetchMethod, BlxSequence **currentSeq, GList **currentSeqItem, const int numRequested, int *numFetched, 
                                                         int *numSucceeded, ProgressBar bar, const BlxSeqType seqType, BlxEmblParserState *parserState, gboolean *status);
 
 static void                        pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState);
@@ -1014,7 +1015,8 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
       pfetch_data->blxWindow = blxWindow;
       pfetch_data->blxSeq = blxSeq;
       pfetch_data->attempt = attempt;
-
+      pfetch_data->fetchMethod = fetchMethod;
+      
       command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset, &tmpError);
     }
   
@@ -1132,7 +1134,8 @@ gboolean populateFastaDataPfetch(GList *seqsToFetch,
           checkProgressBar(bar, &parserState, &status);
           int lenReceived = pfetchReceiveBuffer(buffer, RCVBUFSIZE, sock, &parserState, &status);
           
-          pfetchParseSequenceFileBuffer(buffer, 
+          pfetchParseSequenceFileBuffer(fetchMethod,
+                                        buffer, 
                                         lenReceived, 
                                         &currentSeq, 
                                         &currentSeqItem, 
@@ -1246,7 +1249,8 @@ gboolean populateFullDataPfetch(GList *seqsToFetch,
           checkProgressBar(bar, &parserState, &status);
           const int lenReceived = pfetchReceiveBuffer(buffer, RCVBUFSIZE, sock, &parserState, &status);
           
-          pfetchParseEmblFileBuffer(buffer, 
+          pfetchParseEmblFileBuffer(fetchMethod,
+                                    buffer, 
                                     lenReceived,
                                     &currentSeq, 
                                     &currentSeqItem, 
@@ -1478,6 +1482,26 @@ static void socketSend (int sock, const char *text, GError **error)
 }
 
 
+/* Return true if the given string matches any in the given array
+ * of quarks (not case sensitive). */
+static gboolean stringInArray(const char *str, GArray *array)
+{
+  gboolean found = FALSE;
+  
+  int i = 0;
+  for ( ; !found && i < array->len; ++i)
+    {
+      GQuark curQuark = g_array_index(array, GQuark, i);
+      const char *curStr = g_quark_to_string(curQuark);
+      
+      if (strncasecmp(curStr, str, min(strlen(curStr), strlen(str)) == 0))
+        found = TRUE;
+    }
+  
+  return found;
+}
+
+
 #ifdef PFETCH_HTML 
 
 static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
@@ -1504,7 +1528,7 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
 
       /* If we tried fetching the full entry and failed, try again
        * with the next fetch method, if there is one */
-      if (!strncasecmp(text, "no match", 8))
+      if (stringInArray(text, pfetch_data->fetchMethod->errors))
         {
           fetchSequence(pfetch_data->blxSeq, TRUE, pfetch_data->attempt + 1, pfetch_data->blxWindow, pfetch_data->dialog, &pfetch_data->text_buffer, NULL);
         }
@@ -1562,7 +1586,7 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
         {
           fetch_data->parser_state = PARSING_FINISHED ;
           fetch_data->status = FALSE ;
-          fetch_data->err_txt = g_strdup("No data returned by pfetch http proxy server.") ;
+          fetch_data->err_txt = g_strdup("No data returned by http proxy server.") ;
         }
       else if (*actual_read > 0)
         {
@@ -1575,17 +1599,15 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
             }
           else
             {
-              const int len = min(strlen(text), strlen("not authorised"));
-            
-              if (strncasecmp(text, "not authorised", len) == 0 || strncasecmp(text, "not authorized", len) == 0)
+              if (stringInArray(text, fetch_data->fetchMethod->errors))
                 {
                   fetch_data->parser_state = PARSING_FINISHED ;
                   fetch_data->status = FALSE ;
-                  fetch_data->err_txt = g_strdup("Not authorised to access pfetch proxy server.") ;
+                  fetch_data->err_txt = g_strdup_printf("Http proxy server returned an error: %s", text) ;
                 }
               else
                 {
-                  if (!parsePfetchHtmlBuffer(text, *actual_read, fetch_data))
+                  if (!parsePfetchHtmlBuffer(fetch_data->fetchMethod, text, *actual_read, fetch_data))
                     {
                       status = PFETCH_STATUS_FAILED ;
                     }
@@ -1667,12 +1689,12 @@ static void pfetchHtmlRecordStats(const char *read_text, const int length, PFetc
 
 /* Parse the buffer sent back by proxy server. The pfetch server sends back data separated
  * by newlines. The data is either a valid IUPAC dna sequence or a valid IUPAC peptide
- * sequence or the text "no match". The problem here is that the data is not returned to
+ * sequence or an error message. The problem here is that the data is not returned to
  * this function in complete lines so we have to reconstruct the lines as best we can. It's
  * even possible for very long sequences that they may span several buffers. Note also
  * that the buffer is _not_ null terminated, we have to use length to know when to stop reading.
  */
-static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequence fetch_data)
+static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod, char *read_text, int length, PFetchSequence fetch_data)
 {
   gboolean status = TRUE ;
 
@@ -1685,7 +1707,8 @@ static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequenc
   if (fetch_data->fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL)
     {
       /* We're fetching the full EMBL entries */
-      pfetchParseEmblFileBuffer(read_text, 
+      pfetchParseEmblFileBuffer(fetchMethod,
+                                read_text, 
                                 length,
                                 &fetch_data->currentSeq, 
                                 &fetch_data->currentSeqItem, 
@@ -1703,7 +1726,8 @@ static gboolean parsePfetchHtmlBuffer(char *read_text, int length, PFetchSequenc
   else if (fetch_data->fetchMethod->outputType == BLXFETCH_OUTPUT_FASTA)
     {
       /* The fetched entries just contain the FASTA sequence */
-      pfetchParseSequenceFileBuffer(read_text, 
+      pfetchParseSequenceFileBuffer(fetchMethod,
+                                    read_text, 
                                     length, 
                                     &fetch_data->currentSeq, 
                                     &fetch_data->currentSeqItem, 
@@ -2239,7 +2263,8 @@ static void pfetchGetNextSequence(BlxSequence **currentSeq,
 
 
 /* Parse the given buffer that contains a section of data from returned sequence file(s) */
-static void pfetchParseSequenceFileBuffer(const char *buffer,
+static void pfetchParseSequenceFileBuffer(const BlxFetchMethod* const fetchMethod,
+                                          const char *buffer,
                                           const int lenReceived, 
                                           BlxSequence **currentSeq, 
                                           GList **currentSeqItem,
@@ -2273,7 +2298,7 @@ static void pfetchParseSequenceFileBuffer(const char *buffer,
       if (buffer[i] == '\n')
         {
           /* finish up this sequence and move to the next one */
-          gboolean pfetch_ok = pfetchFinishSequence(*currentSeq, seqType, numRequested, numFetched, numSucceeded, parserState);
+          gboolean pfetch_ok = pfetchFinishSequence(fetchMethod, *currentSeq, seqType, numRequested, numFetched, numSucceeded, parserState);
           pfetchGetNextSequence(currentSeq, currentSeqItem, bar, numRequested, *numFetched, pfetch_ok, status, parserState);
         }
       else
@@ -2355,7 +2380,8 @@ static gboolean pfetchGetParserStateFromId(const char *sectionId,
 /* Process the current character in the current buffer of EMBL data. The char might be read into
  * various data locations depending on the current parser state, or might cause the parser state
  * to change. */
-static void pfetchProcessEmblBufferChar(const char curChar, 
+static void pfetchProcessEmblBufferChar(const BlxFetchMethod* const fetchMethod,
+                                        const char curChar, 
                                         const int numRequested,
                                         int *numFetched,
                                         int *numSucceeded,
@@ -2387,7 +2413,7 @@ static void pfetchProcessEmblBufferChar(const char curChar,
         if (pfetchGetParserStateFromId(sectionId, *currentSeq, tagName, parserState))
           {
             /* finish the current seq and move to the next */
-            pfetchFinishEmblFile(currentSeq, currentSeqItem, numRequested, numFetched, numSucceeded, bar, seqType, parserState, status);
+            pfetchFinishEmblFile(fetchMethod, currentSeq, currentSeqItem, numRequested, numFetched, numSucceeded, bar, seqType, parserState, status);
           }
         
         break;
@@ -2484,7 +2510,8 @@ static void pfetchProcessEmblBufferChar(const char curChar,
 
 
 /* Parse the given buffer that contains a section of data from returned full EMBL file(s) */
-static void pfetchParseEmblFileBuffer(const char *buffer,
+static void pfetchParseEmblFileBuffer(const BlxFetchMethod* const fetchMethod,
+                                      const char *buffer,
                                       const int lenReceived,
                                       BlxSequence **currentSeq, 
                                       GList **currentSeqItem,
@@ -2547,7 +2574,8 @@ static void pfetchParseEmblFileBuffer(const char *buffer,
         }
       else
         {
-          pfetchProcessEmblBufferChar(curChar, 
+          pfetchProcessEmblBufferChar(fetchMethod, 
+                                      curChar, 
                                       numRequested, 
                                       numFetched, 
                                       numSucceeded, 
@@ -2658,10 +2686,16 @@ static void appendCharToString(const char curChar, GString **result)
 
 
 /* This is called when we've finished parsing a given sequence. It checks that the sequence
- * data is valid (i.e. not 'no match') and complements it if necessary. It updates the parser
+ * data is valid (i.e. not an error message) and complements it if necessary. It updates the parser
  * state to finished if we've got all the sequences we requested. Returns true if the pfetch
  * was successful, false if not */
-static gboolean pfetchFinishSequence(BlxSequence *currentSeq, const BlxSeqType seqType, const int numRequested, int *numFetched, int *numSucceeded, BlxEmblParserState *parserState)
+static gboolean pfetchFinishSequence(const BlxFetchMethod* const fetchMethod,
+                                     BlxSequence *currentSeq,
+                                     const BlxSeqType seqType,
+                                     const int numRequested, 
+                                     int *numFetched, 
+                                     int *numSucceeded, 
+                                     BlxEmblParserState *parserState)
 {
   *numFetched += 1;
   
@@ -2671,13 +2705,12 @@ static gboolean pfetchFinishSequence(BlxSequence *currentSeq, const BlxSeqType s
       *parserState = PARSING_FINISHED;
     }
   
-  /* The pfetch failed if our sequence is null or equal to "no match". */
+  /* The pfetch failed if our sequence is null or equal to an error string. */
   gboolean pfetch_ok = FALSE;
   
   if (currentSeq && currentSeq->sequence && currentSeq->sequence->str)
     { 
-      int len = min(strlen(currentSeq->sequence->str), 8);
-      if (strncasecmp(currentSeq->sequence->str, "no match", len))
+      if (!stringInArray(currentSeq->sequence->str, fetchMethod->errors))
         {
           pfetch_ok = TRUE;
         }
@@ -2701,7 +2734,8 @@ static gboolean pfetchFinishSequence(BlxSequence *currentSeq, const BlxSeqType s
 /* This is called when we've finished parsing the embl file data for the given BlxSequence. It
  * checks the data returned was valid and complements the sequence if necessary. It moves to
  * the next sequence. */
-static void pfetchFinishEmblFile(BlxSequence **currentSeq, 
+static void pfetchFinishEmblFile(const BlxFetchMethod* const fetchMethod,
+                                 BlxSequence **currentSeq, 
                                  GList **currentSeqItem,
                                  const int numRequested, 
                                  int *numFetched, 
@@ -2711,7 +2745,7 @@ static void pfetchFinishEmblFile(BlxSequence **currentSeq,
                                  BlxEmblParserState *parserState,
                                  gboolean *status)
 {
-  gboolean pfetch_ok = pfetchFinishSequence(*currentSeq, seqType, numRequested, numFetched, numSucceeded, parserState);
+  gboolean pfetch_ok = pfetchFinishSequence(fetchMethod, *currentSeq, seqType, numRequested, numFetched, numSucceeded, parserState);
   
   pfetchGetNextSequence(currentSeq, currentSeqItem, bar, numRequested, *numFetched, pfetch_ok, status, parserState);
 }
