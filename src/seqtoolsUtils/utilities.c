@@ -365,6 +365,41 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
  *                       Misc utils                        * 
  ***********************************************************/
 
+/* Return true if the given character is a delimiter */
+gboolean isDelimiter(const char c)
+{
+  return (c == '\"' || c == '\'');
+}
+
+
+/* Remove any delimiters (" and ') surrounding the given text.
+ * Modifies the text in place and returns the same string. */
+char* removeDelimiters(char *text)
+{
+  /* Remove enclosing quotes */
+  if (text)
+    {
+      char *c = text;
+      
+      if (isDelimiter(*c))
+        {
+          text = g_strdup(c+1);
+          g_free(c);
+          c = text;
+        }
+      
+      c = &text[strlen(text) - 1];
+      
+      if (isDelimiter(*c))
+        {
+          *c = '\0';
+        }
+    }
+
+  return text;
+}
+
+
 /* Get a comma-separated list of strings from a key file and place
  * them into an array as GQuarks. Returns null if the group/key is not found. */
 GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key)
@@ -381,6 +416,10 @@ GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key)
 
       while (token && *token && **token)
         {
+          /* Remove any delimiters around the text */
+          *token = removeDelimiters(*token);
+          
+          /* Add it as a quark to the array */
           GQuark quark = g_quark_from_string(*token);
           result = g_array_append_val(result, quark);
           ++token;

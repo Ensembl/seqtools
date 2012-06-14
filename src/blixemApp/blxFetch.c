@@ -1900,44 +1900,10 @@ static BlxFetchMethod* createBlxFetchMethod(const char *fetchName,
   result->cookie_jar = NULL;
   result->args = NULL;
   result->separator = NULL;
+  result->errors = NULL;
   result->outputType = 0;
 
   return result;
-}
-
-
-/* Return true if the given character is a delimiter */
-static gboolean isDelimiter(const char c)
-{
-  return (c == '\"' || c == '\'');
-}
-
-
-/* Remove any delimiters (" and ') surrounding the given text.
- * Modifies the text in place and returns the same string. */
-static char* removeDelimiters(char *text)
-{
-  /* Remove enclosing quotes */
-  if (text)
-    {
-      char *c = text;
-      
-      if (isDelimiter(*c))
-        {
-          text = g_strdup(c+1);
-          g_free(c);
-          c = text;
-        }
-      
-      c = &text[strlen(text) - 1];
-      
-      if (isDelimiter(*c))
-        {
-          *c = '\0';
-        }
-    }
-
-  return text;
 }
 
 
@@ -2009,6 +1975,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
       result->node = configGetString(key_file, group, SOCKET_FETCH_NODE, NULL);
       result->port = g_key_file_get_integer(key_file, group, SOCKET_FETCH_PORT, NULL);
       result->args = configGetString(key_file, group, SOCKET_FETCH_ARGS, NULL);
+      result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS);
       result->separator = configGetString(key_file, group, FETCH_SEPARATOR, NULL);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
@@ -2020,6 +1987,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
       result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
       result->cookie_jar = configGetString(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
       result->args = configGetString(key_file, group, HTTP_FETCH_ARGS, NULL);
+      result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS);
       result->separator = configGetString(key_file, group, FETCH_SEPARATOR, NULL);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
@@ -2028,6 +1996,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
       result->mode = BLXFETCH_MODE_PIPE;
       result->location = configGetString(key_file, group, PIPE_FETCH_LOCATION, NULL);
       result->args = configGetString(key_file, group, PIPE_FETCH_ARGS, NULL);
+      result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
 #endif
@@ -2043,14 +2012,17 @@ static void readFetchMethodStanza(GKeyFile *key_file,
     }
   else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_DB), FALSE))
     {
-      result->mode = BLXFETCH_MODE_DB;
       /* to do: not implemented */
+      result->mode = BLXFETCH_MODE_DB;
+      result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS);
+      result->outputType = readFetchOutputType(key_file, group, error);
     }
   else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_COMMAND), FALSE))
     {
       result->mode = BLXFETCH_MODE_COMMAND;
       result->location = configGetString(key_file, group, COMMAND_FETCH_SCRIPT, NULL);
       result->args = configGetString(key_file, group, COMMAND_FETCH_ARGS, NULL);
+      result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS);
       result->outputType = readFetchOutputType(key_file, group, error);
     }
     else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_NONE), FALSE))
@@ -2367,15 +2339,6 @@ static gboolean pfetchGetParserStateFromId(const char *sectionId,
       /* This indicates the end of the embl file, so we've finished the current sequence. Set
        * the state to NA so that if any more chars exist they are ignored till we find the next
        * newline. */
-      finishSequence = TRUE;
-      *parserState = PARSING_IGNORE;
-    }
-  else if (stringsEqual(sectionId, "no", TRUE))
-    {
-      /* This must be the start of the text "no match" because otherwise all new lines should
-       * start with an uppercase 2-letter ID, whitespace or "//". We can't do anything with the
-       * current sequence so finish up. Set the state to something that will be ignored till
-       * the next newline. */
       finishSequence = TRUE;
       *parserState = PARSING_IGNORE;
     }
