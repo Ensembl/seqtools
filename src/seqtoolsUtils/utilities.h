@@ -328,6 +328,8 @@ void                  adjustColorBrightness(const GdkColor const *origColor, con
 
 void                  getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
+gboolean              isDelimiter(const char c);
+char*                 removeDelimiters(char *text);
 GArray*               keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key);
 
 int                   getRangeLength(const IntRange const *range);

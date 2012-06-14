@@ -128,6 +128,7 @@ typedef enum
 /* Generic fetch keys (applicable to more than one method) */
 #define FETCH_OUTPUT       "output"      /* output format */
 #define FETCH_SEPARATOR    "separator"   /* separator, when combining multiple sequences */
+#define FETCH_ERRORS       "errors"      /* list of messages that indicate errors */
 
 
 /* For settings */
@@ -162,6 +163,7 @@ typedef void(*FetchFunc)(const char *seqName, gpointer fetchMethod, const gboole
 typedef enum
 {
   BLXFETCH_OUTPUT_INVALID,
+  BLXFETCH_OUTPUT_RAW,      /* raw sequence data, separated by newlines */
   BLXFETCH_OUTPUT_FASTA,
   BLXFETCH_OUTPUT_EMBL,
   BLXFETCH_OUTPUT_GFF,
@@ -182,6 +184,7 @@ typedef struct _BlxFetchMethod
   char *cookie_jar;                 /* for http/pipe fetch mode */
   char *args;                       /* arguments for standard (full) fetch call */
   char *separator;                  /* separator when combining multiple sequence names into a list */
+  GArray *errors;                   /* array of messages (as GQuarks) that indicate that an error occurred, e.g. "no match" */
   BlxFetchOutputType outputType;    /* the output format to expect from the fetch command */
 } BlxFetchMethod;
 
