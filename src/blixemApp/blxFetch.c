@@ -1487,14 +1487,18 @@ static void socketSend (int sock, const char *text, GError **error)
 static gboolean stringInArray(const char *str, GArray *array)
 {
   gboolean found = FALSE;
-  
+
+  const int len1 = strlen(str);
   int i = 0;
+
   for ( ; !found && i < array->len; ++i)
     {
       GQuark curQuark = g_array_index(array, GQuark, i);
       const char *curStr = g_quark_to_string(curQuark);
       
-      if (strncasecmp(curStr, str, min(strlen(curStr), strlen(str)) == 0))
+      int len = min(strlen(curStr), len1);
+
+      if (strncasecmp(curStr, str, len) == 0)
         found = TRUE;
     }
   
