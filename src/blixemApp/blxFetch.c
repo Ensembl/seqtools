@@ -233,9 +233,9 @@ static void                        pfetchGetNextSequence(BlxSequence **currentSe
                                                          const int numRequested, const int numFetched, const gboolean pfetch_ok, 
                                                          gboolean *status, BlxEmblParserState *parserState);
 
-static void                        parseFastaBuffer(const BlxFetchMethod* const fetchMethod, const char *buffer, const int lenReceived, BlxSequence **currentSeq, GList **currentSeqItem,
-                                                    ProgressBar bar, const int numRequested,int *numFetched, int *numSucceeded, 
-                                                    const BlxSeqType seqType, BlxEmblParserState *parserState, gboolean *status, GError **error);
+static void                        parseRawSequenceBuffer(const BlxFetchMethod* const fetchMethod, const char *buffer, const int lenReceived, BlxSequence **currentSeq, GList **currentSeqItem,
+                                                          ProgressBar bar, const int numRequested,int *numFetched, int *numSucceeded, 
+                                                          const BlxSeqType seqType, BlxEmblParserState *parserState, gboolean *status, GError **error);
 
 static gboolean                    pfetchGetParserStateFromId(const char *sectionId, BlxSequence *currentSeq, GString *tagName, BlxEmblParserState *parserState);
 
@@ -295,6 +295,7 @@ const char *outputTypeStr(const BlxFetchOutputType outputType)
   static const gchar* outputNames[] = 
     {
       "<invalid>",
+      "raw",
       "fasta",
       "embl",
       "gff",
@@ -1173,27 +1174,27 @@ gboolean socketFetchList(GList *seqsToFetch,
                               &parserState, 
                               &status);
             }
-          else if (fetchMethod->outputType == BLXFETCH_OUTPUT_FASTA)
+          else if (fetchMethod->outputType == BLXFETCH_OUTPUT_RAW)
             {
-              parseFastaBuffer(fetchMethod,
-                               buffer, 
-                               lenReceived, 
-                               &currentSeq, 
-                               &currentSeqItem, 
-                               bar, 
-                               numRequested, 
-                               &numFetched, 
-                               &numSucceeded, 
-                               seqType,
-                               &parserState, 
-                               &status,
-                               &tmpError); 
+              parseRawSequenceBuffer(fetchMethod,
+                                     buffer, 
+                                     lenReceived, 
+                                     &currentSeq, 
+                                     &currentSeqItem, 
+                                     bar, 
+                                     numRequested, 
+                                     &numFetched, 
+                                     &numSucceeded, 
+                                     seqType,
+                                     &parserState, 
+                                     &status,
+                                     &tmpError); 
             }
           else
             {
               g_set_error(error, BLX_ERROR, 1, "Invalid output format for fetch method %s (expected '%s' or '%s')\n", 
                           g_quark_to_string(fetchMethod->name),
-                          outputTypeStr(BLXFETCH_OUTPUT_FASTA),
+                          outputTypeStr(BLXFETCH_OUTPUT_RAW),
                           outputTypeStr(BLXFETCH_OUTPUT_EMBL));
             }
         }
@@ -1659,22 +1660,22 @@ static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod, c
                       &fetch_data->parser_state,
                       &fetch_data->status);
     }
-  else if (fetch_data->fetchMethod->outputType == BLXFETCH_OUTPUT_FASTA)
+  else if (fetch_data->fetchMethod->outputType == BLXFETCH_OUTPUT_RAW)
     {
       /* The fetched entries just contain the FASTA sequence */
-      parseFastaBuffer(fetchMethod,
-                       read_text, 
-                       length, 
-                       &fetch_data->currentSeq, 
-                       &fetch_data->currentSeqItem, 
-                       fetch_data->bar, 
-                       fetch_data->seq_total, 
-                       &fetch_data->num_fetched, 
-                       &fetch_data->num_succeeded, 
-                       fetch_data->seq_type,
-                       &fetch_data->parser_state, 
-                       &fetch_data->status,
-                       &error);
+      parseRawSequenceBuffer(fetchMethod,
+                             read_text, 
+                             length, 
+                             &fetch_data->currentSeq, 
+                             &fetch_data->currentSeqItem, 
+                             fetch_data->bar, 
+                             fetch_data->seq_total, 
+                             &fetch_data->num_fetched, 
+                             &fetch_data->num_succeeded, 
+                             fetch_data->seq_type,
+                             &fetch_data->parser_state, 
+                             &fetch_data->status,
+                             &error);
     }
   else 
     {
@@ -1682,7 +1683,7 @@ static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod, c
                   "Invalid output format specified for fetch method '%s'; expected '%s' or '%s'\n",
                   g_quark_to_string(fetch_data->fetchMethod->name), 
                   outputTypeStr(BLXFETCH_OUTPUT_EMBL), 
-                  outputTypeStr(BLXFETCH_OUTPUT_FASTA));
+                  outputTypeStr(BLXFETCH_OUTPUT_RAW));
     }
   
   if (error)
@@ -2203,19 +2204,19 @@ static void pfetchGetNextSequence(BlxSequence **currentSeq,
  * fasta files). The parserState indicates on entry what 
  * state we are in and is updated on exit with the new state,
  * if it has changed. */
-static void parseFastaBuffer(const BlxFetchMethod* const fetchMethod,
-                             const char *buffer,
-                             const int lenReceived, 
-                             BlxSequence **currentSeq, 
-                             GList **currentSeqItem,
-                             ProgressBar bar,
-                             const int numRequested,
-                             int *numFetched,
-                             int *numSucceeded,
-                             const BlxSeqType seqType,
-                             BlxEmblParserState *parserState, 
-                             gboolean *status,
-                             GError **error)
+static void parseRawSequenceBuffer(const BlxFetchMethod* const fetchMethod,
+                                   const char *buffer,
+                                   const int lenReceived, 
+                                   BlxSequence **currentSeq, 
+                                   GList **currentSeqItem,
+                                   ProgressBar bar,
+                                   const int numRequested,
+                                   int *numFetched,
+                                   int *numSucceeded,
+                                   const BlxSeqType seqType,
+                                   BlxEmblParserState *parserState, 
+                                   gboolean *status,
+                                   GError **error)
 {
   if (*status == FALSE || *parserState == PARSING_FINISHED || *parserState == PARSING_CANCELLED)
     {
@@ -2711,6 +2712,7 @@ static gboolean fetchMethodReturnsSequence(const BlxFetchMethod* const fetchMeth
   if (fetchMethod)
     {
       result = 
+        fetchMethod->outputType == BLXFETCH_OUTPUT_RAW ||
         fetchMethod->outputType == BLXFETCH_OUTPUT_FASTA ||
         fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL || 
         fetchMethod->outputType == BLXFETCH_OUTPUT_GFF;

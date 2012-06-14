@@ -163,6 +163,7 @@ typedef void(*FetchFunc)(const char *seqName, gpointer fetchMethod, const gboole
 typedef enum
 {
   BLXFETCH_OUTPUT_INVALID,
+  BLXFETCH_OUTPUT_RAW,      /* raw sequence data, separated by newlines */
   BLXFETCH_OUTPUT_FASTA,
   BLXFETCH_OUTPUT_EMBL,
   BLXFETCH_OUTPUT_GFF,
