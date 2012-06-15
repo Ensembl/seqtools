@@ -657,6 +657,30 @@ static GString* getFetchArgs(BlxFetchMethod *fetchMethod,
 #endif 
 
 
+/* Return true if the given string matches any in the given array
+ * of quarks (not case sensitive). */
+static gboolean stringInArray(const char *str, GArray *array)
+{
+  gboolean found = FALSE;
+
+  const int len1 = strlen(str);
+  int i = 0;
+
+  for ( ; !found && i < array->len; ++i)
+    {
+      GQuark curQuark = g_array_index(array, GQuark, i);
+      const char *curStr = g_quark_to_string(curQuark);
+      
+      int len = min(strlen(curStr), len1);
+
+      if (strncasecmp(curStr, str, len) == 0)
+        found = TRUE;
+    }
+  
+  return found;
+}
+
+
 /* Use the www-fetch method to fetch an entry and optionally display
  * the results in a dialog.
  * Opens a browser to display the results. Does nothing if 
@@ -822,7 +846,7 @@ static void socketFetchSequence(const BlxSequence *blxSeq,
   
   reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
 
-  if (resultText && resultText->len)  /* Success */
+  if (resultText && resultText->len && !stringInArray(resultText->str, fetchMethod->errors))  /* Success */
     {
       if (displayResults)
         {
@@ -1412,30 +1436,6 @@ static void socketSend (int sock, const char *text, GError **error)
     }
 
   g_free(tmp) ;
-}
-
-
-/* Return true if the given string matches any in the given array
- * of quarks (not case sensitive). */
-static gboolean stringInArray(const char *str, GArray *array)
-{
-  gboolean found = FALSE;
-
-  const int len1 = strlen(str);
-  int i = 0;
-
-  for ( ; !found && i < array->len; ++i)
-    {
-      GQuark curQuark = g_array_index(array, GQuark, i);
-      const char *curStr = g_quark_to_string(curQuark);
-      
-      int len = min(strlen(curStr), len1);
-
-      if (strncasecmp(curStr, str, len) == 0)
-        found = TRUE;
-    }
-  
-  return found;
 }
 
 
