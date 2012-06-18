@@ -79,16 +79,15 @@ belvu_SOURCES = $(top_srcdir)/belvuApp/belvuMain.c
 
 AM_CPPFLAGS = $(DEPS_CFLAGS) -I$(top_srcdir)
 AM_LDFLAGS = -L$(top_builddir)
-COMMON_LIBS = $(DEPS_LIBS) $(top_builddir)/libSeqtoolsUtils.a
 
-blixem_LDADD = $(COMMON_LIBS) $(top_builddir)/libBlixemApp.a -lSeqtoolsUtils -lBlixemApp
-dotter_LDADD = $(COMMON_LIBS) $(top_builddir)/libDotterApp.a -lSeqtoolsUtils -lDotterApp
-belvu_LDADD = $(COMMON_LIBS) $(top_builddir)/libBelvuApp.a -lSeqtoolsUtils -lBelvuApp
+blixem_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBlixemApp.a $(DEPS_LIBS) -lSeqtoolsUtils -lBlixemApp
+dotter_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libDotterApp.a $(DEPS_LIBS) -lSeqtoolsUtils -lDotterApp
+belvu_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBelvuApp.a $(DEPS_LIBS) -lSeqtoolsUtils -lBelvuApp
 
 # Only compile the blixemh target if we have the libcurl library
 if USE_LIBCURL
 blixemh_SOURCES = $(blixem_SOURCES)
 blixemh_CPPFLAGS = $(AM_CPPFLAGS) -DPFETCH_HTML
-blixemh_LDADD = $(COMMON_LIBS) $(top_builddir)/libBlixemApp.a $(top_builddir)/libpfetch.a -lcurl -lSeqtoolsUtils -lBlixemApp
+blixemh_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBlixemApp.a $(top_builddir)/libpfetch.a $(DEPS_LIBS) -lcurl -lSeqtoolsUtils -lBlixemApp
 endif
 
