@@ -23,7 +23,11 @@ EXAMPLES = $(top_srcdir)/examples
 # lives in subdirectories
 #
 
+if USE_LIBCURL
 noinst_LIBRARIES = libSeqtoolsUtils.a libpfetch.a libBlixemApp.a libDotterApp.a libBelvuApp.a
+else
+noinst_LIBRARIES = libSeqtoolsUtils.a libBlixemApp.a libDotterApp.a libBelvuApp.a
+endif
 
 # Define the sources for the convenience libraries
 libSeqtoolsUtils_a_SOURCES = $(UTILS)/iupac.h $(UTILS)/version.h $(UTILS)/utilities.h $(UTILS)/utilities.c $(UTILS)/blxmsp.h $(UTILS)/blxmsp.c $(UTILS)/translate.c $(UTILS)/seqtoolsWebBrowser.c $(UTILS)/blxGff3Parser.h $(UTILS)/blxGff3Parser.c $(UTILS)/blxparser.h $(UTILS)/blxparser.c
