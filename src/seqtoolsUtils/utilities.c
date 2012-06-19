@@ -400,7 +400,7 @@ char* removeDelimiters(char *text)
 }
 
 
-/* Get a comma-separated list of strings from a key file and place
+/* Get a semi-colon-separated list of strings from a key file and place
  * them into an array as GQuarks. Returns null if the group/key is not found. */
 GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key)
 {
@@ -411,7 +411,7 @@ GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key)
     {
       result = g_array_sized_new(FALSE, TRUE, sizeof(GQuark), 1);
 
-      char **tokens = g_strsplit(fetchStr, ",", -1);   /* -1 means do all tokens. */
+      char **tokens = g_strsplit(fetchStr, ";", -1);   /* -1 means do all tokens. */
       char **token = tokens;
 
       while (token && *token && **token)
