@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/utsname.h>
+#include <execinfo.h>
 
 #ifdef DEBUG
 #include <gdk/gdkx.h>
@@ -4703,5 +4704,25 @@ void drawHScale(GtkWidget *widget,
   gdk_draw_line(drawable, gc, x, y, x + rect->width, y);
   
   g_object_unref(gc);
+}
+
+
+
+/***********************************************************
+ *                       Error handling                    * 
+ ***********************************************************/
+
+void errorHandler(const int sig) 
+{
+  fprintf(stderr, "Error: signal %d:\n", sig);
+
+  // get void*'s for all entries on the stack
+  void *array[10];
+  size_t size = backtrace(array, 10);
+
+  // print out all the frames to stderr
+  backtrace_symbols_fd(array, size, 2);
+
+  exit(EXIT_FAILURE);
 }
 

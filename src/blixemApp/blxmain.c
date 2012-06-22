@@ -508,6 +508,10 @@ static void showCompiledInfo()
  */
 int main(int argc, char **argv)
 {
+  /* Install error handlers */
+  signal(SIGSEGV, errorHandler);
+  signal(SIGFPE, errorHandler);
+
   FILE *seqfile, *FSfile;
   char seqfilename[1000] = {'\0'};
   char FSfilename[1000] = {'\0'};

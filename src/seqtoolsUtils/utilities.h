@@ -597,6 +597,8 @@ GtkRadioButton*                    createRadioButton(GtkTable *table,
                                                      BlxResponseCallback callbackFunc,
                                                      GtkWidget *blxWindow);
 
+void                               errorHandler(const int sig); 
+
 /* seqtoolsWebBrowser.c */
 gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);
 
