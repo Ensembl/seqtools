@@ -959,8 +959,9 @@ static gboolean httpFetchList(GList *seqsToFetch,
     {
       status = TRUE ;
 
-      while (!(fetch_data.connection_closed))
+      while (!(fetch_data.connection_closed) && status && fetch_data.parser_state != PARSING_CANCELLED)
         {
+          checkProgressBar(fetch_data.bar, &fetch_data.parser_state, &status);
           gtk_main_iteration() ;
         }
 
