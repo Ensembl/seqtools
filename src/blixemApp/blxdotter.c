@@ -880,11 +880,6 @@ char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
 
   /* If we're in seqbl mode, only part of the sequence is in the MSP. */
   const BlxBlastMode blastMode = bc->blastMode;
-  if (blastMode != BLXMODE_TBLASTN)
-    {
-      const char *fetchMode = bc->bulkFetchMode;
-      dotterSSeq = fetchSeqRaw(blxSequenceGetFullName(blxSeq), fetchMode);
-    }
 
   if (!dotterSSeq && blastMode != BLXMODE_TBLASTX)
     {
