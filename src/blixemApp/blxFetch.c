@@ -212,7 +212,7 @@ static void                        destroyProgressBar(ProgressBar bar) ;
 static void                        destroyProgressCB(GtkWidget *widget, gpointer cb_data) ; /* internal to progress bar. */
 static void                        cancelCB(GtkWidget *widget, gpointer cb_data) ; /* internal to progress bar. */
 
-static void                        readConfigFile(GKeyFile *key_file, char *config_file, CommandLineOptions *options, GError **error) ;
+static void                        readConfigFile(GKeyFile *key_file, CommandLineOptions *options, GError **error) ;
 
 static void                        socketFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result_out);
 static void                        commandFetchSequence(const BlxSequence *blxSeq, BlxFetchMethod *fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result_out);
@@ -340,7 +340,7 @@ void fetchSequence(const BlxSequence *blxSeq,
       if (attempt == 0)
         {
           if (!fetchMethodQuark)
-            g_warning("Failed to find fetch method for sequence '%s'\n", blxSequenceGetFullName(blxSeq));
+            g_warning("No fetch method specified for sequence '%s'\n", blxSequenceGetFullName(blxSeq));
           else
             g_warning("Error fetching sequence '%s'; could not find details for fetch method '%s'\n", blxSequenceGetFullName(blxSeq), g_quark_to_string(fetchMethodQuark));
         }
@@ -1256,71 +1256,98 @@ gboolean socketFetchList(GList *seqsToFetch,
 }
 
 
+/* Get the contents of the given config file. Returns the contents in
+ * a string which must be freed by the caller. Optionally return the 
+ * length of the string. */
+static gchar* getConfigFileContent(const char *config_file, gsize *len)
+{
+  gchar *content = NULL;
+
+  if (g_file_test(config_file, G_FILE_TEST_EXISTS))
+    {
+      GKeyFile *keyFile = g_key_file_new();
+      
+      if (g_key_file_load_from_file(keyFile, config_file, G_KEY_FILE_NONE, NULL))
+        content = g_key_file_to_data(keyFile, len, NULL);
+      
+      g_key_file_free(keyFile);
+    }
+
+  return content;
+}
+
+
+
 /* Set/Get global config, necessary because we don't have some blixem context pointer....
  * To do: we do have a context now, so this should be moved to there. 
  * Sets the error if there were any problems. Note that the error is not set if the
  * config file does not exist or is empty  */
-void blxInitConfig(char *config_file, CommandLineOptions *options, GError **error)
+void blxInitConfig(const char *config_file, CommandLineOptions *options, GError **error)
 {
   g_assert(!blx_config_G) ;
 
-  blx_config_G = g_key_file_new() ;
+  /* Create the result and set it in the global. We always return something
+   * even if it's empty. */
+  GKeyFile *key_file = g_key_file_new();
+  blx_config_G = key_file;
 
-  /* First, get any persistent settings from the settings file */
-  char *settings_file = blxprintf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
-  gchar *content1 = NULL;
+  /* Get the content of the supplied config file, if any */
   gsize len1 = 0;
+  gchar *content1 = getConfigFileContent(config_file, &len1);
 
-  if (g_file_test(settings_file, G_FILE_TEST_EXISTS))
+  /* Get the content of the local settings file, if any */
+  char *settings_file = blxprintf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
+  gsize len2 = 0;
+  gchar *content2 = getConfigFileContent(settings_file, &len2);
+
+  /* Merge both file contents into a single string, if applicable,
+   * or just use whichever content is non-null, if any */
+  gchar *content = NULL;
+  gsize len = 0;
+
+  if (content1 && content2)
     {
-      /* This will become the global config file if no other file is given. If
-       * another is given, this will be overwritten, so save the content of the settings file. */
-      g_key_file_load_from_file(blx_config_G, settings_file, G_KEY_FILE_NONE, NULL);
-      content1 = g_key_file_to_data(blx_config_G, &len1, NULL);
+      /* Merge both file contents. Note that the second file supplied here
+       * will take priority if there are duplicate fields across the two files */
+      len = len1 + len2 + 2; /* need 2 extra chars for the sprintf below (newline and terminating nul) */
+      content = g_malloc(len);
+      sprintf(content, "%s\n%s", content1, content2);
+      
+      /* Free the original strings */
+      g_free(content1);
+      g_free(content2);
     }
-  
-  /* Load the given config file, if any */
-  if (config_file)
+  else if (content1)
     {
-      readConfigFile(blx_config_G, config_file, options, error);
+      len = len1;
+      content = content1;
+    }
+  else if (content2)
+    {
+      len = len2;
+      content = content2;
+    }
 
-      if (content1)
+  /* Now load the content into the key file, if we have any */  
+  if (content)
+    {
+      if (g_key_file_load_from_data(key_file, content, len, G_KEY_FILE_NONE, NULL))
         {
-          /* Merge both file contents. First, get the new content as a string and concatenate */
-          gsize len2 = 0;
-          gchar *content2 = g_key_file_to_data(blx_config_G, &len2, NULL);
+          /* Parse the config file to read in the blixem options */
+          readConfigFile(key_file, options, error);
 
-          gsize len = len1 + len2 + 2; /* need 2 extra chars for the sprintf below; newline and terminating nul */
-          gchar *content = g_malloc(len);
-          sprintf(content, "%s\n%s", content1, content2);
-
-          /* Load the concatenated contents into a new key file */
-          GKeyFile *key_file = g_key_file_new();
-          if (g_key_file_load_from_data(key_file, content, len, G_KEY_FILE_NONE, NULL))
-            {
-              /* Delete the original config key file and replace it with the new one */
-              g_key_file_free(blx_config_G);
-              blx_config_G = key_file;
-            }
-          else
-            {
-              g_key_file_free(key_file);
-            }
-
-          g_free(content);
-          g_free(content2);
+          if (error && *error && settings_file && config_file)
+            prefixError(*error, "Errors found while reading config files '%s' and '%s':\n", config_file, settings_file);
+          else if (error && *error && settings_file)
+            prefixError(*error, "Errors found while reading config file '%s':\n", settings_file);
+          else if (error && *error && config_file)
+            prefixError(*error, "Errors found while reading config file '%s':\n", config_file);
         }
-    }
-  else if (!content1)
-    {
-      /* Neither the config file or the settings file had any content, so
-       * delete the key file. */
-      g_key_file_free(blx_config_G) ;
-      blx_config_G = NULL ;
+
+      g_free(content);
     }
 
-  if (content1)
-    g_free(content1);
+  g_free(settings_file);
 }
 
 
@@ -2005,7 +2032,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
 
 /* Tries to load values for this group if it is a standard, recognised group or 
  * group type. If any required values are missing, sets the error. */
-static void loadConfig(GKeyFile *key_file, const char *group, CommandLineOptions *options, GError **error)
+static void readConfigGroup(GKeyFile *key_file, const char *group, CommandLineOptions *options, GError **error)
 {
   GError *tmpError = NULL;
   
@@ -2026,44 +2053,34 @@ static void loadConfig(GKeyFile *key_file, const char *group, CommandLineOptions
 
 
 /* Read standard stanzas from the given config file. Sets the error if any problems */
-static void readConfigFile(GKeyFile *key_file, char *config_file, CommandLineOptions *options, GError **error)
+static void readConfigFile(GKeyFile *key_file, CommandLineOptions *options, GError **error)
 {
-  GKeyFileFlags flags = G_KEY_FILE_NONE ;
+  if (!key_file)
+    return;
+
+  /* Loop through each stanza in the config file */
+  gsize num_groups ;
+  char **groups = g_key_file_get_groups(key_file, (gsize*)(&num_groups));
+  char **group = groups;
+  int i = 0;
   
-  if (g_key_file_load_from_file(key_file, config_file, flags, error))
+  for ( ; i < num_groups ; i++, group++)
     {
-      gsize num_groups ;
-
-      char **groups = g_key_file_get_groups(key_file, (gsize*)(&num_groups)) ;
-
-      char **group = groups;
-      int i = 0;
+      /* Read in the data in this stanza */
+      GError *tmpError = NULL;
+      readConfigGroup(key_file, *group, options, &tmpError) ;
       
-      for ( ; i < num_groups ; i++, group++)
+      if (tmpError && error)
         {
-          GError *tmpError = NULL;
-          loadConfig(key_file, *group, options, &tmpError) ;
-          
-          if (tmpError && error)
-            {
-              /* Compile all errors into one message */
-              if (*error == NULL)
-                {
-                  g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_WARNINGS,
-                              "Errors found while reading config file '%s':\n", config_file);
-                }
-
-              postfixError(*error, "  [%s]: %s", *group, tmpError->message);
-            }
+          /* Compile all errors into one message */
+          if (*error == NULL)
+            g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_WARNINGS, "  [%s]: %s", *group, tmpError->message);
+          else
+            postfixError(*error, "  [%s]: %s", *group, tmpError->message);
         }
-
-      g_strfreev(groups);
     }
-  else
-    {
-      prefixError(*error, "Error reading config file '%s': ", config_file);
-      postfixError(*error, "\n", config_file);
-    }
+  
+  g_strfreev(groups);
 }
 
 

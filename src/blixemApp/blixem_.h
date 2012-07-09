@@ -533,7 +533,7 @@ gboolean                           populateSequenceDataHtml(GList *seqsToFetch, 
 gboolean                           populateFastaDataPfetch(GList *seqsToFetch, BlxFetchMethod *fetchMethod, gboolean External, const BlxSeqType seqType, GError **error) ;
 
 gboolean                           populateFullDataPfetch(GList *seqsToFetch, BlxFetchMethod *fetchMethod, gboolean External, const BlxSeqType seqType, GError **error);
-void                               blxInitConfig(char *config_file, CommandLineOptions *options, GError **error) ;
+void                               blxInitConfig(const char *config_file, CommandLineOptions *options, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 
 void                               loadGffFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs);

@@ -452,14 +452,11 @@ gboolean blxview(CommandLineOptions *options,
 
   if (!External)
     {
-      if (blxGetConfig())
-        {
-          GError *error = NULL;
-          blxInitConfig(NULL, options, &error);
-
-          if (error)
-            g_error("Config File Error: %s\n", error->message);
-        }
+      /* When being called internally, the config file will not have been
+       * initialised yet, so do it now. */
+      GError *error = NULL;
+      blxInitConfig(NULL, options, &error);
+      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
     }
   
   validateInput(options);

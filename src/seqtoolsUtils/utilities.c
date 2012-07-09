@@ -2433,25 +2433,27 @@ void prefixError(GError *error, char *formatStr, ...)
 /* Tag the given postfix string onto the end of the given error's message */
 void postfixError(GError *error, char *formatStr, ...)
 {
-  va_list argp;
-  va_start(argp, formatStr);
-  
-  
-  /* Print the postfix text and args into a new string. We're not sure how much space we need
-   * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
-   * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
-  const int len = strlen(formatStr) + 200;
-  char tmpStr[len];
-  vsnprintf(tmpStr, len, formatStr, argp);
-  
-  va_end(argp);
-  
-  /* Prepend the error message */
-  char *resultStr = g_strdup_printf("%s%s", error->message, tmpStr);
-  
-  /* Replace the error message text with the new string. */
-  g_free(error->message);
-  error->message = resultStr;
+  if (error)
+    {
+      va_list argp;
+      va_start(argp, formatStr);
+      
+      /* Print the postfix text and args into a new string. We're not sure how much space we need
+       * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
+       * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
+      const int len = strlen(formatStr) + 200;
+      char tmpStr[len];
+      vsnprintf(tmpStr, len, formatStr, argp);
+      
+      va_end(argp);
+      
+      /* Prepend the error message */
+      char *resultStr = g_strdup_printf("%s%s", error->message, tmpStr);
+      
+      /* Replace the error message text with the new string. */
+      g_free(error->message);
+      error->message = resultStr;
+    }
 }
 
 
