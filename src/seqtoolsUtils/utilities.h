@@ -330,7 +330,7 @@ void                  getCoordRangeExtents(CoordRange *range, int *qRangeMin, in
 
 gboolean              isDelimiter(const char c);
 char*                 removeDelimiters(char *text);
-GArray*               keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key);
+GArray*               keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GError **error);
 
 int                   getRangeLength(const IntRange const *range);
 int                   getRangeCentre(const IntRange const *range);

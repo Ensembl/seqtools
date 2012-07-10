@@ -524,7 +524,7 @@ gboolean                           mspHasFs(const MSP *msp);
 char*                              readFastaSeq(FILE *seqfile, char *qname, int *startCoord, int *endCoord, const BlxSeqType seqType);
 
 /* blxFetch.c */
-GString*                           getFetchCommand(BlxFetchMethod *fetchMethod, const BlxSequence *blxSeq, const MSP* const msp, const char *refSeqName, const int refSeqOffset, const IntRange* const refSeqRange, const char *dataset, GError **error);
+GString*                           getFetchCommand(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq, const MSP* const msp, const char *refSeqName, const int refSeqOffset, const IntRange* const refSeqRange, const char *dataset, GError **error);
 void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result) ;
 void                               finaliseFetch(GList *seqList);
 
@@ -533,7 +533,7 @@ gboolean                           populateSequenceDataHtml(GList *seqsToFetch, 
 gboolean                           populateFastaDataPfetch(GList *seqsToFetch, BlxFetchMethod *fetchMethod, gboolean External, const BlxSeqType seqType, GError **error) ;
 
 gboolean                           populateFullDataPfetch(GList *seqsToFetch, BlxFetchMethod *fetchMethod, gboolean External, const BlxSeqType seqType, GError **error);
-void                               blxInitConfig(char *config_file, CommandLineOptions *options, GError **error) ;
+void                               blxInitConfig(const char *config_file, CommandLineOptions *options, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 
 void                               loadGffFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs);
