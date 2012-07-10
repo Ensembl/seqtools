@@ -402,11 +402,13 @@ char* removeDelimiters(char *text)
 
 
 /* Get a semi-colon-separated list of strings from a key file and place
- * them into an array as GQuarks. Returns null if the group/key is not found. */
-GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key)
+ * them into an array as GQuarks. Returns null if the group/key is not found.
+ * The given error value can be non-null, in which case any new error will be appended */
+GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GError **error)
 {
   GArray *result = NULL;
-  char *fetchStr = g_key_file_get_string(keyFile, group, key, NULL);
+  GError *tmpError = NULL;
+  char *fetchStr = g_key_file_get_string(keyFile, group, key, &tmpError);
 
   if (fetchStr)
     {
@@ -429,7 +431,12 @@ GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key)
       g_strfreev(tokens);
       g_free(fetchStr);
     }
-  
+
+  if (tmpError && error && *error)
+    postfixError(*error, "; %s", tmpError->message);
+  else if (tmpError)
+    g_propagate_error(error, tmpError);
+
   return result;
 }
 

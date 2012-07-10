@@ -369,8 +369,8 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
 
               /* Get the values. They're all optional so just ignore any errors.
                * Valid keys are bulk-fetch and user-fetch */
-              result->bulkFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_BULK_FETCH); 
-              result->userFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_USER_FETCH); 
+              result->bulkFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_BULK_FETCH, NULL); 
+              result->userFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_USER_FETCH, NULL); 
               result->linkFeaturesByName = getLinkFeatures(keyFile, typeName);
               
               /* Insert it into the table of data types */

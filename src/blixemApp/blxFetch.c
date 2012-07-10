@@ -79,7 +79,9 @@ typedef enum
     BLX_CONFIG_ERROR_INVALID_FETCH_MODE,    /* invalid fetch mode specified */
     BLX_CONFIG_ERROR_INVALID_OUTPUT_FORMAT, /* invalid output format specified for fetch mode */
     BLX_CONFIG_ERROR_WARNINGS,              /* warnings found while reading config file */
-    BLX_CONFIG_ERROR_SUBSTITUTION           /* error with substitution string */
+    BLX_CONFIG_ERROR_SUBSTITUTION,          /* error with substitution string */
+    BLX_CONFIG_ERROR_INVALID_FETCH_METHOD,  /* null fetch method */
+    BLX_CONFIG_ERROR_NO_EXE                 /* fetch method executable does not exist */
   } BlxConfigError;
 
 
@@ -346,14 +348,11 @@ void fetchSequence(const BlxSequence *blxSeq,
   if (!fetchMethod)
     {
       /* If this is the first attempt then we should have a fetch method; 
-       * therefore give a warning if it was not found */
-      if (attempt == 0)
-        {
-          if (!fetchMethodQuark)
-            g_warning("No fetch method specified for sequence '%s'\n", blxSequenceGetFullName(blxSeq));
-          else
-            g_warning("Error fetching sequence '%s'; could not find details for fetch method '%s'\n", blxSequenceGetFullName(blxSeq), g_quark_to_string(fetchMethodQuark));
-        }
+       * therefore give a warning if no fetch method was found */
+      if (attempt == 0 && !fetchMethodQuark)
+        g_warning("No fetch method specified for sequence '%s'\n", blxSequenceGetFullName(blxSeq));
+      else if (fetchMethodQuark)
+        g_warning("Error fetching sequence '%s'; could not find details for fetch method '%s'\n", blxSequenceGetFullName(blxSeq), g_quark_to_string(fetchMethodQuark));
 
       return;
     }
@@ -529,28 +528,31 @@ static GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
 {
   GString *result = NULL;
 
-  /* Compile the command and args into a single string */
-  char *command = NULL;
+  if (fetchMethod)
+    {
+      /* Compile the command and args into a single string */
+      char *command = NULL;
+      
+      /* For http methods, append the args (i.e. the request) after a '?'.
+       * For other methods, append the args after a space. */
+      if (fetchMethod->location && fetchMethod->args && fetchMethodUsesHttp(fetchMethod))
+        command = g_strdup_printf("%s?%s", fetchMethod->location, fetchMethod->args);
+      else if (fetchMethod->location && fetchMethod->args)
+        command = g_strdup_printf("%s %s", fetchMethod->location, fetchMethod->args);
+      else if (fetchMethod->location)
+        command = g_strdup(fetchMethod->location);
+      else if (fetchMethod->args)
+        command = g_strdup(fetchMethod->args);
+      else
+        return result;
+      
+      result = doFetchStringSubstitutions(command, name, refSeqName, startCoord, endCoord,
+                                          dataset, source, filename, error);
+      
+      /* Clean up */
+      g_free(command);
+    }
   
-  /* For http methods, append the args (i.e. the request) after a '?'.
-   * For other methods, append the args after a space. */
-  if (fetchMethod->location && fetchMethod->args && fetchMethodUsesHttp(fetchMethod))
-    command = g_strdup_printf("%s?%s", fetchMethod->location, fetchMethod->args);
-  else if (fetchMethod->location && fetchMethod->args)
-    command = g_strdup_printf("%s %s", fetchMethod->location, fetchMethod->args);
-  else if (fetchMethod->location)
-    command = g_strdup(fetchMethod->location);
-  else if (fetchMethod->args)
-    command = g_strdup(fetchMethod->args);
-  else
-    return result;
-
-  result = doFetchStringSubstitutions(command, name, refSeqName, startCoord, endCoord,
-                                      dataset, source, filename, error);
-
-  /* Clean up */
-  g_free(command);
-
   return result;
 }
 
@@ -673,21 +675,51 @@ static gboolean stringInArray(const char *str, GArray *array)
 {
   gboolean found = FALSE;
 
-  const int len1 = strlen(str);
-  int i = 0;
-
-  for ( ; !found && i < array->len; ++i)
+  if (array)
     {
-      GQuark curQuark = g_array_index(array, GQuark, i);
-      const char *curStr = g_quark_to_string(curQuark);
+      const int len1 = strlen(str);
+      int i = 0;
       
-      int len = min(strlen(curStr), len1);
-
-      if (strncasecmp(curStr, str, len) == 0)
-        found = TRUE;
+      for ( ; !found && i < array->len; ++i)
+        {
+          GQuark curQuark = g_array_index(array, GQuark, i);
+          const char *curStr = g_quark_to_string(curQuark);
+          
+          int len = min(strlen(curStr), len1);
+          
+          if (strncasecmp(curStr, str, len) == 0)
+            found = TRUE;
+        }
     }
   
   return found;
+}
+
+
+/* Check that the given fetch method is not null; set the error if not */
+static void checkFetchMethodNonNull(const BlxFetchMethod* const fetchMethod, GError **error)
+{
+  if (!fetchMethod)
+    {
+      g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_FETCH_METHOD, 
+                  "Program error: fetch method is null\n");
+    }
+}
+
+
+/* Check that the given fetch method's executable is in the path; set 
+ * the error if not */
+static void checkFetchMethodExecutable(const BlxFetchMethod* const fetchMethod, GError **error)
+{
+  if (!fetchMethod)
+    return;
+
+  if (!g_find_program_in_path(fetchMethod->location))
+    {
+      g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_EXE,
+                  "[%s]: Executable '%s' not found in path: %s\n", 
+                  g_quark_to_string(fetchMethod->name), fetchMethod->location, getenv("PATH"));
+    }
 }
 
 
@@ -748,12 +780,17 @@ static void commandFetchSequence(const BlxSequence *blxSeq,
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   GError *error = NULL;
-
-  GString *command = getFetchCommand(fetchMethod, blxSeq, NULL, 
-                                     bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange,
-                                     bc->dataset, &error);
-  
+  GString *command = NULL;
   GString *resultText = NULL;
+  
+  if (!error)
+    checkFetchMethodNonNull(fetchMethod, &error);
+
+  if (!error)
+    checkFetchMethodExecutable(fetchMethod, &error);
+
+  if (!error)
+    command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset, &error);
 
   if (!error)
     resultText = getExternalCommandOutput(command->str, &error);
@@ -782,11 +819,14 @@ static void commandFetchSequence(const BlxSequence *blxSeq,
   else
     {
       /* Try again with the next-preferred fetch method, if there is one */
-      g_string_free(resultText, TRUE);
+      if (resultText)
+        g_string_free(resultText, TRUE);
+      
       fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, NULL, NULL, result_out);
     }
   
-  g_string_free(command, TRUE);
+  if (command)
+    g_string_free(command, TRUE);
 }
 
 
@@ -845,13 +885,20 @@ static void socketFetchSequence(const BlxSequence *blxSeq,
                                 char **result_out)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
-
-  /* Run the fetch command */
-  GString *resultText = NULL;
   GError *error = NULL;
-  GString *command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset, &error);
-  
+  GString *resultText = NULL;
+  GString *command = NULL;
+
   if (!error)
+    checkFetchMethodNonNull(fetchMethod, &error);
+
+  if (!error)
+    checkFetchMethodExecutable(fetchMethod, &error);
+
+  if (!error)
+    command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset, &error);  
+
+  if (!error && command)
     resultText = getExternalCommandOutput(command->str, &error);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
@@ -878,13 +925,15 @@ static void socketFetchSequence(const BlxSequence *blxSeq,
     }
   else   /* Failed */
     {
-      g_string_free(resultText, TRUE);
+      if (resultText)
+        g_string_free(resultText, TRUE);
 
       /* Try again with the next fetch method, if there is one set */
       fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, NULL, NULL, result_out);
     }
 
-  g_string_free(command, TRUE);
+  if (command)
+    g_string_free(command, TRUE);
 }
 
 
@@ -1870,14 +1919,17 @@ static void readBlixemStanza(GKeyFile *key_file,
                              CommandLineOptions *options,
                              GError **error)
 {
+  /* Note that all values are optional, so don't set the error if they
+   * do not exist */
+
   /* Get the comma-separated list of possible fetch methods */
-  options->bulkFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_BULK_FETCH);
-  options->userFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_USER_FETCH);
+  options->bulkFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_BULK_FETCH, NULL);
+  options->userFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_USER_FETCH, NULL);
 
   /* If the bulk-fetch key wasn't found, try the old
    * default-fetch-mode key, for backwards compatibility */
   if (!options->bulkFetchDefault)
-      options->bulkFetchDefault = keyFileGetCsv(key_file, group, BLIXEM_OLD_BULK_FETCH);
+    options->bulkFetchDefault = keyFileGetCsv(key_file, group, BLIXEM_OLD_BULK_FETCH, NULL);
 
   /* Get the link-features-by-name value */
   options->linkFeaturesByName = g_key_file_get_boolean(key_file, group, LINK_FEATURES_BY_NAME, NULL);
@@ -1906,7 +1958,9 @@ static BlxFetchMethod* createBlxFetchMethod(const char *fetchName,
 }
 
 
-/* Get the output type from the given fetch stanza. Sets the error if not found. */
+/* Get the output type from the given fetch stanza. Returns BLXFETCH_OUTPUT_INVALID if
+ * not found. The input error value can be non-null, in which case any new error message
+ * will be appended. */
 static BlxFetchOutputType readFetchOutputType(GKeyFile *key_file, const char *group, GError **error)
 {
   BlxFetchOutputType result = BLXFETCH_OUTPUT_INVALID;
@@ -1914,12 +1968,7 @@ static BlxFetchOutputType readFetchOutputType(GKeyFile *key_file, const char *gr
   GError *tmpError = NULL;
   char *outputTypeName = removeDelimiters(g_key_file_get_string(key_file, group, FETCH_OUTPUT, &tmpError));
 
-  if (tmpError)
-    {
-      prefixError(tmpError, "Error getting '%s' value for fetch method '%s': ", FETCH_OUTPUT, group);
-      postfixError(tmpError, "\n");
-    }
-  else
+  if (!tmpError)
     {
       /* Loop through all output types looking for one with this name */
       BlxFetchOutputType outputType = 0;
@@ -1932,15 +1981,17 @@ static BlxFetchOutputType readFetchOutputType(GKeyFile *key_file, const char *gr
               break;
             }
         }
-
+      
       if (result == BLXFETCH_OUTPUT_INVALID)
         {
           g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_OUTPUT_FORMAT,
-                      "Invalid output type '%s' for fetch method '%s'\n", outputTypeName, group);
+                      "Invalid output type '%s' for fetch method '%s'", outputTypeName, group);
         }
     }
-
-  if (tmpError)
+  
+  if (tmpError && error && *error)
+    postfixError(*error, "; %s", tmpError->message);
+  else if (tmpError)
     g_propagate_error(error, tmpError);
  
   g_free(outputTypeName);
@@ -1949,11 +2000,32 @@ static BlxFetchOutputType readFetchOutputType(GKeyFile *key_file, const char *gr
 }
 
 
-/* Utility to get a value from a key-file and remove delimiters (for strings).
- * The result should be freed using g_free. */
+/* Utilities to get a value from a key-file and remove delimiters (where applicable).
+ * The input error may be non-null, in which case any new error message will be appended to it. */
 static char* configGetString(GKeyFile *key_file, const char *group, const char *key, GError **error)
 {
-  return removeDelimiters(g_key_file_get_string(key_file, group, key, error));
+  GError *tmpError = NULL;
+  char *result = removeDelimiters(g_key_file_get_string(key_file, group, key, &tmpError));
+
+  if (tmpError && error && *error)
+    postfixError(*error, "; %s", tmpError->message);
+  else if (tmpError)
+    g_propagate_error(error, tmpError);
+
+  return result;
+}
+
+static int configGetInteger(GKeyFile *key_file, const char *group, const char *key, GError **error)
+{
+  GError *tmpError = NULL;
+  int result = g_key_file_get_integer(key_file, group, SOCKET_FETCH_PORT, &tmpError);
+
+  if (tmpError && error && *error)
+    postfixError(*error, "; %s", tmpError->message);
+  else if (tmpError)
+    g_propagate_error(error, tmpError);
+
+  return result;
 }
 
 
@@ -1972,17 +2044,18 @@ static void readFetchMethodStanza(GKeyFile *key_file,
   if (!tmpError)
     result = createBlxFetchMethod(group, g_quark_from_string(fetchMode));
 
-  /* Set the relevant properties for this type of fetch method */
+  /* Set the relevant properties for this type of fetch method. (Append a
+   * warning to tmpError for mandatory arguments if they are not found.) */
   if (!tmpError)
     {
       if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_SOCKET), FALSE))
         {
           result->mode = BLXFETCH_MODE_SOCKET;
-          result->location = configGetString(key_file, group, SOCKET_FETCH_LOCATION, NULL);
-          result->node = configGetString(key_file, group, SOCKET_FETCH_NODE, NULL);
-          result->port = g_key_file_get_integer(key_file, group, SOCKET_FETCH_PORT, NULL);
+          result->location = configGetString(key_file, group, SOCKET_FETCH_LOCATION, &tmpError);
+          result->node = configGetString(key_file, group, SOCKET_FETCH_NODE, &tmpError);
+          result->port = configGetInteger(key_file, group, SOCKET_FETCH_PORT, &tmpError);
           result->args = configGetString(key_file, group, SOCKET_FETCH_ARGS, NULL);
-          result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS);
+          result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS, NULL);
           result->separator = configGetString(key_file, group, FETCH_SEPARATOR, NULL);
           result->outputType = readFetchOutputType(key_file, group, &tmpError);
         }
@@ -1990,27 +2063,27 @@ static void readFetchMethodStanza(GKeyFile *key_file,
       else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_HTTP), FALSE))
         {
           result->mode = BLXFETCH_MODE_HTTP;
-          result->location = configGetString(key_file, group, HTTP_FETCH_LOCATION, NULL);
-          result->port = g_key_file_get_integer(key_file, group, HTTP_FETCH_PORT, NULL);
-          result->cookie_jar = configGetString(key_file, group, HTTP_FETCH_COOKIE_JAR, NULL);
+          result->location = configGetString(key_file, group, HTTP_FETCH_LOCATION, &tmpError);
+          result->port = configGetInteger(key_file, group, HTTP_FETCH_PORT, &tmpError);
+          result->cookie_jar = configGetString(key_file, group, HTTP_FETCH_COOKIE_JAR, &tmpError);
           result->args = configGetString(key_file, group, HTTP_FETCH_ARGS, NULL);
-          result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS);
+          result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS, NULL);
           result->separator = configGetString(key_file, group, FETCH_SEPARATOR, NULL);
           result->outputType = readFetchOutputType(key_file, group, &tmpError);
         }
       else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_PIPE), FALSE))
         {
           result->mode = BLXFETCH_MODE_PIPE;
-          result->location = configGetString(key_file, group, PIPE_FETCH_LOCATION, NULL);
+          result->location = configGetString(key_file, group, PIPE_FETCH_LOCATION, &tmpError);
           result->args = configGetString(key_file, group, PIPE_FETCH_ARGS, NULL);
-          result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS);
+          result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS, NULL);
           result->outputType = readFetchOutputType(key_file, group, &tmpError);
         }
     #endif
       else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_WWW), FALSE))
         {
           result->mode = BLXFETCH_MODE_WWW;
-          result->location = configGetString(key_file, group, WWW_FETCH_LOCATION, NULL);
+          result->location = configGetString(key_file, group, WWW_FETCH_LOCATION, &tmpError);
           result->args = configGetString(key_file, group, WWW_FETCH_ARGS, NULL);
         }
       else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_INTERNAL), FALSE))
@@ -2021,15 +2094,15 @@ static void readFetchMethodStanza(GKeyFile *key_file,
         {
           /* to do: not implemented */
           result->mode = BLXFETCH_MODE_DB;
-          result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS);
+          result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS, NULL);
           result->outputType = readFetchOutputType(key_file, group, &tmpError);
         }
       else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_COMMAND), FALSE))
         {
           result->mode = BLXFETCH_MODE_COMMAND;
-          result->location = configGetString(key_file, group, COMMAND_FETCH_SCRIPT, NULL);
+          result->location = configGetString(key_file, group, COMMAND_FETCH_SCRIPT, &tmpError);
           result->args = configGetString(key_file, group, COMMAND_FETCH_ARGS, NULL);
-          result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS);
+          result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS, NULL);
           result->outputType = readFetchOutputType(key_file, group, &tmpError);
         }
         else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_NONE), FALSE))
@@ -2038,7 +2111,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
         }
       else
         {
-          g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_FETCH_MODE, "Unrecognised fetch mode '%s'\n", fetchMode);
+          g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_INVALID_FETCH_MODE, "Unrecognised fetch mode '%s'", fetchMode);
           result->mode = BLXFETCH_MODE_NONE;
         }
     }
@@ -2048,6 +2121,11 @@ static void readFetchMethodStanza(GKeyFile *key_file,
     {
       GQuark fetchName = g_quark_from_string(group);
       g_hash_table_insert(options->fetchMethods, GINT_TO_POINTER(fetchName), result);
+    }
+  else if (result)
+    {
+      /* Fetch method details are incomplete, so delete it. */
+      g_free(result);
     }
   
   /* Clean up */
@@ -2063,8 +2141,6 @@ static void readFetchMethodStanza(GKeyFile *key_file,
  * group type. If any required values are missing, sets the error. */
 static void readConfigGroup(GKeyFile *key_file, const char *group, CommandLineOptions *options, GError **error)
 {
-  GError *tmpError = NULL;
-  
   /* Check for known group names first */
   if (stringsEqual(group, BLIXEM_GROUP, FALSE))
     {
@@ -2073,9 +2149,9 @@ static void readConfigGroup(GKeyFile *key_file, const char *group, CommandLineOp
   else
     {
       /* Check if this is a fetch method; if it is it the group will have a fetch-mode key */
-      char *fetchMode = configGetString(key_file, group, FETCH_MODE_KEY, &tmpError);
+      char *fetchMode = configGetString(key_file, group, FETCH_MODE_KEY, NULL);
       
-      if (fetchMode && !tmpError)
+      if (fetchMode)
         readFetchMethodStanza(key_file, group, options, error);
 
       g_free(fetchMode);
@@ -2105,9 +2181,9 @@ static void readConfigFile(GKeyFile *key_file, CommandLineOptions *options, GErr
         {
           /* Compile all errors into one message */
           if (*error == NULL)
-            g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_WARNINGS, "  [%s]: %s", *group, tmpError->message);
+            g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_WARNINGS, "  [%s]: %s\n", *group, tmpError->message);
           else
-            postfixError(*error, "  [%s]: %s", *group, tmpError->message);
+            postfixError(*error, "  [%s]: %s\n", *group, tmpError->message);
         }
     }
   
@@ -2818,38 +2894,53 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
         {
           const BlxFetchMethod* const fetchMethod = getFetchMethodDetails(fetchMethodQuark, fetchMethods);
 
-          /* Check if sequence data is required and is not already set.
-           * Also only attempt to fetch the sequence if this fetch method
-           * can return it! */
-          gboolean getSeq = (blxSequenceRequiresSeqData(blxSeq) && 
-                              fetchMethodReturnsSequence(fetchMethod) &&
-                              !blxSeq->sequence);
-          
-          /* Check if full embl data data is required and is not already set.
-           * Also only attempt to fetch the embl data if this fetch method
-           * can return it! */
-          getSeq |= (blxSequenceRequiresOptionalData(blxSeq) &&
-                     fetchMethodReturnsEmbl(fetchMethod) &&
-                     !blxSeq->organism &&
-                     !blxSeq->geneName &&
-                     !blxSeq->tissueType &&
-                     !blxSeq->strain);
-      
-          
-      
-          if (getSeq)
+          if (fetchMethod)
             {
-              /* Get the result list for this fetch method. It's ok if it is 
-               * null because the list will be created by g_list_prepend. */
-              GList *resultList = g_hash_table_lookup(resultTable, GINT_TO_POINTER(fetchMethodQuark));
-              resultList = g_list_prepend(resultList, blxSeq);
+              /* Check if sequence data is required and is not already set.
+               * Also only attempt to fetch the sequence if this fetch method
+               * can return it! */
+              gboolean getSeq = (blxSequenceRequiresSeqData(blxSeq) && 
+                                 fetchMethodReturnsSequence(fetchMethod) &&
+                                 !blxSeq->sequence);
               
-              /* Update the existing (or insert the new) list */
-              g_hash_table_insert(resultTable, GINT_TO_POINTER(fetchMethodQuark), resultList);
+              /* Check if full embl data data is required and is not already set.
+               * Also only attempt to fetch the embl data if this fetch method
+               * can return it! */
+              getSeq |= (blxSequenceRequiresOptionalData(blxSeq) &&
+                         fetchMethodReturnsEmbl(fetchMethod) &&
+                         !blxSeq->organism &&
+                         !blxSeq->geneName &&
+                         !blxSeq->tissueType &&
+                         !blxSeq->strain);
+      
+              if (getSeq)
+                {
+                  /* Get the result list for this fetch method. It's ok if it is 
+                   * null because the list will be created by g_list_prepend. */
+                  GList *resultList = g_hash_table_lookup(resultTable, GINT_TO_POINTER(fetchMethodQuark));
+                  resultList = g_list_prepend(resultList, blxSeq);
+                  
+                  /* Update the existing (or insert the new) list */
+                  g_hash_table_insert(resultTable, GINT_TO_POINTER(fetchMethodQuark), resultList);
+                }
+            }
+          else
+            {
+              /* Warn user that fetch method details are missing (only warn once per fetch method) */
+              static GHashTable *seenMethods = NULL;
+
+              if (!seenMethods)
+                seenMethods = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+              if (!g_hash_table_lookup(seenMethods, GINT_TO_POINTER(fetchMethodQuark)))
+                {
+                  g_warning("Error fetching sequence '%s'; could not find details for fetch method '%s'\n", blxSequenceGetFullName(blxSeq), g_quark_to_string(fetchMethodQuark));
+                  g_hash_table_insert(seenMethods, GINT_TO_POINTER(fetchMethodQuark), GINT_TO_POINTER(fetchMethodQuark));
+                }
             }
         }
     }
-  
+
   return resultTable;
 }
 
