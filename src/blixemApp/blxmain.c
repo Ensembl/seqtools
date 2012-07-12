@@ -212,7 +212,7 @@ SORT MODE\n\
     o = by Organism\n\
 \n\
 COLOR KEY FILE\n\
-  The color key file is specified with the -k <file> or --key-file=<file> argument. This is a .ini-\n\
+  The color key file is specified with the --styles-file=<file> argument. This is a .ini-\n\
   like file that specifies attributes such as fill and line colors for features from particular \n\
   sources (say EST_Human or polya_signal). The file should contain one or more source stanzas followed\n\
   by one or more key=value pairs, i.e. \n\
@@ -318,6 +318,51 @@ static char* getColorFromKeyFile(GKeyFile *keyFile, const char *group, const cha
 }
 
 
+static void readStylesFileColors(GKeyFile *keyFile, 
+                                 const char *group, 
+                                 GSList **stylesList,
+                                 GError **error)
+{
+  /* Look for the keys corresponding to the style values we require */
+  char *fillColor = getColorFromKeyFile(keyFile, group, "fill_color", NULL);
+  char *lineColor = getColorFromKeyFile(keyFile, group, "line_color", NULL);
+  
+  /* Look for optional keys (passing error as null means we don't care if it's not found) */
+  char *fillColorSelected = getColorFromKeyFile(keyFile, group, "fill_color_selected", NULL);
+  char *lineColorSelected = getColorFromKeyFile(keyFile, group, "line_color_selected", NULL);
+  char *fillColorUtr = getColorFromKeyFile(keyFile, group, "fill_color_utr", NULL);
+  char *lineColorUtr = getColorFromKeyFile(keyFile, group, "line_color_utr", NULL);
+  char *fillColorUtrSelected = getColorFromKeyFile(keyFile, group, "fill_color_utr_selected", NULL);
+  char *lineColorUtrSelected = getColorFromKeyFile(keyFile, group, "line_color_utr_selected", NULL);
+  
+  /* If there was an error, skip this group. Otherwise, go ahead and create the style */
+  if (fillColor && lineColor)
+    {
+      BlxStyle *style = createBlxStyle(group, fillColor, fillColorSelected, lineColor, lineColorSelected, 
+                                       fillColorUtr, fillColorUtrSelected, lineColorUtr, lineColorUtrSelected, error);
+      *stylesList = g_slist_append(*stylesList, style);
+    }
+  else if (!fillColor)
+    {
+      g_set_error(error, BLX_ERROR, 1, "Style '%s' does not contain required field fill_color", group);
+    }
+  else if (!lineColor)
+    {
+      g_set_error(error, BLX_ERROR, 1, "Style '%s' does not contain required field line_color", group);
+    }
+  
+  
+  if (fillColor) g_free(fillColor);
+  if (lineColor) g_free(lineColor);
+  if (fillColorSelected) g_free(fillColorSelected);
+  if (lineColorSelected) g_free(lineColorSelected);
+  if (fillColorUtr) g_free(fillColorUtr);
+  if (lineColorUtr) g_free(lineColorUtr);
+  if (fillColorUtrSelected) g_free(fillColorUtrSelected);
+  if (lineColorUtrSelected) g_free(lineColorUtrSelected);
+}
+
+
 /* Read in the key file, which contains style information. Returns a list of
  * style structs for each style found. */
 static GSList* blxReadStylesFile(char *keyFileName, GError **error)
@@ -346,25 +391,7 @@ static GSList* blxReadStylesFile(char *keyFileName, GError **error)
       
       for (i = 0, group = groups ; i < num_groups && !tmpError ; i++, group++)
 	{
-          /* Look for the keys corresponding to the style values we require */
-	  char *fillColor = getColorFromKeyFile(keyFile, *group, "fill_color", &tmpError);
-	  char *lineColor = getColorFromKeyFile(keyFile, *group, "line_color", &tmpError);
-	  
-	  /* Look for optional keys (passing error as null means we don't care if it's not found) */
-	  char *fillColorSelected = getColorFromKeyFile(keyFile, *group, "fill_color_selected", NULL);
-	  char *lineColorSelected = getColorFromKeyFile(keyFile, *group, "line_color_selected", NULL);
-	  char *fillColorUtr = getColorFromKeyFile(keyFile, *group, "fill_color_utr", NULL);
-	  char *lineColorUtr = getColorFromKeyFile(keyFile, *group, "line_color_utr", NULL);
-	  char *fillColorUtrSelected = getColorFromKeyFile(keyFile, *group, "fill_color_utr_selected", NULL);
-	  char *lineColorUtrSelected = getColorFromKeyFile(keyFile, *group, "line_color_utr_selected", NULL);
-
-	  /* If there was an error, skip this group. Otherwise, go ahead and create the style */
-	  if (!tmpError)
-	    {
-	      BlxStyle *style = createBlxStyle(*group, fillColor, fillColorSelected, lineColor, lineColorSelected, 
-                                               fillColorUtr, fillColorUtrSelected, lineColorUtr, lineColorUtrSelected, &tmpError);
-	      result = g_slist_append(result, style);
-	    }
+          readStylesFileColors(keyFile, *group, &result, &tmpError);
         }
       
       if (tmpError)
