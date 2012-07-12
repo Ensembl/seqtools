@@ -295,45 +295,139 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->msgData.parent = NULL;
   options->msgData.statusBar = NULL;
 }
-  
 
-/* Utility to extract a color string with the key name 'key' from the given group in the
- * given key file. Does nothing if the given error is already set. */
-static char* getColorFromKeyFile(GKeyFile *keyFile, const char *group, const char *key, GError **error)
+
+/* Read the new-style color fields for the given source (group) 
+ * from the given key file. Returns true if colors were found. */
+static gboolean readStylesFileColors(GKeyFile *keyFile, 
+                                     const char *group, 
+                                     GSList **stylesList,
+                                     GError **error)
 {
-  char *result = NULL;
-  
-  if (error == NULL || *error == NULL)
-    {
-      result = g_key_file_get_value(keyFile, group, key, error);
+  gboolean result = FALSE;
 
-      if (error && *error)
-	{
-	  prefixError(*error, "Required key not found. ");
-	  postfixError(*error, "\n");
-	}
+  g_key_file_set_list_separator(keyFile, ';');
+  
+  char *fillColor = NULL, *lineColor = NULL, 
+    *fillColorSelected = NULL, *lineColorSelected = NULL,
+    *fillColorUtr = NULL, *lineColorUtr = NULL,
+    *fillColorUtrSelected = NULL, *lineColorUtrSelected = NULL;
+
+  /* Get the mandatory colors */
+  char **normalColors = g_key_file_get_string_list(keyFile, group, "colours", NULL, NULL);
+
+  result = (normalColors != NULL);
+  
+  /* Get the optional cds colors from the styles file. If these
+   * are set then the 'colors' field gives the utr colors so we
+   * need to swap our pointers. Otherwise, the 'colors' field gives
+   * the 'normal' colors so we don't change the pointer. */
+  char **utrColors = NULL;
+  char **cdsColors = g_key_file_get_string_list(keyFile, group, "transcript-cds-colours", NULL, NULL);
+  
+  if (cdsColors)
+    {
+      utrColors = normalColors;
+      normalColors = cdsColors;
     }
-    
+  
+  /* Loop through the normal colors */
+  GError *tmpError = NULL;
+  char **color = normalColors;
+  
+  for ( ; color && *color && !tmpError; ++color)
+    {
+      /* Ignore leading whitespace */
+      char *c = *color;
+      while (*c == ' ')
+        ++c;
+      
+      if (c && *c)
+        {
+          if (!strncasecmp(c, "normal fill ", 12))
+            fillColor = g_strchug(g_strchomp(g_strdup(*color + 12)));
+          else if (!strncasecmp(c, "normal border ", 14))
+            lineColor = g_strchug(g_strchomp(g_strdup(*color + 14)));
+          else if (!strncasecmp(c, "selected fill ", 14))
+            fillColorSelected = g_strchug(g_strchomp(g_strdup(*color + 14)));
+          else if (!strncasecmp(c, "selected border ", 16))
+            lineColorSelected = g_strchug(g_strchomp(g_strdup(*color + 16)));
+          else
+            g_set_error(&tmpError, BLX_ERROR, 1, "Invalid colour specification in '%s' group\n", group);
+        }
+    }
+  
+  /* Loop through the UTR colors */
+  color = utrColors;
+  for ( ; color && *color && !tmpError; ++color)
+    {
+      /* Ignore leading whitespace */
+      char *c = *color;
+      while (*c == ' ')
+        ++c;
+      
+      if (c && *c)
+        {
+          if (!strncasecmp(c, "normal fill ", 12))
+            fillColorUtr = g_strchug(g_strchomp(g_strdup(*color + 12)));
+          else if (!strncasecmp(c, "normal border ", 14))
+            lineColorUtr = g_strchug(g_strchomp(g_strdup(*color + 14)));
+          else if (!strncasecmp(c, "selected fill ", 14))
+            fillColorUtrSelected = g_strchug(g_strchomp(g_strdup(*color + 14)));
+          else if (!strncasecmp(c, "selected border ", 16))
+            lineColorUtrSelected = g_strchug(g_strchomp(g_strdup(*color + 16)));
+          else
+            g_set_error(&tmpError, BLX_ERROR, 1, "Invalid colour specification in '%s' group\n", group);
+        }
+    }
+  
+  /* If colors were given, create the style */
+  if (!tmpError && (fillColor || lineColor || fillColorSelected || lineColorSelected ||
+                    fillColorUtr || lineColorUtr || fillColorUtrSelected || lineColorUtrSelected))
+    {
+      BlxStyle *style = createBlxStyle(group, fillColor, fillColorSelected, lineColor, lineColorSelected, 
+                                       fillColorUtr, fillColorUtrSelected, lineColorUtr, lineColorUtrSelected, &tmpError);
+
+      if (style)
+        *stylesList = g_slist_append(*stylesList, style);
+    }
+  
+  /* Clean up */
+  if (normalColors) g_strfreev(normalColors);
+  if (utrColors) g_strfreev(utrColors);
+  if (fillColor) g_free(fillColor);
+  if (lineColor) g_free(lineColor);
+  if (fillColorSelected) g_free(fillColorSelected);
+  if (lineColorSelected) g_free(lineColorSelected);
+  if (fillColorUtr) g_free(fillColorUtr);
+  if (lineColorUtr) g_free(lineColorUtr);
+  if (fillColorUtrSelected) g_free(fillColorUtrSelected);
+  if (lineColorUtrSelected) g_free(lineColorUtrSelected);
+
+  /* Error handling */
+  if (tmpError)
+    g_propagate_error(error, tmpError);
+
   return result;
 }
 
 
-static void readStylesFileColors(GKeyFile *keyFile, 
-                                 const char *group, 
-                                 GSList **stylesList,
-                                 GError **error)
+/* For backwards compatibility, read the old-style color fields
+ * for the given source (group) from the given key file. (The 
+ * key names were changed to be consistent with zmap). */
+static void readStylesFileColorsOld(GKeyFile *keyFile, 
+                                    const char *group, 
+                                    GSList **stylesList,
+                                    GError **error)
 {
-  /* Look for the keys corresponding to the style values we require */
-  char *fillColor = getColorFromKeyFile(keyFile, group, "fill_color", NULL);
-  char *lineColor = getColorFromKeyFile(keyFile, group, "line_color", NULL);
-  
-  /* Look for optional keys (passing error as null means we don't care if it's not found) */
-  char *fillColorSelected = getColorFromKeyFile(keyFile, group, "fill_color_selected", NULL);
-  char *lineColorSelected = getColorFromKeyFile(keyFile, group, "line_color_selected", NULL);
-  char *fillColorUtr = getColorFromKeyFile(keyFile, group, "fill_color_utr", NULL);
-  char *lineColorUtr = getColorFromKeyFile(keyFile, group, "line_color_utr", NULL);
-  char *fillColorUtrSelected = getColorFromKeyFile(keyFile, group, "fill_color_utr_selected", NULL);
-  char *lineColorUtrSelected = getColorFromKeyFile(keyFile, group, "line_color_utr_selected", NULL);
+  char *fillColor = g_key_file_get_string(keyFile, group, "fill_color", NULL);
+  char *lineColor = g_key_file_get_string(keyFile, group, "line_color", NULL);
+  char *fillColorSelected = g_key_file_get_string(keyFile, group, "fill_color_selected", NULL);
+  char *lineColorSelected = g_key_file_get_string(keyFile, group, "line_color_selected", NULL);
+  char *fillColorUtr = g_key_file_get_string(keyFile, group, "fill_color_utr", NULL);
+  char *lineColorUtr = g_key_file_get_string(keyFile, group, "line_color_utr", NULL);
+  char *fillColorUtrSelected = g_key_file_get_string(keyFile, group, "fill_color_utr_selected", NULL);
+  char *lineColorUtrSelected = g_key_file_get_string(keyFile, group, "line_color_utr_selected", NULL);
   
   /* If there was an error, skip this group. Otherwise, go ahead and create the style */
   if (fillColor && lineColor)
@@ -391,7 +485,13 @@ static GSList* blxReadStylesFile(char *keyFileName, GError **error)
       
       for (i = 0, group = groups ; i < num_groups && !tmpError ; i++, group++)
 	{
-          readStylesFileColors(keyFile, *group, &result, &tmpError);
+          gboolean found = readStylesFileColors(keyFile, *group, &result, &tmpError);
+
+          /* If it wasn't found, look for old-style colors */
+          if (!found && !tmpError)
+            {
+              readStylesFileColorsOld(keyFile, *group, &result, NULL);
+            }
         }
       
       if (tmpError)
