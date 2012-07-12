@@ -151,7 +151,7 @@ gboolean blixem_debug_G = FALSE ;
   --start-next-match\n\
     Start with the display centred on the first match to the right of the default start coord.\n\
 \n\
-  --styles-file=<file>\n\
+  -y <file>, --styles-file=<file>\n\
     Read color options from a key-value file. Use --help option to see details.\n\
 \n\
   --version\n\
@@ -212,7 +212,7 @@ SORT MODE\n\
     o = by Organism\n\
 \n\
 COLOR KEY FILE\n\
-  The color key file is specified with the --styles-file=<file> argument. This is a .ini-\n\
+  The color key file is specified with the -y <file> or --styles-file=<file> argument. This is a .ini-\n\
   like file that specifies attributes such as fill and line colors for features from particular \n\
   sources (say EST_Human or polya_signal). The file should contain one or more source stanzas followed\n\
   by one or more key=value pairs, i.e. \n\
@@ -221,24 +221,29 @@ COLOR KEY FILE\n\
       <key>=<value>\n\
       ...\n\
 \n\
-  <value> is a hex color-string, e.g. #ff0000\n\
+  <key> can be one of:\n\
+      colours:                 default colours\n\
+      transcript-cds-colours:  used to specify a different colour \n\
+                               for CDS sections of transcripts\n\
 \n\
-  Possible keys are:\n\
-    fill_color                    (default fill color)\n\
-    fill_color_selected           (fill color when selected) \n\
-    line_color                    (default line color)\n\
-    line_color_selected           (line color when selected)\n\
-    fill_color_utr                (default fill color for UTR regions)\n\
-    fill_color_utr_selected       (fill color for UTR regions when selected) \n\
-    line_color_utr                (default line color for UTR regions)\n\
-    line_color_utr_selected       (line color for UTR regions when selected)\n\
-  Only fill_color and line_color are mandatory; the selection colors will be calculated automatically\n\
-  if not specified (a darker shade of the default color will be used when the feature is selected).\n\
-  For transcripts, the fill_color/line_color/etc items are used for CDS regions and different colors\n\
-  can be specified for UTR regions using fill_color_utr, line_color_utr etc.\n\
+  <value> is a semi-colon separated list of fill and line colours of the format:\n\
+      <normal|selected> <fill|border> <colour>\n\
+\n\
+  <colour> can be in any of the forms accepted by XParseColor; these include name \n\
+           for a colour from rgb.txt, such as DarkSlateGray, or a hex specification \n\
+           such as #305050.\n\
+\n\
+  Example:\n\
+    colours=normal border #0000af ; selected border #0000af ; normal fill white ; \\\n\
+            selected fill #ffddcc ; \n\
+    transcript-cds-colours=normal border #0000af ; selected border #0000af ; \\\n\
+            normal fill white ; selected fill #ffddcc ; \n\
+\n\
+  Note that selection colors will be calculated automatically if they are not\n\
+  specified (a darker shade of the default color will be used when the feature is selected).\n\
 \n\
 MSPcrunch\n\
-To make the datafile from blast output, run MSPcrunch with option -q.\n\
+  To make the datafile from blast output, run MSPcrunch with option -q.\n\
 \n\
  o To pipe MSPcrunch output directly to Blixem, use \"-\"\n\
    as the second parameter ([datafile]).  Example:\n\
@@ -695,7 +700,6 @@ int main(int argc, char **argv)
       {"sort-mode",             required_argument,  NULL, 0},
       {"squash-matches",        no_argument,        &options.squashMatches, 1},
       {"start-next-match",      no_argument,        &options.startNextMatch, 1},
-      {"styles-file",           required_argument,  NULL, 0},
       {"version",		no_argument,        &showVersion, 1},
       {"zoom-whole",            no_argument,        &options.zoomWhole, 1},
 
@@ -710,6 +714,7 @@ int main(int argc, char **argv)
       {"start-coord",           required_argument,  0, 's'},
       {"display-type",          required_argument,  0, 't'},
       {"extra-file",            required_argument,  0, 'x'}, /* obsolete? */
+      {"styles-file",           required_argument,  0, 'y'},
       {"zoom-range",            required_argument,  0, 'z'},
       {0, 0, 0, 0}
    };
@@ -728,10 +733,6 @@ int main(int argc, char **argv)
             if (long_options[optionIndex].flag != 0)
               {
                 /* we get here if getopt_long set a flag; nothing else to do */
-              }
-            else if (stringsEqual(long_options[optionIndex].name, "styles-file", TRUE))
-              {
-                key_file = g_strdup(optarg) ;
               }
             else if (stringsEqual(long_options[optionIndex].name, "fetch-server", TRUE))
               {
@@ -799,6 +800,9 @@ int main(int argc, char **argv)
 	  xtra_data = TRUE ;
 	  strcpy(xtra_filename, optarg);
 	  break;
+        case 'y':
+          key_file = g_strdup(optarg) ;
+          break;
         case 'z': 
           {
             int coord1 = atoi(optarg); /* will ignore anything after ':' */
