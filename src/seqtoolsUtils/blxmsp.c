@@ -145,6 +145,7 @@ gboolean mspLayerIsVisible(const MSP const *msp)
  * CDS if there is a CDS exon on both sides of the intron. */
 static const GdkColor* mspGetIntronColor(const MSP const *msp, 
 					 GArray *defaultColors,
+                                         const int defaultColorId,
 					 const BlxSequence *blxSeq,
 					 const gboolean selected,
 					 const gboolean usePrintColors,
@@ -190,21 +191,21 @@ static const GdkColor* mspGetIntronColor(const MSP const *msp,
   /* if either exon is UTR, the intron is UTR */
   if (prevIsUtr)
     {
-    result = mspGetColor(prevExon, defaultColors, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
+      result = mspGetColor(prevExon, defaultColors, defaultColorId, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
     }
   else if (nextIsUtr)
     {
-    result = mspGetColor(nextExon, defaultColors, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
+      result = mspGetColor(nextExon, defaultColors, defaultColorId, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
     }
   else if (prevExon)
     {
-    /* Both exons (or the sole exon, if only one exists) are CDS, so the intron is CDS */
-    result = mspGetColor(prevExon, defaultColors, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
+      /* Both exons (or the sole exon, if only one exists) are CDS, so the intron is CDS */
+      result = mspGetColor(prevExon, defaultColors, defaultColorId, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
     }
   else if (nextExon)
     {
-    /* This is the only exon and it is CDS, so make the intron CDS */
-    result = mspGetColor(nextExon, defaultColors, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
+      /* This is the only exon and it is CDS, so make the intron CDS */
+      result = mspGetColor(nextExon, defaultColors, defaultColorId, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
     }
   else
     {
@@ -429,24 +430,39 @@ const char* mspGetSource(const MSP const *msp)
 
 
 /* Return the color matching the given properties from the given style */
-static const GdkColor *styleGetColor(const BlxStyle *style, const gboolean selected, const gboolean usePrintColors, const gboolean fill, const gboolean utr)
+static const GdkColor *styleGetColor(const BlxStyle *style, 
+                                     const gboolean selected, 
+                                     const gboolean usePrintColors,
+                                     const gboolean fill, 
+                                     const gboolean utr,
+                                     GArray *defaultColors,
+                                     const int defaultColorId)
 {
   const GdkColor *result = NULL;
+  const BlxColor *blxColor = NULL;
   
   if (fill)
     {
       if (utr)
-        result = blxColorGetColor(&style->fillColorUtr, selected, usePrintColors);
+        blxColor = &style->fillColorUtr;
       else
-        result = blxColorGetColor(&style->fillColor, selected, usePrintColors);
+        blxColor = &style->fillColor;
     }
   else
     {
       if (utr)
-        result = blxColorGetColor(&style->lineColorUtr, selected, usePrintColors);
+        blxColor = &style->lineColorUtr;
       else
-        result = blxColorGetColor(&style->lineColor, selected, usePrintColors);
+        blxColor = &style->lineColor;
     }
+
+  /* If it's transparent, use the background color instead, unless 
+   * selected is true in which case we need to use the highlight color */
+  if (blxColor && blxColor->transparent && !selected)
+    result = getGdkColor(defaultColorId, defaultColors, selected, usePrintColors);
+  else if (blxColor)
+    result = blxColorGetColor(blxColor, selected, usePrintColors);
+
   return result;
 }
 
@@ -456,6 +472,7 @@ static const GdkColor *styleGetColor(const BlxStyle *style, const gboolean selec
  * true, otherwise the line color */
 const GdkColor* mspGetColor(const MSP const *msp, 
 			    GArray *defaultColors, 
+                            const int defaultColorId,
 			    const BlxSequence *blxSeq,
 			    const gboolean selected, 
 			    const gboolean usePrintColors, 
@@ -471,7 +488,7 @@ const GdkColor* mspGetColor(const MSP const *msp,
   
   if (msp->style)
     {
-      result = styleGetColor(msp->style, selected, usePrintColors, fill, msp->type == BLXMSP_UTR);
+      result = styleGetColor(msp->style, selected, usePrintColors, fill, msp->type == BLXMSP_UTR, defaultColors, defaultColorId);
     }
   
   if (!result)
@@ -497,7 +514,7 @@ const GdkColor* mspGetColor(const MSP const *msp,
          * and use different types (e.g. BLXMSP_INTRON_CDS) that can be queried here to quickly
          * determine what color to use. */
 	case BLXMSP_INTRON:
-	result = mspGetIntronColor(msp, defaultColors, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
+          result = mspGetIntronColor(msp, defaultColors, defaultColorId, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
 	break;
 	
 	default:

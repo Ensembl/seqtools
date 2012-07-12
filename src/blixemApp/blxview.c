@@ -1049,13 +1049,31 @@ static void setBlxColorValues(const char *normal, const char *selected, BlxColor
 {
   GError *tmpError = NULL;
   
-  getColorFromString(normal, &blxColor->normal, &tmpError);
-  getSelectionColor(&blxColor->normal, &blxColor->selected); /* will use this if selection color is not given/has error */
+  if (normal)
+    {
+      getColorFromString(normal, &blxColor->normal, &tmpError);
 
-  /* Calculate print coords as a greyscale version of normal colors */
-  convertToGrayscale(&blxColor->normal, &blxColor->print);            /* calculate print colors, because they are not given */
-  getSelectionColor(&blxColor->print, &blxColor->printSelected);
-  
+      if (!tmpError)
+        {
+          getSelectionColor(&blxColor->normal, &blxColor->selected); /* will use this if selection color is not given/has error */
+          
+          /* Calculate print coords as a greyscale version of normal colors */
+          convertToGrayscale(&blxColor->normal, &blxColor->print);            /* calculate print colors, because they are not given */
+          getSelectionColor(&blxColor->print, &blxColor->printSelected);
+        }
+
+      /* Treat white as transparent. Not ideal but blixem can read zmap styles
+       * files where this assumption is made */
+      if (!strncasecmp(normal, "white", 5) || !strncasecmp(normal, "#ffffff", 7))
+        {
+          blxColor->transparent = TRUE;
+        }
+    }
+  else
+    {
+      blxColor->transparent = TRUE;
+    }
+
   /* Use the selected-color string, if given */
   if (!tmpError && selected)
     {
@@ -1095,27 +1113,23 @@ BlxStyle* createBlxStyle(const char *styleName,
       style->styleName = g_strdup(styleName);
     }
   
-  if (!tmpError && fillColor)
-    {
-      setBlxColorValues(fillColor, fillColorSelected, &style->fillColor, &tmpError);
-      setBlxColorValues(fillColor, fillColorSelected, &style->fillColorUtr, &tmpError); /* default UTR to same as CDS */
-    }
+  if (!tmpError)
+    setBlxColorValues(fillColor, fillColorSelected, &style->fillColor, &tmpError);
+
+  if (!tmpError)
+    setBlxColorValues(fillColor, fillColorSelected, &style->fillColorUtr, &tmpError); /* default UTR to same as CDS */
     
-  if (!tmpError && lineColor)
-    {
-      setBlxColorValues(lineColor, lineColorSelected, &style->lineColor, &tmpError);
-      setBlxColorValues(lineColor, lineColorSelected, &style->lineColorUtr, &tmpError); /* default UTR to same as CDS */
-    }
-    
-  if (!tmpError && fillColorUtr)
-    {
-      setBlxColorValues(fillColorUtr, fillColorUtrSelected, &style->fillColorUtr, &tmpError);
-    }
+  if (!tmpError)
+    setBlxColorValues(lineColor, lineColorSelected, &style->lineColor, &tmpError);
   
-  if (!tmpError && lineColorUtr)
-    {
-      setBlxColorValues(lineColorUtr, lineColorUtrSelected, &style->lineColorUtr, &tmpError);
-    }
+  if (!tmpError)
+    setBlxColorValues(lineColor, lineColorSelected, &style->lineColorUtr, &tmpError); /* default UTR to same as CDS */
+    
+  if (!tmpError && (fillColorUtr || fillColorUtrSelected))
+    setBlxColorValues(fillColorUtr, fillColorUtrSelected, &style->fillColorUtr, &tmpError);
+  
+  if (!tmpError && (lineColorUtr || lineColorUtrSelected))
+    setBlxColorValues(lineColorUtr, lineColorUtrSelected, &style->lineColorUtr, &tmpError);
   
   if (tmpError)
     {
