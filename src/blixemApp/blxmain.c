@@ -719,7 +719,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
    };
 
-  char        *optstring="a:c:him:no:rs:t:x:z:";
+  char        *optstring="a:c:him:no:rs:t:x:y:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
