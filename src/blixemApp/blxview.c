@@ -1064,10 +1064,7 @@ static void setBlxColorValues(const char *normal, const char *selected, BlxColor
 
       /* Treat white as transparent. Not ideal but blixem can read zmap styles
        * files where this assumption is made */
-      if (!strncasecmp(normal, "white", 5) || !strncasecmp(normal, "#ffffff", 7))
-        {
-          blxColor->transparent = TRUE;
-        }
+      blxColor->transparent = (!strncasecmp(normal, "white", 5) || !strncasecmp(normal, "#ffffff", 7));
     }
   else
     {
