@@ -1132,7 +1132,6 @@ BlxStyle* createBlxStyle(const char *styleName,
     {
       g_free(style);
       style = NULL;
-      prefixError(tmpError, "Error creating style '%s'. ", styleName);
       g_propagate_error(error, tmpError);
     }
   

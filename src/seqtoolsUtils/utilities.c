@@ -759,8 +759,6 @@ gboolean getColorFromString(const char *colorStr, GdkColor *color, GError **erro
 
   if (!ok)
     {
-      g_free(color);
-      color = NULL;
       g_set_error(error, SEQTOOLS_ERROR, 1, "Error parsing color string '%s'\n", colorStr);
     }
     

@@ -340,7 +340,7 @@ static gboolean readStylesFileColors(GKeyFile *keyFile,
   GError *tmpError = NULL;
   char **color = normalColors;
   
-  for ( ; color && *color && !tmpError; ++color)
+  for ( ; color && *color; ++color)
     {
       /* Ignore leading whitespace */
       char *c = *color;
@@ -350,21 +350,23 @@ static gboolean readStylesFileColors(GKeyFile *keyFile,
       if (c && *c)
         {
           if (!strncasecmp(c, "normal fill ", 12))
-            fillColor = g_strchug(g_strchomp(g_strdup(*color + 12)));
+            fillColor = g_strchug(g_strchomp(g_strdup(c + 12)));
           else if (!strncasecmp(c, "normal border ", 14))
-            lineColor = g_strchug(g_strchomp(g_strdup(*color + 14)));
+            lineColor = g_strchug(g_strchomp(g_strdup(c + 14)));
           else if (!strncasecmp(c, "selected fill ", 14))
-            fillColorSelected = g_strchug(g_strchomp(g_strdup(*color + 14)));
+            fillColorSelected = g_strchug(g_strchomp(g_strdup(c + 14)));
           else if (!strncasecmp(c, "selected border ", 16))
-            lineColorSelected = g_strchug(g_strchomp(g_strdup(*color + 16)));
+            lineColorSelected = g_strchug(g_strchomp(g_strdup(c + 16)));
+          else if (tmpError)
+            postfixError(tmpError, "  '%s' is not a valid color field\n", c);
           else
-            g_set_error(&tmpError, BLX_ERROR, 1, "Invalid colour specification in '%s' group\n", group);
+            g_set_error(&tmpError, BLX_ERROR, 1, "  '%s' is not a valid color field\n", c);
         }
     }
   
   /* Loop through the UTR colors */
   color = utrColors;
-  for ( ; color && *color && !tmpError; ++color)
+  for ( ; color && *color; ++color)
     {
       /* Ignore leading whitespace */
       char *c = *color;
@@ -374,15 +376,17 @@ static gboolean readStylesFileColors(GKeyFile *keyFile,
       if (c && *c)
         {
           if (!strncasecmp(c, "normal fill ", 12))
-            fillColorUtr = g_strchug(g_strchomp(g_strdup(*color + 12)));
+            fillColorUtr = g_strchug(g_strchomp(g_strdup(c + 12)));
           else if (!strncasecmp(c, "normal border ", 14))
-            lineColorUtr = g_strchug(g_strchomp(g_strdup(*color + 14)));
+            lineColorUtr = g_strchug(g_strchomp(g_strdup(c + 14)));
           else if (!strncasecmp(c, "selected fill ", 14))
-            fillColorUtrSelected = g_strchug(g_strchomp(g_strdup(*color + 14)));
+            fillColorUtrSelected = g_strchug(g_strchomp(g_strdup(c + 14)));
           else if (!strncasecmp(c, "selected border ", 16))
-            lineColorUtrSelected = g_strchug(g_strchomp(g_strdup(*color + 16)));
+            lineColorUtrSelected = g_strchug(g_strchomp(g_strdup(c + 16)));
+          else if (tmpError)
+            postfixError(tmpError, "  '%s' is not a valid color field\n", c);
           else
-            g_set_error(&tmpError, BLX_ERROR, 1, "Invalid colour specification in '%s' group\n", group);
+            g_set_error(&tmpError, BLX_ERROR, 1, "  '%s' is not a valid color field\n", c);
         }
     }
   
@@ -395,6 +399,9 @@ static gboolean readStylesFileColors(GKeyFile *keyFile,
 
       if (style)
         *stylesList = g_slist_append(*stylesList, style);
+
+      if (tmpError)
+        prefixError(tmpError, "  "); /* indent the error message */
     }
   
   /* Clean up */
@@ -503,34 +510,46 @@ static GSList* blxReadStylesFile(const char *keyFileName_in, GError **error)
       int i;
       GError *tmpError = NULL;
       
-      for (i = 0, group = groups ; i < num_groups && !tmpError ; i++, group++)
+      for (i = 0, group = groups ; i < num_groups ; i++, group++)
 	{
           gboolean found = readStylesFileColors(keyFile, *group, &result, &tmpError);
 
           /* If it wasn't found, look for old-style colors */
           if (!found && !tmpError)
+            readStylesFileColorsOld(keyFile, *group, &result, NULL);
+
+          if (tmpError)
             {
-              readStylesFileColorsOld(keyFile, *group, &result, NULL);
+              /* Compile all errors into one */
+              prefixError(tmpError, "[%s]\n", *group);
+              
+              if (error && *error)
+                postfixError(*error, "%s", tmpError->message);
+              else
+                g_set_error(error, BLX_ERROR, 1, "%s", tmpError->message);
+
+              g_error_free(tmpError);
+              tmpError = NULL;
             }
         }
       
       if (tmpError)
-        {
+        {          
           g_propagate_error(error, tmpError);
         }
       
       g_strfreev(groups);
     }
+  
+  if (error && *error)
+    {
+      prefixError(*error, "Errors found while reading styles file '%s'\n", keyFileName);
+      postfixError(*error, "\n");
+    }
 
   g_free(keyFileName);
   g_key_file_free(keyFile) ;
   keyFile = NULL ;
-  
-  if (error && *error)
-    {
-      prefixError(*error, "Error reading key file '%s'. ", keyFileName);
-      postfixError(*error, "\n");
-    }
   
   return result;
 }
@@ -893,7 +912,7 @@ int main(int argc, char **argv)
 
   /* Read in the key file, if there is one */
   GSList *styles = blxReadStylesFile(key_file, &error);
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
 
   /* Get the file names */
   if (numFiles == 1)
