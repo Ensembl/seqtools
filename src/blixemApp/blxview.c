@@ -1111,23 +1111,33 @@ BlxStyle* createBlxStyle(const char *styleName,
     }
   
   if (!tmpError)
-    setBlxColorValues(fillColor, fillColorSelected, &style->fillColor, &tmpError);
-
-  if (!tmpError)
-    setBlxColorValues(fillColor, fillColorSelected, &style->fillColorUtr, &tmpError); /* default UTR to same as CDS */
-    
-  if (!tmpError)
-    setBlxColorValues(lineColor, lineColorSelected, &style->lineColor, &tmpError);
+    {      
+      setBlxColorValues(fillColor ? fillColor : fillColorUtr,
+                        fillColorSelected ? fillColorSelected : fillColorUtrSelected,
+                        &style->fillColor, &tmpError);
+    }
   
   if (!tmpError)
-    setBlxColorValues(lineColor, lineColorSelected, &style->lineColorUtr, &tmpError); /* default UTR to same as CDS */
-    
+    {
+      setBlxColorValues(lineColor ? lineColor : lineColorUtr,
+                        lineColorSelected ? lineColorSelected : lineColorUtrSelected,
+                        &style->lineColor, &tmpError);
+    }
+  
   if (!tmpError && (fillColorUtr || fillColorUtrSelected))
-    setBlxColorValues(fillColorUtr, fillColorUtrSelected, &style->fillColorUtr, &tmpError);
-  
+    {
+      setBlxColorValues(fillColorUtr ? fillColorUtr : fillColor,
+                        fillColorUtrSelected ? fillColorUtrSelected : fillColorSelected,
+                        &style->fillColorUtr, &tmpError);
+    }
+
   if (!tmpError && (lineColorUtr || lineColorUtrSelected))
-    setBlxColorValues(lineColorUtr, lineColorUtrSelected, &style->lineColorUtr, &tmpError);
-  
+    {
+      setBlxColorValues(lineColorUtr ? lineColorUtr : lineColor,
+                        lineColorUtrSelected ? lineColorUtrSelected : lineColorSelected,
+                        &style->lineColorUtr, &tmpError);
+    }
+
   if (tmpError)
     {
       g_free(style);
