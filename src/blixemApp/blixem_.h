@@ -238,6 +238,22 @@ typedef enum
     BLXCOL_NUM_COLORS
   } BlxColorId;
   
+
+/* Utility struct to pass around a set of colors from a styles file */
+typedef struct _BlxStyleColors
+{
+  char *fillColor;
+  char *lineColor; 
+  char *fillColorSelected;
+  char *lineColorSelected;
+  char *fillColorCds;
+  char *lineColorCds;
+  char *fillColorCdsSelected;
+  char *lineColorCdsSelected;
+  gboolean normalFound;
+  gboolean cdsFound;
+} BlxStyleColors;
+
   
 /* This enum contains a list of all the boolean options that the user can toggle on/off */
 typedef enum
@@ -543,7 +559,7 @@ void                               appendNewSequences(MSP *newMsps, GList *newSe
 /* Create/destroy sequences and MSPs */
 void                               blviewResetGlobals();
 
-BlxStyle*                          createBlxStyle(const char *styleName, const char *fillColor, const char *fillColorSelected, const char *fillColorPrint, const char *fillColorPrintSelected, const char *lineColor, const char *lineColorSelected, const char *lineColorPrint, const char *lineColorPrintSelected, GError **error);
+BlxStyle*                          createBlxStyle(const char *styleName, const char *fillColor, const char *fillColorSelected, const char *lineColor, const char *lineColorSelected, const char *fillColorUtr, const char *fillColorUtrSelected, const char *lineColorUtr, const char *lineColorUtrSelected, GError **error);
 void                               destroyBlxStyle(BlxStyle *style);
 
 void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);

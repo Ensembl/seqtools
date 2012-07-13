@@ -46,7 +46,6 @@
 #include <unistd.h>
 
 
-
 /* Some globals.... */
 
 
@@ -302,6 +301,139 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
 }
 
 
+/* Get the color strings for the given group from the given 
+ * styles file. If the string is not found then recurse
+ * through any parent styles */
+static void getStylesFileColorsRecursive(GKeyFile *keyFile,
+                                         const char *group,
+                                         BlxStyleColors *colors,
+                                         GError **error)
+{
+  /* Loop through the normal colors, if we still need to find any */
+  if (!colors->fillColor || !colors->lineColor ||
+      !colors->fillColorSelected || !colors->lineColorSelected)
+    {
+      char **normalColors = g_key_file_get_string_list(keyFile, group, "colours", NULL, NULL);
+      char **color = normalColors;
+      
+      if (normalColors)
+        colors->normalFound = TRUE;
+      
+      for ( ; color && *color; ++color)
+        {
+          /* Ignore leading whitespace */
+          char *c = *color;
+          while (*c == ' ')
+            ++c;
+          
+          if (c && *c)
+            {
+              if (!strncasecmp(c, "normal fill ", 12))
+                {
+                  if (!colors->fillColor) 
+                    colors->fillColor = g_strchug(g_strchomp(g_strdup(c + 12)));
+                }
+              else if (!strncasecmp(c, "normal border ", 14))
+                {
+                  if (!colors->lineColor)
+                    colors->lineColor = g_strchug(g_strchomp(g_strdup(c + 14)));
+                }
+              else if (!strncasecmp(c, "selected fill ", 14))
+                {
+                  if (!colors->fillColorSelected)
+                    colors->fillColorSelected = g_strchug(g_strchomp(g_strdup(c + 14)));
+                }
+              else if (!strncasecmp(c, "selected border ", 16))
+                {
+                  if (!colors->lineColorSelected)
+                    colors->lineColorSelected = g_strchug(g_strchomp(g_strdup(c + 16)));
+                }
+              else if (error && *error)
+                {
+                  postfixError(*error, "  '%s' is not a valid color field\n", c);
+                }
+              else
+                {
+                  g_set_error(error, BLX_ERROR, 1, "  '%s' is not a valid color field\n", c);
+                }
+            }
+        }
+
+      if (normalColors)
+        g_strfreev(normalColors);
+    }
+
+  /* Loop through the CDs colors, if we still need to find any */
+  if (!colors->fillColorCds || !colors->lineColorCds ||
+      !colors->fillColorCdsSelected || !colors->lineColorCdsSelected)
+    {
+      char **cdsColors = g_key_file_get_string_list(keyFile, group, "transcript-cds-colours", NULL, NULL);
+      char **color = cdsColors;
+
+      if (cdsColors)
+        colors->cdsFound = TRUE;
+
+      for ( ; color && *color; ++color)
+        {
+          /* Ignore leading whitespace */
+          char *c = *color;
+          while (*c == ' ')
+            ++c;
+          
+          if (c && *c)
+            {
+              if (!strncasecmp(c, "normal fill ", 12))
+                {
+                  if (!colors->fillColorCds) 
+                    colors->fillColorCds = g_strchug(g_strchomp(g_strdup(c + 12)));
+                }
+              else if (!strncasecmp(c, "normal border ", 14))
+                {
+                  if (!colors->lineColorCds)
+                    colors->lineColorCds = g_strchug(g_strchomp(g_strdup(c + 14)));
+                }
+              else if (!strncasecmp(c, "selected fill ", 14))
+                {
+                  if (!colors->fillColorCdsSelected)
+                    colors->fillColorCdsSelected = g_strchug(g_strchomp(g_strdup(c + 14)));
+                }
+              else if (!strncasecmp(c, "selected border ", 16))
+                {
+                  if (!colors->lineColorCdsSelected)
+                    colors->lineColorCdsSelected = g_strchug(g_strchomp(g_strdup(c + 16)));
+                }
+              else if (error && *error)
+                {
+                  postfixError(*error, "  '%s' is not a valid color field\n", c);
+                }
+              else
+                {
+                  g_set_error(error, BLX_ERROR, 1, "  '%s' is not a valid color field\n", c);
+                }
+            }
+        }
+      
+      if (cdsColors)
+        g_strfreev(cdsColors);
+    }
+
+  /* If there are still any outstanding, recurse to the next parent */
+  if (!colors->fillColor || !colors->lineColor || 
+      !colors->fillColorSelected || !colors->lineColorSelected || 
+      !colors->fillColorCds || !colors->lineColorCds ||
+      !colors->fillColorCdsSelected || !colors->lineColorCdsSelected)
+    {
+      char *parent = g_key_file_get_string(keyFile, group, "parent-style", NULL);
+      
+      if (parent)
+        {
+          getStylesFileColorsRecursive(keyFile, parent, colors, error);
+          g_free(parent);
+        }
+    }
+}
+
+
 /* Read the new-style color fields for the given source (group) 
  * from the given key file. Returns true if colors were found. */
 static gboolean readStylesFileColors(GKeyFile *keyFile, 
@@ -310,92 +442,44 @@ static gboolean readStylesFileColors(GKeyFile *keyFile,
                                      GError **error)
 {
   gboolean result = FALSE;
-
-  g_key_file_set_list_separator(keyFile, ';');
-  
-  char *fillColor = NULL, *lineColor = NULL, 
-    *fillColorSelected = NULL, *lineColorSelected = NULL,
-    *fillColorUtr = NULL, *lineColorUtr = NULL,
-    *fillColorUtrSelected = NULL, *lineColorUtrSelected = NULL;
-
-  /* Get the mandatory colors */
-  char **normalColors = g_key_file_get_string_list(keyFile, group, "colours", NULL, NULL);
-
-  result = (normalColors != NULL);
-  
-  /* Get the optional cds colors from the styles file. If these
-   * are set then the 'colors' field gives the utr colors so we
-   * need to swap our pointers. Otherwise, the 'colors' field gives
-   * the 'normal' colors so we don't change the pointer. */
-  char **utrColors = NULL;
-  char **cdsColors = g_key_file_get_string_list(keyFile, group, "transcript-cds-colours", NULL, NULL);
-  
-  if (cdsColors)
-    {
-      utrColors = normalColors;
-      normalColors = cdsColors;
-    }
-  
-  /* Loop through the normal colors */
   GError *tmpError = NULL;
-  char **color = normalColors;
+  g_key_file_set_list_separator(keyFile, ';');
+
+  /* Get the colors from the styles. We may need to recurse through multiple
+   * style parents before we find them. */
+  BlxStyleColors colors = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, FALSE, FALSE};
+  getStylesFileColorsRecursive(keyFile, group, &colors, &tmpError);
   
-  for ( ; color && *color; ++color)
+  /* If colors were found, create the style */
+  if (!tmpError && (colors.normalFound || colors.cdsFound))
     {
-      /* Ignore leading whitespace */
-      char *c = *color;
-      while (*c == ' ')
-        ++c;
+      /* Unfortunately blixem stores cds/utr colors differently to zmap, which
+       * leads to the following messy logic:
+       * If the optional cds colors are set then the default 'colors' field 
+       * in the styles file gives our utr colors and the 'transcript-cds-colors'
+       * field gives our normal colors. Otherwise, the 'colors' field gives our
+       * normal colors and we don't set the utr colors (because they default 
+       * to the normal colors). */
+      BlxStyle *style = NULL;
       
-      if (c && *c)
+      if (colors.cdsFound)
         {
-          if (!strncasecmp(c, "normal fill ", 12))
-            fillColor = g_strchug(g_strchomp(g_strdup(c + 12)));
-          else if (!strncasecmp(c, "normal border ", 14))
-            lineColor = g_strchug(g_strchomp(g_strdup(c + 14)));
-          else if (!strncasecmp(c, "selected fill ", 14))
-            fillColorSelected = g_strchug(g_strchomp(g_strdup(c + 14)));
-          else if (!strncasecmp(c, "selected border ", 16))
-            lineColorSelected = g_strchug(g_strchomp(g_strdup(c + 16)));
-          else if (tmpError)
-            postfixError(tmpError, "  '%s' is not a valid color field\n", c);
-          else
-            g_set_error(&tmpError, BLX_ERROR, 1, "  '%s' is not a valid color field\n", c);
+          style = createBlxStyle(group, 
+                                 colors.fillColorCds, colors.fillColorCdsSelected,
+                                 colors.lineColorCds, colors.lineColorCdsSelected,
+                                 colors.fillColor, colors.fillColorSelected,
+                                 colors.lineColor, colors.lineColorSelected,
+                                 &tmpError);
         }
-    }
-  
-  /* Loop through the UTR colors */
-  color = utrColors;
-  for ( ; color && *color; ++color)
-    {
-      /* Ignore leading whitespace */
-      char *c = *color;
-      while (*c == ' ')
-        ++c;
-      
-      if (c && *c)
+      else
         {
-          if (!strncasecmp(c, "normal fill ", 12))
-            fillColorUtr = g_strchug(g_strchomp(g_strdup(c + 12)));
-          else if (!strncasecmp(c, "normal border ", 14))
-            lineColorUtr = g_strchug(g_strchomp(g_strdup(c + 14)));
-          else if (!strncasecmp(c, "selected fill ", 14))
-            fillColorUtrSelected = g_strchug(g_strchomp(g_strdup(c + 14)));
-          else if (!strncasecmp(c, "selected border ", 16))
-            lineColorUtrSelected = g_strchug(g_strchomp(g_strdup(c + 16)));
-          else if (tmpError)
-            postfixError(tmpError, "  '%s' is not a valid color field\n", c);
-          else
-            g_set_error(&tmpError, BLX_ERROR, 1, "  '%s' is not a valid color field\n", c);
+          style = createBlxStyle(group, 
+                                 colors.fillColor, colors.fillColorSelected,
+                                 colors.lineColor, colors.lineColorSelected,
+                                 NULL, NULL,
+                                 NULL, NULL,
+                                 &tmpError);
         }
-    }
-  
-  /* If colors were given, create the style */
-  if (!tmpError && (fillColor || lineColor || fillColorSelected || lineColorSelected ||
-                    fillColorUtr || lineColorUtr || fillColorUtrSelected || lineColorUtrSelected))
-    {
-      BlxStyle *style = createBlxStyle(group, fillColor, fillColorSelected, lineColor, lineColorSelected, 
-                                       fillColorUtr, fillColorUtrSelected, lineColorUtr, lineColorUtrSelected, &tmpError);
 
       if (style)
         *stylesList = g_slist_append(*stylesList, style);
@@ -405,16 +489,14 @@ static gboolean readStylesFileColors(GKeyFile *keyFile,
     }
   
   /* Clean up */
-  if (normalColors) g_strfreev(normalColors);
-  if (utrColors) g_strfreev(utrColors);
-  if (fillColor) g_free(fillColor);
-  if (lineColor) g_free(lineColor);
-  if (fillColorSelected) g_free(fillColorSelected);
-  if (lineColorSelected) g_free(lineColorSelected);
-  if (fillColorUtr) g_free(fillColorUtr);
-  if (lineColorUtr) g_free(lineColorUtr);
-  if (fillColorUtrSelected) g_free(fillColorUtrSelected);
-  if (lineColorUtrSelected) g_free(lineColorUtrSelected);
+  if (colors.fillColor) g_free(colors.fillColor);
+  if (colors.lineColor) g_free(colors.lineColor);
+  if (colors.fillColorSelected) g_free(colors.fillColorSelected);
+  if (colors.lineColorSelected) g_free(colors.lineColorSelected);
+  if (colors.fillColorCds) g_free(colors.fillColorCds);
+  if (colors.lineColorCds) g_free(colors.lineColorCds);
+  if (colors.fillColorCdsSelected) g_free(colors.fillColorCdsSelected);
+  if (colors.lineColorCdsSelected) g_free(colors.lineColorCdsSelected);
 
   /* Error handling */
   if (tmpError)
@@ -444,9 +526,15 @@ static void readStylesFileColorsOld(GKeyFile *keyFile,
   /* If there was an error, skip this group. Otherwise, go ahead and create the style */
   if (fillColor && lineColor)
     {
-      BlxStyle *style = createBlxStyle(group, fillColor, fillColorSelected, lineColor, lineColorSelected, 
-                                       fillColorUtr, fillColorUtrSelected, lineColorUtr, lineColorUtrSelected, error);
-      *stylesList = g_slist_append(*stylesList, style);
+      BlxStyle *style = createBlxStyle(group, 
+                                       fillColor, fillColorSelected,
+                                       lineColor, lineColorSelected,
+                                       fillColorUtr, fillColorUtrSelected,
+                                       lineColorUtr, lineColorUtrSelected,
+                                       error);
+
+      if (style)
+        *stylesList = g_slist_append(*stylesList, style);
     }
   else if (!fillColor)
     {
