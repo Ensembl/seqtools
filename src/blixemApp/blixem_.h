@@ -133,7 +133,8 @@ typedef enum
 
 /* For settings */
 #define BLIXEM_SETTINGS_FILE             ".blixemrc"  /* default file name for saving blixem settings to */
-#define SETTINGS_GROUP             "user-settings"
+#define SETTINGS_GROUP                   "user-settings"
+#define STYLES_FILE_KEY                  "stylesfile" /* styles-file key in the [blixem] group */  
 
 #define SETTING_NAME_INVERT_SORT "invert-sort"
 #define SETTING_NAME_HIGHLIGHT_DIFFS "highlight-diffs"

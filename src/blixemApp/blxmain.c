@@ -464,9 +464,24 @@ static void readStylesFileColorsOld(GKeyFile *keyFile,
 
 /* Read in the key file, which contains style information. Returns a list of
  * style structs for each style found. */
-static GSList* blxReadStylesFile(char *keyFileName, GError **error)
+static GSList* blxReadStylesFile(const char *keyFileName_in, GError **error)
 {
   GSList *result = NULL;
+
+  char *keyFileName = NULL;
+
+  if (keyFileName_in)
+    {
+      keyFileName = g_strdup(keyFileName_in);
+    }
+  else
+    {
+      /* See if the styles file is specified in the config */
+      GKeyFile *keyFile = blxGetConfig();
+
+      if (keyFile)
+        keyFileName = g_key_file_get_string(keyFile, BLIXEM_GROUP, STYLES_FILE_KEY, NULL);
+    }
   
   if (!keyFileName)
     {
@@ -507,6 +522,7 @@ static GSList* blxReadStylesFile(char *keyFileName, GError **error)
       g_strfreev(groups);
     }
 
+  g_free(keyFileName);
   g_key_file_free(keyFile) ;
   keyFile = NULL ;
   
