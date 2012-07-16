@@ -1124,14 +1124,14 @@ BlxStyle* createBlxStyle(const char *styleName,
                         &style->lineColor, &tmpError);
     }
   
-  if (!tmpError && (fillColorUtr || fillColorUtrSelected))
+  if (!tmpError)
     {
       setBlxColorValues(fillColorUtr ? fillColorUtr : fillColor,
                         fillColorUtrSelected ? fillColorUtrSelected : fillColorSelected,
                         &style->fillColorUtr, &tmpError);
     }
 
-  if (!tmpError && (lineColorUtr || lineColorUtrSelected))
+  if (!tmpError)
     {
       setBlxColorValues(lineColorUtr ? lineColorUtr : lineColor,
                         lineColorUtrSelected ? lineColorUtrSelected : lineColorSelected,
