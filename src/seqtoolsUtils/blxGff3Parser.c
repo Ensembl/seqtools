@@ -92,7 +92,7 @@ typedef struct _BlxGffData
 
 
 
-static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, GSList *styles, const IntRange const *refSeqRange, BlxGffData *gffData, GError **error);
+static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, const IntRange const *refSeqRange, BlxGffData *gffData, GError **error);
 static void           parseAttributes(char *attributes, GList **seqList, const int lineNum, BlxGffData *gffData, GError **error);
 static void           parseTagDataPair(char *text, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseNameTag(char *data, char **sName, const int lineNum, GError **error);
@@ -553,7 +553,7 @@ void parseGff3Body(const int lineNum,
 			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, 0, 0};
 		      
   GError *error = NULL;
-  parseGffColumns(line_string, lineNum, seqList, supportedTypes, styles, refSeqRange, &gffData, &error);
+  parseGffColumns(line_string, lineNum, seqList, supportedTypes, refSeqRange, &gffData, &error);
   
   /* Create a blixem object based on the parsed data */
   if (!error)
@@ -690,7 +690,6 @@ static void parseGffColumns(GString *line_string,
                             const int lineNum, 
                             GList **seqList,
                             GSList *supportedTypes,
-                            GSList *styles, 
                             const IntRange const *refSeqRange,
 			    BlxGffData *gffData,
                             GError **error)

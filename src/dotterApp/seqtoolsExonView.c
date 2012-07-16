@@ -140,12 +140,12 @@ static void drawExon(const MSP const *msp,
         }
       
       /* Draw the fill rectangle */
-      const GdkColor *fillColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dwc->usePrintColors, TRUE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
+      const GdkColor *fillColor = mspGetColor(msp, data->dc->defaultColors, DOTCOLOR_BACKGROUND, blxSeq, isSelected, data->dwc->usePrintColors, TRUE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, fillColor);
       gdk_draw_rectangle(data->drawable, data->gc, TRUE, xStart, yStart, width, height);
       
       /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
-      const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dwc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
+      const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, DOTCOLOR_BACKGROUND, blxSeq, isSelected, data->dwc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, lineColor);
       gdk_draw_rectangle(data->drawable, data->gc, FALSE, xStart, yStart, width, height);
     }
@@ -223,7 +223,7 @@ static void drawIntron(const MSP const *msp,
                        const gint widthIn, 
                        const gint heightIn)
 {
-  const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, blxSeq, isSelected, data->dwc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
+  const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, DOTCOLOR_BACKGROUND, blxSeq, isSelected, data->dwc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
   gdk_gc_set_foreground(data->gc, lineColor);
 
   /* The intron is drawn as two lines, making a trianglar shape, peaking at the

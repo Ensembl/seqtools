@@ -273,8 +273,9 @@ int                   mspGetSRangeLen(const MSP const *msp);
 int                   mspGetMatchSeqLen(const MSP const *msp);
 
 const GdkColor*       mspGetColor(const MSP const *msp, 
-                                  GArray *defaultColors, const 
-                                  BlxSequence *blxSeq, 
+                                  GArray *defaultColors,
+                                  const int defaultColorId,
+                                  const BlxSequence *blxSeq, 
                                   const gboolean selected, 
                                   const gboolean usePrintColors, 
                                   const gboolean fill,
