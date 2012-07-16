@@ -557,8 +557,9 @@ static void readStylesFileColorsOld(GKeyFile *keyFile,
 }
 
 
-/* Read in the key file, which contains style information. Returns a list of
- * style structs for each style found. */
+/* Read in the styles file. Returns a list of style structs for each style
+ * found. Uses the given key file if specified, otherwise checks to see
+ * if there is a key file specified in the config file. */
 static GSList* blxReadStylesFile(const char *keyFileName_in, GError **error)
 {
   GSList *result = NULL;
