@@ -177,6 +177,7 @@ typedef struct
   PFetchHandle pfetch ;
   
   /* Additional fields for parsing full EMBL entries */
+  GString *curLine;                                         /* Stores the current line of the buffer we're currently parsing */
   char section_id[3];                                       /* 2-letter ID at the start of the line indicating the current section */
   gboolean found_end_quote;                                 /* Set to true when we're parsing a quoted section and we come across what looks like an end quote */
   GString *tag_name;                                        /* When parsing the FT section, the current tag name is stored this field */
@@ -242,7 +243,7 @@ static void                        parseRawSequenceBuffer(const BlxFetchMethod* 
 static gboolean                    pfetchGetParserStateFromId(const char *sectionId, BlxSequence *currentSeq, GString *tagName, BlxEmblParserState *parserState);
 
 static void                        parseEmblBuffer(const BlxFetchMethod* const fetchMethod, const char *buffer, const int lenReceived, BlxSequence **currentSeq, GList **currentSeqItem,
-                                                   ProgressBar bar, const int numRequested, int *numFetched, int *numSucceeded, char *sectionId,
+                                                   ProgressBar bar, const int numRequested, int *numFetched, int *numSucceeded, GString *curLine, char *sectionId,
                                                    GString *tagName, gboolean *foundEndQuote,
                                                    const BlxSeqType seqType, BlxEmblParserState *parserState, gboolean *status);
 
@@ -1219,6 +1220,9 @@ gboolean socketFetchList(GList *seqsToFetch,
 
       BlxEmblParserState parserState = PARSING_NEWLINE;
 
+      /* This stores the contents of the current line */
+      GString *curLine = g_string_new("");
+
       /* EMBL lines start with a two-letter identifier, which will be parsed into this string */
       char sectionId[3] = "  ";
 
@@ -1251,6 +1255,7 @@ gboolean socketFetchList(GList *seqsToFetch,
                               numRequested, 
                               &numFetched, 
                               &numSucceeded, 
+                              curLine,
                               sectionId,
                               tagName,
                               &foundEndQuote,
@@ -1740,6 +1745,7 @@ static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod, c
                       fetch_data->seq_total,
                       &fetch_data->num_fetched,
                       &fetch_data->num_succeeded, 
+                      fetch_data->curLine,
                       fetch_data->section_id,
                       fetch_data->tag_name,
                       &fetch_data->found_end_quote,
@@ -2600,6 +2606,7 @@ static void parseEmblBuffer(const BlxFetchMethod* const fetchMethod,
                             const int numRequested,
                             int *numFetched,
                             int *numSucceeded,
+                            GString *curLine,
                             char *sectionId,
                             GString *tagName,
                             gboolean *foundEndQuote,
@@ -2625,6 +2632,7 @@ static void parseEmblBuffer(const BlxFetchMethod* const fetchMethod,
         }
 
       const char curChar = buffer[i];
+      g_string_append_c(curLine, curChar);
 
       /* Special treatment if we've previously found an end quote: if this char is NOT also
        * a quote, then it means it genuinely was an end quote, so we finish the FT tag that
@@ -2643,15 +2651,22 @@ static void parseEmblBuffer(const BlxFetchMethod* const fetchMethod,
        * because it spans several lines and does not have an ID on each line. */
       if (curChar == '\n' && *parserState != PARSING_SEQUENCE)
         {
-          /* If we were previously in the sequence header, the next line is the sequence body */
           if (*parserState == PARSING_SEQUENCE_HEADER)
             {
+              /* We were previously in the sequence header, so the next line is the sequence body */
               *parserState = PARSING_SEQUENCE;
+            }
+          else if (stringInArray(curLine->str, fetchMethod->errors))
+            {
+              /* The line is an error message; finish parsing this sequence and move to the next */
+              pfetchFinishEmblFile(fetchMethod, currentSeq, currentSeqItem, numRequested, numFetched, numSucceeded, bar, seqType, parserState, status);
             }
           else
             {
               *parserState = PARSING_NEWLINE;
             }
+
+          g_string_truncate(curLine, 0);
         }
       else
         {
