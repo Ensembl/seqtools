@@ -2000,13 +2000,23 @@ static BlxFetchOutputType readFetchOutputType(GKeyFile *key_file, const char *gr
 }
 
 
-/* Utilities to get a value from a key-file and remove delimiters (where applicable).
+/* Utilities to get a value from a key-file and remove delimiters and whitespace (where applicable).
  * The input error may be non-null, in which case any new error message will be appended to it. */
 static char* configGetString(GKeyFile *key_file, const char *group, const char *key, GError **error)
 {
   GError *tmpError = NULL;
-  char *result = removeDelimiters(g_key_file_get_string(key_file, group, key, &tmpError));
+  
+  char *result = g_key_file_get_string(key_file, group, key, &tmpError);
 
+  if (result)
+    {
+      /* remove any leading/trailing whitespace */
+      result = g_strchug(g_strchomp(result));
+
+      /* remove any delimiters */
+      result = removeDelimiters(result);
+    }
+  
   if (tmpError && error && *error)
     postfixError(*error, "; %s", tmpError->message);
   else if (tmpError)

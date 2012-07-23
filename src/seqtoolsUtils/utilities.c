@@ -419,7 +419,8 @@ GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GEr
 
       while (token && *token && **token)
         {
-          /* Remove any delimiters around the text */
+          /* Remove any leading/trailing whitespace and delimiters */
+          *token = g_strchug(g_strchomp(*token));
           *token = removeDelimiters(*token);
           
           /* Add it as a quark to the array */
