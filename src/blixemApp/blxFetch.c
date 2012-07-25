@@ -605,7 +605,7 @@ static GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod,
  * Returns an empty string if the command/args are empty.
 */
 GString* getFetchCommand(const BlxFetchMethod* const fetchMethod,
-                         const BlxSequence *blxSeq,
+                         const BlxSequence *blxSeq_in,
                          const MSP* const msp,
                          const char *refSeqName,
                          const int refSeqOffset,
@@ -613,7 +613,10 @@ GString* getFetchCommand(const BlxFetchMethod* const fetchMethod,
                          const char *dataset,
                          GError **error)
 {
-  g_assert(blxSeq || msp);
+  const BlxSequence *blxSeq = blxSeq_in;
+
+  if (!blxSeq && msp)
+    blxSeq = msp->sSequence;
 
   /* Extract info about the sequence / feature */
   const char *name = blxSequenceGetFullName(blxSeq);
