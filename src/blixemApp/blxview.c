@@ -468,7 +468,7 @@ gboolean blxview(CommandLineOptions *options,
     0, External, options->saveTempFiles, options->seqType, &seqList, 
     options->bulkFetchDefault, options->fetchMethods, &options->mspList, &options->blastMode, 
     featureLists, supportedTypes, NULL, 0, &options->refSeqRange, 
-    options->dataset); /* offset has not been applied yet, so pass offset=0 */
+    options->dataset, FALSE); /* offset has not been applied yet, so pass offset=0 */
 
   if (status)
     {

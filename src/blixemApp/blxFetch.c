@@ -2854,6 +2854,28 @@ static gboolean fetchMethodReturnsEmbl(const BlxFetchMethod* const fetchMethod)
 }
 
 
+static const BlxFetchMethod* findFetchMethod(const BlxFetchMode mode, 
+                                             const BlxFetchOutputType outputType,
+                                             GHashTable *fetchMethods)
+{
+  const BlxFetchMethod* result = NULL;
+
+  GHashTableIter iter;
+  gpointer key, value;
+
+  g_hash_table_iter_init (&iter, fetchMethods);
+  while (g_hash_table_iter_next (&iter, &key, &value) && !result)
+    {
+      const BlxFetchMethod* fetchMethod = (const BlxFetchMethod*)value;
+      
+      if (fetchMethod->mode == mode && fetchMethod->outputType == outputType)
+        result = fetchMethod;
+    }
+
+  return result;
+}
+
+
 /* Checks the list of sequences for blixem to display to see which ones
  * need fetching.
  * Returns lists of all the sequences to be fetched, categorised by the fetch 
@@ -2863,11 +2885,18 @@ static gboolean fetchMethodReturnsEmbl(const BlxFetchMethod* const fetchMethod)
  * This function can be called multiple times on the same sequences to
  * re-try fetching sequences with different fetch methods if the original
  * fetch method fails. Pass 'attempt' as 0 for the first try, 1 for 
- * the second etc. */
+ * the second etc. 
+ * If loadOptionalData is true, then this 'forces' optional data to be 
+ * loaded even if the bulk fetch method for a sequence does not return
+ * embl data. We do this by looking for another fetch method of the same
+ * mode that does return embl data. This is perhaps a bit hacky but avoids 
+ * us having to have yet another set of fetch methods in the config for the
+ * user-triggered load-optional-data action. */
 static GHashTable* getSeqsToPopulate(GList *inputList, 
                                      const GArray *defaultFetchMethods,
                                      const int attempt,
-                                     GHashTable *fetchMethods)
+                                     GHashTable *fetchMethods,
+                                     const gboolean loadOptionalData)
 {
   GHashTable *resultTable = g_hash_table_new(g_direct_hash, g_direct_equal);
   
@@ -2881,7 +2910,7 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
 
       if (fetchMethodQuark)
         {
-          const BlxFetchMethod* const fetchMethod = getFetchMethodDetails(fetchMethodQuark, fetchMethods);
+          const BlxFetchMethod* fetchMethod = getFetchMethodDetails(fetchMethodQuark, fetchMethods);
 
           if (fetchMethod)
             {
@@ -2892,16 +2921,29 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
                                  fetchMethodReturnsSequence(fetchMethod) &&
                                  !blxSeq->sequence);
               
-              /* Check if full embl data data is required and is not already set.
-               * Also only attempt to fetch the embl data if this fetch method
-               * can return it! */
-              getSeq |= (blxSequenceRequiresOptionalData(blxSeq) &&
-                         fetchMethodReturnsEmbl(fetchMethod) &&
-                         !blxSeq->organism &&
-                         !blxSeq->geneName &&
-                         !blxSeq->tissueType &&
-                         !blxSeq->strain);
-      
+              /* Check if full embl data data is required and is not already set. */
+              gboolean getEmbl = (blxSequenceRequiresOptionalData(blxSeq) &&
+                                  !blxSeq->organism &&
+                                  !blxSeq->geneName &&
+                                  !blxSeq->tissueType &&
+                                  !blxSeq->strain);
+              
+              /* Only attempt to fetch the embl data if this fetch method can
+               * return it, or, if loadOptionalData is true, then search for a 
+               * fetch method that does return embl data */ 
+              if (getEmbl)
+                {
+                  if (!fetchMethodReturnsEmbl(fetchMethod) && loadOptionalData)
+                    {
+                      fetchMethod = findFetchMethod(fetchMethod->mode, BLXFETCH_OUTPUT_EMBL, fetchMethods);
+                      fetchMethodQuark = fetchMethod->name;
+                    }
+
+                  getEmbl = fetchMethodReturnsEmbl(fetchMethod);
+                }
+              
+              getSeq |= getEmbl;
+
               if (getSeq)
                 {
                   /* Get the result list for this fetch method. It's ok if it is 
@@ -3235,7 +3277,8 @@ gboolean bulkFetchSequences(const int attempt,
                             GSList *styles,
                             const int refSeqOffset,
                             const IntRange const *refSeqRange,
-                            const char *dataset)
+                            const char *dataset,
+                            const gboolean loadOptionalData)
 {
   gboolean success = FALSE; /* will get set to true if any of the fetch methods succeed */
   
@@ -3244,7 +3287,7 @@ gboolean bulkFetchSequences(const int attempt,
    * a secondary fetch method, if one is given; otherwise, exclude
    * from the list (i.e. when we run out of fetch methods or everything
    * has been successfully fetched, then this table will be empty). */
-  GHashTable *seqsTable = getSeqsToPopulate(*seqList, defaultFetchMethods, attempt, fetchMethods);
+  GHashTable *seqsTable = getSeqsToPopulate(*seqList, defaultFetchMethods, attempt, fetchMethods, loadOptionalData);
 
   if (g_hash_table_size(seqsTable) < 1)
     {
@@ -3320,7 +3363,7 @@ gboolean bulkFetchSequences(const int attempt,
       success = bulkFetchSequences(attempt + 1, External, saveTempFiles, seqType, seqList,
                                    defaultFetchMethods, fetchMethods, mspList,
                                    blastMode, featureLists, supportedTypes, 
-                                   styles, refSeqOffset, refSeqRange, dataset);
+                                   styles, refSeqOffset, refSeqRange, dataset, loadOptionalData);
     }
 
   /* Clean up */

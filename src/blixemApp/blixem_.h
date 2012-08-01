@@ -578,7 +578,8 @@ gboolean                           bulkFetchSequences(const int attempt,
                                                       GSList *styles,
                                                       const int refSeqOffset,
                                                       const IntRange const *refSeqRange,
-                                                      const char *dataset
+                                                      const char *dataset,
+                                                      const gboolean loadOptionalData
                                                       );
 
 

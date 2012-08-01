@@ -554,7 +554,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   bulkFetchSequences(0, FALSE, FALSE, bc->seqType, &newSeqs, 
                      bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
                      bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
-                     &bc->refSeqRange, bc->dataset);
+                     &bc->refSeqRange, bc->dataset, FALSE);
 
   finaliseFetch(newSeqs);
 
@@ -2698,7 +2698,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
     0, bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
     bc->seqType, &bc->matchSeqs, bc->bulkFetchDefault, bc->fetchMethods, &bc->mspList,
     &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
-    &bc->refSeqRange, bc->dataset);
+    &bc->refSeqRange, bc->dataset, TRUE);
   
   finaliseFetch(bc->matchSeqs);
 
