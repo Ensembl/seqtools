@@ -410,12 +410,12 @@ static void drawExon(const MSP const *msp,
         }
 
       /* Draw the fill rectangle */
-      const GdkColor *fillColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
+      const GdkColor *fillColor = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, blxSeq, isSelected, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, fillColor);
       gdk_draw_rectangle(data->drawable, data->gc, TRUE, xStart, y, width, height);
       
       /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
-      const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, FALSE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
+      const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, blxSeq, isSelected, data->bc->usePrintColors, FALSE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, lineColor);
       gdk_draw_rectangle(data->drawable, data->gc, FALSE, xStart, y, width, height);
     }
@@ -477,7 +477,7 @@ static void drawIntron(const MSP const *msp,
                        const gint width, 
                        const gint height)
 {
-  const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, blxSeq, isSelected, data->bc->usePrintColors, FALSE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
+  const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, blxSeq, isSelected, data->bc->usePrintColors, FALSE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
   gdk_gc_set_foreground(data->gc, lineColor);
 
   int yTop = y;

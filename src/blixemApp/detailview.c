@@ -3909,31 +3909,14 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
           }      
         else if (event->type == GDK_2BUTTON_PRESS) /* double-click */
           {
-            /* If a variation was double-clicked, open its URL in a browser. If multiple are selected,
-             * use the last-selected one. */
+            /* If a variation was double-clicked, open its URL in a browser. 
+             * If multiple are selected, use the last-selected one. */
             GList *seqItem = g_list_last(blxWindowGetSelectedSeqs(blxWindow));
             
             if (seqItem)
               {
                 BlxSequence *seq = (BlxSequence*)(seqItem->data);
-                
-                /* (The url lives in the MSP, and there is only one MSP in a BlxSequence for a variation,
-                 * so perhaps the url should be moved to the BlxSequence...) */
-                if (seq->type == BLXSEQUENCE_VARIATION && g_list_length(seq->mspList) > 0)
-                  {
-                    const MSP const *msp = (const MSP const *)(seq->mspList->data);
-                    
-                    if (msp->url)
-                      {
-                        GError *error = NULL;
-                        seqtoolsLaunchWebBrowser(msp->url, &error);
-                        reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-                      }
-                    else
-                      {
-                        g_warning("Variation '%s' does not have a URL.\n", mspGetSName(msp));
-                      }
-                  }
+                fetchSequence(seq, TRUE, 0, blxWindow, NULL, NULL, NULL);
               }
           }
 

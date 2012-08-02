@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/utsname.h>
+#include <execinfo.h>
 
 #ifdef DEBUG
 #include <gdk/gdkx.h>
@@ -358,6 +359,86 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
     }
   
   return FALSE; /* let the default handler continue */
+}
+
+
+/***********************************************************
+ *                       Misc utils                        * 
+ ***********************************************************/
+
+/* Return true if the given character is a delimiter */
+gboolean isDelimiter(const char c)
+{
+  return (c == '\"' || c == '\'');
+}
+
+
+/* Remove any delimiters (" and ') surrounding the given text.
+ * Modifies the text in place and returns the same string. */
+char* removeDelimiters(char *text)
+{
+  /* Remove enclosing quotes */
+  if (text)
+    {
+      char *c = text;
+      
+      if (isDelimiter(*c))
+        {
+          text = g_strdup(c+1);
+          g_free(c);
+          c = text;
+        }
+      
+      c = &text[strlen(text) - 1];
+      
+      if (isDelimiter(*c))
+        {
+          *c = '\0';
+        }
+    }
+
+  return text;
+}
+
+
+/* Get a semi-colon-separated list of strings from a key file and place
+ * them into an array as GQuarks. Returns null if the group/key is not found.
+ * The given error value can be non-null, in which case any new error will be appended */
+GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GError **error)
+{
+  GArray *result = NULL;
+  GError *tmpError = NULL;
+  char *fetchStr = g_key_file_get_string(keyFile, group, key, &tmpError);
+
+  if (fetchStr)
+    {
+      result = g_array_sized_new(FALSE, TRUE, sizeof(GQuark), 1);
+
+      char **tokens = g_strsplit(fetchStr, ";", -1);   /* -1 means do all tokens. */
+      char **token = tokens;
+
+      while (token && *token && **token)
+        {
+          /* Remove any leading/trailing whitespace and delimiters */
+          *token = g_strchug(g_strchomp(*token));
+          *token = removeDelimiters(*token);
+          
+          /* Add it as a quark to the array */
+          GQuark quark = g_quark_from_string(*token);
+          result = g_array_append_val(result, quark);
+          ++token;
+        }
+      
+      g_strfreev(tokens);
+      g_free(fetchStr);
+    }
+
+  if (tmpError && error && *error)
+    postfixError(*error, "; %s", tmpError->message);
+  else if (tmpError)
+    g_propagate_error(error, tmpError);
+
+  return result;
 }
 
 
@@ -679,8 +760,6 @@ gboolean getColorFromString(const char *colorStr, GdkColor *color, GError **erro
 
   if (!ok)
     {
-      g_free(color);
-      color = NULL;
       g_set_error(error, SEQTOOLS_ERROR, 1, "Error parsing color string '%s'\n", colorStr);
     }
     
@@ -2348,8 +2427,7 @@ void prefixError(GError *error, char *formatStr, ...)
       va_end(argp);
 
       /* Append the error message */
-      char *resultStr = g_malloc(len + strlen(error->message));
-      snprintf(resultStr, len, "%s%s", tmpStr, error->message);
+      char *resultStr = g_strdup_printf("%s%s", tmpStr, error->message);
       
       /* Replace the error message text with the new string. */
       g_free(error->message);
@@ -2361,26 +2439,27 @@ void prefixError(GError *error, char *formatStr, ...)
 /* Tag the given postfix string onto the end of the given error's message */
 void postfixError(GError *error, char *formatStr, ...)
 {
-  va_list argp;
-  va_start(argp, formatStr);
-  
-  
-  /* Print the postfix text and args into a new string. We're not sure how much space we need
-   * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
-   * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
-  const int len = strlen(formatStr) + 200;
-  char tmpStr[len];
-  vsnprintf(tmpStr, len, formatStr, argp);
-  
-  va_end(argp);
-  
-  /* Prepend the error message */
-  char *resultStr = g_malloc(len + strlen(error->message));
-  snprintf(resultStr, len, "%s%s", error->message, tmpStr);
-  
-  /* Replace the error message text with the new string. */
-  g_free(error->message);
-  error->message = resultStr;
+  if (error)
+    {
+      va_list argp;
+      va_start(argp, formatStr);
+      
+      /* Print the postfix text and args into a new string. We're not sure how much space we need
+       * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
+       * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
+      const int len = strlen(formatStr) + 200;
+      char tmpStr[len];
+      vsnprintf(tmpStr, len, formatStr, argp);
+      
+      va_end(argp);
+      
+      /* Prepend the error message */
+      char *resultStr = g_strdup_printf("%s%s", error->message, tmpStr);
+      
+      /* Replace the error message text with the new string. */
+      g_free(error->message);
+      error->message = resultStr;
+    }
 }
 
 
@@ -4160,24 +4239,26 @@ GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GE
 
 #if !defined(MACINTOSH)
   
-  GString *resultText = getExternalCommandOutput(command, error);
+  GString *result = getExternalCommandOutput(command, error);
   
   if (!error || *error == NULL)
     {
       char *title = blxprintf("%s - %s", progName, command);
-      resultWindow = displayFetchResults(title, resultText->str, widget, NULL);
+      resultWindow = displayFetchResults(title, result->str, widget, NULL, NULL);
       
       g_free(title);
-      g_string_free(resultText, TRUE);
+      g_string_free(result, TRUE);
     }
   
+
 #endif
   
   return resultWindow;
 }
 
 
-/* Execute the given external command and return the output from the command as a GString. 
+/* Execute the given external command and return the output from the 
+ * command.
  * The result should be free'd with g_string_free. */
 GString* getExternalCommandOutput(const char *command, GError **error)
 {
@@ -4220,28 +4301,46 @@ GString* getExternalCommandOutput(const char *command, GError **error)
 }
 
 
-/* Display a message dialog showing the given display text. This utility functions sets
- * things like the font and default width based on properties of the main blixem window.
- * Returns a pointer to the dialog, and optionally sets a pointer to the text buffer in the
- * textBuffer return argument. */
+/* Display a message dialog showing the given display text. This
+ * utility function sets things like the font and default width
+ * based on properties of the main blixem window. Returns a pointer
+ * to the dialog, and optionally sets a pointer to the text buffer 
+ * in the textBuffer return argument.
+ * If the given dialog and text_buffer already contain values
+ * then those are updated rather than creating a new dialog */
 GtkWidget* displayFetchResults(const char *title, 
                                const char *displayText, 
                                GtkWidget *widget, 
-                               GtkTextBuffer **textBuffer)
+                               GtkWidget *dialog,
+                               GtkTextBuffer **text_buffer)
 {
-  /* Use a fixed-width font */
-  const char *fontFamily = findFixedWidthFont(widget);
-  PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
+  GtkWidget *result = NULL;
   
-  int maxWidth = 0, maxHeight = 0;
-  getScreenSizeFraction(widget, DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION, DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
-  
-  GtkTextView *textView = NULL;
-  GtkWidget *result = showMessageDialog(title, displayText, NULL, maxWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
-  
-  if (textBuffer && textView)
+  if (dialog && text_buffer && *text_buffer)
     {
-      *textBuffer = gtk_text_view_get_buffer(textView);
+      /* Just update the existing dialog and return that */
+      gtk_window_set_title(GTK_WINDOW(dialog), title);
+      gtk_text_buffer_set_text(*text_buffer, displayText, -1);
+      result = dialog;
+    }
+  else
+    {
+      /* Create a new dialog for the results */
+
+      /* Use a fixed-width font */
+      const char *fontFamily = findFixedWidthFont(widget);
+      PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
+      
+      int maxWidth = 0, maxHeight = 0;
+      getScreenSizeFraction(widget, DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION, DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
+      
+      GtkTextView *textView = NULL;
+      result = showMessageDialog(title, displayText, NULL, maxWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
+      
+      if (text_buffer && textView)
+        {
+          *text_buffer = gtk_text_view_get_buffer(textView);
+        }
     }
   
   return result;
@@ -4613,5 +4712,25 @@ void drawHScale(GtkWidget *widget,
   gdk_draw_line(drawable, gc, x, y, x + rect->width, y);
   
   g_object_unref(gc);
+}
+
+
+
+/***********************************************************
+ *                       Error handling                    * 
+ ***********************************************************/
+
+void errorHandler(const int sig) 
+{
+  fprintf(stderr, "Error: signal %d:\n", sig);
+
+  // get void*'s for all entries on the stack
+  void *array[10];
+  size_t size = backtrace(array, 10);
+
+  // print out all the frames to stderr
+  backtrace_symbols_fd(array, size, 2);
+
+  exit(EXIT_FAILURE);
 }
 

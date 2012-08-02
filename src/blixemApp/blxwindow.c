@@ -551,12 +551,15 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   loadGffFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs);
 
   /* Fetch any missing sequence data and finalise the new sequences */
-  blxviewFetchSequences(FALSE, bc->loadOptionalData, TRUE, FALSE, bc->seqType, &newSeqs, 
-                        bc->bulkFetchMode, bc->net_id, bc->port, &newMsps, &bc->blastMode,
-                        bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
+  bulkFetchSequences(0, FALSE, FALSE, bc->seqType, &newSeqs, 
+                     bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
+                     bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
+                     &bc->refSeqRange, bc->dataset, FALSE);
+
+  finaliseFetch(newSeqs);
 
   finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->refSeqOffset, bc->seqType, 
-                       bc->numFrames, &bc->refSeqRange, TRUE);
+                       bc->numFrames, &bc->refSeqRange, TRUE, bc->flags[BLXFLAG_LINK_FEATURES]);
 
   /* Add the msps/sequences to the tree data models (must be done after finalise because
    * finalise populates the child msp lists for parent feaatures) */
@@ -2690,16 +2693,15 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  /* Load the optional data. (Note that we don't need to re-fetch sequence data.) */
-  const gboolean getSequenceData = FALSE;
-  const gboolean getOptionalData = TRUE;
-
   GError *error = NULL;
-  gboolean success = blxviewFetchSequences(
-    bc->external, getOptionalData, getSequenceData, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
-    bc->seqType, &bc->matchSeqs, bc->bulkFetchMode, bc->net_id, bc->port, &bc->mspList,
-    &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset, &bc->refSeqRange, bc->dataset);
+  gboolean success = bulkFetchSequences(
+    0, bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
+    bc->seqType, &bc->matchSeqs, bc->bulkFetchDefault, bc->fetchMethods, &bc->mspList,
+    &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
+    &bc->refSeqRange, bc->dataset, TRUE);
   
+  finaliseFetch(bc->matchSeqs);
+
   if (error)
     {
       prefixError(error, "Error loading optional data. ");
@@ -3475,7 +3477,6 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   /* Other boxes */
   GtkWidget *pfetchBox = createHBoxWithBorder(mainVBox, borderWidth, TRUE, "Settings");
   createFontSelectionButton(GTK_BOX(pfetchBox), blxWindow);
-  createPfetchDropDownBox(GTK_BOX(pfetchBox), blxWindow);
   
   createColumnSizeButtons(mainVBox, detailView);
   createGridSettingsButtons(mainVBox, bigPicture);
@@ -4647,10 +4648,10 @@ static void destroyBlxContext(BlxViewContext **bcPtr)
 
       /* Free allocated strings */
       freeAndNull((gpointer*)(&bc->dataset));
-      freeAndNull((gpointer*)(&bc->bulkFetchMode));
-      freeAndNull((gpointer*)(&bc->userFetchMode));
       freeAndNull((gpointer*)(&bc->refSeqName));
-      freeAndNull((gpointer*)(&bc->net_id));
+
+      /* Free table of fetch methods and the fetch-method structs */
+      /* to do */
       
       /* Free the list of selected sequence names (not the names themselves
        * because we don't own them). */
@@ -4975,6 +4976,7 @@ static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *opti
   blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
   blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
+  blxContext->flags[BLXFLAG_LINK_FEATURES] = options->linkFeaturesByName;
 }
 
 
@@ -5038,8 +5040,6 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
                                               GSList *supportedTypes,
 					      GtkWidget *widget,
 					      GtkWidget *statusBar,
-                                              const char *net_id,
-                                              int port,
                                               const gboolean External)
 {
   BlxViewContext *blxContext = g_malloc(sizeof *blxContext);
@@ -5068,15 +5068,14 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->seqType = options->seqType;
   blxContext->numFrames = options->numFrames;
   blxContext->paddingSeq = paddingSeq;
-  blxContext->bulkFetchMode = g_strdup(options->bulkFetchMode);
-  blxContext->userFetchMode = g_strdup(options->userFetchMode);
+  blxContext->bulkFetchDefault = options->bulkFetchDefault;
+  blxContext->userFetchDefault = options->userFetchDefault;
+  blxContext->fetchMethods = options->fetchMethods;
   blxContext->dataset = g_strdup(options->dataset);
   blxContext->matchSeqs = seqList;
   blxContext->supportedTypes = supportedTypes;
   
   blxContext->displayRev = FALSE;
-  blxContext->net_id = g_strdup(net_id);
-  blxContext->port = port;
   blxContext->external = External;
   
   blxContext->selectedSeqs = NULL;
@@ -5183,20 +5182,6 @@ BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->blastMode : FALSE;
-}
-
-const char* blxWindowGetDefaultFetchMode(GtkWidget *blxWindow, const gboolean bulk)
-{
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  
-  char *result = NULL;
-  
-  if (blxContext)
-    {
-      result = bulk ? blxContext->bulkFetchMode : blxContext->userFetchMode;
-    }
-  
-  return result;
 }
 
 char * blxWindowGetRefSeq(GtkWidget *blxWindow)
@@ -5897,8 +5882,6 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                            GArray* featureLists[],
                            GList *seqList, 
                            GSList *supportedTypes,
-                           const char *net_id, 
-                           int port,
                            const gboolean External)
 {
   IntRange refSeqRange;
@@ -5968,8 +5951,6 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                                       supportedTypes,
                                                       window, 
 						      statusBar,
-                                                      net_id, 
-                                                      port, 
                                                       External);
 
   /* Create the main menu */

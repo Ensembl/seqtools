@@ -42,6 +42,9 @@
 
 
 
+#define SOURCE_DATA_TYPES_GROUP "source-data-types" /* group name for stanza where default data types are specified for sources */
+
+
 /* Error codes and domain */
 #define BLX_GFF3_ERROR g_quark_from_string("GFF 3 parser")
 
@@ -55,7 +58,8 @@ typedef enum {
   BLX_GFF3_ERROR_INVALID_MSP,                 /* MSP has invalid/missing data */
   BLX_GFF3_ERROR_UNKNOWN_MODE,                /* unknown blast mode */
   BLX_GFF3_ERROR_BAD_COLOR,                   /* Bad color string found when parsing color */
-  BLX_GFF3_ERROR_OUT_OF_RANGE                /* Feature is not in the reference sequence range */
+  BLX_GFF3_ERROR_OUT_OF_RANGE,                /* Feature is not in the reference sequence range */
+  BLX_GFF3_ERROR_DATA_TYPE                   /* Error finding data type */
 } BlxGff3Error;
 
 
@@ -65,8 +69,7 @@ typedef struct _BlxGffData
     /* standard fields */
     char *qName;	/* ref seq name */
     char *source;	/* source */
-    char *url;          /* URL */
-    BlxMspType mspType;	/* type */
+    BlxMspType mspType;	/* type (converted to display type) */
     int qStart;		/* start coord on the ref seq */
     int qEnd;		/* end coord on the ref seq */
     gdouble score;	/* score */
@@ -84,11 +87,12 @@ typedef struct _BlxGffData
     char *sequence;	/* sequence data */
     char *gapString;	/* the gaps cigar string */
     GQuark dataType;    /* represents a string that should correspond to a data type in the config file */
+    GQuark filename;    /* optional filename e.g. for fetching data from a bam file */
   } BlxGffData;
 
 
 
-static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, GSList *styles, const IntRange const *refSeqRange, BlxGffData *gffData, GError **error);
+static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, const IntRange const *refSeqRange, BlxGffData *gffData, GError **error);
 static void           parseAttributes(char *attributes, GList **seqList, const int lineNum, BlxGffData *gffData, GError **error);
 static void           parseTagDataPair(char *text, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseNameTag(char *data, char **sName, const int lineNum, GError **error);
@@ -118,7 +122,6 @@ static void freeGffData(BlxGffData *gffData)
   freeAndNullString(&gffData->qName);
   freeAndNullString(&gffData->sName);
   freeAndNullString(&gffData->source);
-  freeAndNullString(&gffData->url);
   freeAndNullString(&gffData->idTag);
   freeAndNullString(&gffData->parentIdTag);
   freeAndNullString(&gffData->gapString);
@@ -260,14 +263,70 @@ void parseGff3Header(const int lineNum,
 }
 
 
+/* Look in the given config file to see if there is a default
+ * datatype specified for the given source. If so, return its
+ * name as a quark. Otherwise, return 0. */
+static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
+{
+  GQuark dataType = 0;
+
+  if (keyFile && g_key_file_has_group(keyFile, SOURCE_DATA_TYPES_GROUP))
+    {
+      char *dataTypeName = g_key_file_get_string(keyFile, SOURCE_DATA_TYPES_GROUP, source, NULL);
+      
+      if (dataTypeName)
+        {
+          dataType = g_quark_from_string(dataTypeName);
+          g_free(dataTypeName);
+        }
+    }
+
+  return dataType;
+}
+
+
+/* Get the default value for the link-features-by-name option */
+static gboolean getLinkFeaturesDefault(GKeyFile *keyFile)
+{
+  gboolean result = LINK_FEATURES_DEFAULT;
+
+  if (keyFile)
+    {
+      GError *tmpError = NULL;
+      gboolean value = g_key_file_get_boolean(keyFile, BLIXEM_GROUP, LINK_FEATURES_BY_NAME, &tmpError);
+
+      if (!tmpError)
+        result = value;
+    }
+  
+  return result;
+}
+
+/* Get the value for the link-features-by-name option for the given 
+ * group */
+static gboolean getLinkFeatures(GKeyFile *keyFile, const char *group)
+{
+  GError *tmpError = NULL;
+  gboolean result = g_key_file_get_boolean(keyFile, group, LINK_FEATURES_BY_NAME, &tmpError);
+  
+  if (tmpError)
+    result = getLinkFeaturesDefault(keyFile);
+  
+  return result;
+}
+
 /* Get the BlxDataType with the given name. Returns null and sets the error if 
  * we expected to find the name but didn't. */
-BlxDataType* getBlxDataType(GQuark dataType, GKeyFile *keyFile, GError **error)
+BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFile, GError **error)
 {
+  /* If no data type was specified in the gff, see if there is a default for this gff type */
+  if (!dataType)
+    dataType = getBlxDataTypeDefault(source, keyFile);
+
   /* A keyfile might not be supplied if the calling program is not interested
    * in the data-type data (i.e. the data-type data is currently only used to
    * supply fetch methods, which are not used by Dotter). */
-  if (!keyFile)
+  if (!keyFile || !dataType)
     return NULL;
   
   BlxDataType *result = NULL;
@@ -303,26 +362,50 @@ BlxDataType* getBlxDataType(GQuark dataType, GKeyFile *keyFile, GError **error)
            * and if we find it then create a new BlxDataType struct for it. */
           const gchar *typeName = g_quark_to_string(dataType);
 
-          result = createBlxDataType();
-          GError *tmpError = NULL;
-
-          result->name = g_strdup(typeName);
-          result->bulkFetch = g_key_file_get_string(keyFile, typeName, SEQTOOLS_BULK_FETCH, &tmpError);
-          
-          if (!tmpError)
+          if (g_key_file_has_group(keyFile, typeName))
             {
+              result = createBlxDataType();
+              result->name = dataType;
+
+              /* Get the values. They're all optional so just ignore any errors.
+               * Valid keys are bulk-fetch and user-fetch */
+              result->bulkFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_BULK_FETCH, NULL); 
+              result->userFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_USER_FETCH, NULL); 
+              result->linkFeaturesByName = getLinkFeatures(keyFile, typeName);
+              
               /* Insert it into the table of data types */
               g_hash_table_insert(dataTypes, &dataType, result);
             }
           else
             {
-              /* There was a problem parsing this data-type, so return NULL */
-              destroyBlxDataType(&result);
-              prefixError(tmpError, "Config file error: Error parsing data type '%s': ", typeName);
-              postfixError(tmpError, "\n");
-              g_propagate_error(error, tmpError);
+              g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_DATA_TYPE, 
+                          "Config file error: data type '%s' not found", typeName);
             }
         }
+    }
+  
+  return result;
+}
+
+
+/* Return the filename from the gff if given, otherwise check 
+ * if the filename is given in the config and return that.
+ * Returns 0 if not found. */
+static GQuark getFeatureFilename(BlxGffData *gffData, GKeyFile *keyFile, GError **error)
+{
+  GQuark result = 0;
+  
+  if (gffData->filename)
+    {
+      /* Filename was given in the gff so use that */
+      result = gffData->filename;
+    }
+  else if (keyFile && gffData->source)
+    {
+      /* Check if filename is given in the keyfile for this source */
+      char *filename = g_key_file_get_string(keyFile, gffData->source, SEQTOOLS_GFF_FILENAME_KEY, error);
+      result = g_quark_from_string(filename);
+      g_free(filename);
     }
   
   return result;
@@ -349,10 +432,13 @@ static void createBlixemObject(BlxGffData *gffData,
   GError *tmpError = NULL;
 
   /* Get the data type struct */
-  BlxDataType *dataType = getBlxDataType(gffData->dataType, keyFile, &tmpError);
+  BlxDataType *dataType = getBlxDataType(gffData->dataType, gffData->source, keyFile, &tmpError);
   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
 
-  
+  GQuark filename = getFeatureFilename(gffData, keyFile, NULL);
+
+  const gboolean linkFeaturesByName = dataType ? dataType->linkFeaturesByName : getLinkFeaturesDefault(keyFile);
+
   if (gffData->mspType > BLXMSP_NUM_TYPES)
     {
       /* "Invalid" MSP types, i.e. don't create a real MSP from these types. */
@@ -362,7 +448,7 @@ static void createBlixemObject(BlxGffData *gffData,
           /* For transcripts, although we don't create an MSP we do create a sequence */
           addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand,
                          dataType, gffData->source, seqList, gffData->sequence, NULL, 
-                         &tmpError);
+                         linkFeaturesByName, &tmpError);
         }
     }
   else
@@ -404,7 +490,6 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->score, 
 			      gffData->percentId, 
                               gffData->phase,
-                              gffData->url,
 			      idTag,
 			      gffData->qName, 
 			      gffData->qStart, 
@@ -416,6 +501,8 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->sEnd, 
 			      gffData->sStrand, 
 			      gffData->sequence, 
+                              linkFeaturesByName,
+                              filename,
 			      &tmpError);
 
     if (!tmpError)
@@ -462,11 +549,11 @@ void parseGff3Body(const int lineNum,
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
   /* Parse the data into a temporary struct */
-  BlxGffData gffData = {NULL, NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
-			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, 0};
+  BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
+			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, 0, 0};
 		      
   GError *error = NULL;
-  parseGffColumns(line_string, lineNum, seqList, supportedTypes, styles, refSeqRange, &gffData, &error);
+  parseGffColumns(line_string, lineNum, seqList, supportedTypes, refSeqRange, &gffData, &error);
   
   /* Create a blixem object based on the parsed data */
   if (!error)
@@ -603,7 +690,6 @@ static void parseGffColumns(GString *line_string,
                             const int lineNum, 
                             GList **seqList,
                             GSList *supportedTypes,
-                            GSList *styles, 
                             const IntRange const *refSeqRange,
 			    BlxGffData *gffData,
                             GError **error)
@@ -627,7 +713,7 @@ static void parseGffColumns(GString *line_string,
             gffData->source = g_uri_unescape_string(tokens[1], NULL);
           }
       
-      /* Type (needs to converting to a seqtools type) */
+      /* Type (converted to a seqtools type) */
       gffData->mspType = getBlxType(supportedTypes, tokens[2], &tmpError);
       updateInputMspType(gffData);
     }
@@ -788,18 +874,13 @@ static void parseTagDataPair(char *text,
         {
           gffData->sequence = g_strdup(tokens[1]);
         }
-      else if (!strcmp(tokens[0], "url"))
-        {
-#if GLIB_MAJOR_VERSION >= 2 && GLIB_MINOR_VERSION >= 16
-          gffData->url = g_uri_unescape_string(tokens[1], NULL);
-#else
-          g_warning("Cannot unescape string (requires GTK version 2.16 or greater). URL may contain unescaped characters.\n");
-          gffData->url = g_strdup(tokens[1]);
-#endif
-        }
       else if (!strcmp(tokens[0], "dataType"))
         {
           gffData->dataType = g_quark_from_string(tokens[1]);
+        }
+      else if (!strcmp(tokens[0], "file"))
+        {
+          gffData->filename = g_quark_from_string(tokens[1]);
         }
       else
         {

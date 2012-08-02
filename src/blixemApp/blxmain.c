@@ -46,7 +46,6 @@
 #include <unistd.h>
 
 
-
 /* Some globals.... */
 
 
@@ -151,7 +150,7 @@ gboolean blixem_debug_G = FALSE ;
   --start-next-match\n\
     Start with the display centred on the first match to the right of the default start coord.\n\
 \n\
-  --styles-file=<file>\n\
+  -y <file>, --styles-file=<file>\n\
     Read color options from a key-value file. Use --help option to see details.\n\
 \n\
   --version\n\
@@ -212,7 +211,7 @@ SORT MODE\n\
     o = by Organism\n\
 \n\
 COLOR KEY FILE\n\
-  The color key file is specified with the -k <file> or --key-file=<file> argument. This is a .ini-\n\
+  The color key file is specified with the -y <file> or --styles-file=<file> argument. This is a .ini-\n\
   like file that specifies attributes such as fill and line colors for features from particular \n\
   sources (say EST_Human or polya_signal). The file should contain one or more source stanzas followed\n\
   by one or more key=value pairs, i.e. \n\
@@ -221,24 +220,29 @@ COLOR KEY FILE\n\
       <key>=<value>\n\
       ...\n\
 \n\
-  <value> is a hex color-string, e.g. #ff0000\n\
+  <key> can be one of:\n\
+      colours:                 default colours\n\
+      transcript-cds-colours:  used to specify a different colour \n\
+                               for CDS sections of transcripts\n\
 \n\
-  Possible keys are:\n\
-    fill_color                    (default fill color)\n\
-    fill_color_selected           (fill color when selected) \n\
-    line_color                    (default line color)\n\
-    line_color_selected           (line color when selected)\n\
-    fill_color_utr                (default fill color for UTR regions)\n\
-    fill_color_utr_selected       (fill color for UTR regions when selected) \n\
-    line_color_utr                (default line color for UTR regions)\n\
-    line_color_utr_selected       (line color for UTR regions when selected)\n\
-  Only fill_color and line_color are mandatory; the selection colors will be calculated automatically\n\
-  if not specified (a darker shade of the default color will be used when the feature is selected).\n\
-  For transcripts, the fill_color/line_color/etc items are used for CDS regions and different colors\n\
-  can be specified for UTR regions using fill_color_utr, line_color_utr etc.\n\
+  <value> is a semi-colon separated list of fill and line colours of the format:\n\
+      <normal|selected> <fill|border> <colour>\n\
+\n\
+  <colour> can be in any of the forms accepted by XParseColor; these include name \n\
+           for a colour from rgb.txt, such as DarkSlateGray, or a hex specification \n\
+           such as #305050.\n\
+\n\
+  Example:\n\
+    colours=normal border #0000af ; selected border #0000af ; normal fill white ; \\\n\
+            selected fill #ffddcc ; \n\
+    transcript-cds-colours=normal border #0000af ; selected border #0000af ; \\\n\
+            normal fill white ; selected fill #ffddcc ; \n\
+\n\
+  Note that selection colors will be calculated automatically if they are not\n\
+  specified (a darker shade of the default color will be used when the feature is selected).\n\
 \n\
 MSPcrunch\n\
-To make the datafile from blast output, run MSPcrunch with option -q.\n\
+  To make the datafile from blast output, run MSPcrunch with option -q.\n\
 \n\
  o To pipe MSPcrunch output directly to Blixem, use \"-\"\n\
    as the second parameter ([datafile]).  Example:\n\
@@ -286,42 +290,294 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->mapCoords = FALSE;
   options->mapCoordsFrom = UNSET_INT;
   options->mapCoordsTo = 1; /* default to 1-based coordinate system if mapping coords but no 'to' value is specified */
-  options->bulkFetchMode = NULL;
-  options->userFetchMode = NULL;
+  options->fetchMethods = g_hash_table_new(g_direct_hash, g_direct_equal);
+  options->bulkFetchDefault = NULL;
+  options->userFetchDefault = NULL;
   options->dataset = NULL;
 
   options->msgData.titlePrefix = g_strdup("Blixem - ");
   options->msgData.parent = NULL;
   options->msgData.statusBar = NULL;
 }
-  
 
-/* Utility to extract a color string with the key name 'key' from the given group in the
- * given key file. Does nothing if the given error is already set. */
-static char* getColorFromKeyFile(GKeyFile *keyFile, const char *group, const char *key, GError **error)
+
+/* Get the color strings for the given group from the given 
+ * styles file. If the string is not found then recurse
+ * through any parent styles */
+static void getStylesFileColorsRecursive(GKeyFile *keyFile,
+                                         const char *group,
+                                         BlxStyleColors *colors,
+                                         GError **error)
 {
-  char *result = NULL;
-  
-  if (error == NULL || *error == NULL)
+  /* Loop through the normal colors, if we still need to find any */
+  if (!colors->fillColor || !colors->lineColor ||
+      !colors->fillColorSelected || !colors->lineColorSelected)
     {
-      result = g_key_file_get_value(keyFile, group, key, error);
+      char **normalColors = g_key_file_get_string_list(keyFile, group, "colours", NULL, NULL);
+      char **color = normalColors;
+      
+      if (normalColors)
+        colors->normalFound = TRUE;
+      
+      for ( ; color && *color; ++color)
+        {
+          /* Ignore leading whitespace */
+          char *c = *color;
+          while (*c == ' ')
+            ++c;
+          
+          if (c && *c)
+            {
+              if (!strncasecmp(c, "normal fill ", 12))
+                {
+                  if (!colors->fillColor) 
+                    colors->fillColor = g_strchug(g_strchomp(g_strdup(c + 12)));
+                }
+              else if (!strncasecmp(c, "normal border ", 14))
+                {
+                  if (!colors->lineColor)
+                    colors->lineColor = g_strchug(g_strchomp(g_strdup(c + 14)));
+                }
+              else if (!strncasecmp(c, "selected fill ", 14))
+                {
+                  if (!colors->fillColorSelected)
+                    colors->fillColorSelected = g_strchug(g_strchomp(g_strdup(c + 14)));
+                }
+              else if (!strncasecmp(c, "selected border ", 16))
+                {
+                  if (!colors->lineColorSelected)
+                    colors->lineColorSelected = g_strchug(g_strchomp(g_strdup(c + 16)));
+                }
+              else if (error && *error)
+                {
+                  postfixError(*error, "  '%s' is not a valid color field\n", c);
+                }
+              else
+                {
+                  g_set_error(error, BLX_ERROR, 1, "  '%s' is not a valid color field\n", c);
+                }
+            }
+        }
 
-      if (error && *error)
-	{
-	  prefixError(*error, "Required key not found. ");
-	  postfixError(*error, "\n");
-	}
+      if (normalColors)
+        g_strfreev(normalColors);
     }
-    
+
+  /* Loop through the CDs colors, if we still need to find any */
+  if (!colors->fillColorCds || !colors->lineColorCds ||
+      !colors->fillColorCdsSelected || !colors->lineColorCdsSelected)
+    {
+      char **cdsColors = g_key_file_get_string_list(keyFile, group, "transcript-cds-colours", NULL, NULL);
+      char **color = cdsColors;
+
+      if (cdsColors)
+        colors->cdsFound = TRUE;
+
+      for ( ; color && *color; ++color)
+        {
+          /* Ignore leading whitespace */
+          char *c = *color;
+          while (*c == ' ')
+            ++c;
+          
+          if (c && *c)
+            {
+              if (!strncasecmp(c, "normal fill ", 12))
+                {
+                  if (!colors->fillColorCds) 
+                    colors->fillColorCds = g_strchug(g_strchomp(g_strdup(c + 12)));
+                }
+              else if (!strncasecmp(c, "normal border ", 14))
+                {
+                  if (!colors->lineColorCds)
+                    colors->lineColorCds = g_strchug(g_strchomp(g_strdup(c + 14)));
+                }
+              else if (!strncasecmp(c, "selected fill ", 14))
+                {
+                  if (!colors->fillColorCdsSelected)
+                    colors->fillColorCdsSelected = g_strchug(g_strchomp(g_strdup(c + 14)));
+                }
+              else if (!strncasecmp(c, "selected border ", 16))
+                {
+                  if (!colors->lineColorCdsSelected)
+                    colors->lineColorCdsSelected = g_strchug(g_strchomp(g_strdup(c + 16)));
+                }
+              else if (error && *error)
+                {
+                  postfixError(*error, "  '%s' is not a valid color field\n", c);
+                }
+              else
+                {
+                  g_set_error(error, BLX_ERROR, 1, "  '%s' is not a valid color field\n", c);
+                }
+            }
+        }
+      
+      if (cdsColors)
+        g_strfreev(cdsColors);
+    }
+
+  /* If there are still any outstanding, recurse to the next parent */
+  if (!colors->fillColor || !colors->lineColor || 
+      !colors->fillColorSelected || !colors->lineColorSelected || 
+      !colors->fillColorCds || !colors->lineColorCds ||
+      !colors->fillColorCdsSelected || !colors->lineColorCdsSelected)
+    {
+      char *parent = g_key_file_get_string(keyFile, group, "parent-style", NULL);
+      
+      if (parent)
+        {
+          getStylesFileColorsRecursive(keyFile, parent, colors, error);
+          g_free(parent);
+        }
+    }
+}
+
+
+/* Read the new-style color fields for the given source (group) 
+ * from the given key file. Returns true if colors were found. */
+static gboolean readStylesFileColors(GKeyFile *keyFile, 
+                                     const char *group, 
+                                     GSList **stylesList,
+                                     GError **error)
+{
+  gboolean result = FALSE;
+  GError *tmpError = NULL;
+  g_key_file_set_list_separator(keyFile, ';');
+
+  /* Get the colors from the styles. We may need to recurse through multiple
+   * style parents before we find them. */
+  BlxStyleColors colors = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, FALSE, FALSE};
+  getStylesFileColorsRecursive(keyFile, group, &colors, &tmpError);
+  
+  /* If colors were found, create the style */
+  if (!tmpError && (colors.normalFound || colors.cdsFound))
+    {
+      /* Unfortunately blixem stores cds/utr colors differently to zmap, which
+       * leads to the following messy logic:
+       * If the optional cds colors are set then the default 'colors' field 
+       * in the styles file gives our utr colors and the 'transcript-cds-colors'
+       * field gives our normal colors. Otherwise, the 'colors' field gives our
+       * normal colors and we don't set the utr colors (because they default 
+       * to the normal colors). */
+      BlxStyle *style = NULL;
+      
+      if (colors.cdsFound)
+        {
+          style = createBlxStyle(group, 
+                                 colors.fillColorCds, colors.fillColorCdsSelected,
+                                 colors.lineColorCds, colors.lineColorCdsSelected,
+                                 colors.fillColor, colors.fillColorSelected,
+                                 colors.lineColor, colors.lineColorSelected,
+                                 &tmpError);
+        }
+      else
+        {
+          style = createBlxStyle(group, 
+                                 colors.fillColor, colors.fillColorSelected,
+                                 colors.lineColor, colors.lineColorSelected,
+                                 NULL, NULL,
+                                 NULL, NULL,
+                                 &tmpError);
+        }
+
+      if (style)
+        *stylesList = g_slist_append(*stylesList, style);
+
+      if (tmpError)
+        prefixError(tmpError, "  "); /* indent the error message */
+    }
+  
+  /* Clean up */
+  if (colors.fillColor) g_free(colors.fillColor);
+  if (colors.lineColor) g_free(colors.lineColor);
+  if (colors.fillColorSelected) g_free(colors.fillColorSelected);
+  if (colors.lineColorSelected) g_free(colors.lineColorSelected);
+  if (colors.fillColorCds) g_free(colors.fillColorCds);
+  if (colors.lineColorCds) g_free(colors.lineColorCds);
+  if (colors.fillColorCdsSelected) g_free(colors.fillColorCdsSelected);
+  if (colors.lineColorCdsSelected) g_free(colors.lineColorCdsSelected);
+
+  /* Error handling */
+  if (tmpError)
+    g_propagate_error(error, tmpError);
+
   return result;
 }
 
 
-/* Read in the key file, which contains style information. Returns a list of
- * style structs for each style found. */
-static GSList* blxReadStylesFile(char *keyFileName, GError **error)
+/* For backwards compatibility, read the old-style color fields
+ * for the given source (group) from the given key file. (The 
+ * key names were changed to be consistent with zmap). */
+static void readStylesFileColorsOld(GKeyFile *keyFile, 
+                                    const char *group, 
+                                    GSList **stylesList,
+                                    GError **error)
+{
+  char *fillColor = g_key_file_get_string(keyFile, group, "fill_color", NULL);
+  char *lineColor = g_key_file_get_string(keyFile, group, "line_color", NULL);
+  char *fillColorSelected = g_key_file_get_string(keyFile, group, "fill_color_selected", NULL);
+  char *lineColorSelected = g_key_file_get_string(keyFile, group, "line_color_selected", NULL);
+  char *fillColorUtr = g_key_file_get_string(keyFile, group, "fill_color_utr", NULL);
+  char *lineColorUtr = g_key_file_get_string(keyFile, group, "line_color_utr", NULL);
+  char *fillColorUtrSelected = g_key_file_get_string(keyFile, group, "fill_color_utr_selected", NULL);
+  char *lineColorUtrSelected = g_key_file_get_string(keyFile, group, "line_color_utr_selected", NULL);
+  
+  /* If there was an error, skip this group. Otherwise, go ahead and create the style */
+  if (fillColor && lineColor)
+    {
+      BlxStyle *style = createBlxStyle(group, 
+                                       fillColor, fillColorSelected,
+                                       lineColor, lineColorSelected,
+                                       fillColorUtr, fillColorUtrSelected,
+                                       lineColorUtr, lineColorUtrSelected,
+                                       error);
+
+      if (style)
+        *stylesList = g_slist_append(*stylesList, style);
+    }
+  else if (!fillColor)
+    {
+      g_set_error(error, BLX_ERROR, 1, "Style '%s' does not contain required field fill_color", group);
+    }
+  else if (!lineColor)
+    {
+      g_set_error(error, BLX_ERROR, 1, "Style '%s' does not contain required field line_color", group);
+    }
+  
+  
+  if (fillColor) g_free(fillColor);
+  if (lineColor) g_free(lineColor);
+  if (fillColorSelected) g_free(fillColorSelected);
+  if (lineColorSelected) g_free(lineColorSelected);
+  if (fillColorUtr) g_free(fillColorUtr);
+  if (lineColorUtr) g_free(lineColorUtr);
+  if (fillColorUtrSelected) g_free(fillColorUtrSelected);
+  if (lineColorUtrSelected) g_free(lineColorUtrSelected);
+}
+
+
+/* Read in the styles file. Returns a list of style structs for each style
+ * found. Uses the given key file if specified, otherwise checks to see
+ * if there is a key file specified in the config file. */
+static GSList* blxReadStylesFile(const char *keyFileName_in, GError **error)
 {
   GSList *result = NULL;
+
+  char *keyFileName = NULL;
+
+  if (keyFileName_in)
+    {
+      keyFileName = g_strdup(keyFileName_in);
+    }
+  else
+    {
+      /* See if the styles file is specified in the config */
+      GKeyFile *keyFile = blxGetConfig();
+
+      if (keyFile)
+        keyFileName = g_key_file_get_string(keyFile, BLIXEM_GROUP, STYLES_FILE_KEY, NULL);
+    }
   
   if (!keyFileName)
     {
@@ -343,45 +599,46 @@ static GSList* blxReadStylesFile(char *keyFileName, GError **error)
       int i;
       GError *tmpError = NULL;
       
-      for (i = 0, group = groups ; i < num_groups && !tmpError ; i++, group++)
+      for (i = 0, group = groups ; i < num_groups ; i++, group++)
 	{
-          /* Look for the keys corresponding to the style values we require */
-	  char *fillColor = getColorFromKeyFile(keyFile, *group, "fill_color", &tmpError);
-	  char *lineColor = getColorFromKeyFile(keyFile, *group, "line_color", &tmpError);
-	  
-	  /* Look for optional keys (passing error as null means we don't care if it's not found) */
-	  char *fillColorSelected = getColorFromKeyFile(keyFile, *group, "fill_color_selected", NULL);
-	  char *lineColorSelected = getColorFromKeyFile(keyFile, *group, "line_color_selected", NULL);
-	  char *fillColorUtr = getColorFromKeyFile(keyFile, *group, "fill_color_utr", NULL);
-	  char *lineColorUtr = getColorFromKeyFile(keyFile, *group, "line_color_utr", NULL);
-	  char *fillColorUtrSelected = getColorFromKeyFile(keyFile, *group, "fill_color_utr_selected", NULL);
-	  char *lineColorUtrSelected = getColorFromKeyFile(keyFile, *group, "line_color_utr_selected", NULL);
+          gboolean found = readStylesFileColors(keyFile, *group, &result, &tmpError);
 
-	  /* If there was an error, skip this group. Otherwise, go ahead and create the style */
-	  if (!tmpError)
-	    {
-	      BlxStyle *style = createBlxStyle(*group, fillColor, fillColorSelected, lineColor, lineColorSelected, 
-                                               fillColorUtr, fillColorUtrSelected, lineColorUtr, lineColorUtrSelected, &tmpError);
-	      result = g_slist_append(result, style);
-	    }
+          /* If it wasn't found, look for old-style colors */
+          if (!found && !tmpError)
+            readStylesFileColorsOld(keyFile, *group, &result, NULL);
+
+          if (tmpError)
+            {
+              /* Compile all errors into one */
+              prefixError(tmpError, "[%s]\n", *group);
+              
+              if (error && *error)
+                postfixError(*error, "%s", tmpError->message);
+              else
+                g_set_error(error, BLX_ERROR, 1, "%s", tmpError->message);
+
+              g_error_free(tmpError);
+              tmpError = NULL;
+            }
         }
       
       if (tmpError)
-        {
+        {          
           g_propagate_error(error, tmpError);
         }
       
       g_strfreev(groups);
     }
-
-  g_key_file_free(keyFile) ;
-  keyFile = NULL ;
   
   if (error && *error)
     {
-      prefixError(*error, "Error reading key file '%s'. ", keyFileName);
+      prefixError(*error, "Errors found while reading styles file '%s'\n", keyFileName);
       postfixError(*error, "\n");
     }
+
+  g_free(keyFileName);
+  g_key_file_free(keyFile) ;
+  keyFile = NULL ;
   
   return result;
 }
@@ -507,6 +764,10 @@ static void showCompiledInfo()
  */
 int main(int argc, char **argv)
 {
+  /* Install error handlers */
+  signal(SIGSEGV, errorHandler);
+  signal(SIGFPE, errorHandler);
+
   FILE *seqfile, *FSfile;
   char seqfilename[1000] = {'\0'};
   char FSfilename[1000] = {'\0'};
@@ -563,7 +824,6 @@ int main(int argc, char **argv)
       {"sort-mode",             required_argument,  NULL, 0},
       {"squash-matches",        no_argument,        &options.squashMatches, 1},
       {"start-next-match",      no_argument,        &options.startNextMatch, 1},
-      {"styles-file",           required_argument,  NULL, 0},
       {"version",		no_argument,        &showVersion, 1},
       {"zoom-whole",            no_argument,        &options.zoomWhole, 1},
 
@@ -578,11 +838,12 @@ int main(int argc, char **argv)
       {"start-coord",           required_argument,  0, 's'},
       {"display-type",          required_argument,  0, 't'},
       {"extra-file",            required_argument,  0, 'x'}, /* obsolete? */
+      {"styles-file",           required_argument,  0, 'y'},
       {"zoom-range",            required_argument,  0, 'z'},
       {0, 0, 0, 0}
    };
 
-  char        *optstring="a:c:him:no:rs:t:x:z:";
+  char        *optstring="a:c:him:no:rs:t:x:y:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -596,10 +857,6 @@ int main(int argc, char **argv)
             if (long_options[optionIndex].flag != 0)
               {
                 /* we get here if getopt_long set a flag; nothing else to do */
-              }
-            else if (stringsEqual(long_options[optionIndex].name, "styles-file", TRUE))
-              {
-                key_file = g_strdup(optarg) ;
               }
             else if (stringsEqual(long_options[optionIndex].name, "fetch-server", TRUE))
               {
@@ -667,6 +924,9 @@ int main(int argc, char **argv)
 	  xtra_data = TRUE ;
 	  strcpy(xtra_filename, optarg);
 	  break;
+        case 'y':
+          key_file = g_strdup(optarg) ;
+          break;
         case 'z': 
           {
             int coord1 = atoi(optarg); /* will ignore anything after ':' */
@@ -736,16 +996,12 @@ int main(int argc, char **argv)
     }
   
   /* Set up program configuration. */
-  blxInitConfig(config_file, &error);
-  
-  if (error)
-    {
-      g_error("Config File Error: %s\n", error->message) ;
-    }
+  blxInitConfig(config_file, &options, &error);
+  reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
 
   /* Read in the key file, if there is one */
   GSList *styles = blxReadStylesFile(key_file, &error);
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
 
   /* Get the file names */
   if (numFiles == 1)
@@ -785,9 +1041,8 @@ int main(int argc, char **argv)
   char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname[FULLNAMESIZE+1] = "";
 
-  /* Pass the config file to parseFS, but only if it was a genuine input file; if we created
-   * an empty config file ourselves, don't pass it. */
-  GKeyFile *inputConfigFile = config_file ? blxGetConfig() : NULL;
+  /* Pass the config file to parseFS */
+  GKeyFile *inputConfigFile = blxGetConfig();
   
   /* Pass the reference sequence range to parseFS to be populated ONLY if it
    * has not already been set. */

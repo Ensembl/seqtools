@@ -328,6 +328,10 @@ void                  adjustColorBrightness(const GdkColor const *origColor, con
 
 void                  getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
+gboolean              isDelimiter(const char c);
+char*                 removeDelimiters(char *text);
+GArray*               keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GError **error);
+
 int                   getRangeLength(const IntRange const *range);
 int                   getRangeCentre(const IntRange const *range);
 void                  centreRangeOnCoord(IntRange *range, const int coord, const int length);
@@ -539,7 +543,7 @@ void                               setRadioMenuStatus(GtkActionGroup *action_gro
 
 GtkWidget*                         externalCommand(char *command, char *progName, GtkWidget *widget, GError **error);
 GString*                           getExternalCommandOutput(const char *command, GError **error);
-GtkWidget*                         displayFetchResults(const char *title, const char *displayText, GtkWidget *widget, GtkTextBuffer **textBuffer);
+GtkWidget*                         displayFetchResults(const char *title, const char *displayText, GtkWidget *widget, GtkWidget *dialog, GtkTextBuffer **textBuffer);
 
 int                                scrollBarWidth();
 void                               getTextSize(GtkWidget *widget, const char *text, int *width, int *height);
@@ -592,6 +596,8 @@ GtkRadioButton*                    createRadioButton(GtkTable *table,
                                                      const gboolean multiline,
                                                      BlxResponseCallback callbackFunc,
                                                      GtkWidget *blxWindow);
+
+void                               errorHandler(const int sig); 
 
 /* seqtoolsWebBrowser.c */
 gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);

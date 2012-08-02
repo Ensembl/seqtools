@@ -90,8 +90,6 @@ typedef enum {
 static gboolean	      getDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, const gboolean callOnSelf, const gboolean autoDotter, int *dotterStart, int *dotterEnd, int *dotterZoom, GError **error);
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, const char *dotterSSeq, int *dotter_start_out, int *dotter_end_out, GError **error);
 static gboolean	      smartDotterRangeSelf(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
-static char*	      fetchSeqRaw(const char *seqname, const char *fetchMode);
-static char*	      fetchSequence(const char *seqname, char *fetch_prog);
 static gboolean	      callDotterSelf(GtkWidget *blxWindow, GError **error);
 
 
@@ -878,8 +876,18 @@ char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
   
   const BlxSequence *blxSeq = (const BlxSequence*)(bc->selectedSeqs->data);
 
-  /* If we're in seqbl mode, only part of the sequence is in the MSP. */
+  /* If we're in seqbl mode, only part of the sequence is stored
+   * internally, so try to fetch the full sequence.
+   * gb10: I don't think this is applicable any more (or even if it
+   * will work if partial sequences are stored). If we do need to do
+   * a fetch here then we will need to look for a fetch method that
+   * returns the fasta sequence (rather than the embl entry). */
   const BlxBlastMode blastMode = bc->blastMode;
+  /*  if (blastMode != BLXMODE_TBLASTN)
+    {
+      fetchSequence(blxSeq, FALSE, 0, blxWindow, &dotterSSeq);
+      }
+  */
 
   if (!dotterSSeq && blastMode != BLXMODE_TBLASTX)
     {
@@ -1085,119 +1093,6 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   *dotter_end_out = bc->displayRev ? qMin : qMax;
   
   return TRUE;
-}
-
-
-/* Get a sequence entry using either efetch or pfetch. */
-static char *fetchSeqRaw(const char *seqname, const char *fetchMode)
-{
-  char *result = NULL ;
-
-  if (!*seqname)
-    {
-      g_warning( "Nameless sequence - skipping %s\n", fetchMode);
-    }
-  else
-    {
-      char *fetch_prog = blxGetFetchProg(fetchMode);
-      char *seq_buf = fetchSequence(seqname, fetch_prog);
-      
-      if (seq_buf && !stringsEqual(seq_buf, "no match", FALSE))
-	{
-	  result = g_strdup(seq_buf);
-	}
-    }
-  
-  return result ;
-}
-
-
-/* Common routine to call efetch or pfetch to retrieve a sequence entry. */
-static char *fetchSequence(const char *seqname, char *fetch_prog)
-{
-  char *result = NULL;
-  
-  static char *fetchstr = NULL ;
-
-  /* I have no idea why blixem trys to open this file, it doesn't work unless you are in
-   * a directory that you have write access to anyway....I await an answer from Eric.
-   * Meanwhile at least now we record the error rather than crashing later in this
-   * routine when we can't open the file. */
-  FILE *outputFile = fopen("myoutput", "w");
-  
-  if (!outputFile)
-    {
-      g_warning("%s", "Cannot open blixem sequence output file: 'myoutput'.\n") ;
-    }
-
-  if (!strcmp(fetch_prog, "pfetch"))
-    {
-      /* --client gives logging information to pfetch server,
-       * -q  Sequence only output (one line) */
-      fetchstr = blxprintf("%s --client=%s_%s_%s -q '%s' &",
-			   fetch_prog, g_get_prgname(), g_get_host_name(), g_get_user_name(), seqname) ;
-    }
-  else
-    {
-      fetchstr = blxprintf("%s -q '%s'", fetch_prog, seqname) ;
-    }
-
-  g_debug("%sing %s...\n", fetch_prog, seqname);
-
-  /* Try and get the sequence, if we overrun the buffer then we need to try again. */
-  FILE *pipe = (FILE*)popen(fetchstr, "r");
-  
-  if (!pipe)
-    {
-      g_critical("Failed to open pipe %s\n", fetchstr);
-      return result;
-    }
-  
-  /* Create a string to read the file into. We don't know the length we need, so
-   * use a GString, which will grow automatically. */
-  GString *resultString = g_string_sized_new(200);
-  
-  while (!feof(pipe))
-    {
-      unsigned char inputChar = fgetc(pipe);
-      
-      /* The last char of the pfetch'd string is a newline. Make sure we don't
-       * include it because it causes our reverse-complement function to fail. */
-      if (!feof(pipe) && inputChar != '\n')
-	{
-	  g_string_append_c(resultString, inputChar);
-	}
-    }
-
-  if (ferror(pipe) || resultString->len < 1)
-    {
-      g_string_free(resultString, TRUE);
-    }
-  else
-    {
-      result = resultString->str;
-      g_string_free(resultString, FALSE);
-
-      if (outputFile)
-	{
-	  fprintf(outputFile, "%s", result);
-	}
-    }
-
-  /* Clean up */
-  pclose(pipe);
-
-  if (fetchstr)
-    {
-      g_free(fetchstr);
-    }
-
-  if (outputFile)
-    {
-      fclose(outputFile);
-    }
-  
-  return result;
 }
 
 

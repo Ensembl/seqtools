@@ -84,6 +84,7 @@ static gboolean seqtools_g_string_replace(GString *string, char *target, char *s
 /* List of browsers for different systems, you can have more than one browser for a system. */
 static BrowserConfigStruct browsers_G[] =
 {
+{"Linux",  "xdg-open",  "xdg-open \""BROWSER_PATTERN"\""},
 {"Linux",  "iceweasel",  "iceweasel -new-window \""BROWSER_PATTERN"\""},
 {"Linux",  "firefox",  "firefox -browser \""BROWSER_PATTERN"\""},
 {"Linux",  "mozilla",  "mozilla -remote 'openurl(\""BROWSER_PATTERN"\",new-window)' || mozilla \""BROWSER_PATTERN"\""},
