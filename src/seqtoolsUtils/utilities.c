@@ -282,6 +282,7 @@ GtkWidget* createLabel(const char *text,
                              NULL);
     }
   
+  gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
   gtk_misc_set_padding(GTK_MISC(label), DEFAULT_LABEL_X_PAD, 0);
   
   GtkWidget *parent = NULL;
@@ -339,25 +340,8 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
 
   /* Create a pixmap and store it in the widget properties. (Only widgets with
    * a drawable are shown in print output.) */
-  GdkDrawable *drawable = createBlankSizedPixmap(parent, parent->window, widget->allocation.width, widget->allocation.height);
+  createBlankSizedPixmap(parent, parent->window, widget->allocation.width, widget->allocation.height);
 
-  /* Draw the widget contents onto the pixmap */
-  PangoLayout *layout = NULL;
-  
-  if (GTK_IS_LABEL(widget))
-    {
-      layout = gtk_label_get_layout(GTK_LABEL(widget));
-    }
-  else
-    {
-      layout = gtk_entry_get_layout(GTK_ENTRY(widget));
-    }
-  
-  if (layout)
-    {
-      gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, 0, 0, layout);
-    }
-  
   return FALSE; /* let the default handler continue */
 }
 
