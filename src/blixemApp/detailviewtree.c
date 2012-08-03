@@ -2255,17 +2255,48 @@ static void cellDataFunctionStrainCol(GtkTreeViewColumn *column, GtkCellRenderer
 }
 
 
+static const char* mspListGetSource(GList *mspList)
+{
+  const char *result = NULL;
+  GList *item = mspList;
+  
+  for ( ; item; item = item->next)
+    {
+      const MSP* const msp = (const MSP*)(item->data);
+      const char *source = mspGetSource(msp);
+
+      if (!source)
+        {
+          /* If any source is null, return null */
+          result = NULL;
+          break;
+        }
+      else if (!result)
+        {
+          /* First one found; set result */
+          result = source;
+        }
+      else if (strcmp(source, result) != 0)
+        {
+          /* All sources are not the same. Return null. */
+          result = NULL;
+          break;
+        }      
+    }
+
+  return result;
+}
+
+
 /* Cell data function for the Source column. */
 static void cellDataFunctionSourceCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
   GList	*mspGList = treeGetMsps(model, iter);
-  if (g_list_length(mspGList) == 1)
+  const char *source = mspListGetSource(mspGList);
+  
+  if (source)
     {
-      const MSP const *msp = (const MSP const*)(mspGList->data);
-      if (mspGetSource(msp))
-	{
-	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, mspGetSource(msp), NULL);
-	}
+      g_object_set(renderer, RENDERER_TEXT_PROPERTY, source, NULL);
     }
   else
     {
