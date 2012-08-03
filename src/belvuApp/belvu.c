@@ -308,7 +308,7 @@ static void treeBalanceTreeRecurse(treeNode *node, double *bestbal, treeNode **b
 
 	if (newbal < *bestbal) { /* better balance */
 
-	    printf("Better balance: %.1f (oldbest = %.1f)\n", newbal, *bestbal);
+	    g_message("Better balance: %.1f (oldbest = %.1f)\n", newbal, *bestbal);
 	    
 	    *bestbal = newbal;
 	    *bestNode = node;
@@ -330,7 +330,7 @@ static void treeBalanceTreeRecurse(treeNode *node, double *bestbal, treeNode **b
 	
 	if (newbal < *bestbal) { /* better balance */
 	    
-	    printf("Better bal: %f\n", newbal);
+	    g_message("Better bal: %f\n", newbal);
 	    
 	    *bestbal = newbal;
 	    *bestNode = node;
@@ -733,7 +733,7 @@ void highlightScoreSort(char mode, BelvuContext *bc)
 	  curAln->score = identity(alnGetSeq(bc->selectedAln), alnGetSeq(curAln), bc->penalize_gaps);
 	}
       
-      char *scoreStr = blxprintf("%.1f", curAln->score);
+      char *scoreStr = g_strdup_printf("%.1f", curAln->score);
       int len = strlen(scoreStr);
       
       if (len > bc->maxScoreLen)
@@ -910,20 +910,20 @@ static void subfamilyTrav(BelvuContext *bc, TreeNode *node)
   
   if (node->name) 
     {
-    dist = node->branchlen;
+      dist = node->branchlen;
     
-    if (newgroup) 
-      {
-      printf("\nGroup nr %d:\n", ++groupnr);
-      newgroup = 0;
-      }
-    
-    printf("%s\n", node->name);
+      if (newgroup) 
+        {
+          g_message("\nGroup nr %d:\n", ++groupnr);
+          newgroup = 0;
+        }
+      
+      g_message("%s\n", node->name);
     }
   else
     {
-    /* internal node */
-    dist += node->branchlen;
+      /* internal node */
+      dist += node->branchlen;
     }
   
   if ( bc->mksubfamilies_cutoff > (100.0-dist) )
@@ -1908,7 +1908,7 @@ void readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr, const gb
           
           if (colornr == -1) 
             {
-              printf("Unrecognized color: %s, using black instead.\n", setColor);
+              g_warning("Unrecognized color: %s, using black instead.\n", setColor);
               colornr = BLACK;
             }
           
@@ -1944,7 +1944,7 @@ void readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr, const gb
           
           if (colornr == -1) 
             {
-              printf("Unrecognized color: %s\n", setColor);
+              g_warning("Unrecognized color: %s\n", setColor);
               colornr = 0;
             }
           
@@ -2626,7 +2626,7 @@ void drawIntAsText(GtkWidget *widget,
                    const int y, 
                    const int value)
 {
-  char *tmpStr = blxprintf("%d", value);
+  char *tmpStr = g_strdup_printf("%d", value);
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, tmpStr);
   g_free(tmpStr);
 
@@ -2647,7 +2647,7 @@ void drawDoubleAsText(GtkWidget *widget,
                       const int y, 
                       const double value)
 {
-  char *tmpStr = blxprintf("%.1f", value);
+  char *tmpStr = g_strdup_printf("%.1f", value);
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, tmpStr);
   g_free(tmpStr);
   
@@ -2950,7 +2950,7 @@ static void insertColumns(BelvuContext *bc, int p, int n)
   char
     *dest, *src, *seq;
 
-  printf("Inserting %d columns after column %d\n", n, p);
+  g_message("Inserting %d columns after column %d\n", n, p);
 
   bc->maxLen += n;
 
@@ -3073,7 +3073,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 	  if ((len=strlen(cp)) > bc->maxStartLen)
 	    bc->maxStartLen = len;
           
-          char *tmpStr = blxprintf("%d", aln->start);
+          char *tmpStr = g_strdup_printf("%d", aln->start);
 
 	  if (bc->maxStartLen < (tmp = strlen(tmpStr)))
 	    bc->maxStartLen = tmp;
@@ -3089,7 +3089,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 	  if ((len=strlen(cp)) > bc->maxEndLen)
 	    bc->maxEndLen = len;
           
-          tmpStr = blxprintf("%d", aln->end);
+          tmpStr = g_strdup_printf("%d", aln->end);
           
 	  if (bc->maxEndLen < (tmp = strlen(tmpStr)))
 	    bc->maxEndLen = tmp;
@@ -3111,7 +3111,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 
 	  aln->score = atof(cp);
           
-          tmpStr = blxprintf("%.1f", aln->score);
+          tmpStr = g_strdup_printf("%.1f", aln->score);
           
 	  if ((len=strlen(tmpStr)) > bc->maxScoreLen)
 	    bc->maxScoreLen = len;
@@ -3250,10 +3250,10 @@ void checkAlignment(BelvuContext *bc)
               
               if ( nres != cres)
                 {
-                  fprintf(stderr, "Found wrong number of residues in %s/%d-%d: %d instead of %d\n",
-                          alnp->name, alnp->start, alnp->end,
-                          cres,
-                          nres);
+                  g_warning("Found wrong number of residues in %s/%d-%d: %d instead of %d\n",
+                            alnp->name, alnp->start, alnp->end,
+                            cres,
+                            nres);
                 }
 	    }
 	}
@@ -3262,7 +3262,7 @@ void checkAlignment(BelvuContext *bc)
       if (bc->maxNameLen  < strlen(alnp->name))
         bc->maxNameLen = strlen(alnp->name);
 
-      char *tmpStr = blxprintf("%d", alnp->start);
+      char *tmpStr = g_strdup_printf("%d", alnp->start);
       
       if (bc->maxStartLen < (tmp = strlen(tmpStr))) 
         bc->maxStartLen = tmp;
@@ -3270,7 +3270,7 @@ void checkAlignment(BelvuContext *bc)
       g_free(tmpStr);
       tmpStr = NULL;
 
-      tmpStr= blxprintf("%d", alnp->end);
+      tmpStr= g_strdup_printf("%d", alnp->end);
 
       if (bc->maxEndLen   < (tmp = strlen(tmpStr))) 
         bc->maxEndLen = tmp;
@@ -3395,7 +3395,7 @@ void rmColumn(BelvuContext *bc, const int from, const int to)
   ALN 
     *alni=NULL;
   
-  fprintf(stderr, "Removing Columns %d-%d.\n", from, to);
+  g_message_info("Removing Columns %d-%d.\n", from, to);
 
   for (i = 0; i < bc->alignArr->len; i++) 
     {
@@ -3428,9 +3428,7 @@ void rmColumn(BelvuContext *bc, const int from, const int to)
       j--;
       
       if (alnSeq[from+j-1] || alnSeq[to+j])
-        printf("Still a bug in rmColumn(): End=%c, Oldend=%c\n", 
-               alnSeq[from+j-1],
-               alnSeq[to+j]);
+        g_warning("Still a bug in rmColumn(): End=%c, Oldend=%c\n", alnSeq[from+j-1], alnSeq[to+j]);
     }
 
   bc->maxLen -= len;
@@ -3468,7 +3466,7 @@ void rmColumnCutoff(BelvuContext *bc, const double from, const double to)
       
       if (cons > from && cons <= to) 
         {
-          printf("removing %d, cons= %.2f\n", i+1, cons);
+          g_message("removing %d, cons= %.2f\n", i+1, cons);
           rmColumn(bc, i+1, i+1);
           if (++removed == oldmaxLen) 
             {
@@ -3943,8 +3941,8 @@ void writeMSF(BelvuContext *bc, FILE *pipe) /* c = separator between name and co
         continue;
 
       char *tmpStr = bc->saveCoordsOn 
-        ? blxprintf("%s%c%d-%d", alnp->name, bc->saveSeparator, alnp->start, alnp->end)
-        : blxprintf("%s", alnp->name);
+        ? g_strdup_printf("%s%c%d-%d", alnp->name, bc->saveSeparator, alnp->start, alnp->end)
+        : g_strdup_printf("%s", alnp->name);
 
       fprintf(pipe, "  Name: %-*s  Len:  %5d  Check:  %5d  Weight: %.4f\n",
               maxfullnamelen,
@@ -3973,8 +3971,8 @@ void writeMSF(BelvuContext *bc, FILE *pipe) /* c = separator between name and co
             continue;
 
           char *tmpStr = bc->saveCoordsOn 
-            ? blxprintf("%s%c%d-%d", alnp->name, bc->saveSeparator, alnp->start, alnp->end)
-            : blxprintf("%s", alnp->name);
+            ? g_strdup_printf("%s%c%d-%d", alnp->name, bc->saveSeparator, alnp->start, alnp->end)
+            : g_strdup_printf("%s", alnp->name);
           
           fprintf(pipe, "%-*s  ", maxfullnamelen, tmpStr);
           g_free(tmpStr);
@@ -4010,7 +4008,7 @@ static void readMSF(BelvuContext *bc, FILE *pipe)
   line[0] = 0;
   seq[0] = 0;
   
-  fprintf(stderr, "\nDetected MSF format\n");
+  g_message_info("\nDetected MSF format\n");
 
   /* Read sequence names */
   while (!feof (pipe))
@@ -4155,7 +4153,7 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
       
       if (colornr == -1)
         {
-          printf("Unrecognized color: %s\n", valuep);
+          g_message("Unrecognized color: %s\n", valuep);
           colornr = 0;
         }
           
@@ -4427,7 +4425,7 @@ static char *writeMulName(BelvuContext *bc, ALN *aln)
   
   if (aln->markup == GC) 
     {
-      name = blxprintf("#=GC %s", aln->name);
+      name = g_strdup_printf("#=GC %s", aln->name);
       return name;
     }
   
@@ -4447,15 +4445,15 @@ static char *writeMulName(BelvuContext *bc, ALN *aln)
   
   if (!bc->saveCoordsOn) 
     {
-      name = blxprintf("%s", namep);
+      name = g_strdup_printf("%s", namep);
     }
   else 
     {
-      name = blxprintf("%s%c%d-%d", namep, bc->saveSeparator, aln->start, aln->end);
+      name = g_strdup_printf("%s%c%d-%d", namep, bc->saveSeparator, aln->start, aln->end);
     }
   
   if (aln->markup == GR)
-    name = blxprintf("#=GR %s %s", name, GRfeat);
+    name = g_strdup_printf("#=GR %s %s", name, GRfeat);
   
   return name;
 }
@@ -4685,7 +4683,7 @@ void outputProbs(BelvuContext *bc, FILE *fil)
       if (!nmat) 
         g_error("No match state columns found\n");
       
-      printf("Amino\n");
+      g_message("Amino\n");
       
       for (i = 1; i <= 20; i++) 
         {
@@ -4696,22 +4694,22 @@ void outputProbs(BelvuContext *bc, FILE *fil)
           if (p < 0.000001) 
             p = 0.000001; /* Must not be zero */
 
-          printf("%f ", p);
+          g_message("%f ", p);
           /* printf("   %d %f %d \n", c[i], f[i], n);*/
         }
     }
   else
     {
-      printf("Amino\n");
+      g_message("Amino\n");
       for (i = 1; i <= 20; ++i) 
         {
           p = (double)c[i] / (double)n;
           if (p < 0.000001) p = 0.000001; /* Must not be zero */
-          printf("%f ", p);
+          g_message("%f ", p);
 	}
     }
     
-  printf("\n");
+  g_message("\n");
   
   fclose(fil);
   fflush(fil);
@@ -4771,22 +4769,22 @@ void listIdentity(BelvuContext *bc)
           if (sc < minsc) 
             minsc = sc;
           
-          printf("%s/%d-%d and %s/%d-%d are %.1f%% identical, score=%f\n",
-                 alni->name, alni->start, alni->end,
-                 alnj->name, alnj->start, alnj->end,
-                 id, sc);
+          g_message("%s/%d-%d and %s/%d-%d are %.1f%% identical, score=%f\n",
+                    alni->name, alni->start, alni->end,
+                    alnj->name, alnj->start, alnj->end,
+                    id, sc);
           
           ++n;
         }
-      printf("\n");
+      g_message("\n");
     }
 
-  printf("Maximum %%id was: %.1f\n", maxid);
-  printf("Minimum %%id was: %.1f\n", minid);
-  printf("Mean    %%id was: %.1f\n", totid/n);
-  printf("Maximum score was: %.1f\n", maxsc);
-  printf("Minimum score was: %.1f\n", minsc);
-  printf("Mean    score was: %.1f\n", (double)totsc/n);
+  g_message("Maximum %%id was: %.1f\n", maxid);
+  g_message("Minimum %%id was: %.1f\n", minid);
+  g_message("Mean    %%id was: %.1f\n", totid/n);
+  g_message("Maximum score was: %.1f\n", maxsc);
+  g_message("Minimum score was: %.1f\n", minsc);
+  g_message("Mean    score was: %.1f\n", (double)totsc/n);
 
   setBusyCursor(bc, FALSE);
   g_message_info("Finished outputting identities.\n");
@@ -4829,7 +4827,7 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
         }
       else
         {
-          char *link = blxprintf(url, alnp->name);
+          char *link = g_strdup_printf(url, alnp->name);
           
           g_message_info("Opening URL: %s\n", link);
           seqtoolsLaunchWebBrowser(link, &error);
@@ -4846,7 +4844,7 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       else
         strcpy(fetchProg, DEFAULT_FETCH_PROG);
 
-      char *cmd = blxprintf("%s '%s' &", fetchProg, alnp->name);
+      char *cmd = g_strdup_printf("%s '%s' &", fetchProg, alnp->name);
       
       GtkWidget *pfetchWin = externalCommand(cmd, BELVU_TITLE, bc->belvuAlignment, &error);
       

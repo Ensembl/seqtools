@@ -223,7 +223,7 @@ static void validateInput(CommandLineOptions *options)
   /* Check we have a valid seq type */
   if (options->seqType == BLXSEQ_INVALID)
     {
-      printf("\nNo sequence type specified. Detected ");
+      g_message("\nNo sequence type specified. Detected ");
       
       GError *error = NULL;
       BlxSeqType seqType = determineSeqType(options->refSeq, &error);
@@ -231,12 +231,12 @@ static void validateInput(CommandLineOptions *options)
       
       if (seqType == BLXSEQ_PEPTIDE)
 	{
-	  printf("protein sequence. Will try to run Blixem in protein mode.\n");
+	  g_message("protein sequence. Will try to run Blixem in protein mode.\n");
 	  options->seqType = BLXSEQ_PEPTIDE;
 	}
       else
 	{
-	  printf("nucleotide sequence. Will try to run Blixem in nucelotide mode.\n");
+	  g_message("nucleotide sequence. Will try to run Blixem in nucelotide mode.\n");
 	  options->seqType = BLXSEQ_DNA;
 	}
     }
@@ -555,9 +555,9 @@ static void blviewCreate(char *align_types,
 
       /* If no alignment description was set, create a generic description */
       if (!align_types)
-        align_types = blxprintf("%s", options->seqType == BLXSEQ_PEPTIDE ? "peptide alignment" : "nucleotide alignment");
+        align_types = g_strdup_printf("%s", options->seqType == BLXSEQ_PEPTIDE ? "peptide alignment" : "nucleotide alignment");
       
-      char *title = blxprintf("Blixem (%s):   %s %s",
+      char *title = g_strdup_printf("Blixem (%s):   %s %s",
                               align_types,
                               (options->dataset ? options->dataset : ""),
                               options->refSeqName);

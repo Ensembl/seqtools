@@ -3352,7 +3352,7 @@ GtkWidget* detailViewGetTree(GtkWidget *detailView, const BlxStrand activeStrand
   
   if (!result)
     {
-      printf("Tree not found for '%s' strand, frame '%d'. Returning NULL.\n", ((activeStrand == BLXSTRAND_FORWARD) ? "forward" : "reverse"), frame);
+      g_warning("Tree not found for '%s' strand, frame '%d'. Returning NULL.\n", ((activeStrand == BLXSTRAND_FORWARD) ? "forward" : "reverse"), frame);
     }
   
   return result;
@@ -5061,7 +5061,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
             }
           else
             {
-              printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d])\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
+              g_warning("Could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d])\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
             }
         }
     }

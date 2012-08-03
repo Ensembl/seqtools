@@ -723,7 +723,7 @@ static char* getSupportedTypesAsString(GSList *supportedTypes)
 static void showUsageText()
 {
   /* Pring usage info followed by authors */
-  fprintf(stderr, "%s%s", USAGE_TEXT, FOOTER_TEXT);
+  g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
 }
 
 
@@ -738,7 +738,7 @@ static void showHelpText(GSList *supportedTypes)
   g_string_append_printf(resultStr, HELP_TEXT, supported_types_string);
   g_string_append(resultStr, FOOTER_TEXT);
   
-  fprintf(stderr, "%s", resultStr->str);
+  g_message_info("%s", resultStr->str);
   
   g_free(supported_types_string);
   g_string_free(resultStr, TRUE);
@@ -748,13 +748,13 @@ static void showHelpText(GSList *supportedTypes)
 /* Prints version info to stderr */
 static void showVersionInfo()
 {
-  fprintf(stderr, VERSION_TEXT);  
+  g_message_info(VERSION_TEXT);  
 }
 
 /* Prints compiled date (must go to stdout for our build scripts to work) */
 static void showCompiledInfo()
 {
-  fprintf(stdout, "%s\n", UT_MAKE_COMPILE_DATE());  
+  g_message_info("%s\n", UT_MAKE_COMPILE_DATE());  
 }
 
 
@@ -878,7 +878,7 @@ int main(int argc, char **argv)
           break; /* getopt_long already printed an error message */
           
 	case 'a':
-	  align_types = blxprintf("%s", optarg) ;
+	  align_types = g_strdup_printf("%s", optarg) ;
 	  break;
 	case 'c': 
 	  config_file = g_strdup(optarg) ;

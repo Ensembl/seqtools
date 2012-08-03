@@ -702,13 +702,13 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
               
               if (!alnp->markup) 
                 {
-                  char *tmpStr = blxprintf("%*d", bc->maxEndLen, oldpos);
+                  char *tmpStr = g_strdup_printf("%*d", bc->maxEndLen, oldpos);
                   drawText(widget, drawable, gcText, (bc->maxNameLen + 3) * properties->charWidth, y, tmpStr, NULL, NULL);
                   g_free(tmpStr);
                   
                   if (alnend == bc->maxLen) 
                     {
-                      char *tmpStr = blxprintf("%-d", pos[j] - 1);
+                      char *tmpStr = g_strdup_printf("%-d", pos[j] - 1);
                       drawText(widget, drawable, gcText, (bc->maxNameLen + bc->maxEndLen + alnlen + 5) * properties->charWidth, y, tmpStr, NULL, NULL);
                       g_free(tmpStr);
                     }
@@ -757,7 +757,7 @@ static void drawBelvuColumnsHeader(GtkWidget *widget, GdkDrawable *drawable, Bel
   int x = properties->columnPadding;
   int y = DEFAULT_YPAD;
   
-  char *tmpStr = blxprintf("(%dx%d)", bc->alignArr->len, bc->maxLen);
+  char *tmpStr = g_strdup_printf("(%dx%d)", bc->alignArr->len, bc->maxLen);
   
   drawText(widget, drawable, gc, x, y, tmpStr, NULL, NULL);
   y += properties->charHeight + DEFAULT_YPAD - 1;

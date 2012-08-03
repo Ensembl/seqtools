@@ -196,7 +196,7 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
     iMax = bc->maxLen - 1;
   
   /* Draw the header line */
-  char *tmpStr = blxprintf("Window = %d", properties->windowSize);
+  char *tmpStr = g_strdup_printf("Window = %d", properties->windowSize);
   drawText(widget, drawable, gc, properties->headerRect.x, properties->headerRect.y, tmpStr, NULL, NULL);
   g_free(tmpStr);
   
@@ -240,7 +240,7 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
           gdk_draw_line(drawable, gc, x2, y, x2, y + MINOR_TICKMARK_HEIGHT);
         }
       
-      tmpStr = blxprintf("%d", i);
+      tmpStr = g_strdup_printf("%d", i);
       drawText(widget, drawable, gc, x - minorXTickInterval, y + MAJOR_TICKMARK_HEIGHT + CONS_PLOT_LABEL_PAD, tmpStr, NULL, NULL);
       g_free(tmpStr);
     }
@@ -271,7 +271,7 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
           gdk_draw_line(drawable, gc, x, y2, x - MINOR_TICKMARK_HEIGHT, y2);
         }
       
-      tmpStr = blxprintf("%.0f", f);
+      tmpStr = g_strdup_printf("%.0f", f);
       PangoLayout *layout = gtk_widget_create_pango_layout(widget, tmpStr);
       g_free(tmpStr);
 
@@ -446,7 +446,7 @@ static void calculateConsPlotBorders(GtkWidget *consPlot)
   properties->plotRect.height = (properties->maxcons - properties->mincons) * properties->yScale;
 
   /* y scale size (based on width required to display max conservation) */
-  char *tmpStr = blxprintf("%.0f", properties->maxcons);
+  char *tmpStr = g_strdup_printf("%.0f", properties->maxcons);
   int textWidth, textHeight;
   getTextSize(properties->drawingArea, tmpStr, &textWidth, &textHeight);
   g_free(tmpStr);

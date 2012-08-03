@@ -803,7 +803,7 @@ static void commandFetchSequence(const BlxSequence *blxSeq,
     {
       if (displayResults && !error)
         {
-          char *title = blxprintf("%s - %s", g_get_prgname(), command->str);
+          char *title = g_strdup_printf("%s - %s", g_get_prgname(), command->str);
           displayFetchResults(title, resultText->str, blxWindow, dialog, text_buffer);
           g_free(title);
         }
@@ -909,7 +909,7 @@ static void socketFetchSequence(const BlxSequence *blxSeq,
     {
       if (displayResults)
         {
-          char *title = blxprintf("Blixem - %s", command->str);
+          char *title = g_strdup_printf("Blixem - %s", command->str);
           displayFetchResults(title, resultText->str, blxWindow, dialog, text_buffer);
           g_free(title);
         }
@@ -1363,7 +1363,7 @@ void blxInitConfig(const char *config_file, CommandLineOptions *options, GError 
   gchar *content1 = getConfigFileContent(config_file, &len1);
 
   /* Get the content of the local settings file, if any */
-  char *settings_file = blxprintf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
+  char *settings_file = g_strdup_printf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
   gsize len2 = 0;
   gchar *content2 = getConfigFileContent(settings_file, &len2);
 
@@ -1575,9 +1575,7 @@ static PFetchStatus pfetch_closed_func(gpointer user_data)
 {
   PFetchStatus status = PFETCH_STATUS_OK;
 
-#ifdef DEBUG_ONLY
-  printf("pfetch closed\n");
-#endif  /* DEBUG_ONLY */
+  DEBUG_OUT("pfetch closed\n");
 
   return status;
 }
@@ -1645,9 +1643,7 @@ static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_d
   PFetchSequence fetch_data = (PFetchSequence)user_data ;
 
 
-#ifdef DEBUG_ONLY
-  printf("pfetch closed\n");
-#endif  /* DEBUG_ONLY */
+  DEBUG_OUT("pfetch closed\n");
 
 
   fetch_data->parser_state = PARSING_FINISHED ;
@@ -1659,10 +1655,10 @@ static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_d
 
   if (fetch_data->stats)
     {
-      printf("Stats for %d reads:\tmin = %d\tmax = %d\tmean = %d\n",
-             fetch_data->total_reads,
-             fetch_data->min_bytes, fetch_data->max_bytes,
-             (fetch_data->total_bytes / fetch_data->total_reads)) ;
+      g_message("Stats for %d reads:\tmin = %d\tmax = %d\tmean = %d\n",
+                fetch_data->total_reads,
+                fetch_data->min_bytes, fetch_data->max_bytes,
+                (fetch_data->total_bytes / fetch_data->total_reads)) ;
     }
 
   return status ;
@@ -1700,7 +1696,7 @@ static void pfetchHtmlRecordStats(const char *read_text, const int length, PFetc
           char *str ;
 
           str = g_strndup(read_text, length) ;
-          printf("Read %d: \"%s\"\n", fetch_data->total_reads, str) ;
+          g_message("Read %d: \"%s\"\n", fetch_data->total_reads, str) ;
           g_free(str) ;
         }
     }
@@ -3001,7 +2997,7 @@ static void regionFetchFeature(const MSP const *msp,
   const char *fetchName = g_quark_to_string(fetchMethod->name);
   
   /* Create a temp file for the results */
-  char *fileName = blxprintf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
+  char *fileName = g_strdup_printf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
   int fileDesc = mkstemp(fileName);
   GError *tmpError = NULL;
   

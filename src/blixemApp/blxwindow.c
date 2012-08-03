@@ -3312,7 +3312,7 @@ static void onResponseFontSelectionDialog(GtkDialog *dialog, gint responseId, gp
 
       if (!ok)
         {
-          char *msg = blxprintf("Selected font '%s' is not a fixed-width font. Matches may not appear correctly aligned. Are you sure you want to continue?", fontName);
+          char *msg = g_strdup_printf("Selected font '%s' is not a fixed-width font. Matches may not appear correctly aligned. Are you sure you want to continue?", fontName);
           gint response = runConfirmationBox(GTK_WIDGET(dialog), "Blixem - Warning", msg);
           g_free(msg);
 
@@ -4022,7 +4022,7 @@ void showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       if (ok)
         {
           /* Get the path to the html page */
-          char *path = blxprintf("%s/%s", dir, rel_path);
+          char *path = g_strdup_printf("%s/%s", dir, rel_path);
           
           ok = path != NULL;
           
@@ -4745,7 +4745,7 @@ static void saveBlixemSettingsFlags(BlxViewContext *bc, GKeyFile *key_file)
  * a config file. */
 static void saveBlixemSettings(GtkWidget *blxWindow)
 {
-  char *filename = blxprintf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
+  char *filename = g_strdup_printf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
   GKeyFile *key_file = g_key_file_new();
@@ -5736,11 +5736,11 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                * examples to get it right.... */
               if (bc->blastMode == BLXMODE_TBLASTN)
                 {
-                  printf("not implemented yet\n") ;
+                  g_message("not implemented yet\n") ;
                 }
               else if (bc->blastMode == BLXMODE_TBLASTX)
                 {
-                  printf("not implemented yet\n") ;
+                  g_message("not implemented yet\n") ;
                 }
               else
                 {
@@ -5889,8 +5889,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   
   calculateRefSeqRange(options, &refSeqRange, &fullDisplayRange);
   
-  printf("Reference sequence [%d - %d], display range [%d - %d]\n", 
-	 refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
+  g_message("Reference sequence [%d - %d], display range [%d - %d]\n", 
+            refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
   
   /* Offset the start coords, if applicable, and convert it to display coords */
   int startCoord = options->startCoord + options->refSeqOffset;

@@ -265,19 +265,19 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const 
 /* Print the usage text to stderr */
 static void showUsageText()
 {
-  fprintf(stderr, "%s%s", USAGE_TEXT, FOOTER_TEXT);
+  g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
 }
 
 /* Prints version info to stderr */
 static void showVersionInfo()
 {
-  fprintf(stderr, VERSION_TEXT);  
+  g_message_info(VERSION_TEXT);  
 }
 
 /* Prints compiled date (must go to stdout for our build scripts to work) */
 static void showCompiledInfo()
 {
-  fprintf(stdout, "%s\n", UT_MAKE_COMPILE_DATE());  
+  g_message_info("%s\n", UT_MAKE_COMPILE_DATE());  
 }
 
 

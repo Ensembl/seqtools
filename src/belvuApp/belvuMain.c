@@ -321,26 +321,26 @@
 static void showUsageText()
 {
   /* Pring usage info followed by authors */
-  fprintf(stderr, "%s%s", USAGE_TEXT, FOOTER_TEXT);
+  g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
 }
 
 /* Prints more detailed usage/help info to stderr */
 static void showHelpText()
 {
   /* Pring usage info followed by authors */
-  fprintf(stderr, "%s%s", HELP_TEXT, FOOTER_TEXT);
+  g_message_info("%s%s", HELP_TEXT, FOOTER_TEXT);
 }
 
 /* Prints version info to stderr */
 static void showVersionInfo()
 {
-  fprintf(stderr, VERSION_TEXT);  
+  g_message_info(VERSION_TEXT);  
 }
 
 /* Prints compiled date (must go to stdout for our build scripts to work) */
 static void showCompiledInfo()
 {
-  fprintf(stdout, "%s\n", UT_MAKE_COMPILE_DATE());  
+  g_message_info("%s\n", UT_MAKE_COMPILE_DATE());  
 }
 
 
@@ -480,7 +480,7 @@ static void readScores(char *filename, BelvuContext *bc)
 	
           g_array_index(bc->alignArr, ALN*, idx)->score = aln.score;
 
-          char *scoreStr = blxprintf("%.1f", aln.score);
+          char *scoreStr = g_strdup_printf("%.1f", aln.score);
           scoreLen = strlen(scoreStr);
           g_free(scoreStr);
 
@@ -541,7 +541,7 @@ int main(int argc, char **argv)
    * pop-up message (the idea being that we don't bother the user unless it's something serious).
    * 
    * All errors and warnings will be sent to stderr, as will info messages (g_message_info).
-   * Program output destined for stdout should use g_message (or printf is fine too).
+   * Program output destined for stdout should use g_message.
    * g_debug will direct to stdout as well.
    * 
    * In summary:
@@ -815,8 +815,8 @@ int main(int argc, char **argv)
       int i, j, max, consensus = 0 ;
       double totcons = 0.0;
     
-      printf("\nColumn Consensus        Identity       Conservation\n");
-      printf  ("------ ---------  -------------------  ------------\n");
+      g_message("\nColumn Consensus        Identity       Conservation\n");
+      g_message  ("------ ---------  -------------------  ------------\n");
     
       for (i = 0; i < bc->maxLen; ++i)
         {
@@ -831,12 +831,12 @@ int main(int argc, char **argv)
                 }
             }
           
-          printf("%4d       %c      %4d/%-4d = %5.1f %%  %4.1f\n", 
-                 i+1, b2aIndex(consensus), max, bc->alignArr->len, (double)max/bc->alignArr->len*100, bc->conservation[i]);
+          g_message("%4d       %c      %4d/%-4d = %5.1f %%  %4.1f\n", 
+                    i+1, b2aIndex(consensus), max, bc->alignArr->len, (double)max/bc->alignArr->len*100, bc->conservation[i]);
           totcons += bc->conservation[i];
         }
       
-      printf ("\nAverage conservation = %.1f\n", totcons/(bc->maxLen*1.0));
+      g_message ("\nAverage conservation = %.1f\n", totcons/(bc->maxLen*1.0));
       
       exit(0);
     }
@@ -913,7 +913,7 @@ int main(int argc, char **argv)
           saveTreeNH(tree, tree->head, stdout);
           destroyTree(&tree);
           
-          printf(";\n");
+          g_message(";\n");
           reInsertMarkupLines(bc);
         }
       else
@@ -942,7 +942,7 @@ int main(int argc, char **argv)
       exit(0);
     }
 
-  fprintf(stderr, "\n%d sequences, max len = %d\n", bc->alignArr->len, bc->maxLen);
+  g_message_info("\n%d sequences, max len = %d\n", bc->alignArr->len, bc->maxLen);
   
   /* Try to get 8x13 font for menus, if not set on command line */
   for ( i=0; i < argc; i++)

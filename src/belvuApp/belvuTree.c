@@ -511,9 +511,9 @@ void treeBootstrap(BelvuContext *bc)
           else
             {
               /* Print the tree, then destroy it */
-              printf("\n");
+              g_message("\n");
               saveTreeNH(tree, tree->head, stdout);
-              printf(";\n");
+              g_message(";\n");
               
               destroyTree(&tree);
             }
@@ -1132,17 +1132,17 @@ static void printTreeDistances(BelvuContext *bc, double **pairmtx)
     {
       if (!bc->treeCoordsOn) 
         {
-          printf("%s\t", g_array_index(bc->alignArr, ALN*, i)->name);
+          g_message("%s\t", g_array_index(bc->alignArr, ALN*, i)->name);
         }
       else
         {
-          printf("%s/%d-%d\t",
-                 g_array_index(bc->alignArr, ALN*, i)->name,
-                 g_array_index(bc->alignArr, ALN*, i)->start,
-                 g_array_index(bc->alignArr, ALN*, i)->end);
+          g_message("%s/%d-%d\t",
+                    g_array_index(bc->alignArr, ALN*, i)->name,
+                    g_array_index(bc->alignArr, ALN*, i)->start,
+                    g_array_index(bc->alignArr, ALN*, i)->end);
         }
     }
-  printf ("\n");
+  g_message ("\n");
   
   for (i = 0; i < bc->alignArr->len; ++i) 
     {
@@ -1156,9 +1156,9 @@ static void printTreeDistances(BelvuContext *bc, double **pairmtx)
           else
             dist = pairmtx[j][i];
           
-          printf("%7.3f\t", dist);
+          g_message("%7.3f\t", dist);
         }
-      printf ("\n");
+      g_message ("\n");
     }
 }
 
@@ -1169,13 +1169,13 @@ static void printMtx(BelvuContext *bc, double **mtx)
 {
   int i, j;
   
-  printf ("\n");
+  g_message ("\n");
   for (i = 0; i < bc->alignArr->len; i++) 
     {
       for (j = 0; j < bc->alignArr->len; j++)
-        printf("%6.2f ", mtx[i][j]);
+        g_message("%6.2f ", mtx[i][j]);
       
-      printf ("\n");
+      g_message ("\n");
   }
 }
 
@@ -1183,21 +1183,21 @@ static void printMtx(BelvuContext *bc, double **mtx)
 /* Print staisitics about the tree construction */
 static void printTreeStats(BelvuContext *bc, double **pairmtx, double *avgdist, double **Dmtx, TreeNode **node)
 {
-  printf("Node status, Avg distance:\n");
+  g_message("Node status, Avg distance:\n");
   
   int i = 0;
   for (i = 0; i < bc->alignArr->len; i++)
-    printf("%6d ", (node[i] ? 1 : 0)); 
+    g_message("%6d ", (node[i] ? 1 : 0)); 
   
-  printf("\n");
+  g_message("\n");
   
   for (i = 0; i < bc->alignArr->len; i++)
-    printf("%6.2f ", avgdist[i]); 
+    g_message("%6.2f ", avgdist[i]); 
   
-  printf("\n\nPairdistances, corrected pairdistances:");
+  g_message("\n\nPairdistances, corrected pairdistances:");
   printMtx(bc, pairmtx);
   printMtx(bc, Dmtx);
-  printf("\n");
+  g_message("\n");
 }
 #endif
 
@@ -1496,15 +1496,9 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
             }
         }
       
-#ifdef DEBUG
-      {
-        printf("Iter %d: Merging %d and %d, dist= %f\n", 
-               iter, maxi+1, maxj+1, curMtx[maxi][maxj]);
-        printf("maxid= %f  llen= %f  rlen= %f\n", maxid, llen, rlen);
-        printf("avgdist[left]= %f  avgdist[right]= %f\n\n", 
-               avgdist[maxi], avgdist[maxj]);
-      }
-#endif
+      DEBUG_OUT("Iter %d: Merging %d and %d, dist= %f\n", iter, maxi+1, maxj+1, curMtx[maxi][maxj]);
+      DEBUG_OUT("maxid= %f  llen= %f  rlen= %f\n", maxid, llen, rlen);
+      DEBUG_OUT("avgdist[left]= %f  avgdist[right]= %f\n\n", avgdist[maxi], avgdist[maxj]);
       
       newnode->left = nodes[maxi];
       newnode->left->branchlen = llen;
@@ -1557,7 +1551,7 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
 static void treePrintNode(BelvuContext *bc, TreeNode *node) 
 {
   if (node->name) 
-    printf("%s ", node->name);
+    g_message("%s ", node->name);
 }
 
 
@@ -1576,11 +1570,11 @@ static gboolean treePrintOrthologsRecur(BelvuContext *bc, TreeNode *node)
     {
       found = TRUE;
       
-      printf("\nSpecies 1 (%s):  ", node->left->organism);
+      g_message("\nSpecies 1 (%s):  ", node->left->organism);
       treeTraverse(bc, node->left, treePrintNode);
-      printf("\nSpecies 2 (%s): ", node->right->organism);
+      g_message("\nSpecies 2 (%s): ", node->right->organism);
       treeTraverse(bc, node->right, treePrintNode);
-      printf("\n");
+      g_message("\n");
     }
   else 
     {
@@ -1857,7 +1851,7 @@ static double treeDrawNode(BelvuContext *bc,
   if (treeGetShowBranchLen(properties) && node->branchlen) 
     {
       /* Draw the branch label, which shows the branch length */
-      char *tmpStr = blxprintf("%.1f", node->branchlen);
+      char *tmpStr = g_strdup_printf("%.1f", node->branchlen);
 
       const int textWidth = getTextWidth(widget, tmpStr);
       double pos = min(curX, x) + (abs(curX - x) / 2) - (textWidth * 0.5); /* centre text at middle of branch */
@@ -1873,14 +1867,14 @@ static double treeDrawNode(BelvuContext *bc,
       GdkColor *color = getGdkColor(BELCOLOR_TREE_BOOTSTRAP, bc->defaultColors, FALSE, FALSE);
       gdk_gc_set_foreground(gc, color);
 
-      char *tmpStr = blxprintf("%.0f", node->boot);
+      char *tmpStr = g_strdup_printf("%.0f", node->boot);
       const int textWidth = getTextWidth(widget, tmpStr);
       double pos = curX - textWidth - 0.5;
       
       if (pos < 0.0) 
         pos = 0;
       
-      printf("%f  %f   \n", node->boot, pos / properties->charWidth);
+      g_message("%f  %f   \n", node->boot, pos / properties->charWidth);
       drawText(widget, drawable,  gc, pos, y, tmpStr, NULL, NULL);
 
       g_free(tmpStr);
@@ -1985,7 +1979,7 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
           /* Draw the full marker line, with a label */
           gdk_draw_line(drawable, gc, x, y, x, y + markerHt);
 
-          char *tmpStr = blxprintf("%d", i - 1);
+          char *tmpStr = g_strdup_printf("%d", i - 1);
           drawText(widget, drawable, gc,  x - (0.5 * xscale), y + (2 * markerHt), tmpStr, NULL, NULL);
           g_free(tmpStr);
         }
@@ -2016,9 +2010,9 @@ static void drawBelvuTree(GtkWidget *widget, GdkDrawable *drawable, BelvuTreePro
       
       char *tmpStr = NULL;
 #ifdef DEBUG
-      tmpStr = blxprintf("Tree balance = %.1f (%.1f-%.1f)", fabsf(lweight - rweight), lweight, rweight);
+      tmpStr = g_strdup_printf("Tree balance = %.1f (%.1f-%.1f)", fabsf(lweight - rweight), lweight, rweight);
 #else
-      tmpStr = blxprintf("Tree balance = %.1f", fabsf(lweight - rweight));
+      tmpStr = g_strdup_printf("Tree balance = %.1f", fabsf(lweight - rweight));
 #endif
       
       drawText(widget, drawable, gc, xMax + 2 * DEFAULT_XPAD, y - markerHt, tmpStr, NULL, NULL);
@@ -2408,13 +2402,13 @@ static void updateTreeScaleEntry(GtkComboBox *combo, gpointer data)
    * then reset the tree scale to the appropriate default value */
   if (correctingDistances(newBuildMethod, newDistCorr))
     {
-      char *tmpStr = blxprintf("%.2f", DEFAULT_TREE_SCALE_CORR);
+      char *tmpStr = g_strdup_printf("%.2f", DEFAULT_TREE_SCALE_CORR);
       gtk_entry_set_text(GTK_ENTRY(*userData->treeScaleEntry), tmpStr);
       g_free(tmpStr);
     }
   else
     {
-      char *tmpStr = blxprintf("%.2f", DEFAULT_TREE_SCALE_NON_CORR);
+      char *tmpStr = g_strdup_printf("%.2f", DEFAULT_TREE_SCALE_NON_CORR);
       gtk_entry_set_text(GTK_ENTRY(*userData->treeScaleEntry), tmpStr);
       g_free(tmpStr);
     }    
@@ -2755,11 +2749,11 @@ GtkWidget* createBelvuTreeWindow(BelvuContext *bc, Tree *tree, const gboolean is
   const char *titlePrefix = (isMainTree ? TITLE_MAIN_TREE_PREFIX : TITLE_BOOTSTRAP_TREE_PREFIX);
   const char *titleDesc = (bc->treeMethod == NJ ? TITLE_NJ_TREE_DESCRIPTION : TITLE_UPGMA_TREE_DESCRIPTION);
   
-  char *title = blxprintf("Belvu - %s%stree using %s distances of %s", 
-                          titlePrefix, 
-                          titleDesc,
-                          bc->treeDistString,
-                          bc->Title);
+  char *title = g_strdup_printf("Belvu - %s%stree using %s distances of %s", 
+                                titlePrefix, 
+                                titleDesc,
+                                bc->treeDistString,
+                                bc->Title);
   
   gtk_window_set_title(GTK_WINDOW(belvuTree), title);
   g_free(title);
