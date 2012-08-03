@@ -91,7 +91,8 @@ typedef enum
     BLX_FETCH_ERROR_SOCKET,                /* error creating socket */
     BLX_FETCH_ERROR_HOST,                  /* unknown host */
     BLX_FETCH_ERROR_CONNECT,               /* error connecting to host */
-    BLX_FETCH_ERROR_SEND                   /* error sending to socket */
+    BLX_FETCH_ERROR_SEND,                  /* error sending to socket */
+    BLX_FETCH_ERROR_PATH                   /* executable not found in path */
   } BlxFetchError;
 
 
@@ -526,31 +527,49 @@ static GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
                                   GError **error)
 {
   GString *result = NULL;
+  GError *tmpError = NULL;
 
   if (fetchMethod)
     {
-      /* Compile the command and args into a single string */
-      char *command = NULL;
+      /* If an executable is given, check that we can find it */
+      if (fetchMethod->location)
+        {
+          char *path = g_find_program_in_path("dotter");
+          
+          if (!path)
+            g_set_error(&tmpError, BLX_FETCH_ERROR, BLX_FETCH_ERROR_PATH, "Executable '%s' not found in path: %s\n", fetchMethod->location, getenv("PATH"));
+          else
+            g_free(path);
+        }
       
-      /* For http methods, append the args (i.e. the request) after a '?'.
-       * For other methods, append the args after a space. */
-      if (fetchMethod->location && fetchMethod->args && fetchMethodUsesHttp(fetchMethod))
-        command = g_strdup_printf("%s?%s", fetchMethod->location, fetchMethod->args);
-      else if (fetchMethod->location && fetchMethod->args)
-        command = g_strdup_printf("%s %s", fetchMethod->location, fetchMethod->args);
-      else if (fetchMethod->location)
-        command = g_strdup(fetchMethod->location);
-      else if (fetchMethod->args)
-        command = g_strdup(fetchMethod->args);
-      else
-        return result;
+      if (!tmpError)
+        {
+          /* Compile the command and args into a single string */
+          char *command = NULL;
       
-      result = doFetchStringSubstitutions(command, name, refSeqName, startCoord, endCoord,
-                                          dataset, source, filename, error);
-      
-      /* Clean up */
-      g_free(command);
+          /* For http methods, append the args (i.e. the request) after a '?'.
+           * For other methods, append the args after a space. */
+          if (fetchMethod->location && fetchMethod->args && fetchMethodUsesHttp(fetchMethod))
+            command = g_strdup_printf("%s?%s", fetchMethod->location, fetchMethod->args);
+          else if (fetchMethod->location && fetchMethod->args)
+            command = g_strdup_printf("%s %s", fetchMethod->location, fetchMethod->args);
+          else if (fetchMethod->location)
+            command = g_strdup(fetchMethod->location);
+          else if (fetchMethod->args)
+            command = g_strdup(fetchMethod->args);
+          else
+            return result;
+          
+          result = doFetchStringSubstitutions(command, name, refSeqName, startCoord, endCoord,
+                                              dataset, source, filename, error);
+          
+          /* Clean up */
+          g_free(command);
+        }
     }
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
   
   return result;
 }
@@ -794,7 +813,7 @@ static void commandFetchSequence(const BlxSequence *blxSeq,
   if (!error)
     command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset, &error);
 
-  if (!error)
+  if (!error && command)
     resultText = getExternalCommandOutput(command->str, &error);
 
   reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);

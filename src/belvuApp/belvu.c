@@ -4844,22 +4844,33 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       else
         strcpy(fetchProg, DEFAULT_FETCH_PROG);
 
-      char *cmd = g_strdup_printf("%s '%s' &", fetchProg, alnp->name);
+      char *path = g_find_program_in_path(fetchProg);
       
-      GtkWidget *pfetchWin = externalCommand(cmd, BELVU_TITLE, bc->belvuAlignment, &error);
-      
-      if (pfetchWin)
+      if (!path)
         {
-          const gchar *env = g_getenv(FONT_SIZE_ENV_VAR);
-          if (env)
-            widgetSetFontSizeAndCheck(pfetchWin, convertStringToInt(env));
-
-          /* Add the window to our list of spawned windows */
-          bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, pfetchWin);
-          g_signal_connect(G_OBJECT(pfetchWin), "destroy", G_CALLBACK(onDestroySpawnedWindow), bc);
+          g_warning("Executable '%s' not found in path: %s\n", fetchProg, getenv("PATH"));
         }
+      else
+        {
+          g_free(path);
+          
+          char *cmd = g_strdup_printf("%s '%s' &", fetchProg, alnp->name);
       
-      g_free(cmd);
+          GtkWidget *pfetchWin = externalCommand(cmd, BELVU_TITLE, bc->belvuAlignment, &error);
+      
+          if (pfetchWin)
+            {
+              const gchar *env = g_getenv(FONT_SIZE_ENV_VAR);
+              if (env)
+                widgetSetFontSizeAndCheck(pfetchWin, convertStringToInt(env));
+              
+              /* Add the window to our list of spawned windows */
+              bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, pfetchWin);
+              g_signal_connect(G_OBJECT(pfetchWin), "destroy", G_CALLBACK(onDestroySpawnedWindow), bc);
+            }
+      
+          g_free(cmd);
+        }
     }
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
