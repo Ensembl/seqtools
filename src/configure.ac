@@ -33,7 +33,7 @@ AC_CHECK_PROG(GLIB_GENMARSHAL, glib-genmarshal, glib-genmarshal)
 # Checks for libraries.
 
 # Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h unistd.h gtk.h])
+AC_CHECK_HEADERS([arpa/inet.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h unistd.h gtk.h sqlite3.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_PID_T
@@ -47,6 +47,9 @@ AC_CHECK_FUNCS([dup2 floor gethostbyname memset socket sqrt strcasecmp strchr st
 # Check for dependencies required by all executables
 PKG_CHECK_MODULES([DEPS], [glib-2.0 gtk+-2.0 >= 2.10])
 
+# Check for dependencies required by sqlite code
+PKG_CHECK_MODULES([DEPS_SQLITE3], [sqlite3])
+
 # Check for the curl library. This is only required by blixemh, so don't fail
 # if we can't find it, but set the USE_LIBCURL to false. Note: I think we should 
 # probably be using pkg-config to find the curl dependencies, but that doesn't work
@@ -56,6 +59,9 @@ PKG_CHECK_MODULES([DEPS], [glib-2.0 gtk+-2.0 >= 2.10])
 AC_CHECK_HEADERS([curl/curl.h], [HAVE_LIBCURL=1], [HAVE_LIBCURL=0])
 AM_CONDITIONAL([USE_LIBCURL], [test "$HAVE_LIBCURL" -eq 1])
 
+# Similar check for sqlite
+AC_CHECK_HEADERS([sqlite3.h], [HAVE_SQLITE3=1], [HAVE_SQLITE3=0])
+AM_CONDITIONAL([USE_SQLITE3], [test "$HAVE_SQLITE3" -eq 1])
 
 AC_OUTPUT
 

@@ -352,6 +352,7 @@ const char*           getDataTypeName(BlxDataType *blxDataType);
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
 BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, char *sequence, MSP *msp, const gboolean linkFeaturesByName, GError **error);
 void                  blxSequenceSetName(BlxSequence *seq, const char *fullName);
+void                  blxSequenceSetColumnValue(BlxSequence *seq, const char *colName, const char *value);
 const char*           blxSequenceGetFullName(const BlxSequence *seq);
 const char*           blxSequenceGetDisplayName(const BlxSequence *seq);
 GQuark                blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk, const int index, const GArray *defaultMethods);

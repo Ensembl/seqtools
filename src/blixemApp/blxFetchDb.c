@@ -1,0 +1,230 @@
+/*  File: blxFetchDb.c
+ *  Author: Gemma Barson, 2012-08-06
+ *  Copyright (c) 2012 Genome Research Ltd
+ * ---------------------------------------------------------------------------
+ * SeqTools is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 3
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+ * ---------------------------------------------------------------------------
+ * This file is part of the SeqTools sequence analysis package, 
+ * written by
+ *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
+ * 
+ * based on original code by
+ *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
+ * 
+ * and utilizing code taken from the AceDB and ZMap packages, written by
+ *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
+ *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
+ *      Ed Griffiths      (Sanger Institute, UK)  <edgrif@sanger.ac.uk>
+ *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
+ *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
+ *
+ * Description: Blixem functions for control of sequence fetching and
+ *              display.
+ *              
+ *              Compiling with -DSQLITE3 includes code to issue
+ *              fetch requests to an sqlite3 database.
+ *              This requires sqlite3 libs to be installed.
+ *----------------------------------------------------------------------------
+ */
+
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <signal.h>
+
+//#ifdef SQLITE3
+#include <sqlite3.h>
+//#endif
+
+#include <seqtoolsUtils/utilities.h>
+#include <blixemApp/blixem_.h>
+
+/* Error codes and domain */
+#define BLX_FETCH_ERROR g_quark_from_string("Blixem config")
+
+/* Function pointer for sqlite callback functions */
+typedef int (*SqliteFunc)(void*,int,char**,char**);
+
+
+
+//#ifdef SQLITE3
+
+/* Local functions */
+
+/* Callback to print the results of an sql query */
+static int printResultsCB(void *NotUsed, int argc, char **argv, char **azColName)
+{
+  int i;
+
+  for (i = 0; i < argc; ++i)
+    {
+      printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+    }
+
+  printf("\n");
+  return 0;
+}
+
+
+static BlxSequence* findBlxSequence(GQuark seqName, GList *seqList)
+{
+  BlxSequence* result = NULL;
+  GList *item = seqList;
+
+  for (; item && !result; item = item->next)
+    {
+      BlxSequence* blxSeq = (BlxSequence*)(item->data);
+      
+      if (blxSeq->fullName == seqName)
+        result = blxSeq;
+    }
+
+  return result;
+}
+
+
+/* Callback to populate the results of an sql query into a list of sequences */
+static int populateResultsCB(void *data, int argc, char **argv, char **azColName)
+{
+  printf("\npopulateResultsCB\n");
+  
+  static GQuark nameCol = 0;
+  if (!nameCol)
+    {
+      nameCol = g_quark_from_string("Name");
+    }
+  
+  GList *seqList = (GList*)data;
+
+  /* Loop through the columns to find the name column,
+   * and find the BlxSequence with that name */
+  int i;
+  BlxSequence *blxSeq = NULL;
+
+  for (i = 0; i < argc && !blxSeq; ++i)
+    {
+      GQuark column = g_quark_from_string(azColName[i]);
+      
+      if (column == nameCol)
+        {
+          GQuark seqName = g_quark_from_string(argv[i]);
+          blxSeq = findBlxSequence(seqName, seqList);
+        }
+    }
+
+  /* Loop again to populate the sequence data */
+  if (blxSeq)
+    {
+      for (i = 0; i < argc; ++i)
+        {
+          printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+          blxSequenceSetColumnValue(blxSeq, azColName[i], argv[i]);
+        }
+    }
+
+  return 0;
+}
+
+
+
+static void sqliteRequest(const char *database, const char *query, SqliteFunc callbackFunc, void *callbackData, GError **error)
+{
+  //#ifdef SQLITE3
+  sqlite3 *db;
+
+  int rc = sqlite3_open(database, &db);
+  
+  printf("SQLITE OPEN: rc=%d\n", rc);
+  
+  if (rc)
+    {
+      fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+      sqlite3_close(db);
+      return;
+    }
+
+  printf("Database: %s\nQuery: %s\n", database, query);
+
+  char *zErrMsg = 0;
+  rc = sqlite3_exec(db, query, callbackFunc, callbackData, &zErrMsg);
+
+  if (rc != SQLITE_OK)
+    {
+      fprintf(stderr, "SQL error: %s\n", zErrMsg);
+      sqlite3_free(zErrMsg);
+    }
+
+  sqlite3_close(db);
+//#else
+//  g_set_error(error, BLX_ERROR, 1, "SQLite not available: sqlite3 may not be installed on your system, or has not been compiled into the package correctly.\n");
+//#endif
+}
+
+
+
+
+
+//#endif
+
+
+/* Public functions */
+
+void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GError **error)
+{
+  printf("sqliteFetchSequences\n");
+
+  GError *tmpError = NULL;
+
+  if (!fetchMethod)
+    g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NULL_FETCH, "Program error: fetch method is null\n");
+  else if (!fetchMethod->location)
+    g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_EXE, "No database file specified for fetch method '%s'\n", g_quark_to_string(fetchMethod->name));
+  else if (!fetchMethod->args)
+    g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_ARGS, "No query specified for fetch method '%s'\n", g_quark_to_string(fetchMethod->name));
+    
+  GString *query = NULL;
+
+  if (!tmpError)
+    {
+      query = getFetchArgsMultiple(fetchMethod, seqsToFetch, &tmpError);
+    }
+  
+  if (query && !tmpError)
+    {
+      sqliteRequest(fetchMethod->location, 
+                    query->str,
+                    populateResultsCB,
+                    seqsToFetch,
+                    &tmpError);
+    }
+
+  g_string_free(query, TRUE);
+  
+  if (tmpError)
+    g_propagate_error(error, tmpError);
+}
+
+
+
+void sqlitetest(GError **error)
+{
+  sqliteRequest("/Users/gb10/work/data/blixem/sqlite/test.db",
+                "SELECT sequences.seq_name AS Name, sequences.seq AS Sequence, data.organism AS Organism, data.tissue_type AS 'Tissue Type', data.gene_name AS 'Gene Name' FROM sequences INNER JOIN data ON sequences.seq_name=data.seq_name where Name in ('seq1','seq2')",
+                printResultsCB, 
+                NULL,
+                error);
+}

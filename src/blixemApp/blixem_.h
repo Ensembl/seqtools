@@ -87,7 +87,7 @@ typedef enum
 #endif
     BLXFETCH_MODE_SOCKET,
     BLXFETCH_MODE_WWW,
-    BLXFETCH_MODE_DB,
+    BLXFETCH_MODE_SQLITE,
     BLXFETCH_MODE_COMMAND,
     BLXFETCH_MODE_INTERNAL,
     BLXFETCH_MODE_NONE,
@@ -118,7 +118,9 @@ typedef enum
 #define WWW_FETCH_ARGS           "request"
 
 /* Required keys for db-fetch groups */
-/* not implemented yet */
+#define DB_FETCH_LOCATION        "location"
+#define DB_FETCH_QUERY           "query"
+#define DB_FETCH_COLUMNS         "columns"
 
 /* Required keys for command-fetch groups */
 #define COMMAND_FETCH_SCRIPT        "command"
@@ -156,6 +158,40 @@ typedef enum
 
 
 
+
+/* Blixem config/fetch error domain */
+#define BLX_CONFIG_ERROR g_quark_from_string("Blixem config")
+#define BLX_FETCH_ERROR g_quark_from_string("Blixem config")
+
+/* Error codes */
+typedef enum
+  {
+    BLX_CONFIG_ERROR_NO_GROUPS,             /* no groups in config file */
+    BLX_CONFIG_ERROR_INVALID_KEY_TYPE,      /* invalid key type given in config file */
+    BLX_CONFIG_ERROR_MISSING_KEY,           /* a required key is missing */
+    BLX_CONFIG_ERROR_INVALID_FETCH_MODE,    /* invalid fetch mode specified */
+    BLX_CONFIG_ERROR_INVALID_OUTPUT_FORMAT, /* invalid output format specified for fetch mode */
+    BLX_CONFIG_ERROR_WARNINGS,              /* warnings found while reading config file */
+    BLX_CONFIG_ERROR_SUBSTITUTION,          /* error with substitution string */
+    BLX_CONFIG_ERROR_INVALID_FETCH_METHOD,  /* null fetch method */
+    BLX_CONFIG_ERROR_NO_EXE,                /* fetch method executable does not exist */
+    BLX_CONFIG_ERROR_NULL_FETCH,            /* fetch method is null */
+    BLX_CONFIG_ERROR_NO_ARGS               /* mandatory args weren't specified */
+  } BlxConfigError;
+
+
+/* Error codes */
+typedef enum
+  {
+    BLX_FETCH_ERROR_SOCKET,                /* error creating socket */
+    BLX_FETCH_ERROR_HOST,                  /* unknown host */
+    BLX_FETCH_ERROR_CONNECT,               /* error connecting to host */
+    BLX_FETCH_ERROR_SEND,                  /* error sending to socket */
+    BLX_FETCH_ERROR_PATH                   /* executable not found in path */
+  } BlxFetchError;
+
+
+
 /* Function pointer to a function that performs a fetch of a particular sequence */
 typedef void(*FetchFunc)(const char *seqName, gpointer fetchMethod, const gboolean bulk, GtkWidget *blxWindow);
 
@@ -179,11 +215,13 @@ typedef struct _BlxFetchMethod
   GQuark name;                      /* fetch method name */
   BlxFetchMode mode;                /* the type of fetch method */
   
-  char *location;                   /* e.g. url, script, command, etc. */
+  char *location;                   /* e.g. url, script, command, db location etc. */
   char *node;                       /* for socket fetch mode */
   int port;                         /* for socket and http/pipe fetch modes */
   char *cookie_jar;                 /* for http/pipe fetch mode */
-  char *args;                       /* arguments for standard (full) fetch call */
+  char *args;                       /* arguments/query/request */
+  GArray *columns;                  /* for db-fetch, the list of columns the query will populate */
+
   char *separator;                  /* separator when combining multiple sequence names into a list */
   GArray *errors;                   /* array of messages (as GQuarks) that indicate that an error occurred, e.g. "no match" */
   BlxFetchOutputType outputType;    /* the output format to expect from the fetch command */
@@ -542,6 +580,7 @@ char*                              readFastaSeq(FILE *seqfile, char *qname, int 
 
 /* blxFetch.c */
 GString*                           getFetchCommand(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq, const MSP* const msp, const char *refSeqName, const int refSeqOffset, const IntRange* const refSeqRange, const char *dataset, GError **error);
+GString*                           getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, GError **error);
 void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result) ;
 void                               finaliseFetch(GList *seqList);
 
@@ -590,6 +629,11 @@ extern int       PAM120[23][23];
 extern int       dotterGraph;
 extern float     fsPlotHeight;
 extern GtkWidget *blixemWindow;
+
+
+/* blxFetchDb.c */
+void sqlitetest(GError **error);
+void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GError **error);
 
 
 #endif /*  !defined DEF_BLIXEM_P_H */

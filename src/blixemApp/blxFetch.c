@@ -66,37 +66,6 @@
 #define MKSTEMP_REPLACEMENT_CHARS             "XXXXXX"            /* the required string that will be replaced by unique chars when creating a temp file name */
 
 
-/* Blixem config/fetch error domain */
-#define BLX_CONFIG_ERROR g_quark_from_string("Blixem config")
-#define BLX_FETCH_ERROR g_quark_from_string("Blixem config")
-
-/* Error codes */
-typedef enum
-  {
-    BLX_CONFIG_ERROR_NO_GROUPS,             /* no groups in config file */
-    BLX_CONFIG_ERROR_INVALID_KEY_TYPE,      /* invalid key type given in config file */
-    BLX_CONFIG_ERROR_MISSING_KEY,           /* a required key is missing */
-    BLX_CONFIG_ERROR_INVALID_FETCH_MODE,    /* invalid fetch mode specified */
-    BLX_CONFIG_ERROR_INVALID_OUTPUT_FORMAT, /* invalid output format specified for fetch mode */
-    BLX_CONFIG_ERROR_WARNINGS,              /* warnings found while reading config file */
-    BLX_CONFIG_ERROR_SUBSTITUTION,          /* error with substitution string */
-    BLX_CONFIG_ERROR_INVALID_FETCH_METHOD,  /* null fetch method */
-    BLX_CONFIG_ERROR_NO_EXE                 /* fetch method executable does not exist */
-  } BlxConfigError;
-
-
-/* Error codes */
-typedef enum
-  {
-    BLX_FETCH_ERROR_SOCKET,                /* error creating socket */
-    BLX_FETCH_ERROR_HOST,                  /* unknown host */
-    BLX_FETCH_ERROR_CONNECT,               /* error connecting to host */
-    BLX_FETCH_ERROR_SEND,                  /* error sending to socket */
-    BLX_FETCH_ERROR_PATH                   /* executable not found in path */
-  } BlxFetchError;
-
-
-
 /* States for parsing EMBL files */
 typedef enum
   {
@@ -273,7 +242,7 @@ const char *fetchModeStr(const BlxFetchMode fetchMode)
 #endif
       "socket",
       "www",
-      "db",
+      "sqlite",
       "command",
       "internal",
       "none",
@@ -568,9 +537,7 @@ static GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
 }
 
 
-static GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod,
-                                     GList *seqsToFetch,
-                                     GError **error)
+GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, GError **error)
 {
   /* Build up a string containing all the sequence names. */
   GString *seq_string = g_string_sized_new(1000) ;
@@ -1957,6 +1924,8 @@ static BlxFetchMethod* createBlxFetchMethod(const char *fetchName,
   result->port = 0;
   result->cookie_jar = NULL;
   result->args = NULL;
+  result->columns = NULL;
+
   result->separator = NULL;
   result->errors = NULL;
   result->outputType = 0;
@@ -2107,10 +2076,14 @@ static void readFetchMethodStanza(GKeyFile *key_file,
         {
           result->mode = BLXFETCH_MODE_INTERNAL;
         }
-      else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_DB), FALSE))
+      else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_SQLITE), FALSE))
         {
           /* to do: not implemented */
-          result->mode = BLXFETCH_MODE_DB;
+          result->mode = BLXFETCH_MODE_SQLITE;
+          result->location = configGetString(key_file, group, DB_FETCH_LOCATION, &tmpError);
+          result->args = configGetString(key_file, group, DB_FETCH_QUERY, &tmpError);
+          result->columns = keyFileGetCsv(key_file, group, DB_FETCH_COLUMNS, &tmpError);
+          result->separator = g_strdup("','");
           result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS, NULL);
           result->outputType = readFetchOutputType(key_file, group, &tmpError);
         }
@@ -3225,9 +3198,9 @@ static gboolean fetchList(GList *seqsToFetch,
                                       error);
             }
 #endif
-          else if (fetchMethod->mode == BLXFETCH_MODE_DB)
+          else if (fetchMethod->mode == BLXFETCH_MODE_SQLITE)
             {
-              g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", g_quark_to_string(fetchMethod->name));
+              sqliteFetchSequences(seqsToFetch, fetchMethod, error);
             }
           else if (fetchMethod->mode == BLXFETCH_MODE_COMMAND)
             {

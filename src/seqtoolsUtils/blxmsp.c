@@ -1124,6 +1124,50 @@ void blxSequenceSetName(BlxSequence *seq, const char *fullName)
 }
 
 
+/* Set the value for a particular column */
+void blxSequenceSetColumnValue(BlxSequence *seq, const char *colName, const char *value)
+{
+  if (!colName || !value)
+    return;
+
+  /* Cache the quarks for each column, for quick comparisons */
+  static GQuark nameCol = 0;
+  static GQuark sequenceCol = 0;
+  static GQuark organismCol = 0;
+  static GQuark tissueTypeCol = 0;
+  static GQuark geneNameCol = 0;
+  static GQuark strainCol = 0;
+
+  if (!nameCol)
+    {
+      nameCol = g_quark_from_string("Name");
+      sequenceCol = g_quark_from_string("Sequence");
+      organismCol = g_quark_from_string("Organism");
+      tissueTypeCol = g_quark_from_string("Tissue Type");
+      geneNameCol = g_quark_from_string("Gene Name");
+      strainCol = g_quark_from_string("Strain");
+    }
+
+  /* Get the quark for the given column name */
+  GQuark column = g_quark_from_string(colName);
+          
+  if (column == nameCol)
+    blxSequenceSetName(seq, value);
+  else if (column == sequenceCol)
+    seq->sequence = g_string_new(value);
+  else if (column == organismCol)
+    seq->organism = g_string_new(value);
+  else if (column == tissueTypeCol)
+    seq->tissueType = g_string_new(value);
+  else if (column == geneNameCol)
+    seq->geneName = g_string_new(value);
+  else if (column ==  strainCol)
+    seq->strain = g_string_new(value);
+  else
+    g_warning("Unknown column '%s'\n", colName);
+}
+
+
 /* Utility to create a BlxSequence with the given name. */
 BlxSequence* createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error)
 {
