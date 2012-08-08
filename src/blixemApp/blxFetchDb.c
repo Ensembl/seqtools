@@ -52,6 +52,7 @@
 
 #include <seqtoolsUtils/utilities.h>
 #include <blixemApp/blixem_.h>
+#include <blixemApp/blxwindow.h>
 
 /* Error codes and domain */
 #define BLX_FETCH_ERROR g_quark_from_string("Blixem config")
@@ -63,23 +64,11 @@ typedef int (*SqliteFunc)(void*,int,char**,char**);
 
 //#ifdef SQLITE3
 
+/********************/
 /* Local functions */
+/********************/
 
-/* Callback to print the results of an sql query */
-static int printResultsCB(void *NotUsed, int argc, char **argv, char **azColName)
-{
-  int i;
-
-  for (i = 0; i < argc; ++i)
-    {
-      g_message("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-    }
-
-  g_message("\n");
-  return 0;
-}
-
-
+/* Utility to find the given sequence in the given list */
 static BlxSequence* findBlxSequence(GQuark seqName, GList *seqList)
 {
   BlxSequence* result = NULL;
@@ -97,10 +86,51 @@ static BlxSequence* findBlxSequence(GQuark seqName, GList *seqList)
 }
 
 
-/* Callback to populate the results of an sql query into a list of sequences */
-static int populateResultsCB(void *data, int argc, char **argv, char **azColName)
+/* Callback to print the results of an sql query */
+static int printResultsCB(void *NotUsed, int argc, char **argv, char **azColName)
 {
-  DEBUG_ENTER("populateResultsCB");
+  int i;
+
+  for (i = 0; i < argc; ++i)
+    {
+      g_message("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+    }
+
+  g_message("\n");
+  return 0;
+}
+
+
+/* Callback to displau the results of an sql query in a pop-up dialog.
+ * The parent window is passed in the user data. */
+static int displayResultsCB(void *data, int argc, char **argv, char **azColName)
+{
+  GtkWidget *parent = NULL;
+
+  if (data)
+    parent = GTK_WIDGET(data);
+
+  /* Compile the results into a single string */
+  GString *result = g_string_new("");
+  int i;
+
+  for (i = 0; i < argc; ++i)
+    {
+      g_string_append_printf(result, "%s = %s\n\n", azColName[i], argv[i] ? argv[i] : "NULL");
+    }
+
+  char *title = g_strdup_printf("%s - %s", g_get_prgname(), "SQL query");
+  displayFetchResults(title, result->str, parent, NULL, NULL);
+  g_free(title);
+
+  return 0;
+}
+
+
+/* Callback to populate the results of an sql query into a list of sequences */
+static int populateResultsListCB(void *data, int argc, char **argv, char **azColName)
+{
+  DEBUG_ENTER("populateResultsListCB");
 
   static GQuark nameCol = 0;
   if (!nameCol)
@@ -136,10 +166,9 @@ static int populateResultsCB(void *data, int argc, char **argv, char **azColName
         }
     }
 
-  DEBUG_EXIT("populateResultsCB");
+  DEBUG_EXIT("populateResultsListCB");
   return 0;
 }
-
 
 
 static void sqliteRequest(const char *database, const char *query, SqliteFunc callbackFunc, void *callbackData, GError **error)
@@ -178,26 +207,84 @@ static void sqliteRequest(const char *database, const char *query, SqliteFunc ca
 }
 
 
-
+/* Check that the fetch method is non-null and has a db and query */
+static void validateFetchMethod(const BlxFetchMethod* const fetchMethod, GError **error)
+{
+  if (!fetchMethod)
+    {
+      g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NULL_FETCH, "Program error: fetch method is null\n");
+    }
+  else if (!fetchMethod->location)
+    {
+      g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_EXE, "No database file specified for fetch method '%s'\n", g_quark_to_string(fetchMethod->name));
+    }
+  else if (!fetchMethod->args)
+    {
+      g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_ARGS, "No query specified for fetch method '%s'\n", g_quark_to_string(fetchMethod->name));
+    }
+}
 
 
 //#endif
 
 
+/********************/
 /* Public functions */
+/********************/
 
+
+/* Fetch a single sequence using sqlite. If displayResults is true, disply the
+ * results in a pop-up window. If result_out is non-null, populate it with the result. */
+void sqliteFetchSequence(const BlxSequence* const blxSeq, 
+                         BlxFetchMethod *fetchMethod,
+                         const gboolean displayResults,
+                         const int attempt,
+                         GtkWidget *blxWindow)
+{
+  DEBUG_ENTER("sqliteFetchSequence");
+
+  GError *tmpError = NULL;
+  validateFetchMethod(fetchMethod, &tmpError);
+    
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  GString *query = NULL;
+  
+  if (!tmpError)
+    {
+      query = getFetchArgs(fetchMethod, blxSeq, NULL, 
+                           bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange,
+                           bc->dataset, &tmpError);
+    }
+  
+  if (query && !tmpError)
+    {
+      sqliteRequest(fetchMethod->location, 
+                    query->str,
+                    displayResultsCB,
+                    blxWindow,
+                    &tmpError);
+    }
+
+  g_string_free(query, TRUE);
+  
+
+  if (tmpError)
+    {
+      reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
+      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, NULL, NULL, NULL);
+    }
+    
+  DEBUG_EXIT("sqliteFetchSequence");
+}
+
+
+/* Fetch multiple sequences using sqlite */
 void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GError **error)
 {
   DEBUG_ENTER("sqliteFetchSequences");
 
   GError *tmpError = NULL;
-
-  if (!fetchMethod)
-    g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NULL_FETCH, "Program error: fetch method is null\n");
-  else if (!fetchMethod->location)
-    g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_EXE, "No database file specified for fetch method '%s'\n", g_quark_to_string(fetchMethod->name));
-  else if (!fetchMethod->args)
-    g_set_error(&tmpError, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_ARGS, "No query specified for fetch method '%s'\n", g_quark_to_string(fetchMethod->name));
+  validateFetchMethod(fetchMethod, &tmpError);
     
   GString *query = NULL;
 
@@ -210,7 +297,7 @@ void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchM
     {
       sqliteRequest(fetchMethod->location, 
                     query->str,
-                    populateResultsCB,
+                    populateResultsListCB,
                     seqsToFetch,
                     &tmpError);
     }

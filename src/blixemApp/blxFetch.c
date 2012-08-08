@@ -354,6 +354,10 @@ void fetchSequence(const BlxSequence *blxSeq,
     {
       wwwFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, result_out);
     }
+  else if (fetchMethod->mode == BLXFETCH_MODE_SQLITE)
+    {
+      sqliteFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow);
+    }
   else if (fetchMethod->mode == BLXFETCH_MODE_INTERNAL)
     {
       internalFetchSequence(blxSeq, fetchMethod, displayResults, attempt, blxWindow, dialog, text_buffer, result_out);
@@ -486,6 +490,7 @@ static gboolean fetchMethodUsesHttp(const BlxFetchMethod* const fetchMethod)
 }
 
 
+/* Compile a command path and arguments into a single string */
 static GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
                                   const char *name,
                                   const char *refSeqName,
@@ -616,15 +621,17 @@ GString* getFetchCommand(const BlxFetchMethod* const fetchMethod,
 }
 
 
-#ifdef PFETCH_HTML
-static GString* getFetchArgs(const BlxFetchMethod* const fetchMethod,
-                             const BlxSequence *blxSeq,
-                             const MSP* const msp,
-                             const char *refSeqName,
-                             const int refSeqOffset,
-                             const IntRange* const refSeqRange,
-                             const char *dataset,
-                             GError **error)
+/* Get the arguments string for the given fetch method (replacing
+ * any substitution characters with the correct values for the given
+ * sequence) */
+GString* getFetchArgs(const BlxFetchMethod* const fetchMethod,
+                      const BlxSequence *blxSeq,
+                      const MSP* const msp,
+                      const char *refSeqName,
+                      const int refSeqOffset,
+                      const IntRange* const refSeqRange,
+                      const char *dataset,
+                      GError **error)
 {
   g_assert(blxSeq || msp);
 
@@ -647,7 +654,6 @@ static GString* getFetchArgs(const BlxFetchMethod* const fetchMethod,
   
   return result;
 }
-#endif 
 
 
 /* Return true if the given string matches any in the given array
