@@ -2078,14 +2078,14 @@ static void readFetchMethodStanza(GKeyFile *key_file,
         }
       else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_SQLITE), FALSE))
         {
-          /* to do: not implemented */
           result->mode = BLXFETCH_MODE_SQLITE;
           result->location = configGetString(key_file, group, DB_FETCH_LOCATION, &tmpError);
           result->args = configGetString(key_file, group, DB_FETCH_QUERY, &tmpError);
-          result->columns = keyFileGetCsv(key_file, group, DB_FETCH_COLUMNS, &tmpError);
-          result->separator = g_strdup("','");
           result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS, NULL);
-          result->outputType = readFetchOutputType(key_file, group, &tmpError);
+          
+          /* Hard code the output type and separator */
+          result->outputType = BLXFETCH_OUTPUT_RAW;
+          result->separator = g_strdup("','");
         }
       else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_COMMAND), FALSE))
         {
