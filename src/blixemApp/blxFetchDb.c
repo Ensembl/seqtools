@@ -72,10 +72,10 @@ static int printResultsCB(void *NotUsed, int argc, char **argv, char **azColName
 
   for (i = 0; i < argc; ++i)
     {
-      printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+      g_message("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
     }
 
-  printf("\n");
+  g_message("\n");
   return 0;
 }
 
@@ -100,8 +100,8 @@ static BlxSequence* findBlxSequence(GQuark seqName, GList *seqList)
 /* Callback to populate the results of an sql query into a list of sequences */
 static int populateResultsCB(void *data, int argc, char **argv, char **azColName)
 {
-  printf("\npopulateResultsCB\n");
-  
+  DEBUG_ENTER("populateResultsCB");
+
   static GQuark nameCol = 0;
   if (!nameCol)
     {
@@ -131,11 +131,12 @@ static int populateResultsCB(void *data, int argc, char **argv, char **azColName
     {
       for (i = 0; i < argc; ++i)
         {
-          printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+          DEBUG_OUT("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
           blxSequenceSetColumnValue(blxSeq, azColName[i], argv[i]);
         }
     }
 
+  DEBUG_EXIT("populateResultsCB");
   return 0;
 }
 
@@ -143,12 +144,12 @@ static int populateResultsCB(void *data, int argc, char **argv, char **azColName
 
 static void sqliteRequest(const char *database, const char *query, SqliteFunc callbackFunc, void *callbackData, GError **error)
 {
+  DEBUG_ENTER("sqliteRequest");
+
   //#ifdef SQLITE3
   sqlite3 *db;
 
   int rc = sqlite3_open(database, &db);
-  
-  printf("SQLITE OPEN: rc=%d\n", rc);
   
   if (rc)
     {
@@ -157,7 +158,7 @@ static void sqliteRequest(const char *database, const char *query, SqliteFunc ca
       return;
     }
 
-  printf("Database: %s\nQuery: %s\n", database, query);
+  DEBUG_OUT("Database: %s\nQuery: %s\n", database, query);
 
   char *zErrMsg = 0;
   rc = sqlite3_exec(db, query, callbackFunc, callbackData, &zErrMsg);
@@ -172,6 +173,8 @@ static void sqliteRequest(const char *database, const char *query, SqliteFunc ca
 //#else
 //  g_set_error(error, BLX_ERROR, 1, "SQLite not available: sqlite3 may not be installed on your system, or has not been compiled into the package correctly.\n");
 //#endif
+
+  DEBUG_EXIT("sqliteRequest");
 }
 
 
@@ -185,7 +188,7 @@ static void sqliteRequest(const char *database, const char *query, SqliteFunc ca
 
 void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GError **error)
 {
-  printf("sqliteFetchSequences\n");
+  DEBUG_ENTER("sqliteFetchSequences");
 
   GError *tmpError = NULL;
 
@@ -216,6 +219,8 @@ void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchM
   
   if (tmpError)
     g_propagate_error(error, tmpError);
+
+  DEBUG_EXIT("sqliteFetchSequences");
 }
 
 
