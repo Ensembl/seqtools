@@ -582,7 +582,7 @@ char*                              readFastaSeq(FILE *seqfile, char *qname, int 
 GString*                           getFetchCommand(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq, const MSP* const msp, const char *refSeqName, const int refSeqOffset, const IntRange* const refSeqRange, const char *dataset, GError **error);
 GString*                           getFetchArgs(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq,const MSP* const msp,const char *refSeqName,const int refSeqOffset,const IntRange* const refSeqRange,const char *dataset,GError **error);
 GString*                           getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, GError **error);
-void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result) ;
+void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer) ;
 void                               finaliseFetch(GList *seqList);
 
 void                               fetchSeqsIndividually(GList *seqsToFetch, GtkWidget *blxWindow);
@@ -633,8 +633,8 @@ extern GtkWidget *blixemWindow;
 
 
 /* blxFetchDb.c */
-void sqlitetest(GError **error);
 void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GError **error);
+void sqliteFetchSequence(const BlxSequence* const blxSeq, const BlxFetchMethod* const fetchMethod,const gboolean displayResults,const int attempt,GtkWidget *blxWindow);
 
 
 #endif /*  !defined DEF_BLIXEM_P_H */

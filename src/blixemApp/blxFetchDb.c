@@ -87,18 +87,18 @@ static BlxSequence* findBlxSequence(GQuark seqName, GList *seqList)
 
 
 /* Callback to print the results of an sql query */
-static int printResultsCB(void *NotUsed, int argc, char **argv, char **azColName)
-{
-  int i;
-
-  for (i = 0; i < argc; ++i)
-    {
-      g_message("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-    }
-
-  g_message("\n");
-  return 0;
-}
+//static int printResultsCB(void *NotUsed, int argc, char **argv, char **azColName)
+//{
+//  int i;
+//
+//  for (i = 0; i < argc; ++i)
+//    {
+//      g_message("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+//    }
+//
+//  g_message("\n");
+//  return 0;
+//}
 
 
 /* Callback to displau the results of an sql query in a pop-up dialog.
@@ -236,7 +236,7 @@ static void validateFetchMethod(const BlxFetchMethod* const fetchMethod, GError 
 /* Fetch a single sequence using sqlite. If displayResults is true, disply the
  * results in a pop-up window. If result_out is non-null, populate it with the result. */
 void sqliteFetchSequence(const BlxSequence* const blxSeq, 
-                         BlxFetchMethod *fetchMethod,
+                         const BlxFetchMethod* const fetchMethod,
                          const gboolean displayResults,
                          const int attempt,
                          GtkWidget *blxWindow)
@@ -271,7 +271,7 @@ void sqliteFetchSequence(const BlxSequence* const blxSeq,
   if (tmpError)
     {
       reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
-      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, NULL, NULL, NULL);
+      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, NULL, NULL);
     }
     
   DEBUG_EXIT("sqliteFetchSequence");
@@ -310,13 +310,3 @@ void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchM
   DEBUG_EXIT("sqliteFetchSequences");
 }
 
-
-
-void sqlitetest(GError **error)
-{
-  sqliteRequest("/Users/gb10/work/data/blixem/sqlite/test.db",
-                "SELECT sequences.seq_name AS Name, sequences.seq AS Sequence, data.organism AS Organism, data.tissue_type AS 'Tissue Type', data.gene_name AS 'Gene Name' FROM sequences INNER JOIN data ON sequences.seq_name=data.seq_name where Name in ('seq1','seq2')",
-                printResultsCB, 
-                NULL,
-                error);
-}
