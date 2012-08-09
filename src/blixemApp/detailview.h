@@ -73,6 +73,7 @@
 typedef struct _DetailViewColumnInfo
   {
     BlxColumnId columnId;	/* the column identifier */
+    GType type;                 /* the type of data, e.g. G_TYPE_STRING */
     GtkWidget *headerWidget;	/* the header widget for this column (in the detail-view header) */
     GtkCallback refreshFunc;	/* the function that will be called on the header widget when columns are refreshed */
     char *title;		/* the default column title */
