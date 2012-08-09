@@ -665,7 +665,7 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
    * based on what's stored in our column info. */
   for ( ; listItem; listItem = listItem->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
 
       /* We don't set the width of the sequence column - this is an autosize column, so it will 
        * be updated dynamically when any of the other columns change. */
@@ -2317,7 +2317,7 @@ static void onSeqColWidthChanged(GtkTreeViewColumn *column, GParamSpec *paramSpe
 static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree, 
                                            GtkWidget *detailView,
                                            GtkCellRenderer *renderer, 
-                                           DetailViewColumnInfo *columnInfo)
+                                           BlxColumnInfo *columnInfo)
 {
   /* Create the column */
   GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes(
@@ -2557,7 +2557,7 @@ static int calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tre
     {
       int columnId = GPOINTER_TO_INT(listItem->data);
       
-      DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
+      BlxColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
       
       if (detailViewShowColumn(columnInfo))
         {
@@ -2591,7 +2591,7 @@ static TreeColumnHeaderInfo* createTreeColumnHeaderInfo(GtkWidget *headerWidget,
  * information about the reference sequence. */
 static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders, 
                                                  GtkTreeViewColumn *treeColumn,
-                                                 DetailViewColumnInfo *columnInfo,
+                                                 BlxColumnInfo *columnInfo,
                                                  TreeColumnHeaderInfo* firstTreeCol,
                                                  GtkWidget *headerBar,
                                                  GtkWidget *tree,
@@ -2733,7 +2733,7 @@ static GList* createTreeColumns(GtkWidget *tree,
   
   for ( ; column; column = column->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)column->data;
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)column->data;
       
       if (columnInfo)
 	{

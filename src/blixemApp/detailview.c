@@ -184,7 +184,7 @@ int detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId)
 {
   int result = 0;
 
-  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
+  BlxColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
   if (columnInfo)
     {
       result = columnInfo->width;
@@ -199,7 +199,7 @@ const char* detailViewGetColumnTitle(GtkWidget *detailView, const BlxColumnId co
 {
   const char *result = NULL;
   
-  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
+  BlxColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
   if (columnInfo)
     {
       result = columnInfo->title;
@@ -218,7 +218,7 @@ static void detailViewSaveColumnWidths(GtkWidget *detailView, GKeyFile *key_file
   
   for ( ; listItem; listItem = listItem->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
 
       if (columnInfo && columnInfo->columnId != BLXCOL_SEQUENCE)
         {
@@ -385,7 +385,7 @@ static int calcNumBasesInSequenceColumn(DetailViewProperties *properties)
   
   for ( ; listItem; listItem = listItem->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
       if (columnInfo && columnInfo->columnId == BLXCOL_SEQUENCE)
         {
           colWidth = columnInfo->width;
@@ -735,7 +735,7 @@ static void refreshDetailViewHeaders(GtkWidget *detailView)
   
   for ( ; column; column = column->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)column->data;
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)column->data;
       if (columnInfo)
         {
           if (columnInfo->headerWidget && columnInfo->refreshFunc)
@@ -752,7 +752,7 @@ static void refreshDetailViewHeaders(GtkWidget *detailView)
 
 
 /* Returns true if the given column should be visible */
-gboolean detailViewShowColumn(DetailViewColumnInfo *columnInfo)
+gboolean detailViewShowColumn(BlxColumnInfo *columnInfo)
 {
   return (columnInfo->visible && columnInfo->dataLoaded && columnInfo->width > 0);
 }
@@ -765,7 +765,7 @@ void resizeDetailViewHeaders(GtkWidget *detailView)
   
   for ( ; listItem; listItem = listItem->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)listItem->data;
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)listItem->data;
 
       /* For the sequence column, don't set the size request, or we won't be able
        * to shrink the window. (The sequence col header will be resized dynamically.) */
@@ -1261,7 +1261,7 @@ gint sortByColumnCompareFunc(GList *mspGList1,
   gboolean displayRev = bc->displayRev;
 
   /* Get details about this column */
-  DetailViewColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, sortColumn);
+  BlxColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, sortColumn);
   
   switch (sortColumn)
   {
@@ -2685,7 +2685,7 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   /* Find the left margin. It will be at the same x coord as the left edge of
    * the sequence column header. */
   int leftMargin = UNSET_INT;
-  DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
+  BlxColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
   gtk_widget_translate_coordinates(seqColInfo->headerWidget, snpTrack, 0, 0, &leftMargin, NULL);
   
   /* Maintain lists for each row where the variations are drawn; remember their display
@@ -2778,7 +2778,7 @@ void detailViewGetColumnXCoords(DetailViewProperties *properties, const BlxColum
   
   for ( ; columnItem; columnItem = columnItem->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(columnItem->data);
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(columnItem->data);
       
       if (columnInfo->columnId != columnId)
         {
@@ -3239,14 +3239,14 @@ GList* detailViewGetColumnList(GtkWidget *detailView)
 }
 
 /* Get the column info for a particular column */
-DetailViewColumnInfo *detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId)
+BlxColumnInfo *detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId)
 {
-  DetailViewColumnInfo *result = NULL;
+  BlxColumnInfo *result = NULL;
   
   GList *listItem = detailViewGetColumnList(detailView);
   for ( ; listItem; listItem = listItem->next)
   {
-    DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+    BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
     if (columnInfo && columnInfo->columnId == columnId)
       {
         result = columnInfo;
@@ -3901,7 +3901,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
 
             /* The SNP track is not the same width as the sequence column, so pass the
              * sequence column header so that we can convert to the correct coords */
-            DetailViewColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
+            BlxColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
 
             selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
             
@@ -4166,12 +4166,12 @@ void updateDynamicColumnWidths(GtkWidget *detailView)
   /* Currently, only the sequence column has dynamic width, so just sum all of the
    * other (visible) column widths and subtract from the allocation width. */
   int width = detailView->allocation.width;
-  DetailViewColumnInfo *seqColInfo = NULL;
+  BlxColumnInfo *seqColInfo = NULL;
   
   GList *listItem = detailViewGetColumnList(detailView);
   for ( ; listItem; listItem = listItem->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
       
       if (columnInfo->columnId == BLXCOL_SEQUENCE)
         seqColInfo = columnInfo;
@@ -4585,12 +4585,12 @@ MSP* lastMatch(GtkWidget *detailView, GList *seqList)
  *                     Initialization                      *
  ***********************************************************/
 
-/* Comparison function for two DetailViewColumnInfo structs
+/* Comparison function for two BlxColumnInfo structs
  * Returns : negative value if a < b; zero if a = b; positive value if a > b.  */
 static gint columnCompareFunc(gconstpointer a, gconstpointer b)
 {
-  DetailViewColumnInfo *col1 = (DetailViewColumnInfo*)a;
-  DetailViewColumnInfo *col2 = (DetailViewColumnInfo*)b;
+  BlxColumnInfo *col1 = (BlxColumnInfo*)a;
+  BlxColumnInfo *col2 = (BlxColumnInfo*)b;
   
   return col1->columnId - col2->columnId;
 }
@@ -4599,7 +4599,7 @@ static gint columnCompareFunc(gconstpointer a, gconstpointer b)
 /* This checks if the column has any properties specified for it in the config
  * file and, if so, overrides the default values in the given column with 
  * the config file values. */
-static void getColumnConfig(DetailViewColumnInfo *columnInfo)
+static void getColumnConfig(BlxColumnInfo *columnInfo)
 {
   /* Do nothing for the sequence column, because it has dynamic width */
   if (columnInfo->columnId == BLXCOL_SEQUENCE)
@@ -4673,7 +4673,7 @@ static void createColumn(BlxColumnId columnId,
   gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
   
   /* Create the column info */
-  DetailViewColumnInfo *columnInfo = g_malloc(sizeof(DetailViewColumnInfo));
+  BlxColumnInfo *columnInfo = g_malloc(sizeof(BlxColumnInfo));
   
   columnInfo->columnId = columnId;
   columnInfo->headerWidget = headerWidget;
@@ -4695,7 +4695,7 @@ static void createColumn(BlxColumnId columnId,
 }
 
 
-/* This creates DetailViewColumnInfo entries for each column required in the detail view. It
+/* This creates BlxColumnInfo entries for each column required in the detail view. It
  * returns a list of the columns created. */
 static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames, const gboolean loaded)
 {
@@ -4733,7 +4733,7 @@ static void addColumnsToHeaderBar(GtkBox *headerBar, GList *columnList)
   
   for ( ; columnItem; columnItem = columnItem->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(columnItem->data);
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(columnItem->data);
 
       /* The sequence column is a special one that wants to fill any additional space, so
        * set the 'expand' property to true for that column only. */

@@ -70,7 +70,7 @@
 /* This struct describes a column in the detail view. Multiple widgets (i.e. headers
  * and tree columns) in the detail view must all have columns that share the same
  * properties (namely the column width). */
-typedef struct _DetailViewColumnInfo
+typedef struct _BlxColumnInfo
   {
     BlxColumnId columnId;	/* the column identifier */
     GType type;                 /* the type of data, e.g. G_TYPE_STRING */
@@ -84,7 +84,7 @@ typedef struct _DetailViewColumnInfo
     gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
     gboolean visible;           /* whether the column should be shown */
     gboolean searchable;        /* whether searching sequences by data in this column is supported */
-  } DetailViewColumnInfo;
+  } BlxColumnInfo;
 
 
 /* This struct contains info about canonical splice sites */
@@ -165,7 +165,7 @@ gdouble			detailViewGetCharHeight(GtkWidget *detailView);
 int                     detailViewGetNumUnalignedBases(GtkWidget *detailView);
 BlxColumnId*            detailViewGetSortColumns(GtkWidget *detailView);
 GList*			detailViewGetColumnList(GtkWidget *detailView);
-DetailViewColumnInfo*	detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId);
+BlxColumnInfo*	        detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId);
 int			detailViewGetActiveFrame(GtkWidget *detailView);
 BlxStrand		detailViewGetSelectedStrand(GtkWidget *detailView);
 void			detailViewSetSelectedStrand(GtkWidget *detailView, BlxStrand strand);
@@ -175,7 +175,7 @@ DetailViewProperties*	detailViewGetProperties(GtkWidget *widget);
 int			detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId);
 const char*             detailViewGetColumnTitle(GtkWidget *detailView, const BlxColumnId columnId);
 void                    detailViewGetColumnXCoords(DetailViewProperties *properties, const BlxColumnId columnId, IntRange *xRange);
-gboolean                detailViewShowColumn(DetailViewColumnInfo *columnInfo);
+gboolean                detailViewShowColumn(BlxColumnInfo *columnInfo);
 void                    detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file);
 void                    detailViewResetColumnWidths(GtkWidget *detailView);
 

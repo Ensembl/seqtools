@@ -2631,7 +2631,7 @@ static gboolean onColumnSizeChanged(GtkWidget *widget, const gint responseId, gp
   gboolean result = TRUE;
   
   GtkEntry *entry = GTK_ENTRY(widget);
-  DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)data;
+  BlxColumnInfo *columnInfo = (BlxColumnInfo*)data;
   
   const gchar *newSizeText = gtk_entry_get_text(entry);
   const int newWidth = convertStringToInt(newSizeText);
@@ -2667,7 +2667,7 @@ static gboolean onColumnVisibilityChanged(GtkWidget *button, const gint response
 {
   gboolean result = TRUE;
   
-  DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)data;
+  BlxColumnInfo *columnInfo = (BlxColumnInfo*)data;
   columnInfo->visible = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
@@ -2727,7 +2727,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
       
       for ( ; listItem; listItem = listItem->next)
         {
-          DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+          BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
           columnInfo->dataLoaded = TRUE;
         }   
       
@@ -2792,7 +2792,7 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 
   for ( ; listItem; listItem = listItem->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
       
       /* Create a label and a text entry box, arranged vertically in a vbox */
       GtkWidget *vbox = createVBoxWithBorder(hbox, 4, FALSE, NULL);
@@ -3679,7 +3679,7 @@ static void createSortBox(GtkBox *parent,
 
   for ( ; columnItem; columnItem = columnItem->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(columnItem->data);
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(columnItem->data);
 
       /* Only include columns that have a sort name and, if searchableOnly is
        * true, only include columns that are searchable. */
