@@ -357,16 +357,14 @@ typedef enum
 
 /* COLUMNS: To add a new column you must do the following:
  *    - add an identifier for the column to the BlxColumnId enum;
- *    - add the type to the TREE_COLUMN_TYPE_LIST definition; and
- *    - specify the data source in addSequenceStructToRow and addMspToRow;
+ *    - specify the data source in addSequenceStructToRow and addMspToRow; and
  *    - create the column in createColumns(...)
  * and optionally:
  *    - add a custom data function in createTreeColumn;
  *    - add a custom header widget and/or header refresh function in createTreeColHeader;
  *    - specify sort behaviour in sortColumnCompareFunc. */
 
-/* This enum declares identifiers for each column in the detail-view trees. If you add an enum
- * here you must also add its type to the TREE_COLUMN_TYPE_LIST definition below. */
+/* This enum declares identifiers for each column in the detail-view trees */
 typedef enum
   {
     BLXCOL_SEQNAME,             /* The match sequence's name */
@@ -385,23 +383,6 @@ typedef enum
     BLXCOL_NUM_COLUMNS,         /* The number of columns; must always appear AFTER all valid tree column IDs */
     BLXCOL_NONE                 /* Used for sorting to indicate that no sorting is required; not a valid column ID in the trees, so appears after NUM_COLUMNS */
   } BlxColumnId;
-
-
-/* This defines the variable type for each detail-view-tree column. These MUST be the 
- * correct types (in the correct order) for the columns listed in the BlxColumnId enum above. */
-#define TREE_COLUMN_TYPE_LIST                     \
-    G_TYPE_STRING,              /* seq name */    \
-    G_TYPE_STRING,              /* source */      \
-    G_TYPE_STRING,              /* organism */    \
-    G_TYPE_STRING,              /* gene name */   \
-    G_TYPE_STRING,              /* tissue type */ \
-    G_TYPE_STRING,              /* strain */      \
-    G_TYPE_STRING,              /* group */       \
-    G_TYPE_DOUBLE,              /* score */       \
-    G_TYPE_DOUBLE,              /* id */          \
-    G_TYPE_INT,                 /* start */       \
-    G_TYPE_POINTER,             /* sequence */    \
-    G_TYPE_INT                  /* end */
 
 
 /* This enum contains IDs for all the persistent dialogs in the application, and should be used

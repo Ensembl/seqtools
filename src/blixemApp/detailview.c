@@ -3238,6 +3238,30 @@ GList* detailViewGetColumnList(GtkWidget *detailView)
   return properties ? properties->columnList : NULL;
 }
 
+/* For the given list of columns, extract their types into an
+ * array of 'GType's */
+GType* columnListGetTypes(GList *columnList)
+{
+  GType *result = NULL;
+  const int len = g_list_length(columnList);
+
+  if (len > 0)
+    {
+      result = g_malloc(len * sizeof(GType));
+
+      GList *item = columnList;
+      int i = 0;
+      
+      for ( ; item; item = item->next, ++i)
+        {
+          BlxColumnInfo* columnInfo = (BlxColumnInfo*)(item->data);
+          result[i] = columnInfo->type;
+        }
+    }
+  
+  return result;
+}
+
 /* Get the column info for a particular column */
 BlxColumnInfo *detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId)
 {
@@ -4689,8 +4713,8 @@ static void createColumn(BlxColumnId columnId,
 
   getColumnConfig(columnInfo);
   
-  /* Place it in the list. Sort the list by BlxColumnId because the list must be sorted in the same
-   * order as the variable types in the TREE_COLUMN_TYPE_LIST definition */
+  /* Place it in the list. List must be sorted or gtk_list_store_set
+   * fails (not sure why) */
   *columnList = g_list_insert_sorted(*columnList, columnInfo, columnCompareFunc);
 }
 

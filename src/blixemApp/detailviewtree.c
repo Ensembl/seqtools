@@ -448,11 +448,19 @@ static void addShortReadsToCompactTree(GtkWidget *tree, GtkListStore *store, Gtk
 void addSequencesToTree(GtkWidget *tree, gpointer data)
 {
   GList *seqList = (GList*)data;
-  GtkListStore *store = gtk_list_store_new(BLXCOL_NUM_COLUMNS, TREE_COLUMN_TYPE_LIST);
+  
+  /* Create the data store for the tree. We must know how many columns
+   * we have, and their data types. */
+  GtkWidget *detailView = treeGetDetailView(tree);  
+  GList *columnList = detailViewGetColumnList(detailView);
+  const int numCols = g_list_length(columnList);
+  GType *typeList = columnListGetTypes(columnList);
+
+  GtkListStore *store = gtk_list_store_newv(numCols, typeList);
   
   /* Set the sort function for each column */
   int colNum = 0;
-  for ( ; colNum < BLXCOL_NUM_COLUMNS; ++colNum)
+  for ( ; colNum < numCols; ++colNum)
     {
       gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), colNum,	sortColumnCompareFunc, tree, NULL);
     }
@@ -2847,11 +2855,18 @@ void treeCreateBaseDataModel(GtkWidget *tree, gpointer data)
   if (treeGetBaseDataModel(GTK_TREE_VIEW(tree)))
     return;
   
-  GtkListStore *store = gtk_list_store_new(BLXCOL_NUM_COLUMNS, TREE_COLUMN_TYPE_LIST);
-  
+  /* Create the data store for the tree. We must know how many columns
+   * we have, and their data types. */
+  GtkWidget *detailView = treeGetDetailView(tree);  
+  GList *columnList = detailViewGetColumnList(detailView);
+  const int numCols = g_list_length(columnList);
+  GType *typeList = columnListGetTypes(columnList);
+
+  GtkListStore *store = gtk_list_store_newv(numCols, typeList);
+
   /* Set the sort function for each column */
   int colNum = 0;
-  for ( ; colNum < BLXCOL_NUM_COLUMNS; ++colNum)
+  for ( ; colNum < numCols; ++colNum)
     {
       gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(store), colNum,	sortColumnCompareFunc, tree, NULL);
     }
