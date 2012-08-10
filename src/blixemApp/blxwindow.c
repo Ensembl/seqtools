@@ -3586,13 +3586,14 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
        * contains one combo box) */
       GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
       GList *childItem = children;
+      const int numColumns = g_list_length(dvProperties->columnList);
       int priority = 0;
       
       for ( ; childItem; childItem = childItem->next, ++priority)
         {
-          if (priority >= BLXCOL_NUM_COLUMNS)
+          if (priority >= numColumns)
             {
-              g_critical("Exceeded max number of sort columns (%d).\n", BLXCOL_NUM_COLUMNS);
+              g_critical("Exceeded max number of sort columns (%d).\n", numColumns);
               break;
             }
           
@@ -3748,6 +3749,7 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
+  const int numColumns = g_list_length(dvProperties->columnList);
 
   /* Add a drop-down for each sort column that is currently specified (or just
    * the default number if none specified). */
@@ -3756,7 +3758,7 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   int sortPriority = 0;
   const int minBoxes = 3;
   
-  for ( ; sortPriority < BLXCOL_NUM_COLUMNS; ++sortPriority)
+  for ( ; sortPriority < numColumns; ++sortPriority)
     {
       const BlxColumnId columnId = dvProperties->sortColumns[sortPriority];
       

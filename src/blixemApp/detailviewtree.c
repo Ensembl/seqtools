@@ -776,21 +776,23 @@ static gboolean updateMspPaths(GtkTreeModel *model, GtkTreePath *path, GtkTreeIt
 /* Re-sort the data for the given tree */
 void resortTree(GtkWidget *tree, gpointer data)
 {
-  if (BLXCOL_NUM_COLUMNS < 1)
+  GtkWidget *detailView = treeGetDetailView(tree);
+  DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
+  const int numColumns = g_list_length(dvProperties->columnList);
+
+  if (numColumns < 1)
     return; 
 
   /* Find the main column to sort by. We set this as the sort column on the tree.
    * It actually doesn't make a lot of difference which column we set except that 
    * we call the correct sort-by function; the sort-by function will actually sort 
    * by multiple columns based on the detail-view properties. */
-  GtkWidget *detailView = treeGetDetailView(tree);
-  BlxColumnId *sortColumns = detailViewGetSortColumns(detailView);
-  int sortColumn = sortColumns[0];
+  int sortColumn = dvProperties->sortColumns[0];
   
   /* The column ID enum includes some values that are not valid tree columns, i.e. those
    * outside the enum for the max number of columns. If we've got one of these, then
    * set the tree to be unsorted. */
-  if (sortColumn >= BLXCOL_NUM_COLUMNS)
+  if (sortColumn >= numColumns)
     sortColumn = GTK_TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID;
   
   /* Note that the sort function takes care of whether it's asc or desc, so we
@@ -2814,17 +2816,17 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
 
   GtkWidget *tree = GTK_WIDGET(data);
   GtkWidget *detailView = treeGetDetailView(tree);
+  DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
+  const int numColumns = g_list_length(dvProperties->columnList);
 
   /* Sort by each requested column in order of priority */
-  BlxColumnId *sortColumns = detailViewGetSortColumns(detailView);
-  
-  if (sortColumns)
+  if (dvProperties->sortColumns)
     {
       int priority = 0;
 
-      for ( ; priority < BLXCOL_NUM_COLUMNS; ++priority)
+      for ( ; priority < numColumns; ++priority)
         {
-          BlxColumnId sortColumn = sortColumns[priority];
+          BlxColumnId sortColumn = dvProperties->sortColumns[priority];
           
           /* NONE indicates an unused entry in the priority array; if we reach
            * an unset value, there should be no more values after it */

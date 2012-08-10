@@ -1343,6 +1343,8 @@ static gint detailViewSortByColumns(gconstpointer a, gconstpointer b)
 
   GtkWidget *blxWindow = getBlixemWindow();
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  GList *columnList = detailViewGetColumnList(detailView);
+  const int numColumns = g_list_length(columnList);
 
   /* Sort by each requested column in order of priority */
   BlxColumnId *sortColumns = detailViewGetSortColumns(detailView);
@@ -1351,7 +1353,7 @@ static gint detailViewSortByColumns(gconstpointer a, gconstpointer b)
     {
       int priority = 0;
 
-      for ( ; priority < BLXCOL_NUM_COLUMNS; ++priority)
+      for ( ; priority < numColumns; ++priority)
         {
           BlxColumnId sortColumn = sortColumns[priority];
         
@@ -3742,11 +3744,14 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->exonBoundaryLineStyle = GDK_LINE_SOLID;
       properties->exonBoundaryLineStylePartial = GDK_LINE_ON_OFF_DASH;
       
+      /* Allocate sortColumns array to be same length as columnList */
+      const int numColumns = g_list_length(columnList);
+      properties->sortColumns = g_malloc(numColumns * sizeof(BlxColumnId));
+      
       int i = 0;
-      for ( ; i < BLXCOL_NUM_COLUMNS; ++i)
+      for ( ; i < numColumns; ++i)
         properties->sortColumns[i] = BLXCOL_NONE;
 
-      
       /* Sort by the default/input column, and then by name and then position */
       properties->sortColumns[0] = sortColumn;
       properties->sortColumns[1] = BLXCOL_SEQNAME;
@@ -4402,10 +4407,11 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
  * any secondary sort columns). */
 void detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColumn)
 {
-  if (BLXCOL_NUM_COLUMNS > 0)
-    {
-      DetailViewProperties *properties = detailViewGetProperties(detailView);
-      
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  const int numColumns = g_list_length(properties->columnList);
+
+  if (numColumns > 0)
+    {      
       if (properties->sortColumns[0] != sortColumn)
         {
           properties->sortColumns[0] = sortColumn;

@@ -110,8 +110,8 @@ typedef struct _DetailViewProperties
     GtkWidget *header;            /* Contains all the widgets in the detail view header */
     GtkWidget *feedbackBox;       /* A text box that feeds back info to the user about the currently selected items */
     GtkWidget *statusBar;         /* A status bar that feeds back info to the user about the currently moused-over items */
-    GList *columnList;            /* A list of details about all the columns in the detail view */
-    BlxColumnId sortColumns[BLXCOL_NUM_COLUMNS];  /* List of columns to sort by, in order of priority */
+    GList *columnList;            /* A list of details about all the columns in the detail view (might have been better to use an array here but it's a short list so not important) */
+    BlxColumnId* sortColumns;     /* Array of columns to sort by, in order of priority. The length of this array will be set to the same length as columnList */
     
     GList *fwdStrandTrees;        /* A list of all the trees that show the forward strand of the ref seq */
     GList *revStrandTrees;        /* A list of all the trees that show the reverse strand of the ref seq */
