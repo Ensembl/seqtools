@@ -62,21 +62,6 @@
 #define DEFAULT_NUM_UNALIGNED_BASES     5     /* the default number of additional bases to show if displaying unaligned parts of the match sequence */
 #define POLYA_SIG_BASES_UPSTREAM        50    /* the number of bases upstream from a polyA tail to search for polyA signals */
 
-/* Define the columns' default widths and titles. */
-#define BLXCOL_SEQNAME_WIDTH            120   /* default width for the name column */
-#define BLXCOL_SCORE_WIDTH              40    /* default width for the score column */
-#define BLXCOL_ID_WIDTH                 45    /* default width for the ID column */
-#define BLXCOL_SOURCE_WIDTH             85    /* default width for source column  */
-#define BLXCOL_GROUP_WIDTH              58    /* default width for group column  */
-#define BLXCOL_START_WIDTH              50    /* default width for the start coord column */
-#define BLXCOL_END_WIDTH                80    /* default width for end coord column (bigger because it also spans the scrollbar) */
-#define BLXCOL_SEQUENCE_WIDTH           40    /* default width for sequence column */
-#define BLXCOL_ORGANISM_WIDTH           28    /* default width for organism column */
-#define BLXCOL_GENE_NAME_WIDTH          58    /* default width for gene-name column  */
-#define BLXCOL_STRAIN_WIDTH             85    /* default width for strain column  */
-#define BLXCOL_TISSUE_TYPE_WIDTH        100   /* default width for tissue-type column  */
-
-#define COLUMN_WIDTHS_GROUP             "column-widths"  /* group name in the config file */
 #define SETTING_NAME_NUM_UNALIGNED_BASES "num-unaligned-bases"
 
 
@@ -124,13 +109,11 @@ static void                   detailViewCacheFontSize(GtkWidget *detailView, gdo
 static gboolean               widgetIsTree(GtkWidget *widget);
 static gboolean               widgetIsTreeContainer(GtkWidget *widget);
 static void                   updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
-static GtkWidget*             createSeqColHeader(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames);
 static void                   setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse);
 static int                    getNumSnpTrackRows(const BlxViewContext *bc, DetailViewProperties *properties, const BlxStrand strand, const int frame);
 static int                    getVariationRowNumber(const IntRange const *rangeIn, const int numRows, GSList **rows);
 static void                   freeRowsList(GSList *rows);
-static void                   destroyColumnList(GList **columnList);
 
 
 /***********************************************************
@@ -179,112 +162,13 @@ void detailViewRedrawAll(GtkWidget *detailView)
 }
 
 
-/* Return the width of the column with the given column id */
-int detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId)
-{
-  int result = 0;
-
-  BlxColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
-  if (columnInfo)
-    {
-      result = columnInfo->width;
-    }
-  
-  return result;
-}
-
-
-/* Return the width of the column with the given column id */
-const char* detailViewGetColumnTitle(GtkWidget *detailView, const BlxColumnId columnId)
-{
-  const char *result = NULL;
-  
-  BlxColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
-  if (columnInfo)
-    {
-      result = columnInfo->title;
-    }
-  
-  return result;
-}
-
-
-/* Save the column widths to the given config file. */
-static void detailViewSaveColumnWidths(GtkWidget *detailView, GKeyFile *key_file)
-{
-  /* Loop through each column */
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  GList *listItem = properties->columnList;
-  
-  for ( ; listItem; listItem = listItem->next)
-    {
-      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
-
-      if (columnInfo && columnInfo->columnId != BLXCOL_SEQUENCE)
-        {
-          /* If column is not visible, set width to zero to indicate that it should be hidden */
-          if (columnInfo->visible)
-            g_key_file_set_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, columnInfo->width);
-          else
-            g_key_file_set_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, 0);
-        }
-    }
-}
-
-
 /* Save any user-settings that are stored in the detail-view properties */
 void detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   
   g_key_file_set_integer(key_file, SETTINGS_GROUP, SETTING_NAME_NUM_UNALIGNED_BASES, properties->numUnalignedBases);
-  detailViewSaveColumnWidths(detailView, key_file);
-}
-
-
-/* Reset column widths to default values */
-void detailViewResetColumnWidths(GtkWidget *detailView)
-{
-  /* Quick and dirty: just set the width and visibility manually. This should be
-   * done differently so we can just loop through and find the correct values somehow;
-   * currently we run the risk of getting out of sync with the initial values set in
-   * createColumns */
-  detailViewGetColumnInfo(detailView, BLXCOL_SEQNAME)->width = BLXCOL_SEQNAME_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_SEQNAME)->visible = TRUE;
-
-  detailViewGetColumnInfo(detailView, BLXCOL_SCORE)->width = BLXCOL_SCORE_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_SCORE)->visible = TRUE;
-
-  detailViewGetColumnInfo(detailView, BLXCOL_ID)->width = BLXCOL_ID_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_ID)->visible = TRUE;
-
-  detailViewGetColumnInfo(detailView, BLXCOL_START)->width = BLXCOL_START_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_START)->visible = TRUE;
-
-  detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE)->width = BLXCOL_SEQUENCE_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE)->visible = TRUE;
-
-  detailViewGetColumnInfo(detailView, BLXCOL_END)->width = BLXCOL_END_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_END)->visible = TRUE;
-
-  detailViewGetColumnInfo(detailView, BLXCOL_SOURCE)->width = BLXCOL_SOURCE_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_SOURCE)->visible = TRUE;
-
-  detailViewGetColumnInfo(detailView, BLXCOL_GROUP)->width = BLXCOL_GROUP_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_GROUP)->visible = FALSE;
-
-  detailViewGetColumnInfo(detailView, BLXCOL_ORGANISM)->width = BLXCOL_ORGANISM_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_ORGANISM)->visible = TRUE;
-
-  detailViewGetColumnInfo(detailView, BLXCOL_GENE_NAME)->width = BLXCOL_GENE_NAME_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_GENE_NAME)->visible = FALSE;
-
-  detailViewGetColumnInfo(detailView, BLXCOL_TISSUE_TYPE)->width = BLXCOL_TISSUE_TYPE_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_TISSUE_TYPE)->visible = FALSE;
-
-  detailViewGetColumnInfo(detailView, BLXCOL_STRAIN)->width = BLXCOL_STRAIN_WIDTH;
-  detailViewGetColumnInfo(detailView, BLXCOL_STRAIN)->visible = FALSE;
-
+  saveColumnWidths(detailViewGetColumnList(detailView), key_file);
 }
 
 
@@ -381,7 +265,7 @@ static int calcNumBasesInSequenceColumn(DetailViewProperties *properties)
   
   /* Find the width of the sequence column */
   int colWidth = UNSET_INT;
-  GList *listItem = properties->columnList;
+  GList *listItem = blxWindowGetColumnList(properties->blxWindow);
   
   for ( ; listItem; listItem = listItem->next)
     {
@@ -751,13 +635,6 @@ static void refreshDetailViewHeaders(GtkWidget *detailView)
 }
 
 
-/* Returns true if the given column should be visible */
-gboolean detailViewShowColumn(BlxColumnInfo *columnInfo)
-{
-  return (columnInfo->visible && columnInfo->dataLoaded && columnInfo->width > 0);
-}
-
-
 /* Resize the detail view header widgets. Should be called whenever a column is resized. */
 void resizeDetailViewHeaders(GtkWidget *detailView)
 {
@@ -773,7 +650,7 @@ void resizeDetailViewHeaders(GtkWidget *detailView)
         {
           /* For other columns, we can set the size request: they're small enough
            * that we can live without the need to shrink below their sum widths. */
-          if (detailViewShowColumn(columnInfo))
+          if (showColumn(columnInfo))
             {
               widgetSetHidden(columnInfo->headerWidget, FALSE);
               gtk_widget_set_size_request(columnInfo->headerWidget, columnInfo->width, -1);
@@ -1261,7 +1138,7 @@ gint sortByColumnCompareFunc(GList *mspGList1,
   gboolean displayRev = bc->displayRev;
 
   /* Get details about this column */
-  BlxColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, sortColumn);
+  BlxColumnInfo *columnInfo = getColumnInfo(detailViewGetColumnList(detailView), sortColumn);
   
   switch (sortColumn)
   {
@@ -2687,7 +2564,7 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   /* Find the left margin. It will be at the same x coord as the left edge of
    * the sequence column header. */
   int leftMargin = UNSET_INT;
-  BlxColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
+  BlxColumnInfo *seqColInfo = getColumnInfo(detailViewGetColumnList(detailView), BLXCOL_SEQUENCE);
   gtk_widget_translate_coordinates(seqColInfo->headerWidget, snpTrack, 0, 0, &leftMargin, NULL);
   
   /* Maintain lists for each row where the variations are drawn; remember their display
@@ -2768,50 +2645,17 @@ static void detailViewCentreOnSelection(GtkWidget *detailView)
 }
 
 
-/* Gets the x coords at the start/end of the given column and populate them into the range
- * return argument. */
-void detailViewGetColumnXCoords(DetailViewProperties *properties, const BlxColumnId columnId, IntRange *xRange)
-{
-  xRange->min = 0;
-  xRange->max = 0;
-  
-  /* Loop through all visible columns up to the given column, summing their widths. */
-  GList *columnItem = properties->columnList;
-  
-  for ( ; columnItem; columnItem = columnItem->next)
-    {
-      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(columnItem->data);
-      
-      if (columnInfo->columnId != columnId)
-        {
-          if (detailViewShowColumn(columnInfo))
-            xRange->min += columnInfo->width;
-        }
-      else
-        {
-          /* We've got to the required column. Calculate the x coord at the end
-           * of this column and then break. */
-          if (detailViewShowColumn(columnInfo))
-            xRange->max = xRange->min + columnInfo->width;
-          else
-            xRange->max = xRange->min; /* return zero-width if column is not visible */
-          
-          break;
-        }
-    }
-}
-
-
 /* In the detail view, get the base index at the given coords, if those coords lie within the
  * sequence column; returns UNSET_INT otherwise. */
 static int getBaseIndexAtDetailViewCoords(GtkWidget *detailView, const int x, const int y)
 {
   int baseIdx = UNSET_INT;
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  
+  GList *columnList = detailViewGetColumnList(detailView);
+
   /* Get the x coords at the start/end of the sequence column */
   IntRange xRange;
-  detailViewGetColumnXCoords(properties, BLXCOL_SEQUENCE, &xRange);
+  getColumnXCoords(columnList, BLXCOL_SEQUENCE, &xRange);
   
   /* See if our x coord lies inside the sequence column */
   if (x >= xRange.min && x <= xRange.max)
@@ -3236,8 +3080,8 @@ GtkCellRenderer* detailViewGetRenderer(GtkWidget *detailView)
 /* Get the list of columns */
 GList* detailViewGetColumnList(GtkWidget *detailView)
 {
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->columnList : NULL;
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  return bc ? bc->columnList : NULL;
 }
 
 /* For the given list of columns, extract their types into an
@@ -3263,26 +3107,6 @@ GType* columnListGetTypes(GList *columnList)
   
   return result;
 }
-
-/* Get the column info for a particular column */
-BlxColumnInfo *detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId)
-{
-  BlxColumnInfo *result = NULL;
-  
-  GList *listItem = detailViewGetColumnList(detailView);
-  for ( ; listItem; listItem = listItem->next)
-  {
-    BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
-    if (columnInfo && columnInfo->columnId == columnId)
-      {
-        result = columnInfo;
-        break;
-      }
-  }
-  
-  return result;
-}
-
 
 gboolean detailViewGetDisplayRev(GtkWidget *detailView)
 {
@@ -3613,11 +3437,6 @@ static void onDestroyDetailView(GtkWidget *widget)
 
   /* N.B. Don't free the cell renderer, or it causes memory corruption. I'm not
    * sure what owns it - the columns it is added to? */
-  
-  if (properties->columnList > 0)
-    {
-      destroyColumnList(&properties->columnList);
-    }
     
   if (properties->fwdStrandTrees)
     {
@@ -3682,7 +3501,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->header = header;
       properties->feedbackBox = feedbackBox;
       properties->statusBar = statusBar;
-      properties->columnList = columnList;
       properties->adjustment = adjustment;
       properties->selectedBaseSet = FALSE;
       properties->selectedBaseIdx = UNSET_INT;
@@ -3922,7 +3740,8 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
       {
         GtkWidget *detailView = GTK_WIDGET(data);
         GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
-
+        GList *columnList = detailViewGetColumnList(detailView);
+        
         if (event->type == GDK_BUTTON_PRESS) /* first click */
           {
             /* Select the variation that was clicked on.  */
@@ -3930,7 +3749,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
 
             /* The SNP track is not the same width as the sequence column, so pass the
              * sequence column header so that we can convert to the correct coords */
-            BlxColumnInfo *seqColInfo = detailViewGetColumnInfo(detailView, BLXCOL_SEQUENCE);
+            BlxColumnInfo *seqColInfo = getColumnInfo(columnList, BLXCOL_SEQUENCE);
 
             selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
             
@@ -4408,7 +4227,8 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 void detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColumn)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  const int numColumns = g_list_length(properties->columnList);
+  GList *columnList = blxWindowGetColumnList(properties->blxWindow);
+  const int numColumns = g_list_length(columnList);
 
   if (numColumns > 0)
     {      
@@ -4615,146 +4435,6 @@ MSP* lastMatch(GtkWidget *detailView, GList *seqList)
  *                     Initialization                      *
  ***********************************************************/
 
-/* Comparison function for two BlxColumnInfo structs
- * Returns : negative value if a < b; zero if a = b; positive value if a > b.  */
-static gint columnCompareFunc(gconstpointer a, gconstpointer b)
-{
-  BlxColumnInfo *col1 = (BlxColumnInfo*)a;
-  BlxColumnInfo *col2 = (BlxColumnInfo*)b;
-  
-  return col1->columnId - col2->columnId;
-}
-
-
-/* This checks if the column has any properties specified for it in the config
- * file and, if so, overrides the default values in the given column with 
- * the config file values. */
-static void getColumnConfig(BlxColumnInfo *columnInfo)
-{
-  /* Do nothing for the sequence column, because it has dynamic width */
-  if (columnInfo->columnId == BLXCOL_SEQUENCE)
-    return;
-    
-  GKeyFile *key_file = blxGetConfig();
-  GError *error = NULL;
-
-  if (key_file && g_key_file_has_group(key_file, COLUMN_WIDTHS_GROUP) && g_key_file_has_key(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, &error))
-    {
-      if (!error)
-        {
-          const int newWidth = g_key_file_get_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, &error);
-          
-          if (error)
-            {
-              reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-            }
-          else if (newWidth > 0)
-            {
-              columnInfo->width = newWidth;
-              columnInfo->visible = TRUE;
-            }
-          else
-            {
-              columnInfo->visible = FALSE;
-            }
-        }
-    }
-}
-
-
-static void destroyColumnList(GList **columnList)
-{
-  GList *column = *columnList;
-  
-  for ( ; column; column = column->next)
-    {
-      g_free(column->data);
-    }
-    
-  g_list_free(*columnList);
-  *columnList = NULL;
-}
-
-
-/* Creates a detail-view column from the given info and adds it to the columnList. */
-static void createColumn(BlxColumnId columnId, 
-                         GtkWidget *specialWidget,
-                         GtkCallback callbackFn, 
-                         char *title,
-                         GType type,
-                         char *propertyName,
-                         const int defaultWidth,
-                         const gboolean dataLoaded,
-                         const gboolean visible,
-                         const gboolean searchable,
-                         char *sortName,
-                         GList **columnList,
-                         GtkWidget *detailView)
-{
-  /* Create a simple label for the header (unless already passed a special header widget) */
-  GtkWidget *headerWidget = specialWidget;
-  
-  if (headerWidget == NULL)
-    {
-      headerWidget = createLabel(title, 0.0, 1.0, TRUE, TRUE);
-      g_signal_connect(G_OBJECT(headerWidget), "expose-event", G_CALLBACK(onExposeGenericHeader), detailView);
-    }
-  
-  gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
-  
-  /* Create the column info */
-  BlxColumnInfo *columnInfo = g_malloc(sizeof(BlxColumnInfo));
-  
-  columnInfo->columnId = columnId;
-  columnInfo->headerWidget = headerWidget;
-  columnInfo->refreshFunc = callbackFn,
-  columnInfo->title = title;
-  columnInfo->propertyName = propertyName;
-  columnInfo->width = defaultWidth;
-  columnInfo->sortName = sortName;
-  columnInfo->dataLoaded = dataLoaded;
-  columnInfo->visible = visible;
-  columnInfo->searchable = searchable;
-  columnInfo->type = type;
-
-  getColumnConfig(columnInfo);
-  
-  /* Place it in the list. List must be sorted or gtk_list_store_set
-   * fails (not sure why) */
-  *columnList = g_list_insert_sorted(*columnList, columnInfo, columnCompareFunc);
-}
-
-
-/* This creates BlxColumnInfo entries for each column required in the detail view. It
- * returns a list of the columns created. */
-static GList* createColumns(GtkWidget *detailView, const BlxSeqType seqType, const int numFrames, const gboolean loaded)
-{
-  GList *columnList = NULL;
-  
-  /* The sequence column has a special header widget and callback when we're dealing 
-   * with peptide sequences. This returns NULL for DNA sequences, in which case createColumn
-   * will create a simple label header for us instead. */
-  GtkWidget *seqHeader = createSeqColHeader(detailView, seqType, numFrames);
-  GtkCallback seqCallback = (seqType == BLXSEQ_PEPTIDE) ? refreshTextHeader : NULL;
-  
-  /* Create the column headers and pack them into the column header bar */
-  createColumn(BLXCOL_SEQNAME,     NULL,     NULL,        "Name",       G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,   TRUE,  TRUE,   "Name",        &columnList, detailView);
-  createColumn(BLXCOL_SCORE,       NULL,     NULL,        "Score",      G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_SCORE_WIDTH,          TRUE,   TRUE,  FALSE,  "Score",       &columnList, detailView);
-  createColumn(BLXCOL_ID,          NULL,     NULL,        "%Id",        G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_ID_WIDTH,             TRUE,   TRUE,  FALSE,  "Identity",    &columnList, detailView);
-  createColumn(BLXCOL_START,       NULL,     NULL,        "Start",      G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,   TRUE,  FALSE,  "Position",    &columnList, detailView);
-  createColumn(BLXCOL_SEQUENCE,    seqHeader,seqCallback, "Sequence",   G_TYPE_POINTER,RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,   TRUE,  FALSE,  NULL,          &columnList, detailView);
-  createColumn(BLXCOL_END,         NULL,     NULL,        "End",        G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,   TRUE,  FALSE,  NULL,          &columnList, detailView);
-  createColumn(BLXCOL_SOURCE,      NULL,     NULL,        "Source",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,   TRUE,  TRUE,   "Source",      &columnList, detailView);
-  createColumn(BLXCOL_GROUP,       NULL,     NULL,        "Group",      G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GROUP_WIDTH,          TRUE,   FALSE, TRUE,   "Group",       &columnList, detailView);
-  createColumn(BLXCOL_ORGANISM,    NULL,     NULL,        "Organism",   G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       loaded, TRUE,  TRUE,   "Organism",    &columnList, detailView);
-  createColumn(BLXCOL_GENE_NAME,   NULL,     NULL,        "Gene Name",  G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      loaded, FALSE, TRUE,   "Gene name",   &columnList, detailView);
-  createColumn(BLXCOL_TISSUE_TYPE, NULL,     NULL,        "Tissue Type",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    loaded, FALSE, TRUE,   "Tissue type", &columnList, detailView);
-  createColumn(BLXCOL_STRAIN,      NULL,     NULL,        "Strain",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         loaded, FALSE, TRUE,   "Strain",      &columnList, detailView);
-
-  return columnList;
-}
-
-
 /* This loops through all the columns and adds each column's header widget to the header bar. */
 static void addColumnsToHeaderBar(GtkBox *headerBar, GList *columnList)
 {
@@ -4829,15 +4509,14 @@ GtkWidget* createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const Blx
 
 /* Create a custom header widget for the sequence column for protein matches (this is where
  * we will display the triplets that make up the codons.) Returns NULL for DNA matches. */
-static GtkWidget* createSeqColHeader(GtkWidget *detailView,
-                                     const BlxSeqType seqType,
-                                     const int numFrames)
+static void createSeqColHeader(GtkWidget *detailView,
+                               const BlxSeqType seqType,
+                               const int numFrames,
+                               GList *columnList)
 {
-  GtkWidget *header = NULL;
-  
   if (seqType == BLXSEQ_PEPTIDE)
     {
-      header = gtk_vbox_new(FALSE, 0);
+      GtkWidget *header = gtk_vbox_new(FALSE, 0);
       gtk_widget_set_name(header, HEADER_CONTAINER_NAME);
       
       int frame = 0;
@@ -4860,9 +4539,12 @@ static GtkWidget* createSeqColHeader(GtkWidget *detailView,
           g_signal_connect(G_OBJECT(line), "button-release-event", G_CALLBACK(onButtonReleaseSeqColHeader), detailView);
           g_signal_connect(G_OBJECT(line), "motion-notify-event", G_CALLBACK(onMouseMoveSeqColHeader), detailView);
         }
+
+      /* Set the header widget (and its refresh function) in the column data */
+      BlxColumnInfo* columnInfo = getColumnInfo(columnList, BLXCOL_SEQUENCE);
+      columnInfo->headerWidget = header;
+      columnInfo->refreshFunc = refreshTextHeader;
     }
-  
-  return header;
 }
 
 
@@ -5117,6 +4799,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
                             GtkWidget *fwdStrandGrid, 
                             GtkWidget *revStrandGrid,
                             MSP *mspList,
+                            GList *columnList,
                             BlxBlastMode mode,
                             BlxSeqType seqType,
                             int numFrames,
@@ -5137,8 +4820,9 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   GtkWidget *panedWin = gtk_vpaned_new();
   gtk_widget_set_name(panedWin, DETAIL_VIEW_WIDGET_NAME);
 
-  /* Create the columns */
-  GList *columnList = createColumns(detailView, seqType, numFrames, optionalDataLoaded);
+  /* Update the sequence column with a custom header type. (Must be done
+   * before calling createDetailViewHeader) */
+  createSeqColHeader(detailView, seqType, numFrames, columnList);
 
   /* Create the header bar. If viewing protein matches include one SNP track in the detail 
    * view header; otherwise create SNP tracks in each tree header. */
@@ -5190,7 +4874,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
                              adjustment, 
                              startCoord,
                              sortColumn);
-  
+
   return detailView;
 }
 

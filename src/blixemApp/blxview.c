@@ -65,6 +65,7 @@ MSP score codes (for obsolete exblx file format):
 #include <blixemApp/blxwindow.h>
 #include <blixemApp/detailview.h>
 #include <blixemApp/blxdotter.h>
+#include <blixemApp/sequencecellrenderer.h>
 #include <seqtoolsUtils/blxmsp.h>
 #include <seqtoolsUtils/blxparser.h>
 #include <seqtoolsUtils/utilities.h>
@@ -263,14 +264,7 @@ static void validateInput(CommandLineOptions *options)
         options->bigPictZoom = 30;
       else
         options->bigPictZoom = 10;
-    }
-  
-  /* For DNA matches, always get the full EMBL file, because it doesn't seem to be any slower
-   * (in fact, it seems to be quicker).  For protein matches, only get the full file if requested. */
-  if (options->seqType == BLXSEQ_DNA)
-    {
-      options->parseFullEmblInfo = TRUE;
-    }
+    }  
 }
 
 
@@ -347,7 +341,8 @@ void loadGffFile(const char *fileName,
                  GSList *supportedTypes, 
                  GSList *styles,
                  MSP **newMsps,
-                 GList **newSeqs)
+                 GList **newSeqs,
+                 GList *columnList)
 {
   if (!fileName)
     return;
@@ -365,7 +360,7 @@ void loadGffFile(const char *fileName,
   char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname2[FULLNAMESIZE+1] = "";
   
-  parseFS(newMsps, inputFile, blastMode, featureLists, newSeqs, supportedTypes, styles,
+  parseFS(newMsps, inputFile, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
           &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile) ;
   
   fclose(inputFile);
@@ -465,7 +460,7 @@ gboolean blxview(CommandLineOptions *options,
   findAssemblyGaps(options->refSeq, featureLists, &options->mspList, &options->refSeqRange);
   
   gboolean status = bulkFetchSequences(
-    0, External, options->saveTempFiles, options->seqType, &seqList, 
+    0, External, options->saveTempFiles, options->seqType, &seqList, options->columnList,
     options->bulkFetchDefault, options->fetchMethods, &options->mspList, &options->blastMode, 
     featureLists, supportedTypes, NULL, 0, &options->refSeqRange, 
     options->dataset, FALSE); /* offset has not been applied yet, so pass offset=0 */
@@ -475,7 +470,7 @@ gboolean blxview(CommandLineOptions *options,
       finaliseFetch(seqList);
 
       /* Construct missing data and do any other required processing now we have all the sequence data */
-      finaliseBlxSequences(featureLists, &options->mspList, &seqList, 
+      finaliseBlxSequences(featureLists, &options->mspList, &seqList, options->columnList, 
                            options->refSeqOffset, options->seqType, 
                            options->numFrames, &options->refSeqRange, TRUE, options->linkFeaturesByName);
 
@@ -1196,6 +1191,333 @@ void drawAssemblyGaps(GtkWidget *widget,
     }
   
 }
+
+
+/***********************************************************
+ *                      Columns
+ ***********************************************************/
+
+/* This checks if the column has any properties specified for it in the config
+ * file and, if so, overrides the default values in the given column with 
+ * the config file values. */
+static void getColumnConfig(BlxColumnInfo *columnInfo)
+{
+  /* Do nothing for the sequence column, because it has dynamic width */
+  if (columnInfo->columnId == BLXCOL_SEQUENCE)
+    return;
+    
+  GKeyFile *key_file = blxGetConfig();
+  GError *error = NULL;
+
+  if (key_file && g_key_file_has_group(key_file, COLUMN_WIDTHS_GROUP) && g_key_file_has_key(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, &error))
+    {
+      if (!error)
+        {
+          const int newWidth = g_key_file_get_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, &error);
+          
+          if (error)
+            {
+              reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+            }
+          else if (newWidth > 0)
+            {
+              columnInfo->width = newWidth;
+              columnInfo->visible = TRUE;
+            }
+          else
+            {
+              columnInfo->visible = FALSE;
+            }
+        }
+    }
+}
+
+
+/* Comparison function for two BlxColumnInfo structs
+ * Returns : negative value if column a appears before column b;
+ *           zero if the columns are at the same position (i.e. same column);
+ *           positive if column a appears after column b.  */
+static gint columnCompareFunc(gconstpointer a, gconstpointer b)
+{
+  BlxColumnInfo *col1 = (BlxColumnInfo*)a;
+  BlxColumnInfo *col2 = (BlxColumnInfo*)b;
+
+  return col1->columnIdx - col2->columnIdx;
+
+//  gint result = 0;
+//  
+//  /* The column ID gives us the position for the standard 
+//   * columns (up to BLXCOL_END). 
+//   * Other columns have an ID greater than BLXCOL_END but will be placed
+//   * after the score column. */
+//  const int pos1 = col1->columnId;
+//  const int pos2 = col2->columnId;
+//
+//  if (pos1 != pos2)
+//    {
+//      if (pos1 <= BLXCOL_END && pos2 <= BLXCOL_END)
+//        {
+//          /* Both are standard columns; do a direct comparison */
+//          result = pos1 - pos2;
+//        }
+//      else if (pos1 > BLXCOL_END && pos2 > BLXCOL_END)
+//        {
+//          /* Both are optional columns; do a direct comparison */
+//          result = pos1 - pos2;
+//        }
+//      else if (pos1 > BLXCOL_END)
+//        {
+//          /* column 1 is an optional column so appears after the source column */
+//          if (pos2 > BLXCOL_SOURCE)
+//            result = -1;
+//          else
+//            result = 1;
+//        }
+//      else
+//        {
+//          /* column 2 is an optional column so appears after the source column */
+//          if (pos1 <= BLXCOL_SOURCE)
+//            result = -1;
+//          else
+//            result = 1;
+//        }
+//    }
+//  
+//  return result;
+}
+
+
+//static void destroyColumnList(GList **columnList)
+//{
+//  GList *column = *columnList;
+//  
+//  for ( ; column; column = column->next)
+//    {
+//      g_free(column->data);
+//    }
+//    
+//  g_list_free(*columnList);
+//  *columnList = NULL;
+//}
+
+
+/* Creates a detail-view column from the given info and adds it to the columnList. */
+static void createColumn(BlxColumnId columnId, 
+                         const gboolean createHeader,
+                         char *title,
+                         GType type,
+                         char *propertyName,
+                         const int defaultWidth,
+                         const gboolean dataLoaded,
+                         const gboolean visible,
+                         const gboolean searchable,
+                         char *sortName,
+                         GList **columnList)
+{
+  /* Create a simple label for the header (unless told not to) */
+  GtkWidget *headerWidget = NULL;
+  
+  if (createHeader)
+    {
+      headerWidget = createLabel(title, 0.0, 1.0, TRUE, TRUE);
+      gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
+    }
+  
+  /* Create the column info */
+  BlxColumnInfo *columnInfo = g_malloc(sizeof(BlxColumnInfo));
+
+  static int columnIdx = 0;  
+  columnInfo->columnIdx = columnIdx;
+  ++columnIdx;
+
+  columnInfo->columnId = columnId;
+  columnInfo->headerWidget = headerWidget;
+  columnInfo->refreshFunc = NULL;
+  columnInfo->title = title;
+  columnInfo->propertyName = propertyName;
+  columnInfo->width = defaultWidth;
+  columnInfo->sortName = sortName;
+  columnInfo->dataLoaded = dataLoaded;
+  columnInfo->visible = visible;
+  columnInfo->searchable = searchable;
+  columnInfo->type = type;
+
+  getColumnConfig(columnInfo);
+  
+  /* Place it in the list. List must be sorted or gtk_list_store_set
+   * fails (not sure why) */
+  *columnList = g_list_insert_sorted(*columnList, columnInfo, columnCompareFunc);
+  //*columnList = g_list_append(*columnList, columnInfo);
+}
+
+
+/* This creates BlxColumnInfo entries for each column required in the detail view. It
+ * returns a list of the columns created. */
+GList* createColumns(const BlxSeqType seqType, const gboolean loaded, const gboolean customSeqHeader)
+{
+  GList *columnList = NULL;
+  
+  /* Create the column headers and pack them into the column header bar */
+  createColumn(BLXCOL_SEQNAME,     TRUE,             "Name",       G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,   TRUE,  TRUE,   "Name",        &columnList);
+  createColumn(BLXCOL_SOURCE,      TRUE,             "Source",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,   TRUE,  TRUE,   "Source",      &columnList);
+
+  createColumn(BLXCOL_ORGANISM,    TRUE,             "Organism",   G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       loaded, TRUE,  TRUE,   "Organism",    &columnList);
+  createColumn(BLXCOL_GENE_NAME,   TRUE,             "Gene Name",  G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      loaded, FALSE, TRUE,   "Gene name",   &columnList);
+  createColumn(BLXCOL_TISSUE_TYPE, TRUE,             "Tissue Type",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    loaded, FALSE, TRUE,   "Tissue type", &columnList);
+  createColumn(BLXCOL_STRAIN,      TRUE,             "Strain",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         loaded, FALSE, TRUE,   "Strain",      &columnList);
+
+  createColumn(BLXCOL_GROUP,       TRUE,             "Group",      G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GROUP_WIDTH,          TRUE,   FALSE, TRUE,   "Group",       &columnList);
+  createColumn(BLXCOL_SCORE,       TRUE,             "Score",      G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_SCORE_WIDTH,          TRUE,   TRUE,  FALSE,  "Score",       &columnList);
+  createColumn(BLXCOL_ID,          TRUE,             "%Id",        G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_ID_WIDTH,             TRUE,   TRUE,  FALSE,  "Identity",    &columnList);
+  createColumn(BLXCOL_START,       TRUE,             "Start",      G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,   TRUE,  FALSE,  "Position",    &columnList);
+  createColumn(BLXCOL_SEQUENCE,    !customSeqHeader, "Sequence",   G_TYPE_POINTER,RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,   TRUE,  FALSE,  NULL,          &columnList);
+  createColumn(BLXCOL_END,         TRUE,             "End",        G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,   TRUE,  FALSE,  NULL,          &columnList);
+
+  return columnList;
+}
+
+
+/* Return the width of the column with the given column id */
+int getColumnWidth(GList *columnList, const BlxColumnId columnId)
+{
+  int result = 0;
+
+  BlxColumnInfo *columnInfo = getColumnInfo(columnList, columnId);
+
+  if (columnInfo)
+    {
+      result = columnInfo->width;
+    }
+  
+  return result;
+}
+
+
+/* Return the width of the column with the given column id */
+const char* getColumnTitle(GList *columnList, const BlxColumnId columnId)
+{
+  const char *result = NULL;
+  
+  BlxColumnInfo *columnInfo = getColumnInfo(columnList, columnId);
+
+  if (columnInfo)
+    {
+      result = columnInfo->title;
+    }
+  
+  return result;
+}
+
+
+/* Gets the x coords at the start/end of the given column and populate them into the range
+ * return argument. */
+void getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *xRange)
+{
+  xRange->min = 0;
+  xRange->max = 0;
+  
+  /* Loop through all visible columns up to the given column, summing their widths. */
+  GList *columnItem = columnList;
+  
+  for ( ; columnItem; columnItem = columnItem->next)
+    {
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(columnItem->data);
+      
+      if (columnInfo->columnId != columnId)
+        {
+          if (showColumn(columnInfo))
+            xRange->min += columnInfo->width;
+        }
+      else
+        {
+          /* We've got to the required column. Calculate the x coord at the end
+           * of this column and then break. */
+          if (showColumn(columnInfo))
+            xRange->max = xRange->min + columnInfo->width;
+          else
+            xRange->max = xRange->min; /* return zero-width if column is not visible */
+          
+          break;
+        }
+    }
+}
+
+
+/* Returns true if the given column should be visible */
+gboolean showColumn(BlxColumnInfo *columnInfo)
+{
+  return (columnInfo->visible && columnInfo->dataLoaded && columnInfo->width > 0);
+}
+
+
+/* Save the column widths to the given config file. */
+void saveColumnWidths(GList *columnList, GKeyFile *key_file)
+{
+  /* Loop through each column */
+  GList *listItem = columnList;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
+
+      if (columnInfo && columnInfo->columnId != BLXCOL_SEQUENCE)
+        {
+          /* If column is not visible, set width to zero to indicate that it should be hidden */
+          if (columnInfo->visible)
+            g_key_file_set_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, columnInfo->width);
+          else
+            g_key_file_set_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, 0);
+        }
+    }
+}
+
+
+
+/* Reset column widths to default values */
+void resetColumnWidths(GList *columnList)
+{
+  /* Quick and dirty: just set the width and visibility manually. This should be
+   * done differently so we can just loop through and find the correct values somehow;
+   * currently we run the risk of getting out of sync with the initial values set in
+   * createColumns */
+  getColumnInfo(columnList, BLXCOL_SEQNAME)->width = BLXCOL_SEQNAME_WIDTH;
+  getColumnInfo(columnList, BLXCOL_SEQNAME)->visible = TRUE;
+
+  getColumnInfo(columnList, BLXCOL_SCORE)->width = BLXCOL_SCORE_WIDTH;
+  getColumnInfo(columnList, BLXCOL_SCORE)->visible = TRUE;
+
+  getColumnInfo(columnList, BLXCOL_ID)->width = BLXCOL_ID_WIDTH;
+  getColumnInfo(columnList, BLXCOL_ID)->visible = TRUE;
+
+  getColumnInfo(columnList, BLXCOL_START)->width = BLXCOL_START_WIDTH;
+  getColumnInfo(columnList, BLXCOL_START)->visible = TRUE;
+
+  getColumnInfo(columnList, BLXCOL_SEQUENCE)->width = BLXCOL_SEQUENCE_WIDTH;
+  getColumnInfo(columnList, BLXCOL_SEQUENCE)->visible = TRUE;
+
+  getColumnInfo(columnList, BLXCOL_END)->width = BLXCOL_END_WIDTH;
+  getColumnInfo(columnList, BLXCOL_END)->visible = TRUE;
+
+  getColumnInfo(columnList, BLXCOL_SOURCE)->width = BLXCOL_SOURCE_WIDTH;
+  getColumnInfo(columnList, BLXCOL_SOURCE)->visible = TRUE;
+
+  getColumnInfo(columnList, BLXCOL_GROUP)->width = BLXCOL_GROUP_WIDTH;
+  getColumnInfo(columnList, BLXCOL_GROUP)->visible = FALSE;
+
+  getColumnInfo(columnList, BLXCOL_ORGANISM)->width = BLXCOL_ORGANISM_WIDTH;
+  getColumnInfo(columnList, BLXCOL_ORGANISM)->visible = TRUE;
+
+  getColumnInfo(columnList, BLXCOL_GENE_NAME)->width = BLXCOL_GENE_NAME_WIDTH;
+  getColumnInfo(columnList, BLXCOL_GENE_NAME)->visible = FALSE;
+
+  getColumnInfo(columnList, BLXCOL_TISSUE_TYPE)->width = BLXCOL_TISSUE_TYPE_WIDTH;
+  getColumnInfo(columnList, BLXCOL_TISSUE_TYPE)->visible = FALSE;
+
+  getColumnInfo(columnList, BLXCOL_STRAIN)->width = BLXCOL_STRAIN_WIDTH;
+  getColumnInfo(columnList, BLXCOL_STRAIN)->visible = FALSE;
+
+}
+
 
 
 /***************** end of file ***********************/

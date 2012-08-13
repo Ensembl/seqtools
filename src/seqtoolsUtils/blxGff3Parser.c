@@ -419,6 +419,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			       MSP **lastMsp, 
 			       MSP **mspList, 
 			       GList **seqList, 
+                               GList *columnList,
 			       GSList *styles,
                                const int resFactor,
                                GKeyFile *keyFile,
@@ -447,7 +448,7 @@ static void createBlixemObject(BlxGffData *gffData,
         {
           /* For transcripts, although we don't create an MSP we do create a sequence */
           addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand,
-                         dataType, gffData->source, seqList, gffData->sequence, NULL, 
+                         dataType, gffData->source, seqList, columnList, gffData->sequence, NULL, 
                          linkFeaturesByName, &tmpError);
         }
     }
@@ -484,6 +485,7 @@ static void createBlixemObject(BlxGffData *gffData,
                               lastMsp, 
 			      mspList, 
 			      seqList, 
+                              columnList,
 			      gffData->mspType,
                               dataType,
 			      gffData->source,
@@ -540,6 +542,7 @@ void parseGff3Body(const int lineNum,
 		   BlxParserState *parserState, 
 		   GString *line_string, 
 		   GList **seqList,
+                   GList *columnList,
                    GSList *supportedTypes,
                    GSList *styles,
                    const int resFactor, 
@@ -558,7 +561,7 @@ void parseGff3Body(const int lineNum,
   /* Create a blixem object based on the parsed data */
   if (!error)
     {
-      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, styles, resFactor, keyFile, &error);
+      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, columnList, styles, resFactor, keyFile, &error);
     }
   
   if (error)

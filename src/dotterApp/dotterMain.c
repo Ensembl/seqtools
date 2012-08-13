@@ -796,10 +796,11 @@ int main(int argc, char **argv)
         }
       
       GSList *supportedTypes = blxCreateSupportedGffTypeList();
+      GList *columnList = NULL;
 
-      parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL);
+      parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, columnList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL);
       
-      finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE, LINK_FEATURES_DEFAULT);
+      finaliseBlxSequences(featureLists, &MSPlist, &seqList, columnList, 0, BLXSEQ_INVALID, -1, NULL, FALSE, LINK_FEATURES_DEFAULT);
       
       blxDestroyGffTypeList(&supportedTypes);
     }

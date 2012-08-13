@@ -1363,53 +1363,6 @@ char getStrandAsChar(const BlxStrand strand)
 }
 
 
-/* Extract the short version of a sequence name. If the original is of the format
- * "Em:AB12345.1", this cuts off the bit before the ":" and the bit after the "."
- * The result is a new string that must be free'd with g_free. */
-char* getSeqShortName(const char *longName)
-{
-  char *result = NULL;
-
-  const int len = strlen(longName);
-
-  if (len > 0)
-    {
-      result = g_malloc(sizeof(char) * len);
-      
-      /* This bool will be set to true when we have passed the ":". It means that we are
-       * ready to start copying chars into the result. If there is no ":", set it to true
-       * right at the beginning. */
-      char *cutPoint = strchr(longName, ':');
-      gboolean start = (cutPoint == NULL);
-      
-      int srcIdx = 0;
-      int destIdx = 0;
-      
-      /* Copy contents after the : (or from beginning if : doesn't exist), and up to the . (if exists) */
-      for ( ; srcIdx < len; ++srcIdx)
-        {
-          if (start)
-            {
-              result[destIdx] = longName[srcIdx];
-              ++destIdx;
-            }
-          else if (longName[srcIdx] == ':')
-            {
-              start = TRUE;
-            }
-          else if (longName[srcIdx] == '.')
-            {
-              break;
-            }
-        }
-
-      result[destIdx] = '\0';
-    }
-      
-  return result;
-}
-
-
 /* Round to nearest int (needed because there is no  round() function in ISO C90) */
 int roundNearest(const double val)
 {

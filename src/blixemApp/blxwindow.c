@@ -548,17 +548,17 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   MSP *newMsps = NULL;
   GList *newSeqs = NULL;
 
-  loadGffFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs);
+  loadGffFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList);
 
   /* Fetch any missing sequence data and finalise the new sequences */
-  bulkFetchSequences(0, FALSE, FALSE, bc->seqType, &newSeqs, 
+  bulkFetchSequences(0, FALSE, FALSE, bc->seqType, &newSeqs, bc->columnList,
                      bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
                      bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
                      &bc->refSeqRange, bc->dataset, FALSE);
 
   finaliseFetch(newSeqs);
 
-  finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->refSeqOffset, bc->seqType, 
+  finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->columnList, bc->refSeqOffset, bc->seqType, 
                        bc->numFrames, &bc->refSeqRange, TRUE, bc->flags[BLXFLAG_LINK_FEATURES]);
 
   /* Add the msps/sequences to the tree data models (must be done after finalise because
@@ -952,8 +952,8 @@ static GList* findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, co
   
   if (g_list_length(searchData.matchList) < 1)
     {
-      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-      const char *columnName = detailViewGetColumnTitle(detailView, searchCol);
+      GList *columnList = blxWindowGetColumnList(blxWindow);
+      const char *columnName = getColumnTitle(columnList, searchCol);
 
       if (searchData.error)
         g_propagate_error(error, searchData.error);
@@ -1034,8 +1034,8 @@ static GList* findSeqsFromList(GtkWidget *blxWindow,
 
   if (g_list_length(seqList) < 1)
     {
-      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-      const char *columnName = detailViewGetColumnTitle(detailView, searchCol);
+      GList *columnList = blxWindowGetColumnList(blxWindow);
+      const char *columnName = getColumnTitle(columnList, searchCol);
       
       if (tmpError)
         g_propagate_error(error, tmpError);
@@ -1375,8 +1375,9 @@ static void createSearchColumnCombo(GtkTable *table, const int col, const int ro
   
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  
-  createSortBox(GTK_BOX(hbox), detailView, BLXCOL_SEQNAME, dvProperties->columnList, "Search column: ", TRUE);  
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+
+  createSortBox(GTK_BOX(hbox), detailView, BLXCOL_SEQNAME, columnList, "Search column: ", TRUE);  
 }
 
 
@@ -1928,35 +1929,20 @@ static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
 
   if (searchData->searchCol == BLXCOL_SEQNAME)
     {
-      /* Sequence names have a variant number postfix; try to match the text
-       * both with or without this postfix. */
-      if (!found)
+      /* Sequence names have a variant number postfix; if not found, try
+       * to match the text without this postfix. */
+      if (!found && dataToCompare)
         {
-          /* Try the full sequence name e.g. AB123456.1 */
-          dataToCompare = blxSequenceGetFullName(seq);
+          char *seqName = g_strdup(dataToCompare);
+          char *cutPoint = strchr(seqName, '.');
           
-          if (dataToCompare)
-            found = wildcardSearch(dataToCompare, searchData->searchStr);
-        }
-  
-      if (!found)
-        {
-          /* Try without the postfix. e.g. AB123456 */
-          dataToCompare = blxSequenceGetShortName(seq);
-          
-          if (dataToCompare)
+          if (cutPoint)
             {
-              char *seqName = g_strdup(dataToCompare);
-              char *cutPoint = strchr(seqName, '.');
-              
-              if (cutPoint)
-                {
-                  *cutPoint = '\0';
-                  found = wildcardSearch(seqName, searchData->searchStr);
-                }
-              
-              g_free(seqName);
+              *cutPoint = '\0';
+              found = wildcardSearch(seqName, searchData->searchStr);
             }
+          
+          g_free(seqName);
         }
     }
   
@@ -2696,7 +2682,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   GError *error = NULL;
   gboolean success = bulkFetchSequences(
     0, bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
-    bc->seqType, &bc->matchSeqs, bc->bulkFetchDefault, bc->fetchMethods, &bc->mspList,
+    bc->seqType, &bc->matchSeqs, bc->columnList, bc->bulkFetchDefault, bc->fetchMethods, &bc->mspList,
     &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
     &bc->refSeqRange, bc->dataset, TRUE);
   
@@ -3377,7 +3363,7 @@ static void resetSettings(GtkWidget *blxWindow)
   
   if (responseId == GTK_RESPONSE_ACCEPT)
     {
-      detailViewResetColumnWidths(blxWindowGetDetailView(blxWindow));
+      resetColumnWidths(blxWindowGetColumnList(blxWindow));
       showSettingsDialog(blxWindow, FALSE);
     }
 }
@@ -3579,14 +3565,15 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
 {
   GtkWidget *detailView = GTK_WIDGET(data);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+
   if (GTK_WIDGET_REALIZED(detailView) && GTK_IS_CONTAINER(widget))
     {
       /* Loop through each child of the given widget (assumes that each child is or
        * contains one combo box) */
       GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
       GList *childItem = children;
-      const int numColumns = g_list_length(dvProperties->columnList);
+      const int numColumns = g_list_length(columnList);
       int priority = 0;
       
       for ( ; childItem; childItem = childItem->next, ++priority)
@@ -3702,9 +3689,10 @@ static void onAddNewSortByBox(GtkButton *button, gpointer data)
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
 
   /* Add another sort-by box to the container */
-  createSortBox(box, detailView, BLXCOL_NONE, dvProperties->columnList, "then by", FALSE);
+  createSortBox(box, detailView, BLXCOL_NONE, columnList, "then by", FALSE);
   
   gtk_widget_show_all(GTK_WIDGET(box));
 }
@@ -3749,7 +3737,8 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  const int numColumns = g_list_length(dvProperties->columnList);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  const int numColumns = g_list_length(columnList);
 
   /* Add a drop-down for each sort column that is currently specified (or just
    * the default number if none specified). */
@@ -3765,9 +3754,9 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       if (columnId != BLXCOL_NONE || sortPriority < minBoxes)
         {
           if (sortPriority == 0)
-            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "Sort by", FALSE);
+            createSortBox(GTK_BOX(vbox), detailView, columnId, columnList, "Sort by", FALSE);
           else
-            createSortBox(GTK_BOX(vbox), detailView, columnId, dvProperties->columnList, "then by", FALSE);
+            createSortBox(GTK_BOX(vbox), detailView, columnId, columnList, "then by", FALSE);
         }
       else
         {
@@ -4621,6 +4610,11 @@ BlxViewContext* blxWindowGetContext(GtkWidget *blxWindow)
   return properties ? properties->blxContext : NULL;
 }
 
+GList* blxWindowGetColumnList(GtkWidget *blxWindow)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  return (bc ? bc->columnList : NULL);
+}
 
 /* Kill all processes spawned from blixem */
 static void killAllSpawned(BlxViewContext *bc)
@@ -5068,6 +5062,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->loadOptionalData = options->parseFullEmblInfo;
 
   blxContext->mspList = options->mspList;
+  blxContext->columnList = options->columnList;
   
   int typeId = 0;
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
@@ -5302,6 +5297,25 @@ gboolean blxWindowGetNegateCoords(GtkWidget *blxWindow)
   return (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS]);
 }
 
+/* Get the column info for a particular column */
+BlxColumnInfo *getColumnInfo(GList *columnList, const BlxColumnId columnId)
+{
+  BlxColumnInfo *result = NULL;
+  
+  GList *listItem = columnList;
+  
+  for ( ; listItem; listItem = listItem->next)
+  {
+    BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
+    if (columnInfo && columnInfo->columnId == columnId)
+      {
+        result = columnInfo;
+        break;
+      }
+  }
+  
+  return result;
+}
 
 /* Returns the list of all sequence groups */
 GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
@@ -5309,7 +5323,6 @@ GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext->sequenceGroups;
 }
-
 
 /* Returns the group that the given sequence belongs to, if any (assumes the sequence
  * is only in one group; otherwise it just returns the first group it finds). */
@@ -5998,6 +6011,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 					   fwdStrandGrid, 
 					   revStrandGrid,
 					   options->mspList,
+                                           options->columnList,
 					   options->blastMode,
 					   options->seqType,
 					   options->numFrames,

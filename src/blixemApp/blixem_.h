@@ -65,6 +65,26 @@ UT_COMPILE_PHRASE " " UT_MAKE_COMPILE_DATE() ")\n\n"            \
 AUTHOR_TEXT "\n"
 
 
+
+
+#define COLUMN_WIDTHS_GROUP             "column-widths"  /* group name in the config file */
+
+/* Define the columns' default widths and titles. */
+#define BLXCOL_SEQNAME_WIDTH            120   /* default width for the name column */
+#define BLXCOL_SCORE_WIDTH              40    /* default width for the score column */
+#define BLXCOL_ID_WIDTH                 45    /* default width for the ID column */
+#define BLXCOL_SOURCE_WIDTH             85    /* default width for source column  */
+#define BLXCOL_GROUP_WIDTH              58    /* default width for group column  */
+#define BLXCOL_START_WIDTH              50    /* default width for the start coord column */
+#define BLXCOL_END_WIDTH                80    /* default width for end coord column (bigger because it also spans the scrollbar) */
+#define BLXCOL_SEQUENCE_WIDTH           40    /* default width for sequence column */
+#define BLXCOL_ORGANISM_WIDTH           28    /* default width for organism column */
+#define BLXCOL_GENE_NAME_WIDTH          58    /* default width for gene-name column  */
+#define BLXCOL_STRAIN_WIDTH             85    /* default width for strain column  */
+#define BLXCOL_TISSUE_TYPE_WIDTH        100   /* default width for tissue-type column  */
+
+
+
 /* 
  * config file groups/keywords, these should not be changed willy nilly as they
  * are used external programs and users when constructing config files.
@@ -354,37 +374,6 @@ typedef enum
   } BlxOptsIdx ;
 
 
-
-/* COLUMNS: To add a new column you must do the following:
- *    - add an identifier for the column to the BlxColumnId enum;
- *    - specify the data source in addSequenceStructToRow and addMspToRow; and
- *    - create the column in createColumns(...)
- * and optionally:
- *    - add a custom data function in createTreeColumn;
- *    - add a custom header widget and/or header refresh function in createTreeColHeader;
- *    - specify sort behaviour in sortColumnCompareFunc. */
-
-/* This enum declares identifiers for each column in the detail-view trees */
-typedef enum
-  {
-    BLXCOL_SEQNAME,             /* The match sequence's name */
-    BLXCOL_SOURCE,              /* The match's source */
-    BLXCOL_ORGANISM,            
-    BLXCOL_GENE_NAME,            
-    BLXCOL_TISSUE_TYPE,            
-    BLXCOL_STRAIN,            
-    BLXCOL_GROUP,               /* The group that this alignment belongs to */
-    BLXCOL_SCORE,               /* The alignment's score */
-    BLXCOL_ID,                  /* The alignment's %ID */
-    BLXCOL_START,               /* The start coord of the alignment on the match sequence */
-    BLXCOL_SEQUENCE,            /* This column will display the part of the alignment currently in the display range. */
-    BLXCOL_END,                 /* The end coord of the alignment on the match sequence */
-    
-    BLXCOL_NUM_COLUMNS,         /* The number of columns; must always appear AFTER all valid tree column IDs */
-    BLXCOL_NONE                 /* Used for sorting to indicate that no sorting is required; not a valid column ID in the trees, so appears after NUM_COLUMNS */
-  } BlxColumnId;
-
-
 /* This enum contains IDs for all the persistent dialogs in the application, and should be used
  * to access a stored dialog in the dialogList array in the BlxViewContext. Note that the dialogList
  * array will contain null entries until the dialogs are created for the first time */
@@ -415,6 +404,7 @@ typedef struct _CommandLineOptions
   int startCoord;                 /* which coord to start the initial display range at */
   gboolean startCoordSet;         /* true if the start coord has been specified on the command line */
   MSP *mspList;                   /* the list of alignments */
+  GList *columnList;              /* the list of display columns */
   char **geneticCode;             /* the genetic code */
   
   BlxStrand activeStrand;         /* which strand will initially be the active one */
@@ -497,6 +487,8 @@ typedef struct _BlxViewContext
     
     GArray *defaultColors;                  /* Default colors used by Blixem */
     gboolean usePrintColors;                /* Whether to use print colors (i.e. black and white) */
+
+    GList *columnList;                      /* A list of details about all the columns in the detail view (might have been better to use an array here but it's a short list so not important) */
     
     gboolean flags[BLXFLAG_NUM_FLAGS];              /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
     GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
@@ -529,6 +521,14 @@ gboolean                            blxview(CommandLineOptions *options,
                                             char *align_types, 
                                             gboolean External) ;
 
+BlxColumnInfo*                     getColumnInfo(GList *columnList, const BlxColumnId columnId);
+int                                getColumnWidth(GList *columnList, const BlxColumnId columnId);
+const char*                        getColumnTitle(GList *columnList, const BlxColumnId columnId);
+void                               getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *xRange);
+void                               saveColumnWidths(GList *columnList, GKeyFile *key_file);
+gboolean                           showColumn(BlxColumnInfo *columnInfo);
+void                               resetColumnWidths(GList *columnList);
+
 void                               blviewRedraw(void);
 GtkWidget*                         getBlixemWindow(void);
 const IntRange*                    mspGetFullSRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
@@ -552,6 +552,8 @@ void                               drawAssemblyGaps(GtkWidget *widget,
                                                     const IntRange const *dnaRange,
                                                     const GArray *mspArray);
 
+GList*                             createColumns(const BlxSeqType seqType, const gboolean loaded, const gboolean customSeqHeader);
+
 /* dotter.c */
 //void                               selectFeatures(void);
 
@@ -574,7 +576,7 @@ gboolean                           populateFullDataPfetch(GList *seqsToFetch, Bl
 void                               blxInitConfig(const char *config_file, CommandLineOptions *options, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 
-void                               loadGffFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs);
+void                               loadGffFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GList *columnList);
 void                               appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
 
 /* Create/destroy sequences and MSPs */
@@ -590,6 +592,7 @@ gboolean                           bulkFetchSequences(const int attempt,
                                                       const gboolean saveTempFiles,
                                                       const BlxSeqType seqType,
                                                       GList **seqList, /* list of BlxSequence structs for all required sequences */
+                                                      GList *columnList,
                                                       const GArray *defaultFetchMethods,
                                                       GHashTable *fetchMethods,
                                                       MSP **mspList,

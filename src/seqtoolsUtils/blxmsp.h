@@ -149,6 +149,59 @@ typedef struct _BlxDataType
   } BlxDataType;
 
 
+/* COLUMNS: To add a new column you must do the following:
+ *    - add an identifier for the column to the BlxColumnId enum;
+ *    - create the column in createColumns(...)
+ * and optionally:
+ *    - add a custom data function in createTreeColumn;
+ *    - add a custom header widget and/or header refresh function in createTreeColHeader;
+ *    - specify sort behaviour in sortColumnCompareFunc. */
+
+/* This enum declares identifiers for each column in the detail-view trees */
+typedef enum
+  {
+    BLXCOL_NONE=-1,             /* Used for sorting to indicate that no sorting is required; negative value => not a valid column ID in the trees */
+
+    BLXCOL_SEQNAME=0,           /* The match sequence's name */
+    BLXCOL_SOURCE,              /* The match sequence's source */
+
+    BLXCOL_GROUP,               /* The group that this alignment belongs to */
+    BLXCOL_SCORE,               /* The alignment's score */
+    BLXCOL_ID,                  /* The alignment's %ID */
+    BLXCOL_START,               /* The start coord of the alignment on the match sequence */
+    BLXCOL_SEQUENCE,            /* This column will display the part of the alignment currently in the display range. */
+    BLXCOL_END,                 /* The end coord of the alignment on the match sequence */
+
+    /* The following columns are optional */
+    BLXCOL_ORGANISM,
+    BLXCOL_GENE_NAME,
+    BLXCOL_TISSUE_TYPE,
+    BLXCOL_STRAIN,
+    
+  } BlxColumnId;
+
+
+/* This struct describes a column in the detail view. Multiple widgets (i.e. headers
+ * and tree columns) in the detail view must all have columns that share the same
+ * properties (namely the column width). */
+typedef struct _BlxColumnInfo
+  {
+    BlxColumnId columnId;       /* the column identifier */
+    int columnIdx;              /* 0-based index of columns in display order */
+    GType type;                 /* the type of data, e.g. G_TYPE_STRING */
+    GtkWidget *headerWidget;    /* the header widget for this column (in the detail-view header) */
+    GtkCallback refreshFunc;    /* the function that will be called on the header widget when columns are refreshed */
+    char *title;                /* the default column title */
+    char *propertyName;         /* the property name (used to set the data for the SequenceCellRenderer) */
+    char *sortName;             /* the name to display in the sort-by drop-down box (NULL if the view is not sortable on this column) */
+    
+    int width;                  /* the column width */
+    gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
+    gboolean visible;           /* whether the column should be shown */
+    gboolean searchable;        /* whether searching sequences by data in this column is supported */
+  } BlxColumnInfo;
+
+
 /* Structure that contains information about a sequence */
 typedef struct _BlxSequence
 {
@@ -156,10 +209,13 @@ typedef struct _BlxSequence
   BlxDataType *dataType;           /* Optional data type that specifies additional properties for this type of sequence data */
 
   char *idTag;                     /* Unique identifier e.g. from ID tag in GFF files */
+
+  GValue* values;                  /* Array of values for the columns */
+
+
   char *source;                    /* Optional source text for the sequence */
 
   GQuark fullName;                 /* full name of the sequence, including variant postfix, e.g. AV274505.2 */
-  char *shortName;                 /* short name of the sequence, excluding variant, e.g. AV274505 */
   
   GString *organism;               /* organism from the EMBL data OS line */
   GString *geneName;               /* gene name from the EMBL data GN line */
@@ -326,7 +382,7 @@ void                  destroyMspList(MSP **mspList);
 void                  destroyBlxSequenceList(GList **seqList);
 void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
-MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
+MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GList *columnList, const BlxMspType mspType, 
                                    BlxDataType *dataType, const char *source, const gdouble score, const gdouble percentId, const int phase,
                                    const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
@@ -335,7 +391,7 @@ MSP*                  copyMsp(const MSP const *src, GArray* featureLists[], MSP 
 
 //void                  insertFS(MSP *msp, char *series);
 
-void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame, const gboolean linkFeatures);
+void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, GList *columnList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame, const gboolean linkFeatures);
 int                   findMspListSExtent(GList *mspList, const gboolean findMin);
 int                   findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand);
 
@@ -345,18 +401,16 @@ gint                  fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpoint
 
 /* BlxSequence */
 char*                 blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq);
-BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error);
 BlxDataType*          createBlxDataType();
 void                  destroyBlxDataType(BlxDataType **blxDataType);
 const char*           getDataTypeName(BlxDataType *blxDataType);
+BlxSequence*          createEmptyBlxSequence();
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, char *sequence, MSP *msp, const gboolean linkFeaturesByName, GError **error);
-void                  blxSequenceSetName(BlxSequence *seq, const char *fullName);
+BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, GList *columnList, char *sequence, MSP *msp, const gboolean linkFeaturesByName, GError **error);
 void                  blxSequenceSetColumnValue(BlxSequence *seq, const char *colName, const char *value);
 const char*           blxSequenceGetFullName(const BlxSequence *seq);
 const char*           blxSequenceGetDisplayName(const BlxSequence *seq);
 GQuark                blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk, const int index, const GArray *defaultMethods);
-const char*           blxSequenceGetShortName(const BlxSequence *seq);
 int                   blxSequenceGetLength(const BlxSequence *seq);
 char*                 blxSequenceGetSeq(const BlxSequence *seq);
 gboolean              blxSequenceRequiresSeqData(const BlxSequence *seq);
@@ -367,6 +421,9 @@ int                   blxSequenceGetStart(const BlxSequence *seq, const BlxStran
 int                   blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand);
 const char*           blxSequenceGetSource(const BlxSequence *seq);
 gboolean              blxSequenceGetLinkFeatures(const BlxSequence *seq, const gboolean defaultLinkFeatures);
+
+GValue*               blxSequenceGetValue(const BlxSequence *seq, const int columnIdx);
+
 char*                 blxSequenceGetOrganism(const BlxSequence *seq);
 char*                 blxSequenceGetGeneName(const BlxSequence *seq);
 char*                 blxSequenceGetTissueType(const BlxSequence *seq);

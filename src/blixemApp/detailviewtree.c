@@ -254,49 +254,46 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
         }
     }
 
+  /* Now add a row to the tree store, if there is anything to add */
   if (g_list_length(mspsToAdd) > 0)
     {
-      /* Add a row to the tree store */
+      GtkWidget *detailView = treeGetDetailView(tree);
+      GList *columnList = detailViewGetColumnList(detailView);
+
       GtkTreeIter iter;
       gtk_list_store_append(store, &iter);
+
+      /* If there is only one msp, then we can add specific info about that MSP */
+      MSP *msp = (g_list_length(mspsToAdd) == 1 ? (MSP*)mspsToAdd->data : NULL);
+
+      /* Add the hard-coded column data */
+      const double score = msp ? msp->score : 0.0;
+      const double id = msp ? msp->id : 0.0;
+      const int start = msp ? msp->sRange.min : blxSequenceGetStart(blxSeq, treeStrand);
+      const int end = msp ? msp->sRange.max : blxSequenceGetEnd(blxSeq, treeStrand);
+
+      /* Loop through the rest of the columns */
+      GList *item = columnList;
       
-      if (g_list_length(mspsToAdd) == 1)
+      for ( ; item; item = item->next)
         {
-          /* Only one MSP - get specific info about this MSP. */
-          MSP *msp = (MSP*)(mspsToAdd->data);
-          
-          gtk_list_store_set(store, &iter,
-                             BLXCOL_SEQNAME, mspGetSName(msp),
-                             BLXCOL_SOURCE, mspGetSource(msp),
-                             BLXCOL_ORGANISM, NULL,
-                             BLXCOL_GENE_NAME, NULL,
-                             BLXCOL_TISSUE_TYPE, NULL,
-                             BLXCOL_STRAIN, NULL,
-                             BLXCOL_GROUP, NULL,
-                             BLXCOL_SCORE, msp->score,
-                             BLXCOL_ID, msp->id,
-                             BLXCOL_START, msp->sRange.min,
-                             BLXCOL_SEQUENCE, mspsToAdd,
-                             BLXCOL_END, msp->sRange.max,
-                             -1);
-        }
-      else
-        {
-          /* Add generic info about the sequence */
-          gtk_list_store_set(store, &iter,
-                             BLXCOL_SEQNAME, blxSequenceGetDisplayName(blxSeq),
-                             BLXCOL_SOURCE, blxSequenceGetSource(blxSeq),
-                             BLXCOL_ORGANISM, NULL,
-                             BLXCOL_GENE_NAME, NULL,
-                             BLXCOL_TISSUE_TYPE, NULL,
-                             BLXCOL_STRAIN, NULL,
-                             BLXCOL_GROUP, NULL,
-                             BLXCOL_SCORE, 0.0,
-                             BLXCOL_ID, 0.0,
-                             BLXCOL_START, blxSequenceGetStart(blxSeq, treeStrand),
-                             BLXCOL_SEQUENCE, mspsToAdd,
-                             BLXCOL_END, blxSequenceGetEnd(blxSeq, treeStrand),
-                             -1);
+          BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
+
+          if (columnInfo->columnId == BLXCOL_SCORE)
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, score, -1);
+          else if (columnInfo->columnId == BLXCOL_ID)
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, id, -1);
+          else if (columnInfo->columnId == BLXCOL_START)
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, start, -1);
+          else if (columnInfo->columnId == BLXCOL_SEQUENCE)
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, mspsToAdd, -1);
+          else if (columnInfo->columnId == BLXCOL_END)
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, end, -1);
+          else
+            {
+              GValue *val = blxSequenceGetValue(blxSeq, columnInfo->columnIdx);
+              if (val) gtk_list_store_set_value(store, &iter, columnInfo->columnIdx, val);
+            }
         }
       
       /* Remember which row these msps are in */
@@ -393,24 +390,33 @@ static void addShortReadsToCompactTree(GtkWidget *tree, GtkListStore *store, Gtk
         {
           if (g_list_length(mspsToAdd) > 0)
             {
-              /* Add the current list to the tree */
+              /* Add the current msp list to the tree */
               GtkTreeIter iter;
               gtk_list_store_append(store, &iter);
-              
-              gtk_list_store_set(store, &iter,
-                                 BLXCOL_SEQNAME, mspGetSName(prevMsp),
-                                 BLXCOL_SOURCE, mspGetSource(prevMsp),
-                                 BLXCOL_ORGANISM, NULL,
-                                 BLXCOL_GENE_NAME, NULL,
-                                 BLXCOL_TISSUE_TYPE, NULL,
-                                 BLXCOL_STRAIN, NULL,
-                                 BLXCOL_GROUP, NULL,
-                                 BLXCOL_SCORE, prevMsp->score,
-                                 BLXCOL_ID, prevMsp->id,
-                                 BLXCOL_START, prevMsp->sRange.min,
-                                 BLXCOL_SEQUENCE, mspsToAdd,
-                                 BLXCOL_END, prevMsp->sRange.max,
-                                 -1);
+
+              /* Loop through the columns */
+              GList *item = blxWindowGetColumnList(blxWindow);
+      
+              for ( ; item; item = item->next)
+                {
+                  BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
+                  
+                  if (columnInfo->columnId == BLXCOL_SCORE)
+                    gtk_list_store_set(store, &iter, columnInfo->columnIdx, prevMsp->score, -1);
+                  else if (columnInfo->columnId == BLXCOL_ID)
+                    gtk_list_store_set(store, &iter, columnInfo->columnIdx, prevMsp->id, -1);
+                  else if (columnInfo->columnId == BLXCOL_START)
+                    gtk_list_store_set(store, &iter, columnInfo->columnIdx, prevMsp->sRange.min, -1);
+                  else if (columnInfo->columnId == BLXCOL_SEQUENCE)
+                    gtk_list_store_set(store, &iter, columnInfo->columnIdx, mspsToAdd, -1);
+                  else if (columnInfo->columnId == BLXCOL_END)
+                    gtk_list_store_set(store, &iter, columnInfo->columnIdx, prevMsp->sRange.max, -1);
+                  else
+                    {
+                      GValue *val = blxSequenceGetValue(msp->sSequence, columnInfo->columnIdx);
+                      if (val) gtk_list_store_set_value(store, &iter, columnInfo->columnIdx, val);
+                    }
+                }
               
               /* Remember which row these msps are in */
               GtkTreePath *path = gtk_tree_model_get_path(GTK_TREE_MODEL(store), &iter);
@@ -500,8 +506,16 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
 /* Return the MSP(s) in a given tree row */
 GList* treeGetMsps(GtkTreeModel *model, GtkTreeIter *iter)
 {
-  GList *mspGList = NULL;
-  gtk_tree_model_get(model, iter, BLXCOL_SEQUENCE, &mspGList, -1);
+  GList *mspGList = NULL;  
+
+  /* Get the sequence column index (note this may be different to the column id) */
+  GtkWidget *blxWindow = getBlixemWindow();
+  GList *columnList = blxWindowGetColumnList(blxWindow);
+  BlxColumnInfo *columnInfo = getColumnInfo(columnList, BLXCOL_SEQUENCE);
+
+  if (columnInfo)
+    gtk_tree_model_get(model, iter, columnInfo->columnIdx, &mspGList, -1);
+
   return mspGList;
 }
 
@@ -679,7 +693,7 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
        * be updated dynamically when any of the other columns change. */
 //      if (columnInfo->columnId != BLXCOL_SEQUENCE)
 	{
-	  GtkTreeViewColumn *treeColumn = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), columnInfo->columnId);
+	  GtkTreeViewColumn *treeColumn = gtk_tree_view_get_column(GTK_TREE_VIEW(tree), columnInfo->columnIdx);
       
 	  int width = columnInfo->width;
 	  if (columnInfo->columnId == BLXCOL_END)
@@ -689,8 +703,8 @@ void resizeTreeColumns(GtkWidget *tree, gpointer data)
 
 	  if (width > 0)
 	    {
-              const gboolean showColumn = detailViewShowColumn(columnInfo);
-	      gtk_tree_view_column_set_visible(treeColumn, showColumn);
+              const gboolean displayColumn = showColumn(columnInfo);
+	      gtk_tree_view_column_set_visible(treeColumn, displayColumn);
 	      gtk_tree_view_column_set_fixed_width(treeColumn, width);
 	    }
 	  else
@@ -778,7 +792,8 @@ void resortTree(GtkWidget *tree, gpointer data)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  const int numColumns = g_list_length(dvProperties->columnList);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  const int numColumns = g_list_length(columnList);
 
   if (numColumns < 1)
     return; 
@@ -1174,6 +1189,7 @@ static void treeHighlightSelectedBase(GtkWidget *tree, GdkDrawable *drawable)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
+  GList *columnList = detailViewGetColumnList(detailView);
   
   if (properties->selectedBaseIdx != UNSET_INT && valueWithinRange(properties->selectedBaseIdx, &properties->displayRange))
     {
@@ -1182,7 +1198,7 @@ static void treeHighlightSelectedBase(GtkWidget *tree, GdkDrawable *drawable)
       
       /* Get the x coords for the start and end of the sequence column */
       IntRange xRange;
-      detailViewGetColumnXCoords(properties, BLXCOL_SEQUENCE, &xRange);
+      getColumnXCoords(columnList, BLXCOL_SEQUENCE, &xRange);
       
       const int x = xRange.min + (charIdx * properties->charWidth);
       const int y = 0;
@@ -1805,7 +1821,7 @@ static gboolean onMouseMoveTreeHeader(GtkWidget *header, GdkEventMotion *event, 
        * the start of the sequence column, so offset the coords before propagating. */
       GtkWidget *detailView = treeGetDetailView(tree);
       IntRange xRange;
-      detailViewGetColumnXCoords(detailViewGetProperties(detailView), BLXCOL_SEQUENCE, &xRange);
+      getColumnXCoords(detailViewGetColumnList(detailView), BLXCOL_SEQUENCE, &xRange);
       event->x += xRange.min;
 
       propagateEventMotion(tree, treeGetDetailView(tree), event);
@@ -1892,6 +1908,9 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
 {
   if (tree)
     {
+      GtkWidget *detailView = treeGetDetailView(tree);
+      GList *columnList = detailViewGetColumnList(detailView);
+      
       GtkListStore *store = GTK_LIST_STORE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
       
       GtkTreeIter iter;
@@ -1912,21 +1931,30 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
         {
           mspGList = g_list_append(NULL, msp);
         }
+
+      /* Loop through the rest of the columns */
+      GList *item = columnList;
       
-      gtk_list_store_set(store, &iter,
-			 BLXCOL_SEQNAME, mspGetSName(msp),
-			 BLXCOL_SOURCE, mspGetSource(msp),
-                         BLXCOL_ORGANISM, NULL,
-                         BLXCOL_GENE_NAME, NULL,
-                         BLXCOL_TISSUE_TYPE, NULL,
-                         BLXCOL_STRAIN, NULL,
-                         BLXCOL_GROUP, NULL,
-			 BLXCOL_SCORE, msp->score,
-			 BLXCOL_ID, msp->id,
-			 BLXCOL_START, msp->sRange.min,
-			 BLXCOL_SEQUENCE, mspGList,
-			 BLXCOL_END, msp->sRange.max,
-			 -1);
+      for ( ; item; item = item->next)
+        {
+          BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
+
+          if (columnInfo->columnId == BLXCOL_SCORE)
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, msp->score, -1);
+          else if (columnInfo->columnId == BLXCOL_ID)
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, msp->id, -1);
+          else if (columnInfo->columnId == BLXCOL_START)
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, msp->sRange.min, -1);
+          else if (columnInfo->columnId == BLXCOL_SEQUENCE)
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, mspGList, -1);
+          else if (columnInfo->columnId == BLXCOL_END)
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, msp->sRange.max, -1);
+          else
+            {
+              GValue *val = blxSequenceGetValue(msp->sSequence, columnInfo->columnIdx);
+              if (val) gtk_list_store_set_value(store, &iter, columnInfo->columnIdx, val);
+            }
+        }
       
       /* Remember the path to this tree row for each MSP */
       GtkTreePath *path = gtk_tree_model_get_path(GTK_TREE_MODEL(store), &iter);
@@ -2327,14 +2355,15 @@ static void onSeqColWidthChanged(GtkTreeViewColumn *column, GParamSpec *paramSpe
 static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree, 
                                            GtkWidget *detailView,
                                            GtkCellRenderer *renderer, 
-                                           BlxColumnInfo *columnInfo)
+                                           BlxColumnInfo *columnInfo,
+                                           BlxColumnInfo *seqColInfo)
 {
-  /* Create the column */
+  /* Create the column in the tree */
   GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes(
     columnInfo->title, 
     renderer, 
-    columnInfo->propertyName, columnInfo->columnId,  /* set the given property for this column */
-    RENDERER_DATA_PROPERTY, BLXCOL_SEQUENCE,         /* also set the data property so all columns have access to the MSP data */
+    columnInfo->propertyName, columnInfo->columnIdx,  /* set the relevant property in the tree for the given column */
+    RENDERER_DATA_PROPERTY, seqColInfo->columnIdx,  /* set the 'data' property in the tree to be the 'sequence' column (i.e. the MSP data) */
     NULL);
 
   /* Reduce the width of the end col by the scrollbar width. (This is so it matches the width
@@ -2353,8 +2382,8 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
   /* Set the column properties and add the column to the tree */
   if (width > 0)
     {
-      gboolean showColumn = detailViewShowColumn(columnInfo);
-      gtk_tree_view_column_set_visible(column, showColumn);
+      gboolean displayColumn = showColumn(columnInfo);
+      gtk_tree_view_column_set_visible(column, displayColumn);
       gtk_tree_view_column_set_fixed_width(column, width);
     }
   else
@@ -2558,6 +2587,7 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
 static int calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tree)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
+  GList *columnList = detailViewGetColumnList(detailView);
   
   /* Sum the width of all columns that this header includes */
   GList *listItem = headerInfo->columnIds;
@@ -2567,9 +2597,9 @@ static int calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tre
     {
       int columnId = GPOINTER_TO_INT(listItem->data);
       
-      BlxColumnInfo *columnInfo = detailViewGetColumnInfo(detailView, columnId);
+      BlxColumnInfo *columnInfo = getColumnInfo(columnList, columnId);
       
-      if (detailViewShowColumn(columnInfo))
+      if (showColumn(columnInfo))
         {
           width = width + columnInfo->width;
         }
@@ -2740,6 +2770,7 @@ static GList* createTreeColumns(GtkWidget *tree,
    * in the tree, add them under the first column's header instead. */
   TreeColumnHeaderInfo* firstTreeCol = NULL;
   GList *column = columnList;
+  BlxColumnInfo *seqColInfo = getColumnInfo(columnList, BLXCOL_SEQUENCE);
   
   for ( ; column; column = column->next)
     {
@@ -2747,7 +2778,7 @@ static GList* createTreeColumns(GtkWidget *tree,
       
       if (columnInfo)
 	{
-	  GtkTreeViewColumn *treeColumn = createTreeColumn(tree, detailView, renderer, columnInfo);
+	  GtkTreeViewColumn *treeColumn = createTreeColumn(tree, detailView, renderer, columnInfo, seqColInfo);
           
 	  TreeColumnHeaderInfo* headerInfo = createTreeColHeader(&treeColumns, 
                                                                  treeColumn, 
@@ -2817,7 +2848,8 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   GtkWidget *tree = GTK_WIDGET(data);
   GtkWidget *detailView = treeGetDetailView(tree);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  const int numColumns = g_list_length(dvProperties->columnList);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  const int numColumns = g_list_length(columnList);
 
   /* Sort by each requested column in order of priority */
   if (dvProperties->sortColumns)

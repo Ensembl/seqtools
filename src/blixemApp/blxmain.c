@@ -265,6 +265,7 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->startCoord = 1;
   options->startCoordSet = FALSE;
   options->mspList = NULL;
+  options->columnList = NULL;
   options->geneticCode = stdcode1;
   options->activeStrand = BLXSTRAND_FORWARD;
   options->bigPictZoom = 10;          
@@ -1041,6 +1042,9 @@ int main(int argc, char **argv)
   char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname[FULLNAMESIZE+1] = "";
 
+  /* Create the columns */
+  options.columnList = createColumns(options.seqType, options.parseFullEmblInfo, (options.seqType == BLXSEQ_PEPTIDE));
+
   /* Pass the config file to parseFS */
   GKeyFile *inputConfigFile = blxGetConfig();
   
@@ -1056,7 +1060,7 @@ int main(int argc, char **argv)
   if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_INVALID)
     options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
   
-  parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
+  parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
           &options.refSeq, options.refSeqName, qRange, &dummyseq, dummyseqname, inputConfigFile) ;
 
   /* Now see if blast mode was set and set seqtype from it if not already set... */
@@ -1108,7 +1112,7 @@ int main(int argc, char **argv)
 	  g_error("Cannot open %s\n", xtra_filename) ;
 	}
       
-      parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
+      parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
               &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig()) ;
       fclose(xtra_file) ;
     }

@@ -51,67 +51,68 @@
 
 
 /* Public function declarations */
-BlxViewContext*		  blxWindowGetContext(GtkWidget *widget);
-gboolean		  blxWindowGetDisplayRev(GtkWidget *blxWindow);
-GtkWidget*		  blxWindowGetBigPicture(GtkWidget *blxWindow);
-GtkWidget*		  blxWindowGetDetailView(GtkWidget *blxWindow);
-GtkWidget*		  blxWindowGetMainMenu(GtkWidget *blxWindow);
-BlxBlastMode		  blxWindowGetBlastMode(GtkWidget *blxWindow);
-IntRange*		  blxWindowGetFullRange(GtkWidget *blxWindow);
-IntRange*		  blxWindowGetRefSeqRange(GtkWidget *blxWindow);
-const char*		  blxWindowGetRefSeqName(GtkWidget *blxWindow);
-BlxSeqType		  blxWindowGetSeqType(GtkWidget *blxWindow);
-char**			  blxWindowGetGeneticCode(GtkWidget *blxWindow);
-char*			  blxWindowGetRefSeq(GtkWidget *blxWindow);
-int			  blxWindowGetNumFrames(GtkWidget *blxWindow);
-int			  blxWindowGetDotterStart(GtkWidget *blxWindow);
-int			  blxWindowGetDotterEnd(GtkWidget *blxWindow);
-int			  blxWindowGetDotterZoom(GtkWidget *blxWindow);
-int			  blxWindowGetAutoDotter(GtkWidget *blxWindow);
-MSP*			  blxWindowGetMspList(GtkWidget *blxWindow);
-GList*			  blxWindowGetAllMatchSeqs(GtkWidget *blxWindow);
-GList*			  blxWindowGetSequenceGroups(GtkWidget *blxWindow);
-SequenceGroup*		  blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind);
-const char*		  blxWindowGetPaddingSeq(GtkWidget *blxWindow);
-int			  blxWindowGetOffset(GtkWidget *blxWindow);
-BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
+BlxViewContext*           blxWindowGetContext(GtkWidget *widget);
+GList*                    blxWindowGetColumnList(GtkWidget *blxWindow);
+gboolean                  blxWindowGetDisplayRev(GtkWidget *blxWindow);
+GtkWidget*                blxWindowGetBigPicture(GtkWidget *blxWindow);
+GtkWidget*                blxWindowGetDetailView(GtkWidget *blxWindow);
+GtkWidget*                blxWindowGetMainMenu(GtkWidget *blxWindow);
+BlxBlastMode              blxWindowGetBlastMode(GtkWidget *blxWindow);
+IntRange*                 blxWindowGetFullRange(GtkWidget *blxWindow);
+IntRange*                 blxWindowGetRefSeqRange(GtkWidget *blxWindow);
+const char*               blxWindowGetRefSeqName(GtkWidget *blxWindow);
+BlxSeqType                blxWindowGetSeqType(GtkWidget *blxWindow);
+char**                    blxWindowGetGeneticCode(GtkWidget *blxWindow);
+char*                     blxWindowGetRefSeq(GtkWidget *blxWindow);
+int                       blxWindowGetNumFrames(GtkWidget *blxWindow);
+int                       blxWindowGetDotterStart(GtkWidget *blxWindow);
+int                       blxWindowGetDotterEnd(GtkWidget *blxWindow);
+int                       blxWindowGetDotterZoom(GtkWidget *blxWindow);
+int                       blxWindowGetAutoDotter(GtkWidget *blxWindow);
+MSP*                      blxWindowGetMspList(GtkWidget *blxWindow);
+GList*                    blxWindowGetAllMatchSeqs(GtkWidget *blxWindow);
+GList*                    blxWindowGetSequenceGroups(GtkWidget *blxWindow);
+SequenceGroup*            blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind);
+const char*               blxWindowGetPaddingSeq(GtkWidget *blxWindow);
+int                       blxWindowGetOffset(GtkWidget *blxWindow);
+BlxStrand                 blxWindowGetActiveStrand(GtkWidget *blxWindow);
 gboolean                  blxWindowGetNegateCoords(GtkWidget *blxWindow);
 
-GList*			  blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
-void			  blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq);
-void			  blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList);
-void			  blxWindowDeselectSeq(GtkWidget *blxWindow, BlxSequence *seq);
-void			  blxWindowDeselectAllSeqs(GtkWidget *blxWindow);
-gboolean		  blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequence *seq);
-void			  blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequence *seq, const gboolean selected);
-void			  blxWindowSelectionChanged(GtkWidget *blxWindow);
-BlxSequence*		  blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
+GList*                    blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
+void                      blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq);
+void                      blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList);
+void                      blxWindowDeselectSeq(GtkWidget *blxWindow, BlxSequence *seq);
+void                      blxWindowDeselectAllSeqs(GtkWidget *blxWindow);
+gboolean                  blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequence *seq);
+void                      blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequence *seq, const gboolean selected);
+void                      blxWindowSelectionChanged(GtkWidget *blxWindow);
+BlxSequence*              blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
 gboolean                  blxContextIsSeqSelected(const BlxViewContext const *bc, const BlxSequence *seq);
 SequenceGroup*            blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSequence *seqToFind);
 
-int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
-void			  copySelectionToClipboard(GtkWidget *blxWindow);
-void			  findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data);
+int                       sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
+void                      copySelectionToClipboard(GtkWidget *blxWindow);
+void                      findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data);
 
 void                      refreshDialog(const BlxDialogId dialogId, GtkWidget *blxWindow);
-void			  showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront);
-void			  showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront);
+void                      showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront);
+void                      showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront);
 void                      showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront);
-void			  showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront);
-void			  showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gboolean bringToFront);
-void			  showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront);
-void			  showAboutDialog(GtkWidget *blxWindow);
+void                      showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront);
+void                      showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gboolean bringToFront);
+void                      showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront);
+void                      showAboutDialog(GtkWidget *blxWindow);
 void                      showInfoDialog(GtkWidget *blxWindow);
 
-void			  blxWindowRedrawAll(GtkWidget *blxWindow);
+void                      blxWindowRedrawAll(GtkWidget *blxWindow);
   
-GtkWidget*		  createBlxWindow(CommandLineOptions *options, 
-					  const char *paddingSeq, 
+GtkWidget*                createBlxWindow(CommandLineOptions *options, 
+                                          const char *paddingSeq, 
                                           GArray* featureLists[], 
-					  GList *seqList, 
+                                          GList *seqList, 
                                           GSList *supportedTypes,
-					  const gboolean External);
+                                          const gboolean External);
 
 
 #endif /* _blxwindow_included_ */

@@ -456,8 +456,6 @@ GtkWidget*            getNamedChildWidget(GtkWidget *widget, const gchar *search
 
 gint                  runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText);
 
-char*                 getSeqShortName(const char *longName);
-
 void                  prefixError(GError *error, char *prefixStr, ...);
 void                  postfixError(GError *error, char *formatStr, ...);
 void                  reportAndClearIfError(GError **error, GLogLevelFlags log_level);
