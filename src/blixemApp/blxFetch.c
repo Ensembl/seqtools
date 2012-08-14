@@ -221,8 +221,7 @@ static void                        parseEmblBuffer(const BlxFetchMethod* const f
 static gboolean                    pfetchFinishSequence(const BlxFetchMethod* const fetchMethod, BlxSequence *currentSeq, const BlxSeqType seqType, const int numRequested, int *numFetched, int *numSucceeded, 
                                                         BlxEmblParserState *parserState);
 
-static void                        pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState);
-static void                        checkFetchMethodExecutable(const BlxFetchMethod* const fetchMethod, GError **error);
+static void                        pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState, const BlxSequence* const currentSeq);
 
 
 
@@ -270,6 +269,7 @@ const char *outputTypeStr(const BlxFetchOutputType outputType)
       "raw",
       "fasta",
       "embl",
+      "list",
       "gff",
       NULL
     }; 
@@ -309,7 +309,7 @@ void fetchSequence(const BlxSequence *blxSeq,
   
   /* Look up the fetch method for this sequence */
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  GQuark fetchMethodQuark = blxSequenceGetFetchMethod(blxSeq, FALSE, attempt, bc->userFetchDefault);
+  GQuark fetchMethodQuark = blxSequenceGetFetchMethod(blxSeq, FALSE, FALSE, attempt, bc->userFetchDefault);
   const BlxFetchMethod* const fetchMethod = getFetchMethodDetails(fetchMethodQuark, bc->fetchMethods);
 
   if (!fetchMethod)
@@ -1870,6 +1870,7 @@ static void readBlixemStanza(GKeyFile *key_file,
   /* Get the comma-separated list of possible fetch methods */
   options->bulkFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_BULK_FETCH, NULL);
   options->userFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_USER_FETCH, NULL);
+  options->optionalFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_OPTIONAL_FETCH, NULL);
 
   /* If the bulk-fetch key wasn't found, try the old
    * default-fetch-mode key, for backwards compatibility */
@@ -2053,9 +2054,9 @@ static void readFetchMethodStanza(GKeyFile *key_file,
           result->location = configGetString(key_file, group, DB_FETCH_LOCATION, &tmpError);
           result->args = configGetString(key_file, group, DB_FETCH_QUERY, &tmpError);
           result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS, NULL);
+          result->outputType = readFetchOutputType(key_file, group, &tmpError);
           
-          /* Hard code the output type and separator */
-          result->outputType = BLXFETCH_OUTPUT_RAW;
+          /* Hard code the separator */
           result->separator = g_strdup("','");
         }
       else if (stringsEqual(fetchMode, fetchModeStr(BLXFETCH_MODE_COMMAND), FALSE))
@@ -2365,11 +2366,17 @@ static void pfetchGetParserStateFromId(const char *sectionId,
     }
   else if (stringsEqual(sectionId, "OS", TRUE) && blxSequenceRequiresOptionalData(currentSeq))
     {
-      *parserState = PARSING_ORGANISM;
+      if (currentSeq->organism)
+        *parserState = PARSING_IGNORE; /* ignore if already set */
+      else
+        *parserState = PARSING_ORGANISM;
     }
   else if (stringsEqual(sectionId, "GN", TRUE) && blxSequenceRequiresOptionalData(currentSeq))
     {
-      *parserState = PARSING_GENE_NAME;
+      if (currentSeq->geneName)
+        *parserState = PARSING_IGNORE; /* ignore if already set */
+      else
+        *parserState = PARSING_GENE_NAME;
     }
   else if (stringsEqual(sectionId, "FT", TRUE) && blxSequenceRequiresOptionalData(currentSeq))
     {
@@ -2377,7 +2384,7 @@ static void pfetchGetParserStateFromId(const char *sectionId,
         {
           /* If the tag name is already set we must be in the middle of parsing a multi-line tag, 
            * so continue with that tag */
-          pfetchGetParserStateFromTagName(tagName, parserState);
+          pfetchGetParserStateFromTagName(tagName, parserState, currentSeq);
         }
       else
         {
@@ -2484,7 +2491,7 @@ static void pfetchProcessEmblBufferChar(const BlxFetchMethod* const fetchMethod,
       {
         if (curChar == '=') /* signals the end of the tag */
           {
-            pfetchGetParserStateFromTagName(tagName, parserState);
+            pfetchGetParserStateFromTagName(tagName, parserState, *currentSeq);
           }
         else
           {
@@ -2499,7 +2506,7 @@ static void pfetchProcessEmblBufferChar(const BlxFetchMethod* const fetchMethod,
         /* Look for the start quote before we start parsing the tag properly */
         if (curChar == '"')
           {
-            pfetchGetParserStateFromTagName(tagName, parserState);
+            pfetchGetParserStateFromTagName(tagName, parserState, *currentSeq);
           }
         
         break;
@@ -2632,7 +2639,7 @@ static void parseEmblBuffer(const BlxFetchMethod* const fetchMethod,
  * the parser state accordingly. Sets the parser state to PARSING_IGNORE if this
  * is not a tag we care about. Returns true if we've entered a free text section
  * where newline characters should be ignored. */
-static void pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState)
+static void pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState, const BlxSequence* const currentSeq)
 {
   if (stringsEqual(tagName->str, "tissue_type", TRUE))
     {
@@ -2642,7 +2649,10 @@ static void pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState
         }
       else
         {
-          *parserState = PARSING_FT_TISSUE_TYPE;
+          if (currentSeq->tissueType)
+            *parserState = PARSING_IGNORE; /* ignore if already set */
+          else
+            *parserState = PARSING_FT_TISSUE_TYPE;
         }
     }
   else if (stringsEqual(tagName->str, "strain", TRUE))
@@ -2653,7 +2663,10 @@ static void pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState
         }
       else
         {
-          *parserState = PARSING_FT_STRAIN;
+          if (currentSeq->strain)
+            *parserState = PARSING_IGNORE; /* ignore if already set */
+          else
+            *parserState = PARSING_FT_STRAIN;
         }
     }
   else
@@ -2790,17 +2803,22 @@ static gboolean fetchMethodReturnsSequence(const BlxFetchMethod* const fetchMeth
 }
 
 
-/* Returns true if the given fetch method retrieves full embl 
- * data. Note that fetch methods that return gff files for 
+/* Returns true if the given fetch method retrieves data for
+ * optional columns. Note that fetch methods that return gff files for 
  * re-parsing will cause this function to return true. */
-static gboolean fetchMethodReturnsEmbl(const BlxFetchMethod* const fetchMethod)
+static gboolean fetchMethodReturnsOptionalColumns(const BlxFetchMethod* const fetchMethod)
 {
   gboolean result = FALSE;
   
   if (fetchMethod)
     {
+      /* - EMBL files can be parsed for optional columns like tissue-type and strain.
+       * - DB fetch methods that return a list of columns can also return optional columns.
+       * - GFF files will be re-parsed and the results will be checked again, so we return
+       * true for those too. */
       result = 
         fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL || 
+        fetchMethod->outputType == BLXFETCH_OUTPUT_LIST || 
         fetchMethod->outputType == BLXFETCH_OUTPUT_GFF;
     }
   
@@ -2840,7 +2858,7 @@ static const BlxFetchMethod* findFetchMethod(const BlxFetchMode mode,
  * re-try fetching sequences with different fetch methods if the original
  * fetch method fails. Pass 'attempt' as 0 for the first try, 1 for 
  * the second etc. 
- * If loadOptionalData is true, then this 'forces' optional data to be 
+ * If optionalColumns is true, then this 'forces' optional data to be 
  * loaded even if the bulk fetch method for a sequence does not return
  * embl data. We do this by looking for another fetch method of the same
  * mode that does return embl data. This is perhaps a bit hacky but avoids 
@@ -2850,7 +2868,7 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
                                      const GArray *defaultFetchMethods,
                                      const int attempt,
                                      GHashTable *fetchMethods,
-                                     const gboolean loadOptionalData)
+                                     const gboolean optionalColumns)
 {
   GHashTable *resultTable = g_hash_table_new(g_direct_hash, g_direct_equal);
   
@@ -2860,7 +2878,7 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
   for ( ; inputItem; inputItem = inputItem->next)
     {
       BlxSequence *blxSeq = (BlxSequence*)(inputItem->data);
-      GQuark fetchMethodQuark = blxSequenceGetFetchMethod(blxSeq, TRUE, attempt, defaultFetchMethods);
+      GQuark fetchMethodQuark = blxSequenceGetFetchMethod(blxSeq, TRUE, optionalColumns, attempt, defaultFetchMethods);
 
       if (fetchMethodQuark)
         {
@@ -2877,17 +2895,17 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
               
               /* Check if full embl data data is required and is not already set. */
               gboolean getEmbl = (blxSequenceRequiresOptionalData(blxSeq) &&
-                                  !blxSeq->organism &&
-                                  !blxSeq->geneName &&
-                                  !blxSeq->tissueType &&
-                                  !blxSeq->strain);
+                                  (!blxSeq->organism ||
+                                   !blxSeq->geneName ||
+                                   !blxSeq->tissueType ||
+                                   !blxSeq->strain));
               
               /* Only attempt to fetch the embl data if this fetch method can
-               * return it, or, if loadOptionalData is true, then search for a 
+               * return it, or, if optionalColumns is true, then search for a 
                * fetch method that does return embl data */ 
               if (getEmbl)
                 {
-                  if (!fetchMethodReturnsEmbl(fetchMethod) && loadOptionalData)
+                  if (!fetchMethodReturnsOptionalColumns(fetchMethod) && optionalColumns)
                     {
                       fetchMethod = findFetchMethod(fetchMethod->mode, BLXFETCH_OUTPUT_EMBL, fetchMethods);
 
@@ -2897,7 +2915,7 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
                         fetchMethodQuark = 0;
                     }
 
-                  getEmbl = fetchMethodReturnsEmbl(fetchMethod);
+                  getEmbl = fetchMethodReturnsOptionalColumns(fetchMethod);
                 }
               
               getSeq |= getEmbl;
@@ -3244,7 +3262,7 @@ gboolean bulkFetchSequences(const int attempt,
                             const int refSeqOffset,
                             const IntRange const *refSeqRange,
                             const char *dataset,
-                            const gboolean loadOptionalData)
+                            const gboolean optionalColumns)
 {
   gboolean success = FALSE; /* will get set to true if any of the fetch methods succeed */
   
@@ -3253,7 +3271,7 @@ gboolean bulkFetchSequences(const int attempt,
    * a secondary fetch method, if one is given; otherwise, exclude
    * from the list (i.e. when we run out of fetch methods or everything
    * has been successfully fetched, then this table will be empty). */
-  GHashTable *seqsTable = getSeqsToPopulate(*seqList, defaultFetchMethods, attempt, fetchMethods, loadOptionalData);
+  GHashTable *seqsTable = getSeqsToPopulate(*seqList, defaultFetchMethods, attempt, fetchMethods, optionalColumns);
 
   if (g_hash_table_size(seqsTable) < 1)
     {
@@ -3329,7 +3347,7 @@ gboolean bulkFetchSequences(const int attempt,
       success = bulkFetchSequences(attempt + 1, External, saveTempFiles, seqType, seqList, columnList,
                                    defaultFetchMethods, fetchMethods, mspList,
                                    blastMode, featureLists, supportedTypes, 
-                                   styles, refSeqOffset, refSeqRange, dataset, loadOptionalData);
+                                   styles, refSeqOffset, refSeqRange, dataset, optionalColumns);
     }
 
   /* Clean up */

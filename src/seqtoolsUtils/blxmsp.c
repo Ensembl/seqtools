@@ -828,6 +828,7 @@ gboolean blxSequenceGetLinkFeatures(const BlxSequence *seq, const gboolean defau
  * instead (for index==0 only). Pass 'defaultMethod' as 0 if N/A. */
 GQuark blxSequenceGetFetchMethod(const BlxSequence *seq, 
                                  const gboolean bulk,
+                                 const gboolean optionalColumns,
                                  const int index,
                                  const GArray *defaultMethods)
 {
@@ -835,7 +836,14 @@ GQuark blxSequenceGetFetchMethod(const BlxSequence *seq,
 
   if (seq && seq->dataType)
     {
-      GArray *array = bulk ? seq->dataType->bulkFetch : seq->dataType->userFetch;
+      GArray *array = NULL;
+
+      if (bulk && optionalColumns)
+        array = seq->dataType->optionalFetch;
+      else if (bulk)
+        array = seq->dataType->bulkFetch;
+      else
+        array = seq->dataType->userFetch;
       
       if (array && index >= 0 && index < array->len)
         result = g_array_index(array, GQuark, index);

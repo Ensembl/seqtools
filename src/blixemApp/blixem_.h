@@ -221,9 +221,10 @@ typedef enum
 {
   BLXFETCH_OUTPUT_INVALID,
   BLXFETCH_OUTPUT_RAW,      /* raw sequence data, separated by newlines */
-  BLXFETCH_OUTPUT_FASTA,
-  BLXFETCH_OUTPUT_EMBL,
-  BLXFETCH_OUTPUT_GFF,
+  BLXFETCH_OUTPUT_FASTA,    /* sequence data in FASTA format */
+  BLXFETCH_OUTPUT_EMBL,     /* the sequence's EMBL entry */
+  BLXFETCH_OUTPUT_LIST,     /* a list of named columns is returned */
+  BLXFETCH_OUTPUT_GFF,      /* a new gff for re-parsing is returned */
 
   BLXFETCH_NUM_OUTPUT_TYPES
 } BlxFetchOutputType;
@@ -330,7 +331,7 @@ typedef enum
     BLXFLAG_SHOW_POLYA_SIG,         /* Show polyA signals in the reference sequence */
     BLXFLAG_SHOW_POLYA_SIG_SELECTED,/* Only show polyA signals for the currently-selected sequence(s) */
     BLXFLAG_SHOW_SPLICE_SITES,      /* Highlights splice sites in the reference sequence for the currently-selected MSPs */
-    BLXFLAG_EMBL_DATA_LOADED,       /* Gets set to true if the full EMBL data is parsed and populated in the MSPs */
+    BLXFLAG_OPTIONAL_COLUMNS,       /* Gets set to true if the optional columns have been loaded */
     BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
     BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */
     BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
@@ -420,7 +421,7 @@ typedef struct _CommandLineOptions
   gboolean dotterFirst;           /* open dotter when blixem starts */
   gboolean startNextMatch;        /* start at the coord of the next match from the default start coord */
   gboolean squashMatches;         /* start with the 'squash matches' option on */
-  gboolean parseFullEmblInfo;     /* parse the full EMBL files on startup to populate additional info like tissue-type */
+  gboolean optionalColumns;       /* load data for optional columns on startup to populate additional info like tissue-type and strain */
   gboolean saveTempFiles;         /* save any temporary files that blixem creates */
   gboolean coverageOn;            /* show the coverage view on start-up */
   gboolean linkFeaturesByName;    /* default for whether features with the same name are considered part of the same parent */
@@ -431,6 +432,7 @@ typedef struct _CommandLineOptions
   GHashTable *fetchMethods;       /* table of fetch methods (keyed on name as a GQuark) */
   GArray *bulkFetchDefault;       /* the default method(s) for bulk fetching sequences (can be overridden by an MSPs data-type properties) */
   GArray *userFetchDefault;       /* the default method(s) for fetching individual sequences interactively */
+  GArray *optionalFetchDefault;   /* the default method(s) for bulk fetching optional sequence data */
   char *dataset;                  /* the name of a dataset, e.g. 'human' */
   BlxMessageData msgData;         /* data to be passed to the message handlers */
   gboolean mapCoords;             /* whether the map-coords command-line argument was specified */
@@ -458,10 +460,11 @@ typedef struct _BlxViewContext
 
     GArray *bulkFetchDefault;               /* The default method(s) of bulk fetching sequences (can be overridden by an MSPs data-type properties) */
     GArray *userFetchDefault;               /* The default method(s) for interactively fetching individual sequences */
+    GArray *optionalFetchDefault;           /* The default method(s) for bulk fetching optional sequence data */
     GHashTable *fetchMethods;               /* List of fetch methods, keyed on name as a GQuark */
 
     char* dataset;                          /* the name of a dataset, e.g. 'human' */
-    gboolean loadOptionalData;              /* parse the full EMBL files on startup to populate additional info like tissue-type */
+    gboolean optionalColumns;               /* load data for optional columns on startup to populate additional info like tissue-type */
 
     MSP *mspList;                           /* List of all MSPs. Obsolete - use featureLists array instead */
     GArray* featureLists[BLXMSP_NUM_TYPES]; /* Array indexed by the BlxMspType enum. Each array entry contains a zero-terminated array of all the MSPs of that type. */
@@ -552,7 +555,7 @@ void                               drawAssemblyGaps(GtkWidget *widget,
                                                     const IntRange const *dnaRange,
                                                     const GArray *mspArray);
 
-GList*                             createColumns(const BlxSeqType seqType, const gboolean loaded, const gboolean customSeqHeader);
+GList*                             createColumns(const BlxSeqType seqType, const gboolean optionalColumns, const gboolean customSeqHeader);
 
 /* dotter.c */
 //void                               selectFeatures(void);
@@ -603,7 +606,7 @@ gboolean                           bulkFetchSequences(const int attempt,
                                                       const int refSeqOffset,
                                                       const IntRange const *refSeqRange,
                                                       const char *dataset,
-                                                      const gboolean loadOptionalData
+                                                      const gboolean optionalColumns
                                                       );
 
 

@@ -1337,7 +1337,7 @@ static void createColumn(BlxColumnId columnId,
   columnInfo->propertyName = propertyName;
   columnInfo->width = defaultWidth;
   columnInfo->sortName = sortName;
-  columnInfo->dataLoaded = dataLoaded;
+  columnInfo->dataLoaded = TRUE;
   columnInfo->visible = visible;
   columnInfo->searchable = searchable;
   columnInfo->type = type;
@@ -1353,7 +1353,7 @@ static void createColumn(BlxColumnId columnId,
 
 /* This creates BlxColumnInfo entries for each column required in the detail view. It
  * returns a list of the columns created. */
-GList* createColumns(const BlxSeqType seqType, const gboolean loaded, const gboolean customSeqHeader)
+GList* createColumns(const BlxSeqType seqType, const gboolean optionalColumns, const gboolean customSeqHeader)
 {
   GList *columnList = NULL;
   
@@ -1361,10 +1361,10 @@ GList* createColumns(const BlxSeqType seqType, const gboolean loaded, const gboo
   createColumn(BLXCOL_SEQNAME,     TRUE,             "Name",       G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,   TRUE,  TRUE,   "Name",        &columnList);
   createColumn(BLXCOL_SOURCE,      TRUE,             "Source",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,   TRUE,  TRUE,   "Source",      &columnList);
 
-  createColumn(BLXCOL_ORGANISM,    TRUE,             "Organism",   G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       loaded, TRUE,  TRUE,   "Organism",    &columnList);
-  createColumn(BLXCOL_GENE_NAME,   TRUE,             "Gene Name",  G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      loaded, FALSE, TRUE,   "Gene name",   &columnList);
-  createColumn(BLXCOL_TISSUE_TYPE, TRUE,             "Tissue Type",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    loaded, FALSE, TRUE,   "Tissue type", &columnList);
-  createColumn(BLXCOL_STRAIN,      TRUE,             "Strain",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         loaded, FALSE, TRUE,   "Strain",      &columnList);
+  createColumn(BLXCOL_ORGANISM,    TRUE,             "Organism",   G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       optionalColumns, TRUE,  TRUE,   "Organism",    &columnList);
+  createColumn(BLXCOL_GENE_NAME,   TRUE,             "Gene Name",  G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      optionalColumns, FALSE, TRUE,   "Gene name",   &columnList);
+  createColumn(BLXCOL_TISSUE_TYPE, TRUE,             "Tissue Type",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    optionalColumns, FALSE, TRUE,   "Tissue type", &columnList);
+  createColumn(BLXCOL_STRAIN,      TRUE,             "Strain",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         optionalColumns, FALSE, TRUE,   "Strain",      &columnList);
 
   createColumn(BLXCOL_GROUP,       TRUE,             "Group",      G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GROUP_WIDTH,          TRUE,   FALSE, TRUE,   "Group",       &columnList);
   createColumn(BLXCOL_SCORE,       TRUE,             "Score",      G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_SCORE_WIDTH,          TRUE,   TRUE,  FALSE,  "Score",       &columnList);

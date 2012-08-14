@@ -281,7 +281,7 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->dotterFirst = FALSE;	
   options->startNextMatch = FALSE;
   options->squashMatches = FALSE;
-  options->parseFullEmblInfo = FALSE;
+  options->optionalColumns = FALSE;
   options->saveTempFiles = FALSE;
   options->coverageOn = FALSE;
   
@@ -294,6 +294,7 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->fetchMethods = g_hash_table_new(g_direct_hash, g_direct_equal);
   options->bulkFetchDefault = NULL;
   options->userFetchDefault = NULL;
+  options->optionalFetchDefault = NULL;
   options->dataset = NULL;
 
   options->msgData.titlePrefix = g_strdup("Blixem - ");
@@ -818,7 +819,7 @@ int main(int argc, char **argv)
       {"hide-inactive-strand",  no_argument,        &options.hideInactive, 1},
       {"highlight-diffs",       no_argument,        &options.highlightDiffs, 1},
       {"invert-sort",		no_argument,        &options.sortInverted, 1},
-      {"optional-data",         no_argument,        &options.parseFullEmblInfo, 1},
+      {"optional-data",         no_argument,        &options.optionalColumns, 1},
       {"remove-input-files",    no_argument,        &rm_input_files, 1},
       {"save-temp-files",       no_argument,        &options.saveTempFiles, 1},
       {"show-coverage",         no_argument,        &options.coverageOn, 1},
@@ -1043,7 +1044,7 @@ int main(int argc, char **argv)
   char dummyseqname[FULLNAMESIZE+1] = "";
 
   /* Create the columns */
-  options.columnList = createColumns(options.seqType, options.parseFullEmblInfo, (options.seqType == BLXSEQ_PEPTIDE));
+  options.columnList = createColumns(options.seqType, options.optionalColumns, (options.seqType == BLXSEQ_PEPTIDE));
 
   /* Pass the config file to parseFS */
   GKeyFile *inputConfigFile = blxGetConfig();

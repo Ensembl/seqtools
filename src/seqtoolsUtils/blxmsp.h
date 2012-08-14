@@ -56,11 +56,12 @@
 
 
 /* Key names for values in data-type stanzas in the config file */
-#define BLIXEM_GROUP                 "blixem"
-#define SEQTOOLS_BULK_FETCH          "bulk-fetch"
-#define SEQTOOLS_USER_FETCH          "user-fetch"
-#define LINK_FEATURES_BY_NAME        "link-features-by-name"
-#define LINK_FEATURES_DEFAULT        TRUE
+#define BLIXEM_GROUP                 "blixem"                   /* [blixem] stanza */
+#define SEQTOOLS_BULK_FETCH          "bulk-fetch"               /* methods(s) for batch-fetching sequences on start */
+#define SEQTOOLS_USER_FETCH          "user-fetch"               /* method(s) for interactively fetching sequences by the user */
+#define SEQTOOLS_OPTIONAL_FETCH      "optional-fetch"           /* method(s) for batch-fetching additional data on user request */
+#define LINK_FEATURES_BY_NAME        "link-features-by-name"    /* whether features with the same name have the same parent */
+#define LINK_FEATURES_DEFAULT        TRUE                       /* default value for link-features-by-name */
 #define SEQTOOLS_GFF_FILENAME_KEY    "file"
 
 /* Main Blixem error domain */
@@ -145,6 +146,7 @@ typedef struct _BlxDataType
     GQuark name;           /* the name of the data-type */
     GArray *bulkFetch;     /* list of fetch methods (by name as a GQuark) to use when bulk fetching sequences, in order of priority */
     GArray *userFetch;     /* list of fetch methods (by name as a GQuark) to use when user fetches a sequence, in order of priority */
+    GArray *optionalFetch; /* list of fetch methods (by name as a GQuark) to use when user requests optional data to be loaded */
     gboolean linkFeaturesByName; /* whether features with the same name are part of the same parent */
   } BlxDataType;
 
@@ -410,7 +412,7 @@ BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStr
 void                  blxSequenceSetColumnValue(BlxSequence *seq, const char *colName, const char *value);
 const char*           blxSequenceGetFullName(const BlxSequence *seq);
 const char*           blxSequenceGetDisplayName(const BlxSequence *seq);
-GQuark                blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk, const int index, const GArray *defaultMethods);
+GQuark                blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk, const gboolean optionalColumns, const int index, const GArray *defaultMethods);
 int                   blxSequenceGetLength(const BlxSequence *seq);
 char*                 blxSequenceGetSeq(const BlxSequence *seq);
 gboolean              blxSequenceRequiresSeqData(const BlxSequence *seq);

@@ -1458,7 +1458,7 @@ void showInfoDialog(GtkWidget *blxWindow)
   
   /* Compile the message text from the selected sequence(s) */
   GString *resultStr = g_string_new("");
-  const gboolean dataLoaded = bc->flags[BLXFLAG_EMBL_DATA_LOADED];
+  const gboolean dataLoaded = bc->flags[BLXFLAG_OPTIONAL_COLUMNS];
   GList *seqItem = bc->selectedSeqs;
   
   for ( ; seqItem; seqItem = seqItem->next)
@@ -2673,8 +2673,8 @@ static void widgetSetSensitive(GtkWidget *widget, gpointer data)
 }
 
 
-/* Callback when the user hits the 'load embl data' button on the settings dialog */
-static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
+/* Callback when the user hits the 'load optional data' button on the settings dialog */
+static void onButtonClickedLoadOptional(GtkWidget *button, gpointer data)
 {
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -2682,7 +2682,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   GError *error = NULL;
   gboolean success = bulkFetchSequences(
     0, bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
-    bc->seqType, &bc->matchSeqs, bc->columnList, bc->bulkFetchDefault, bc->fetchMethods, &bc->mspList,
+    bc->seqType, &bc->matchSeqs, bc->columnList, bc->optionalFetchDefault, bc->fetchMethods, &bc->mspList,
     &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
     &bc->refSeqRange, bc->dataset, TRUE);
   
@@ -2697,7 +2697,7 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
   if (success)
     {
       /* Set the flag to say that the data has now been loaded */
-      bc->flags[BLXFLAG_EMBL_DATA_LOADED] = TRUE;
+      bc->flags[BLXFLAG_OPTIONAL_COLUMNS] = TRUE;
       
       /* Disable the button so user can't try to load data again. */
       gtk_widget_set_sensitive(button, FALSE);
@@ -2741,7 +2741,7 @@ static GtkWidget* createColumnLoadDataButton(GtkBox *box, GtkWidget *detailView)
   gtk_box_pack_start(GTK_BOX(box), hbox, FALSE, FALSE, 12);
 
   BlxViewContext *bc = blxWindowGetContext(detailViewGetBlxWindow(detailView));
-  const gboolean dataLoaded = bc->flags[BLXFLAG_EMBL_DATA_LOADED];
+  const gboolean dataLoaded = bc->flags[BLXFLAG_OPTIONAL_COLUMNS];
   
   GtkWidget *button = gtk_button_new_with_label(LOAD_DATA_TEXT);
   gtk_widget_set_sensitive(button, !dataLoaded); /* only enable if data not yet loaded */
@@ -2822,7 +2822,7 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 	}
     }
   
-  g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onButtonClickedLoadEmblData), hbox);
+  g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onButtonClickedLoadOptional), hbox);
 }
 
 
@@ -4978,7 +4978,7 @@ static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *opti
   blxContext->flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
-  blxContext->flags[BLXFLAG_EMBL_DATA_LOADED] = options->parseFullEmblInfo;
+  blxContext->flags[BLXFLAG_OPTIONAL_COLUMNS] = options->optionalColumns;
   blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
   blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
@@ -5059,7 +5059,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->fullDisplayRange.min = fullDisplayRange->min;
   blxContext->fullDisplayRange.max = fullDisplayRange->max;
   blxContext->refSeqOffset = options->refSeqOffset;
-  blxContext->loadOptionalData = options->parseFullEmblInfo;
+  blxContext->optionalColumns = options->optionalColumns;
 
   blxContext->mspList = options->mspList;
   blxContext->columnList = options->columnList;
@@ -5077,6 +5077,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->paddingSeq = paddingSeq;
   blxContext->bulkFetchDefault = options->bulkFetchDefault;
   blxContext->userFetchDefault = options->userFetchDefault;
+  blxContext->optionalFetchDefault = options->optionalFetchDefault;
   blxContext->fetchMethods = options->fetchMethods;
   blxContext->dataset = g_strdup(options->dataset);
   blxContext->matchSeqs = seqList;
@@ -6019,7 +6020,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 					   startCoord,
 					   options->sortInverted,
 					   options->initSortColumn,
-                                           options->parseFullEmblInfo);
+                                           options->optionalColumns);
 
   
   /* Add the coverage view underneath the main panes */
