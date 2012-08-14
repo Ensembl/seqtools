@@ -291,7 +291,7 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
             gtk_list_store_set(store, &iter, columnInfo->columnIdx, end, -1);
           else
             {
-              GValue *val = blxSequenceGetValue(blxSeq, columnInfo->columnIdx);
+              GValue *val = blxSequenceGetValue(blxSeq, columnInfo->columnId);
               if (val) gtk_list_store_set_value(store, &iter, columnInfo->columnIdx, val);
             }
         }
@@ -320,9 +320,12 @@ static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
   
   const MSP const *msp1 = *((const MSP const**)a);
   const MSP const *msp2 = *((const MSP const**)b);
-  
-  const gboolean msp1HasSeq = msp1->sSequence && msp1->sSequence->sequence && msp1->sSequence->sequence->str;
-  const gboolean msp2HasSeq = msp2->sSequence && msp2->sSequence->sequence && msp2->sSequence->sequence->str;
+
+  const char *sequence1 = mspGetMatchSeq(msp1);
+  const char *sequence2 = mspGetMatchSeq(msp2);
+
+  const gboolean msp1HasSeq = (sequence1 != NULL);
+  const gboolean msp2HasSeq = (sequence2 != NULL);
 
   if (msp1HasSeq && msp2HasSeq)
     {
@@ -331,7 +334,7 @@ static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
       if (result == 0) result = getRangeLength(&msp1->sRange) - getRangeLength(&msp2->sRange);
       if (result == 0) result = msp1->score - msp2->score;
       if (result == 0) result = msp1->id - msp2->id;
-      if (result == 0) result = strncmp(msp1->sSequence->sequence->str + msp1->sRange.min - 1, msp2->sSequence->sequence->str + msp2->sRange.min - 1, getRangeLength(&msp1->sRange));
+      if (result == 0) result = strncmp(sequence1 + msp1->sRange.min - 1, sequence2 + msp2->sRange.min - 1, getRangeLength(&msp1->sRange));
     }
   else if (!msp1HasSeq && !msp2HasSeq)
     {
@@ -413,7 +416,7 @@ static void addShortReadsToCompactTree(GtkWidget *tree, GtkListStore *store, Gtk
                     gtk_list_store_set(store, &iter, columnInfo->columnIdx, prevMsp->sRange.max, -1);
                   else
                     {
-                      GValue *val = blxSequenceGetValue(msp->sSequence, columnInfo->columnIdx);
+                      GValue *val = blxSequenceGetValue(msp->sSequence, columnInfo->columnId);
                       if (val) gtk_list_store_set_value(store, &iter, columnInfo->columnIdx, val);
                     }
                 }
@@ -1951,7 +1954,7 @@ void addMspToTree(GtkWidget *tree, MSP *msp)
             gtk_list_store_set(store, &iter, columnInfo->columnIdx, msp->sRange.max, -1);
           else
             {
-              GValue *val = blxSequenceGetValue(msp->sSequence, columnInfo->columnIdx);
+              GValue *val = blxSequenceGetValue(msp->sSequence, columnInfo->columnId);
               if (val) gtk_list_store_set_value(store, &iter, columnInfo->columnIdx, val);
             }
         }
@@ -2240,9 +2243,11 @@ static void cellDataFunctionOrganismCol(GtkTreeViewColumn *column, GtkCellRender
   if (g_list_length(mspGList) > 0)
     {
       const MSP const *msp = (const MSP const*)(mspGList->data);
-      if (msp->sSequence && msp->sSequence->organism)
+      const char *organism = mspGetOrganism(msp);
+      
+      if (organism)
         {
-          g_object_set(renderer, RENDERER_TEXT_PROPERTY, msp->sSequence->organism->str, NULL);
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, organism, NULL);
         }
     }
 }
@@ -2255,9 +2260,11 @@ static void cellDataFunctionGeneNameCol(GtkTreeViewColumn *column, GtkCellRender
   if (g_list_length(mspGList) > 0)
     {
       const MSP const *msp = (const MSP const*)(mspGList->data);
-      if (msp->sSequence && msp->sSequence->geneName)
+      const char *geneName = mspGetGeneName(msp);
+
+      if (geneName)
         {
-          g_object_set(renderer, RENDERER_TEXT_PROPERTY, msp->sSequence->geneName->str, NULL);
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, geneName, NULL);
         }
     }
 }
@@ -2270,9 +2277,11 @@ static void cellDataFunctionTissueTypeCol(GtkTreeViewColumn *column, GtkCellRend
   if (g_list_length(mspGList) > 0)
     {
       const MSP const *msp = (const MSP const*)(mspGList->data);
-      if (msp->sSequence && msp->sSequence->tissueType)
+      const char *tissueType = mspGetTissueType(msp);
+      
+      if (tissueType)
         {
-          g_object_set(renderer, RENDERER_TEXT_PROPERTY, msp->sSequence->tissueType->str, NULL);
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, tissueType, NULL);
         }
     }
 }
@@ -2285,9 +2294,11 @@ static void cellDataFunctionStrainCol(GtkTreeViewColumn *column, GtkCellRenderer
   if (g_list_length(mspGList) > 0)
     {
       const MSP const *msp = (const MSP const*)(mspGList->data);
-      if (msp->sSequence && msp->sSequence->strain)
+      const char *strain = mspGetStrain(msp);
+      
+      if (strain)
         {
-          g_object_set(renderer, RENDERER_TEXT_PROPERTY, msp->sSequence->strain->str, NULL);
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, strain, NULL);
         }
     }
 }

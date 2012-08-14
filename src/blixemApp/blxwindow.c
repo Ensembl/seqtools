@@ -556,7 +556,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
                      bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
                      &bc->refSeqRange, bc->dataset, FALSE);
 
-  finaliseFetch(newSeqs);
+  finaliseFetch(newSeqs, bc->columnList);
 
   finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->columnList, bc->refSeqOffset, bc->seqType, 
                        bc->numFrames, &bc->refSeqRange, TRUE, bc->flags[BLXFLAG_LINK_FEATURES]);
@@ -1846,49 +1846,23 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
  * this only supports string data) */
 static const char* blxSequenceGetColumnData(const BlxSequence const *blxSeq, 
                                             const BlxColumnId columnId,
-                                            const BlxViewContext *bc,
-                                            GError **error)
+                                            const BlxViewContext *bc)
 {
   const char *result = NULL;
-  
-  switch (columnId)
+
+  GValue *value = blxSequenceGetValue(blxSeq, columnId);
+    
+  if (value && G_VALUE_HOLDS_STRING(value))
     {
-      case BLXCOL_SEQNAME:
-        result = blxSequenceGetFullName(blxSeq);
-        break;
-        
-      case BLXCOL_SOURCE:
-        result = blxSequenceGetSource(blxSeq);
-        break;
+      result = g_value_get_string(value);
+    }
+  else if (columnId == BLXCOL_GROUP)
+    {
+      const SequenceGroup *group = blxContextGetSequenceGroup(bc, blxSeq);
 
-      case BLXCOL_ORGANISM:
-        result = blxSequenceGetOrganism(blxSeq);
-        break;
-
-      case BLXCOL_GENE_NAME:
-        result = blxSequenceGetGeneName(blxSeq);
-        break;
-
-      case BLXCOL_TISSUE_TYPE:
-        result = blxSequenceGetTissueType(blxSeq);
-        break;
-        
-      case BLXCOL_STRAIN:
-        result = blxSequenceGetStrain(blxSeq);
-        break;
-
-      case BLXCOL_GROUP:
-      {
-        const SequenceGroup *group = blxContextGetSequenceGroup(bc, blxSeq);
-        if (group)
-          result = group->groupName;
-        break;
-      }
-        
-      default:
-        g_set_error(error, BLX_ERROR, BLX_ERROR_INVALID_COLUMN, "No sequence data for this column.\n");
-        break;
-    };
+      if (group)
+        result = group->groupName;
+    }
   
   return result;
 }
@@ -1910,7 +1884,7 @@ static void getSequencesThatMatch(gpointer listDataItem, gpointer data)
     return; /* already hit an error so don't try any more */
 
   /* Get the relevant data for the search column */
-  const char *dataToCompare = blxSequenceGetColumnData(seq, searchData->searchCol, searchData->bc, &searchData->error);
+  const char *dataToCompare = blxSequenceGetColumnData(seq, searchData->searchCol, searchData->bc);
   
   if (!dataToCompare)
     {
@@ -2686,7 +2660,7 @@ static void onButtonClickedLoadOptional(GtkWidget *button, gpointer data)
     &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
     &bc->refSeqRange, bc->dataset, TRUE);
   
-  finaliseFetch(bc->matchSeqs);
+  finaliseFetch(bc->matchSeqs, bc->columnList);
 
   if (error)
     {
@@ -3812,11 +3786,12 @@ static void getStats(GtkWidget *blxWindow, GString *result, MSP *MSPlist)
       ++totalNumSeqs;
       seqStructSize += sizeof(BlxSequence);
       BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      
-      if (blxSeq->sequence)
+      const char *sequence = blxSequenceGetSequence(blxSeq);
+
+      if (sequence)
         {
           ++numValidSeqs;
-          seqDataSize += blxSequenceGetLength(blxSeq) * sizeof(char);
+          seqDataSize += strlen(sequence) * sizeof(char);
         }
     }
   
@@ -5422,7 +5397,7 @@ static GString* blxWindowGetSelectedSeqNames(GtkWidget *blxWindow)
 	}
 
       const BlxSequence *seq = (const BlxSequence*)(listItem->data);
-      g_string_append(result, blxSequenceGetDisplayName(seq));
+      g_string_append(result, blxSequenceGetName(seq));
     }
 
   return result;

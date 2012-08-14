@@ -562,7 +562,7 @@ static char* getDotterTitle(const BlxViewContext *bc)
   if (numSeqs == 1)
     {
       const BlxSequence *blxSeq = (const BlxSequence*)(bc->selectedSeqs->data);
-      g_string_append(resultStr, blxSequenceGetDisplayName(blxSeq));
+      g_string_append(resultStr, blxSequenceGetName(blxSeq));
     }
   else if (numSeqs < 1)
     {
@@ -894,12 +894,12 @@ char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
       /* Check if sequence is stored internally (i.e. it was passed from acedb) */
       g_debug("Looking for sequence stored internally... ");
     
-      dotterSSeq = g_strdup(blxSequenceGetSeq(blxSeq));
+      dotterSSeq = g_strdup(blxSequenceGetSequence(blxSeq));
       
       if (!dotterSSeq)
 	{
 	  g_debug("not found.\n");
-	  g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NOT_FOUND, "Failed to find sequence for '%s'.\n", blxSequenceGetFullName(blxSeq));
+	  g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NOT_FOUND, "Failed to find sequence for '%s'.\n", blxSequenceGetName(blxSeq));
 	  return FALSE;
 	}
 
@@ -915,7 +915,7 @@ char* getDotterSSeq(GtkWidget *blxWindow, GError **error)
 
   if (dotterSSeq && (strchr(dotterSSeq, SEQUENCE_CHAR_PAD) || blastMode == BLXMODE_TBLASTN))
     {
-      g_warning("The sequence for '%s' is incomplete.\n", blxSequenceGetFullName(blxSeq));
+      g_warning("The sequence for '%s' is incomplete.\n", blxSequenceGetName(blxSeq));
     }
   
   return dotterSSeq;

@@ -209,26 +209,16 @@ typedef struct _BlxSequence
 {
   BlxSequenceType type;            /* What type of collection of MSPs this is */
   BlxDataType *dataType;           /* Optional data type that specifies additional properties for this type of sequence data */
-
   char *idTag;                     /* Unique identifier e.g. from ID tag in GFF files */
 
-  GValue* values;                  /* Array of values for the columns */
-
-
-  char *source;                    /* Optional source text for the sequence */
-
-  GQuark fullName;                 /* full name of the sequence, including variant postfix, e.g. AV274505.2 */
-  
-  GString *organism;               /* organism from the EMBL data OS line */
-  GString *geneName;               /* gene name from the EMBL data GN line */
-  GString *tissueType;             /* tissue type from the /tissue_type attribute from the FT lines in the EMBL file */
-  GString *strain;                 /* strain from the /strain attribute from the FT lines in the EMBL file */
-  
+  GArray* values;                  /* Array of values (as GValue) for the columns */
+ 
   BlxStrand strand;                /* which strand of the sequence this is */
-  GString *sequence;               /* the actual sequence data */
   gboolean sequenceReqd;           /* whether the sequence data is required (e.g. it is not needed for exons/introns etc.) */
+
   IntRange qRangeFwd;              /* the extent of alignments from this sequence on the ref sequence forward strand */ 
   IntRange qRangeRev;              /* the extent of alignments from this sequence on the ref sequence reverse strand */ 
+  char *organismAbbrev;            /* internally-calculated abbreviation for the Organism column value, if set */
   
   GList *mspList;                  /* list of MSPs from this sequence */
 } BlxSequence;
@@ -325,7 +315,6 @@ int                   mspGetQStart(const MSP const *msp);
 int                   mspGetQEnd(const MSP const *msp);
 int                   mspGetSStart(const MSP const *msp);
 int                   mspGetSEnd(const MSP const *msp);
-char*                 mspGetSSeq(const MSP const *msp);
 int                   mspGetQRangeLen(const MSP const *msp);
 int                   mspGetSRangeLen(const MSP const *msp);
 int                   mspGetMatchSeqLen(const MSP const *msp);
@@ -344,10 +333,10 @@ const GdkColor*       mspGetColor(const MSP const *msp,
                                   const int utrFillColorId,
                                   const int utrLineColorId);
 
-char*                 mspGetOrganism(const MSP const *msp);
-char*                 mspGetGeneName(const MSP const *msp);
-char*                 mspGetTissueType(const MSP const *msp);
-char*                 mspGetStrain(const MSP const *msp);
+const char*           mspGetOrganism(const MSP const *msp);
+const char*           mspGetGeneName(const MSP const *msp);
+const char*           mspGetTissueType(const MSP const *msp);
+const char*           mspGetStrain(const MSP const *msp);
 char*                 mspGetCoordsAsString(const MSP const *msp);
 gchar*                mspGetTreePath(const MSP const *msp, BlxModelId modelId);
 
@@ -401,6 +390,9 @@ int                   findMspListQExtent(GList *mspList, const gboolean findMin,
 gint                  fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in);
 gint                  fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in);
 
+/* Columns */
+gint                  columnIdxCompareFunc(gconstpointer a, gconstpointer b);
+
 /* BlxSequence */
 char*                 blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq);
 BlxDataType*          createBlxDataType();
@@ -409,12 +401,13 @@ const char*           getDataTypeName(BlxDataType *blxDataType);
 BlxSequence*          createEmptyBlxSequence();
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
 BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, GList *columnList, char *sequence, MSP *msp, const gboolean linkFeaturesByName, GError **error);
-void                  blxSequenceSetColumnValue(BlxSequence *seq, const char *colName, const char *value);
-const char*           blxSequenceGetFullName(const BlxSequence *seq);
-const char*           blxSequenceGetDisplayName(const BlxSequence *seq);
+void                  blxSequenceSetValue(const BlxSequence *seq, const int columnId, GValue *value);
+void                  blxSequenceSetValueFromString(const BlxSequence *seq, const int columnId, const char *inputStr);
+void                  blxSequenceSetColumn(BlxSequence *seq, const char *colName, const char *value, GList *columnList);
+const char*           blxSequenceGetName(const BlxSequence *seq);
 GQuark                blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk, const gboolean optionalColumns, const int index, const GArray *defaultMethods);
 int                   blxSequenceGetLength(const BlxSequence *seq);
-char*                 blxSequenceGetSeq(const BlxSequence *seq);
+const char*           blxSequenceGetSequence(const BlxSequence *seq);
 gboolean              blxSequenceRequiresSeqData(const BlxSequence *seq);
 gboolean              blxSequenceRequiresOptionalData(const BlxSequence *seq);
 BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs);
@@ -424,12 +417,12 @@ int                   blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand 
 const char*           blxSequenceGetSource(const BlxSequence *seq);
 gboolean              blxSequenceGetLinkFeatures(const BlxSequence *seq, const gboolean defaultLinkFeatures);
 
-GValue*               blxSequenceGetValue(const BlxSequence *seq, const int columnIdx);
+GValue*               blxSequenceGetValue(const BlxSequence *seq, const int columnId);
 
-char*                 blxSequenceGetOrganism(const BlxSequence *seq);
-char*                 blxSequenceGetGeneName(const BlxSequence *seq);
-char*                 blxSequenceGetTissueType(const BlxSequence *seq);
-char*                 blxSequenceGetStrain(const BlxSequence *seq);
+const char*           blxSequenceGetOrganism(const BlxSequence *seq);
+const char*           blxSequenceGetGeneName(const BlxSequence *seq);
+const char*           blxSequenceGetTissueType(const BlxSequence *seq);
+const char*           blxSequenceGetStrain(const BlxSequence *seq);
 char*                 blxSequenceGetFasta(const BlxSequence *seq);
 
 void                  destroyBlxSequence(BlxSequence *seq);

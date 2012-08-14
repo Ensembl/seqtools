@@ -69,7 +69,7 @@ typedef int (*SqliteFunc)(void*,int,char**,char**);
 /********************/
 
 /* Utility to find the given sequence in the given list */
-static BlxSequence* findBlxSequence(GQuark seqName, GList *seqList)
+static BlxSequence* findBlxSequence(const char *seqName, GList *seqList)
 {
   BlxSequence* result = NULL;
   GList *item = seqList;
@@ -77,8 +77,9 @@ static BlxSequence* findBlxSequence(GQuark seqName, GList *seqList)
   for (; item && !result; item = item->next)
     {
       BlxSequence* blxSeq = (BlxSequence*)(item->data);
+      const char *curName = blxSequenceGetName(blxSeq);
       
-      if (blxSeq->fullName == seqName)
+      if (stringsEqual(curName, seqName, FALSE))
         result = blxSeq;
     }
 
@@ -151,18 +152,20 @@ static int populateResultsListCB(void *data, int argc, char **argv, char **azCol
       
       if (column == nameCol)
         {
-          GQuark seqName = g_quark_from_string(argv[i]);
-          blxSeq = findBlxSequence(seqName, seqList);
+          blxSeq = findBlxSequence(argv[i], seqList);
         }
     }
 
   /* Loop again to populate the sequence data */
+  GtkWidget *blxWindow = getBlixemWindow();
+  GList *columnList = blxWindowGetColumnList(blxWindow);
+  
   if (blxSeq)
     {
       for (i = 0; i < argc; ++i)
         {
           DEBUG_OUT("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-          blxSequenceSetColumnValue(blxSeq, azColName[i], argv[i]);
+          blxSequenceSetColumn(blxSeq, azColName[i], argv[i], columnList);
         }
     }
 

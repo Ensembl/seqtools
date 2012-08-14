@@ -46,6 +46,11 @@
 static int g_MaxMspLen = 0;     /* max length in display coords of all MSPs in the detail-view */
 
 
+static const char* blxSequenceGetString(const BlxSequence *seq, const int columnId);
+
+
+
+
 /* Get/set the max MSP length */
 int getMaxMspLen()
 {
@@ -242,7 +247,15 @@ gboolean mspIsShortRead(const MSP const *msp)
 
 gboolean mspIsZeroLenVariation(const MSP const *msp)
 {
-  return (mspIsVariation(msp) && msp->sSequence && msp->sSequence->sequence && msp->sSequence->sequence->str && msp->sSequence->sequence->str[0] == '-');
+  gboolean result = mspIsVariation(msp);
+  
+  if (result)
+    {
+      const char *seq = mspGetMatchSeq(msp);
+      result = (seq && seq[0] == '-');
+    }
+
+  return result;
 }
 
 /* Whether the msp has a Target name (i.e. Subject sequence name) */
@@ -331,11 +344,6 @@ int mspGetSEnd(const MSP const *msp)
   return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.max : msp->sRange.min);
 }
 
-/* Get the match sequence data for the given msp, or NULL if none exists */
-char* mspGetSSeq(const MSP const *msp)
-{
-  return (msp && msp->sSequence ? blxSequenceGetSeq(msp->sSequence) : NULL);
-}
 
 /* Return the match sequence name. (Gets it from the BlxSequence if the MSP itself doesn't have
  * a name) */
@@ -351,7 +359,7 @@ const char *mspGetSName(const MSP const *msp)
         }
       else if (msp->sSequence)
         {
-          result = blxSequenceGetFullName(msp->sSequence);
+          result = blxSequenceGetName(msp->sSequence);
         }
     }
   
@@ -415,7 +423,7 @@ BlxStrand mspGetMatchStrand(const MSP const *msp)
 /* Get the match sequence for the given MSP */
 const char* mspGetMatchSeq(const MSP const *msp)
 {
-  return blxSequenceGetSeq(msp->sSequence);
+  return (msp ? blxSequenceGetSequence(msp->sSequence) : NULL);
 }
 
 /* Get the source of the MSP */
@@ -524,24 +532,24 @@ const GdkColor* mspGetColor(const MSP const *msp,
 
 /* Get functions from msps for various sequence properties. Result is owned by the sequence
  * and should not be free'd. Returns NULL if the property is not set. */
-char *mspGetOrganism(const MSP const *msp)
+const char *mspGetOrganism(const MSP const *msp)
 {
-  return (msp && msp->sSequence && msp->sSequence->organism ? msp->sSequence->organism->str : NULL);
+  return (msp ? blxSequenceGetOrganism(msp->sSequence) : NULL);
 }
 
-char *mspGetGeneName(const MSP const *msp)
+const char *mspGetGeneName(const MSP const *msp)
 {
-  return (msp && msp->sSequence && msp->sSequence->geneName ? msp->sSequence->geneName->str : NULL);
+  return (msp ? blxSequenceGetGeneName(msp->sSequence) : NULL);
 }
 
-char *mspGetTissueType(const MSP const *msp)
+const char *mspGetTissueType(const MSP const *msp)
 {
-  return (msp && msp->sSequence && msp->sSequence->tissueType ? msp->sSequence->tissueType->str : NULL);
+  return (msp ? blxSequenceGetTissueType(msp->sSequence) : NULL);
 }
 
-char *mspGetStrain(const MSP const *msp)
+const char *mspGetStrain(const MSP const *msp)
 {
-  return (msp && msp->sSequence && msp->sSequence->strain ? msp->sSequence->strain->str : NULL);
+  return (msp ? blxSequenceGetStrain(msp->sSequence) : NULL);
 }
 
 
@@ -745,15 +753,6 @@ static void appendTextIfNonNull(GString *gstr, const char *separator, const char
     }
 }
 
-/* Append the contents of the second GString to the first GString, if the second is non-null,
- * including the given separator before the second GString is appended. Pass the separator
- * as an empty string if no separation is required. */
-static void appendStringIfNonNull(GString *gstr, const char *separator, const GString *text)
-{
-  if (text)
-    appendTextIfNonNull(gstr, separator, text->str);
-}
-
 /* Return summary info about a given BlxSequence (e.g. for displaying in the status bar). The
  * result should be free'd with g_free. */
 char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
@@ -764,13 +763,17 @@ char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
     {
       GString *resultStr = g_string_new("");
       const char *separator = ";  ";
-      
-      g_string_append_printf(resultStr, "%s", blxSequenceGetFullName(blxSeq));
-      appendTextIfNonNull(resultStr, separator, blxSequenceGetSource(blxSeq));
-      appendStringIfNonNull(resultStr, separator, blxSeq->organism);
-      appendStringIfNonNull(resultStr, separator, blxSeq->geneName);
-      appendStringIfNonNull(resultStr, separator, blxSeq->tissueType);
-      appendStringIfNonNull(resultStr, separator, blxSeq->strain);
+
+      /* Loop through all the (string) values, appending the text to the result string */
+      int i = 0;
+
+      for ( ; i < blxSeq->values->len; ++i)
+        {
+          GValue *value = &g_array_index(blxSeq->values, GValue, i);
+          
+          if (G_VALUE_HOLDS_STRING(value))
+            appendTextIfNonNull(resultStr, (i==0 ? "" : separator), g_value_get_string(value));
+        }
       
       result = g_string_free(resultStr, FALSE);
     }
@@ -780,17 +783,18 @@ char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
 
 
 /* Return the full name of a BlxSequence (including prefix and variant) */
-const char *blxSequenceGetFullName(const BlxSequence *seq)
+const char *blxSequenceGetName(const BlxSequence *seq)
 {
   const char *result = NULL;
   
   if (seq)
     {
-      if (seq->fullName)
-        result = g_quark_to_string(seq->fullName);
-      else if (seq->idTag)
+      result = blxSequenceGetString(seq, BLXCOL_SEQNAME);
+      
+      if (!result && seq->idTag)
         result = seq->idTag;
-      else
+
+      if (!result)
         g_error("Sequence does not have a name specified.\n");
     }
   
@@ -805,7 +809,7 @@ const char *blxSequenceGetSource(const BlxSequence *seq)
   const char *result = NULL;
   
   if (seq)
-    result = seq->source;
+    result = blxSequenceGetString(seq, BLXCOL_SOURCE);
   
   return result;
 }
@@ -857,16 +861,20 @@ GQuark blxSequenceGetFetchMethod(const BlxSequence *seq,
   return result;
 }
 
-/* Return the display name of a BlxSequence (same as full name for now) */
-const char *blxSequenceGetDisplayName(const BlxSequence *seq)
-{
-  return blxSequenceGetFullName(seq);
-}
-
 /* Return the length of the given blxsequence's sequence data */
 int blxSequenceGetLength(const BlxSequence *seq)
 {
-  return (seq && seq->sequence ? seq->sequence->len : 0);
+  int result = 0;
+  
+  if (seq)
+    {
+      const char *sequence = blxSequenceGetSequence(seq);
+
+      if (sequence)
+        result = strlen(sequence);
+    }
+  
+  return result;
 }
 
 /* Get the start extent of the alignments from this match sequence on the
@@ -883,9 +891,10 @@ int blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand)
 }
 
 /* Get the sequence data for the given blxsequence */
-char *blxSequenceGetSeq(const BlxSequence *seq)
+const char *blxSequenceGetSequence(const BlxSequence *seq)
 {
-  return (seq && seq->sequence ? seq->sequence->str : NULL);
+  const char *result = blxSequenceGetString(seq, BLXCOL_SEQUENCE);
+  return result;
 }
 
 /* This returns true if the given sequence object requires sequence data
@@ -907,45 +916,115 @@ gboolean blxSequenceRequiresOptionalData(const BlxSequence *seq)
 }
 
 /* Get the value for the given column */
-GValue* blxSequenceGetValue(const BlxSequence *seq, const int columnIdx)
+GValue* blxSequenceGetValue(const BlxSequence *seq, const int columnId)
 {
   GValue *result = NULL;
   
   if (seq)
-    result = &seq->values[columnIdx];
+    result = &g_array_index(seq->values, GValue, columnId);
 
   return result;
 }
 
-char *blxSequenceGetOrganism(const BlxSequence *seq)
+void blxSequenceSetValue(const BlxSequence *seq, const int columnId, GValue *value_in)
 {
-  return (seq && seq->organism ? seq->organism->str : "");
+  if (seq && seq->values)
+    {
+      GValue *value = blxSequenceGetValue(seq, columnId);
+      g_value_reset(value);
+      g_value_copy(value_in, value);
+    }
 }
 
-char *blxSequenceGetGeneName(const BlxSequence *seq)
+/* Set the value for the given column. The given string is converted to
+ * the relevant value type */
+void blxSequenceSetValueFromString(const BlxSequence *seq, const int columnId, const char *inputStr)
 {
-  return (seq && seq->geneName ? seq->geneName->str : "");
+  if (inputStr && seq && seq->values)
+    {
+      GValue *value = blxSequenceGetValue(seq, columnId);
+      g_value_reset(value);
+
+      if (G_VALUE_HOLDS_STRING(value))
+        {
+          g_value_take_string(value, g_strdup(inputStr));
+          printf("Set value = %s\n", blxSequenceGetString(seq, columnId));
+          
+
+        }
+      else if (G_VALUE_HOLDS_INT(value))
+        {
+          const int tmp = atoi(inputStr);
+          g_value_set_int(value, tmp);
+        }
+      else if (G_VALUE_HOLDS_DOUBLE(value))
+        {
+          const gdouble tmp = g_strtod(inputStr, NULL);
+          g_value_set_double(value, tmp);
+        }
+      else
+        {
+          g_warning("Tried to set value of unknown type for column '%d'\n", columnId);
+        }
+    }
+
 }
 
-char *blxSequenceGetTissueType(const BlxSequence *seq)
+/* Get the string value for the given column. Returns null if the
+ * value is not a string type */
+static const char* blxSequenceGetString(const BlxSequence *seq, const int columnId)
 {
-  return (seq && seq->tissueType ? seq->tissueType->str : "");
+  const char *result = NULL;
+  
+  GValue *value = blxSequenceGetValue(seq, columnId);
+
+  if (value && G_VALUE_HOLDS_STRING(value))
+    result = g_value_get_string(value);
+
+  /* Return null if it's an empty value (i.e. if it's unset) */
+  if (result && *result == 0)
+    result = NULL;
+
+  return result;
 }
 
-char *blxSequenceGetStrain(const BlxSequence *seq)
+const char *blxSequenceGetOrganism(const BlxSequence *seq)
 {
-  return (seq && seq->strain ? seq->strain->str : "");
+  return blxSequenceGetString(seq, BLXCOL_ORGANISM);
+}
+
+const char *blxSequenceGetGeneName(const BlxSequence *seq)
+{
+  return blxSequenceGetString(seq, BLXCOL_GENE_NAME);
+}
+
+const char *blxSequenceGetTissueType(const BlxSequence *seq)
+{
+  return blxSequenceGetString(seq, BLXCOL_TISSUE_TYPE);
+}
+
+const char *blxSequenceGetStrain(const BlxSequence *seq)
+{
+  return blxSequenceGetString(seq, BLXCOL_STRAIN);
 }
 
 /* Return the sequence data as a string in fasta format.
- * Result should be free'd with g_free */
+ * Result should be free'd with g_free, unless the name
+ * or sequence couldn't be found, in which case the result
+ * is null */
 char *blxSequenceGetFasta(const BlxSequence *seq)
 {
   char *result = NULL;
   
-  if (seq && blxSequenceGetFullName(seq) && seq->sequence && seq->sequence->str)
+  if (seq)
     {
-      result = g_strdup_printf(">%s\n%s", blxSequenceGetFullName(seq), seq->sequence->str);
+      const char *name = blxSequenceGetName(seq);
+      const char *sequence = blxSequenceGetSequence(seq);
+      
+      if (name && sequence)
+        {
+          result = g_strdup_printf(">%s\n%s", name, sequence);
+        }
     }
   
   return result;
@@ -968,7 +1047,7 @@ char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, cons
     char strand = blxSeq->strand == BLXSTRAND_REVERSE ? '-' : '+';
     char unloadedStr[] = "(optional data not loaded)";
     
-    g_string_append_printf(resultStr, "SEQUENCE NAME:\t%s%c%c", blxSequenceGetFullName(blxSeq), strand, separator);
+    g_string_append_printf(resultStr, "SEQUENCE NAME:\t%s%c%c", blxSequenceGetName(blxSeq), strand, separator);
     g_string_append_printf(resultStr, "ORGANISM:\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetOrganism(blxSeq), separator);
     g_string_append_printf(resultStr, "GENE NAME:\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetGeneName(blxSeq), separator);
     g_string_append_printf(resultStr, "TISSUE TYPE:\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetTissueType(blxSeq), separator);
@@ -998,13 +1077,13 @@ static BlxSequence* blxSequenceFindByName(const char *name, GList *allSeqs)
 {
   BlxSequence *result = NULL;
   GList *listItem = allSeqs;
-  GQuark nameQuark = g_quark_from_string(name);
   
   for ( ; listItem; listItem = listItem->next)
     {
       BlxSequence *curSeq = (BlxSequence*)(listItem->data);
+      const char *curName = blxSequenceGetName(curSeq);
     
-      if (curSeq->fullName == nameQuark)
+      if (name && stringsEqual(curName, name, FALSE))
         {
           result = curSeq;
           break;
@@ -1024,7 +1103,7 @@ BlxSequence* blxSequenceGetVariantParent(const BlxSequence *variant, GList *allS
 {
   BlxSequence *result = NULL;
   
-  const char *variantName = blxSequenceGetFullName(variant);
+  const char *variantName = blxSequenceGetName(variant);
   
   if (variantName)
     {
@@ -1092,60 +1171,45 @@ void destroyBlxSequence(BlxSequence *seq)
 {
   if (seq)
     {
-      if (seq->source)        g_free(seq->source);
-      if (seq->idTag)         g_free(seq->idTag);
-      if (seq->sequence)      g_string_free(seq->sequence, TRUE);
-      if (seq->organism)      g_string_free(seq->organism, TRUE);
-      if (seq->geneName)      g_string_free(seq->geneName, TRUE);
-      if (seq->tissueType)    g_string_free(seq->tissueType, TRUE);
-      if (seq->strain)        g_string_free(seq->strain, TRUE);
+      /* Free all column values */
+      int i = 0;      
+      for ( ; i < seq->values->len; ++i)
+        {
+          GValue *value = &g_array_index(seq->values, GValue, i);
+          g_value_unset(value);
+        }
+      
+      if (seq->idTag)
+        g_free(seq->idTag);
       
       g_free(seq);
     }
 }
 
 
-/* Set the value for a particular column */
-void blxSequenceSetColumnValue(BlxSequence *seq, const char *colName, const char *value)
+/* Set the value for a particular column (by column name) */
+void blxSequenceSetColumn(BlxSequence *seq, const char *colName, const char *value, GList *columnList)
 {
   if (!colName || !value)
     return;
+  
+  gboolean found = FALSE;
 
-  /* Cache the quarks for each column, for quick comparisons */
-  static GQuark nameCol = 0;
-  static GQuark sequenceCol = 0;
-  static GQuark organismCol = 0;
-  static GQuark tissueTypeCol = 0;
-  static GQuark geneNameCol = 0;
-  static GQuark strainCol = 0;
-
-  if (!nameCol)
+  /* Loop through the column list and find the one with this name */
+  GList *item = columnList;
+  for ( ; item && !found; item = item->next)
     {
-      nameCol = g_quark_from_string("Name");
-      sequenceCol = g_quark_from_string("Sequence");
-      organismCol = g_quark_from_string("Organism");
-      tissueTypeCol = g_quark_from_string("Tissue Type");
-      geneNameCol = g_quark_from_string("Gene Name");
-      strainCol = g_quark_from_string("Strain");
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
+      
+      if (stringsEqual(colName, columnInfo->title, FALSE))
+        {
+          blxSequenceSetValueFromString(seq, columnInfo->columnId, value);
+          found = TRUE;
+        }
     }
-
-  /* Get the quark for the given column name */
-  GQuark column = g_quark_from_string(colName);
-          
-  if (column == nameCol)
-    seq->fullName = g_quark_from_string(value);
-  else if (column == sequenceCol)
-    seq->sequence = g_string_new(value);
-  else if (column == organismCol)
-    seq->organism = g_string_new(value);
-  else if (column == tissueTypeCol)
-    seq->tissueType = g_string_new(value);
-  else if (column == geneNameCol)
-    seq->geneName = g_string_new(value);
-  else if (column ==  strainCol)
-    seq->strain = g_string_new(value);
-  else
-    g_warning("Unknown column '%s'\n", colName);
+  
+  if (!found)
+    g_warning("Unrecognised column '%s'\n", colName);
 }
 
 
@@ -1160,18 +1224,7 @@ BlxSequence* createEmptyBlxSequence()
   seq->mspList = NULL;
   seq->sequenceReqd = FALSE;
   seq->values = NULL;
-  
 
-  
-  seq->source = NULL;
-  seq->fullName = 0;
-  seq->sequence = NULL;
-  seq->organism = NULL;
-  seq->geneName = NULL;
-  seq->tissueType = NULL;
-  seq->strain = NULL;
-  
- 
   return seq;
 }
 
@@ -1295,7 +1348,7 @@ void writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *r
               blxSeq->strand,
               numMsps); /* output number of msps so we know how many to read in */
       
-      stringProtect(pipe, blxSequenceGetFullName(blxSeq));
+      stringProtect(pipe, blxSequenceGetName(blxSeq));
       stringProtect(pipe, blxSeq->idTag);
       
       fputc('\n', pipe);
@@ -1352,7 +1405,7 @@ BlxSequence* readBlxSequenceFromText(char *text, int *numMsps)
   nextChar(&curChar);
   
   char *fullName = stringUnprotect(&curChar, NULL);
-  blxSeq->fullName = g_quark_from_string(fullName);
+  blxSequenceSetValueFromString(blxSeq, BLXCOL_SEQNAME, fullName);
   g_free(fullName);
 
   blxSeq->idTag = stringUnprotect(&curChar, NULL);
@@ -1781,13 +1834,13 @@ static MSP* createMissingMsp(const BlxMspType newType,
   if (newType != BLXMSP_INVALID)
     {
       /* Create the new exon/cds/utr */
-      DEBUG_OUT("Creating MSP for transcript '%s' of type %d.\n", blxSequenceGetFullName(blxSeq), newType);
+      DEBUG_OUT("Creating MSP for transcript '%s' of type %d.\n", blxSequenceGetName(blxSeq), newType);
       
       GError *tmpError = NULL;
       
-      result = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, newType, NULL, blxSeq->source,
+      result = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, newType, NULL, blxSequenceGetSource(blxSeq),
                             UNSET_INT, UNSET_INT, UNSET_INT, blxSeq->idTag,
-                            qname, newStart, newEnd, blxSeq->strand, newFrame, g_quark_to_string(blxSeq->fullName),
+                            qname, newStart, newEnd, blxSeq->strand, newFrame, blxSequenceGetName(blxSeq),
                             UNSET_INT, UNSET_INT, blxSeq->strand, NULL,
                             blxSequenceGetLinkFeatures(blxSeq, linkFeatures), 0, &tmpError);
       
@@ -1992,10 +2045,10 @@ static void constructTranscriptData(BlxSequence *blxSeq,
               
               if (curExon && newRange.min != UNSET_INT && newRange.max != UNSET_INT)
                 {
-                  createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_INTRON, NULL, blxSeq->source, 
+                  createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_INTRON, NULL, blxSequenceGetSource(blxSeq), 
                                curExon->score, curExon->id, 0, blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
-                               g_quark_to_string(blxSeq->fullName), UNSET_INT, UNSET_INT, blxSeq->strand, NULL, 
+                               blxSequenceGetName(blxSeq), UNSET_INT, UNSET_INT, blxSeq->strand, NULL, 
                                blxSequenceGetLinkFeatures(blxSeq, linkFeatures), 0, &tmpError);
                   
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
@@ -2216,17 +2269,17 @@ void finaliseBlxSequences(GArray* featureLists[],
   
   for ( ; seqItem; seqItem = seqItem->next)
     {
-      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-
       /* So far we only have the forward strand version of each sequence. We must complement any 
        * that need the reverse strand */
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+
       if (blxSeq && 
           blxSeq->strand == BLXSTRAND_REVERSE && 
-          (blxSeq->type == BLXSEQUENCE_MATCH || (blxSeq->type == BLXSEQUENCE_READ_PAIR && !ALL_READ_PAIRS_FWD)) && 
-          blxSeq->sequence && 
-          blxSeq->sequence->str)
+          (blxSeq->type == BLXSEQUENCE_MATCH || (blxSeq->type == BLXSEQUENCE_READ_PAIR && !ALL_READ_PAIRS_FWD)))
         {
-          blxComplement(blxSeq->sequence->str);
+          char *sequence = g_strdup(blxSequenceGetSequence(blxSeq));
+          blxComplement(sequence);
+          blxSequenceSetValueFromString(blxSeq, BLXCOL_SEQUENCE, sequence);
         }
       
       findSequenceExtents(blxSeq);
@@ -2384,6 +2437,22 @@ static BlxSequence* findBlxSequence(GHashTable *lookupTable,
 }
 
 
+/* Sort two columns by index */
+gint columnIdxCompareFunc(gconstpointer a, gconstpointer b)
+{
+  BlxColumnInfo *col1 = (BlxColumnInfo*)a;
+  BlxColumnInfo *col2 = (BlxColumnInfo*)b;
+  return col1->columnIdx - col2->columnIdx;
+}
+
+/* Sort two columns by ID */
+static gint columnIdCompareFunc(gconstpointer a, gconstpointer b)
+{
+  BlxColumnInfo *col1 = (BlxColumnInfo*)a;
+  BlxColumnInfo *col2 = (BlxColumnInfo*)b;
+  return col1->columnId - col2->columnId;
+}
+
 
 /* Create a new sequence with the given name and/or ID tag */
 static BlxSequence* createBlxSequence(const char *name,
@@ -2399,33 +2468,45 @@ static BlxSequence* createBlxSequence(const char *name,
   seq->strand = strand;
   seq->dataType = dataType;
 
-  if (name)
-    seq->fullName = g_quark_from_string(name);
-
   if (idTag)
     seq->idTag = g_strdup(idTag);
 
-  if (source)
-    seq->source = g_strdup(source);
-  
-
   /* Allocate the list of values and initialise the value types
    * to the relevant type for that column */
-  const int numColumns = g_list_length(columnList);
-  seq->values = g_malloc0(numColumns * sizeof(GValue));
+  //const int numColumns = g_list_length(columnList);
+  seq->values = g_array_new(FALSE, FALSE, sizeof(GValue));
 
+  /* Sort the columns by column ID (NOT column index) so that we
+   * can easily index on the ID when looking up values in the array */
+  columnList = g_list_sort(columnList, columnIdCompareFunc);
+  
   GList *item = columnList;
-  int i = 0;
-
-  for ( ; item; item = item->next, ++i)
+  for ( ; item; item = item->next)
     {
+      /* Note that we index on columnId, not columnIdx. This is so that
+       * we can quickly index on the columnId enum. The columnIdx represents
+       * the display order, which is not relevant here. */
       BlxColumnInfo * columnInfo = (BlxColumnInfo*)(item->data);
-      g_value_init(&seq->values[i], columnInfo->type);
+      GType type = columnInfo->type;
+      
+      /* Bit of a hack; the sequence column type is pointer because we
+       * pass a pointer to the msp to the cell renderer, but here we want to
+       * store the actual sequence string */
+      if (columnInfo->columnId == BLXCOL_SEQUENCE)
+        type = G_TYPE_STRING;
+      
+      GValue value = {0};
+      g_value_init(&value, type);
+
+      g_array_append_val(seq->values, value);
     }
 
-  /* Set the column values */
-  g_value_set_string(&seq->values[BLXCOL_SEQNAME], name);
-  g_value_set_string(&seq->values[BLXCOL_SOURCE], source);
+  /* Set the given name and source */
+  blxSequenceSetValueFromString(seq, BLXCOL_SEQNAME, name);
+  blxSequenceSetValueFromString(seq, BLXCOL_SOURCE, source);
+
+  /* Make sure we change back to the original sort order (sorted by index) */
+  columnList = g_list_sort(columnList, columnIdxCompareFunc);
 
   return seq;
 }
@@ -2493,17 +2574,19 @@ BlxSequence* addBlxSequence(const char *name,
           else if (dataType && blxSeq->dataType != dataType)
             g_warning("Duplicate sequences have different data types [name=%s, ID=%s, strand=%d, orig type=%s, new type=%s].\n", name, idTag, strand, g_quark_to_string(blxSeq->dataType->name), g_quark_to_string(dataType->name));
           
-          if (source && !blxSeq->source)
-            blxSeq->source = g_strdup(source);
-          else if (source && !stringsEqual(blxSeq->source, source, FALSE))
-            g_warning("Duplicate sequences have different sources [name=%s, ID=%s, strand=%d, orig source=%s, new source=%s].\n", name, idTag, strand, blxSeq->source, source);
+          const char *oldSource = blxSequenceGetSource(blxSeq);
+
+          if (source && !oldSource)
+            blxSequenceSetValueFromString(blxSeq, BLXCOL_SOURCE, source);
+          else if (source && !stringsEqual(oldSource, source, FALSE))
+            g_warning("Duplicate sequences have different sources [name=%s, ID=%s, strand=%d, orig source=%s, new source=%s].\n", name, idTag, strand, oldSource, source);
         }
       
-      if (name && !blxSeq->fullName)
+      if (name && !blxSequenceGetName(blxSeq))
 	{
 	  /* It's possible that the BlxSequence was created without a name if we found an
 	   * unnamed child exon before we found the parent transcript, so set the name if we have it. */
-          blxSeq->fullName = g_quark_from_string(name);
+          blxSequenceSetValueFromString(blxSeq, BLXCOL_SEQNAME, name);
 
           /* Add an entry to the lookup table keyed on name, now that we know it */
           if (linkFeaturesByName)
@@ -2552,21 +2635,23 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
     }
   
   gboolean sequenceUsed = FALSE;
+
+  const char *oldSequence = blxSequenceGetSequence(blxSeq);
   
   if (blxSeq && blxSequenceRequiresSeqData(blxSeq))
     {
-      if (!blxSeq->sequence)
+      if (!oldSequence)
         {
           /* Sequence does not yet exist, so add it */
-          blxSeq->sequence = g_string_new(sequence);
+          blxSequenceSetValueFromString(blxSeq, BLXCOL_SEQUENCE, sequence);
           sequenceUsed = TRUE;
         }
       else if (error && *error)
         {
           /* Sequence already exists. Validate that it's the same as the existing one. */
-          if (!stringsEqual(sequence, blxSeq->sequence->str, FALSE))
+          if (!stringsEqual(sequence, oldSequence, FALSE))
             {
-              g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_DATA_MISMATCH, "Sequence data for '%s' does not match previously-found data.\n", blxSequenceGetFullName(blxSeq));
+              g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_DATA_MISMATCH, "Sequence data for '%s' does not match previously-found data.\n", blxSequenceGetName(blxSeq));
             }
         }
     }      

@@ -691,9 +691,11 @@ static char getMatchSeqBase(BlxSequence *blxSeq, const int sIdx, const BlxSeqTyp
 {
   char result = SEQUENCE_CHAR_PAD;
   
-  if (blxSeq && blxSeq->sequence && blxSeq->sequence->str && sIdx <= blxSeq->sequence->len)
+  const char *sequence = blxSequenceGetSequence(blxSeq);
+  
+  if (sequence && sIdx <= strlen(sequence))
     {
-      result = blxSeq->sequence->str[sIdx - 1];
+      result = sequence[sIdx - 1];
       result = convertBaseToCorrectCase(result, seqType);
     }
 

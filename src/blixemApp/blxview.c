@@ -285,29 +285,22 @@ static gboolean getParent(BlxSequence *variant, BlxSequence **parent, GList *all
 
 /* This function checks if the given sequence is missing its optional data (such as organism
  * and gene name) and, if so, looks for the parent sequence and copies the data from there. */
-static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList)
+static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList, GList *columnList)
 {
   BlxSequence *parent = NULL;
+  GList *item = columnList;
   
-  /* For each optional column, check if the data in the BlxSequence is null */
-  if (!curSeq->organism && getParent(curSeq, &parent, seqList) && parent->organism && parent->organism->str)
+  for ( ; item; item = item->next)
     {
-      curSeq->organism = g_string_new(parent->organism->str);
-    }
-  
-  if (!curSeq->geneName && getParent(curSeq, &parent, seqList) && parent->geneName && parent->geneName->str)
-    {
-      curSeq->geneName = g_string_new(parent->geneName->str);
-    }
-  
-  if (!curSeq->tissueType && getParent(curSeq, &parent, seqList) && parent->tissueType && parent->tissueType->str)
-    {
-      curSeq->tissueType = g_string_new(parent->tissueType->str);
-    }
-  
-  if (!curSeq->strain && getParent(curSeq, &parent, seqList) && parent->strain && parent->strain->str)
-    {
-      curSeq->strain = g_string_new(parent->strain->str);
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
+      GValue *value = blxSequenceGetValue(curSeq, columnInfo->columnId);
+      
+      if (!value)
+        {
+          getParent(curSeq, &parent, seqList);
+          GValue *parentValue = blxSequenceGetValue(parent, columnInfo->columnId);
+          blxSequenceSetValue(curSeq, columnInfo->columnId, parentValue);
+        }
     }
 }
 
@@ -371,7 +364,7 @@ void loadGffFile(const char *fileName,
  * twice: once to modify any fields in our own custom manner, and once more to
  * see if any with missing data can copy it from their parent. (Need to do these in
  * separate loops or we don't know if the data we're copying is processed or not.) */
-void finaliseFetch(GList *seqList)
+void finaliseFetch(GList *seqList, GList *columnList)
 {
   GList *seqItem = seqList;
 
@@ -385,7 +378,7 @@ void finaliseFetch(GList *seqList)
   for (seqItem = seqList; seqItem; seqItem = seqItem->next)
     {
       BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      populateMissingDataFromParent(blxSeq, seqList);
+      populateMissingDataFromParent(blxSeq, seqList, columnList);
     }
 }
 
@@ -467,7 +460,7 @@ gboolean blxview(CommandLineOptions *options,
 
   if (status)
     {
-      finaliseFetch(seqList);
+      finaliseFetch(seqList, options->columnList);
 
       /* Construct missing data and do any other required processing now we have all the sequence data */
       finaliseBlxSequences(featureLists, &options->mspList, &seqList, options->columnList, 
@@ -611,14 +604,15 @@ static void processGeneName(BlxSequence *blxSeq)
   /* Data is usually in the format: "Name=SMARCA2; Synonyms=BAF190B, BRM, SNF2A, SNF2L2;"
    * Therefore, look for the Name tag and extract everything up to the ; or end of line.
    * If there is no name tag, just include everything */
+  const char *geneName = blxSequenceGetGeneName(blxSeq);
   
-  if (blxSeq && blxSeq->geneName && blxSeq->geneName->str)
+  if (geneName)
     {
-      char *startPtr = strstr(blxSeq->geneName->str, "Name=");
+      char *startPtr = strstr(geneName, "Name=");
       
       if (!startPtr)
         {
-          startPtr = strstr(blxSeq->geneName->str, "name=");
+          startPtr = strstr(geneName, "name=");
         }
         
       if (startPtr)
@@ -632,8 +626,9 @@ static void processGeneName(BlxSequence *blxSeq)
           g_utf8_strncpy(result, startPtr, numChars);
           result[numChars] = 0;
           
-          g_string_free(blxSeq->geneName, TRUE);
-          blxSeq->geneName = g_string_new(result);
+          blxSequenceSetValueFromString(blxSeq, BLXCOL_GENE_NAME, result);
+
+          g_free(result);
         }
     }
 }
@@ -644,12 +639,14 @@ static void processGeneName(BlxSequence *blxSeq)
  * displays the prefix part of the field. */
 static void processOrganism(BlxSequence *blxSeq)
 {
-  if (blxSeq && blxSeq->organism && blxSeq->organism->str)
+  const char *organism = blxSequenceGetOrganism(blxSeq);
+  
+  if (organism)
     {
       /* To create the alias, we'll take the first letter of each word until we hit a non-alpha
        * character, e.g. the alias for "Homo sapiens (human)" would be "Hs" */
       int srcIdx = 0;
-      int srcLen = strlen(blxSeq->organism->str);
+      int srcLen = strlen(organism);
       
       int destIdx = 0;
       int destLen = 5; /* limit the length of the alias */
@@ -659,15 +656,15 @@ static void processOrganism(BlxSequence *blxSeq)
       
       for ( ; srcIdx < srcLen && destIdx < destLen; ++srcIdx)
         {
-          if (blxSeq->organism->str[srcIdx] == ' ')
+          if (organism[srcIdx] == ' ')
             {
               startWord = TRUE;
             }
-          else if (g_ascii_isalpha(blxSeq->organism->str[srcIdx]))
+          else if (g_ascii_isalpha(organism[srcIdx]))
             {
               if (startWord)
                 {
-                  alias[destIdx] = blxSeq->organism->str[srcIdx];
+                  alias[destIdx] = organism[srcIdx];
                   ++destIdx;
                   startWord = FALSE;
                 }
@@ -683,8 +680,7 @@ static void processOrganism(BlxSequence *blxSeq)
       
       if (destIdx > 0)
         {
-          g_string_prepend(blxSeq->organism, ORGANISM_PREFIX_SEPARATOR);
-          g_string_prepend(blxSeq->organism, alias);
+          blxSeq->organismAbbrev = g_strdup(alias);
         }
     }
 }
@@ -1233,60 +1229,6 @@ static void getColumnConfig(BlxColumnInfo *columnInfo)
 }
 
 
-/* Comparison function for two BlxColumnInfo structs
- * Returns : negative value if column a appears before column b;
- *           zero if the columns are at the same position (i.e. same column);
- *           positive if column a appears after column b.  */
-static gint columnCompareFunc(gconstpointer a, gconstpointer b)
-{
-  BlxColumnInfo *col1 = (BlxColumnInfo*)a;
-  BlxColumnInfo *col2 = (BlxColumnInfo*)b;
-
-  return col1->columnIdx - col2->columnIdx;
-
-//  gint result = 0;
-//  
-//  /* The column ID gives us the position for the standard 
-//   * columns (up to BLXCOL_END). 
-//   * Other columns have an ID greater than BLXCOL_END but will be placed
-//   * after the score column. */
-//  const int pos1 = col1->columnId;
-//  const int pos2 = col2->columnId;
-//
-//  if (pos1 != pos2)
-//    {
-//      if (pos1 <= BLXCOL_END && pos2 <= BLXCOL_END)
-//        {
-//          /* Both are standard columns; do a direct comparison */
-//          result = pos1 - pos2;
-//        }
-//      else if (pos1 > BLXCOL_END && pos2 > BLXCOL_END)
-//        {
-//          /* Both are optional columns; do a direct comparison */
-//          result = pos1 - pos2;
-//        }
-//      else if (pos1 > BLXCOL_END)
-//        {
-//          /* column 1 is an optional column so appears after the source column */
-//          if (pos2 > BLXCOL_SOURCE)
-//            result = -1;
-//          else
-//            result = 1;
-//        }
-//      else
-//        {
-//          /* column 2 is an optional column so appears after the source column */
-//          if (pos1 <= BLXCOL_SOURCE)
-//            result = -1;
-//          else
-//            result = 1;
-//        }
-//    }
-//  
-//  return result;
-}
-
-
 //static void destroyColumnList(GList **columnList)
 //{
 //  GList *column = *columnList;
@@ -1344,10 +1286,9 @@ static void createColumn(BlxColumnId columnId,
 
   getColumnConfig(columnInfo);
   
-  /* Place it in the list. List must be sorted or gtk_list_store_set
-   * fails (not sure why) */
-  *columnList = g_list_insert_sorted(*columnList, columnInfo, columnCompareFunc);
-  //*columnList = g_list_append(*columnList, columnInfo);
+  /* Place it in the list. List must be sorted in the same order
+   * as the GtkListStore or gtk_list_store_set fails */
+  *columnList = g_list_insert_sorted(*columnList, columnInfo, columnIdxCompareFunc);
 }
 
 

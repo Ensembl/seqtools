@@ -141,6 +141,7 @@ typedef struct
   GList *seqList ;                                          /* List of sequences to fetch */
   BlxSequence *currentSeq ;                                 /* Keeps track of which BlxSequence we're currently fetching */
   GList *currentSeqItem ;                                   /* Keeps track of which BlxSequence list item we're currently fetching */
+  GString *currentResult ;                                  /* Temporary storage for the results for the currently-parsed section */ 
   BlxSeqType seq_type ;                                     /* Whether sequences are nucleotide or peptide */
   const BlxFetchMethod *fetchMethod ;                       /* Details about this fetch method */
   
@@ -193,9 +194,11 @@ static void                        commandFetchSequence(const BlxSequence *blxSe
 static void                        internalFetchSequence(const BlxSequence *blxSeq, const BlxFetchMethod* const fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer);
 static void                        wwwFetchSequence(const BlxSequence *blxSeq, const BlxFetchMethod* const fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow);
 
+static void                        checkFetchMethodExecutable(const BlxFetchMethod* const fetchMethod, GError **error);
+
 /* Pfetch local functions */
-static void                        appendCharToString(const char curChar, GString **result);
-static void                        appendCharToQuotedString(const char curChar, gboolean *foundEndQuote, GString **result);
+static void                        appendCharToString(const char curChar, GString *result);
+static void                        appendCharToQuotedString(const char curChar, gboolean *foundEndQuote, GString *result);
 
 static void                        socketFetchInit(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, gboolean External, int *sock, GError **error);
 static void                        checkProgressBar(ProgressBar bar, BlxEmblParserState *parserState, gboolean *status);
@@ -208,20 +211,20 @@ static void                        pfetchGetNextSequence(BlxSequence **currentSe
                                                          gboolean *status, BlxEmblParserState *parserState);
 
 static void                        parseRawSequenceBuffer(const BlxFetchMethod* const fetchMethod, const char *buffer, const int lenReceived, BlxSequence **currentSeq, GList **currentSeqItem,
-                                                          ProgressBar bar, const int numRequested,int *numFetched, int *numSucceeded, 
+                                                          GString *currentResult, ProgressBar bar, const int numRequested,int *numFetched, int *numSucceeded, 
                                                           const BlxSeqType seqType, BlxEmblParserState *parserState, gboolean *status, GError **error);
 
-static void                        pfetchGetParserStateFromId(const char *sectionId, BlxSequence *currentSeq, GString *tagName, BlxEmblParserState *parserState);
+static void                        pfetchGetParserStateFromId(const char *sectionId, BlxSequence *currentSeq, GString *currentResult, GString *tagName, BlxEmblParserState *parserState);
 
 static void                        parseEmblBuffer(const BlxFetchMethod* const fetchMethod, const char *buffer, const int lenReceived, BlxSequence **currentSeq, GList **currentSeqItem,
-                                                   ProgressBar bar, const int numRequested, int *numFetched, int *numSucceeded, GString *curLine, char *sectionId,
+                                                   GString *currentResult, ProgressBar bar, const int numRequested, int *numFetched, int *numSucceeded, GString *curLine, char *sectionId,
                                                    GString *tagName, gboolean *foundEndQuote,
                                                    const BlxSeqType seqType, BlxEmblParserState *parserState, gboolean *status);
 
-static gboolean                    pfetchFinishSequence(const BlxFetchMethod* const fetchMethod, BlxSequence *currentSeq, const BlxSeqType seqType, const int numRequested, int *numFetched, int *numSucceeded, 
+static gboolean                    pfetchFinishSequence(const BlxFetchMethod* const fetchMethod, BlxSequence *currentSeq, GString *currentResult, const BlxSeqType seqType, const int numRequested, int *numFetched, int *numSucceeded, 
                                                         BlxEmblParserState *parserState);
 
-static void                        pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState, const BlxSequence* const currentSeq);
+static void                        pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState, const BlxSequence* const currentSeq, GString *currentResult);
 
 
 
@@ -317,20 +320,20 @@ void fetchSequence(const BlxSequence *blxSeq,
       /* If this is the first attempt then we should have a fetch method; 
        * therefore give a warning if no fetch method was found */
       if (attempt == 0 && !fetchMethodQuark)
-        g_warning("No fetch method specified for sequence '%s'\n", blxSequenceGetFullName(blxSeq));
+        g_warning("No fetch method specified for sequence '%s'\n", blxSequenceGetName(blxSeq));
       else if (fetchMethodQuark)
-        g_warning("Error fetching sequence '%s'; could not find details for fetch method '%s'\n", blxSequenceGetFullName(blxSeq), g_quark_to_string(fetchMethodQuark));
+        g_warning("Error fetching sequence '%s'; could not find details for fetch method '%s'\n", blxSequenceGetName(blxSeq), g_quark_to_string(fetchMethodQuark));
 
       return;
     }
 
   if (fetchMethod->mode == BLXFETCH_MODE_NONE && attempt == 0)
     {
-      g_message("Fetch method for '%s' is '%s'\n", blxSequenceGetFullName(blxSeq), fetchModeStr(BLXFETCH_MODE_NONE));
+      g_message("Fetch method for '%s' is '%s'\n", blxSequenceGetName(blxSeq), fetchModeStr(BLXFETCH_MODE_NONE));
       return;
     }
   
-  g_message("Fetching '%s' using method '%s' (attempt %d)\n", blxSequenceGetFullName(blxSeq), g_quark_to_string(fetchMethodQuark), attempt + 1);
+  g_message("Fetching '%s' using method '%s' (attempt %d)\n", blxSequenceGetName(blxSeq), g_quark_to_string(fetchMethodQuark), attempt + 1);
 
   
   if (fetchMethod->mode == BLXFETCH_MODE_SOCKET)
@@ -505,7 +508,7 @@ static GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
     {
       /* If an executable is required, check that it exists */
       checkFetchMethodExecutable(fetchMethod, &tmpError);
-      
+
       if (!tmpError)
         {
           /* Compile the command and args into a single string */
@@ -550,7 +553,7 @@ GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *se
   for ( ; seqItem; seqItem = seqItem->next)
     {
       BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      g_string_append_printf(seq_string, "%s%s", blxSequenceGetFullName(blxSeq), separator);
+      g_string_append_printf(seq_string, "%s%s", blxSequenceGetName(blxSeq), separator);
     }
 
   GString *result = doGetFetchArgs(fetchMethod, seq_string->str, NULL, 0, 0,
@@ -598,7 +601,7 @@ GString* getFetchCommand(const BlxFetchMethod* const fetchMethod,
     blxSeq = msp->sSequence;
 
   /* Extract info about the sequence / feature */
-  const char *name = blxSequenceGetFullName(blxSeq);
+  const char *name = blxSequenceGetName(blxSeq);
   if (!name) name = mspGetSName(msp);
   if (!name) name = "";
   
@@ -633,7 +636,7 @@ GString* getFetchArgs(const BlxFetchMethod* const fetchMethod,
   g_assert(blxSeq || msp);
 
   /* Extract info about the sequence / feature */
-  const char *name = blxSequenceGetFullName(blxSeq);
+  const char *name = blxSequenceGetName(blxSeq);
   if (!name) name = mspGetSName(msp);
   if (!name) name = "";
   
@@ -695,8 +698,9 @@ static void checkFetchMethodNonNull(const BlxFetchMethod* const fetchMethod, GEr
  * the error if not */
 static void checkFetchMethodExecutable(const BlxFetchMethod* const fetchMethod, GError **error)
 {
-  if (fetchMethod && 
-      (fetchMethod->mode == BLXFETCH_MODE_COMMAND ||
+  /* Only command- and socket-fetch require an executable */
+  if (fetchMethod &&
+      (fetchMethod->mode == BLXFETCH_MODE_COMMAND &&
        fetchMethod->mode == BLXFETCH_MODE_SOCKET))
     {
       if (!fetchMethod->location || !g_find_program_in_path(fetchMethod->location))
@@ -816,16 +820,16 @@ static void internalFetchSequence(const BlxSequence *blxSeq,
                                   GtkWidget *dialog,
                                   GtkTextBuffer **text_buffer)
 {
-  const char *seq = blxSeq && blxSeq->sequence ? blxSeq->sequence->str : NULL;
-  const char *seqName = blxSequenceGetFullName(blxSeq) ? blxSequenceGetFullName(blxSeq) : "";
+  const char *seq = blxSequenceGetSequence(blxSeq);
+  const char *seqName = blxSequenceGetName(blxSeq);
 
   if (seq)
     {
-      char *result = g_strdup_printf(">%s\n%s", seqName, seq);
+      char *result = g_strdup_printf(">%s\n%s", seqName ? seqName : "", seq);
 
       if (displayResults)
         {
-          char *title = g_strdup_printf("%s - %s", g_get_prgname(), seqName);
+          char *title = g_strdup_printf("%s - %s", g_get_prgname(), seqName ? seqName : "");
           displayFetchResults(title, result, blxWindow, dialog, text_buffer);
           g_free(title);
         }
@@ -834,7 +838,7 @@ static void internalFetchSequence(const BlxSequence *blxSeq,
     }
   else
     {
-      g_warning("No sequence data found for '%s'\n", seqName);
+      g_warning("No sequence data found for '%s'\n", seqName ? seqName : "");
       
       /* Try again with the next-preferred fetch method, if there is one */
       fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, dialog, text_buffer);
@@ -934,6 +938,7 @@ static gboolean httpFetchList(GList *seqsToFetch,
   fetch_data.seqList = seqsToFetch;
   fetch_data.currentSeqItem = seqsToFetch;
   fetch_data.currentSeq = seqsToFetch ? (BlxSequence*)(seqsToFetch->data) : NULL;
+  fetch_data.currentResult = g_string_new("");
   fetch_data.seq_type = seqType ;
   fetch_data.fetchMethod = fetchMethod;
 
@@ -1005,6 +1010,10 @@ static gboolean httpFetchList(GList *seqsToFetch,
     }
   
   destroyProgressBar(fetch_data.bar) ;
+  g_string_free(fetch_data.currentResult, TRUE);
+  g_string_free(fetch_data.tag_name, TRUE);
+  g_string_free(fetch_data.curLine, TRUE);
+
   g_string_free(request, FALSE);
   
   return status ;
@@ -1183,6 +1192,9 @@ gboolean socketFetchList(GList *seqsToFetch,
       /* In EMBL FT (feature type) sections, we look for tags of the format /tagname="value". Use
        * the following string to parse the tag name into */
       GString *tagName = g_string_new("");
+
+      /* The stores the current result for the section we're parsing */
+      GString *currentResult = g_string_new("");
       
       /* When we're in a quoted section, this is used to flag that we've found a second quote that
        * we think is the end of the quoted section. However, a double quote means an escaped quote, so
@@ -1205,6 +1217,7 @@ gboolean socketFetchList(GList *seqsToFetch,
                               lenReceived,
                               &currentSeq, 
                               &currentSeqItem, 
+                              currentResult,
                               bar, 
                               numRequested, 
                               &numFetched, 
@@ -1224,6 +1237,7 @@ gboolean socketFetchList(GList *seqsToFetch,
                                      lenReceived, 
                                      &currentSeq, 
                                      &currentSeqItem, 
+                                     currentResult,
                                      bar, 
                                      numRequested, 
                                      &numFetched, 
@@ -1249,6 +1263,7 @@ gboolean socketFetchList(GList *seqsToFetch,
       bar = NULL ;
       
       g_string_free(tagName, TRUE);
+      g_string_free(currentResult, TRUE);
 
       if (status && !tmpError && numSucceeded != numRequested)
         {
@@ -1662,7 +1677,10 @@ static void pfetchHtmlRecordStats(const char *read_text, const int length, PFetc
  * even possible for very long sequences that they may span several buffers. Note also
  * that the buffer is _not_ null terminated, we have to use length to know when to stop reading.
  */
-static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod, char *read_text, int length, PFetchSequence fetch_data)
+static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod,
+                                      char *read_text,
+                                      int length,
+                                      PFetchSequence fetch_data)
 {
   gboolean status = TRUE ;
 
@@ -1680,6 +1698,7 @@ static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod, c
                       length,
                       &fetch_data->currentSeq, 
                       &fetch_data->currentSeqItem, 
+                      fetch_data->currentResult,
                       fetch_data->bar,
                       fetch_data->seq_total,
                       &fetch_data->num_fetched,
@@ -1700,6 +1719,7 @@ static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod, c
                              length, 
                              &fetch_data->currentSeq, 
                              &fetch_data->currentSeqItem, 
+                             fetch_data->currentResult,
                              fetch_data->bar, 
                              fetch_data->seq_total, 
                              &fetch_data->num_fetched, 
@@ -2190,7 +2210,7 @@ static void socketFetchInit(const BlxFetchMethod* const fetchMethod,
 //      for ( ; seqItem && !tmpError ; seqItem = seqItem->next)
 //        {
 //          BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-//          socketSend(*sock, blxSequenceGetFullName(blxSeq), &tmpError);
+//          socketSend(*sock, blxSequenceGetName(blxSeq), &tmpError);
 //        }
 //    }
   
@@ -2271,7 +2291,7 @@ static void pfetchGetNextSequence(BlxSequence **currentSeq,
       /* Check that another BlxSequence item exists in the list */
       if ((*currentSeqItem)->next)
         {
-          updateProgressBar(bar, blxSequenceGetFullName(*currentSeq), numFetched, pfetch_ok) ;
+          updateProgressBar(bar, blxSequenceGetName(*currentSeq), numFetched, pfetch_ok) ;
           
           /* Move to the next BlxSequence */
           *currentSeqItem = (*currentSeqItem)->next;
@@ -2296,6 +2316,7 @@ static void parseRawSequenceBuffer(const BlxFetchMethod* const fetchMethod,
                                    const int lenReceived, 
                                    BlxSequence **currentSeq, 
                                    GList **currentSeqItem,
+                                   GString *currentResult,
                                    ProgressBar bar,
                                    const int numRequested,
                                    int *numFetched,
@@ -2328,19 +2349,13 @@ static void parseRawSequenceBuffer(const BlxFetchMethod* const fetchMethod,
       if (curChar == '\n')
         {
           /* finish up this sequence and move to the next one */
-          gboolean pfetch_ok = pfetchFinishSequence(fetchMethod, *currentSeq, seqType, numRequested, numFetched, numSucceeded, parserState);
+          gboolean pfetch_ok = pfetchFinishSequence(fetchMethod, *currentSeq, currentResult, seqType, numRequested, numFetched, numSucceeded, parserState);
           pfetchGetNextSequence(currentSeq, currentSeqItem, bar, numRequested, *numFetched, pfetch_ok, status, parserState);
         }
       else
         {
-          /* First time round we need to create the sequence string */
-          if ((*currentSeq)->sequence == NULL)
-            {
-              (*currentSeq)->sequence = g_string_new("");
-            }
-          
-          /* Append this character to the sequence string */
-          g_string_append_c((*currentSeq)->sequence, curChar);
+          /* Append this character to the current result string */
+          g_string_append_c(currentResult, curChar);
         }
     }
 }
@@ -2349,13 +2364,14 @@ static void parseRawSequenceBuffer(const BlxFetchMethod* const fetchMethod,
 /* Get the parser state from the given two-letter at at the start of an EMBL file line. */
 static void pfetchGetParserStateFromId(const char *sectionId, 
                                        BlxSequence *currentSeq, 
+                                       GString *currentResult,
                                        GString *tagName,
                                        BlxEmblParserState *parserState)
 {
   if (stringsEqual(sectionId, "SQ", TRUE))
     {
       /* Skip the sequence section if the sequence is already populated or not required. */
-      if (currentSeq->sequence && (currentSeq->sequence->str || !blxSequenceRequiresSeqData(currentSeq)))
+      if (blxSequenceGetSequence(currentSeq) || !blxSequenceRequiresSeqData(currentSeq))
         {
           *parserState = PARSING_IGNORE;
         }
@@ -2366,17 +2382,27 @@ static void pfetchGetParserStateFromId(const char *sectionId,
     }
   else if (stringsEqual(sectionId, "OS", TRUE) && blxSequenceRequiresOptionalData(currentSeq))
     {
-      if (currentSeq->organism)
-        *parserState = PARSING_IGNORE; /* ignore if already set */
+      if (blxSequenceGetOrganism(currentSeq))
+        {
+          *parserState = PARSING_IGNORE; /* ignore if already set */
+        }
       else
-        *parserState = PARSING_ORGANISM;
+        {
+          *parserState = PARSING_ORGANISM;
+          g_string_truncate(currentResult, 0);
+        }
     }
   else if (stringsEqual(sectionId, "GN", TRUE) && blxSequenceRequiresOptionalData(currentSeq))
     {
-      if (currentSeq->geneName)
-        *parserState = PARSING_IGNORE; /* ignore if already set */
+      if (blxSequenceGetGeneName(currentSeq))
+        {
+          *parserState = PARSING_IGNORE; /* ignore if already set */
+        }
       else
-        *parserState = PARSING_GENE_NAME;
+        {
+          *parserState = PARSING_GENE_NAME;
+          g_string_truncate(currentResult, 0);
+        }
     }
   else if (stringsEqual(sectionId, "FT", TRUE) && blxSequenceRequiresOptionalData(currentSeq))
     {
@@ -2384,7 +2410,7 @@ static void pfetchGetParserStateFromId(const char *sectionId,
         {
           /* If the tag name is already set we must be in the middle of parsing a multi-line tag, 
            * so continue with that tag */
-          pfetchGetParserStateFromTagName(tagName, parserState, currentSeq);
+          pfetchGetParserStateFromTagName(tagName, parserState, currentSeq, currentResult);
         }
       else
         {
@@ -2416,6 +2442,7 @@ static void pfetchProcessEmblBufferChar(const BlxFetchMethod* const fetchMethod,
                                         ProgressBar bar,
                                         BlxSequence **currentSeq,
                                         GList **currentSeqItem,
+                                        GString *currentResult,
                                         char *sectionId,
                                         GString *tagName,
                                         gboolean *foundEndQuote,
@@ -2437,7 +2464,7 @@ static void pfetchProcessEmblBufferChar(const BlxFetchMethod* const fetchMethod,
       {
         /* Read the second (and last) character from the ID. */
         sectionId[1] = curChar;
-        pfetchGetParserStateFromId(sectionId, *currentSeq, tagName, parserState);
+        pfetchGetParserStateFromId(sectionId, *currentSeq, currentResult, tagName, parserState);
         break;
       }
         
@@ -2457,7 +2484,7 @@ static void pfetchProcessEmblBufferChar(const BlxFetchMethod* const fetchMethod,
              * (because we want to ignore whitespace, newlines and digits). */
             if (isValidIupacChar(curChar, seqType))
               {
-                appendCharToString(curChar, &((*currentSeq)->sequence));
+                appendCharToString(curChar, currentResult);
               }
           }
         
@@ -2466,13 +2493,13 @@ static void pfetchProcessEmblBufferChar(const BlxFetchMethod* const fetchMethod,
         
       case PARSING_ORGANISM:
       {
-        appendCharToString(curChar, &((*currentSeq)->organism));
+        appendCharToString(curChar, currentResult);
         break;
       }
         
       case PARSING_GENE_NAME:
       {
-        appendCharToString(curChar, &((*currentSeq)->geneName));
+        appendCharToString(curChar, currentResult);
         break;
       }
         
@@ -2491,7 +2518,7 @@ static void pfetchProcessEmblBufferChar(const BlxFetchMethod* const fetchMethod,
       {
         if (curChar == '=') /* signals the end of the tag */
           {
-            pfetchGetParserStateFromTagName(tagName, parserState, *currentSeq);
+            pfetchGetParserStateFromTagName(tagName, parserState, *currentSeq, currentResult);
           }
         else
           {
@@ -2506,7 +2533,7 @@ static void pfetchProcessEmblBufferChar(const BlxFetchMethod* const fetchMethod,
         /* Look for the start quote before we start parsing the tag properly */
         if (curChar == '"')
           {
-            pfetchGetParserStateFromTagName(tagName, parserState, *currentSeq);
+            pfetchGetParserStateFromTagName(tagName, parserState, *currentSeq, currentResult);
           }
         
         break;
@@ -2514,13 +2541,13 @@ static void pfetchProcessEmblBufferChar(const BlxFetchMethod* const fetchMethod,
         
       case PARSING_FT_TISSUE_TYPE:
       {
-        appendCharToQuotedString(curChar, foundEndQuote, &((*currentSeq)->tissueType));
+        appendCharToQuotedString(curChar, foundEndQuote, currentResult);
         break;
       }
         
       case PARSING_FT_STRAIN:
       {
-        appendCharToQuotedString(curChar, foundEndQuote, &((*currentSeq)->strain));
+        appendCharToQuotedString(curChar, foundEndQuote, currentResult);
         break;
       }
         
@@ -2540,6 +2567,7 @@ static void parseEmblBuffer(const BlxFetchMethod* const fetchMethod,
                             const int lenReceived,
                             BlxSequence **currentSeq, 
                             GList **currentSeqItem,
+                            GString *currentResult,
                             ProgressBar bar,
                             const int numRequested,
                             int *numFetched,
@@ -2593,6 +2621,7 @@ static void parseEmblBuffer(const BlxFetchMethod* const fetchMethod,
             {
               /* We were previously in the sequence header, so the next line is the sequence body */
               *parserState = PARSING_SEQUENCE;
+              g_string_truncate(currentResult, 0);
             }
           else if (stringInArray(curLine->str, fetchMethod->errors))
             {
@@ -2616,6 +2645,7 @@ static void parseEmblBuffer(const BlxFetchMethod* const fetchMethod,
                                       bar, 
                                       currentSeq, 
                                       currentSeqItem, 
+                                      currentResult,
                                       sectionId, 
                                       tagName, 
                                       foundEndQuote,
@@ -2627,7 +2657,7 @@ static void parseEmblBuffer(const BlxFetchMethod* const fetchMethod,
       if (*parserState == PARSING_FINISHED_SEQ)
         {
           /* finish up this sequence and move to the next one */
-          gboolean pfetch_ok = pfetchFinishSequence(fetchMethod, *currentSeq, seqType, numRequested, numFetched, numSucceeded, parserState);
+          gboolean pfetch_ok = pfetchFinishSequence(fetchMethod, *currentSeq, currentResult, seqType, numRequested, numFetched, numSucceeded, parserState);
           pfetchGetNextSequence(currentSeq, currentSeqItem, bar, numRequested, *numFetched, pfetch_ok, status, parserState);
           *parserState = PARSING_NEWLINE;
         }
@@ -2639,7 +2669,10 @@ static void parseEmblBuffer(const BlxFetchMethod* const fetchMethod,
  * the parser state accordingly. Sets the parser state to PARSING_IGNORE if this
  * is not a tag we care about. Returns true if we've entered a free text section
  * where newline characters should be ignored. */
-static void pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState, const BlxSequence* const currentSeq)
+static void pfetchGetParserStateFromTagName(GString *tagName,
+                                            BlxEmblParserState *parserState,
+                                            const BlxSequence* const currentSeq,
+                                            GString *currentResult)
 {
   if (stringsEqual(tagName->str, "tissue_type", TRUE))
     {
@@ -2649,10 +2682,15 @@ static void pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState
         }
       else
         {
-          if (currentSeq->tissueType)
-            *parserState = PARSING_IGNORE; /* ignore if already set */
+          if (blxSequenceGetTissueType(currentSeq))
+            {
+              *parserState = PARSING_IGNORE; /* ignore if already set */
+            }
           else
-            *parserState = PARSING_FT_TISSUE_TYPE;
+            {
+              *parserState = PARSING_FT_TISSUE_TYPE;
+              g_string_truncate(currentResult, 0);
+            }
         }
     }
   else if (stringsEqual(tagName->str, "strain", TRUE))
@@ -2663,10 +2701,15 @@ static void pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState
         }
       else
         {
-          if (currentSeq->strain)
-            *parserState = PARSING_IGNORE; /* ignore if already set */
+          if (blxSequenceGetStrain(currentSeq))
+            {
+              *parserState = PARSING_IGNORE; /* ignore if already set */
+            }
           else
-            *parserState = PARSING_FT_STRAIN;
+            {
+              *parserState = PARSING_FT_STRAIN;
+              g_string_truncate(currentResult, 0);
+            }
         }
     }
   else
@@ -2684,7 +2727,7 @@ static void pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState
  * this is called with is also a quote the quote is included and foundEndQuote reset.
  * To do: this should really identify newlines and ignore the FT identifier and whitespace at the
  * start of the line. Since none of our tags currently have multi-line data that's not worth doing just yet... */
-static void appendCharToQuotedString(const char curChar, gboolean *foundEndQuote, GString **result)
+static void appendCharToQuotedString(const char curChar, gboolean *foundEndQuote, GString *result)
 {
   if (curChar == '"')
     {
@@ -2710,24 +2753,17 @@ static void appendCharToQuotedString(const char curChar, gboolean *foundEndQuote
 
 /* Append the given char to the given GString. Create the GString if it is null. Doesn't
  * add whitespace chars to the start of the string. */
-static void appendCharToString(const char curChar, GString **result)
+static void appendCharToString(const char curChar, GString *result)
 {
-  /* First time round we will need to create the string for the sequence (but don't bother
-   * until we get to non-whitespace characters) */
-  if (*result == NULL && !isWhitespaceChar(curChar))
-    {
-      *result = g_string_new("");
-    }
-  
-  if (*result)
+  if (result)
     {
       /* Don't add multiple consecutive whitespace characters */
-      const int len = (*result)->len;
-      const char *str = (*result)->str;
+      const int len = result->len;
+      const char *str = result->str;
 
       if (!isWhitespaceChar(curChar) || len < 0 || !isWhitespaceChar(str[len - 1]))
         {
-          g_string_append_c(*result, curChar);
+          g_string_append_c(result, curChar);
         }
     }
 }
@@ -2739,6 +2775,7 @@ static void appendCharToString(const char curChar, GString **result)
  * was successful, false if not */
 static gboolean pfetchFinishSequence(const BlxFetchMethod* const fetchMethod,
                                      BlxSequence *currentSeq,
+                                     GString *currentResult,
                                      const BlxSeqType seqType,
                                      const int numRequested, 
                                      int *numFetched, 
@@ -2756,9 +2793,9 @@ static gboolean pfetchFinishSequence(const BlxFetchMethod* const fetchMethod,
   /* The pfetch failed if our sequence is null or equal to an error string. */
   gboolean pfetch_ok = FALSE;
   
-  if (currentSeq && currentSeq->sequence && currentSeq->sequence->str)
+  if (currentResult && currentResult->str)
     { 
-      if (!stringInArray(currentSeq->sequence->str, fetchMethod->errors))
+      if (!stringInArray(currentResult->str, fetchMethod->errors))
         {
           pfetch_ok = TRUE;
         }
@@ -2766,14 +2803,13 @@ static gboolean pfetchFinishSequence(const BlxFetchMethod* const fetchMethod,
   
   if (pfetch_ok)
     {
+      /* Succeeded: save the result in the blxsequence */
       *numSucceeded += 1;
+      blxSequenceSetValueFromString(currentSeq, BLXCOL_SEQUENCE, currentResult->str);
     }
-  else if (currentSeq && currentSeq->sequence)
-    {
-      /* Failed. Clear the sequence string. */
-      g_string_free(currentSeq->sequence, TRUE);
-      currentSeq->sequence = NULL;
-    }
+  
+  /* Reset the result string */
+  g_string_truncate(currentResult, 0);
   
   return pfetch_ok;
 }
@@ -2891,14 +2927,14 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
                * can return it! */
               gboolean getSeq = (blxSequenceRequiresSeqData(blxSeq) && 
                                  fetchMethodReturnsSequence(fetchMethod) &&
-                                 !blxSeq->sequence);
+                                 !blxSequenceGetSequence(blxSeq));
               
               /* Check if full embl data data is required and is not already set. */
               gboolean getEmbl = (blxSequenceRequiresOptionalData(blxSeq) &&
-                                  (!blxSeq->organism ||
-                                   !blxSeq->geneName ||
-                                   !blxSeq->tissueType ||
-                                   !blxSeq->strain));
+                                  (!blxSequenceGetOrganism(blxSeq) ||
+                                   !blxSequenceGetGeneName(blxSeq) ||
+                                   !blxSequenceGetTissueType(blxSeq) ||
+                                   !blxSequenceGetStrain(blxSeq)));
               
               /* Only attempt to fetch the embl data if this fetch method can
                * return it, or, if optionalColumns is true, then search for a 
@@ -2941,7 +2977,7 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
 
               if (!g_hash_table_lookup(seenMethods, GINT_TO_POINTER(fetchMethodQuark)))
                 {
-                  g_warning("Error fetching sequence '%s'; could not find details for fetch method '%s'\n", blxSequenceGetFullName(blxSeq), g_quark_to_string(fetchMethodQuark));
+                  g_warning("Error fetching sequence '%s'; could not find details for fetch method '%s'\n", blxSequenceGetName(blxSeq), g_quark_to_string(fetchMethodQuark));
                   g_hash_table_insert(seenMethods, GINT_TO_POINTER(fetchMethodQuark), GINT_TO_POINTER(fetchMethodQuark));
                 }
             }

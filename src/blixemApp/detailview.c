@@ -791,13 +791,14 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
   
   if (seq)
     {
-      const char *seqName = blxSequenceGetDisplayName(seq);
-      
+      const char *seqName = blxSequenceGetName(seq);
+      const char *sequence = blxSequenceGetSequence(seq);
+
       if (seqName)
         g_string_append_printf(resultString, "%s", seqName);
         
-      if (seq->type == BLXSEQUENCE_VARIATION && seq->sequence && seq->sequence->str)
-        g_string_append_printf(resultString, " : %s", seq->sequence->str);
+      if (seq->type == BLXSEQUENCE_VARIATION && sequence)
+        g_string_append_printf(resultString, " : %s", sequence);
     }
   else if (qIdx != UNSET_INT)
     {
@@ -882,8 +883,8 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
                * if not just display the name. */
               if (multipleVariations)
                 displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_VARIATIONS_TEXT);
-              else if (mspGetSSeq(msp))
-                displayText = g_strdup_printf("%d  %s : %s", coord, mspGetSName(msp), mspGetSSeq(msp));
+              else if (mspGetMatchSeq(msp))
+                displayText = g_strdup_printf("%d  %s : %s", coord, mspGetSName(msp), mspGetMatchSeq(msp));
               else
                 displayText = g_strdup_printf("%d  %s", coord, mspGetSName(msp));
               
@@ -1614,7 +1615,7 @@ static const MSP* sequenceGetNextMsp(const MSP const *msp,
   
   if (!found && error)
     {
-      g_set_error(error, BLX_ERROR, 1, "The given MSP '%s' was not found in the given sequence '%s'.\n", mspGetSName(msp), blxSequenceGetFullName(blxSeq));
+      g_set_error(error, BLX_ERROR, 1, "The given MSP '%s' was not found in the given sequence '%s'.\n", mspGetSName(msp), blxSequenceGetName(blxSeq));
     }
   
   return result;
