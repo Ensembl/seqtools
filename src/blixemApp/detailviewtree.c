@@ -1760,7 +1760,10 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
                    * If there are more, it will just show data for the first BlxSequence found. */
                   if (msp->sSequence)
                     {
-                      char *displayText = blxSequenceGetSummaryInfo(msp->sSequence);
+                      GtkWidget *detailView = treeGetDetailView(tree);
+                      GList *columnList = detailViewGetColumnList(detailView);
+
+                      char *displayText = blxSequenceGetSummaryInfo(msp->sSequence, columnList);
                   
                       if (displayText)
                         {

@@ -2628,7 +2628,7 @@ static gboolean onColumnVisibilityChanged(GtkWidget *button, const gint response
   gboolean result = TRUE;
   
   BlxColumnInfo *columnInfo = (BlxColumnInfo*)data;
-  columnInfo->visible = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  columnInfo->showColumn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
@@ -2761,7 +2761,7 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
       gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
       
       GtkWidget *button = gtk_check_button_new();
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->visible);
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->showColumn);
       gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 0);
       widgetSetCallbackData(button, onColumnVisibilityChanged, (gpointer)columnInfo);
       

@@ -46,7 +46,7 @@
 static int g_MaxMspLen = 0;     /* max length in display coords of all MSPs in the detail-view */
 
 
-static const char* blxSequenceGetString(const BlxSequence *seq, const int columnId);
+static const char* blxSequenceGetValueAsString(const BlxSequence *seq, const int columnId);
 
 
 
@@ -755,24 +755,36 @@ static void appendTextIfNonNull(GString *gstr, const char *separator, const char
 
 /* Return summary info about a given BlxSequence (e.g. for displaying in the status bar). The
  * result should be free'd with g_free. */
-char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq)
+char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq, GList *columnList)
 {
   char *result = NULL;
   
   if (blxSeq)
     {
       GString *resultStr = g_string_new("");
-      const char *separator = ";  ";
+      const char *separator = "";
 
-      /* Loop through all the (string) values, appending the text to the result string */
-      int i = 0;
+      /* Loop through all the columns, appending any that should be shown
+       * to the result string */
+      GList *item;
 
-      for ( ; i < blxSeq->values->len; ++i)
+      for ( ; item; item = item->next)
         {
-          GValue *value = &g_array_index(blxSeq->values, GValue, i);
+          BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
           
-          if (G_VALUE_HOLDS_STRING(value))
-            appendTextIfNonNull(resultStr, (i==0 ? "" : separator), g_value_get_string(value));
+          if (columnInfo->showSummary)
+            {
+              const char *valueText = blxSequenceGetValueAsString(blxSeq, columnInfo->columnId);
+
+              if (valueText)
+                {
+                  appendTextIfNonNull(resultStr, separator, valueText);
+
+                  /* The first item has no separator, but subsequence items do,
+                   * so set the separator after the first item has been added. */
+                  separator = ";  ";
+                }
+            }
         }
       
       result = g_string_free(resultStr, FALSE);
@@ -789,7 +801,7 @@ const char *blxSequenceGetName(const BlxSequence *seq)
   
   if (seq)
     {
-      result = blxSequenceGetString(seq, BLXCOL_SEQNAME);
+      result = blxSequenceGetValueAsString(seq, BLXCOL_SEQNAME);
       
       if (!result && seq->idTag)
         result = seq->idTag;
@@ -809,7 +821,7 @@ const char *blxSequenceGetSource(const BlxSequence *seq)
   const char *result = NULL;
   
   if (seq)
-    result = blxSequenceGetString(seq, BLXCOL_SOURCE);
+    result = blxSequenceGetValueAsString(seq, BLXCOL_SOURCE);
   
   return result;
 }
@@ -893,7 +905,7 @@ int blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand)
 /* Get the sequence data for the given blxsequence */
 const char *blxSequenceGetSequence(const BlxSequence *seq)
 {
-  const char *result = blxSequenceGetString(seq, BLXCOL_SEQUENCE);
+  const char *result = blxSequenceGetValueAsString(seq, BLXCOL_SEQUENCE);
   return result;
 }
 
@@ -948,9 +960,6 @@ void blxSequenceSetValueFromString(const BlxSequence *seq, const int columnId, c
       if (G_VALUE_HOLDS_STRING(value))
         {
           g_value_take_string(value, g_strdup(inputStr));
-          printf("Set value = %s\n", blxSequenceGetString(seq, columnId));
-          
-
         }
       else if (G_VALUE_HOLDS_INT(value))
         {
@@ -971,16 +980,19 @@ void blxSequenceSetValueFromString(const BlxSequence *seq, const int columnId, c
 }
 
 /* Get the string value for the given column. Returns null if the
- * value is not a string type */
-static const char* blxSequenceGetString(const BlxSequence *seq, const int columnId)
+ * value is not a string type. */
+static const char* blxSequenceGetValueAsString(const BlxSequence *seq, const int columnId)
 {
   const char *result = NULL;
   
   GValue *value = blxSequenceGetValue(seq, columnId);
 
-  if (value && G_VALUE_HOLDS_STRING(value))
-    result = g_value_get_string(value);
-
+  if (value)
+    {
+      if (G_VALUE_HOLDS_STRING(value))
+        result = g_value_get_string(value);
+    }
+  
   /* Return null if it's an empty value (i.e. if it's unset) */
   if (result && *result == 0)
     result = NULL;
@@ -990,22 +1002,22 @@ static const char* blxSequenceGetString(const BlxSequence *seq, const int column
 
 const char *blxSequenceGetOrganism(const BlxSequence *seq)
 {
-  return blxSequenceGetString(seq, BLXCOL_ORGANISM);
+  return blxSequenceGetValueAsString(seq, BLXCOL_ORGANISM);
 }
 
 const char *blxSequenceGetGeneName(const BlxSequence *seq)
 {
-  return blxSequenceGetString(seq, BLXCOL_GENE_NAME);
+  return blxSequenceGetValueAsString(seq, BLXCOL_GENE_NAME);
 }
 
 const char *blxSequenceGetTissueType(const BlxSequence *seq)
 {
-  return blxSequenceGetString(seq, BLXCOL_TISSUE_TYPE);
+  return blxSequenceGetValueAsString(seq, BLXCOL_TISSUE_TYPE);
 }
 
 const char *blxSequenceGetStrain(const BlxSequence *seq)
 {
-  return blxSequenceGetString(seq, BLXCOL_STRAIN);
+  return blxSequenceGetValueAsString(seq, BLXCOL_STRAIN);
 }
 
 /* Return the sequence data as a string in fasta format.

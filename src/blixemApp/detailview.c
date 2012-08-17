@@ -4024,7 +4024,7 @@ void updateDynamicColumnWidths(GtkWidget *detailView)
       
       if (columnInfo->columnId == BLXCOL_SEQUENCE)
         seqColInfo = columnInfo;
-      else if (columnInfo->visible && columnInfo->dataLoaded)
+      else if (columnInfo->showColumn && columnInfo->dataLoaded)
         width -= columnInfo->width;
     }
       

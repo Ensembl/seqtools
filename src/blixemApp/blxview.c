@@ -1218,11 +1218,11 @@ static void getColumnConfig(BlxColumnInfo *columnInfo)
           else if (newWidth > 0)
             {
               columnInfo->width = newWidth;
-              columnInfo->visible = TRUE;
+              columnInfo->showColumn = TRUE;
             }
           else
             {
-              columnInfo->visible = FALSE;
+              columnInfo->showColumn = FALSE;
             }
         }
     }
@@ -1251,7 +1251,8 @@ static void createColumn(BlxColumnId columnId,
                          char *propertyName,
                          const int defaultWidth,
                          const gboolean dataLoaded,
-                         const gboolean visible,
+                         const gboolean showColumn,
+                         const gboolean showSummary,
                          const gboolean searchable,
                          char *sortName,
                          GList **columnList)
@@ -1280,7 +1281,8 @@ static void createColumn(BlxColumnId columnId,
   columnInfo->width = defaultWidth;
   columnInfo->sortName = sortName;
   columnInfo->dataLoaded = TRUE;
-  columnInfo->visible = visible;
+  columnInfo->showColumn = showColumn;
+  columnInfo->showSummary = showSummary;
   columnInfo->searchable = searchable;
   columnInfo->type = type;
 
@@ -1299,20 +1301,20 @@ GList* createColumns(const BlxSeqType seqType, const gboolean optionalColumns, c
   GList *columnList = NULL;
   
   /* Create the column headers and pack them into the column header bar */
-  createColumn(BLXCOL_SEQNAME,     TRUE,             "Name",       G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,   TRUE,  TRUE,   "Name",        &columnList);
-  createColumn(BLXCOL_SOURCE,      TRUE,             "Source",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,   TRUE,  TRUE,   "Source",      &columnList);
+  createColumn(BLXCOL_SEQNAME,     TRUE,             "Name",       G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,            TRUE,  TRUE,  TRUE,   "Name",        &columnList);
+  createColumn(BLXCOL_SOURCE,      TRUE,             "Source",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,            TRUE,  TRUE,  TRUE,   "Source",      &columnList);
 
-  createColumn(BLXCOL_ORGANISM,    TRUE,             "Organism",   G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       optionalColumns, TRUE,  TRUE,   "Organism",    &columnList);
-  createColumn(BLXCOL_GENE_NAME,   TRUE,             "Gene Name",  G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      optionalColumns, FALSE, TRUE,   "Gene name",   &columnList);
-  createColumn(BLXCOL_TISSUE_TYPE, TRUE,             "Tissue Type",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    optionalColumns, FALSE, TRUE,   "Tissue type", &columnList);
-  createColumn(BLXCOL_STRAIN,      TRUE,             "Strain",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         optionalColumns, FALSE, TRUE,   "Strain",      &columnList);
+  createColumn(BLXCOL_ORGANISM,    TRUE,             "Organism",   G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       optionalColumns, TRUE,  TRUE,  TRUE,   "Organism",    &columnList);
+  createColumn(BLXCOL_GENE_NAME,   TRUE,             "Gene Name",  G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      optionalColumns, FALSE, TRUE,  TRUE,   "Gene name",   &columnList);
+  createColumn(BLXCOL_TISSUE_TYPE, TRUE,             "Tissue Type",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    optionalColumns, FALSE, TRUE,  TRUE,   "Tissue type", &columnList);
+  createColumn(BLXCOL_STRAIN,      TRUE,             "Strain",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         optionalColumns, FALSE, TRUE,  TRUE,   "Strain",      &columnList);
 
-  createColumn(BLXCOL_GROUP,       TRUE,             "Group",      G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GROUP_WIDTH,          TRUE,   FALSE, TRUE,   "Group",       &columnList);
-  createColumn(BLXCOL_SCORE,       TRUE,             "Score",      G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_SCORE_WIDTH,          TRUE,   TRUE,  FALSE,  "Score",       &columnList);
-  createColumn(BLXCOL_ID,          TRUE,             "%Id",        G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_ID_WIDTH,             TRUE,   TRUE,  FALSE,  "Identity",    &columnList);
-  createColumn(BLXCOL_START,       TRUE,             "Start",      G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,   TRUE,  FALSE,  "Position",    &columnList);
-  createColumn(BLXCOL_SEQUENCE,    !customSeqHeader, "Sequence",   G_TYPE_POINTER,RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,   TRUE,  FALSE,  NULL,          &columnList);
-  createColumn(BLXCOL_END,         TRUE,             "End",        G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,   TRUE,  FALSE,  NULL,          &columnList);
+  createColumn(BLXCOL_GROUP,       TRUE,             "Group",      G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GROUP_WIDTH,          TRUE,            FALSE, FALSE, TRUE,   "Group",       &columnList);
+  createColumn(BLXCOL_SCORE,       TRUE,             "Score",      G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_SCORE_WIDTH,          TRUE,            TRUE,  FALSE, FALSE,  "Score",       &columnList);
+  createColumn(BLXCOL_ID,          TRUE,             "%Id",        G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_ID_WIDTH,             TRUE,            TRUE,  FALSE, FALSE,  "Identity",    &columnList);
+  createColumn(BLXCOL_START,       TRUE,             "Start",      G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,            TRUE,  FALSE, FALSE,  "Position",    &columnList);
+  createColumn(BLXCOL_SEQUENCE,    !customSeqHeader, "Sequence",   G_TYPE_POINTER,RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,            TRUE,  FALSE, FALSE,  NULL,          &columnList);
+  createColumn(BLXCOL_END,         TRUE,             "End",        G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,            TRUE,  FALSE, FALSE,  NULL,          &columnList);
 
   return columnList;
 }
@@ -1387,7 +1389,7 @@ void getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *x
 /* Returns true if the given column should be visible */
 gboolean showColumn(BlxColumnInfo *columnInfo)
 {
-  return (columnInfo->visible && columnInfo->dataLoaded && columnInfo->width > 0);
+  return (columnInfo->showColumn && columnInfo->dataLoaded && columnInfo->width > 0);
 }
 
 
@@ -1404,7 +1406,7 @@ void saveColumnWidths(GList *columnList, GKeyFile *key_file)
       if (columnInfo && columnInfo->columnId != BLXCOL_SEQUENCE)
         {
           /* If column is not visible, set width to zero to indicate that it should be hidden */
-          if (columnInfo->visible)
+          if (columnInfo->showColumn)
             g_key_file_set_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, columnInfo->width);
           else
             g_key_file_set_integer(key_file, COLUMN_WIDTHS_GROUP, columnInfo->title, 0);
@@ -1422,40 +1424,40 @@ void resetColumnWidths(GList *columnList)
    * currently we run the risk of getting out of sync with the initial values set in
    * createColumns */
   getColumnInfo(columnList, BLXCOL_SEQNAME)->width = BLXCOL_SEQNAME_WIDTH;
-  getColumnInfo(columnList, BLXCOL_SEQNAME)->visible = TRUE;
+  getColumnInfo(columnList, BLXCOL_SEQNAME)->showColumn = TRUE;
 
   getColumnInfo(columnList, BLXCOL_SCORE)->width = BLXCOL_SCORE_WIDTH;
-  getColumnInfo(columnList, BLXCOL_SCORE)->visible = TRUE;
+  getColumnInfo(columnList, BLXCOL_SCORE)->showColumn = TRUE;
 
   getColumnInfo(columnList, BLXCOL_ID)->width = BLXCOL_ID_WIDTH;
-  getColumnInfo(columnList, BLXCOL_ID)->visible = TRUE;
+  getColumnInfo(columnList, BLXCOL_ID)->showColumn = TRUE;
 
   getColumnInfo(columnList, BLXCOL_START)->width = BLXCOL_START_WIDTH;
-  getColumnInfo(columnList, BLXCOL_START)->visible = TRUE;
+  getColumnInfo(columnList, BLXCOL_START)->showColumn = TRUE;
 
   getColumnInfo(columnList, BLXCOL_SEQUENCE)->width = BLXCOL_SEQUENCE_WIDTH;
-  getColumnInfo(columnList, BLXCOL_SEQUENCE)->visible = TRUE;
+  getColumnInfo(columnList, BLXCOL_SEQUENCE)->showColumn = TRUE;
 
   getColumnInfo(columnList, BLXCOL_END)->width = BLXCOL_END_WIDTH;
-  getColumnInfo(columnList, BLXCOL_END)->visible = TRUE;
+  getColumnInfo(columnList, BLXCOL_END)->showColumn = TRUE;
 
   getColumnInfo(columnList, BLXCOL_SOURCE)->width = BLXCOL_SOURCE_WIDTH;
-  getColumnInfo(columnList, BLXCOL_SOURCE)->visible = TRUE;
+  getColumnInfo(columnList, BLXCOL_SOURCE)->showColumn = TRUE;
 
   getColumnInfo(columnList, BLXCOL_GROUP)->width = BLXCOL_GROUP_WIDTH;
-  getColumnInfo(columnList, BLXCOL_GROUP)->visible = FALSE;
+  getColumnInfo(columnList, BLXCOL_GROUP)->showColumn = FALSE;
 
   getColumnInfo(columnList, BLXCOL_ORGANISM)->width = BLXCOL_ORGANISM_WIDTH;
-  getColumnInfo(columnList, BLXCOL_ORGANISM)->visible = TRUE;
+  getColumnInfo(columnList, BLXCOL_ORGANISM)->showColumn = TRUE;
 
   getColumnInfo(columnList, BLXCOL_GENE_NAME)->width = BLXCOL_GENE_NAME_WIDTH;
-  getColumnInfo(columnList, BLXCOL_GENE_NAME)->visible = FALSE;
+  getColumnInfo(columnList, BLXCOL_GENE_NAME)->showColumn = FALSE;
 
   getColumnInfo(columnList, BLXCOL_TISSUE_TYPE)->width = BLXCOL_TISSUE_TYPE_WIDTH;
-  getColumnInfo(columnList, BLXCOL_TISSUE_TYPE)->visible = FALSE;
+  getColumnInfo(columnList, BLXCOL_TISSUE_TYPE)->showColumn = FALSE;
 
   getColumnInfo(columnList, BLXCOL_STRAIN)->width = BLXCOL_STRAIN_WIDTH;
-  getColumnInfo(columnList, BLXCOL_STRAIN)->visible = FALSE;
+  getColumnInfo(columnList, BLXCOL_STRAIN)->showColumn = FALSE;
 
 }
 

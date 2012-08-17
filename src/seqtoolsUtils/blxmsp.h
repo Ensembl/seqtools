@@ -199,7 +199,8 @@ typedef struct _BlxColumnInfo
     
     int width;                  /* the column width */
     gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
-    gboolean visible;           /* whether the column should be shown */
+    gboolean showColumn;        /* whether the column should be shown in the detail view */
+    gboolean showSummary;       /* whether the column should be shown in the summary info (i.e. the mouse-over feedback bar) */
     gboolean searchable;        /* whether searching sequences by data in this column is supported */
   } BlxColumnInfo;
 
@@ -394,7 +395,7 @@ gint                  fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpoint
 gint                  columnIdxCompareFunc(gconstpointer a, gconstpointer b);
 
 /* BlxSequence */
-char*                 blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq);
+char*                 blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq, GList *columnList);
 BlxDataType*          createBlxDataType();
 void                  destroyBlxDataType(BlxDataType **blxDataType);
 const char*           getDataTypeName(BlxDataType *blxDataType);
