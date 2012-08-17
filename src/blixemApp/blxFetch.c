@@ -2639,17 +2639,19 @@ static void appendCharToQuotedString(const char curChar, gboolean *foundEndQuote
 }
 
 
-/* Append the given char to the given GString. Create the GString if it is null. Doesn't
- * add whitespace chars to the start of the string. */
+/* Append the given char to the given GString. Doesn't
+ * add whitespace chars to the start of the string. Also 
+ * filters out multiple whitespace chars. */
 static void appendCharToString(const char curChar, GString *result)
 {
   if (result)
     {
-      /* Don't add multiple consecutive whitespace characters */
+      /* Don't add multiple consecutive whitespace characters, or
+       * white space at the start of the string */
       const int len = result->len;
       const char *str = result->str;
 
-      if (!isWhitespaceChar(curChar) || len < 0 || !isWhitespaceChar(str[len - 1]))
+      if (!isWhitespaceChar(curChar) || (len > 0 && !isWhitespaceChar(str[len - 1])))
         {
           g_string_append_c(result, curChar);
         }
