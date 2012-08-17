@@ -1048,37 +1048,36 @@ char *blxSequenceGetFasta(const BlxSequence *seq)
  * is true the data is separated with newline characters, otherwise with tabs (i.e. pass as false
  * if returned string is to be shown as a single line). The dataLoaded flag should be passed as
  * false if the optional data has not been loaded yet. */
-char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, const gboolean dataLoaded)
+char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, GList *columnList)
 {
   char *result = NULL;
   
   if (blxSeq)
     {
-    GString *resultStr = g_string_new("");
-    char separator = allowNewlines ? '\n' : '\t';
-    char strand = blxSeq->strand == BLXSTRAND_REVERSE ? '-' : '+';
-    char unloadedStr[] = "(optional data not loaded)";
-    
-    g_string_append_printf(resultStr, "SEQUENCE NAME:\t%s%c%c", blxSequenceGetName(blxSeq), strand, separator);
-    g_string_append_printf(resultStr, "ORGANISM:\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetOrganism(blxSeq), separator);
-    g_string_append_printf(resultStr, "GENE NAME:\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetGeneName(blxSeq), separator);
-    g_string_append_printf(resultStr, "TISSUE TYPE:\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetTissueType(blxSeq), separator);
-    g_string_append_printf(resultStr, "STRAIN:\t\t\t\t%s%c", !dataLoaded ? unloadedStr : blxSequenceGetStrain(blxSeq), separator);
-    
-    /* Loop through the MSPs and show their info */
-    g_string_append(resultStr, "ALIGNMENTS:\t\t");
-    GList *mspItem = blxSeq->mspList;
-    
-    for ( ; mspItem; mspItem = mspItem->next)
-      {
-      const MSP const *msp = (const MSP const *)(mspItem->data);
-      g_string_append_printf(resultStr, "%s\t", mspGetCoordsAsString(msp));
-      }
-    
-    /* Add a final separator after the alignments line*/
-    g_string_append_printf(resultStr, "%c", separator);
-    
-    result = g_string_free(resultStr, FALSE);
+      GString *resultStr = g_string_new("");
+      char separator = allowNewlines ? '\n' : '\t';
+      char strand = blxSeq->strand == BLXSTRAND_REVERSE ? '-' : '+';
+      
+      g_string_append_printf(resultStr, "SEQUENCE NAME:\t%s%c%c", blxSequenceGetName(blxSeq), strand, separator);
+      g_string_append_printf(resultStr, "ORGANISM:\t\t%s%c", blxSequenceGetOrganism(blxSeq), separator);
+      g_string_append_printf(resultStr, "GENE NAME:\t\t%s%c", blxSequenceGetGeneName(blxSeq), separator);
+      g_string_append_printf(resultStr, "TISSUE TYPE:\t\t%s%c", blxSequenceGetTissueType(blxSeq), separator);
+      g_string_append_printf(resultStr, "STRAIN:\t\t\t%s%c", blxSequenceGetStrain(blxSeq), separator);
+      
+      /* Loop through the MSPs and show their info */
+      g_string_append(resultStr, "ALIGNMENTS:\t\t");
+      GList *mspItem = blxSeq->mspList;
+      
+      for ( ; mspItem; mspItem = mspItem->next)
+        {
+          const MSP const *msp = (const MSP const *)(mspItem->data);
+          g_string_append_printf(resultStr, "%s\t", mspGetCoordsAsString(msp));
+        }
+      
+      /* Add a final separator after the alignments line*/
+      g_string_append_printf(resultStr, "%c", separator);
+      
+      result = g_string_free(resultStr, FALSE);
     }
   
   return result;

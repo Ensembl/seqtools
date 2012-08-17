@@ -2558,6 +2558,44 @@ static void pfetchProcessEmblBufferChar(const BlxFetchMethod* const fetchMethod,
 }
 
 
+static void checkParserState(BlxEmblParserState origState, 
+                             BlxEmblParserState *parserState, 
+                             const BlxFetchMethod* const fetchMethod,
+                             BlxSequence **currentSeq,
+                             GList **currentSeqItem,
+                             GString *currentResult,
+                             ProgressBar bar,
+                             const int numRequested,
+                             int *numFetched,
+                             int *numSucceeded,
+                             const BlxSeqType seqType,
+                             gboolean *status)
+{
+  /* If we were parsing a column value but the parser state has now changed to
+   * something else, then we've finished parsing the string, so save it in the sequence */
+  if (*parserState != origState && currentResult->str)
+    {
+      switch (origState)
+        {
+        case PARSING_ORGANISM:       blxSequenceSetValueFromString(*currentSeq, BLXCOL_ORGANISM,    currentResult->str); break;
+        case PARSING_GENE_NAME:      blxSequenceSetValueFromString(*currentSeq, BLXCOL_GENE_NAME,   currentResult->str); break;
+        case PARSING_FT_TISSUE_TYPE: blxSequenceSetValueFromString(*currentSeq, BLXCOL_TISSUE_TYPE, currentResult->str); break;
+        case PARSING_FT_STRAIN:      blxSequenceSetValueFromString(*currentSeq, BLXCOL_STRAIN,      currentResult->str); break;
+        default: break;
+        };
+    }
+
+  /* If parsing for this sequence has finished, tidy it up and move to the next sequence */
+  if (*parserState == PARSING_FINISHED_SEQ)
+    {
+      gboolean pfetch_ok = pfetchFinishSequence(fetchMethod, *currentSeq, currentResult, seqType, numRequested, numFetched, numSucceeded, parserState);
+      pfetchGetNextSequence(currentSeq, currentSeqItem, bar, numRequested, *numFetched, pfetch_ok, status, parserState);
+      *parserState = PARSING_NEWLINE;
+    }
+  
+}
+
+
 /* Parse the given buffer, which contains an arbitrary section of
  * data from an EMBL entry (or combination of multiple embl entries).
  * The parserState indicates what state we are in on entry, and gets
@@ -2596,6 +2634,9 @@ static void parseEmblBuffer(const BlxFetchMethod* const fetchMethod,
         {
           break;
         }
+
+      /* Remember the state prior to processing this character */
+      BlxEmblParserState origState = *parserState;
 
       const char curChar = buffer[i];
       g_string_append_c(curLine, curChar);
@@ -2654,13 +2695,8 @@ static void parseEmblBuffer(const BlxFetchMethod* const fetchMethod,
                                       status);
         }
 
-      if (*parserState == PARSING_FINISHED_SEQ)
-        {
-          /* finish up this sequence and move to the next one */
-          gboolean pfetch_ok = pfetchFinishSequence(fetchMethod, *currentSeq, currentResult, seqType, numRequested, numFetched, numSucceeded, parserState);
-          pfetchGetNextSequence(currentSeq, currentSeqItem, bar, numRequested, *numFetched, pfetch_ok, status, parserState);
-          *parserState = PARSING_NEWLINE;
-        }
+      checkParserState(origState, parserState, fetchMethod, currentSeq, currentSeqItem, currentResult,
+                       bar, numRequested, numFetched, numSucceeded, seqType, status);
     }
 }
 

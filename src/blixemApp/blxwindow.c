@@ -1458,13 +1458,12 @@ void showInfoDialog(GtkWidget *blxWindow)
   
   /* Compile the message text from the selected sequence(s) */
   GString *resultStr = g_string_new("");
-  const gboolean dataLoaded = bc->flags[BLXFLAG_OPTIONAL_COLUMNS];
   GList *seqItem = bc->selectedSeqs;
   
   for ( ; seqItem; seqItem = seqItem->next)
     {
       BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-      char *seqText = blxSequenceGetInfo(blxSeq, TRUE, dataLoaded);
+      char *seqText = blxSequenceGetInfo(blxSeq, TRUE, bc->columnList);
       g_string_append_printf(resultStr, "%s\n\n", seqText);
       g_free(seqText);
     }

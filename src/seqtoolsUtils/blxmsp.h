@@ -412,7 +412,7 @@ const char*           blxSequenceGetSequence(const BlxSequence *seq);
 gboolean              blxSequenceRequiresSeqData(const BlxSequence *seq);
 gboolean              blxSequenceRequiresOptionalData(const BlxSequence *seq);
 BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs);
-char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, const gboolean dataLoaded);
+char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, GList *columnList);
 int                   blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand);
 int                   blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand);
 const char*           blxSequenceGetSource(const BlxSequence *seq);
