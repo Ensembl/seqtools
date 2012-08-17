@@ -214,7 +214,7 @@ static void                        appendCharToQuotedString(const char curChar, 
 static void                        socketFetchInit(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, gboolean External, int *sock, GError **error);
 static void                        checkProgressBar(ProgressBar bar, BlxSeqParserState *parserState, gboolean *status);
 
-static int                         pfetchReceiveBuffer(GeneralFetchData *fetchData, const int bufferSize, const int sock);
+static int                         socketFetchReceiveBuffer(GeneralFetchData *fetchData, const int bufferSize, const int sock);
 
 static void                        pfetchGetNextSequence(GeneralFetchData *fetchData, const gboolean pfetch_ok);
 
@@ -1196,7 +1196,7 @@ gboolean socketFetchList(GList *seqsToFetch,
         {
           /* Receive and parse the next buffer */
           checkProgressBar(fetchData.bar, &fetchData.parserState, &fetchData.status);
-          fetchData.lenReceived = pfetchReceiveBuffer(&fetchData, RCVBUFSIZE, sock);
+          fetchData.lenReceived = socketFetchReceiveBuffer(&fetchData, RCVBUFSIZE, sock);
           
           if (fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL)
             {              
@@ -2174,10 +2174,10 @@ static void checkProgressBar(ProgressBar bar, BlxSeqParserState *parserState, gb
 }
 
 
-/* Receive the next buffer back from the pfetch server. Only does anything if the status is ok
+/* Receive the next buffer back from a socket server. Only does anything if the status is ok
  * (i.e. true). Checks the length etc and sets the state to finished if there is no more data
  * to receive. Sets 'status' to false if there was an error. Returns the number of chars received. */
-static int pfetchReceiveBuffer(GeneralFetchData *fetchData, const int bufferSize, const int sock)
+static int socketFetchReceiveBuffer(GeneralFetchData *fetchData, const int bufferSize, const int sock)
 {
   int lenReceived = 0;
   
