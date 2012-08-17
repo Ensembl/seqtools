@@ -620,8 +620,8 @@ extern GtkWidget *blixemWindow;
 
 
 /* blxFetchDb.c */
-void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GError **error);
-void sqliteFetchSequence(const BlxSequence* const blxSeq, const BlxFetchMethod* const fetchMethod,const gboolean displayResults,const int attempt,GtkWidget *blxWindow);
+void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GList *columnList, GError **error);
+void sqliteFetchSequence(const BlxSequence* const blxSeq, const BlxFetchMethod* const fetchMethod,const gboolean displayResults, const int attempt,GtkWidget *blxWindow);
 
 
 #endif /*  !defined DEF_BLIXEM_P_H */

@@ -61,6 +61,13 @@
 typedef int (*SqliteFunc)(void*,int,char**,char**);
 
 
+typedef struct _SqliteFetchData
+{
+  GList *seqList;
+  GList *columnList;
+} SqliteFetchData;
+
+
 
 //#ifdef SQLITE3
 
@@ -139,7 +146,7 @@ static int populateResultsListCB(void *data, int argc, char **argv, char **azCol
       nameCol = g_quark_from_string("Name");
     }
   
-  GList *seqList = (GList*)data;
+  SqliteFetchData *fetchData = (SqliteFetchData*)data;
 
   /* Loop through the columns to find the name column,
    * and find the BlxSequence with that name */
@@ -152,20 +159,17 @@ static int populateResultsListCB(void *data, int argc, char **argv, char **azCol
       
       if (column == nameCol)
         {
-          blxSeq = findBlxSequence(argv[i], seqList);
+          blxSeq = findBlxSequence(argv[i], fetchData->seqList);
         }
     }
 
   /* Loop again to populate the sequence data */
-  GtkWidget *blxWindow = getBlixemWindow();
-  GList *columnList = blxWindowGetColumnList(blxWindow);
-  
   if (blxSeq)
     {
       for (i = 0; i < argc; ++i)
         {
           DEBUG_OUT("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-          blxSequenceSetColumn(blxSeq, azColName[i], argv[i], columnList);
+          blxSequenceSetColumn(blxSeq, azColName[i], argv[i], fetchData->columnList);
         }
     }
 
@@ -282,7 +286,10 @@ void sqliteFetchSequence(const BlxSequence* const blxSeq,
 
 
 /* Fetch multiple sequences using sqlite */
-void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GError **error)
+void sqliteFetchSequences(GList *seqsToFetch, 
+                          const BlxFetchMethod* const fetchMethod, 
+                          GList *columnList,
+                          GError **error)
 {
   DEBUG_ENTER("sqliteFetchSequences");
 
@@ -295,13 +302,15 @@ void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchM
     {
       query = getFetchArgsMultiple(fetchMethod, seqsToFetch, &tmpError);
     }
+
+  SqliteFetchData fetchData = {seqsToFetch, columnList};
   
   if (query && !tmpError)
     {
       sqliteRequest(fetchMethod->location, 
                     query->str,
                     populateResultsListCB,
-                    seqsToFetch,
+                    &fetchData,
                     &tmpError);
     }
 
