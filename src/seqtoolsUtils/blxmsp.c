@@ -1245,6 +1245,7 @@ BlxSequence* createEmptyBlxSequence()
   seq->mspList = NULL;
   seq->sequenceReqd = FALSE;
   seq->values = NULL;
+  seq->organismAbbrev = NULL;
 
   return seq;
 }
