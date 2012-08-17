@@ -537,6 +537,11 @@ const char *mspGetOrganism(const MSP const *msp)
   return (msp ? blxSequenceGetOrganism(msp->sSequence) : NULL);
 }
 
+const char *mspGetOrganismAbbrev(const MSP const *msp)
+{
+  return (msp ? blxSequenceGetOrganismAbbrev(msp->sSequence) : NULL);
+}
+
 const char *mspGetGeneName(const MSP const *msp)
 {
   return (msp ? blxSequenceGetGeneName(msp->sSequence) : NULL);
@@ -1003,6 +1008,11 @@ static const char* blxSequenceGetValueAsString(const BlxSequence *seq, const int
 const char *blxSequenceGetOrganism(const BlxSequence *seq)
 {
   return blxSequenceGetValueAsString(seq, BLXCOL_ORGANISM);
+}
+
+const char *blxSequenceGetOrganismAbbrev(const BlxSequence *seq)
+{
+  return (seq ? seq->organismAbbrev : NULL);
 }
 
 const char *blxSequenceGetGeneName(const BlxSequence *seq)

@@ -2246,11 +2246,18 @@ static void cellDataFunctionOrganismCol(GtkTreeViewColumn *column, GtkCellRender
   if (g_list_length(mspGList) > 0)
     {
       const MSP const *msp = (const MSP const*)(mspGList->data);
-      const char *organism = mspGetOrganism(msp);
-      
-      if (organism)
+
+      /* Use the abbreviation if available. */
+      const char *text = mspGetOrganismAbbrev(msp);
+
+      if (!text)
         {
-          g_object_set(renderer, RENDERER_TEXT_PROPERTY, organism, NULL);
+          text = mspGetOrganism(msp);
+        }
+      
+      if (text)
+        {
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, text, NULL);
         }
     }
 }

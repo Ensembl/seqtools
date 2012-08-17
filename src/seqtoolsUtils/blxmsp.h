@@ -335,6 +335,7 @@ const GdkColor*       mspGetColor(const MSP const *msp,
                                   const int utrLineColorId);
 
 const char*           mspGetOrganism(const MSP const *msp);
+const char*           mspGetOrganismAbbrev(const MSP const *msp);
 const char*           mspGetGeneName(const MSP const *msp);
 const char*           mspGetTissueType(const MSP const *msp);
 const char*           mspGetStrain(const MSP const *msp);
@@ -421,6 +422,7 @@ gboolean              blxSequenceGetLinkFeatures(const BlxSequence *seq, const g
 GValue*               blxSequenceGetValue(const BlxSequence *seq, const int columnId);
 
 const char*           blxSequenceGetOrganism(const BlxSequence *seq);
+const char*           blxSequenceGetOrganismAbbrev(const BlxSequence *seq);
 const char*           blxSequenceGetGeneName(const BlxSequence *seq);
 const char*           blxSequenceGetTissueType(const BlxSequence *seq);
 const char*           blxSequenceGetStrain(const BlxSequence *seq);
