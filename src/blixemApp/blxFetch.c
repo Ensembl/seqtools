@@ -2292,26 +2292,16 @@ static void pfetchGetParserStateFromId(GeneralFetchData *fetchData)
   else if (stringsEqual(fetchData->sectionId, "OS", TRUE) && blxSequenceRequiresOptionalData(fetchData->currentSeq))
     {
       if (blxSequenceGetOrganism(fetchData->currentSeq))
-        {
-          fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
-        }
+        fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
       else
-        {
-          fetchData->parserState = PARSING_ORGANISM;
-          g_string_truncate(fetchData->currentResult, 0);
-        }
+        fetchData->parserState = PARSING_ORGANISM;
     }
   else if (stringsEqual(fetchData->sectionId, "GN", TRUE) && blxSequenceRequiresOptionalData(fetchData->currentSeq))
     {
       if (blxSequenceGetGeneName(fetchData->currentSeq))
-        {
-          fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
-        }
+        fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
       else
-        {
-          fetchData->parserState = PARSING_GENE_NAME;
-          g_string_truncate(fetchData->currentResult, 0);
-        }
+        fetchData->parserState = PARSING_GENE_NAME;
     }
   else if (stringsEqual(fetchData->sectionId, "FT", TRUE) && blxSequenceRequiresOptionalData(fetchData->currentSeq))
     {
@@ -2456,16 +2446,30 @@ static void pfetchProcessEmblBufferChar(GeneralFetchData *fetchData, const char 
 static void checkParserState(GeneralFetchData *fetchData, BlxSeqParserState origState)
 {
   /* If we were parsing a column value but the parser state has now changed to
-   * something else, then we've finished parsing the string, so save it in the sequence */
+   * something else, then we've finished parsing the string, so save it in the 
+   * sequence and reset the result string */
   if (fetchData->parserState != origState && fetchData->currentResult->str)
     {
       switch (origState)
         {
-        case PARSING_ORGANISM:       blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_ORGANISM,    fetchData->currentResult->str); break;
-        case PARSING_GENE_NAME:      blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_GENE_NAME,   fetchData->currentResult->str); break;
-        case PARSING_FT_TISSUE_TYPE: blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_TISSUE_TYPE, fetchData->currentResult->str); break;
-        case PARSING_FT_STRAIN:      blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_STRAIN,      fetchData->currentResult->str); break;
-        default: break;
+        case PARSING_ORGANISM:       
+          blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_ORGANISM,    fetchData->currentResult->str); 
+          g_string_truncate(fetchData->currentResult, 0);
+          break;
+        case PARSING_GENE_NAME:      
+          blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_GENE_NAME,   fetchData->currentResult->str); 
+          g_string_truncate(fetchData->currentResult, 0);
+          break;
+        case PARSING_FT_TISSUE_TYPE: 
+          blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_TISSUE_TYPE, fetchData->currentResult->str); 
+          g_string_truncate(fetchData->currentResult, 0);
+          break;
+        case PARSING_FT_STRAIN:      
+          blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_STRAIN,      fetchData->currentResult->str); 
+          g_string_truncate(fetchData->currentResult, 0);
+          break;
+        default: 
+          break;
         };
     }
 
@@ -2532,7 +2536,6 @@ static void parseEmblBuffer(GeneralFetchData *fetchData, GError **error)
             {
               /* We were previously in the sequence header, so the next line is the sequence body */
               fetchData->parserState = PARSING_SEQUENCE;
-              g_string_truncate(fetchData->currentResult, 0);
             }
           else if (stringInArray(fetchData->curLine->str, fetchData->fetchMethod->errors))
             {
@@ -2571,14 +2574,9 @@ static void pfetchGetParserStateFromTagName(GeneralFetchData *fetchData)
       else
         {
           if (blxSequenceGetTissueType(fetchData->currentSeq))
-            {
-              fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
-            }
+            fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
           else
-            {
-              fetchData->parserState = PARSING_FT_TISSUE_TYPE;
-              g_string_truncate(fetchData->currentResult, 0);
-            }
+            fetchData->parserState = PARSING_FT_TISSUE_TYPE;
         }
     }
   else if (stringsEqual(fetchData->tagName->str, "strain", TRUE))
@@ -2590,14 +2588,9 @@ static void pfetchGetParserStateFromTagName(GeneralFetchData *fetchData)
       else
         {
           if (blxSequenceGetStrain(fetchData->currentSeq))
-            {
-              fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
-            }
+            fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
           else
-            {
-              fetchData->parserState = PARSING_FT_STRAIN;
-              g_string_truncate(fetchData->currentResult, 0);
-            }
+            fetchData->parserState = PARSING_FT_STRAIN;
         }
     }
   else
@@ -3118,7 +3111,7 @@ static gboolean fetchList(GList *seqsToFetch,
 #endif
           else if (fetchMethod->mode == BLXFETCH_MODE_SQLITE)
             {
-              sqliteFetchSequences(seqsToFetch, fetchMethod, error);
+              sqliteFetchSequences(seqsToFetch, fetchMethod, columnList, error);
             }
           else if (fetchMethod->mode == BLXFETCH_MODE_COMMAND)
             {
