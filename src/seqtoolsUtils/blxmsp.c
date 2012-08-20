@@ -939,7 +939,8 @@ gboolean blxSequenceRequiresColumnData(const BlxSequence *seq, const BlxColumnId
   if (seq)
     {
       if (columnId == BLXCOL_ORGANISM || columnId == BLXCOL_TISSUE_TYPE ||
-          columnId == BLXCOL_GENE_NAME || columnId == BLXCOL_STRAIN)
+          columnId == BLXCOL_GENE_NAME || columnId == BLXCOL_STRAIN ||
+          columnId >= BLXCOL_NUM_COLUMNS)
         {
           result = blxSequenceRequiresOptionalData(seq);
         }

@@ -179,7 +179,8 @@ typedef enum
     BLXCOL_GENE_NAME,
     BLXCOL_TISSUE_TYPE,
     BLXCOL_STRAIN,
-    
+
+    BLXCOL_NUM_COLUMNS
   } BlxColumnId;
 
 

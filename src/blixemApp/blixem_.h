@@ -70,6 +70,7 @@ AUTHOR_TEXT "\n"
 #define COLUMN_WIDTHS_GROUP             "column-widths"  /* group name in the config file */
 
 /* Define the columns' default widths and titles. */
+#define BLXCOL_DEFAULT_WIDTH            50    /* default width for generic columns */
 #define BLXCOL_SEQNAME_WIDTH            120   /* default width for the name column */
 #define BLXCOL_SCORE_WIDTH              40    /* default width for the score column */
 #define BLXCOL_ID_WIDTH                 45    /* default width for the ID column */
@@ -82,7 +83,6 @@ AUTHOR_TEXT "\n"
 #define BLXCOL_GENE_NAME_WIDTH          58    /* default width for gene-name column  */
 #define BLXCOL_STRAIN_WIDTH             85    /* default width for strain column  */
 #define BLXCOL_TISSUE_TYPE_WIDTH        100   /* default width for tissue-type column  */
-
 
 
 /* 
