@@ -2263,57 +2263,6 @@ static void cellDataFunctionOrganismCol(GtkTreeViewColumn *column, GtkCellRender
 }
 
 
-/* Cell data function for the Gene Name column. */
-static void cellDataFunctionGeneNameCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
-{
-  GList	*mspGList = treeGetMsps(model, iter);
-  if (g_list_length(mspGList) > 0)
-    {
-      const MSP const *msp = (const MSP const*)(mspGList->data);
-      const char *geneName = mspGetGeneName(msp);
-
-      if (geneName)
-        {
-          g_object_set(renderer, RENDERER_TEXT_PROPERTY, geneName, NULL);
-        }
-    }
-}
-
-
-/* Cell data function for the Tissue Type column. */
-static void cellDataFunctionTissueTypeCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
-{
-  GList	*mspGList = treeGetMsps(model, iter);
-  if (g_list_length(mspGList) > 0)
-    {
-      const MSP const *msp = (const MSP const*)(mspGList->data);
-      const char *tissueType = mspGetTissueType(msp);
-      
-      if (tissueType)
-        {
-          g_object_set(renderer, RENDERER_TEXT_PROPERTY, tissueType, NULL);
-        }
-    }
-}
-
-
-/* Cell data function for the Strain column. */
-static void cellDataFunctionStrainCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
-{
-  GList	*mspGList = treeGetMsps(model, iter);
-  if (g_list_length(mspGList) > 0)
-    {
-      const MSP const *msp = (const MSP const*)(mspGList->data);
-      const char *strain = mspGetStrain(msp);
-      
-      if (strain)
-        {
-          g_object_set(renderer, RENDERER_TEXT_PROPERTY, strain, NULL);
-        }
-    }
-}
-
-
 static const char* mspListGetSource(GList *mspList)
 {
   const char *result = NULL;
@@ -2448,25 +2397,13 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
     case BLXCOL_GROUP:
       gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionGroupCol, tree, NULL);
       break;
+      
+    case BLXCOL_SOURCE:
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionSourceCol, tree, NULL);
+      break;
 
     case BLXCOL_ORGANISM:
       gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionOrganismCol, tree, NULL);
-      break;
-      
-    case BLXCOL_GENE_NAME:
-      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionGeneNameCol, tree, NULL);
-      break;
-      
-    case BLXCOL_TISSUE_TYPE:
-      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionTissueTypeCol, tree, NULL);
-      break;
-      
-    case BLXCOL_STRAIN:
-      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionStrainCol, tree, NULL);
-      break;
-
-    case BLXCOL_SOURCE:
-      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionSourceCol, tree, NULL);
       break;
     
     default:
