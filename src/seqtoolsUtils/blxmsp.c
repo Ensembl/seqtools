@@ -46,8 +46,6 @@
 static int g_MaxMspLen = 0;     /* max length in display coords of all MSPs in the detail-view */
 
 
-static const char* blxSequenceGetValueAsString(const BlxSequence *seq, const int columnId);
-
 
 
 
@@ -932,6 +930,28 @@ gboolean blxSequenceRequiresOptionalData(const BlxSequence *seq)
   return (seq && seq->type == BLXSEQUENCE_MATCH);
 }
 
+/* This returns true if the given sequence object requires the data for
+ * the given column */
+gboolean blxSequenceRequiresColumnData(const BlxSequence *seq, const BlxColumnId columnId)
+{
+  gboolean result = FALSE;
+
+  if (seq)
+    {
+      if (columnId == BLXCOL_ORGANISM || columnId == BLXCOL_TISSUE_TYPE ||
+          columnId == BLXCOL_GENE_NAME || columnId == BLXCOL_STRAIN)
+        {
+          result = blxSequenceRequiresOptionalData(seq);
+        }
+      else if (columnId == BLXCOL_SEQUENCE)
+        {
+          result = blxSequenceRequiresSeqData(seq);
+        }
+    }
+  
+  return result;
+}
+
 /* Get the value for the given column */
 GValue* blxSequenceGetValue(const BlxSequence *seq, const int columnId)
 {
@@ -986,7 +1006,7 @@ void blxSequenceSetValueFromString(const BlxSequence *seq, const int columnId, c
 
 /* Get the string value for the given column. Returns null if the
  * value is not a string type. */
-static const char* blxSequenceGetValueAsString(const BlxSequence *seq, const int columnId)
+const char* blxSequenceGetValueAsString(const BlxSequence *seq, const int columnId)
 {
   const char *result = NULL;
   

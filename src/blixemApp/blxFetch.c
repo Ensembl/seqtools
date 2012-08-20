@@ -73,17 +73,17 @@ typedef enum
     PARSING_ID,                  /* parsing the 2-letter id at the start of a line */
     PARSING_SEQUENCE_HEADER,     /* first line of the SQ section (does not contain sequence data) */
     PARSING_SEQUENCE,            /* main body of the SQ section (contains sequence data on multiple lines) */
-    PARSING_ORGANISM,            /* parsing an OS section */
-    PARSING_GENE_NAME,           /* parsing a GN section */
-    PARSING_FEATURE_TYPE,        /* parsing an FT section */
-    PARSING_FT_TAG_NAME,         /* parsing a tag name within a FT section */
-    PARSING_FT_UNQUOTED_SECTION, /* parsing the tag data of an FT tag (but not entered the quoted section yet) */
-    PARSING_FT_TISSUE_TYPE,      /* parsing the /tissue_type tag data within a FT section */
-    PARSING_FT_STRAIN,           /* parsing the /strain tag data within a FT section */
     PARSING_IGNORE,              /* we're parsing an area we can ignore */
     PARSING_FINISHED_SEQ,        /* finished parsing the current sequence */
     PARSING_FINISHED,            /* finished parsing all records */
-    PARSING_CANCELLED            /* cancelled by user */
+    PARSING_CANCELLED,           /* cancelled by user */
+
+    PARSING_DATA,                /* parsing data for a particular column */
+
+    PARSING_TAG_SEARCH,          /* parsing a known section, looking for a particular tag name */
+    PARSING_TAG_NAME,            /* parsing a tag name */
+    PARSING_TAG_IGNORE,          /* parsing the tag data but ignore everything until we get to a quoted section */
+    PARSING_DATA_QUOTED          /* parsing the data for a tag; same as PARSING_DATA but we're in a quoted section */
   } BlxSeqParserState;
 
 
@@ -109,11 +109,14 @@ enum {RCVBUFSIZE = 256} ;               /* size of receive buffer for socket fet
 typedef struct _GeneralFetchData
 {
   const BlxFetchMethod* fetchMethod;      /* details about the fetch method */
+  GList *columnList;                      /* list of BlxColumnInfo structs */ 
+  
   char *buffer;                           /* receive buffer */
   int lenReceived;                        /* number of chars received into the buffer */
   BlxSequence *currentSeq;                /* the current sequence that we're processing */
   GList *currentSeqItem;                  /* the current sequence that we're processing (list item pointer) */
   GString *currentResult;                 /* this stores the current results that have been extracted for the section we're parsing */
+  BlxColumnInfo *currentColumn;           /* the column that the current section relates to */
   ProgressBar bar;                        /* shows the progress of the fetch */
   int numRequested;                       /* the total number of sequences requested */
   int numFetched;                         /* the number of sequences fetched so far */
@@ -933,13 +936,15 @@ static gboolean httpFetchList(GList *seqsToFetch,
   fetch_data.pfetch = PFetchHandleNew(pfetch_type);
 
   fetch_data.fetchData.fetchMethod = fetchMethod;
+  fetch_data.fetchData.columnList = columnList;
+  fetch_data.fetchData.currentColumn = NULL;
   fetch_data.fetchData.currentSeq = seqsToFetch ? (BlxSequence*)(seqsToFetch->data) : NULL;
   fetch_data.fetchData.currentSeqItem = seqsToFetch;
   fetch_data.fetchData.currentResult = g_string_new("");
-  fetch_data.fetchData.bar = makeProgressBar(fetch_data.fetchData.numRequested) ;
   fetch_data.fetchData.numRequested = g_list_length(seqsToFetch);
   fetch_data.fetchData.numFetched = 0;
   fetch_data.fetchData.numSucceeded = 0;
+  fetch_data.fetchData.bar = makeProgressBar(fetch_data.fetchData.numRequested) ;
   fetch_data.fetchData.curLine = g_string_new("");
   fetch_data.fetchData.sectionId[0] = ' ';
   fetch_data.fetchData.sectionId[1] = ' ';
@@ -1164,6 +1169,8 @@ gboolean socketFetchList(GList *seqsToFetch,
   /* Create a struct to pass around data releated to the fetch */
   GeneralFetchData fetchData;
   fetchData.fetchMethod = fetchMethod;
+  fetchData.columnList = columnList;
+  fetchData.currentColumn = NULL;
   fetchData.seqType = seqType,
   fetchData.status = (tmpError == NULL);
 
@@ -2274,58 +2281,74 @@ static void parseRawSequenceBuffer(GeneralFetchData *fetchData, GError **error)
 }
 
 
+/* Returns true if the given string is the terminating string of
+ * an embl file, i.e. '//' */
+static gboolean isEmblTerminator(GQuark value)
+{
+  static GQuark terminator = 0;
+  
+  if (!terminator)
+    terminator = g_quark_from_string("//");
+
+  return (value == terminator);
+}
+
+
 /* Get the parser state from the given two-letter at at the start of an EMBL file line. */
 static void pfetchGetParserStateFromId(GeneralFetchData *fetchData)
 {
-  if (stringsEqual(fetchData->sectionId, "SQ", TRUE))
+  GQuark sectionId = g_quark_from_string(fetchData->sectionId);
+
+  /* First, check if the section id is the terminator string, in 
+   * which case finish this sequence */
+  if (isEmblTerminator(sectionId))
     {
-      /* Skip the sequence section if the sequence is already populated or not required. */
-      if (blxSequenceGetSequence(fetchData->currentSeq) || !blxSequenceRequiresSeqData(fetchData->currentSeq))
-        {
-          fetchData->parserState = PARSING_IGNORE;
-        }
-      else
-        {
-          fetchData->parserState = PARSING_SEQUENCE_HEADER;
-        }
-    }
-  else if (stringsEqual(fetchData->sectionId, "OS", TRUE) && blxSequenceRequiresOptionalData(fetchData->currentSeq))
-    {
-      if (blxSequenceGetOrganism(fetchData->currentSeq))
-        fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
-      else
-        fetchData->parserState = PARSING_ORGANISM;
-    }
-  else if (stringsEqual(fetchData->sectionId, "GN", TRUE) && blxSequenceRequiresOptionalData(fetchData->currentSeq))
-    {
-      if (blxSequenceGetGeneName(fetchData->currentSeq))
-        fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
-      else
-        fetchData->parserState = PARSING_GENE_NAME;
-    }
-  else if (stringsEqual(fetchData->sectionId, "FT", TRUE) && blxSequenceRequiresOptionalData(fetchData->currentSeq))
-    {
-      if (fetchData->tagName && fetchData->tagName->len)
-        {
-          /* If the tag name is already set we must be in the middle of parsing a multi-line tag, 
-           * so continue with that tag */
-          pfetchGetParserStateFromTagName(fetchData);
-        }
-      else
-        {
-          /* We'll parse the general FT section looking for a tag name */
-          fetchData->parserState = PARSING_FEATURE_TYPE;
-        }
-    }
-  else if (stringsEqual(fetchData->sectionId, "//", TRUE))
-    {
-      /* This indicates the end of the embl file, so we've finished the current sequence */
       fetchData->parserState = PARSING_FINISHED_SEQ;
+      return;
     }
-  else
+
+  /* Loop through all the columns and check if there's a column with
+   * an embl ID that matches the current section ID. If not, then there's 
+   * nothing to do for this tag (so default to parsing_ignore if not found) */
+  GList *item = fetchData->columnList;
+  fetchData->parserState = PARSING_IGNORE;
+  
+  for ( ; item; item = item->next)
     {
-      /* Any other section we're not interested in */
-      fetchData->parserState = PARSING_IGNORE;
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
+      
+      if (columnInfo->emblId && columnInfo->emblId == sectionId)
+        {
+          /* First, check if we need to bother getting the info for this column */
+          if (blxSequenceRequiresColumnData(fetchData->currentSeq, columnInfo->columnId) &&
+              !blxSequenceGetValueAsString(fetchData->currentSeq, columnInfo->columnId))
+            {
+              if (columnInfo->emblTag)
+                {
+                  /* The column has an embl tag; continue parsing to find the
+                   * tag. (Note that multiple columns may have this section ID so
+                   * the next step may end up finding a different column depending
+                   * on the embl tag; at this point, we're just finding out if any 
+                   * column has an embl tag that we need to continue parsing for,
+                   * so we don't set the currentColumn yet). */
+                  fetchData->parserState = PARSING_TAG_SEARCH;
+                }
+              else
+                {
+                  /* No tag to look for so start parsing the data for this column immediately */
+                  fetchData->currentColumn = columnInfo;
+
+                  /* If this is the sequence column, we need to parse the sequence header
+                   * first, so set a special parser state. Other columns can be parsed directly. */
+                  if (columnInfo->columnId == BLXCOL_SEQUENCE)
+                    fetchData->parserState = PARSING_SEQUENCE_HEADER;
+                  else
+                    fetchData->parserState = PARSING_DATA;
+                }
+
+              break; /* we found a column, so exit the loop */
+            }
+        }
     }
 }
 
@@ -2357,7 +2380,7 @@ static void pfetchProcessEmblBufferChar(GeneralFetchData *fetchData, const char 
       {
         /* Look out for the terminating "//" characters. We ignore newlines in the sequence
          * body so won't catch these by the normal method. We can assume that if we see a single
-         * slash that it's the terminator, because there should never see one here otherwise */
+         * slash that it's the terminator, because we should never see one here otherwise */
         if (curChar == '/')
           {
             fetchData->sectionId[0] = curChar;
@@ -2376,62 +2399,43 @@ static void pfetchProcessEmblBufferChar(GeneralFetchData *fetchData, const char 
         break;
       }
         
-      case PARSING_ORGANISM:
+      case PARSING_DATA:
       {
         appendCharToString(curChar, fetchData->currentResult);
         break;
       }
         
-      case PARSING_GENE_NAME:
-      {
-        appendCharToString(curChar, fetchData->currentResult);
-        break;
-      }
-        
-      case PARSING_FEATURE_TYPE:
+      case PARSING_TAG_SEARCH:
       {
         /* If we find a forward slash, it's the start of a tag, so we'll parse the tag name next */
         if (curChar == '/')
-          {
-            fetchData->parserState = PARSING_FT_TAG_NAME;
-          }
+          fetchData->parserState = PARSING_TAG_NAME;
         
         break;
       }
         
-      case PARSING_FT_TAG_NAME:
+      case PARSING_TAG_NAME:
       {
         if (curChar == '=') /* signals the end of the tag */
-          {
-            pfetchGetParserStateFromTagName(fetchData);
-          }
+          pfetchGetParserStateFromTagName(fetchData);
         else
-          {
-            g_string_append_c(fetchData->tagName, curChar); /* read in tag name */
-          }
+          g_string_append_c(fetchData->tagName, curChar); /* read in tag name */
         
         break;
       }
         
-      case PARSING_FT_UNQUOTED_SECTION:
+      case PARSING_TAG_IGNORE:
       {
         /* Look for the start quote before we start parsing the tag properly */
         if (curChar == '"')
-          {
-            pfetchGetParserStateFromTagName(fetchData);
-          }
+          pfetchGetParserStateFromTagName(fetchData);
         
         break;
       }
         
-      case PARSING_FT_TISSUE_TYPE:
+      case PARSING_DATA_QUOTED:
       {
-        appendCharToQuotedString(curChar, &fetchData->foundEndQuote, fetchData->currentResult);
-        break;
-      }
-        
-      case PARSING_FT_STRAIN:
-      {
+        /* Like PARSING_DATA but we need to watch out for end quotes */
         appendCharToQuotedString(curChar, &fetchData->foundEndQuote, fetchData->currentResult);
         break;
       }
@@ -2445,32 +2449,21 @@ static void pfetchProcessEmblBufferChar(GeneralFetchData *fetchData, const char 
 
 static void checkParserState(GeneralFetchData *fetchData, BlxSeqParserState origState)
 {
-  /* If we were parsing a column value but the parser state has now changed to
+  /* If we were parsing data for a column but the parser state has now changed to
    * something else, then we've finished parsing the string, so save it in the 
-   * sequence and reset the result string */
+   * sequence */
   if (fetchData->parserState != origState && fetchData->currentResult->str)
     {
-      switch (origState)
+      if (origState == PARSING_DATA || origState == PARSING_DATA_QUOTED)
         {
-        case PARSING_ORGANISM:       
-          blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_ORGANISM,    fetchData->currentResult->str); 
+          blxSequenceSetValueFromString(fetchData->currentSeq, 
+                                        fetchData->currentColumn->columnId, 
+                                        fetchData->currentResult->str); 
+
+          /* Reset the result string and current column */
           g_string_truncate(fetchData->currentResult, 0);
-          break;
-        case PARSING_GENE_NAME:      
-          blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_GENE_NAME,   fetchData->currentResult->str); 
-          g_string_truncate(fetchData->currentResult, 0);
-          break;
-        case PARSING_FT_TISSUE_TYPE: 
-          blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_TISSUE_TYPE, fetchData->currentResult->str); 
-          g_string_truncate(fetchData->currentResult, 0);
-          break;
-        case PARSING_FT_STRAIN:      
-          blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_STRAIN,      fetchData->currentResult->str); 
-          g_string_truncate(fetchData->currentResult, 0);
-          break;
-        default: 
-          break;
-        };
+          fetchData->currentColumn = NULL;
+        }
     }
 
   /* If parsing for this sequence has finished, tidy it up and move to the next sequence */
@@ -2480,7 +2473,6 @@ static void checkParserState(GeneralFetchData *fetchData, BlxSeqParserState orig
       pfetchGetNextSequence(fetchData, pfetch_ok);
       fetchData->parserState = PARSING_NEWLINE;
     }
-  
 }
 
 
@@ -2516,14 +2508,14 @@ static void parseEmblBuffer(GeneralFetchData *fetchData, GError **error)
       g_string_append_c(fetchData->curLine, curChar);
 
       /* Special treatment if we've previously found an end quote: if this char is NOT also
-       * a quote, then it means it genuinely was an end quote, so we finish the FT tag that
-       * we were reading (by setting the tag name to null). We return to parsing the general FT
-       * section in case there are any more tags. */
+       * a quote, then it means it genuinely was an end quote, so we finish reading the tag data that
+       * we were reading (by setting the tag name to null). We return to parsing the section
+       * that contained that tag in case there are any more tags in it that we're interested in. */
       if (fetchData->foundEndQuote && curChar != '"')
         {
           g_string_truncate(fetchData->tagName, 0);
           fetchData->foundEndQuote = FALSE;
-          fetchData->parserState = PARSING_FEATURE_TYPE;
+          fetchData->parserState = PARSING_TAG_SEARCH;
         }
       
 
@@ -2540,6 +2532,7 @@ static void parseEmblBuffer(GeneralFetchData *fetchData, GError **error)
           else if (stringInArray(fetchData->curLine->str, fetchData->fetchMethod->errors))
             {
               /* The line is an error message. Finish this sequence and move to next. */
+              g_warning("[%s] Error fetching sequence '%s': %s", g_quark_to_string(fetchData->fetchMethod->name), blxSequenceGetName(fetchData->currentSeq), fetchData->curLine->str);
               fetchData->parserState = PARSING_FINISHED_SEQ;
             }
           else
@@ -2559,43 +2552,50 @@ static void parseEmblBuffer(GeneralFetchData *fetchData, GError **error)
 }
 
 
-/* Check the given tag name to see what type of section it indicates, and update
- * the parser state accordingly. Sets the parser state to PARSING_IGNORE if this
- * is not a tag we care about. Returns true if we've entered a free text section
- * where newline characters should be ignored. */
+/* Check the given tag name to see if it contains data for a column we're interested
+ * in, and update the parser state accordingly. Sets the parser state to PARSING_IGNORE 
+ * if this is not a tag we care about. */
 static void pfetchGetParserStateFromTagName(GeneralFetchData *fetchData)
 {
-  if (stringsEqual(fetchData->tagName->str, "tissue_type", TRUE))
+  if (!fetchData->tagName || !fetchData->tagName->str)
+    return;
+
+  /* Check if there's a column with this section ID and tag. (Assumes
+   * that only one column at most will match.) */
+  GQuark foundSection = g_quark_from_string(fetchData->sectionId);
+  GQuark foundTag = g_quark_from_string(fetchData->tagName->str);
+  GList *item = fetchData->columnList;
+  fetchData->currentColumn = NULL;
+
+  for ( ; item && !fetchData->currentColumn; item = item->next)
     {
-      if (fetchData->parserState == PARSING_FT_TAG_NAME)
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
+      GQuark currentSection = columnInfo->emblId;
+      GQuark currentTag = columnInfo->emblTag;
+
+      if (currentSection == foundSection && currentTag == foundTag)
         {
-          fetchData->parserState = PARSING_FT_UNQUOTED_SECTION; /* look for quoted section before we start parsing the actual data */
-        }
-      else
-        {
-          if (blxSequenceGetTissueType(fetchData->currentSeq))
-            fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
+          fetchData->currentColumn = columnInfo;
+          
+          if (fetchData->parserState == PARSING_TAG_NAME)
+            {
+              /* Start parsing the data within the tag but initially ignore
+               * everything until we find a quoted section */
+              fetchData->parserState = PARSING_TAG_IGNORE;
+            }
           else
-            fetchData->parserState = PARSING_FT_TISSUE_TYPE;
+            {
+              /* Should only get here if we found a quoted section. Start 
+               * parsing the actual data for the current column. */
+              fetchData->parserState = PARSING_DATA_QUOTED;
+            }
         }
     }
-  else if (stringsEqual(fetchData->tagName->str, "strain", TRUE))
+
+  if (!fetchData->currentColumn)
     {
-      if (fetchData->parserState == PARSING_FT_TAG_NAME)
-        {
-          fetchData->parserState = PARSING_FT_UNQUOTED_SECTION; /* look for quoted section before we start parsing the actual data */
-        }
-      else
-        {
-          if (blxSequenceGetStrain(fetchData->currentSeq))
-            fetchData->parserState = PARSING_IGNORE; /* ignore if already set */
-          else
-            fetchData->parserState = PARSING_FT_STRAIN;
-        }
-    }
-  else
-    {
-      /* Ignore this tag. Reset the tag name to zero-length so we know to start again. */
+      /* No column was found, so ignore this tag. Reset the tag name to
+       * zero-length so we know to start again */
       fetchData->parserState = PARSING_IGNORE;
       g_string_truncate(fetchData->tagName, 0);
     }

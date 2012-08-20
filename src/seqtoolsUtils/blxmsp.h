@@ -196,7 +196,12 @@ typedef struct _BlxColumnInfo
     char *title;                /* the default column title */
     char *propertyName;         /* the property name (used to set the data for the SequenceCellRenderer) */
     char *sortName;             /* the name to display in the sort-by drop-down box (NULL if the view is not sortable on this column) */
-    
+
+    GQuark emblId;              /* 2-char embl line ID, e.g. 'SQ' for sequence or 'OS' for organism */
+    GQuark emblTag;             /* tag name within an embl line, e.g. the 'tissue_type' tag within the 'FT' section. 
+                                 * Only supports tags of the following format (i.e. like those in the 'FT' section):
+                                 *     /tissue_type="testis"    */
+
     int width;                  /* the column width */
     gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
     gboolean showColumn;        /* whether the column should be shown in the detail view */
@@ -412,6 +417,7 @@ int                   blxSequenceGetLength(const BlxSequence *seq);
 const char*           blxSequenceGetSequence(const BlxSequence *seq);
 gboolean              blxSequenceRequiresSeqData(const BlxSequence *seq);
 gboolean              blxSequenceRequiresOptionalData(const BlxSequence *seq);
+gboolean              blxSequenceRequiresColumnData(const BlxSequence *seq, const BlxColumnId columnId);
 BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs);
 char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, GList *columnList);
 int                   blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand);
@@ -421,6 +427,7 @@ gboolean              blxSequenceGetLinkFeatures(const BlxSequence *seq, const g
 
 GValue*               blxSequenceGetValue(const BlxSequence *seq, const int columnId);
 
+const char*           blxSequenceGetValueAsString(const BlxSequence *seq, const int columnId);
 const char*           blxSequenceGetOrganism(const BlxSequence *seq);
 const char*           blxSequenceGetOrganismAbbrev(const BlxSequence *seq);
 const char*           blxSequenceGetGeneName(const BlxSequence *seq);
