@@ -1841,26 +1841,24 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
 }
 
 
-/* Get the relevant data about a sequence for the given column ID (at the moment
- * this only supports string data) */
+/* Like blxSequenceGetColumn but also supports the group column (which
+ * needs the context for its data) */
 static const char* blxSequenceGetColumnData(const BlxSequence const *blxSeq, 
                                             const BlxColumnId columnId,
                                             const BlxViewContext *bc)
 {
   const char *result = NULL;
 
-  GValue *value = blxSequenceGetValue(blxSeq, columnId);
-    
-  if (value && G_VALUE_HOLDS_STRING(value))
-    {
-      result = g_value_get_string(value);
-    }
-  else if (columnId == BLXCOL_GROUP)
+  if (columnId == BLXCOL_GROUP)
     {
       const SequenceGroup *group = blxContextGetSequenceGroup(bc, blxSeq);
 
       if (group)
         result = group->groupName;
+    }
+  else
+    {
+      result = blxSequenceGetColumn(blxSeq, columnId);
     }
   
   return result;

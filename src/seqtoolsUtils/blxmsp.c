@@ -46,9 +46,6 @@
 static int g_MaxMspLen = 0;     /* max length in display coords of all MSPs in the detail-view */
 
 
-
-
-
 /* Get/set the max MSP length */
 int getMaxMspLen()
 {
@@ -530,6 +527,11 @@ const GdkColor* mspGetColor(const MSP const *msp,
 
 /* Get functions from msps for various sequence properties. Result is owned by the sequence
  * and should not be free'd. Returns NULL if the property is not set. */
+const char *mspGetColumn(const MSP const *msp, const BlxColumnId columnId)
+{
+  return (msp ? blxSequenceGetColumn(msp->sSequence, columnId) : NULL);
+}
+
 const char *mspGetOrganism(const MSP const *msp)
 {
   return (msp ? blxSequenceGetOrganism(msp->sSequence) : NULL);
@@ -958,7 +960,7 @@ GValue* blxSequenceGetValue(const BlxSequence *seq, const int columnId)
 {
   GValue *result = NULL;
   
-  if (seq)
+  if (seq && columnId < seq->values->len)
     result = &g_array_index(seq->values, GValue, columnId);
 
   return result;
@@ -1023,6 +1025,22 @@ const char* blxSequenceGetValueAsString(const BlxSequence *seq, const int column
   if (result && *result == 0)
     result = NULL;
 
+  return result;
+}
+
+/* Get the relevant data about a sequence for the given column ID (at the moment
+ * this only supports string data) */
+const char* blxSequenceGetColumn(const BlxSequence const *blxSeq, const BlxColumnId columnId)
+{
+  const char *result = NULL;
+
+  GValue *value = blxSequenceGetValue(blxSeq, columnId);
+    
+  if (value && G_VALUE_HOLDS_STRING(value))
+    {
+      result = g_value_get_string(value);
+    }
+  
   return result;
 }
 

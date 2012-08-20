@@ -1304,7 +1304,8 @@ GList* createColumns(const BlxSeqType seqType, const gboolean optionalColumns, c
 {
   GList *columnList = NULL;
   
-  /* Create the column headers and pack them into the column header bar */
+  /* Create the columns' data structs. The columns appear in the order
+   * that they are added here. */
   createColumn(BLXCOL_SEQNAME,     TRUE,             "Name",       G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,            TRUE,  TRUE,  TRUE,   "Name",        NULL, NULL, &columnList);
   createColumn(BLXCOL_SOURCE,      TRUE,             "Source",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,            TRUE,  TRUE,  TRUE,   "Source",      NULL, NULL, &columnList);
                                                                                                                                                                                                        

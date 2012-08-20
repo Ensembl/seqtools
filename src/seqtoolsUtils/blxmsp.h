@@ -152,14 +152,18 @@ typedef struct _BlxDataType
 
 
 /* COLUMNS: To add a new column you must do the following:
- *    - add an identifier for the column to the BlxColumnId enum;
  *    - create the column in createColumns(...)
  * and optionally:
+ *    - add a BlxColumnId enum, if you need a convenient way of referring specifically to the column in the code;
  *    - add a custom data function in createTreeColumn;
  *    - add a custom header widget and/or header refresh function in createTreeColHeader;
- *    - specify sort behaviour in sortColumnCompareFunc. */
+ *    - specify specific sort behaviour in sortColumnCompareFunc. */
 
-/* This enum declares identifiers for each column in the detail-view trees */
+/* This enum declares identifiers for known columns in the 
+ * detail-view trees. It is NOT A COMPREHENSIVE LIST of columns 
+ * because further columns can be added dynamically to the column 
+ * list in createColumns(...). This enum is just used as a convenient
+ * way of referring to the main set of known columns. */
 typedef enum
   {
     BLXCOL_NONE=-1,             /* Used for sorting to indicate that no sorting is required; negative value => not a valid column ID in the trees */
@@ -180,7 +184,8 @@ typedef enum
     BLXCOL_TISSUE_TYPE,
     BLXCOL_STRAIN,
 
-    BLXCOL_NUM_COLUMNS
+    BLXCOL_NUM_COLUMNS          /* Number of main columns. Further additional columns may be
+                                 * added dynamically with a columnId greater than or equal to this. */
   } BlxColumnId;
 
 
@@ -340,6 +345,7 @@ const GdkColor*       mspGetColor(const MSP const *msp,
                                   const int utrFillColorId,
                                   const int utrLineColorId);
 
+const char*           mspGetColumn(const MSP const *msp, const BlxColumnId columnId);
 const char*           mspGetOrganism(const MSP const *msp);
 const char*           mspGetOrganismAbbrev(const MSP const *msp);
 const char*           mspGetGeneName(const MSP const *msp);
@@ -429,6 +435,7 @@ gboolean              blxSequenceGetLinkFeatures(const BlxSequence *seq, const g
 GValue*               blxSequenceGetValue(const BlxSequence *seq, const int columnId);
 
 const char*           blxSequenceGetValueAsString(const BlxSequence *seq, const int columnId);
+const char*           blxSequenceGetColumn(const BlxSequence const *blxSeq, const BlxColumnId columnId);
 const char*           blxSequenceGetOrganism(const BlxSequence *seq);
 const char*           blxSequenceGetOrganismAbbrev(const BlxSequence *seq);
 const char*           blxSequenceGetGeneName(const BlxSequence *seq);

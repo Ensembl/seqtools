@@ -1138,21 +1138,10 @@ gint sortByColumnCompareFunc(GList *mspGList1,
   BlxViewContext *bc = detailViewGetContext(detailView);
   gboolean displayRev = bc->displayRev;
 
-  /* Get details about this column */
-  BlxColumnInfo *columnInfo = getColumnInfo(detailViewGetColumnList(detailView), sortColumn);
-  
   switch (sortColumn)
   {
     case BLXCOL_NONE:
       result = 0;
-      break;
-      
-    case BLXCOL_SEQNAME:
-      result = sortByStringCompareFunc(mspGetSName(msp1), mspGetSName(msp2));
-      break;
-      
-    case BLXCOL_SOURCE:
-      result = sortByStringCompareFunc(mspGetSource(msp1), mspGetSource(msp2));
       break;
       
     case BLXCOL_SCORE:
@@ -1174,24 +1163,9 @@ gint sortByColumnCompareFunc(GList *mspGList1,
       result = sortByGroupCompareFunc(msp1, msp2, detailViewGetBlxWindow(detailView));
       break;
       
-    case BLXCOL_ORGANISM:
-      result = sortByStringCompareFunc(mspGetOrganism(msp1), mspGetOrganism(msp2));
-      break;
-      
-    case BLXCOL_GENE_NAME:
-      result = sortByStringCompareFunc(mspGetGeneName(msp1), mspGetGeneName(msp2));
-      break;
-      
-    case BLXCOL_TISSUE_TYPE:
-      result = sortByStringCompareFunc(mspGetTissueType(msp1), mspGetTissueType(msp2));
-      break;
-      
-    case BLXCOL_STRAIN:
-      result = sortByStringCompareFunc(mspGetStrain(msp1), mspGetStrain(msp2));
-      break;
-      
     default:
-      g_warning("Sort function not implemented for column '%s'.\n", columnInfo->title);
+      /* Generic string column */
+      result = sortByStringCompareFunc(mspGetColumn(msp1, sortColumn), mspGetColumn(msp2, sortColumn));
       break;
   };
 
