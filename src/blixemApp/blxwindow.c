@@ -1442,7 +1442,7 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 /* Show the 'Info' dialog, which displays info about the currently-selected sequence(s) */
 void showInfoDialog(GtkWidget *blxWindow)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Sequence info", 
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Feature Info", 
 						  NULL, 
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_CLOSE,
@@ -1468,7 +1468,11 @@ void showInfoDialog(GtkWidget *blxWindow)
       g_free(seqText);
     }
   
-  GtkWidget *child = createScrollableTextView(resultStr->str, TRUE, blxWindow->style->font_desc, TRUE, NULL, &height, NULL);
+  /* We'll use the same fixed-width font as the detail-view */
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
+  
+  GtkWidget *child = createScrollableTextView(resultStr->str, TRUE, fontDesc, TRUE, NULL, &height, NULL);
                              
   gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), child, TRUE, TRUE, 0);

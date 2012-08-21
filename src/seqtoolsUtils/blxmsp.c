@@ -565,11 +565,15 @@ char *mspGetCoordsAsString(const MSP const *msp)
   
   if (msp)
     {
-    GString *resultStr = g_string_new("");
-    
-    g_string_append_printf(resultStr, "%d - %d [%d - %d]", msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
-    
-    result = g_string_free(resultStr, FALSE);
+      GString *resultStr = g_string_new("");
+
+      /* If both s coords are UNSET_INT then they are not relevant, so exclude them */
+      if (msp->sRange.min == UNSET_INT && msp->sRange.max == UNSET_INT)
+        g_string_append_printf(resultStr, "%d,%d", msp->qRange.min, msp->qRange.max);
+      else
+        g_string_append_printf(resultStr, "%d,%d[%d,%d]", msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
+      
+      result = g_string_free(resultStr, FALSE);
     }
   
   return result;
@@ -771,7 +775,7 @@ char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq, GList *columnLi
 
       /* Loop through all the columns, appending any that should be shown
        * to the result string */
-      GList *item;
+      GList *item = columnList;
 
       for ( ; item; item = item->next)
         {
@@ -1106,25 +1110,44 @@ char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, GLis
       GString *resultStr = g_string_new("");
       char separator = allowNewlines ? '\n' : '\t';
       char strand = blxSeq->strand == BLXSTRAND_REVERSE ? '-' : '+';
+
+      /* Loop through all the columns, appending them to the result string */
+      GList *item = columnList;
+      const int titleWidth = 17; /* if title is less than this width then it will be padded */
+
+      for ( ; item; item = item->next)
+        {
+          BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
+          
+          const char *valueText = blxSequenceGetValueAsString(blxSeq, columnInfo->columnId);
+          const char *text = valueText ? valueText : "";
+              
+          if (columnInfo->columnId == BLXCOL_SEQNAME)
+            g_string_append_printf(resultStr, "%-*s  %s%c%c", titleWidth, columnInfo->title, text, strand, separator);
+          else
+            g_string_append_printf(resultStr, "%-*s  %s%c", titleWidth, columnInfo->title, text, separator);
+        }
       
-      g_string_append_printf(resultStr, "SEQUENCE NAME:\t%s%c%c", blxSequenceGetName(blxSeq), strand, separator);
-      g_string_append_printf(resultStr, "ORGANISM:\t\t%s%c", blxSequenceGetOrganism(blxSeq), separator);
-      g_string_append_printf(resultStr, "GENE NAME:\t\t%s%c", blxSequenceGetGeneName(blxSeq), separator);
-      g_string_append_printf(resultStr, "TISSUE TYPE:\t\t%s%c", blxSequenceGetTissueType(blxSeq), separator);
-      g_string_append_printf(resultStr, "STRAIN:\t\t\t%s%c", blxSequenceGetStrain(blxSeq), separator);
-      
-      /* Loop through the MSPs and show their info */
-      g_string_append(resultStr, "ALIGNMENTS:\t\t");
+      /* Loop through the child features and show their coords */
+      const char *title = "Coords";
+      g_string_append_printf(resultStr, "%-*s  ", titleWidth, title);
       GList *mspItem = blxSeq->mspList;
       
       for ( ; mspItem; mspItem = mspItem->next)
         {
           const MSP const *msp = (const MSP const *)(mspItem->data);
-          g_string_append_printf(resultStr, "%s\t", mspGetCoordsAsString(msp));
+          
+          /* Don't show 'exon' msps because we show the exon's
+           * individual 'cds' and 'utr' instead */
+          if (msp->type != BLXMSP_EXON)
+            {
+              char *coordsStr = mspGetCoordsAsString(msp);
+              g_string_append_printf(resultStr, "%s  ", coordsStr ? coordsStr : "");
+              
+              if (coordsStr)
+                g_free(coordsStr);
+            }
         }
-      
-      /* Add a final separator after the alignments line*/
-      g_string_append_printf(resultStr, "%c", separator);
       
       result = g_string_free(resultStr, FALSE);
     }
