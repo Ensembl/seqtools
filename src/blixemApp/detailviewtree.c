@@ -2263,6 +2263,25 @@ static void cellDataFunctionOrganismCol(GtkTreeViewColumn *column, GtkCellRender
 }
 
 
+/* Cell data function for generic text columns. */
+static void cellDataFunctionGenericCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
+{
+  int columnId = GPOINTER_TO_INT(data);
+  GList	*mspGList = treeGetMsps(model, iter);
+
+  if (g_list_length(mspGList) > 0)
+    {
+      const MSP const *msp = (const MSP const*)(mspGList->data);
+      const char *text = mspGetColumn(msp, columnId);
+      
+      if (text)
+        {
+          g_object_set(renderer, RENDERER_TEXT_PROPERTY, text, NULL);
+        }
+    }
+}
+
+
 static const char* mspListGetSource(GList *mspList)
 {
   const char *result = NULL;
@@ -2407,6 +2426,7 @@ static GtkTreeViewColumn* createTreeColumn(GtkWidget *tree,
       break;
     
     default:
+      gtk_tree_view_column_set_cell_data_func(column, renderer, cellDataFunctionGenericCol, GINT_TO_POINTER(columnInfo->columnId), NULL);
       break;
   }
   
