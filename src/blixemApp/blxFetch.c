@@ -725,14 +725,16 @@ static void checkFetchMethodNonNull(const BlxFetchMethod* const fetchMethod, GEr
  * the error if not */
 static void checkFetchMethodExecutable(const BlxFetchMethod* const fetchMethod, GError **error)
 {
-  if (!fetchMethod)
-    return;
-
-  if (!g_find_program_in_path(fetchMethod->location))
+  if (fetchMethod && 
+      (fetchMethod->mode == BLXFETCH_MODE_COMMAND ||
+       fetchMethod->mode == BLXFETCH_MODE_SOCKET))
     {
-      g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_EXE,
-                  "[%s]: Executable '%s' not found in path: %s\n", 
-                  g_quark_to_string(fetchMethod->name), fetchMethod->location, getenv("PATH"));
+      if (!fetchMethod->location || !g_find_program_in_path(fetchMethod->location))
+        {
+          g_set_error(error, BLX_CONFIG_ERROR, BLX_CONFIG_ERROR_NO_EXE,
+                      "[%s]: Executable '%s' not found in path: %s\n", 
+                      g_quark_to_string(fetchMethod->name), fetchMethod->location, getenv("PATH"));
+        }
     }
 }
 
