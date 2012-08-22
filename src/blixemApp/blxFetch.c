@@ -253,6 +253,7 @@ static gboolean                    pfetchFinishSequence(const BlxFetchMethod* co
                                                         BlxEmblParserState *parserState);
 
 static void                        pfetchGetParserStateFromTagName(GString *tagName, BlxEmblParserState *parserState);
+static void                        checkFetchMethodExecutable(const BlxFetchMethod* const fetchMethod, GError **error);
 
 
 
@@ -531,16 +532,8 @@ static GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
 
   if (fetchMethod)
     {
-      /* If an executable is given, check that we can find it */
-      if (fetchMethod->location)
-        {
-          char *path = g_find_program_in_path(fetchMethod->location);
-          
-          if (!path)
-            g_set_error(&tmpError, BLX_FETCH_ERROR, BLX_FETCH_ERROR_PATH, "Executable '%s' not found in path: %s\n", fetchMethod->location, getenv("PATH"));
-          else
-            g_free(path);
-        }
+      /* If an executable is required, check that it exists */
+      checkFetchMethodExecutable(fetchMethod, &tmpError);
       
       if (!tmpError)
         {
