@@ -2669,12 +2669,17 @@ static gboolean pfetchFinishSequence(GeneralFetchData *fetchData)
   /* The pfetch failed if our sequence is null or equal to an error string. */
   gboolean pfetch_ok = FALSE;
   
-  if (fetchData->currentResult && fetchData->currentResult->str)
-    { 
-      if (!stringInArray(fetchData->currentResult->str, fetchData->fetchMethod->errors))
-        {
-          pfetch_ok = TRUE;
-        }
+  /* If the sequence isn't required, or is already set, then we don't need 
+   * to check if it was fetched */
+  if (!blxSequenceRequiresColumnData(fetchData->currentSeq, BLXCOL_SEQUENCE) ||
+      blxSequenceGetValueAsString(fetchData->currentSeq, BLXCOL_SEQUENCE))
+    {
+      pfetch_ok = TRUE;
+    }
+  else if (fetchData->currentResult && fetchData->currentResult->len > 0 &&
+           !stringInArray(fetchData->currentResult->str, fetchData->fetchMethod->errors))
+    {
+      pfetch_ok = TRUE;
     }
   
   if (pfetch_ok)
