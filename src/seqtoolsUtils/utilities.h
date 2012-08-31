@@ -62,19 +62,19 @@
 
 /* Debug logging macros. #define DEBUG to enable debug output. */
 #ifdef DEBUG
-#define DEBUG_OUT(format, args...) debugLogLevel(0); printf(format, ##args);
+#define DEBUG_OUT(format, args...) debugLogLevel(0); printf(format, ##args); fflush(stdout);
 #else
 #define DEBUG_OUT(format, args...)
 #endif
 
 #ifdef DEBUG
-#define DEBUG_ENTER(format, args...) debugLogLevel(1); printf("-->"); printf(format, ##args); printf("\n");
+#define DEBUG_ENTER(format, args...) debugLogLevel(1); printf("-->"); printf(format, ##args); printf("\n"); fflush(stdout);
 #else
 #define DEBUG_ENTER(format, args...)
 #endif
 
 #ifdef DEBUG
-#define DEBUG_EXIT(format, args...) debugLogLevel(-1); printf("<--"); printf(format, ##args); printf("\n");
+#define DEBUG_EXIT(format, args...) debugLogLevel(-1); printf("<--"); printf(format, ##args); printf("\n"); fflush(stdout);
 #else
 #define DEBUG_EXIT(format, args...)
 #endif
@@ -472,7 +472,6 @@ void                  drawRect(GdkDrawable *drawable, GdkColor *color, const int
 void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle const *rect, const gint minWidth, GdkColor *color);
 
 void                  blxPrintWidget(GtkWidget *widget, GdkDrawable *drawable, GtkWindow *window, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const char *filename, const gboolean printCachedOnly, const PrintScaleType scaleType);
-char*                 blxprintf(char *formatStr, ...);
 void                  setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle);
 
 BlxColor*             getBlxColor(GArray *defaultColors, const int colorId);

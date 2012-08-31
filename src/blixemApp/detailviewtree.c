@@ -1275,7 +1275,7 @@ static void treeSelectRowRange(GtkWidget *blxWindow, GtkTreeModel *model, GtkTre
    * the alignment lists are ever changed to be trees, this function will need updating. */
   if (GTK_IS_TREE_STORE(model))
     {
-      printf("Error selecting range of rows: function not implemented (expected alignments to be in a list store, not a tree store).");
+      g_warning("Error selecting range of rows: function not implemented (expected alignments to be in a list store, not a tree store).");
       return;
     }
   
@@ -1301,7 +1301,7 @@ static void treeSelectRowRange(GtkWidget *blxWindow, GtkTreeModel *model, GtkTre
 	}
       else
 	{
-	  printf("Warning: invalid iterator found when selecting a range of rows\n");
+	  g_warning("Invalid iterator found when selecting a range of rows\n");
 	  done = TRUE;
 	}
       
@@ -1967,7 +1967,7 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 
 	  if (bc->modelId == BLXMODEL_SQUASHED && mspIsShortRead(msp))
 	    {
-              char *name2 = blxprintf(numMsps == 1 ? DUPLICATE_READS_COLUMN_NAME_SGL : DUPLICATE_READS_COLUMN_NAME, numMsps);
+              char *name2 = g_strdup_printf(numMsps == 1 ? DUPLICATE_READS_COLUMN_NAME_SGL : DUPLICATE_READS_COLUMN_NAME, numMsps);
               displayName = abbreviateText(name2, maxLen - 2);
               g_free(name2);
             }
@@ -2255,17 +2255,48 @@ static void cellDataFunctionStrainCol(GtkTreeViewColumn *column, GtkCellRenderer
 }
 
 
+static const char* mspListGetSource(GList *mspList)
+{
+  const char *result = NULL;
+  GList *item = mspList;
+  
+  for ( ; item; item = item->next)
+    {
+      const MSP* const msp = (const MSP*)(item->data);
+      const char *source = mspGetSource(msp);
+
+      if (!source)
+        {
+          /* If any source is null, return null */
+          result = NULL;
+          break;
+        }
+      else if (!result)
+        {
+          /* First one found; set result */
+          result = source;
+        }
+      else if (strcmp(source, result) != 0)
+        {
+          /* All sources are not the same. Return null. */
+          result = NULL;
+          break;
+        }      
+    }
+
+  return result;
+}
+
+
 /* Cell data function for the Source column. */
 static void cellDataFunctionSourceCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
   GList	*mspGList = treeGetMsps(model, iter);
-  if (g_list_length(mspGList) == 1)
+  const char *source = mspListGetSource(mspGList);
+  
+  if (source)
     {
-      const MSP const *msp = (const MSP const*)(mspGList->data);
-      if (mspGetSource(msp))
-	{
-	  g_object_set(renderer, RENDERER_TEXT_PROPERTY, mspGetSource(msp), NULL);
-	}
+      g_object_set(renderer, RENDERER_TEXT_PROPERTY, source, NULL);
     }
   else
     {

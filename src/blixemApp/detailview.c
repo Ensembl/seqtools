@@ -71,7 +71,7 @@
 #define BLXCOL_START_WIDTH              50    /* default width for the start coord column */
 #define BLXCOL_END_WIDTH                80    /* default width for end coord column (bigger because it also spans the scrollbar) */
 #define BLXCOL_SEQUENCE_WIDTH           40    /* default width for sequence column */
-#define BLXCOL_ORGANISM_WIDTH           25    /* default width for organism column */
+#define BLXCOL_ORGANISM_WIDTH           28    /* default width for organism column */
 #define BLXCOL_GENE_NAME_WIDTH          58    /* default width for gene-name column  */
 #define BLXCOL_STRAIN_WIDTH             85    /* default width for strain column  */
 #define BLXCOL_TISSUE_TYPE_WIDTH        100   /* default width for tissue-type column  */
@@ -3352,7 +3352,7 @@ GtkWidget* detailViewGetTree(GtkWidget *detailView, const BlxStrand activeStrand
   
   if (!result)
     {
-      printf("Tree not found for '%s' strand, frame '%d'. Returning NULL.\n", ((activeStrand == BLXSTRAND_FORWARD) ? "forward" : "reverse"), frame);
+      g_warning("Tree not found for '%s' strand, frame '%d'. Returning NULL.\n", ((activeStrand == BLXSTRAND_FORWARD) ? "forward" : "reverse"), frame);
     }
   
   return result;
@@ -5061,7 +5061,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
             }
           else
             {
-              printf("Error: could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d])\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
+              g_warning("Could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d])\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
             }
         }
     }

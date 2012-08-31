@@ -747,7 +747,7 @@ static void createRefSeqWidget(GtkWidget *alignmentTool,
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   
   /* Create a label containing the name */
-  char *text = blxprintf("%s (%c%d):", dc->refSeqName, strandChar, frame);
+  char *text = g_strdup_printf("%s (%c%d):", dc->refSeqName, strandChar, frame);
   GtkWidget *label = createLabel(text, 0.0, 0.0, TRUE, TRUE);
   labelSetFont(label, dc->fontDesc);
   g_free(text);
@@ -844,7 +844,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
     }
   
   /* Add a label for the match sequence */
-  char *text = blxprintf("%s:", dc->matchSeqName);
+  char *text = g_strdup_printf("%s:", dc->matchSeqName);
   GtkWidget *label = createLabel(text, 0.0, 0.0, TRUE, TRUE);
   labelSetFont(label, dc->fontDesc);
   g_free(text);

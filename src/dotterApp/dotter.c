@@ -2638,12 +2638,12 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
     int row, col;
     char line[1025] = "#", *p;
     
-    char *mtxfileText = blxprintf("%s/%s", getenv("BLASTMAT"), mtxfile);
+    char *mtxfileText = g_strdup_printf("%s/%s", getenv("BLASTMAT"), mtxfile);
   
     if (!(fil = fopen(mtxfile, "r")) &&
         !(fil = fopen(mtxfileText, "r")))
       {
-        char *msg = blxprintf("Failed to open score matrix file %s - not found in ./ or $BLASTMAT/.\n");
+        char *msg = g_strdup_printf("Failed to open score matrix file %s - not found in ./ or $BLASTMAT/.\n", mtxfile);
         g_error(msg, mtxfile);
         g_free(msg);
       }
@@ -2847,7 +2847,7 @@ static void showHelpDialog(GtkWidget *dotterWindow)
       if (ok)
         {
           /* Get the path to the html page */
-          char *path = blxprintf("%s/%s", dir, rel_path);
+          char *path = g_strdup_printf("%s/%s", dir, rel_path);
           
           ok = path != NULL;
           
@@ -3491,7 +3491,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   GtkWidget *dotterWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_widget_set_name(dotterWindow, MAIN_WINDOW_NAME);
   
-  char *title = blxprintf("Dotter %s vs. %s", dc->refSeqName, dc->matchSeqName);
+  char *title = g_strdup_printf("Dotter %s vs. %s", dc->refSeqName, dc->matchSeqName);
   gtk_window_set_title(GTK_WINDOW(dotterWindow), title);
   g_free(title);
   

@@ -829,11 +829,11 @@ static void onOutputMenu(GtkAction *action, gpointer data)
     }
   else
     {
-      printf("%.1f %s/%d-%d\n", 
-	     bc->selectedAln->score,
-	     bc->selectedAln->name,
-	     bc->selectedAln->start,
-	     bc->selectedAln->end);
+      g_message("%.1f %s/%d-%d\n", 
+                bc->selectedAln->score,
+                bc->selectedAln->name,
+                bc->selectedAln->start,
+                bc->selectedAln->end);
     
       fflush(stdout);
     }
@@ -1022,7 +1022,7 @@ static void onreadLabelsMenu(GtkAction *action, gpointer data)
       return;
     }
 
-  char *title = blxprintf("Read labels of %s from file", properties->bc->selectedAln->name);
+  char *title = g_strdup_printf("Read labels of %s from file", properties->bc->selectedAln->name);
 
   const char *filename = getLoadFileName(belvuWindow, properties->bc->dirName, title);
   g_free(title);
@@ -1127,7 +1127,7 @@ static gboolean saveAlignmentPrompt(GtkWidget *widget, BelvuContext *bc)
 
 static const char* saveFasta(BelvuContext *bc, GtkWidget *parent)
 {
-  char *title = blxprintf("%s", bc->saveFormat == BELVU_FILE_UNALIGNED_FASTA ? "Save as unaligned Fasta file:" : "Save as aligned Fasta file:");
+  char *title = g_strdup_printf("%s", bc->saveFormat == BELVU_FILE_UNALIGNED_FASTA ? "Save as unaligned Fasta file:" : "Save as aligned Fasta file:");
   const char *filename = getSaveFileName(parent, bc->fileName, bc->dirName, NULL, title);
   g_free(title);
   
@@ -1646,7 +1646,7 @@ static void showFontDialog(BelvuContext *bc, GtkWidget *window)
   GtkWidget *entry = NULL;
 
   const int oldSize = pango_font_description_get_size(window->style->font_desc) / PANGO_SCALE;
-  char *defaultText = blxprintf("%d", oldSize);
+  char *defaultText = g_strdup_printf("%d", oldSize);
 
   GtkWidget *dialog = createPromptDialog(window, defaultText, "Belvu - Font", "Select font size:", "", &entry);
 
@@ -1828,7 +1828,7 @@ static void showHelpDialog()
       if (ok)
         {
           /* Get the path to the html page */
-          char *path = blxprintf("%s/%s", dir, rel_path);
+          char *path = g_strdup_printf("%s/%s", dir, rel_path);
           
           ok = path != NULL;
           
@@ -2333,7 +2333,7 @@ static void showRemoveColumnsDialog(GtkWidget *belvuWindow)
   gtk_misc_set_alignment(GTK_MISC(label1), 1, 0.5);
   gtk_box_pack_start(GTK_BOX(hbox), label1, FALSE, FALSE, 0);
   
-  char *maxLenText = blxprintf("%d", bc->maxLen);
+  char *maxLenText = g_strdup_printf("%d", bc->maxLen);
   GtkWidget *entry1 = gtk_entry_new();
   gtk_box_pack_start(GTK_BOX(hbox), entry1, FALSE, FALSE, 0);
   gtk_entry_set_width_chars(GTK_ENTRY(entry1), strlen(maxLenText) + 1);
@@ -2383,10 +2383,10 @@ static void showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow)
   static char *toText = NULL;
 
   if (!fromText)
-    fromText = blxprintf("%.2f", -1.0);
+    fromText = g_strdup_printf("%.2f", -1.0);
   
   if (!toText)
-    toText = blxprintf("%.2f", 0.9);
+    toText = g_strdup_printf("%.2f", 0.9);
   
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Remove Columns", 
                                                   GTK_WINDOW(belvuWindow), 
@@ -2457,7 +2457,7 @@ static void showRemoveGappyColumnsDialog(GtkWidget *belvuWindow)
   static char *inputText = NULL;
   
   if (!inputText)
-    inputText = blxprintf("%.0f", 50.0);
+    inputText = g_strdup_printf("%.0f", 50.0);
   
   GtkWidget *entry = NULL;
   GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - Remove Columns", "Remove columns with more than ", " % gaps", &entry);
@@ -3011,7 +3011,7 @@ static void addConsColorLine(BelvuContext *bc, const char *labelText, const Belv
   GtkWidget *entry = gtk_entry_new();
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
   
-  char *defaultInput = blxprintf("%.1f", *cutoff);
+  char *defaultInput = g_strdup_printf("%.1f", *cutoff);
   gtk_entry_set_text(GTK_ENTRY(entry), defaultInput);
   gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(defaultInput) + 2);
   g_free(defaultInput);
@@ -3120,7 +3120,7 @@ static void createEditConsColorsContent(GtkBox *box, BelvuContext *bc)
   gtk_box_pack_start(box, GTK_WIDGET(vbox), FALSE, FALSE, 0);
   
   /* Create the labels */
-  char *tmpStr = blxprintf("Coloring by %s", bc->consScheme == BELVU_SCHEME_BLOSUM ? "average BLOSUM62 score" : "% identity");
+  char *tmpStr = g_strdup_printf("Coloring by %s", bc->consScheme == BELVU_SCHEME_BLOSUM ? "average BLOSUM62 score" : "% identity");
   
   GtkWidget *label = gtk_label_new(tmpStr);
   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
@@ -3346,7 +3346,7 @@ static void createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gc
   GtkWidget *wrapWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   setWrapWindowStyleProperties(wrapWindow);
   
-  char *windowTitle = blxprintf("Belvu - %s", properties->bc->Title);
+  char *windowTitle = g_strdup_printf("Belvu - %s", properties->bc->Title);
   gtk_window_set_title(GTK_WINDOW(wrapWindow), windowTitle);
   g_free(windowTitle);
   
@@ -3608,7 +3608,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
   /* If a column is selected, display the column number */
   if (bc->selectedCol > 0)
     {
-      tmpStr = blxprintf("Column %d: ", bc->selectedCol);
+      tmpStr = g_strdup_printf("Column %d: ", bc->selectedCol);
       g_string_append(resultStr, tmpStr);
       g_free(tmpStr);
     }
@@ -3618,7 +3618,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
     {
       char *selectedSeq = alnGetSeq(bc->selectedAln);
       
-      tmpStr = blxprintf("%s/%d-%d", bc->selectedAln->name, bc->selectedAln->start, bc->selectedAln->end);
+      tmpStr = g_strdup_printf("%s/%d-%d", bc->selectedAln->name, bc->selectedAln->start, bc->selectedAln->end);
       g_string_append(resultStr, tmpStr);
       g_free(tmpStr);
       
@@ -3627,7 +3627,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
       if (bc->selectedCol > 0)
         {
           /* Print the char of the current sequence at the selected column */
-          tmpStr = blxprintf("  %c = ", selectedSeq[bc->selectedCol - 1]);
+          tmpStr = g_strdup_printf("  %c = ", selectedSeq[bc->selectedCol - 1]);
           g_string_append(resultStr, tmpStr);
           g_free(tmpStr);
           
@@ -3651,7 +3651,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
             }
           else
             {
-              tmpStr = blxprintf("%d", bc->selectedCol - 1 + bc->selectedAln->start - numGaps);
+              tmpStr = g_strdup_printf("%d", bc->selectedCol - 1 + bc->selectedAln->start - numGaps);
               g_string_append(resultStr, tmpStr);
               g_free(tmpStr);
             }
@@ -3660,7 +3660,7 @@ static void updateFeedbackBox(BelvuContext *bc, GtkWidget *feedbackBox)
       /* Display the total number of highlighted alignments */
       const int numHighlighted = g_slist_length(bc->highlightedAlns);
       
-      tmpStr = blxprintf(" (%d match", numHighlighted);
+      tmpStr = g_strdup_printf(" (%d match", numHighlighted);
       g_string_append(resultStr, tmpStr);
       g_free(tmpStr);
       
@@ -3989,7 +3989,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   bc->belvuWindow = window;
 
   /* Set the title */
-  char *title = blxprintf("Belvu - %s", bc->Title);
+  char *title = g_strdup_printf("Belvu - %s", bc->Title);
   gtk_window_set_title(GTK_WINDOW(window), title);
   g_free(title);
   

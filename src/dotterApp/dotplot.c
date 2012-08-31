@@ -2480,9 +2480,9 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
       if (properties->crosshairCoordsOn)
         {
           /* Draw the coord text */
-          char *displayText = blxprintf("%d, %d", 
-					getDisplayCoord(dwc->refCoord, dc, TRUE), 
-					getDisplayCoord(dwc->matchCoord, dc, FALSE));
+          char *displayText = g_strdup_printf("%d, %d", 
+                                              getDisplayCoord(dwc->refCoord, dc, TRUE), 
+                                              getDisplayCoord(dwc->matchCoord, dc, FALSE));
           
           if (displayText && strlen(displayText) > 0)
             {

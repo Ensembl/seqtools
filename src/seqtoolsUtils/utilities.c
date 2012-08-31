@@ -282,6 +282,7 @@ GtkWidget* createLabel(const char *text,
                              NULL);
     }
   
+  gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
   gtk_misc_set_padding(GTK_MISC(label), DEFAULT_LABEL_X_PAD, 0);
   
   GtkWidget *parent = NULL;
@@ -339,25 +340,8 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
 
   /* Create a pixmap and store it in the widget properties. (Only widgets with
    * a drawable are shown in print output.) */
-  GdkDrawable *drawable = createBlankSizedPixmap(parent, parent->window, widget->allocation.width, widget->allocation.height);
+  createBlankSizedPixmap(parent, parent->window, widget->allocation.width, widget->allocation.height);
 
-  /* Draw the widget contents onto the pixmap */
-  PangoLayout *layout = NULL;
-  
-  if (GTK_IS_LABEL(widget))
-    {
-      layout = gtk_label_get_layout(GTK_LABEL(widget));
-    }
-  else
-    {
-      layout = gtk_entry_get_layout(GTK_ENTRY(widget));
-    }
-  
-  if (layout)
-    {
-      gtk_paint_layout(widget->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, widget, NULL, 0, 0, layout);
-    }
-  
   return FALSE; /* let the default handler continue */
 }
 
@@ -683,11 +667,11 @@ char* getSystemErrorText()
 
 #ifdef SUN
   /* horrible hack for Sunos/Macs(?) which are not standard C compliant */
-  result = blxprintf(SYSERR_FORMAT, errno, sys_errlist[errno]) ;
+  result = g_strdup_printf(SYSERR_FORMAT, errno, sys_errlist[errno]) ;
 #elif defined(MACINTOSH)
-  result = blxprintf(SYSERR_FORMAT, errno) ;
+  result = g_strdup_printf(SYSERR_FORMAT, errno) ;
 #else
-  result = blxprintf(SYSERR_FORMAT, errno, strerror(errno)) ;
+  result = g_strdup_printf(SYSERR_FORMAT, errno, strerror(errno)) ;
 #endif
 
   return result;
@@ -2594,27 +2578,6 @@ void drawHighlightBox(GdkDrawable *drawable,
 }
 
 
-/* Create a given string from the given format and args. Like printf but it creates a string
- * of the correct length for you. The result should be free'd with g_free. */
-char* blxprintf(char *formatStr, ...)
-{
-  va_list argp;
-  va_start(argp, formatStr);
-
-  /* Print the format text and args into a new string. We're not sure how much space we need
-   * for the args, so give a generous buffer but use vsnprintf to make sure we don't overrun.
-   * (g_string_vprintf would avoid this problem but is only available from GLib version 2.14). */
-  const int len = strlen(formatStr) + 200;
-  char *resultStr = g_malloc(len);
-  vsnprintf(resultStr, len, formatStr, argp);
-  
-  va_end(argp);
-
-  return resultStr;
-}
-
-
-
 /* Returns true if the given char is a valid IUPAC character of the given type */
 gboolean isValidIupacChar(const char inputChar, const BlxSeqType seqType)
 {
@@ -3328,9 +3291,15 @@ static void printMessageToConsole(const char *prefixText, const char *message, G
   
   /* Print messages and debug to stdout; all warnings and info messages to stderr */
   if (log_level & G_LOG_LEVEL_DEBUG || log_level & G_LOG_LEVEL_MESSAGE)
-    printf("%s%s", prefixText, (char*)message);
+    {
+      printf("%s%s", prefixText, (char*)message);
+      fflush(stdout);
+    }
   else
-    fprintf(stderr, "%s%s", prefixText, (char*)message);
+    {
+      fprintf(stderr, "%s%s", prefixText, (char*)message);
+      fflush(stderr);
+    }
   
 #endif
   
@@ -3444,7 +3413,7 @@ static void printMessageToStatusbar(const gchar *message, gpointer data)
 /* Display a warning/error message as a popup */
 static void displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level, const char *titlePrefix, GtkWindow *parent, GtkStatusbar *statusBar)
 {
-  char *title = blxprintf("%s%s", titlePrefix, "Error");
+  char *title = g_strdup_printf("%s%s", titlePrefix, "Error");
   
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   parent, 
@@ -3494,7 +3463,7 @@ static void displayMessageAsList(GSList *messageList, const char *titlePrefix, c
   
   if (!dialog)
     {
-      char *title = blxprintf("%s%s", titlePrefix, "Errors");
+      char *title = g_strdup_printf("%s%s", titlePrefix, "Errors");
       
       dialog = gtk_dialog_new_with_buttons(title, 
                                            NULL, 
@@ -4243,7 +4212,7 @@ GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GE
   
   if (!error || *error == NULL)
     {
-      char *title = blxprintf("%s - %s", progName, command);
+      char *title = g_strdup_printf("%s - %s", progName, command);
       resultWindow = displayFetchResults(title, result->str, widget, NULL, NULL);
       
       g_free(title);
@@ -4693,7 +4662,7 @@ void drawHScale(GtkWidget *widget,
       
       if (drawLabel)
         {
-          char *tmpStr = blxprintf("%d", tickmarkVal);
+          char *tmpStr = g_strdup_printf("%d", tickmarkVal);
           PangoLayout *layout = gtk_widget_create_pango_layout(widget, tmpStr);
           g_free(tmpStr);
           
@@ -4723,6 +4692,7 @@ void drawHScale(GtkWidget *widget,
 void errorHandler(const int sig) 
 {
   fprintf(stderr, "Error: signal %d:\n", sig);
+  fflush(stderr);
 
   // get void*'s for all entries on the stack
   void *array[10];
