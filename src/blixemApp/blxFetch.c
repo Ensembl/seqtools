@@ -2679,16 +2679,16 @@ static gboolean pfetchFinishSequence(GeneralFetchData *fetchData)
   else if (fetchData->currentResult && fetchData->currentResult->len > 0 &&
            !stringInArray(fetchData->currentResult->str, fetchData->fetchMethod->errors))
     {
+      /* Succeeded: save the result in the blxsequence */
       pfetch_ok = TRUE;
+      blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_SEQUENCE, fetchData->currentResult->str);
     }
   
   if (pfetch_ok)
     {
-      /* Succeeded: save the result in the blxsequence */
       fetchData->numSucceeded += 1;
-      blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_SEQUENCE, fetchData->currentResult->str);
     }
-  
+
   /* Reset the result string */
   g_string_truncate(fetchData->currentResult, 0);
   
