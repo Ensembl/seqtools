@@ -259,6 +259,7 @@ void hideUserHiddenWidget(GtkWidget *widget, gpointer callbackData)
 GtkWidget* createLabel(const char *text, 
                        const gdouble xalign,
                        const gdouble yalign,
+                       const gboolean ellipsize,
                        const gboolean enableCopyPaste,
                        const gboolean showWhenPrinting)
 {
@@ -281,8 +282,10 @@ GtkWidget* createLabel(const char *text,
                              "selectable", enableCopyPaste,
                              NULL);
     }
-  
-  gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
+
+  if (ellipsize)
+    gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
+
   gtk_misc_set_padding(GTK_MISC(label), DEFAULT_LABEL_X_PAD, 0);
   
   GtkWidget *parent = NULL;
