@@ -2875,7 +2875,7 @@ const char* findFixedWidthFont(GtkWidget *widget)
   fixed_font_list = g_list_append(fixed_font_list, "Andale mono");
   fixed_font_list = g_list_append(fixed_font_list, "Lucida sans typewriter");
   fixed_font_list = g_list_append(fixed_font_list, "deja vu sans mono");
-  fixed_font_list = g_list_append(fixed_font_list, "DejaVu sans mono");
+  fixed_font_list = g_list_append(fixed_font_list, "DejaVu Sans Mono");
   fixed_font_list = g_list_append(fixed_font_list, "Bitstream vera sans mono");
   fixed_font_list = g_list_append(fixed_font_list, "monaco");
   fixed_font_list = g_list_append(fixed_font_list, "Lucida console");
@@ -2887,7 +2887,8 @@ const char* findFixedWidthFont(GtkWidget *widget)
   
   const char *fontFamily = findFixedWidthFontFamily(widget, fixed_font_list);
   g_list_free(fixed_font_list);
-  
+
+  g_debug("Set fixed-width font as '%s'\n", fontFamily);
   return fontFamily;
 }
 
