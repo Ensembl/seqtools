@@ -2888,7 +2888,7 @@ const char* findFixedWidthFont(GtkWidget *widget)
   const char *fontFamily = findFixedWidthFontFamily(widget, fixed_font_list);
   g_list_free(fixed_font_list);
 
-  g_debug("Set fixed-width font as '%s'\n", fontFamily);
+  DEBUG_OUT("Set fixed-width font as '%s'\n", fontFamily);
   return fontFamily;
 }
 
