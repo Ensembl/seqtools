@@ -338,16 +338,18 @@ void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seq
 }
 
 
-/* Utility function to load the contents of the given file into blixem. The 
- * new features are appended onto the existing sequence and MSP lists. */
-void loadGffFile(const char *fileName,
-                 GKeyFile *keyFile,
-                 BlxBlastMode *blastMode,
-                 GArray* featureLists[],
-                 GSList *supportedTypes, 
-                 GSList *styles,
-                 MSP **newMsps,
-                 GList **newSeqs)
+/* This function to loads the contents of a natively-supported features file
+ * (e.g. GFF) into blixem. The new features are appended onto the existing
+ * sequence and MSP lists. */
+void loadNativeFile(const char *fileName,
+                    GKeyFile *keyFile,
+                    BlxBlastMode *blastMode,
+                    GArray* featureLists[],
+                    GSList *supportedTypes, 
+                    GSList *styles,
+                    MSP **newMsps,
+                    GList **newSeqs,
+                    GError **error)
 {
   if (!fileName)
     return;
@@ -366,7 +368,7 @@ void loadGffFile(const char *fileName,
   char dummyseqname2[FULLNAMESIZE+1] = "";
   
   parseFS(newMsps, inputFile, blastMode, featureLists, newSeqs, supportedTypes, styles,
-          &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile) ;
+          &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, error) ;
   
   fclose(inputFile);
 }

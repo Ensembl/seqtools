@@ -50,6 +50,7 @@
 #define MACHINE_RES                   0.000000001
 
 
+
 /* Really the buffers that use this should be dynamic but I'm not going to do that, this
  * code is so poor that it doesn't warrant the effort.... */
 #define NAMESIZE      12
@@ -595,6 +596,8 @@ GtkRadioButton*                    createRadioButton(GtkTable *table,
                                                      const gboolean multiline,
                                                      BlxResponseCallback callbackFunc,
                                                      GtkWidget *blxWindow);
+
+const char*                        getSystemTempDir();     
 
 void                               errorHandler(const int sig); 
 

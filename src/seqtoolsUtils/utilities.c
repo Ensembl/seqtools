@@ -4689,6 +4689,23 @@ void drawHScale(GtkWidget *widget,
 }
 
 
+/* Get the temp directory. Some systems seem to have a trailing slash, 
+ * some not, so if it has one then remove it... */
+const char *getSystemTempDir()
+{
+  static char *tmpDir = NULL;
+
+  if (!tmpDir)
+    {
+      tmpDir = g_strdup(g_get_tmp_dir());
+      
+      if (tmpDir[strlen(tmpDir) - 1] == '/')
+        tmpDir[strlen(tmpDir) - 1] = '\0';
+    }
+
+  return tmpDir;
+}
+
 
 /***********************************************************
  *                       Error handling                    * 
@@ -4708,4 +4725,5 @@ void errorHandler(const int sig)
 
   exit(EXIT_FAILURE);
 }
+
 

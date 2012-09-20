@@ -551,6 +551,193 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
 }
 
 
+/* Utility to create a text entry widget displaying the given double value. The
+ * given callback will be called when the user OK's the dialog that this widget 
+ * is a child of. */
+static GtkWidget* createTextEntryString(const char *value)
+{
+  GtkWidget *entry = gtk_entry_new();
+  
+  gtk_entry_set_text(GTK_ENTRY(entry), value);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(value) + 2);
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  
+  return entry;
+}
+
+
+/* Utility to create a text entry widget displaying the given double value. The
+ * given callback will be called when the user OK's the dialog that this widget 
+ * is a child of. */
+static GtkWidget* createTextEntryInt(const int value)
+{
+  GtkWidget *entry = gtk_entry_new();
+  
+  char *displayText = convertIntToString(value);
+  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+  
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  
+  g_free(displayText);
+
+  return entry;
+}
+
+
+/* This dialog is shown when the user attempts to load a file that
+ * is not in a natively-supported format. It asks the user what the
+ * source should be, and allows the user to edit the coordinate range
+ * to fetch data for. If the user enters valid values and hits OK then
+ * the return values are populated and we return TRUE; else return FALSE. */
+static gboolean showNonNativeFileDialog(GtkWidget *window, 
+                                        const char *filename,
+                                        GString **source_out,
+                                        int *start_out,
+                                        int *end_out)
+{
+  BlxViewContext *bc = blxWindowGetContext(window);
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Load Non-Native File", 
+                                                  GTK_WINDOW(window),
+                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  GTK_STOCK_CANCEL,
+                                                  GTK_RESPONSE_REJECT,
+                                                  GTK_STOCK_OK,
+                                                  GTK_RESPONSE_ACCEPT,
+                                                  NULL);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);
+
+  char *labelStr = g_strdup_printf("\nFile '%s' is not a natively-supported file format.\n\nSpecify the Source to fetch data from this file using an external command\n(a fetch method for the Source must be specified in the config file)\n", filename);  
+  GtkWidget *label = gtk_label_new(labelStr);
+  g_free(labelStr);
+  
+  GtkWidget *sourceEntry = createTextEntryString("");
+  GtkWidget *label2 = gtk_label_new("\n\nRegion to fetch data for:");
+  GtkWidget *startEntry = createTextEntryInt(bc->refSeqRange.min);
+  GtkWidget *endEntry = createTextEntryInt(bc->refSeqRange.max);
+  
+  GtkTable *table = GTK_TABLE(gtk_table_new(5, 2, FALSE));
+  gtk_container_add(contentArea, GTK_WIDGET(table));
+
+  gtk_table_attach(table, label, 0, 2, 0, 1, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, gtk_label_new("Source"), 0, 1, 1, 2, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, sourceEntry, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, label2, 0, 2, 2, 3, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, gtk_label_new("Start"), 0, 1, 3, 4, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, startEntry, 1, 2, 3, 4, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, gtk_label_new("End"), 0, 1, 4, 5, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, endEntry, 1, 2, 4, 5, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+
+  gtk_widget_show_all(dialog);
+  gint response = gtk_dialog_run(GTK_DIALOG(dialog));
+  gboolean result = FALSE;
+  
+  if (response == GTK_RESPONSE_ACCEPT)
+    {
+      const gchar *source = gtk_entry_get_text(GTK_ENTRY(sourceEntry));
+      
+      /* source is mandatory */
+      if (source && *source)
+        {
+          result = TRUE;
+          *source_out = g_string_new(source);
+
+          /* to do: start and end */
+        }
+    }
+
+  gtk_widget_destroy(dialog);
+
+  return result;
+}
+
+
+/* This function loads the contents of a non-natively supported features-
+ * file into blixem, using an external script to convert the file into
+ * a supported file format such as GFF. A fetch method stanza must exist in the
+ * config to define the script and its parameters.
+ * This function asks the user what Source the file relates to so that it can 
+ * look up the fetch method that should be used. It optionally also allows the
+ * user to specify a coordinate range to limit the fetch to.. */
+static void loadNonNativeFile(const char *origFilename,
+                              GtkWidget *blxWindow,
+                              MSP **newMsps,
+                              GList **newSeqs)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  GKeyFile *keyFile = blxGetConfig();
+
+  GString *source = NULL;
+  int start = bc->refSeqRange.min, end = bc->refSeqRange.max;
+  
+  if (!showNonNativeFileDialog(blxWindow, origFilename, &source, &start, &end))
+    return;
+
+  GError *error = NULL;
+  BlxDataType *dataType = NULL;
+  const BlxFetchMethod *fetchMethod = NULL;
+  char *filename = NULL;
+
+  if (!source || !source->str)
+    {
+      g_set_error(&error, BLX_ERROR, 1, "No Source specified; cannot look up fetch method.\n");
+    }
+
+  if (!error)
+    {
+      dataType = getBlxDataType(0, source->str, keyFile, &error);
+
+      if (!dataType)
+        g_set_error(&error, BLX_ERROR, 1, "No data-type found for source '%s'\n", source->str);
+    }
+
+  if (!error)
+    {
+      if (dataType->bulkFetch)
+        {
+          GQuark fetchMethodQuark = g_array_index(dataType->bulkFetch, GQuark, 0);
+          fetchMethod = getFetchMethodDetails(fetchMethodQuark, bc->fetchMethods);
+        }
+
+      if (!fetchMethod)
+        {
+          g_set_error(&error, BLX_ERROR, 1, "No fetch method specified for data-type '%s'\n", g_quark_to_string(dataType->name));
+        }
+
+      /* The output of the fetch must be a natively supported file format (i.e. GFF) */
+      if (fetchMethod->outputType != BLXFETCH_OUTPUT_GFF)
+        {
+          g_set_error(&error, BLX_ERROR, 1, "Expected fetch method output type to be '%s' but got '%s'\n", outputTypeStr(BLXFETCH_OUTPUT_GFF), outputTypeStr(fetchMethod->outputType));
+        }
+    }
+     
+  if (!error)
+    {
+      GString *command = doGetFetchCommand(fetchMethod, NULL, 
+                                           bc->refSeqName, 
+                                           start, end, 
+                                           bc->dataset, source->str, 
+                                           filename, &error);
+
+      if (!error && command && command->str)
+        {
+          const char *fetchName = g_quark_to_string(fetchMethod->name);
+
+          sendFetchOutputToFile(command, keyFile, &bc->blastMode, 
+                                bc->featureLists, bc->supportedTypes, NULL,
+                                &bc->matchSeqs, &bc->mspList, 
+                                fetchName, bc->saveTempFiles, &error);
+        }
+    }          
+
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+}
+
+
 /* Dynamically load in additional features from a file. (should be called after
  * blixem's GUI has already started up, rather than during start-up where normal
  * feature-loading happens) */
@@ -562,14 +749,30 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   GKeyFile *keyFile = blxGetConfig();
   
-  /* Load the features from the file into some temporary lists */
+  /* We'll load the features from the file into some temporary lists */
   MSP *newMsps = NULL;
   GList *newSeqs = NULL;
+  GError *error = NULL;
 
-  loadGffFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs);
+  /* Assume it's a natively-supported file and attempt to parse it. The first thing this
+   * does is check that it's a native file and if not it sets the error */
+  loadNativeFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, &error);
 
+  if (error)
+    {
+      /* Input file is not natively supported. We can still load it if
+       * there is a fetch method associated with it: ask the user what
+       * the Source is so that we can find the fetch method. */
+      g_error_free(error);
+      error = NULL;
+      
+      loadNonNativeFile(filename, blxWindow, &newMsps, &newSeqs);
+    }
+
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  
   /* Fetch any missing sequence data and finalise the new sequences */
-  bulkFetchSequences(0, FALSE, FALSE, bc->seqType, &newSeqs, 
+  bulkFetchSequences(0, FALSE, bc->saveTempFiles, bc->seqType, &newSeqs, 
                      bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
                      bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
                      &bc->refSeqRange, bc->dataset, FALSE);
@@ -5100,6 +5303,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->fullDisplayRange.max = fullDisplayRange->max;
   blxContext->refSeqOffset = options->refSeqOffset;
   blxContext->loadOptionalData = options->parseFullEmblInfo;
+  blxContext->saveTempFiles = options->saveTempFiles;
 
   blxContext->mspList = options->mspList;
   

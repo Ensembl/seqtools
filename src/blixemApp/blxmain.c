@@ -1057,7 +1057,9 @@ int main(int argc, char **argv)
     options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
   
   parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
-          &options.refSeq, options.refSeqName, qRange, &dummyseq, dummyseqname, inputConfigFile) ;
+          &options.refSeq, options.refSeqName, qRange, &dummyseq, dummyseqname, inputConfigFile, &error) ;
+  
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);  
 
   /* Now see if blast mode was set and set seqtype from it if not already set... */
   if (options.seqType == BLXSEQ_INVALID && options.blastMode != BLXMODE_UNSET)
@@ -1109,7 +1111,9 @@ int main(int argc, char **argv)
 	}
       
       parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, supportedTypes, styles,
-              &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig()) ;
+              &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig(), &error) ;
+
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       fclose(xtra_file) ;
     }
 

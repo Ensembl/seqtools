@@ -62,9 +62,6 @@
 #endif
 
 
-#define MKSTEMP_CONST_CHARS                   "BLIXEM_gff"        /* the prefix to use when creating a temp file name */
-#define MKSTEMP_REPLACEMENT_CHARS             "XXXXXX"            /* the required string that will be replaced by unique chars when creating a temp file name */
-
 
 /* Blixem config/fetch error domain */
 #define BLX_CONFIG_ERROR g_quark_from_string("Blixem config")
@@ -318,7 +315,7 @@ const char *outputTypeStr(const BlxFetchOutputType outputType)
 
 /* Get the fetch-method struct containing the details for the 
  * given fetch method */
-static BlxFetchMethod* getFetchMethodDetails(GQuark fetchMethodQuark, GHashTable *fetchMethods)
+BlxFetchMethod* getFetchMethodDetails(GQuark fetchMethodQuark, GHashTable *fetchMethods)
 {
   BlxFetchMethod *result = (BlxFetchMethod*)g_hash_table_lookup(fetchMethods, GINT_TO_POINTER(fetchMethodQuark));
   return result;
@@ -517,7 +514,7 @@ static gboolean fetchMethodUsesHttp(const BlxFetchMethod* const fetchMethod)
 }
 
 
-static GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
+GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
                                   const char *name,
                                   const char *refSeqName,
                                   const int startCoord,
@@ -2986,6 +2983,89 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
 }
 
 
+void sendFetchOutputToFile(GString *command,
+                           GKeyFile *keyFile,
+                           BlxBlastMode *blastMode,
+                           GArray* featureLists[],
+                           GSList *supportedTypes, 
+                           GSList *styles,
+                           GList **seqList,
+                           MSP **mspListIn,
+                           const char *fetchName,
+                           const gboolean saveTempFiles,
+                           GError **error)
+{
+  /* Create a temp file for the results */
+  const char *tmpDir = getSystemTempDir();
+  char *fileName = g_strdup_printf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS_GFF, MKSTEMP_REPLACEMENT_CHARS);
+  int fileDesc = mkstemp(fileName);
+  GError *tmpError = NULL;
+  
+  if (!fileName || fileDesc == -1)
+    {
+      g_set_error(&tmpError, BLX_ERROR, 1, "  %s: Error creating temp file for fetch results (filename=%s)\n", fetchName, fileName);
+    }
+
+  if (fileDesc != -1)
+    {
+      close(fileDesc);
+    }
+
+  if (!tmpError)
+    {
+      /* Send the output to the temp file */
+      g_string_append_printf(command, " > %s", fileName);
+      
+      FILE *outputFile = fopen(fileName, "w");
+      
+      g_debug("Fetch command:\n%s\n", command->str);
+      
+      g_message_info("Executing fetch...\n");
+      const gboolean success = (system(command->str) == 0);
+      
+      fclose(outputFile);
+
+      if (success)
+        {
+          /* Parse the results */
+          g_message_info("... ok.\n");
+          g_message_info("Parsing region-fetch results...");
+          
+          MSP *newMsps = NULL;
+          GList *newSeqs = NULL;
+
+          loadNativeFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, &newMsps, &newSeqs, &tmpError);
+          
+          if (!tmpError)
+            {
+              g_message_info("... ok.\n");
+              appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
+            }
+          else
+            {
+              g_message_info("... failed.\n");
+            }
+        }
+      else
+        {
+          g_message_info("... failed.\n");
+          g_set_error(&tmpError, BLX_ERROR, 1, "  %s: Command failed.\n", fetchName);
+        }
+    }
+
+  /* Delete the temp file (unless the 'save temp files' option is on) */
+  if (!saveTempFiles)
+    {
+      if (unlink(fileName) != 0)
+        g_warning("Error removing temp file '%s'.\n", fileName);
+    }
+
+  g_free(fileName);
+
+  g_propagate_error(error, tmpError);
+}
+
+
 /* Called by regionFetchList. Fetches the sequences for a specific region.
  *   tmpDir is the directory in which to place the temporary files
  *   script is the script to call to do the fetch
@@ -3009,75 +3089,28 @@ static void regionFetchFeature(const MSP const *msp,
 {
   GKeyFile *keyFile = blxGetConfig();
   const char *fetchName = g_quark_to_string(fetchMethod->name);
-  
-  /* Create a temp file for the results */
-  char *fileName = g_strdup_printf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
-  int fileDesc = mkstemp(fileName);
   GError *tmpError = NULL;
-  
-  if (!fileName || fileDesc == -1)
-    g_set_error(&tmpError, BLX_ERROR, 1, "  %s: Error creating temp file for fetch results (filename=%s)\n", fetchName, fileName);
 
-  GString *command = NULL;
+  /* Get the command string, including the args */
+  GString *command = getFetchCommand(fetchMethod, NULL, 
+                                     msp, mspGetRefName(msp), 
+                                     refSeqOffset, refSeqRange, 
+                                     dataset, &tmpError);
+
+  if (tmpError)
+    prefixError(tmpError, "  %s: Error constructing fetch command:\n", fetchName);
   
   if (!tmpError)
     {
-      close(fileDesc);
-      
-      /* Get the command string, including the args */
-      command = getFetchCommand(fetchMethod, NULL, 
-                                msp, mspGetRefName(msp), 
-                                refSeqOffset, refSeqRange, 
-                                dataset, &tmpError);
-      if (tmpError)
-        prefixError(tmpError, "  %s: Error constructing fetch command:\n", fetchName);
+      sendFetchOutputToFile(command, keyFile, blastMode, 
+                            featureLists, supportedTypes, styles, 
+                            seqList, mspListIn, fetchName, saveTempFiles, &tmpError);
     }
   
-  if (!tmpError)
-    {
-      /* Send the output to the temp file */
-      g_string_append_printf(command, " > %s", fileName);
-      
-      FILE *outputFile = fopen(fileName, "w");
-      
-      g_debug("region-fetch command:\n%s\n", command->str);
-      
-      g_message_info("Calling region-fetch script...\n");
-      const gboolean success = (system(command->str) == 0);
-  
-      fclose(outputFile);
-      g_string_free(command, TRUE);
-      
-      if (success)
-        {
-          /* Parse the results */
-          g_message_info("Parsing region-fetch results...");
-          MSP *newMsps = NULL;
-          GList *newSeqs = NULL;
-          
-          loadGffFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, &newMsps, &newSeqs);
-          appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
-          
-          g_message_info(" complete.\n");
-        }
-      else
-        {
-          g_message_info("... failed.\n");
-          g_set_error(&tmpError, BLX_ERROR, 1, "  %s: Failed to fetch sequences for region [%d, %d].\n", fetchName, msp->qRange.min, msp->qRange.max);
-        }
-      
-      /* Delete the temp file (unless the 'save temp files' option is on) */
-      if (!saveTempFiles)
-        {
-          if (unlink(fileName) != 0)
-            g_warning("Error removing temp file '%s'.\n", fileName);
-        }
-    }
-  
+  g_string_free(command, TRUE);
+
   if (tmpError)
     g_propagate_error(error, tmpError);
-
-  g_free(fileName);
 }
 
 
@@ -3113,12 +3146,7 @@ static void regionFetchList(GList *regionsToFetch,
       return;
     }
 
-  /* Get the temp directory. Some systems seem to have a trailing slash, 
-   * some not, so if it has one then remove it... */
-  char *tmpDir = g_strdup(g_get_tmp_dir());
-  
-  if (tmpDir[strlen(tmpDir) - 1] == '/')
-    tmpDir[strlen(tmpDir) - 1] = '\0';
+  const char *tmpDir = getSystemTempDir();
 
   /* Loop through each region, creating a GFF file with the results for each region */
   GList *regionItem = regionsToFetch;
