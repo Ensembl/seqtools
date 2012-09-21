@@ -2436,6 +2436,7 @@ static void drawLabel(GtkWidget *dotplot, GdkDrawable *drawable, GdkGC *gc)
   cairo_t *cr = gdk_cairo_create(drawable);
   
   PangoLayout *layout = pango_cairo_create_layout(cr);
+  pango_layout_set_font_description(layout, dotplot->style->font_desc);
   pango_layout_set_text(layout, dc->refSeqName, -1);
   pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
 
@@ -2449,6 +2450,7 @@ static void drawLabel(GtkWidget *dotplot, GdkDrawable *drawable, GdkGC *gc)
 
   /* Vertical label */
   layout = pango_cairo_create_layout(cr);
+  pango_layout_set_font_description(layout, dotplot->style->font_desc);
   pango_layout_set_text(layout, dc->matchSeqName, -1);
   pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
  
@@ -2633,6 +2635,7 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
             {
               cairo_t *cr = gdk_cairo_create(drawable);
               PangoLayout *layout = pango_cairo_create_layout(cr);
+              pango_layout_set_font_description(layout, dotplot->style->font_desc);
               pango_layout_set_text(layout, displayText, -1);
               
               int textWidth = UNSET_INT, textHeight = UNSET_INT;
