@@ -220,6 +220,18 @@ typedef struct _DotterWindowContext
   } DotterWindowContext;
 
 
+typedef struct _DotplotScaleProperties
+{
+  int basesPerMark;                   /* how many bases per major tickmark */
+  int basesPerSubmark;                /* how many bases per minor tickmark */
+  int numMarks;                       /* how many major tickmarks there are */
+  int numSubmarks;                    /* how many minor tickmarks there are */
+  int firstSubmarkPos;                /* the position of the first tickmark */
+  int firstSubmarkCoord;              /* the coordinate the first tickmark represents */
+  int startCoord;                     /* the overall start coord */
+  int endCoord;                       /* the overall end coord */
+  GArray *labels;
+} DotplotScaleProperties;
 
 
 typedef struct _DotplotProperties
@@ -264,6 +276,9 @@ typedef struct _DotplotProperties
     GdkPoint dragEnd;                   /* end point for mid-click drag */
 
     const char *exportFileName;         /* file to export the plot to if in batch "export to pdf" mode */
+
+    DotplotScaleProperties hozScale;    /* horizontal scale properties */
+    DotplotScaleProperties vertScale;   /* vertical scale properties */
   } DotplotProperties;
 
 
