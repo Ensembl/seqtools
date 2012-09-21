@@ -50,7 +50,7 @@
 #define CROSSHAIR_TEXT_PADDING                      5     /* padding between the crosshair and the coord display text */ 
 #define ANNOTATION_LABEL_PADDING		    5	  /* padding around annotation labels, if shown */
 #define ANNOTATION_LABEL_LEN			    8	  /* number of chars to allow to show for annotation labels */
-#define MAX_IMAGE_DIMENSION                         12000 /* max width / height to allow for a gdk image. Guesstimate based on the fact that it crashes for long skinny plots if we allow more than this. */
+#define MAX_IMAGE_DIMENSION                         16000 /* max width / height to allow for a gdk image. Guesstimate based on the fact that it blacks out the lower part of the plot (overdraws on it?) if we allow more than this */
 
 int atob_0[]	/* NEW (starting at 0) ASCII-to-binary translation table */
 = {
@@ -768,47 +768,35 @@ static void initCrosshairCoords(const int qcenter, const int scenter, DotterWind
  * is also adjusted. */
 static GdkImage* createImage(DotplotProperties *properties)
 {
-  GdkImage *image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
-
-  /* The bpl (bytes per line) should equal the width multiplied by
-   * the bpp (bytes per pixel). I'm not sure why, but sometimes this
-   * is not the case. If this happens, reduce the width (and the zoom)
-   * to match the bpl (actually we make it less than the bpl, because
-   * we get crashing when drawing labels if the total width including
-   * labels etc. is more than the bpl). */
   DotterWindowContext *dwc = properties->dotterWinCtx;
-  const int origLen = properties->imageWidth * dwc->zoomFactor;
 
-  gboolean recalc = FALSE;
-
-  if (image->bpl != image->width * image->bpp)
+  if (properties->imageWidth > MAX_IMAGE_DIMENSION)
     {
-      recalc = TRUE;
-      properties->imageWidth = image->bpl / image->bpp;
-      properties->imageWidth -= 500; /* fudge factor to allow space for labels */
-    }
+      int origLen = properties->imageWidth * dwc->zoomFactor;
 
-  if (image->width > MAX_IMAGE_DIMENSION)
-    {
-      recalc = TRUE;
       properties->imageWidth = MAX_IMAGE_DIMENSION;
+      dwc->zoomFactor = ceil((double)origLen / (double)properties->imageWidth); /* adjust zoom so we can still show the original range */
+
+      properties->imageWidth = getImageDimension(properties, TRUE);   /* rounds the new value to the nearest 4 etc. */
+      properties->imageHeight = getImageDimension(properties, FALSE); 
+
+      g_warning("Image too wide - setting zoom to %d\n", (int)dwc->zoomFactor);
     }
-  else if (image->height > MAX_IMAGE_DIMENSION)
+  
+  if (properties->imageHeight > MAX_IMAGE_DIMENSION)
     {
-      recalc = TRUE;
+      int origLen = properties->imageHeight * dwc->zoomFactor;
+
       properties->imageHeight = MAX_IMAGE_DIMENSION;
+      dwc->zoomFactor = ceil((double)origLen / (double)properties->imageHeight);
+
+      properties->imageWidth = getImageDimension(properties, TRUE);
+      properties->imageHeight = getImageDimension(properties, FALSE);
+
+      g_warning("Image too tall - setting zoom to %d\n", (int)dwc->zoomFactor);
     }
 
-  if (recalc)
-    {
-      dwc->zoomFactor = origLen / properties->imageWidth;
-
-      properties->imageWidth = getImageDimension(properties, TRUE);   /* rounds new value to nearest 4 etc. */
-      properties->imageHeight = getImageDimension(properties, FALSE); /* re-do height as well because zoom has changed */
-
-      gdk_image_unref(image);
-      image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
-    }
+  GdkImage *image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
 
   return image;
 }
