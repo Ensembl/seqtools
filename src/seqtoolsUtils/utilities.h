@@ -535,7 +535,7 @@ GtkComboBox*                       createComboBox();
 void                               addComboItem(GtkComboBox *combo, GtkTreeIter *parent, const int val, const char *text, const int initVal);
 
 const char*                        getSaveFileName(GtkWidget *widget, const char *currentName, const char *defaultPath, const char *defaultExtension, const char *title);
-const char*                        getLoadFileName(GtkWidget *widget, const char *defaultPath, const char *title);
+char*                              getLoadFileName(GtkWidget *widget, const char *defaultPath, const char *title);
 
 void                               enableMenuAction(GtkActionGroup *action_group, const char *actionName, const gboolean enable);
 void                               setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active);

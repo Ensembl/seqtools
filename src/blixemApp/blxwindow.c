@@ -4434,8 +4434,11 @@ static void onSettingsMenu(GtkAction *action, gpointer data)
 static void onLoadMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  const char *filename = getLoadFileName(blxWindow, NULL, "Load GFF file");
+
+  char *filename = getLoadFileName(blxWindow, NULL, "Load file");
   dynamicLoadFeaturesFile(blxWindow, filename);
+  
+  g_free(filename);
 }
 
 static void onCopySeqsMenu(GtkAction *action, gpointer data)

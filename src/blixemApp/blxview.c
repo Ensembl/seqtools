@@ -340,7 +340,9 @@ void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seq
 
 /* This function to loads the contents of a natively-supported features file
  * (e.g. GFF) into blixem. The new features are appended onto the existing
- * sequence and MSP lists. */
+ * sequence and MSP lists.
+ * A non-local or non-native file can be passed to check if it is loadable
+ * and, if not, this function returns early and sets the error. */
 void loadNativeFile(const char *fileName,
                     GKeyFile *keyFile,
                     BlxBlastMode *blastMode,
@@ -358,19 +360,20 @@ void loadNativeFile(const char *fileName,
 
   if (!inputFile)
     {
-      g_critical("Failed to open file.\n");
-      return;
+      g_set_error(error, BLX_ERROR, 1, "File '%s' is not a local file.\n", fileName);
     }
-  
-  char *dummyseq1 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
-  char dummyseqname1[FULLNAMESIZE+1] = "";
-  char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
-  char dummyseqname2[FULLNAMESIZE+1] = "";
-  
-  parseFS(newMsps, inputFile, blastMode, featureLists, newSeqs, supportedTypes, styles,
-          &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, error) ;
-  
-  fclose(inputFile);
+  else
+    {
+      char *dummyseq1 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+      char dummyseqname1[FULLNAMESIZE+1] = "";
+      char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+      char dummyseqname2[FULLNAMESIZE+1] = "";
+      
+      parseFS(newMsps, inputFile, blastMode, featureLists, newSeqs, supportedTypes, styles,
+              &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, error) ;
+      
+      fclose(inputFile);
+    }
 }
 
 
