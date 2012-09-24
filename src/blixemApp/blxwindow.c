@@ -663,7 +663,7 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
  * This function asks the user what Source the file relates to so that it can 
  * look up the fetch method that should be used. It optionally also allows the
  * user to specify a coordinate range to limit the fetch to.. */
-static void loadNonNativeFile(const char *origFilename,
+static void loadNonNativeFile(const char *filename,
                               GtkWidget *blxWindow,
                               MSP **newMsps,
                               GList **newSeqs)
@@ -674,13 +674,12 @@ static void loadNonNativeFile(const char *origFilename,
   GString *source = NULL;
   int start = bc->refSeqRange.min, end = bc->refSeqRange.max;
   
-  if (!showNonNativeFileDialog(blxWindow, origFilename, &source, &start, &end))
+  if (!showNonNativeFileDialog(blxWindow, filename, &source, &start, &end))
     return;
 
   GError *error = NULL;
   BlxDataType *dataType = NULL;
   const BlxFetchMethod *fetchMethod = NULL;
-  char *filename = NULL;
 
   if (!source || !source->str)
     {
@@ -709,7 +708,7 @@ static void loadNonNativeFile(const char *origFilename,
         }
 
       /* The output of the fetch must be a natively supported file format (i.e. GFF) */
-      if (fetchMethod->outputType != BLXFETCH_OUTPUT_GFF)
+      if (!error && fetchMethod->outputType != BLXFETCH_OUTPUT_GFF)
         {
           g_set_error(&error, BLX_ERROR, 1, "Expected fetch method output type to be '%s' but got '%s'\n", outputTypeStr(BLXFETCH_OUTPUT_GFF), outputTypeStr(fetchMethod->outputType));
         }
@@ -717,11 +716,15 @@ static void loadNonNativeFile(const char *origFilename,
      
   if (!error)
     {
-      GString *command = doGetFetchCommand(fetchMethod, NULL, 
+      GString *command = doGetFetchCommand(fetchMethod,
+                                           NULL, 
                                            bc->refSeqName, 
-                                           start, end, 
-                                           bc->dataset, source->str, 
-                                           filename, &error);
+                                           start, 
+                                           end, 
+                                           bc->dataset, 
+                                           source->str, 
+                                           filename,
+                                           &error);
 
       if (!error && command && command->str)
         {

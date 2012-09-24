@@ -3029,7 +3029,7 @@ void sendFetchOutputToFile(GString *command,
         {
           /* Parse the results */
           g_message_info("... ok.\n");
-          g_message_info("Parsing region-fetch results...");
+          g_message_info("Parsing fetch results...");
           
           MSP *newMsps = NULL;
           GList *newSeqs = NULL;
@@ -3062,7 +3062,8 @@ void sendFetchOutputToFile(GString *command,
 
   g_free(fileName);
 
-  g_propagate_error(error, tmpError);
+  if (tmpError)
+    g_propagate_error(error, tmpError);
 }
 
 
