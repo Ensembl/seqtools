@@ -733,7 +733,8 @@ static void loadNonNativeFile(const char *filename,
           sendFetchOutputToFile(command, keyFile, &bc->blastMode, 
                                 bc->featureLists, bc->supportedTypes, NULL,
                                 &bc->matchSeqs, &bc->mspList, 
-                                fetchName, bc->saveTempFiles, &error);
+                                fetchName, bc->saveTempFiles, newMsps, newSeqs,
+                                &error);
         }
     }          
 

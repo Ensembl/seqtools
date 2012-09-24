@@ -551,7 +551,7 @@ GString*                           getFetchCommand(const BlxFetchMethod* const f
 GString*                           doGetFetchCommand(const BlxFetchMethod* const fetchMethod,const char *name,const char *refSeqName,const int startCoord,const int endCoord,const char *dataset,const char *source,const char *filename,GError **error);
 void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result) ;
 void                               finaliseFetch(GList *seqList);
-void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, GError **error);
+void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GError **error);
 const char*                        outputTypeStr(const BlxFetchOutputType outputType);
 
 void                               fetchSeqsIndividually(GList *seqsToFetch, GtkWidget *blxWindow);

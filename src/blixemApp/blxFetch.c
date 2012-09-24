@@ -2993,6 +2993,8 @@ void sendFetchOutputToFile(GString *command,
                            MSP **mspListIn,
                            const char *fetchName,
                            const gboolean saveTempFiles,
+                           MSP **newMsps,
+                           GList **newSeqs,
                            GError **error)
 {
   /* Create a temp file for the results */
@@ -3031,15 +3033,11 @@ void sendFetchOutputToFile(GString *command,
           g_message_info("... ok.\n");
           g_message_info("Parsing fetch results...");
           
-          MSP *newMsps = NULL;
-          GList *newSeqs = NULL;
-
-          loadNativeFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, &newMsps, &newSeqs, &tmpError);
+          loadNativeFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, newMsps, newSeqs, &tmpError);
           
           if (!tmpError)
             {
               g_message_info("... ok.\n");
-              appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
             }
           else
             {
@@ -3103,9 +3101,15 @@ static void regionFetchFeature(const MSP const *msp,
   
   if (!tmpError)
     {
+      MSP *newMsps  = NULL;
+      GList *newSeqs = NULL;
+      
       sendFetchOutputToFile(command, keyFile, blastMode, 
                             featureLists, supportedTypes, styles, 
-                            seqList, mspListIn, fetchName, saveTempFiles, &tmpError);
+                            seqList, mspListIn, fetchName, saveTempFiles, 
+                            &newMsps, &newSeqs, &tmpError);
+
+      appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
     }
   
   g_string_free(command, TRUE);
