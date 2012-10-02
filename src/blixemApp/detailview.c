@@ -4665,7 +4665,7 @@ static void createColumn(BlxColumnId columnId,
   
   if (headerWidget == NULL)
     {
-      headerWidget = createLabel(title, 0.0, 1.0, TRUE, TRUE);
+      headerWidget = createLabel(title, 0.0, 1.0, TRUE, TRUE, TRUE);
       g_signal_connect(G_OBJECT(headerWidget), "expose-event", G_CALLBACK(onExposeGenericHeader), detailView);
     }
   

@@ -169,7 +169,6 @@ static void                       calculateImage(DotplotProperties *properties);
 static void                       drawDotplot(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       clearPixmaps(DotplotProperties *properties);
-static PangoLayout*               createTextLayout(GtkWidget *dotplot, const char *text, const gboolean horizontal);
 
 
 #ifdef ALPHA
@@ -1967,27 +1966,35 @@ static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *pro
 /* Utility to get the total height required for the dotplot */
 int getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties)
 {
+  /* Make sure the plot is tall enough to fit the vertical label */
+  cairo_surface_t *surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, 500, 500);
+  cairo_t *cr = cairo_create (surface);  
+
+  PangoLayout *layout = pango_cairo_create_layout(cr);
+  pango_layout_set_text(layout, properties->dotterWinCtx->dotterCtx->matchSeqName, -1);
+
+  /* use the text WIDTH as the height, because it will be rotated vertically */
+  int height = 0;
+  pango_layout_get_pixel_size(layout, &height, NULL);
+
+  g_object_unref(layout);
+  cairo_destroy(cr);
+  cairo_surface_destroy(surface);
+      
+  const int dotplotHeight = max(height, properties->plotRect.height);
+
   /* The basic height is the height of the dotplot plus padding and scale */
   int result = properties->plotRect.y + 
-               properties->plotRect.height + 		  
+               dotplotHeight +
                DEFAULT_Y_PADDING + 
                SCALE_LINE_WIDTH;
-  
-  /* Make sure the plot is tall enough to fit the vertical label */
-  PangoLayout *layout = createTextLayout(dotplot, properties->dotterWinCtx->dotterCtx->matchSeqName, FALSE);
-  int height = 0;
-  pango_layout_get_pixel_size(layout, NULL, &height);
-  g_object_unref(layout);
-  
-  if (result < height)
-    result = height;
-
+    
   if (properties->breaklinesOn && properties->hozLabelsOn)
     {
       /* Add space for breakline labels */
       result += properties->dotterWinCtx->dotterCtx->charHeight + (2 * ANNOTATION_LABEL_PADDING);
-    }
-  
+    }      
+
   return result;
 }
 
@@ -2184,7 +2191,11 @@ static void drawTickmarkLabel(GtkWidget *dotplot,
 {
   int coord = getDisplayCoord(coordIn, dc, horizontal);
   char *displayText = convertIntToString(coord);
-  PangoLayout *layout = createTextLayout(dotplot, displayText, TRUE);
+
+  cairo_t *cr = gdk_cairo_create(drawable);
+  PangoLayout *layout = pango_cairo_create_layout(cr);
+  pango_layout_set_text(layout, displayText, -1);
+
   g_free(displayText);
   
   /* We'll centre the text at half the text width for the horizontal axis, or half the 
@@ -2195,9 +2206,11 @@ static void drawTickmarkLabel(GtkWidget *dotplot,
   const int x = xIn - (horizontal ? width / 2 : width);
   const int y = yIn - (horizontal ? height : height / 2);
 
-  gdk_draw_layout(drawable, gc, x, y, layout);
-  
+  cairo_move_to (cr, x, y);
+  pango_cairo_show_layout(cr, layout);
+
   g_object_unref(layout);  
+  cairo_destroy(cr);
 }
 
 
@@ -2281,28 +2294,6 @@ static void drawScaleMarkers(GtkWidget *dotplot,
 }
 
 
-static PangoLayout *createTextLayout(GtkWidget *dotplot, 
-                                     const char *text,
-                                     const gboolean horizontal)
-{
-  PangoLayout *layout = gtk_widget_create_pango_layout(dotplot, text);
-
-  PangoContext *pangoCtx = pango_layout_get_context(layout);
-  PangoGravity gravity = (horizontal ? PANGO_GRAVITY_SOUTH : PANGO_GRAVITY_EAST);
-  pango_context_set_base_gravity(pangoCtx, gravity);
-
-  /* If it's the vertical label, rotate the text 90 degrees */
-  PangoMatrix pangoMtx = PANGO_MATRIX_INIT;
-
-  if (!horizontal)
-    pango_matrix_rotate(&pangoMtx, 90.0);
-
-  pango_context_set_matrix(pangoCtx, &pangoMtx);
-  
-  return layout;
-}
-
-
 static void drawLabel(GtkWidget *dotplot, GdkDrawable *drawable, GdkGC *gc)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
@@ -2310,24 +2301,34 @@ static void drawLabel(GtkWidget *dotplot, GdkDrawable *drawable, GdkGC *gc)
   int textWidth = UNSET_INT;
   int textHeight = UNSET_INT;
 
-  PangoLayout *layout = createTextLayout(dotplot, dc->refSeqName, TRUE);
+  cairo_t *cr = gdk_cairo_create(drawable);
+  
+  PangoLayout *layout = pango_cairo_create_layout(cr);
+  pango_layout_set_text(layout, dc->refSeqName, -1);
   pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
 
   int x = properties->plotRect.x + (properties->plotRect.width / 2) - (textWidth / 2);
   int y = properties->plotRect.y - (dc->scaleHeight + dc->charHeight);
 
-  gdk_draw_layout(drawable, gc, x, y, layout);
+  cairo_move_to (cr, x, y);
+  pango_cairo_show_layout(cr, layout);
+
   g_object_unref(layout);
 
   /* Vertical label */
-  layout = createTextLayout(dotplot, dc->matchSeqName, FALSE);
+  layout = pango_cairo_create_layout(cr);
+  pango_layout_set_text(layout, dc->matchSeqName, -1);
   pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
-  
+ 
   x = properties->plotRect.x - (dc->scaleWidth + dc->charHeight);
-  y = properties->plotRect.y + (properties->plotRect.height / 2) - (textHeight / 2);
+  y = properties->plotRect.y + (properties->plotRect.height / 2) + (textWidth / 2);
   
-  gdk_draw_layout(drawable, gc, x, y, layout);
+  cairo_move_to (cr, x, y);
+  cairo_rotate(cr, 270.0 * G_PI / 180.0);
+  pango_cairo_show_layout(cr, layout);
+
   g_object_unref(layout);
+  cairo_destroy(cr);
 }
 
 
@@ -2381,9 +2382,15 @@ static void drawBreakline(const MSP const *msp, GtkWidget *dotplot, DotplotPrope
       /* Draw a label at the bottom (if labels enabled) */
       if (properties->hozLabelsOn && msp->desc)
 	{
-	  PangoLayout *layout = createTextLayout(dotplot, msp->desc, TRUE);
-	  gdk_draw_layout(drawable, gc, ex, ey, layout);
+          cairo_t *cr = gdk_cairo_create(drawable);
+          PangoLayout *layout = pango_cairo_create_layout(cr);
+          pango_layout_set_text(layout, msp->desc, -1);
+
+          cairo_move_to (cr, ex, ey);
+          pango_cairo_show_layout(cr, layout);
+
 	  g_object_unref(layout);
+          cairo_destroy(cr);
 	}
     }
   
@@ -2407,9 +2414,15 @@ static void drawBreakline(const MSP const *msp, GtkWidget *dotplot, DotplotPrope
       /* Draw a label at the RHS (if labels enabled) */
       if (properties->vertLabelsOn && msp->desc)
 	{
-	  PangoLayout *layout = createTextLayout(dotplot, msp->desc, TRUE);
-	  gdk_draw_layout(drawable, gc, ex, ey, layout);
+          cairo_t *cr = gdk_cairo_create(drawable);
+          PangoLayout *layout = pango_cairo_create_layout(cr);
+          pango_layout_set_text(layout, msp->desc, -1);
+
+          cairo_move_to (cr, ex, ey);
+          pango_cairo_show_layout(cr, layout);
+
 	  g_object_unref(layout);
+          cairo_destroy(cr);
 	}
     }
 }
@@ -2486,7 +2499,9 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
           
           if (displayText && strlen(displayText) > 0)
             {
-              PangoLayout *layout = createTextLayout(dotplot, displayText, TRUE);
+              cairo_t *cr = gdk_cairo_create(drawable);
+              PangoLayout *layout = pango_cairo_create_layout(cr);
+              pango_layout_set_text(layout, displayText, -1);
               
               int textWidth = UNSET_INT, textHeight = UNSET_INT;
               pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
@@ -2510,8 +2525,12 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
                   y += CROSSHAIR_TEXT_PADDING;
                 }
 
-              gdk_draw_layout(drawable, gc, x, y, layout);
+              cairo_set_source_rgb (cr, 0.0, 0.0, 1.0);
+              cairo_move_to (cr, x, y);
+              pango_cairo_show_layout(cr, layout);
+
               g_object_unref(layout);
+              cairo_destroy(cr);
             }
 
           g_free(displayText);

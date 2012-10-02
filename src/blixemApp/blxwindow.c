@@ -3933,24 +3933,34 @@ static char *blxGetVersionString(void)
 }
 
 
+/* A GtkAboutDialogActivateLinkFunc() called when user clicks on website link in "About" window. */
+static void aboutDialogOpenLinkCB(GtkAboutDialog *about, const gchar *link, gpointer data)
+{
+  GError *error = NULL ;
+    
+  if (!seqtoolsLaunchWebBrowser(link, &error))
+    g_critical("Cannot show link in web browser: \"%s\"", link) ;    
+}
+
+
 /* Shows the 'About' dialog */
 void showAboutDialog(GtkWidget *parent)
 {
 #if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (6)
   const gchar *authors[] = {AUTHOR_LIST, NULL} ;
 
+  gtk_about_dialog_set_url_hook(aboutDialogOpenLinkCB, NULL, NULL) ;
+  
   gtk_show_about_dialog(GTK_WINDOW(parent),
-			"authors", authors,
-			"comments", blxGetCommentsString(), 
-			"copyright", blxGetCopyrightString(),
-			"license", blxGetLicenseString(),
-			"name", blxGetAppName(),
-			"version", blxGetVersionString(),
-			"website", blxGetWebSiteString(),
-			NULL) ;
+                        "authors", authors,
+                        "comments", blxGetCommentsString(), 
+                        "copyright", blxGetCopyrightString(),
+                        "license", blxGetLicenseString(),
+                        "name", blxGetAppName(),
+                        "version", blxGetVersionString(),
+                        "website", blxGetWebSiteString(),
+                        NULL) ;
 #endif
-
-  return ;
 }
 
 
