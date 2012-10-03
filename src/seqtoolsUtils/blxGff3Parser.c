@@ -330,33 +330,17 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
     return NULL;
   
   BlxDataType *result = NULL;
-  static GHashTable *seenTypes = NULL;
   static GHashTable *dataTypes = NULL;
 
-  if (!seenTypes)
-    seenTypes = g_hash_table_new(g_int_hash, g_int_equal);
-
   if (!dataTypes)
-    dataTypes = g_hash_table_new(g_int_hash, g_int_equal);
+    dataTypes = g_hash_table_new(g_direct_hash, g_direct_equal);
 
   if (dataType)
     {
-      /* See if we've looked for this data type before. If not, record now that
-       * we've seen it. */
-      gboolean seen = FALSE;
-      if (g_hash_table_lookup(seenTypes, &dataType))
-        seen = TRUE;
-      else
-        g_hash_table_insert(seenTypes, &dataType, &dataType);
+      /* See if we've already got a struct for this data-type */
+      result = (BlxDataType*)g_hash_table_lookup(dataTypes, GINT_TO_POINTER(dataType));
 
-      if (seen)
-        {
-          /* If we've seen it before, then the datatype struct should already exist
-           * in dataTypes or, if not, we will have already reported the error, so do not
-           * report it again. */
-          result = (BlxDataType *)g_hash_table_lookup(dataTypes, &dataType);
-        }
-      else
+      if (!result)
         {
           /* We haven't requested this datatype before; look it up in the config file
            * and if we find it then create a new BlxDataType struct for it. */
@@ -375,7 +359,7 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
               result->linkFeaturesByName = getLinkFeatures(keyFile, typeName);
               
               /* Insert it into the table of data types */
-              g_hash_table_insert(dataTypes, &dataType, result);
+              g_hash_table_insert(dataTypes, GINT_TO_POINTER(dataType), result);
             }
           else
             {

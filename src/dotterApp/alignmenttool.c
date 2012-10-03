@@ -748,7 +748,7 @@ static void createRefSeqWidget(GtkWidget *alignmentTool,
   
   /* Create a label containing the name */
   char *text = g_strdup_printf("%s (%c%d):", dc->refSeqName, strandChar, frame);
-  GtkWidget *label = createLabel(text, 0.0, 0.0, TRUE, TRUE);
+  GtkWidget *label = createLabel(text, 0.0, 0.0, FALSE, TRUE, TRUE);
   labelSetFont(label, dc->fontDesc);
   g_free(text);
   gtk_table_attach(table, label, 1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
@@ -845,7 +845,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
   
   /* Add a label for the match sequence */
   char *text = g_strdup_printf("%s:", dc->matchSeqName);
-  GtkWidget *label = createLabel(text, 0.0, 0.0, TRUE, TRUE);
+  GtkWidget *label = createLabel(text, 0.0, 0.0, FALSE, TRUE, TRUE);
   labelSetFont(label, dc->fontDesc);
   g_free(text);
   gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);

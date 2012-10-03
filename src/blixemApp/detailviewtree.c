@@ -2632,7 +2632,7 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
 	  /* The header above the name column will display the reference sequence name.
 	   * This header will also span the score and id columns (and any optional columns)
            * seeing as we don't need to show any info anout the ref seq in those columns. */
-	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
+	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE, TRUE);
 	  refreshFunc = refreshNameColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
 	  g_signal_connect(G_OBJECT(columnHeader), "expose-event", G_CALLBACK(onExposeGenericHeader), detailView);
@@ -2666,7 +2666,7 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
       case BLXCOL_START:
 	{
 	  /* The start column header displays the start index of the current display range */
-	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
+	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE, TRUE);
 	  refreshFunc = refreshStartColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
           g_signal_connect(G_OBJECT(columnHeader), "expose-event", G_CALLBACK(onExposeGenericHeader), detailView);
@@ -2676,7 +2676,7 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
       case BLXCOL_END:
 	{
 	  /* The end column header displays the start index of the current display range */
-	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE);
+	  columnHeader = createLabel("", 0.0, 1.0, TRUE, TRUE, TRUE);
 	  refreshFunc = refreshEndColHeader;
 	  columnIds = g_list_append(columnIds, GINT_TO_POINTER(columnInfo->columnId));
           g_signal_connect(G_OBJECT(columnHeader), "expose-event", G_CALLBACK(onExposeGenericHeader), detailView);

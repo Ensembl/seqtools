@@ -615,7 +615,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
   
   /* Calculate the height and width of the horizontal and vertical scales */
   const int leftBorderChars = max(numDigitsInInt(result->matchSeqFullRange.min), numDigitsInInt(result->matchSeqFullRange.max)) + 1;
-  result->scaleWidth = DEFAULT_MAJOR_TICK_HEIGHT + (roundNearest)((gdouble)leftBorderChars * result->charWidth) + SCALE_LINE_WIDTH;
+  result->scaleWidth = DEFAULT_MAJOR_TICK_HEIGHT * 2 + (roundNearest)((gdouble)leftBorderChars * result->charWidth) + SCALE_LINE_WIDTH;
   result->scaleHeight = DEFAULT_MAJOR_TICK_HEIGHT + roundNearest(result->charHeight) + SCALE_LINE_WIDTH;
   
   result->msgData = &options->msgData;
@@ -2803,12 +2803,25 @@ static char *dotterGetVersionString(void)
   return DOTTER_VERSION_STRING ;
 }
 
+
+/* A GtkAboutDialogActivateLinkFunc() called when user clicks on website link in "About" window. */
+static void aboutDialogOpenLinkCB(GtkAboutDialog *about, const gchar *link, gpointer data)
+{
+  GError *error = NULL ;
+    
+  if (!seqtoolsLaunchWebBrowser(link, &error))
+    g_critical("Cannot show link in web browser: \"%s\"", link) ;    
+}
+
+
 /* Shows the 'About' dialog */
 static void showAboutDialog(GtkWidget *parent)
 {
 #if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (6)
   const gchar *authors[] = {AUTHOR_LIST, NULL} ;
-  
+
+  gtk_about_dialog_set_url_hook(aboutDialogOpenLinkCB, NULL, NULL) ;
+
   gtk_show_about_dialog(GTK_WINDOW(parent),
                         "authors", authors,
                         "comments", dotterGetCommentsString(), 

@@ -612,8 +612,8 @@ GString* getFetchCommand(const BlxFetchMethod* const fetchMethod,
   
   const char *source = blxSeq ? blxSequenceGetSource(blxSeq) : NULL;
   const char *filename = msp && msp->filename ? g_quark_to_string(msp->filename) : NULL;
-  int startCoord = blxSeq ? blxSequenceGetStart(blxSeq, blxSeq->strand) : mspGetQStart(msp);
-  int endCoord = blxSeq ? blxSequenceGetEnd(blxSeq, blxSeq->strand) : mspGetQEnd(msp);
+  int startCoord = msp ? mspGetQStart(msp) : blxSequenceGetStart(blxSeq, blxSeq->strand);
+  int endCoord = msp ? mspGetQEnd(msp) : blxSequenceGetEnd(blxSeq, blxSeq->strand);
   startCoord += refSeqOffset;
   endCoord += refSeqOffset;
   boundsLimitValue(&startCoord, refSeqRange);
