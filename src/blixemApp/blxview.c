@@ -1264,7 +1264,7 @@ static void createColumn(BlxColumnId columnId,
   
   if (createHeader)
     {
-      headerWidget = createLabel(title, 0.0, 1.0, TRUE, TRUE);
+      headerWidget = createLabel(title, 0.0, 1.0, TRUE, TRUE, TRUE);
       gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
     }
   
