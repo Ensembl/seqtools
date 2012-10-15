@@ -91,7 +91,6 @@ gboolean                  blxContextIsSeqSelected(const BlxViewContext const *bc
 SequenceGroup*            blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSequence *seqToFind);
 
 int			  sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
-void			  copySelectionToClipboard(GtkWidget *blxWindow);
 void			  findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data);
 
 void                      refreshDialog(const BlxDialogId dialogId, GtkWidget *blxWindow);

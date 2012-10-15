@@ -59,6 +59,7 @@
 #define LOAD_DATA_TEXT                   "Load optional data"
 #define DEFAULT_TABLE_XPAD               2    /* default x-padding to use in tables */
 #define DEFAULT_TABLE_YPAD               2    /* default y-padding to use in tables */
+#define MAX_RECOMMENDED_COPY_LENGTH      100000 /* warn if about to copy text longer than this to the clipboard */
 
 
 typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
@@ -156,6 +157,7 @@ static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
 static void                       killAllSpawned(BlxViewContext *bc);
 
 static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
+static void                       copySelectionToClipboard(GtkWidget *blxWindow);
 static void                       copySelectedSeqDataToClipboard(GtkWidget *blxWindow);
 static void                       copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
 
@@ -5470,7 +5472,7 @@ static const char* blxWindowGetSelectedSeqData(GtkWidget *blxWindow)
 
 /* This function copies the currently-selected sequences' names to the default
  * clipboard. */
-void copySelectionToClipboard(GtkWidget *blxWindow)
+static void copySelectionToClipboard(GtkWidget *blxWindow)
 {
   if (g_list_length(blxWindowGetSelectedSeqs(blxWindow)) < 1)
     {
@@ -5498,8 +5500,15 @@ static void copySelectedSeqDataToClipboard(GtkWidget *blxWindow)
 
   if (displayText)
     {
-      setDefaultClipboardText(displayText);
-      g_message("Copied selected sequence data to clipboard\n");
+      const int len = strlen(displayText);
+      
+      /* Warn user if they're about to copy a large sequence */
+      if (len <= MAX_RECOMMENDED_COPY_LENGTH || 
+          runConfirmationBox(blxWindow, "Copy sequence", "You are about to copy a large amount of text to the clipboard\n\nAre you sure you want to continue?") == GTK_RESPONSE_ACCEPT)
+        {
+          setDefaultClipboardText(displayText);
+          g_message("Copied selected sequence data to clipboard\n");
+        }
     }
 }
 
@@ -5514,15 +5523,22 @@ static void copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, co
     {
       /* Need to get 0-based indices */
       const IntRange* const refSeqRange = blxWindowGetRefSeqRange(blxWindow);
+      
       const int fromIdx = min(fromIdx_in, toIdx_in) - refSeqRange->min;
       const int toIdx = max(fromIdx_in, toIdx_in) - refSeqRange->min;
-      
-      const char *displayText = g_strndup(refSeq + fromIdx, toIdx - fromIdx + 1);
-      
-      if (displayText)
+      const int len = toIdx - fromIdx + 1;
+
+      /* Warn user if they're about to copy a large sequence */
+      if (len <= MAX_RECOMMENDED_COPY_LENGTH || 
+          runConfirmationBox(blxWindow, "Copy sequence", "You are about to copy a large amount of text to the clipboard\n\nAre you sure you want to continue?") == GTK_RESPONSE_ACCEPT)
         {
-          setDefaultClipboardText(displayText);
-          g_message("Copied reference sequence from %d to %d\n", fromIdx_in, toIdx_in);
+          const char *displayText = g_strndup(refSeq + fromIdx, toIdx - fromIdx + 1);
+      
+          if (displayText)
+            {
+              setDefaultClipboardText(displayText);
+              g_message("Copied reference sequence from %d to %d\n", fromIdx_in, toIdx_in);
+            }
         }
     }
 }
