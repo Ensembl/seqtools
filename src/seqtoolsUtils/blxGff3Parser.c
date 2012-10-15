@@ -177,6 +177,7 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "polyA_site", "SO:0000553", BLXMSP_POLYA_SITE);
 
   addGffType(&supportedTypes, "read", "SO:0000150", BLXMSP_SHORT_READ);
+  addGffType(&supportedTypes, "similarity", "SO:0000150", BLXMSP_SHORT_READ); /* not a true gff type but temp fix because it gets put in gff by bam-get script */
   addGffType(&supportedTypes, "region", "SO:0000001", BLXMSP_REGION);
 
   supportedTypes = g_slist_reverse(supportedTypes);
