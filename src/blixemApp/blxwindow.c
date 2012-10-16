@@ -155,6 +155,7 @@ static int                        getSearchStartCoord(GtkWidget *blxWindow, cons
 static GList*                     findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, const gboolean rememberSearch, const gboolean findAgain, GError **error);
 static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
 static void                       killAllSpawned(BlxViewContext *bc);
+static void                       calculateDepth(BlxViewContext *bc);
 
 static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
 static void                       copySelectionToClipboard(GtkWidget *blxWindow);
@@ -798,6 +799,10 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   cacheMspDisplayRanges(bc, detailViewGetNumUnalignedBases(detailView));
   detailViewResortTrees(detailView);
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+
+  /* Recalculate the coverage */
+  calculateDepth(bc);
+  updateCoverageDepth(blxWindowGetCoverageView(blxWindow), bc);
   
   /* Re-calculate the height of the exon views */
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
@@ -5420,25 +5425,31 @@ gboolean blxWindowGetDisplayRev(GtkWidget *blxWindow)
 GtkWidget* blxWindowGetBigPicture(GtkWidget *blxWindow)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->bigPicture : FALSE;
+  return properties ? properties->bigPicture : NULL;
 }
 
 GtkWidget* blxWindowGetDetailView(GtkWidget *blxWindow)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->detailView : FALSE;
+  return properties ? properties->detailView : NULL;
+}
+
+GtkWidget* blxWindowGetCoverageView(GtkWidget *blxWindow)
+{
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  return properties ? bigPictureGetCoverageView(properties->bigPicture) : NULL;
 }
 
 GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->mainmenu : FALSE;
+  return properties ? properties->mainmenu : NULL;
 }
 
 BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->blastMode : FALSE;
+  return blxContext ? blxContext->blastMode : 0;
 }
 
 char * blxWindowGetRefSeq(GtkWidget *blxWindow)

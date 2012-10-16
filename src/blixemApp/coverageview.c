@@ -117,28 +117,25 @@ void updateCoverageDepth(GtkWidget *coverageView, BlxViewContext *bc)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
   
-  if (properties->rangePerCell <= 0.0)
-    {
-      /* Find a suitable value to round to based on the max depth */
-      if (bc->maxDepth <= 5)
-        properties->rangePerCell = 2;
-      else if (bc->maxDepth <= 10)
-        properties->rangePerCell = 5;
-      else if (bc->maxDepth <= 40)
-        properties->rangePerCell = 10;
-      else if (bc->maxDepth <= 80)
-        properties->rangePerCell = 20;
-      else if (bc->maxDepth <= 200)
-        properties->rangePerCell = 50;
-      else if (bc->maxDepth <= 400)
-        properties->rangePerCell = 100;
-      else if (bc->maxDepth <= 800)
-        properties->rangePerCell = 200;
-      else if (bc->maxDepth <= 2000)
-        properties->rangePerCell = 500;
-      else
-        properties->rangePerCell = 1000;
-    }
+  /* Find a suitable value to round to based on the max depth */
+  if (bc->maxDepth <= 5)
+    properties->rangePerCell = 2;
+  else if (bc->maxDepth <= 10)
+    properties->rangePerCell = 5;
+  else if (bc->maxDepth <= 40)
+    properties->rangePerCell = 10;
+  else if (bc->maxDepth <= 80)
+    properties->rangePerCell = 20;
+  else if (bc->maxDepth <= 200)
+    properties->rangePerCell = 50;
+  else if (bc->maxDepth <= 400)
+    properties->rangePerCell = 100;
+  else if (bc->maxDepth <= 800)
+    properties->rangePerCell = 200;
+  else if (bc->maxDepth <= 2000)
+    properties->rangePerCell = 500;
+  else
+    properties->rangePerCell = 1000;
   
   properties->numVCells = (gdouble)bc->maxDepth / properties->rangePerCell;
   
