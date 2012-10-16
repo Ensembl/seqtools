@@ -175,7 +175,7 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Print",            GTK_STOCK_PRINT,          "_Print...",                "<control>P",         "Print  Ctrl+P",                        G_CALLBACK(onPrintMenu)},
   { "PageSetup",        GTK_STOCK_PAGE_SETUP,     "Page set_up...",           NULL,                 "Page setup",                           G_CALLBACK(onPageSetupMenu)},
   { "Settings",         GTK_STOCK_PREFERENCES,    "_Settings...",             "<control>S",         "Settings  Ctrl+S",                     G_CALLBACK(onSettingsMenu)},
-  { "Load",             GTK_STOCK_OPEN,           "_Open features file...",    NULL,                "Load additional features from file  Ctrl+L", G_CALLBACK(onLoadMenu)},
+  { "Load",             GTK_STOCK_OPEN,           "_Open features file...",    NULL,                "Load additional features from file  Ctrl+O", G_CALLBACK(onLoadMenu)},
 
   { "CopySeqNames",     NULL,                     "Copy sequence name(s)",    "<control>C",         "Copy selected sequences name(s)  Ctrl+C", G_CALLBACK(onCopySeqsMenu)},
   { "CopySeqData",      NULL,                     "Copy sequence data",       "<shift><control>C",  "Copy selected sequences data  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMenu)},
