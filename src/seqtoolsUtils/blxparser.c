@@ -61,7 +61,8 @@ typedef enum {
   BLX_PARSER_ERROR_NO_STRAND,         /* MSP does not have a valid ref seq strand */
   BLX_PARSER_ERROR_INVALID_S_COORDS,  /* MSP does not have valid match coords */
   BLX_PARSER_ERROR_SEQS_DIFFER,       /* parsed data for the same sequence is different on different data lines */
-  BLX_PARSER_ERROR_COMPLEMENT_FAILED  /* failed to complement the sequence */
+  BLX_PARSER_ERROR_COMPLEMENT_FAILED, /* failed to complement the sequence */
+  BLX_PARSER_ERROR_INVALID_FILE,      /* unrecognised file format */
 } BlxDotterError;
 
 
@@ -179,7 +180,7 @@ static int getResFactorFromMode(const BlxBlastMode blastMode)
 }
 
 
-/* Function: parse a stream of SFS data
+/* Function: parse a feature file (GFF or obsolete SFS format)
  *
  * Assumptions:
  *
@@ -190,7 +191,8 @@ static int getResFactorFromMode(const BlxBlastMode blastMode)
  */
 void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
              GArray* featureLists[], GList **seqList, GSList *supportedTypes, GSList *styles,
-	     char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, GKeyFile *keyFile)
+	     char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
+             GKeyFile *keyFile, GError **error)
 {
   DEBUG_ENTER("parseFS");
 
@@ -259,7 +261,7 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 	{
 	  /* If first line was not a valid header, it's an error */
 	  parserState = PARSER_ERROR;
-	  g_critical("Invalid header line '%s'.\n", line);
+	  g_set_error(error, BLX_PARSER_ERROR, BLX_PARSER_ERROR_INVALID_FILE, "Unrecognised file header '%s'.\n", line);
 	}
       else
 	{
