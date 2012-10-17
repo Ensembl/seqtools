@@ -730,9 +730,10 @@ static void loadNonNativeFile(const char *filename,
       if (!error && command && command->str)
         {
           const char *fetchName = g_quark_to_string(fetchMethod->name);
+          GSList *styles = blxReadStylesFile(NULL, NULL);
 
           sendFetchOutputToFile(command, keyFile, &bc->blastMode, 
-                                bc->featureLists, bc->supportedTypes, NULL,
+                                bc->featureLists, bc->supportedTypes, styles,
                                 &bc->matchSeqs, &bc->mspList, 
                                 fetchName, bc->saveTempFiles, newMsps, newSeqs,
                                 &error);

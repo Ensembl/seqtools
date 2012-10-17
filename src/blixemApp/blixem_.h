@@ -538,6 +538,8 @@ void                               drawAssemblyGaps(GtkWidget *widget,
                                                     const IntRange const *dnaRange,
                                                     const GArray *mspArray);
 
+GSList*                            blxReadStylesFile(const char *keyFileName_in, GError **error);
+
 /* dotter.c */
 //void                               selectFeatures(void);
 
