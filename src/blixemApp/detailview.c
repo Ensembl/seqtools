@@ -1993,19 +1993,21 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   int qIdx = bc->displayRev ? qRange.max : qRange.min;
   int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, activeFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   const int y = 0;
+  DrawBaseData baseData = {qIdx, 0, strand, UNSET_INT, BLXSEQ_DNA, TRUE, FALSE, FALSE, FALSE, highlightSnps, TRUE, BLXCOLOR_BACKGROUND};
   
   while (qIdx >= qRange.min && qIdx <= qRange.max)
     {
-      /* Get the character to display at this index */
+      /* Get the character to display at this index, and its position */
       displayText[displayTextPos] = getSequenceIndex(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
-      
-      /* Color the base depending on whether it is selected or affected by a SNP */
-      const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
-      const gboolean dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
       const int x = (int)((gdouble)displayTextPos * properties->charWidth);
-      const char base = displayText[displayTextPos];
+      
+      baseData.dnaIdx = qIdx;
+      baseData.baseChar = displayText[displayTextPos];
+      baseData.displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
+      baseData.dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
 
-      drawHeaderChar(bc, properties, qIdx, base, strand, UNSET_INT, BLXSEQ_DNA, TRUE, displayIdxSelected, dnaIdxSelected, FALSE, highlightSnps, TRUE, BLXCOLOR_BACKGROUND, drawable, gc, x, y, basesToHighlight);
+      /* Color the base depending on whether it is selected or affected by a SNP */
+      drawHeaderChar(bc, properties, drawable, gc, x, y, basesToHighlight, &baseData);
       
       /* Increment indices */
       ++displayTextPos;
@@ -2269,27 +2271,17 @@ static gboolean isCoordInSelectedMspRange(const BlxViewContext *bc,
   return inSelectedMspRange;
 }
 
+
 /* Draw a given nucleotide or peptide. Determines the color depending on various
  * parameters */
 void drawHeaderChar(BlxViewContext *bc,
                     DetailViewProperties *properties,
-                    const int dnaIdx,
-                    const char baseChar,
-                    const BlxStrand strand,
-                    const int frame,
-                    const BlxSeqType seqType,
-                    const gboolean topToBottom,       /* true if we're displaying bases top-to-bottom instead of left-to-right */
-                    const gboolean displayIdxSelected,
-                    const gboolean dnaIdxSelected,
-                    const gboolean showBackground,    /* whether to use default background color or leave blank */
-                    const gboolean highlightSnps,     /* whether to highlight variations */
-                    const gboolean showCodons,        /* whether to highlight DNA bases within the selected codon, for protein matches */
-                    const BlxColorId defaultBgColor,  /* the default background color for the header */
                     GdkDrawable *drawable,
                     GdkGC *gc,
                     const int x,
                     const int y,
-                    GHashTable *basesToHighlight)
+                    GHashTable *basesToHighlight,
+                    DrawBaseData *data)
 {
   GdkColor *fillColor = NULL;
   GdkColor *outlineColor = NULL;
@@ -2300,40 +2292,44 @@ void drawHeaderChar(BlxViewContext *bc,
   /* Shade the background if the base is selected XOR if the base is within the range of a 
    * selected sequence. (If both conditions are true we don't shade, to give the effect of an
    * inverted selection color.) */
-  gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, dnaIdx, strand, frame, seqType);
-  const gboolean shadeBackground = (displayIdxSelected != inSelectedMspRange);
+  gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, data->dnaIdx, data->strand, data->frame, data->seqType);
+  const gboolean shadeBackground = (data->displayIdxSelected != inSelectedMspRange);
   
   /* Check if this coord already has a special color stored for it */
-  gpointer hashValue = g_hash_table_lookup(basesToHighlight, GINT_TO_POINTER(dnaIdx));
-  
+  gpointer hashValue = g_hash_table_lookup(basesToHighlight, GINT_TO_POINTER(data->dnaIdx));
+
   if (hashValue)
     {
       BlxColorId colorId = (BlxColorId)GPOINTER_TO_INT(hashValue);
       fillColor = getGdkColor(colorId, bc->defaultColors, shadeBackground, bc->usePrintColors);
     }
-  
-  if (seqType == BLXSEQ_DNA && showCodons && (dnaIdxSelected || displayIdxSelected || shadeBackground))
+
+  /* Check if this base is in the currently-selected codon and needs highlighting */
+  if (data->seqType == BLXSEQ_DNA && data->showCodons && (data->dnaIdxSelected || data->displayIdxSelected || shadeBackground))
     {
-      if (dnaIdxSelected || displayIdxSelected)
+      if (data->dnaIdxSelected || data->displayIdxSelected)
         {
           /* The coord is a nucleotide in the currently-selected codon. The color depends
            * on whether the actual nucleotide itself is selected, or just the codon that it 
            * belongs to. */
-          fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, dnaIdxSelected, bc->usePrintColors);
+          fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, data->dnaIdxSelected, bc->usePrintColors);
         }
       else if (!fillColor)
         {
           /* The coord is not selected but this coord is within the range of a selected MSP, so 
            * shade the background. */
-          fillColor = getGdkColor(defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
         }
     }
 
-  if (highlightSnps)
+  /* Check if this base is a SNP (or other variation) and needs highlighting */
+  if (data->highlightSnps)
     {
+      //      getSnpHighlighting();
+      
       gboolean drawBackground = FALSE;
     
-      if (coordAffectedByVariation(dnaIdx, strand, bc, NULL,
+      if (coordAffectedByVariation(data->dnaIdx, data->strand, bc, NULL,
                                    &drawStart, &drawEnd, &drawJoiningLines, &drawBackground, NULL))
         {
           /* The coord is affected by a SNP. Outline it in the "selected" SNP color
@@ -2349,26 +2345,30 @@ void drawHeaderChar(BlxViewContext *bc,
         }
     }
   
+  /* If the base is not already assigned some special highlighting, then
+   * check whether it should be highlighted as a stop or MET. Otherwise,
+   * give it the default background colour. */
   if (!fillColor)
     {
-      if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_MET)
+      if (data->seqType == BLXSEQ_PEPTIDE && data->baseChar == SEQUENCE_CHAR_MET)
         {
           /* The coord is a MET codon */
           fillColor = getGdkColor(BLXCOLOR_MET, bc->defaultColors, shadeBackground, bc->usePrintColors);
         }
-      else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_STOP)
+      else if (data->seqType == BLXSEQ_PEPTIDE && data->baseChar == SEQUENCE_CHAR_STOP)
         {
           /* The coord is a STOP codon */
           fillColor = getGdkColor(BLXCOLOR_STOP, bc->defaultColors, shadeBackground, bc->usePrintColors);
         }
-      else if (showBackground)
+      else if (data->showBackground)
         {
           /* Use the default background color for the reference sequence */
-          fillColor = getGdkColor(defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
         }
     }
   
-  if (topToBottom)
+  /* Ok, now we know all the colours and outlines, draw the background for the base */
+  if (data->topToBottom)
     {
       /* We're drawing nucleotides from top-to-bottom instead of left-to-right, so the start border is
        * the top border and the bottom border is the end border. */

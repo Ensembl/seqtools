@@ -1171,17 +1171,19 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   const int incrementValue = bc->displayRev ? -1 * bc->numFrames : bc->numFrames;
   int displayIdx = properties->displayRange.min;
   int dnaIdx = qIdx1;
-  
+  DrawBaseData baseData = {dnaIdx, 0, strand, frame, bc->seqType, FALSE, FALSE, FALSE, TRUE, highlightSnps, FALSE, BLXCOLOR_REF_SEQ};
+
   while (displayIdx >= properties->displayRange.min && displayIdx <= properties->displayRange.max)
     {
       /* Set the background color depending on whether this base is selected or
        * is affected by a SNP */
-      const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx - offset);
-      const char baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
+      baseData.displayIdxSelected = (displayIdx == properties->selectedBaseIdx - offset);
+      baseData.dnaIdxSelected = baseData.displayIdxSelected;
+      baseData.baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
       
       const int x = (int)((gdouble)xStart + (gdouble)(displayIdx - properties->displayRange.min) * properties->charWidth);
 
-      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, FALSE, displayIdxSelected, displayIdxSelected, TRUE, highlightSnps, FALSE, BLXCOLOR_REF_SEQ, drawable, gc, x, yStart, basesToHighlight);
+      drawHeaderChar(bc, properties, drawable, gc, x, yStart, basesToHighlight, &baseData);
       
       dnaIdx += incrementValue;
       ++displayIdx;

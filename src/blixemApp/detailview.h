@@ -127,6 +127,24 @@ typedef struct _DetailViewProperties
   } DetailViewProperties;
 
 
+typedef struct _DrawBaseData
+{
+  int dnaIdx;
+  char baseChar;
+  BlxStrand strand;
+  int frame;
+  BlxSeqType seqType;
+  gboolean topToBottom;         /* true if we're displaying bases top-to-bottom instead of left-to-right */
+  gboolean displayIdxSelected;  /* whether to use default background color or leave blank */
+  gboolean dnaIdxSelected;      /* true if this base is the currently-selected dna index */
+  gboolean showBackground;      /* true if we should draw the background colour */
+  gboolean highlightSnps;       /* whether to highlight variations */
+  gboolean showCodons;          /* whether to highlight DNA bases within the selected codon, for protein matches */
+  BlxColorId defaultBgColor;    /* the default background color for the header */
+} DrawBaseData;
+
+
+
 /* Public function declarations */
 int                     detailViewGetNumFrames(GtkWidget *detailView);
 IntRange*               detailViewGetDisplayRange(GtkWidget *detailView);
@@ -265,23 +283,12 @@ gboolean                coordAffectedByVariation(const int dnaIdx,
 
 void                    drawHeaderChar(BlxViewContext *bc,
                                        DetailViewProperties *properties,
-                                       const int dnaIdx,
-                                       const char baseChar,
-                                       const BlxStrand strand, 
-                                       const int frame,
-                                       const BlxSeqType seqType,
-                                       const gboolean topToBottom, 
-                                       const gboolean displayIdxSelected, 
-                                       const gboolean dnaIdxSelected, 
-                                       const gboolean showBackground,
-                                       const gboolean showSnps,
-                                       const gboolean showCodons,
-                                       const BlxColorId defaultBgColor,
                                        GdkDrawable *drawable,
                                        GdkGC *gc,
                                        const int x,
                                        const int y,
-                                       GHashTable *intronBases);
+                                       GHashTable *intronBases,
+                                       DrawBaseData *baseData);
 
 GtkWidget*              createDetailView(GtkWidget *blxWindow,
                                          GtkContainer *parent,
