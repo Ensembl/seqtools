@@ -1993,7 +1993,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   int qIdx = bc->displayRev ? qRange.max : qRange.min;
   int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, activeFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   const int y = 0;
-  DrawBaseData baseData = {qIdx, 0, strand, UNSET_INT, BLXSEQ_DNA, TRUE, FALSE, FALSE, FALSE, highlightSnps, TRUE, BLXCOLOR_BACKGROUND};
+  DrawBaseData baseData = {qIdx, 0, strand, UNSET_INT, BLXSEQ_DNA, TRUE, FALSE, FALSE, FALSE, highlightSnps, TRUE, BLXCOLOR_BACKGROUND, NULL, NULL, FALSE, FALSE, FALSE, FALSE};
   
   while (qIdx >= qRange.min && qIdx <= qRange.max)
     {
@@ -2272,6 +2272,29 @@ static gboolean isCoordInSelectedMspRange(const BlxViewContext *bc,
 }
 
 
+/* Determine whether any highlighting needs to be done for snps in the ref seq */
+static void getSnpHighlighting(DrawBaseData *data,
+                               BlxViewContext *bc)
+{     
+  gboolean drawBackground = FALSE;
+  
+  if (coordAffectedByVariation(data->dnaIdx, data->strand, bc, NULL,
+                               &data->drawStart, &data->drawEnd, &data->drawJoiningLines, &drawBackground, NULL))
+    {
+      /* The coord is affected by a SNP. Outline it in the "selected" SNP color
+       * (which is darker than the normal color) */
+      data->outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
+      
+      /* If the SNP is selected, also fill it with the SNP color (using the
+       * "unselected" SNP color, which is lighter than the outline). */
+      if (drawBackground)
+        {
+          data->fillColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
+        }
+    }
+}
+
+
 /* Draw a given nucleotide or peptide. Determines the color depending on various
  * parameters */
 void drawHeaderChar(BlxViewContext *bc,
@@ -2283,17 +2306,11 @@ void drawHeaderChar(BlxViewContext *bc,
                     GHashTable *basesToHighlight,
                     DrawBaseData *data)
 {
-  GdkColor *fillColor = NULL;
-  GdkColor *outlineColor = NULL;
-  
-  /* If drawing an outline, these need to be set to true to draw the specific parts of the outline */
-  gboolean drawStart = FALSE, drawEnd = FALSE, drawJoiningLines = FALSE;
-
   /* Shade the background if the base is selected XOR if the base is within the range of a 
    * selected sequence. (If both conditions are true we don't shade, to give the effect of an
    * inverted selection color.) */
   gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, data->dnaIdx, data->strand, data->frame, data->seqType);
-  const gboolean shadeBackground = (data->displayIdxSelected != inSelectedMspRange);
+  data->shadeBackground = (data->displayIdxSelected != inSelectedMspRange);
   
   /* Check if this coord already has a special color stored for it */
   gpointer hashValue = g_hash_table_lookup(basesToHighlight, GINT_TO_POINTER(data->dnaIdx));
@@ -2301,69 +2318,52 @@ void drawHeaderChar(BlxViewContext *bc,
   if (hashValue)
     {
       BlxColorId colorId = (BlxColorId)GPOINTER_TO_INT(hashValue);
-      fillColor = getGdkColor(colorId, bc->defaultColors, shadeBackground, bc->usePrintColors);
+      data->fillColor = getGdkColor(colorId, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
     }
 
   /* Check if this base is in the currently-selected codon and needs highlighting */
-  if (data->seqType == BLXSEQ_DNA && data->showCodons && (data->dnaIdxSelected || data->displayIdxSelected || shadeBackground))
+  if (data->seqType == BLXSEQ_DNA && data->showCodons && (data->dnaIdxSelected || data->displayIdxSelected || data->shadeBackground))
     {
       if (data->dnaIdxSelected || data->displayIdxSelected)
         {
           /* The coord is a nucleotide in the currently-selected codon. The color depends
            * on whether the actual nucleotide itself is selected, or just the codon that it 
            * belongs to. */
-          fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, data->dnaIdxSelected, bc->usePrintColors);
+          data->fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, data->dnaIdxSelected, bc->usePrintColors);
         }
-      else if (!fillColor)
+      else if (!data->fillColor)
         {
           /* The coord is not selected but this coord is within the range of a selected MSP, so 
            * shade the background. */
-          fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
     }
 
   /* Check if this base is a SNP (or other variation) and needs highlighting */
   if (data->highlightSnps)
     {
-      //      getSnpHighlighting();
-      
-      gboolean drawBackground = FALSE;
-    
-      if (coordAffectedByVariation(data->dnaIdx, data->strand, bc, NULL,
-                                   &drawStart, &drawEnd, &drawJoiningLines, &drawBackground, NULL))
-        {
-          /* The coord is affected by a SNP. Outline it in the "selected" SNP color
-           * (which is darker than the normal color) */
-          outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
-          
-          /* If the SNP is selected, also fill it with the SNP color (using the
-           * "unselected" SNP color, which is lighter than the outline). */
-          if (drawBackground)
-            {
-              fillColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, shadeBackground, bc->usePrintColors);
-            }
-        }
+      getSnpHighlighting(data, bc);
     }
   
   /* If the base is not already assigned some special highlighting, then
    * check whether it should be highlighted as a stop or MET. Otherwise,
    * give it the default background colour. */
-  if (!fillColor)
+  if (!data->fillColor)
     {
       if (data->seqType == BLXSEQ_PEPTIDE && data->baseChar == SEQUENCE_CHAR_MET)
         {
           /* The coord is a MET codon */
-          fillColor = getGdkColor(BLXCOLOR_MET, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(BLXCOLOR_MET, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
       else if (data->seqType == BLXSEQ_PEPTIDE && data->baseChar == SEQUENCE_CHAR_STOP)
         {
           /* The coord is a STOP codon */
-          fillColor = getGdkColor(BLXCOLOR_STOP, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(BLXCOLOR_STOP, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
       else if (data->showBackground)
         {
           /* Use the default background color for the reference sequence */
-          fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
     }
   
@@ -2372,13 +2372,13 @@ void drawHeaderChar(BlxViewContext *bc,
     {
       /* We're drawing nucleotides from top-to-bottom instead of left-to-right, so the start border is
        * the top border and the bottom border is the end border. */
-      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
-                    drawJoiningLines, drawJoiningLines, drawStart, drawEnd);
+      drawRectangle(drawable, gc, data->fillColor, data->outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
+                    data->drawJoiningLines, data->drawJoiningLines, data->drawStart, data->drawEnd);
     }
   else
     {
-      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
-                    drawStart, drawEnd, drawJoiningLines, drawJoiningLines);
+      drawRectangle(drawable, gc, data->fillColor, data->outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
+                    data->drawStart, data->drawEnd, data->drawJoiningLines, data->drawJoiningLines);
     }
 }
 

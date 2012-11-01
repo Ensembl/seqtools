@@ -141,6 +141,12 @@ typedef struct _DrawBaseData
   gboolean highlightSnps;       /* whether to highlight variations */
   gboolean showCodons;          /* whether to highlight DNA bases within the selected codon, for protein matches */
   BlxColorId defaultBgColor;    /* the default background color for the header */
+  GdkColor *fillColor;
+  GdkColor *outlineColor;
+  gboolean drawStart;
+  gboolean drawEnd;
+  gboolean drawJoiningLines;
+  gboolean shadeBackground;
 } DrawBaseData;
 
 
