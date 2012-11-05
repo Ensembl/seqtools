@@ -50,6 +50,7 @@
 #define MACHINE_RES                   0.000000001
 
 
+
 /* Really the buffers that use this should be dynamic but I'm not going to do that, this
  * code is so poor that it doesn't warrant the effort.... */
 #define NAMESIZE      12
@@ -534,7 +535,7 @@ GtkComboBox*                       createComboBox();
 void                               addComboItem(GtkComboBox *combo, GtkTreeIter *parent, const int val, const char *text, const int initVal);
 
 const char*                        getSaveFileName(GtkWidget *widget, const char *currentName, const char *defaultPath, const char *defaultExtension, const char *title);
-const char*                        getLoadFileName(GtkWidget *widget, const char *defaultPath, const char *title);
+char*                              getLoadFileName(GtkWidget *widget, const char *defaultPath, const char *title);
 
 void                               enableMenuAction(GtkActionGroup *action_group, const char *actionName, const gboolean enable);
 void                               setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active);
@@ -595,6 +596,8 @@ GtkRadioButton*                    createRadioButton(GtkTable *table,
                                                      const gboolean multiline,
                                                      BlxResponseCallback callbackFunc,
                                                      GtkWidget *blxWindow);
+
+const char*                        getSystemTempDir();     
 
 void                               errorHandler(const int sig); 
 

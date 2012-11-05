@@ -50,7 +50,7 @@
 #define CROSSHAIR_TEXT_PADDING                      5     /* padding between the crosshair and the coord display text */ 
 #define ANNOTATION_LABEL_PADDING		    5	  /* padding around annotation labels, if shown */
 #define ANNOTATION_LABEL_LEN			    8	  /* number of chars to allow to show for annotation labels */
-#define MAX_IMAGE_DIMENSION                         12000 /* max width / height to allow for a gdk image. Guesstimate based on the fact that it crashes for long skinny plots if we allow more than this. */
+#define MAX_IMAGE_DIMENSION                         16000 /* max width / height to allow for a gdk image. Guesstimate based on the fact that it blacks out the lower part of the plot (overdraws on it?) if we allow more than this */
 
 int atob_0[]	/* NEW (starting at 0) ASCII-to-binary translation table */
 = {
@@ -143,6 +143,7 @@ NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN,NN
 double aafq[20]	/* Amino acid residue frequencies used by S. Altschul */
 = {.081, .057, .045, .054, .015, .039, .061, .068, .022, .057,
 .093, .056, .025, .040, .049, .068, .058, .013, .032, .067 } ;
+
 
 
 /* Local function declarations */
@@ -272,6 +273,26 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyDotplot), NULL); 
     }
   
+  properties->hozScale.basesPerMark = 0;
+  properties->hozScale.basesPerSubmark = 0;
+  properties->hozScale.numMarks = 0;
+  properties->hozScale.numSubmarks = 0;
+  properties->hozScale.firstSubmarkPos = 0;
+  properties->hozScale.firstSubmarkCoord = 0;
+  properties->hozScale.startCoord = 0;
+  properties->hozScale.endCoord = 0;
+  properties->hozScale.labels = NULL;
+
+  properties->vertScale.basesPerMark = 0;
+  properties->vertScale.basesPerSubmark = 0;
+  properties->vertScale.numMarks = 0;
+  properties->vertScale.numSubmarks = 0;
+  properties->vertScale.firstSubmarkPos = 0;
+  properties->vertScale.firstSubmarkCoord = 0;
+  properties->vertScale.startCoord = 0;
+  properties->vertScale.endCoord = 0;
+  properties->vertScale.labels = NULL;
+
   return properties;
 }
 
@@ -555,7 +576,7 @@ void toggleCrosshairFullscreen(GtkWidget *dotplot)
 /* Expose handler for dot-plot window */
 static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpointer data)
 {
-  GdkDrawable *window = (dotplot)->window;
+  GdkDrawable *window = GTK_LAYOUT(dotplot)->bin_window;
   DotplotProperties *properties = dotplotGetProperties(dotplot);
 
   if (window)
@@ -747,47 +768,35 @@ static void initCrosshairCoords(const int qcenter, const int scenter, DotterWind
  * is also adjusted. */
 static GdkImage* createImage(DotplotProperties *properties)
 {
-  GdkImage *image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
-
-  /* The bpl (bytes per line) should equal the width multiplied by
-   * the bpp (bytes per pixel). I'm not sure why, but sometimes this
-   * is not the case. If this happens, reduce the width (and the zoom)
-   * to match the bpl (actually we make it less than the bpl, because
-   * we get crashing when drawing labels if the total width including
-   * labels etc. is more than the bpl). */
   DotterWindowContext *dwc = properties->dotterWinCtx;
-  const int origLen = properties->imageWidth * dwc->zoomFactor;
 
-  gboolean recalc = FALSE;
-
-  if (image->bpl != image->width * image->bpp)
+  if (properties->imageWidth > MAX_IMAGE_DIMENSION)
     {
-      recalc = TRUE;
-      properties->imageWidth = image->bpl / image->bpp;
-      properties->imageWidth -= 500; /* fudge factor to allow space for labels */
-    }
+      int origLen = properties->imageWidth * dwc->zoomFactor;
 
-  if (image->width > MAX_IMAGE_DIMENSION)
-    {
-      recalc = TRUE;
       properties->imageWidth = MAX_IMAGE_DIMENSION;
+      dwc->zoomFactor = ceil((double)origLen / (double)properties->imageWidth); /* adjust zoom so we can still show the original range */
+
+      properties->imageWidth = getImageDimension(properties, TRUE);   /* rounds the new value to the nearest 4 etc. */
+      properties->imageHeight = getImageDimension(properties, FALSE); 
+
+      g_warning("Image too wide - setting zoom to %d\n", (int)dwc->zoomFactor);
     }
-  else if (image->height > MAX_IMAGE_DIMENSION)
+  
+  if (properties->imageHeight > MAX_IMAGE_DIMENSION)
     {
-      recalc = TRUE;
+      int origLen = properties->imageHeight * dwc->zoomFactor;
+
       properties->imageHeight = MAX_IMAGE_DIMENSION;
+      dwc->zoomFactor = ceil((double)origLen / (double)properties->imageHeight);
+
+      properties->imageWidth = getImageDimension(properties, TRUE);
+      properties->imageHeight = getImageDimension(properties, FALSE);
+
+      g_warning("Image too tall - setting zoom to %d\n", (int)dwc->zoomFactor);
     }
 
-  if (recalc)
-    {
-      dwc->zoomFactor = origLen / properties->imageWidth;
-
-      properties->imageWidth = getImageDimension(properties, TRUE);   /* rounds new value to nearest 4 etc. */
-      properties->imageHeight = getImageDimension(properties, FALSE); /* re-do height as well because zoom has changed */
-
-      gdk_image_unref(image);
-      image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
-    }
+  GdkImage *image = gdk_image_new(GDK_IMAGE_NORMAL, gdk_visual_get_system(), properties->imageWidth, properties->imageHeight);
 
   return image;
 }
@@ -814,7 +823,7 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
   gboolean batch = (saveFileName || exportFileName);
   gboolean showPlot = (exportFileName || !batch);
 
-  GtkWidget *dotplot = (showPlot ? gtk_drawing_area_new() : NULL);
+  GtkWidget *dotplot = (showPlot ? gtk_layout_new(NULL, NULL) : NULL);
   
   DotplotProperties *properties = dotplotCreateProperties(dotplot, dwc, hspsOn, breaklinesOn, exportFileName);
   
@@ -1928,7 +1937,7 @@ void exportPlot(GtkWidget *dotplot,
 static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *properties)
 {
   DEBUG_ENTER("recalculateDotplotBorders");
-  
+
   /* Clear any previous image and pixmaps */
   clearPixmaps(properties);
 
@@ -1960,6 +1969,156 @@ static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *pro
   calculateDotplotBorders(dotplot, properties);
   
   DEBUG_EXIT("recalculateDotplotBorders");
+}
+
+
+static void findScaleUnit (gdouble cutoff, int *u, int *sub)
+{
+  gdouble unit = *u ;
+  gdouble subunit = *u ;
+  
+  if (cutoff < 0)
+    cutoff = -cutoff ;
+  
+  while (unit < cutoff)
+    { unit *= 2 ;
+      subunit *= 5 ;
+      if (unit >= cutoff)
+	break ;
+      unit *= 2.5000001 ;	/* safe rounding */
+      if (unit >= cutoff)
+	break ;
+      unit *= 2 ;
+      subunit *= 2 ;
+    }
+  subunit /= 10 ;
+  if (subunit > *sub)
+    *sub = roundNearest(subunit) ;
+  *u = roundNearest(unit) ;
+}
+
+
+/* Note [Scale Labels] -- gb10
+ * 
+ * We use GtkLabel child widgets to draw the scale labels on the dotplot.
+ * Originally the labels were drawn directly on the dotplot drawing area
+ * using pango/cairo. However, there were some bugs with this where some
+ * of the labels were sometimes not getting drawn, and sometimes dotter 
+ * would crash (with the crash happening in the pango or cairo function 
+ * that was drawing the text).
+ *
+ * I could not find the cause for these bugs so I have used another
+ * approach using GtkLabel widgets to draw the labels instead. This 
+ * appears to fix these problems.
+ *
+ * Note that we create the labels outside of the expose function
+ * and add them to an array so that we can keep track of them (we
+ * don't want to create loads of new labels every time we redraw).
+ * However, the text and position of the labels is set in the expose
+ * function, because this is where the scale markers are drawn, which 
+ * defines the position for the labels. We also don't know the exact
+ * font (and hence text size) until the widgets are realised, and again
+ * this affects the position of the labels, so it's easiest to do it 
+ * all in the expose function.
+ * 
+ */
+
+/* Create the label widgets for the scale. See note [Scale Labels]
+ * for an explanation about why we use label widgets rather than
+ * drawing the labels using pango. */
+static void createScaleLabels(GtkWidget *dotplot,
+                              DotplotScaleProperties *scale)
+{
+  /* Loop through each major tickmark and create a label for it. Store
+   * the list of labels. The text and position will be set when we draw
+   * the scale markers, so for now we just need to make sure there are
+   * enough labels in the list. */
+  if (!scale->labels)
+    {
+      scale->labels = g_array_sized_new(FALSE, FALSE, sizeof(GtkWidget*), scale->numMarks);
+    }
+
+  /* If we don't have enough labels, create more now. */
+  int i = scale->labels->len;
+  for ( ; i < scale->numMarks; ++i)
+    {
+      GtkWidget *eventBox = gtk_event_box_new();
+      GtkWidget *label = gtk_label_new(NULL);
+      
+      gtk_container_add(GTK_CONTAINER(eventBox), label);
+      gtk_layout_put(GTK_LAYOUT(dotplot), eventBox, 0, 0);
+      
+      g_array_append_val(scale->labels, eventBox);
+    }
+
+  /* If we have too many labels, hide the extra ones. (Note that 
+   * drawTickmarkLabels will take care of re-showing any that are
+   * required later.) */
+  i = scale->numMarks;
+  for ( ; i < scale->labels->len; ++i)
+    {
+      GtkWidget *eventBox = GTK_WIDGET(g_array_index(scale->labels, GtkWidget*, i));
+      gtk_widget_hide(eventBox);
+    }
+
+}
+
+
+/* This calculates the properties for the axis scale such as how many
+* tickmarks to draw, the range of coordinates to show etc. */
+static void calculateScaleProperties(GtkWidget *dotplot,
+                                     DotplotProperties *properties,
+                                     const gboolean horizontal)
+{
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  DotterContext *dc = dwc->dotterCtx;
+
+  const gdouble scaleFactor = getScaleFactor(properties, horizontal);
+  const gboolean reversedScale = ((horizontal && dc->hozScaleRev) || (!horizontal && dc->vertScaleRev));
+
+  DotplotScaleProperties *scale = horizontal ? &properties->hozScale : &properties->vertScale;
+  const IntRange* const displayRange = horizontal ? &dwc->refSeqRange : &dwc->matchSeqRange;
+
+  scale->basesPerMark = 1;
+  scale->basesPerSubmark = 1;
+  gdouble cutoff = horizontal ? PIXELS_PER_MARK_X : PIXELS_PER_MARK_Y;
+  cutoff *= scaleFactor;
+  
+  findScaleUnit(cutoff, &scale->basesPerMark, &scale->basesPerSubmark);
+  
+  /* Round up the start coord to find the coord and position of the first submark */
+  scale->startCoord = UNSET_INT;
+  scale->endCoord = UNSET_INT;
+  scale->firstSubmarkCoord = UNSET_INT; 
+  int firstMarkCoord = UNSET_INT;
+  
+  if (reversedScale)
+    {
+      /* Horizontal scale is reversed. 	Round the max coord down to the nearest basesPerSubmark */
+      scale->startCoord = displayRange->max;
+      scale->endCoord = displayRange->min;
+      scale->firstSubmarkCoord = (int)((double)scale->startCoord / (double)scale->basesPerSubmark) * scale->basesPerSubmark;
+      firstMarkCoord = (int)((double)scale->startCoord / (double)scale->basesPerMark) * scale->basesPerMark;
+    }
+  else
+    {
+      /* Round the min coord up to the nearest basesPerSubmark */
+      scale->startCoord = displayRange->min;
+      scale->endCoord = displayRange->max;
+      scale->firstSubmarkCoord = ceil((double)scale->startCoord / (double)scale->basesPerSubmark) * scale->basesPerSubmark;
+      firstMarkCoord = ceil((double)scale->startCoord / (double)scale->basesPerMark) * scale->basesPerMark;
+    }
+
+  /* find the leftmost/topmost border for the coord that is varying. For the horizontal
+   * scale, the x coord is varying, for the vertical scale the y coord */
+  const int variableBorder = horizontal ? properties->plotRect.x : properties->plotRect.y;
+
+  scale->firstSubmarkPos = variableBorder + abs(scale->firstSubmarkCoord - scale->startCoord) / scaleFactor;
+
+  scale->numMarks = (int)((gdouble)(abs(scale->endCoord - firstMarkCoord) + 1) / scale->basesPerMark) + 1;
+  scale->numSubmarks = (int)((gdouble)(abs(scale->endCoord - scale->firstSubmarkCoord) + 1) / scale->basesPerSubmark) + 1;
+
+  createScaleLabels(dotplot, scale);
 }
 
 
@@ -2039,6 +2198,9 @@ static void calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *prope
       gtk_widget_queue_draw(dotplot);
     }
   
+  calculateScaleProperties(dotplot, properties, TRUE);
+  calculateScaleProperties(dotplot, properties, FALSE);
+
   DEBUG_EXIT("calculateDotplotBorders returning ");
 }
 
@@ -2129,32 +2291,6 @@ void dotplotPrepareForPrinting(GtkWidget *dotplot)
 }
 
 
-static void findScaleUnit (gdouble cutoff, int *u, int *sub)
-{
-  gdouble unit = *u ;
-  gdouble subunit = *u ;
-  
-  if (cutoff < 0)
-    cutoff = -cutoff ;
-  
-  while (unit < cutoff)
-    { unit *= 2 ;
-      subunit *= 5 ;
-      if (unit >= cutoff)
-	break ;
-      unit *= 2.5000001 ;	/* safe rounding */
-      if (unit >= cutoff)
-	break ;
-      unit *= 2 ;
-      subunit *= 2 ;
-    }
-  subunit /= 10 ;
-  if (subunit > *sub)
-    *sub = roundNearest(subunit) ;
-  *u = roundNearest(unit) ;
-}
-
-
 /* Utility used by drawScaleMarkers to draw grid lines */
 static void drawGridline(GdkDrawable *drawable, DotplotProperties *properties, const int xStart, const int yStart, const gboolean horizontal)
 {
@@ -2178,11 +2314,11 @@ static void drawGridline(GdkDrawable *drawable, DotplotProperties *properties, c
 }
 
 
-/* Utility used by drawScaleMarkers to draw labels on tick marks */
+/* Utility used by drawScaleMarkers to draw the labels for the tick marks */
 static void drawTickmarkLabel(GtkWidget *dotplot, 
                               DotterContext *dc, 
-                              GdkDrawable *drawable, 
-                              GdkGC *gc, 
+                              GdkDrawable *drawable,
+                              GtkWidget *labelParent,
                               const int coordIn,
                               const int xIn,
                               const int yIn,
@@ -2196,21 +2332,27 @@ static void drawTickmarkLabel(GtkWidget *dotplot,
   PangoLayout *layout = pango_cairo_create_layout(cr);
   pango_layout_set_text(layout, displayText, -1);
 
-  g_free(displayText);
-  
-  /* We'll centre the text at half the text width for the horizontal axis, or half the 
-   * height for the vertical. */
+  /* We'll centre the text at half the text width for the horizontal 
+   * axis, or half the height for the vertical. */
   int width = UNSET_INT, height = UNSET_INT;
   pango_layout_get_pixel_size(layout, &width, &height);
+
+  const int x = xIn - (horizontal ? (double)width / 2.0 : width);
+  const int y = yIn - (horizontal ? dc->charHeight : (double)dc->charHeight / 2.0);
+
+  /* We use label child items rather than drawing the text directly
+   * on the drawable: see note [Scale Labels] for an explanation.
+   * Update the text in the label and move it to the correct position.
+   * The label is in an event box so we need to get the child widget */
+  GtkLabel *label = GTK_LABEL(gtk_container_get_children(GTK_CONTAINER(labelParent))->data);
+  gtk_label_set_text(label, displayText);
+
+  gtk_widget_show_all(labelParent);
+  gtk_layout_move(GTK_LAYOUT(dotplot), labelParent, x, y);
   
-  const int x = xIn - (horizontal ? width / 2 : width);
-  const int y = yIn - (horizontal ? height : height / 2);
-
-  cairo_move_to (cr, x, y);
-  pango_cairo_show_layout(cr, layout);
-
   g_object_unref(layout);  
   cairo_destroy(cr);
+  g_free(displayText);
 }
 
 
@@ -2221,57 +2363,29 @@ static void drawScaleMarkers(GtkWidget *dotplot,
                              DotplotProperties *properties,
                              const gboolean horizontal)
 {
-  /* We scale down by the zoom factor, and also divide by the number of frames so that one dot
-   * represents one peptide */
+  /* We scale down by the zoom factor, and also divide by the number 
+   * of frames so that one dot represents one peptide */
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+  DotplotScaleProperties *scale = horizontal ? &properties->hozScale : &properties->vertScale;
+
   const gdouble scaleFactor = getScaleFactor(properties, horizontal);
   const gboolean reversedScale = ((horizontal && dc->hozScaleRev) || (!horizontal && dc->vertScaleRev));
   const int direction = reversedScale ? -1 : 1;
-  
-  int basesPerMark = 1.0;
-  int basesPerSubmark = 1.0;
-  gdouble cutoff = horizontal ? PIXELS_PER_MARK_X : PIXELS_PER_MARK_Y;
-  cutoff *= scaleFactor;
-  
-  findScaleUnit(cutoff, &basesPerMark, &basesPerSubmark);
-  
-  const int variableBorder = horizontal ? properties->plotRect.x : properties->plotRect.y;
+    
   const int staticBorder = horizontal 
     ? properties->plotRect.y - SCALE_LINE_WIDTH
     : properties->plotRect.x - SCALE_LINE_WIDTH;
-  
-  /* Round up the start coord to find the coord and position of the first submark */
-  int startCoord = UNSET_INT;
-  int endCoord = UNSET_INT;
-  int firstMarkCoord = UNSET_INT;
-
-  if (reversedScale)
-    {
-      /* Horizontal scale is reversed. 	Round the max coord down to the nearest basesPerSubmark */
-      startCoord = displayRange->max;
-      endCoord = displayRange->min;
-      firstMarkCoord = (int)((double)startCoord / (double)basesPerSubmark) * basesPerSubmark;
-    }
-  else
-    {
-      /* Round the min coord up to the nearest basesPerSubmark */
-      startCoord = displayRange->min;
-      endCoord = displayRange->max;
-      firstMarkCoord = ceil((double)startCoord / (double)basesPerSubmark) * basesPerSubmark;
-    }
-
-  const int firstMarkPos = variableBorder + abs(firstMarkCoord - startCoord) / scaleFactor;
-  const int numSubmarks = (int)((gdouble)(abs(endCoord - firstMarkCoord) + 1) / basesPerSubmark) + 1;
 
   int i = 0;
+  int majorTickIdx = 0;
 
-  for ( ; i < numSubmarks; ++i)
+  for ( ; i < scale->numSubmarks; ++i)
     {
-      const int basesFromFirstMark = i * basesPerSubmark;
-      const int coord = firstMarkCoord + (direction * basesFromFirstMark);
-      const gboolean isMajorTick = (coord % basesPerMark == 0);
+      const int basesFromFirstMark = i * scale->basesPerSubmark;
+      const int coord = scale->firstSubmarkCoord + (direction * basesFromFirstMark);
+      const gboolean isMajorTick = (coord % scale->basesPerMark == 0);
 
-      const int currentPos = firstMarkPos + (basesFromFirstMark / scaleFactor);
+      const int currentPos = scale->firstSubmarkPos + (basesFromFirstMark / scaleFactor);
       const int tickHeight = isMajorTick ? DEFAULT_MAJOR_TICK_HEIGHT : DEFAULT_MINOR_TICK_HEIGHT;
       
       /* Draw the marker line */
@@ -2288,7 +2402,13 @@ static void drawScaleMarkers(GtkWidget *dotplot,
       /* Draw a lable on major tick marks */
       if (isMajorTick)
         {
-	  drawTickmarkLabel(dotplot, dc, drawable, gc, coord, x1, y1, &properties->plotRect, horizontal);
+          if (majorTickIdx < scale->labels->len)
+            {
+              GtkWidget *label = g_array_index(scale->labels, GtkWidget*, majorTickIdx);
+              drawTickmarkLabel(dotplot, dc, drawable, label, coord, x1, y1, &properties->plotRect, horizontal);
+            }
+          
+          ++majorTickIdx;
         }
     }
 }
@@ -2304,6 +2424,7 @@ static void drawLabel(GtkWidget *dotplot, GdkDrawable *drawable, GdkGC *gc)
   cairo_t *cr = gdk_cairo_create(drawable);
   
   PangoLayout *layout = pango_cairo_create_layout(cr);
+  pango_layout_set_font_description(layout, dotplot->style->font_desc);
   pango_layout_set_text(layout, dc->refSeqName, -1);
   pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
 
@@ -2317,6 +2438,7 @@ static void drawLabel(GtkWidget *dotplot, GdkDrawable *drawable, GdkGC *gc)
 
   /* Vertical label */
   layout = pango_cairo_create_layout(cr);
+  pango_layout_set_font_description(layout, dotplot->style->font_desc);
   pango_layout_set_text(layout, dc->matchSeqName, -1);
   pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
  
@@ -2501,13 +2623,17 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
             {
               cairo_t *cr = gdk_cairo_create(drawable);
               PangoLayout *layout = pango_cairo_create_layout(cr);
+              pango_layout_set_font_description(layout, dotplot->style->font_desc);
               pango_layout_set_text(layout, displayText, -1);
               
               int textWidth = UNSET_INT, textHeight = UNSET_INT;
               pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
 
               /* We draw the label below-right by default, or above/left if it won't fit */
-              if (x + CROSSHAIR_TEXT_PADDING + textWidth > properties->plotRect.x + properties->plotRect.width)
+              const int totalWidth = getDotplotWidth(dotplot, properties);
+              const int totalHeight = getDotplotHeight(dotplot, properties);
+
+              if (x + CROSSHAIR_TEXT_PADDING + textWidth > totalWidth)
                 {
                   x -= CROSSHAIR_TEXT_PADDING + textWidth;
                 }
@@ -2516,7 +2642,7 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
                   x += CROSSHAIR_TEXT_PADDING;
                 }
               
-              if (y + CROSSHAIR_TEXT_PADDING + textHeight > properties->plotRect.y + properties->plotRect.height)
+              if (y + CROSSHAIR_TEXT_PADDING + textHeight > totalHeight)
                 {
                   y -= CROSSHAIR_TEXT_PADDING + textHeight;
                 }

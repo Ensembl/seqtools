@@ -4104,32 +4104,87 @@ const char* getSaveFileName(GtkWidget *widget,
   return filename;
 }
 
+
+/* Called when the text entry box on the file chooser dialog is
+ * changed. Updates the file-chooser button passed in the data
+ * to match .*/
+static void onFilenameEntered(GtkCellEditable *entry, gpointer data)
+{
+  GtkFileChooser *fileChooser = GTK_FILE_CHOOSER(data);
+  const char *filename = gtk_entry_get_text(GTK_ENTRY(entry));
+  gtk_file_chooser_set_filename(fileChooser, filename);
+}
+
+
+/* Called when the file-chooser button on the file chooser dialog is
+ * changed. Updates the text entry box passed in the data
+ * to match. */
+static void onFileChooserFileSet(GtkFileChooserButton *button, gpointer data)
+{
+  GtkEntry *entry = GTK_ENTRY(data);
+  const char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(button));
+  gtk_entry_set_text(entry, filename);
+}
+
+
 /* Utility to ask the user for a file to load. Returns the file name (or
  * NULL if the user cancels). The default file path and dialog title can be
- * specified, or passed as null to use defaults. */
-const char* getLoadFileName(GtkWidget *widget, 
-                            const char *defaultPath,
-                            const char *title)
+ * specified, or passed as null to use defaults. Result should be free'd using g_free */
+char* getLoadFileName(GtkWidget *widget, 
+                      const char *defaultPath,
+                      const char *title)
 {
-  const char *filename = NULL;
-  
+  char *filename = NULL;
+  int defaultWidth = 60;
+  const int xpad = 2;
+  const int ypad = 2;
+
+  if (defaultPath && strlen(defaultPath) > defaultWidth)
+    defaultWidth = strlen(defaultPath);
+
   GtkWindow *window = widget ? GTK_WINDOW(gtk_widget_get_toplevel(widget)) : NULL;
   
-  GtkWidget *dialog = gtk_file_chooser_dialog_new (title ? title : "Open File",
-                                                   window,
-                                                   GTK_FILE_CHOOSER_ACTION_OPEN,
-                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                                   GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-                                                   NULL);
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
+                                                  window,
+                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                  GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                                  NULL);
+
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
+  GtkTable *table = GTK_TABLE(gtk_table_new(2, 2, FALSE));
+  gtk_box_pack_start(contentArea, GTK_WIDGET(table), FALSE, FALSE, 4);
+
+  GtkWidget *entry = gtk_entry_new();
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), defaultWidth);
+
+  gtk_table_attach(table, gtk_label_new("File name or URL: "), 0, 1, 0, 1, GTK_FILL, GTK_SHRINK, xpad, ypad); 
+  gtk_table_attach(table, entry, 1, 2, 0, 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, xpad, ypad); 
+
+  GtkWidget *fileChooser = gtk_file_chooser_button_new(title, GTK_FILE_CHOOSER_ACTION_OPEN);
+  gtk_file_chooser_button_set_width_chars(GTK_FILE_CHOOSER_BUTTON(fileChooser), defaultWidth);
+
+  gtk_table_attach(table, gtk_label_new("Browse: "), 0, 1, 1, 2, GTK_FILL, GTK_SHRINK, xpad, ypad); 
+  gtk_table_attach(table, fileChooser, 1, 2, 1, 2, GTK_FILL | GTK_EXPAND, GTK_SHRINK, xpad, ypad); 
   
   if (defaultPath)
-    {
-      gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), defaultPath);
-    }
-  
+    gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (fileChooser), defaultPath); 
+
+  /* Set callbacks so that the filechooser gets updated when the
+   * entry is changed and vice versa */
+  g_signal_connect(G_OBJECT(entry), "changed", G_CALLBACK(onFilenameEntered), fileChooser);
+  g_signal_connect(G_OBJECT(fileChooser), "file-set", G_CALLBACK(onFileChooserFileSet), entry);
+
+  gtk_widget_show_all(dialog);
+
   if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
     {
-      filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+      /* filechooser and entry should have the same value, so just
+       * look in the entry */
+      filename = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry)));
     }
   
   gtk_widget_destroy (dialog);
@@ -4689,6 +4744,23 @@ void drawHScale(GtkWidget *widget,
 }
 
 
+/* Get the temp directory. Some systems seem to have a trailing slash, 
+ * some not, so if it has one then remove it... */
+const char *getSystemTempDir()
+{
+  static char *tmpDir = NULL;
+
+  if (!tmpDir)
+    {
+      tmpDir = g_strdup(g_get_tmp_dir());
+      
+      if (tmpDir[strlen(tmpDir) - 1] == '/')
+        tmpDir[strlen(tmpDir) - 1] = '\0';
+    }
+
+  return tmpDir;
+}
+
 
 /***********************************************************
  *                       Error handling                    * 
@@ -4708,4 +4780,5 @@ void errorHandler(const int sig)
 
   exit(EXIT_FAILURE);
 }
+
 

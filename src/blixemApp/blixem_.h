@@ -155,6 +155,10 @@ typedef enum
 #define FULLNAMESIZE               255
 
 
+#define MKSTEMP_CONST_CHARS_GFF               "BLIXEM_gff"        /* the prefix to use when creating a temp file name */
+#define MKSTEMP_REPLACEMENT_CHARS             "XXXXXX"            /* the required string that will be replaced by unique chars when creating a temp file name */
+
+
 
 /* Function pointer to a function that performs a fetch of a particular sequence */
 typedef void(*FetchFunc)(const char *seqName, gpointer fetchMethod, const gboolean bulk, GtkWidget *blxWindow);
@@ -453,6 +457,7 @@ typedef struct _BlxViewContext
 
     char* dataset;                          /* the name of a dataset, e.g. 'human' */
     gboolean loadOptionalData;              /* parse the full EMBL files on startup to populate additional info like tissue-type */
+    gboolean saveTempFiles;                 /* whether to save temporary files created to store results of file conversions */
 
     MSP *mspList;                           /* List of all MSPs. Obsolete - use featureLists array instead */
     GArray* featureLists[BLXMSP_NUM_TYPES]; /* Array indexed by the BlxMspType enum. Each array entry contains a zero-terminated array of all the MSPs of that type. */
@@ -533,6 +538,8 @@ void                               drawAssemblyGaps(GtkWidget *widget,
                                                     const IntRange const *dnaRange,
                                                     const GArray *mspArray);
 
+GSList*                            blxReadStylesFile(const char *keyFileName_in, GError **error);
+
 /* dotter.c */
 //void                               selectFeatures(void);
 
@@ -541,9 +548,13 @@ gboolean                           mspHasFs(const MSP *msp);
 char*                              readFastaSeq(FILE *seqfile, char *qname, int *startCoord, int *endCoord, const BlxSeqType seqType);
 
 /* blxFetch.c */
+BlxFetchMethod*                    getFetchMethodDetails(GQuark fetchMethodQuark, GHashTable *fetchMethods);
 GString*                           getFetchCommand(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq, const MSP* const msp, const char *refSeqName, const int refSeqOffset, const IntRange* const refSeqRange, const char *dataset, GError **error);
+GString*                           doGetFetchCommand(const BlxFetchMethod* const fetchMethod,const char *name,const char *refSeqName,const int startCoord,const int endCoord,const char *dataset,const char *source,const char *filename,GError **error);
 void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result) ;
 void                               finaliseFetch(GList *seqList);
+void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GError **error);
+const char*                        outputTypeStr(const BlxFetchOutputType outputType);
 
 void                               fetchSeqsIndividually(GList *seqsToFetch, GtkWidget *blxWindow);
 gboolean                           populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, const BlxFetchMethod* const fetchMethod) ;
@@ -553,7 +564,7 @@ gboolean                           populateFullDataPfetch(GList *seqsToFetch, Bl
 void                               blxInitConfig(const char *config_file, CommandLineOptions *options, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 
-void                               loadGffFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs);
+void                               loadNativeFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GError **error);
 void                               appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
 
 /* Create/destroy sequences and MSPs */

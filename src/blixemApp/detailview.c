@@ -111,7 +111,6 @@ static BlxViewContext*        detailViewGetContext(GtkWidget *detailView);
 static GtkWidget*             detailViewGetBigPicture(GtkWidget *detailView);
 static GtkWidget*             detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*             detailViewGetFeedbackBox(GtkWidget *detailView);
-static int                    detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
 static int                    detailViewGetSnpConnectorHeight(GtkWidget *detailView);
 static void                   refreshDetailViewHeaders(GtkWidget *detailView);
 
@@ -3400,7 +3399,13 @@ int detailViewGetSelectedBaseIdx(GtkWidget *detailView)
   return properties ? properties->selectedBaseIdx : UNSET_INT;
 }
 
-static int detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView)
+gboolean detailViewGetSelectedBaseSet(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->selectedBaseSet : FALSE;
+}
+
+int detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties ? properties->selectedDnaBaseIdx : UNSET_INT;
@@ -3556,6 +3561,33 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView,
 
   updateFollowingBaseSelection(detailView, allowScroll, scrollMinimum);
 }
+
+
+int detailViewGetClickedBaseIdx(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties->clickedBaseIdx;
+}
+
+
+/* Set the selected base index to the given display index and base/frame number.
+ *  Performs any required refreshes. Scrolls the view to keep the selected base 
+ * in view if allowScroll is true. (Such scrolling is by the minimum
+ * number of bases necessary if scrollMinimum is true.) */
+void detailViewSetClickedBaseIdx(GtkWidget *detailView, 
+                                  const int clickedBaseIdx, 
+                                  const int frame, 
+                                  const int baseNum, 
+                                  const gboolean allowScroll,
+                                  const gboolean scrollMinimum)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
+  /* For protein matches, calculate the base index in terms of the DNA sequence and cache it */
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  properties->clickedBaseIdx = convertDisplayIdxToDnaIdx(clickedBaseIdx, bc->seqType, frame, baseNum, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+}
+
 
 static GtkWidget *detailViewGetBigPicture(GtkWidget *detailView)
 {
@@ -3963,7 +3995,17 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
       
     case 3:
     {
-      /* Right button: show context menu. */
+      /* Right button: store the clicked coord (required for copying ref seq),
+       * and then show the context menu. */
+      int baseIdx = getBaseIndexAtDetailViewCoords(detailView, event->x, event->y);
+      if (baseIdx != UNSET_INT)
+        {
+          const int baseNum = 1;
+          const int frame = detailViewGetActiveFrame(detailView);
+          detailViewSetClickedBaseIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE);
+        }
+      
+
       GtkWidget *mainmenu = blxWindowGetMainMenu(detailViewGetBlxWindow(detailView));
       gtk_menu_popup (GTK_MENU(mainmenu), NULL, NULL, NULL, NULL, event->button, event->time);
       handled = TRUE;
