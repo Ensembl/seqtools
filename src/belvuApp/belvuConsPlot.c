@@ -321,14 +321,19 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
 static void showSettingsDialog(GtkWidget *consPlot)
 {
   ConsPlotProperties *properties = consPlotGetProperties(consPlot);
+  BelvuContext *bc = properties->bc;
   
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Plot Settings", 
+  char *title = g_strdup_printf("%sPlot Settings", belvuGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(consPlot), 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
-  
+
+  g_free(title);
+
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   
   const int numRows = 3;
@@ -591,7 +596,9 @@ void createConsPlot(BelvuContext *bc)
   /* Create the window */
   bc->consPlot = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   
-  gtk_window_set_title(GTK_WINDOW(bc->consPlot), "Belvu - Conservation Profile");
+  char *title = g_strdup_printf("%sConservation Profile", belvuGetTitlePrefix(bc));
+  gtk_window_set_title(GTK_WINDOW(bc->consPlot), title);
+  g_free(title);
   
   /* We must add all toplevel windows to the list of spawned windows */
   bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, bc->consPlot);

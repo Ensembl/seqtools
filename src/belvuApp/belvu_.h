@@ -48,6 +48,8 @@
 
 /*            blixem program version and information.                        */
 #define BELVU_TITLE   "Belvu"
+#define BELVU_PREFIX  "Belvu - " /* window title prefix */
+#define BELVU_PREFIX_ABBREV  "Bv: " /* abbreviated window title prefix */
 #define BELVU_DESC    "Multiple alignment visualisation tool."
 
 /* The Seqtools package version should be specified in src/version.m4. autoconf will then set PACKAGE_VERSION in config.h */
@@ -443,6 +445,7 @@ typedef struct BelvuContextStruct
   gboolean useWWWFetch;            /* Whether to fetch sequences via a web URL rather than a local program */
   gboolean initTree;               /* Start up showing the tree */
   gboolean onlyTree;               /* Start up showing only the tree */
+  gboolean abbrevTitle;            /* Abbreviate window title prefixes */
 
   GtkWidget *dialogList[BELDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
   
@@ -450,6 +453,14 @@ typedef struct BelvuContextStruct
 
 
 /* Functions */
+char*                                     belvuGetAppName(void);
+const char*                               belvuGetTitlePrefix(BelvuContext *bc);
+char*                                     belvuGetCopyrightString(void);
+char*                                     belvuGetWebSiteString(void);
+char*                                     belvuGetCommentsString(void);
+char*                                     belvuGetLicenseString(void);
+char*                                     belvuGetVersionString(void);       
+
 BelvuContext*                             createBelvuContext();
 void                                      destroyBelvuContext(BelvuContext **bc);
 

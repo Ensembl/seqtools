@@ -114,6 +114,8 @@
   -h, --help  Show more detailed usage information\n\
   --compiled  Show package compile date\n\
   --version   Show package version number\n\
+  --abbrev-title-on   Abbreviate window title prefixes\n\
+  --abbrev-title-off  Do not abbreviate window title prefixes\n\
 \n\
 "
 
@@ -554,7 +556,7 @@ int main(int argc, char **argv)
    *   
    */
   BlxMessageData msgData;
-  msgData.titlePrefix = g_strdup("Belvu - ");
+  msgData.titlePrefix = g_strdup(BELVU_PREFIX);
   msgData.parent = NULL;
   msgData.statusBar = NULL;
 
@@ -582,10 +584,13 @@ int main(int argc, char **argv)
   static gboolean showHelp = FALSE;
   static gboolean showCompiled = FALSE;
   static gboolean showVersion = FALSE;
+  static gboolean abbrevTitle = FALSE;
   
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
     {
+      {"abbrev-title-off",	no_argument,        &abbrevTitle, 0},
+      {"abbrev-title-on",	no_argument,        &abbrevTitle, 1},
       {"compiled",		no_argument,        &showCompiled, 1},
       {"version",	        no_argument,        &showVersion, 1},
 
@@ -719,7 +724,6 @@ int main(int argc, char **argv)
       exit (EXIT_FAILURE);
     }
   
-  
   if (showHelp)
     { 
       showHelpText();
@@ -748,6 +752,9 @@ int main(int argc, char **argv)
       bc->dirName = g_path_get_dirname(argv[optind]);
     }
   
+  bc->abbrevTitle = abbrevTitle;
+  msgData.titlePrefix = abbrevTitle ? g_strdup(BELVU_PREFIX_ABBREV) : g_strdup(BELVU_PREFIX);
+    
   if (bc->treeReadDistancesOn) 
     {
       /* Should this really be either or?  Problem: cannot read organism info when reading tree */
