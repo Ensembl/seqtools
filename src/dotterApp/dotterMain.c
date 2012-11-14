@@ -125,6 +125,12 @@
   -s <int>, --vertical-offset=<int>\n\
     Vertical_sequence offset\n\
 \n\
+  --abbrev-title-on\n\
+    Abbreviate window title prefixes\n\
+\n\
+  --abbrev-title-off\n\
+    Do not abbreviate window title prefixes\n\
+\n\
   --compiled\n\
     Show package compile date\n\
 \n\
@@ -191,8 +197,9 @@ static void setDefaultOptions(DotterOptions *options)
   options->hozScaleRev = FALSE;
   options->vertScaleRev = FALSE;
   options->negateCoords = FALSE;
+  options->abbrevTitle = TRUE;
   
-  options->msgData.titlePrefix = g_strdup("Dotter - ");
+  options->msgData.titlePrefix = g_strdup(DOTTER_PREFIX);
   options->msgData.parent = NULL;
   options->msgData.statusBar = NULL;
 }
@@ -319,13 +326,14 @@ static char* getXOptions(char **argv, const int argc, const int idx)
 
 static void validateOptions(DotterOptions *options)
 {
+  options->msgData.titlePrefix = options->abbrevTitle ? g_strdup(DOTTER_PREFIX_ABBREV) : g_strdup(DOTTER_PREFIX);
 }
 
 
 int main(int argc, char **argv)
 {
   DEBUG_OUT("dotter main\n");
-  DotterOptions options;
+  static DotterOptions options;
   setDefaultOptions(&options);
   
   char   
@@ -368,6 +376,8 @@ int main(int argc, char **argv)
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
     {
+      {"abbrev-title-off",	no_argument,        &options.abbrevTitle, 0},
+      {"abbrev-title-on",	no_argument,        &options.abbrevTitle, 1},
       {"version",		no_argument,        &showVersion, 1},
       {"compiled",		no_argument,        &showCompiled, 1},
       {"reverse-h-display",	no_argument,        &hozScaleRev, 1},

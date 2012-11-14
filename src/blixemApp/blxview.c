@@ -562,10 +562,13 @@ static void blviewCreate(char *align_types,
       if (!align_types)
         align_types = g_strdup_printf("%s", options->seqType == BLXSEQ_PEPTIDE ? "peptide alignment" : "nucleotide alignment");
       
-      char *title = g_strdup_printf("Blixem (%s):   %s %s",
-                              align_types,
-                              (options->dataset ? options->dataset : ""),
-                              options->refSeqName);
+      BlxViewContext *bc = blxWindowGetContext(blixemWindow);
+      
+      char *title = g_strdup_printf("%s(%s) %s %s",
+                                    blxGetTitlePrefix(bc),
+                                    align_types,
+                                    (options->dataset ? options->dataset : ""),
+                                    options->refSeqName);
       
       gtk_window_set_title(GTK_WINDOW(blixemWindow), title);
       g_free(title);
@@ -1544,6 +1547,55 @@ GSList* blxReadStylesFile(const char *keyFileName_in, GError **error)
   
   return result;
 }
+
+
+/***********************************************************
+ *                        Utilities
+ ***********************************************************/
+
+/* Returns a string which is the name of the Blixem application. */
+char *blxGetAppName()
+{
+  return BLIXEM_TITLE ;
+}
+
+/* Returns a string which is used to prefix window titles (full or abbrev
+ * depending on settings). */
+const char *blxGetTitlePrefix(const BlxViewContext * const bc)
+{
+  return bc->flags[BLXFLAG_ABBREV_TITLE] ? BLIXEM_PREFIX_ABBREV : BLIXEM_PREFIX ;
+}
+
+/* Returns a copyright string for the Blixem application. */
+char *blxGetCopyrightString()
+{
+  return BLIXEM_COPYRIGHT_STRING ;
+}
+
+/* Returns the Blixem website URL. */
+char *blxGetWebSiteString()
+{
+  return BLIXEM_WEBSITE_STRING ;
+}
+
+/* Returns a comments string for the Blixem application. */
+char *blxGetCommentsString()
+{
+  return BLIXEM_COMMENTS_STRING() ;
+}
+
+/* Returns a license string for the blx application. */
+char *blxGetLicenseString()
+{
+  return BLIXEM_LICENSE_STRING ;
+}
+
+/* Returns a string representing the Version/Release/Update of the Blixem code. */
+char *blxGetVersionString()
+{
+  return BLIXEM_VERSION_STRING ;
+}
+
 
 
 /***************** end of file ***********************/

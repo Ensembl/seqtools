@@ -598,8 +598,10 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
                                         int *end_out)
 {
   BlxViewContext *bc = blxWindowGetContext(window);
+  
+  char *title = g_strdup_printf("%sLoad Non-Native File", blxGetTitlePrefix(bc));
 
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Load Non-Native File", 
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(window),
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_CANCEL,
@@ -607,6 +609,8 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
                                                   GTK_STOCK_OK,
                                                   GTK_RESPONSE_ACCEPT,
                                                   NULL);
+
+  g_free(title);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
@@ -1065,12 +1069,16 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Blixem - View panes", 
+      char *title = g_strdup_printf("%sView panes", blxGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title, 
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_OK,
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
+
+      g_free(title);
 
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
@@ -1620,7 +1628,9 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Blixem - Find sequences", 
+      char *title = g_strdup_printf("%sFind sequences", blxGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title, 
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_GO_BACK,
@@ -1632,7 +1642,9 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            GTK_STOCK_OK,
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
-  
+
+      g_free(title);
+      
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
@@ -1672,19 +1684,22 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 /* Show the 'Info' dialog, which displays info about the currently-selected sequence(s) */
 void showInfoDialog(GtkWidget *blxWindow)
 {
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  char *title = g_strdup_printf("%sSequence info", blxGetTitlePrefix(bc));
+
   GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Sequence info", 
                                                   NULL, 
                                                   GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_CLOSE,
                                                   GTK_RESPONSE_REJECT,
                                                   NULL);
+
+  g_free(title);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_REJECT);
 
   int width = blxWindow->allocation.width * 0.7;
   int height = blxWindow->allocation.height * 0.9;
-  
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Compile the message text from the selected sequence(s) */
   GString *resultStr = g_string_new("");
@@ -2469,8 +2484,11 @@ static void onButtonClickedDeleteAllGroups(GtkWidget *button, gpointer data)
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
   /* Ask the user if they're sure */
-  gint response = runConfirmationBox(blxWindow, "Blixem - Delete groups", "This will delete ALL groups. Are you sure?");
-  
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  char *title = g_strdup_printf("%sDelete groups", blxGetTitlePrefix(bc));
+  gint response = runConfirmationBox(blxWindow, title, "This will delete ALL groups. Are you sure?");
+  g_free(title);
+
   if (response == GTK_RESPONSE_ACCEPT)
     {
       blxWindowDeleteAllSequenceGroups(blxWindow);
@@ -2494,7 +2512,10 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
   char messageText[strlen(formatStr) + strlen(group->groupName)];
   sprintf(messageText, formatStr, group->groupName);
   
-  gint response = runConfirmationBox(blxWindow, "Blixem - Delete group", messageText);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  char *title = g_strdup_printf("%sDelete group", blxGetTitlePrefix(bc));
+  gint response = runConfirmationBox(blxWindow, title, messageText);
+  g_free(title);
   
   if (response == GTK_RESPONSE_ACCEPT)
     {
@@ -2706,7 +2727,9 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Blixem - Groups", 
+      char *title = g_strdup_printf("%sGroups", blxGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title,
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_CANCEL,
@@ -2717,6 +2740,8 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
 
+      g_free(title);
+      
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
@@ -3543,8 +3568,14 @@ static void onResponseFontSelectionDialog(GtkDialog *dialog, gint responseId, gp
 
       if (!ok)
         {
+          BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
           char *msg = g_strdup_printf("Selected font '%s' is not a fixed-width font. Matches may not appear correctly aligned. Are you sure you want to continue?", fontName);
+          char *title = g_strdup_printf("%sWarning", blxGetTitlePrefix(bc));
+
           gint response = runConfirmationBox(GTK_WIDGET(dialog), "Blixem - Warning", msg);
+
+          g_free(title);
           g_free(msg);
 
           ok = (response == GTK_RESPONSE_ACCEPT);
@@ -3635,7 +3666,9 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       /* note: reset-to-defaults option commented out because it is incomplete:
        * for now, the help page tells the user to delete the ~/.blixemrc file
        * to reset to defaults */
-      dialog = gtk_dialog_new_with_buttons("Blixem - Settings", 
+      char *title = g_strdup_printf("%sSettings", blxGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title,
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
 //                                           "Reset to defaults",
@@ -3648,6 +3681,8 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
 
+      g_free(title);
+      
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
@@ -3949,7 +3984,9 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Blixem - Sort", 
+      char *title = g_strdup_printf("%sSort", blxGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title,
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_CANCEL,
@@ -3959,6 +3996,8 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            GTK_STOCK_OK,
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
+
+      g_free(title);
       
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
@@ -4094,12 +4133,17 @@ static void getStats(GtkWidget *blxWindow, GString *result, MSP *MSPlist)
 static void showStatsDialog(GtkWidget *blxWindow, MSP *MSPlist)
 {
   /* Create a dialog widget with an OK button */
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Statistics", 
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  char *title = g_strdup_printf("%sStatistics", blxGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(blxWindow),
                                                   GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_OK,
                                                   GTK_RESPONSE_ACCEPT,
                                                   NULL);
+
+  g_free(title);
   
   /* Ensure that the dialog box (along with any children) is destroyed when the user responds. */
   g_signal_connect (dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
@@ -4126,43 +4170,6 @@ static void showStatsDialog(GtkWidget *blxWindow, MSP *MSPlist)
 /***********************************************************
  *                      About dialog                       *
  ***********************************************************/
-
-/* Returns a string which is the name of the Blixem application. */
-static char *blxGetAppName(void)
-{
-  return BLIXEM_TITLE ;
-}
-
-/* Returns a copyright string for the Blixem application. */
-static char *blxGetCopyrightString(void)
-{
-  return BLIXEM_COPYRIGHT_STRING ;
-}
-
-/* Returns the Blixem website URL. */
-static char *blxGetWebSiteString(void)
-{
-  return BLIXEM_WEBSITE_STRING ;
-}
-
-/* Returns a comments string for the Blixem application. */
-static char *blxGetCommentsString(void)
-{
-  return BLIXEM_COMMENTS_STRING() ;
-}
-
-/* Returns a license string for the blx application. */
-static char *blxGetLicenseString(void)
-{
-  return BLIXEM_LICENSE_STRING ;
-}
-
-/* Returns a string representing the Version/Release/Update of the Blixem code. */
-static char *blxGetVersionString(void)
-{
-  return BLIXEM_VERSION_STRING ;
-}
-
 
 /* A GtkAboutDialogActivateLinkFunc() called when user clicks on website link in "About" window. */
 static void aboutDialogOpenLinkCB(GtkAboutDialog *about, const gchar *link, gpointer data)
@@ -5239,6 +5246,7 @@ static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *opti
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
   blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
   blxContext->flags[BLXFLAG_LINK_FEATURES] = options->linkFeaturesByName;
+  blxContext->flags[BLXFLAG_ABBREV_TITLE] = options->abbrevTitle;
 }
 
 

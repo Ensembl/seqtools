@@ -554,9 +554,9 @@ static GtkWidget* createTextEntry(GtkTable *table,
 static char* getDotterTitle(const BlxViewContext *bc)
 {
   char *result = NULL;
-  
-  GString *resultStr = g_string_new("Blixem - Dotter sequence: ");
-  
+  GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
+  g_string_append(resultStr, "Dotter sequence: ");
+
   const int numSeqs = g_list_length(bc->selectedSeqs);
   
   if (numSeqs == 1)
@@ -1133,6 +1133,11 @@ static void callDotterChildProcess(const char *dotterBinary,
   argList = g_slist_append(argList, seq1OffsetStr);
   argList = g_slist_append(argList, g_strdup("-s"));
   argList = g_slist_append(argList, seq2OffsetStr);
+
+  if (bc->flags[BLXFLAG_ABBREV_TITLE])
+    argList = g_slist_append(argList, "--abbrev-title-on");
+  else
+    argList = g_slist_append(argList, "--abbrev-title-off");
   
   if (seq1Strand == BLXSTRAND_REVERSE)      argList = g_slist_append(argList, g_strdup("-r"));
   if (seq2Strand == BLXSTRAND_REVERSE)	    argList = g_slist_append(argList, g_strdup("-v"));
@@ -1365,7 +1370,10 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
       prefixError(rangeError, "Warning: ");
       postfixError(rangeError, "\nContinue?");
 
-      ok = (runConfirmationBox(blxWindow, "Blixem - Warning", rangeError->message) == GTK_RESPONSE_ACCEPT);
+      char *title = g_strdup_printf("%sWarning", blxGetTitlePrefix(bc));
+      ok = (runConfirmationBox(blxWindow, title, rangeError->message) == GTK_RESPONSE_ACCEPT);
+      
+      g_free(title);
       g_error_free(rangeError);
       rangeError = NULL;
       

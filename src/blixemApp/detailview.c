@@ -4346,15 +4346,20 @@ void toggleStrand(GtkWidget *detailView)
 void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 {
   static gchar defaultInput[32] = "";
+  BlxViewContext *bc = detailViewGetContext(detailView);
   
   /* Pop up a dialog to request a coord from the user */
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Go to position: ", 
+  char *title = g_strdup_printf("%sGo to position", blxGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title,
                                                   NULL, 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_NO_SEPARATOR,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
 
+  g_free(title);
+  
   GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
 
   GtkWidget *entry = gtk_entry_new();
@@ -4382,7 +4387,6 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
           
           /* If display coords are negated, assume the user has entered a 
            * negative coord too, and un-negate it. */
-          BlxViewContext *bc = detailViewGetContext(detailView);
           const gboolean negate = bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS];
           
           if (negate)
