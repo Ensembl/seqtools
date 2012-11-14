@@ -197,7 +197,7 @@ static void setDefaultOptions(DotterOptions *options)
   options->hozScaleRev = FALSE;
   options->vertScaleRev = FALSE;
   options->negateCoords = FALSE;
-  options->abbrevTitle = TRUE;
+  options->abbrevTitle = FALSE;
   
   options->msgData.titlePrefix = g_strdup(DOTTER_PREFIX);
   options->msgData.parent = NULL;

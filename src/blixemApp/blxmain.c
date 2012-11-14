@@ -289,7 +289,7 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->parseFullEmblInfo = FALSE;
   options->saveTempFiles = FALSE;
   options->coverageOn = FALSE;
-  options->abbrevTitle = TRUE;
+  options->abbrevTitle = FALSE;
   
   options->blastMode = BLXMODE_UNSET;
   options->seqType = BLXSEQ_INVALID;
