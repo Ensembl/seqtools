@@ -349,7 +349,7 @@ static void drawCoverageView(GtkWidget *coverageView, GdkDrawable *drawable)
   const int maxDepth = coverageViewGetMaxLabeledDepth(properties);
   
   drawHorizontalGridLines(coverageView, bigPicture, &properties->viewRect, bc, bpProperties, drawable,
-			  (int)(properties->numVCells), properties->rangePerCell, (gdouble)maxDepth, "");
+			  (int)(properties->numVCells), properties->rangePerCell, (gdouble)maxDepth, TRUE, "");
   
   drawCoveragePlot(coverageView, drawable);
 }
