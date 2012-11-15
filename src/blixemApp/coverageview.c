@@ -149,18 +149,21 @@ void updateCoverageDepth(GtkWidget *coverageView, BlxViewContext *bc)
       roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(100000000));
       roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(250000000));
       roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(500000000));
+
+      /* First time round, calculate the range per cell, aiming for 
+       * around 5 cells. (If we enter this function again, it's because the
+       * user has manually entered the range per cell so we just need to calculate
+       * the relevant number of cells) */
+      properties->numVCells = 5;
+      properties->rangePerCell = ceil((gdouble)bc->maxDepth / (gdouble)properties->numVCells);
+
+      /* Round the result and recalculate the number of cells */
+      properties->rangePerCell = roundUpToValueFromList(properties->rangePerCell, roundValues, NULL);
+      
+      if (properties->rangePerCell < 1)
+        properties->rangePerCell = 1;
     }
   
-  /* Calculate the range per cell, aiming for around 5 cells */
-  properties->numVCells = 5;
-  properties->rangePerCell = ceil((gdouble)bc->maxDepth / (gdouble)properties->numVCells);
-
-  /* Round the result and recalculate the number of cells */
-  properties->rangePerCell = roundUpToValueFromList(properties->rangePerCell, roundValues, NULL);
-
-  if (properties->rangePerCell < 1)
-    properties->rangePerCell = 1;
-
   properties->numVCells = (gdouble)bc->maxDepth / properties->rangePerCell;
   
   coverageViewRecalculate(coverageView);
