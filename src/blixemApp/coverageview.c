@@ -116,27 +116,51 @@ static void coverageViewCreateProperties(GtkWidget *widget,
 void updateCoverageDepth(GtkWidget *coverageView, BlxViewContext *bc)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+
+  /* Set up a list of 'nice' values to round to for displaying labels */
+  static GSList *roundValues = NULL;
   
-  /* Find a suitable value to round to based on the max depth */
-  if (bc->maxDepth <= 5)
-    properties->rangePerCell = 2;
-  else if (bc->maxDepth <= 10)
-    properties->rangePerCell = 5;
-  else if (bc->maxDepth <= 40)
-    properties->rangePerCell = 10;
-  else if (bc->maxDepth <= 80)
-    properties->rangePerCell = 20;
-  else if (bc->maxDepth <= 200)
-    properties->rangePerCell = 50;
-  else if (bc->maxDepth <= 400)
-    properties->rangePerCell = 100;
-  else if (bc->maxDepth <= 800)
-    properties->rangePerCell = 200;
-  else if (bc->maxDepth <= 2000)
-    properties->rangePerCell = 500;
-  else
-    properties->rangePerCell = 1000;
+  if (!roundValues)
+    {
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(1));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(2));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(5));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(10));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(25));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(50));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(100));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(200));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(500));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(1000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(2500));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(5000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(10000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(25000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(50000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(100000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(250000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(500000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(1000000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(2500000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(5000000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(10000000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(25000000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(50000000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(100000000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(250000000));
+      roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(500000000));
+    }
   
+  /* Calculate the range per cell, aiming for around 5 cells */
+  properties->numVCells = 5;
+  properties->rangePerCell = ceil((gdouble)bc->maxDepth / (gdouble)properties->numVCells);
+
+  /* Round the result and recalculate the number of cells */
+  properties->rangePerCell = roundUpToValueFromList(properties->rangePerCell, roundValues, NULL);
+
+  if (properties->rangePerCell < 1)
+    properties->rangePerCell = 1;
+
   properties->numVCells = (gdouble)bc->maxDepth / properties->rangePerCell;
   
   coverageViewRecalculate(coverageView);
@@ -349,10 +373,6 @@ void calculateCoverageViewBorders(GtkWidget *coverageView)
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
   GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
-  
-  /* Get some info about the size of the layout */
-  guint layoutWidth, layoutHeight;
-  gtk_layout_get_size(GTK_LAYOUT(coverageView), &layoutWidth, &layoutHeight);
   
   /* Calculate the height based on the number of cells */
   const int height = ceil(properties->numVCells * (double)bigPictureGetCellHeight(bigPicture));
