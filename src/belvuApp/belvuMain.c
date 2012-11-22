@@ -320,29 +320,37 @@
 
 
 /* Prints usage info to stderr */
-static void showUsageText()
+static void showUsageText(const int exitCode)
 {
   /* Pring usage info followed by authors */
-  g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
+  /* Send to stderr if shown due to error, otherwise to stdout */
+  if (exitCode == EXIT_FAILURE)
+    g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
+  else
+    g_message("%s%s", USAGE_TEXT, FOOTER_TEXT);
 }
 
 /* Prints more detailed usage/help info to stderr */
-static void showHelpText()
+static void showHelpText(const int exitCode)
 {
   /* Pring usage info followed by authors */
-  g_message_info("%s%s", HELP_TEXT, FOOTER_TEXT);
+  /* Send to stderr if shown due to error, otherwise to stdout */
+  if (exitCode == EXIT_FAILURE)
+    g_message_info("%s%s", HELP_TEXT, FOOTER_TEXT);
+  else
+    g_message("%s%s", HELP_TEXT, FOOTER_TEXT);
 }
 
 /* Prints version info to stderr */
 static void showVersionInfo()
 {
-  g_message_info(VERSION_TEXT);  
+  g_message(VERSION_TEXT);  
 }
 
 /* Prints compiled date (must go to stdout for our build scripts to work) */
 static void showCompiledInfo()
 {
-  g_message_info("%s\n", UT_MAKE_COMPILE_DATE());  
+  g_message("%s\n", UT_MAKE_COMPILE_DATE());  
 }
 
 
@@ -715,25 +723,25 @@ int main(int argc, char **argv)
   if (showVersion)
     {
       showVersionInfo();
-      exit (EXIT_FAILURE);
+      exit (EXIT_SUCCESS);
     }
 
   if (showCompiled)
     {
       showCompiledInfo();
-      exit (EXIT_FAILURE);
+      exit (EXIT_SUCCESS);
     }
   
   if (showHelp)
     { 
-      showHelpText();
-      exit(1);
+      showHelpText(EXIT_SUCCESS);
+      exit(EXIT_SUCCESS);
     }
   
   if (argc-optind < 1) 
     { 
-      showUsageText();
-      exit(1);
+      showUsageText(EXIT_FAILURE);
+      exit(EXIT_FAILURE);
     }
   
   if (!strcmp(argv[optind], "-")) 
