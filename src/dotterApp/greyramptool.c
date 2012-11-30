@@ -852,8 +852,11 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc, const int whitePointIn, 
 
   /* Create the window */
   GtkWidget *greyrampTool = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(greyrampTool), "Dotter - Greyramp Tool");
-  
+
+  char *title = g_strdup_printf("%sGreyramp Tool", dotterGetTitlePrefix(dwc->dotterCtx));
+  gtk_window_set_title(GTK_WINDOW(greyrampTool), title);
+  g_free(title);
+
   /* Outer container is an hbox */
   GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
   gtk_container_add(GTK_CONTAINER(greyrampTool), GTK_WIDGET(hbox));

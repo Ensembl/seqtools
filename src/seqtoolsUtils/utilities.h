@@ -372,6 +372,8 @@ char                  getStrandAsChar(const BlxStrand strand);
 
 int                   roundNearest(const double val);
 int                   roundToValue(const int inputVal, const int roundTo);
+int                   roundToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo);
+int                   roundUpToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo);
 
 char                  getSequenceIndex(char *seq, 
                                        const int qIdx, 

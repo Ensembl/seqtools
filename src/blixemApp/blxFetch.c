@@ -814,7 +814,7 @@ static void commandFetchSequence(const BlxSequence *blxSeq,
     {
       if (displayResults && !error)
         {
-          char *title = g_strdup_printf("%s - %s", g_get_prgname(), command->str);
+          char *title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), command->str);
           displayFetchResults(title, resultText->str, blxWindow, dialog, text_buffer);
           g_free(title);
         }
@@ -863,7 +863,8 @@ static void internalFetchSequence(const BlxSequence *blxSeq,
 
       if (displayResults)
         {
-          char *title = g_strdup_printf("%s - %s", g_get_prgname(), seqName);
+          BlxViewContext *bc = blxWindowGetContext(blxWindow);
+          char *title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), seqName);
           displayFetchResults(title, result, blxWindow, dialog, text_buffer);
           g_free(title);
         }
@@ -920,7 +921,7 @@ static void socketFetchSequence(const BlxSequence *blxSeq,
     {
       if (displayResults)
         {
-          char *title = g_strdup_printf("Blixem - %s", command->str);
+          char *title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), command->str);
           displayFetchResults(title, resultText->str, blxWindow, dialog, text_buffer);
           g_free(title);
         }
@@ -1131,7 +1132,7 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
     }
   else
     {
-      pfetch_data->title = g_strdup_printf("%s - %s", g_get_prgname(), command->str);
+      pfetch_data->title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), command->str);
       
       if (pfetch_data->title)
         {

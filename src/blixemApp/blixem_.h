@@ -47,6 +47,8 @@
 
 /*            blixem program version and information.                        */
 #define BLIXEM_TITLE   "Blixem"
+#define BLIXEM_PREFIX  BLIXEM_TITLE" - "  /* The prefix to use for window titles etc. */
+#define BLIXEM_PREFIX_ABBREV  "B: "       /* An abbreviated version of the prefix to save space e.g. good for displaying in the taskbar */
 #define BLIXEM_DESC    "Multiple alignment visualisation tool."
 
 /* The Seqtools package version should be specified in src/version.m4. autoconf will then set PACKAGE_VERSION in config.h */
@@ -282,6 +284,7 @@ typedef enum
     BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
     BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
     BLXFLAG_LINK_FEATURES,          /* whether featuers with the same name should be linked */
+    BLXFLAG_ABBREV_TITLE,           /* whether to abbreviate the window titles to save space */
     
     BLXFLAG_NUM_FLAGS               /* Total number of flags e.g. for creating arrays and loops etc */
   } BlxFlag;
@@ -419,6 +422,7 @@ typedef struct _CommandLineOptions
   gboolean saveTempFiles;         /* save any temporary files that blixem creates */
   gboolean coverageOn;            /* show the coverage view on start-up */
   gboolean linkFeaturesByName;    /* default for whether features with the same name are considered part of the same parent */
+  gboolean abbrevTitle;           /* if true, use a abbreviated window titles to save space */
 
   BlxBlastMode blastMode;         /* the blast match mode */
   BlxSeqType seqType;             /* whether the display shows sequences as peptides or nucleotides */
@@ -539,6 +543,14 @@ void                               drawAssemblyGaps(GtkWidget *widget,
                                                     const GArray *mspArray);
 
 GSList*                            blxReadStylesFile(const char *keyFileName_in, GError **error);
+
+char*                              blxGetAppName();
+const char*                        blxGetTitlePrefix(const BlxViewContext* const bc);
+char*                              blxGetCopyrightString();
+char*                              blxGetWebSiteString();
+char*                              blxGetCommentsString();
+char*                              blxGetLicenseString();
+char*                              blxGetVersionString();        
 
 /* dotter.c */
 //void                               selectFeatures(void);

@@ -2563,14 +2563,18 @@ void onResponseTreeSettingsDialog(GtkDialog *dialog, gint responseId, gpointer d
 /* Dialog to allow the user to edit the settings for a tree */
 void showTreeSettingsDialog(GtkWidget *window, BelvuContext *bc)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Tree Settings", 
+  char *title = g_strdup_printf("%sTree Settings", belvuGetTitlePrefix(bc));
+  
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title,
                                        GTK_WINDOW(window), 
                                        GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
                                        GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                        GTK_STOCK_APPLY, GTK_RESPONSE_APPLY,
                                        GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                        NULL);
-      
+
+  g_free(title);
+  
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseTreeSettingsDialog), bc);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   
@@ -2749,7 +2753,8 @@ GtkWidget* createBelvuTreeWindow(BelvuContext *bc, Tree *tree, const gboolean is
   const char *titlePrefix = (isMainTree ? TITLE_MAIN_TREE_PREFIX : TITLE_BOOTSTRAP_TREE_PREFIX);
   const char *titleDesc = (bc->treeMethod == NJ ? TITLE_NJ_TREE_DESCRIPTION : TITLE_UPGMA_TREE_DESCRIPTION);
   
-  char *title = g_strdup_printf("Belvu - %s%stree using %s distances of %s", 
+  char *title = g_strdup_printf("%s%s%stree using %s distances of %s", 
+                                belvuGetTitlePrefix(bc),
                                 titlePrefix, 
                                 titleDesc,
                                 bc->treeDistString,

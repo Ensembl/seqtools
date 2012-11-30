@@ -1440,6 +1440,81 @@ int roundToValue(const int inputVal, const int roundTo)
 }
 
 
+/* Function to round the given value to the nearest "nice" value, from the given
+ * list of values to round by. Returns the value it rounded to the nearest of. */
+int roundToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo)
+{
+  /* Decide what amount to round to the nearest number of, out of a list of possible
+   * "nice" values. Find the nearest value in this list to our result. The list 
+   * shouldn't be long, so this doesn't worry about efficiency */
+  GSList *listItem = roundValues;
+  int roundTo = UNSET_INT;
+  int smallestDiff = inputVal - roundTo;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      int val = GPOINTER_TO_INT(listItem->data);
+      int thisDiff = inputVal - val;
+      
+      if (roundTo == UNSET_INT || (val > 0 && abs(thisDiff) < smallestDiff))
+	{
+	  roundTo = val;
+	  smallestDiff = abs(thisDiff);
+	}
+    }
+  
+  /* Round the input to the nearest multiple of 'roundTo'. */
+  int result = roundNearest((double)inputVal / (double)roundTo) * roundTo;
+  
+  if (roundedTo)
+    {
+      *roundedTo = roundTo;
+    }
+  
+  return result;
+}
+
+
+/* Function to round the given value up to the next "nice" value, from the given
+ * list of values to round by. Returns the value it rounded to the nearest of. 
+ * Input list of values should be sorted in descending order. */
+int roundUpToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo)
+{
+  /* Decide what amount to round to the nearest number of, out of a list of possible
+   * "nice" values. Find the nearest value in this list to our result. The list 
+   * shouldn't be long, so this doesn't worry about efficiency */
+  GSList *listItem = roundValues;
+  int roundTo = UNSET_INT;
+  int smallestDiff = inputVal - roundTo;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      int val = GPOINTER_TO_INT(listItem->data);
+
+      if (val < inputVal)
+        break;
+      
+      int thisDiff = inputVal - val;
+      
+      if (roundTo == UNSET_INT || (val > 0 && abs(thisDiff) < smallestDiff))
+	{
+	  roundTo = val;
+	  smallestDiff = abs(thisDiff);
+	}
+    }
+  
+  /* Round the input to the nearest multiple of 'roundTo'. */
+  int result = max(1, roundNearest((double)inputVal / (double)roundTo)) * roundTo;
+  
+  if (roundedTo)
+    {
+      *roundedTo = roundTo;
+    }
+  
+  return result;
+}
+
+
 /* Converts the given integer to a string. The result must be free'd with g_free */
 char* convertIntToString(const int value)
 {

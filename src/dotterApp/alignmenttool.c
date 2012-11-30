@@ -599,8 +599,11 @@ static void onSetLengthMenu(GtkAction *action, gpointer data)
   if (alignmentTool)
     {
       GtkWidget *parent = gtk_widget_get_toplevel(alignmentTool);
+      AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
       
-      GtkWidget *dialog = gtk_dialog_new_with_buttons("Dotter - Set alignment length", 
+      char *title = g_strdup_printf("%sSet alignment length", dotterGetTitlePrefix(properties->dotterWinCtx->dotterCtx));
+      
+      GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                       GTK_WINDOW(parent), 
                                                       GTK_DIALOG_DESTROY_WITH_PARENT,
                                                       GTK_STOCK_CANCEL,
@@ -608,11 +611,12 @@ static void onSetLengthMenu(GtkAction *action, gpointer data)
                                                       GTK_STOCK_OK,
                                                       GTK_RESPONSE_ACCEPT,
                                                       NULL);
+
+      g_free(title);
       
       gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
       
       GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
-      AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
       
       GtkWidget *entry = gtk_entry_new();
       gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
@@ -883,8 +887,11 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
   DEBUG_ENTER("createAlignmentTool");
 
   GtkWidget *alignmentTool = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(alignmentTool), "Dotter - Alignment Tool");
 
+  char *title = g_strdup_printf("%sAlignment tool", dotterGetTitlePrefix(dotterWinCtx->dotterCtx));
+  gtk_window_set_title(GTK_WINDOW(alignmentTool), title);
+  g_free(title);
+  
   gtk_window_set_default_size(GTK_WINDOW(alignmentTool), 1160, -1);
   
   /* We'll put everything in a vbox, inside a scrolled window, inside a frame */  
@@ -900,7 +907,7 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
   alignmentToolCreateProperties(alignmentTool, dotterWinCtx);
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  
+
   /* Put the forward ref seq strand on top, unless the display is reversed */
   BlxStrand qStrand = dc->hozScaleRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
   GtkWidget *section1 = createAlignmentToolSection(qStrand, alignmentTool, properties);

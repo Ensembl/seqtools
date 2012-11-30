@@ -84,6 +84,12 @@ gboolean blixem_debug_G = FALSE ;
   -c <file>, --config-file=<file>\n\
     Read configuration options from 'file'.\n\
 \n\
+  --abbrev-title-on\n\
+    Abbreviate window title prefixes\n\
+\n\
+  --abbrev-title-off\n\
+    Do not abbreviate window title prefixes\n\
+\n\
   --compiled\n\
     Show package compile date.\n\
 \n\
@@ -283,6 +289,7 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->parseFullEmblInfo = FALSE;
   options->saveTempFiles = FALSE;
   options->coverageOn = FALSE;
+  options->abbrevTitle = FALSE;
   
   options->blastMode = BLXMODE_UNSET;
   options->seqType = BLXSEQ_INVALID;
@@ -295,9 +302,15 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->userFetchDefault = NULL;
   options->dataset = NULL;
 
-  options->msgData.titlePrefix = g_strdup("Blixem - ");
+  options->msgData.titlePrefix = g_strdup(BLIXEM_PREFIX);
   options->msgData.parent = NULL;
   options->msgData.statusBar = NULL;
+}
+
+
+static void validateOptions(CommandLineOptions *options)
+{
+  options->msgData.titlePrefix = options->abbrevTitle ? g_strdup(BLIXEM_PREFIX_ABBREV) : g_strdup(BLIXEM_PREFIX);
 }
 
 
@@ -466,6 +479,8 @@ int main(int argc, char **argv)
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
     {
+      {"abbrev-title-off",	no_argument,        &options.abbrevTitle, 0},
+      {"abbrev-title-on",	no_argument,        &options.abbrevTitle, 1},
       {"compiled",		no_argument,        &showCompiled, 1},
       {"dataset",	        required_argument,  NULL, 0},
       {"dotter-first-match",    no_argument,        &options.dotterFirst, 1},
@@ -626,6 +641,8 @@ int main(int argc, char **argv)
       showCompiledInfo();
       exit(EXIT_FAILURE);
     }
+
+  validateOptions(&options);
   
   /* We expect one or two input files */
   const int numFiles = argc - optind;

@@ -497,6 +497,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
   result->mspList = mspList;
   result->seqList = seqList;
   result->windowList = NULL;
+  result->abbrevTitle = options->abbrevTitle;
   
   result->watsonOnly = options->watsonOnly;
   result->crickOnly = options->crickOnly;
@@ -2559,7 +2560,9 @@ static void showSettingsDialog(GtkWidget *dotterWindow)
   if (!dialog)
     {
       /* Create the dialog */
-      dialog = gtk_dialog_new_with_buttons("Dotter - Settings", 
+      char *title = g_strdup_printf("%sSettings", dotterGetTitlePrefix(dwc->dotterCtx));
+
+      dialog = gtk_dialog_new_with_buttons(title,
                                            GTK_WINDOW(dotterWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_OK,
@@ -2567,6 +2570,8 @@ static void showSettingsDialog(GtkWidget *dotterWindow)
                                            GTK_STOCK_CANCEL,
                                            GTK_RESPONSE_REJECT,
                                            NULL);
+
+      g_free(title);
       
       /* These 2 calls are required to make the dialog persistent... */
       addPersistentDialog(dwc->dialogList, dialogId, dialog);
@@ -2766,43 +2771,6 @@ static void showDotterWindow(GtkWidget *dotterWindow)
 /***********************************************************
  *                       Help Dialog                       *
  ***********************************************************/
-
-/* Returns a string which is the name of the Dotter application. */
-static char *dotterGetAppName(void)
-{
-  return DOTTER_TITLE ;
-}
-
-/* Returns a copyright string for the Dotter application. */
-static char *dotterGetCopyrightString(void)
-{
-  return DOTTER_COPYRIGHT_STRING ;
-}
-
-/* Returns the Dotter website URL. */
-static char *dotterGetWebSiteString(void)
-{
-  return DOTTER_WEBSITE_STRING ;
-}
-
-/* Returns a comments string for the Dotter application. */
-static char *dotterGetCommentsString(void)
-{
-  return DOTTER_COMMENTS_STRING() ;
-}
-
-/* Returns a license string for the dotter application. */
-static char *dotterGetLicenseString(void)
-{
-  return DOTTER_LICENSE_STRING ;
-}
-
-/* Returns a string representing the Version/Release/Update of the Dotter code. */
-static char *dotterGetVersionString(void)
-{
-  return DOTTER_VERSION_STRING ;
-}
-
 
 /* A GtkAboutDialogActivateLinkFunc() called when user clicks on website link in "About" window. */
 static void aboutDialogOpenLinkCB(GtkAboutDialog *about, const gchar *link, gpointer data)
@@ -3504,7 +3472,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   GtkWidget *dotterWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_widget_set_name(dotterWindow, MAIN_WINDOW_NAME);
   
-  char *title = g_strdup_printf("Dotter %s vs. %s", dc->refSeqName, dc->matchSeqName);
+  char *title = g_strdup_printf("%s%s vs. %s", dotterGetTitlePrefix(dc), dc->refSeqName, dc->matchSeqName);
   gtk_window_set_title(GTK_WINDOW(dotterWindow), title);
   g_free(title);
   
@@ -3554,6 +3522,49 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
 /***********************************************************
  *                       Utilities                         *
  ***********************************************************/
+
+
+/* Returns a string which is the name of the Dotter application. */
+char *dotterGetAppName(void)
+{
+  return DOTTER_TITLE ;
+}
+
+/* Returns a string which is the prefix to window titles. */
+char *dotterGetTitlePrefix(DotterContext *dc)
+{
+  return dc->abbrevTitle ? DOTTER_PREFIX_ABBREV : DOTTER_PREFIX ;
+}
+
+/* Returns a copyright string for the Dotter application. */
+char *dotterGetCopyrightString(void)
+{
+  return DOTTER_COPYRIGHT_STRING ;
+}
+
+/* Returns the Dotter website URL. */
+char *dotterGetWebSiteString(void)
+{
+  return DOTTER_WEBSITE_STRING ;
+}
+
+/* Returns a comments string for the Dotter application. */
+char *dotterGetCommentsString(void)
+{
+  return DOTTER_COMMENTS_STRING() ;
+}
+
+/* Returns a license string for the dotter application. */
+char *dotterGetLicenseString(void)
+{
+  return DOTTER_LICENSE_STRING ;
+}
+
+/* Returns a string representing the Version/Release/Update of the Dotter code. */
+char *dotterGetVersionString(void)
+{
+  return DOTTER_VERSION_STRING ;
+}
 
 /* Utility to copy an integer value as a string to the default clipboard */
 void copyIntToDefaultClipboard(const int val)
