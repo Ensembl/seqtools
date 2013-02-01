@@ -270,21 +270,25 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const 
 
 
 /* Print the usage text to stderr */
-static void showUsageText()
+static void showUsageText(const int exitCode)
 {
-  g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
+  /* Send to stderr if shown due to error, otherwise to stdout */
+  if (exitCode == EXIT_FAILURE)
+    g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
+  else
+    g_message("%s%s", USAGE_TEXT, FOOTER_TEXT);
 }
 
 /* Prints version info to stderr */
 static void showVersionInfo()
 {
-  g_message_info(VERSION_TEXT);  
+  g_message(VERSION_TEXT);  
 }
 
 /* Prints compiled date (must go to stdout for our build scripts to work) */
 static void showCompiledInfo()
 {
-  g_message_info("%s\n", UT_MAKE_COMPILE_DATE());  
+  g_message("%s\n", UT_MAKE_COMPILE_DATE());  
 }
 
 
@@ -356,6 +360,7 @@ int main(int argc, char **argv)
     }
   
   static char *dotterBinary = NULL;
+  static gboolean showHelp = FALSE;
   static gboolean showVersion = FALSE;
   static gboolean showCompiled = FALSE;
   static gboolean hozScaleRev = FALSE;
@@ -434,8 +439,7 @@ int main(int argc, char **argv)
             options.FSfilename = g_malloc(strlen(optarg)+1);
             strcpy(options.FSfilename, optarg);            break;
 	  case 'h': 
-	    showUsageText();
-	    exit(EXIT_FAILURE);			           break;
+            showHelp = TRUE;                               break;
           case 'H': options.hspsOnly = TRUE;               break;
           case 'i': options.install = 0;                   break;
           case 'l': 
@@ -463,16 +467,42 @@ int main(int argc, char **argv)
         }
     }
 
+  /* We're in batch mode if we've specified a save file or an export file */
+  const gboolean batchMode = options.savefile || options.exportfile;
+
+  /* We create the window in batch mode only if exporting (because this needs
+   * to print the window); otherwise, don't create the window in batch mode. */
+  const gboolean createWindow = options.exportfile || !batchMode;
+
+  /* Initialise gtk */
+  gtk_init(&argc, &argv);
+
+  /* Set the message handlers to use our custom handlers. We normally assign a popup
+   * message handler for critical messages, but don't do this in batch mode because
+   * we can't have user interaction, so use the default handler for all in that case. */
+  g_log_set_default_handler(defaultMessageHandler, &options.msgData);
+
+  if (batchMode)
+    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, defaultMessageHandler, &options.msgData);
+  else
+    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, &options.msgData);
+
+  if (showHelp)
+    {
+      showUsageText(EXIT_SUCCESS);
+      exit(EXIT_SUCCESS);
+    }
+  
   if (showVersion)
     {
       showVersionInfo();
-      exit (EXIT_FAILURE);
+      exit (EXIT_SUCCESS);
     }
   
   if (showCompiled)
     {
       showCompiledInfo();
-      exit (EXIT_FAILURE);
+      exit (EXIT_SUCCESS);
     }
   
   validateOptions(&options);
@@ -494,25 +524,6 @@ int main(int argc, char **argv)
       sStrand = BLXSTRAND_REVERSE;
     }
   
-  /* We're in batch mode if we've specified a save file or an export file */
-  const gboolean batchMode = options.savefile || options.exportfile;
-
-  /* We create the window in batch mode only if exporting (because this needs
-   * to print the window); otherwise, don't create the window in batch mode. */
-  const gboolean createWindow = options.exportfile || !batchMode;
-
-  /* Initialise gtk */
-  gtk_init(&argc, &argv);
-
-  /* Set the message handlers to use our custom handlers. We normally assign a popup
-   * message handler for critical messages, but don't do this in batch mode because
-   * we can't have user interaction, so use the default handler for all in that case. */
-  g_log_set_default_handler(defaultMessageHandler, &options.msgData);
-
-  if (batchMode)
-    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, defaultMessageHandler, &options.msgData);
-  else
-    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, &options.msgData);
   
   if (options.selfcall) /* Blixem/Dotter calling dotter */
     {
@@ -604,7 +615,7 @@ int main(int argc, char **argv)
        * only have, at most, one input argument: the Xoptions*/
       if (argc - optind > 1)
         {
-          showUsageText();
+          showUsageText(EXIT_FAILURE);
           exit(EXIT_FAILURE);
         }
       
@@ -617,7 +628,7 @@ int main(int argc, char **argv)
        * optional, so we should have 2 or 3 arguments */
       if (argc - optind < 2 || argc - optind > 3) 
         {
-          showUsageText();
+          showUsageText(EXIT_FAILURE);
           exit(EXIT_FAILURE);
         }
 

@@ -390,15 +390,19 @@ static char* getSupportedTypesAsString(GSList *supportedTypes)
 
 
 /* Prints usage info to stderr */
-static void showUsageText()
+static void showUsageText(const int exitCode)
 {
-  /* Pring usage info followed by authors */
-  g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
+  /* Pring usage info followed by authors. */
+  /* Send to stderr if shown due to error, otherwise to stdout */
+  if (exitCode == EXIT_FAILURE)
+    g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
+  else
+    g_message("%s%s", USAGE_TEXT, FOOTER_TEXT);
 }
 
 
 /* Prints extended usage info to stderr */
-static void showHelpText(GSList *supportedTypes)
+static void showHelpText(GSList *supportedTypes, const int exitCode)
 {
   /* Print the standard usage text, followed by the additional help text and authors */
   GString *resultStr = g_string_new(USAGE_TEXT);
@@ -407,8 +411,12 @@ static void showHelpText(GSList *supportedTypes)
   
   g_string_append_printf(resultStr, HELP_TEXT, supported_types_string);
   g_string_append(resultStr, FOOTER_TEXT);
-  
-  g_message_info("%s", resultStr->str);
+
+  /* Send to stderr if shown due to error, otherwise to stdout */
+  if (exitCode == EXIT_FAILURE)
+    g_message_info("%s", resultStr->str);
+  else
+    g_message("%s", resultStr->str);
   
   g_free(supported_types_string);
   g_string_free(resultStr, TRUE);
@@ -418,13 +426,13 @@ static void showHelpText(GSList *supportedTypes)
 /* Prints version info to stderr */
 static void showVersionInfo()
 {
-  g_message_info(VERSION_TEXT);  
+  g_message(VERSION_TEXT);  
 }
 
 /* Prints compiled date (must go to stdout for our build scripts to work) */
 static void showCompiledInfo()
 {
-  g_message_info("%s\n", UT_MAKE_COMPILE_DATE());  
+  g_message("%s\n", UT_MAKE_COMPILE_DATE());  
 }
 
 
@@ -557,8 +565,8 @@ int main(int argc, char **argv)
 	  break;
 	case 'h': 
           {
-	    showHelpText(supportedTypes);
-            exit(EXIT_FAILURE) ;
+	    showHelpText(supportedTypes, EXIT_SUCCESS);
+            exit(EXIT_SUCCESS) ;
             break;
           }
 	case 'i':
@@ -632,14 +640,14 @@ int main(int argc, char **argv)
     {
       /* Just show the version info */
       showVersionInfo();
-      exit(EXIT_FAILURE);
+      exit(EXIT_SUCCESS);
     }
 
   if (showCompiled)
     {
       /* Just show the version info */
       showCompiledInfo();
-      exit(EXIT_FAILURE);
+      exit(EXIT_SUCCESS);
     }
 
   validateOptions(&options);
@@ -648,7 +656,7 @@ int main(int argc, char **argv)
   const int numFiles = argc - optind;
   if (!(numFiles == 1 || numFiles == 2))
     {
-      showUsageText();
+      showUsageText(EXIT_FAILURE);
       exit(EXIT_FAILURE);
     }
 
@@ -691,7 +699,7 @@ int main(int argc, char **argv)
     }
   else
     {
-      showUsageText();
+      showUsageText(EXIT_FAILURE);
     }
 
   /* Parse the data file containing the homol descriptions.                */
