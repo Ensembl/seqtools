@@ -3386,13 +3386,13 @@ gboolean bulkFetchSequences(const int attempt,
               success = TRUE;
               
               /* Compile all errors into a single error */
-              if (error)
+              if (error && tmpError)
                 {
                   prefixError(error, tmpError->message);
                   g_error_free(tmpError);
                   tmpError = NULL;
                 }
-              else
+              else if (tmpError)
                 {
                   error = tmpError;
                 }
