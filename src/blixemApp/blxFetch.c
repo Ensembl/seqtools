@@ -768,7 +768,10 @@ static void wwwFetchSequence(const BlxSequence *blxSeq,
           seqtoolsLaunchWebBrowser(url->str, &error);
         }
       
-      g_string_free(url, TRUE);
+      if (url)
+        {
+          g_string_free(url, TRUE);
+        }
 
       /* If failed, re-try with the next-preferred fetch method, if there is one */
       if (error)
@@ -1060,7 +1063,9 @@ static gboolean httpFetchList(GList *seqsToFetch,
     }
   
   destroyProgressBar(fetch_data.bar) ;
-  g_string_free(request, FALSE);
+
+  if (request)
+    g_string_free(request, FALSE);
   
   return status ;
 }
@@ -1181,7 +1186,8 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
 
       PFetchHandleFetch(pfetch_data->pfetch, request->str) ;
       
-      g_string_free(request, FALSE);
+      if (request)
+        g_string_free(request, FALSE);
     }
 }
 
@@ -1308,7 +1314,8 @@ gboolean socketFetchList(GList *seqsToFetch,
       destroyProgressBar(bar);
       bar = NULL ;
       
-      g_string_free(tagName, TRUE);
+      if (tagName)
+        g_string_free(tagName, TRUE);
 
       if (status && !tmpError && numSucceeded != numRequested)
         {
@@ -2232,7 +2239,9 @@ static void socketFetchInit(const BlxFetchMethod* const fetchMethod,
     {
       GString *command = getFetchArgsMultiple(fetchMethod, seqsToFetch, &tmpError);
       socketSend(*sock, command->str, &tmpError);
-      g_string_free(command, TRUE);
+      
+      if (command)
+        g_string_free(command, TRUE);
     }
   
 //  if (!tmpError)
@@ -3023,8 +3032,13 @@ void sendFetchOutputToFile(GString *command,
       
       g_debug("Fetch command:\n%s\n", command->str);
       
+      GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_NONE, "Fetching features...");
+      gtk_widget_show_all(dialog);
+
       g_message_info("Executing fetch...\n");
       const gboolean success = (system(command->str) == 0);
+
+      gtk_widget_destroy(dialog);
       
       fclose(outputFile);
 
@@ -3113,7 +3127,8 @@ static void regionFetchFeature(const MSP const *msp,
       appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
     }
   
-  g_string_free(command, TRUE);
+  if (command)
+    g_string_free(command, TRUE);
 
   if (tmpError)
     g_propagate_error(error, tmpError);
