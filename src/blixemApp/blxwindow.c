@@ -5241,6 +5241,7 @@ static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *opti
   blxContext->flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
+  blxContext->flags[BLXFLAG_SHOW_SPLICE_SITES] = TRUE;
   blxContext->flags[BLXFLAG_EMBL_DATA_LOADED] = options->parseFullEmblInfo;
   blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
