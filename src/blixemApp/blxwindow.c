@@ -3726,7 +3726,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   /* OPTIONS PAGE */
   GtkWidget *optionsPage = gtk_vbox_new(FALSE, 0);
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(optionsPage), gtk_label_new("Options"));
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(optionsPage), gtk_label_new_with_mnemonic("Opt_ions"));
 
   GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
   gtk_container_add(GTK_CONTAINER(optionsPage), scrollWin);
@@ -3736,7 +3736,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
   GtkContainer *variationContainer = createParentCheckButton(optionsBox, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS, NULL, G_CALLBACK(onParentBtnToggled));
-  createCheckButton(GTK_BOX(variationContainer), "Show variations _track", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
+  createCheckButton(GTK_BOX(variationContainer), "Show variations trac_k", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
 
   /* show-polyA-tails option and its sub-options. Connect onToggleFlag twice to the 'when selected' button to also toggle the 'show signals when selected' button in unison. */
   GtkWidget *polyAParentBtn = NULL;
@@ -3760,7 +3760,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   /* DISPLAY PAGE */
   GtkWidget *displayPage = gtk_vbox_new(FALSE, 0);
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(displayPage), gtk_label_new("Display"));
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(displayPage), gtk_label_new_with_mnemonic("_Display"));
 
   GtkWidget *displayScrollWin = gtk_scrolled_window_new(NULL, NULL);
   gtk_container_add(GTK_CONTAINER(displayPage), displayScrollWin);
@@ -3781,14 +3781,14 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   /* COLUMNS PAGE */
   GtkWidget *columnsPage = gtk_vbox_new(FALSE, 0);
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(columnsPage), gtk_label_new("Columns"));
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(columnsPage), gtk_label_new_with_mnemonic("Colum_ns"));
 
   createColumnButtons(columnsPage, detailView, borderWidth);
 
 
   /* COLOURS PAGE */
   GtkWidget *appearancePage = gtk_vbox_new(FALSE, borderWidth);
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(appearancePage), gtk_label_new("Colours"));
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(appearancePage), gtk_label_new_with_mnemonic("Colou_rs"));
 
   createColorButtons(appearancePage, blxWindow, borderWidth);
 
