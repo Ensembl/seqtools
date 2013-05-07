@@ -4909,8 +4909,8 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
   const int charWidth = 8; /* guesstimate of char width for default font */
   
   gtk_widget_set_size_request(feedbackBox, numChars * charWidth, -1) ;
-  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox, 0) ;
-  gtk_tool_item_set_expand(item, FALSE); 
+  //GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox, 0) ;
+  //gtk_tool_item_set_expand(item, FALSE); 
   
   /* We want the box to be printed, so connect the expose function that will 
    * draw to a pixmap for printing */
@@ -4930,8 +4930,8 @@ static GtkWidget* createStatusBar(GtkToolbar *toolbar)
   /* Make it expandable so we use all available space. Set minimum size to be 0
    * because it's better to show it small than not at all. */
   gtk_widget_set_size_request(statusBar, 0, -1) ;
-  GtkToolItem *item = addToolbarWidget(toolbar, statusBar, -1) ;
-  gtk_tool_item_set_expand(item, TRUE); /* make as big as possible */
+  //GtkToolItem *item = addToolbarWidget(toolbar, statusBar, 0) ;
+  //gtk_tool_item_set_expand(item, TRUE); /* make as big as possible */
 
   setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
 
@@ -4952,13 +4952,25 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   
   gtk_toolbar_set_style(toolbar, GTK_TOOLBAR_ICONS);
   gtk_toolbar_set_icon_size(toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
-  
+
   *feedbackBox = createFeedbackBox(toolbar);
   *statusBar = createStatusBar(toolbar);
 
+  /* Create a parent hbox which will hold the main toolbar
+   * and the detail-view tools. (We do this rather than putting
+   * the detail-view tools directly into the toolbar so that
+   * we have more control over spacing. In particular, the 
+   * toolbar tools go into a nice drop-down box when there isn't
+   * enough space, but the detail-view tools won't display if 
+   * that happens, so we keep them separate.) */
+  GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
+  gtk_box_pack_start(hbox, toolbarIn, TRUE, TRUE, 0);
+  gtk_box_pack_start(hbox, *feedbackBox, FALSE, FALSE, 0);
+  gtk_box_pack_start(hbox, *statusBar, TRUE, TRUE, 0);
+
   /* Put the toolbar in a handle box so that it can be torn off */
   GtkWidget *toolbarContainer = createToolbarHandle();
-  gtk_container_add(GTK_CONTAINER(toolbarContainer), GTK_WIDGET(toolbar));
+  gtk_container_add(GTK_CONTAINER(toolbarContainer), GTK_WIDGET(hbox));
 
   return toolbarContainer;
 }
