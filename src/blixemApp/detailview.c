@@ -4909,7 +4909,7 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
   const int charWidth = 8; /* guesstimate of char width for default font */
   
   gtk_widget_set_size_request(feedbackBox, numChars * charWidth, -1) ;
-  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox, -1) ;
+  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox, 0) ;
   gtk_tool_item_set_expand(item, FALSE); 
   
   /* We want the box to be printed, so connect the expose function that will 
