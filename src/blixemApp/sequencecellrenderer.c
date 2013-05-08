@@ -1160,6 +1160,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
   GdkColor *matchColorSelected = getGdkColor(BLXCOLOR_MATCH, bc->defaultColors, TRUE, bc->usePrintColors);
   GdkColor *mismatchColor = getGdkColor(BLXCOLOR_MISMATCH, bc->defaultColors, FALSE, bc->usePrintColors);
   GdkColor *mismatchColorSelected = getGdkColor(BLXCOLOR_MISMATCH, bc->defaultColors, TRUE, bc->usePrintColors);
+  GdkColor *backgroundColorSelected = getGdkColor(BLXCOLOR_BACKGROUND, bc->defaultColors, TRUE, bc->usePrintColors);
   
   GdkGC *gc = gdk_gc_new(window);
   
@@ -1223,7 +1224,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
   
   /* If a base is selected highlight it now in case we don't come to process it (in 
    * which case this will get drawn over). */
-  highlightSelectedBase(data.selectedBaseIdx, mismatchColorSelected, &data);
+  highlightSelectedBase(data.selectedBaseIdx, backgroundColorSelected, &data);
 
   /* Draw all MSPs in this row */
   GList *mspListItem = renderer->mspGList;
