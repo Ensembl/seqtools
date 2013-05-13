@@ -1133,6 +1133,14 @@ static void callDotterChildProcess(const char *dotterBinary,
   argList = g_slist_append(argList, seq1OffsetStr);
   argList = g_slist_append(argList, g_strdup("-s"));
   argList = g_slist_append(argList, seq2OffsetStr);
+  argList = g_slist_append(argList, "--horizontal-type");
+  argList = g_slist_append(argList, "d");
+  argList = g_slist_append(argList, "--vertical-type");
+
+  if (bc->seqType == BLXSEQ_PEPTIDE)
+    argList = g_slist_append(argList, "p");
+  else
+    argList = g_slist_append(argList, "d");
 
   if (bc->flags[BLXFLAG_ABBREV_TITLE])
     argList = g_slist_append(argList, "--abbrev-title-on");
