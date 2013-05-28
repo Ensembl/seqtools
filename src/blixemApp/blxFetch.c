@@ -457,6 +457,9 @@ static GString* doFetchStringSubstitutions(const char *command,
                 if (filename)
                   g_string_append(result, filename);
                 break;
+              case 'g':
+                g_string_append_printf(result, "%d", SEQTOOLS_GFF_VERSION);
+                break;
               case '%':
                 g_string_append_c(result, *c);
                 break;
@@ -606,6 +609,7 @@ static GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod,
  *   %d:      dataset
  *   %S:      feature source
  *   %f:      file name
+ *   %g:      supported GFF version
  * 
  * Returns the command and args compiled into a single string.
  * The caller must free the result with g_string_free.

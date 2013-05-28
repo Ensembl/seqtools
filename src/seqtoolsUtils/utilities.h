@@ -48,7 +48,7 @@
 #define MIN_FONT_SIZE                 2
 #define MAX_FONT_SIZE                 20
 #define MACHINE_RES                   0.000000001
-
+#define SEQTOOLS_GFF_VERSION          3    /* the default GFF version */
 
 
 /* Really the buffers that use this should be dynamic but I'm not going to do that, this
