@@ -63,8 +63,8 @@
 /* Column name to use when multiple, duplicate reads with different names are
  * shown on the same row. Note that this is a printf format that must take the
  * number of reads as an integer argument. */
-#define DUPLICATE_READS_COLUMN_NAME               "(%d) reads" 
-#define DUPLICATE_READS_COLUMN_NAME_SGL           "(%d) read" /* as above but for when there is just one read */
+#define DUPLICATE_READS_COLUMN_NAME               "(%d) matches" 
+#define DUPLICATE_READS_COLUMN_NAME_SGL           "(%d) match" /* as above but for when there is just one read */
 
 
 /* This struct describes a column in the detail view. Multiple widgets (i.e. headers

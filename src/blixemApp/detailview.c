@@ -1225,7 +1225,7 @@ static GtkSortType getColumnSortOrder(BlxViewContext *bc, const BlxColumnId colu
   /* We're only interested in sorting exons and matches */
 static gboolean mspIsSortable(const MSP const *msp)
 {
-  return (msp && (typeIsMatch(msp->type) || typeIsShortRead(msp->type) || mspIsExon(msp)));
+  return (msp && (typeIsMatch(msp->type) || mspIsExon(msp)));
 }
 
 
@@ -1250,10 +1250,9 @@ gint sortByColumnCompareFunc(GList *mspGList1,
     return 1;
 
   /* Check whether either row has more than one MSP. If so, it means some options
-   * aren't applicable (unless they're short reads, which should be identical if
+   * aren't applicable (\to do: unless they're short reads, which should be identical if
    * they're in the same row, so we can treat those as singular). */
   const gboolean multipleMsps = 
-    (!mspIsShortRead(msp1) || !mspIsShortRead(msp2)) && 
     (g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1);
   
   BlxViewContext *bc = detailViewGetContext(detailView);

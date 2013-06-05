@@ -235,10 +235,15 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, GtkCallback func, gpoin
 /* Add the given BlxSequence as a row in the given tree store */
 static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore *store)
 {
-  /* Only add matches and transcripts to the detail-view */
-  if (!blxSequenceShownInDetailView(blxSeq))
-    return;
-    
+  /* Only add matches and transcripts to the detail-view. Also, 
+   * we exclude sequences with squash-identical-features set because
+   * these are added separately. */
+  if (!blxSequenceShownInDetailView(blxSeq) ||
+      blxSequenceGetFlag(blxSeq, MSPFLAG_SQUASH_IDENTICAL_FEATURES))
+    {
+      return;
+    }
+  
   /* Only add msps that are in the correct strand for this tree (since the same 
    * sequence may have matches against both ref seq strands) */
   GList *mspsToAdd = NULL;
@@ -361,25 +366,37 @@ static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
 }
 
 
-/* Add all short reads to the given tree, placing duplicate sequences on
- * the same row as each other to create a compact tree. */
-static void addShortReadsToCompactTree(GtkWidget *tree, GtkListStore *store, GtkWidget *blxWindow)
+/* For matches that should be squashed if identical, add them to the given tree, 
+ * placing duplicate sequences on the same row as each other to create a compact tree. */
+static void addFeaturesToCompactTree(GtkWidget *tree, GtkListStore *store, GtkWidget *blxWindow)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   const BlxStrand treeStrand = treeGetStrand(tree);
 
-  /* Sort the short reads by DNA sequence so that duplicates are adjacent. */
-  GArray *shortReadArray = bc->featureLists[BLXMSP_SHORT_READ];
-  g_array_sort(shortReadArray, sortByDnaCompareFunc);
+  /* Extract matches that should be squashed if identical into their own array. */
+  GArray *matchArray = bc->featureLists[BLXMSP_MATCH];
+  GArray *array = g_array_sized_new(FALSE, FALSE, sizeof(MSP*), matchArray->len);
 
-  /* Loop through each short read MSP, compiling a list of MSPs to add to the
-   * current row. */
   int i = 0;
+  for ( ; i < matchArray->len; ++i)
+    {
+      MSP *val = g_array_index(matchArray, MSP*, i);
+
+      if (mspGetFlag(val, MSPFLAG_SQUASH_IDENTICAL_FEATURES))
+        g_array_prepend_val(array, val);
+    }
+
+  /* Sort the array by DNA sequence so that duplicates are adjacent. */ 
+  g_array_sort(array, sortByDnaCompareFunc);
+
+  /* Loop through each MSP, compiling a list of MSPs to add to the
+   * current row. */
+  i = 0;
   MSP *prevMsp = NULL;
-  MSP *msp = mspArrayIdx(shortReadArray, i);
+  MSP *msp = mspArrayIdx(array, i);
   GList *mspsToAdd = NULL;
   
-  for ( ; msp || prevMsp; msp = mspArrayIdx(shortReadArray, ++i))
+  for ( ; msp || prevMsp; msp = mspArrayIdx(array, ++i))
     {
       if (msp && mspGetRefStrand(msp) != treeStrand)
         continue;
@@ -439,8 +456,8 @@ static void addShortReadsToCompactTree(GtkWidget *tree, GtkListStore *store, Gtk
   
   /* Re-sort by default sort order (required for filtering) if this msp type
    * appears in the detail-view */
-  if (typeShownInDetailView(BLXMSP_SHORT_READ))
-    g_array_sort(bc->featureLists[BLXMSP_SHORT_READ], compareFuncMspArray);
+  if (typeShownInDetailView(BLXMSP_MATCH))
+    g_array_sort(bc->featureLists[BLXMSP_MATCH], compareFuncMspArray);
 }
 
 
@@ -468,9 +485,8 @@ void addSequencesToTree(GtkWidget *tree, gpointer data)
       addSequenceToTree(blxSeq, tree, store);
     }
 
-  /* Also add one row for each piece of short read DNA (i.e. where duplicate
-   * short reads all appear on the same row) */
-  addShortReadsToCompactTree(tree, store, blxWindow);
+  /* Also add one row for each match that has duplcate DNA to the compact tree */
+  addFeaturesToCompactTree(tree, store, blxWindow);
   
   /* Create a filtered version which will only show sequences that are in the display range */
   GtkTreeModel *filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(store), NULL);
@@ -1961,11 +1977,12 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
           const char *name = mspGetSName(msp);
           char *displayName = NULL;
 	
-	  /* If the display is squashed, then for short reads, we need to 
-           * create a name that includes the number of duplicate reads. */
+	  /* If the display is squashed and identical matches are on 
+           * the same linke, we need to create a name that includes the
+           * number of duplicate matches. */
           BlxViewContext *bc = treeGetContext(tree);
 
-	  if (bc->modelId == BLXMODEL_SQUASHED && mspIsShortRead(msp))
+	  if (bc->modelId == BLXMODEL_SQUASHED && mspGetFlag(msp, MSPFLAG_SQUASH_IDENTICAL_FEATURES))
 	    {
               char *name2 = g_strdup_printf(numMsps == 1 ? DUPLICATE_READS_COLUMN_NAME_SGL : DUPLICATE_READS_COLUMN_NAME, numMsps);
               displayName = abbreviateText(name2, maxLen - 2);
@@ -2109,7 +2126,7 @@ static void cellDataFunctionScoreCol(GtkTreeViewColumn *column,
       const MSP const *msp = (const MSP const *)(mspGList->data);
     
       /* If the score is negative it means do not show */
-      if (msp->score >= 0.0 && (g_list_length(mspGList) == 1 || mspIsShortRead(msp)))
+      if (msp->score >= 0.0 && (g_list_length(mspGList) == 1 || mspGetFlag(msp, MSPFLAG_SQUASH_IDENTICAL_FEATURES)))
 	{
 	  const gdouble score = msp->score;
 	  char displayText[numDigitsInInt((int)score) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */
@@ -2149,7 +2166,7 @@ static void cellDataFunctionIdCol(GtkTreeViewColumn *column,
       /* If the score is negative it means do not show. Also only display the
        * ID if we only have one msp in the row (unless they are short reads, in 
        * which case the ID should be the same for all of them) */
-      if (msp->id >= 0.0 && (g_list_length(mspGList) == 1 || mspIsShortRead(msp)))
+      if (msp->id >= 0.0 && (g_list_length(mspGList) == 1 || mspGetFlag(msp, MSPFLAG_SQUASH_IDENTICAL_FEATURES)))
 	{
 	  const gdouble id = msp->id;
 	  char displayText[numDigitsInInt((int)id) + 3]; /* +3 to include decimal point, 1 dp, and terminating nul */

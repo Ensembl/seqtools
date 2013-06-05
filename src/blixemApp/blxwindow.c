@@ -790,7 +790,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   finaliseFetch(newSeqs);
 
   finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->refSeqOffset, bc->seqType, 
-                       bc->numFrames, &bc->refSeqRange, TRUE, bc->flags[BLXFLAG_LINK_FEATURES]);
+                       bc->numFrames, &bc->refSeqRange, TRUE);
 
   /* Add the msps/sequences to the tree data models (must be done after finalise because
    * finalise populates the child msp lists for parent feaatures) */
@@ -5191,7 +5191,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
 /* Whether to include the given msp type in depth coverage calculations */
 static gboolean includeTypeInCoverage(BlxMspType mspType)
 {
-  return (mspType == BLXMSP_MATCH || mspType == BLXMSP_SHORT_READ);
+  return (mspType == BLXMSP_MATCH);
 }
 
 
@@ -5282,7 +5282,6 @@ static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *opti
   blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
   blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
-  blxContext->flags[BLXFLAG_LINK_FEATURES] = options->linkFeaturesByName;
   blxContext->flags[BLXFLAG_ABBREV_TITLE] = options->abbrevTitle;
 }
 

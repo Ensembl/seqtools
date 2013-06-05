@@ -283,7 +283,6 @@ typedef enum
     BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */
     BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
     BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
-    BLXFLAG_LINK_FEATURES,          /* whether featuers with the same name should be linked */
     BLXFLAG_ABBREV_TITLE,           /* whether to abbreviate the window titles to save space */
     
     BLXFLAG_NUM_FLAGS               /* Total number of flags e.g. for creating arrays and loops etc */
@@ -421,9 +420,10 @@ typedef struct _CommandLineOptions
   gboolean parseFullEmblInfo;     /* parse the full EMBL files on startup to populate additional info like tissue-type */
   gboolean saveTempFiles;         /* save any temporary files that blixem creates */
   gboolean coverageOn;            /* show the coverage view on start-up */
-  gboolean linkFeaturesByName;    /* default for whether features with the same name are considered part of the same parent */
   gboolean abbrevTitle;           /* if true, use a abbreviated window titles to save space */
-
+  
+  gboolean mspFlagDefaults[MSPFLAG_NUM_FLAGS]; /* default values for MSP flags */     
+  
   BlxBlastMode blastMode;         /* the blast match mode */
   BlxSeqType seqType;             /* whether the display shows sequences as peptides or nucleotides */
   int numFrames;                  /* the number of reading frames */
