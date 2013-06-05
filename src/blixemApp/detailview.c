@@ -5114,7 +5114,8 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
 
           if (tree)
             {
-              addMspToTree(tree, msp);
+              GtkListStore *store = GTK_LIST_STORE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
+              addMspToTree(msp, tree, store);
             }
           else
             {

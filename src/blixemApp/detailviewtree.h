@@ -112,7 +112,7 @@ void		  treeUpdateSquashMatches(GtkWidget *tree, gpointer data);
 gboolean	  treeMoveRowSelection(GtkWidget *tree, const gboolean moveUp, const gboolean shiftModifier);
 void		  treeScrollSelectionIntoView(GtkWidget *tree, gpointer data);
 
-void		  addMspToTree(GtkWidget *tree, MSP *msp);
+void              addMspToTree(MSP *msp, GtkWidget *tree, GtkListStore *store);
 void		  addSequencesToTree(GtkWidget *tree, gpointer data);
 
 void              treeDrawCachedBitmap(GtkWidget *tree, gpointer data);

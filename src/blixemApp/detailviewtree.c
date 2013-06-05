@@ -232,18 +232,9 @@ void callFuncOnAllDetailViewTrees(GtkWidget *detailView, GtkCallback func, gpoin
 }
 
 
-/* Add the given BlxSequence as a row in the given tree store */
-static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore *store)
+/* Add the msps in the given BlxSequence to a single row in the given tree store */
+static void addSequenceMspsToSingleRow(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore *store)
 {
-  /* Only add matches and transcripts to the detail-view. Also, 
-   * we exclude sequences with squash-identical-features set because
-   * these are added separately. */
-  if (!blxSequenceShownInDetailView(blxSeq) ||
-      blxSequenceGetFlag(blxSeq, MSPFLAG_SQUASH_IDENTICAL_FEATURES))
-    {
-      return;
-    }
-  
   /* Only add msps that are in the correct strand for this tree (since the same 
    * sequence may have matches against both ref seq strands) */
   GList *mspsToAdd = NULL;
@@ -316,6 +307,50 @@ static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore
 
       gtk_tree_path_free(path);
     }
+}
+
+
+/* Add the msps in the given BlxSequence to the given tree store with a separate
+ * row for each msp */
+static void addSequenceMspsToSeparateRows(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore *store)
+{
+  const BlxStrand treeStrand = treeGetStrand(tree);
+  GList *mspItem = blxSeq->mspList;
+  
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      MSP *msp  = (MSP*)(mspItem->data);
+
+      /* Only add msps that are in the correct strand for this tree (since the same 
+       * sequence may have matches against both ref seq strands) */
+      if (typeShownInDetailView(msp->type) && 
+          msp->qStrand == treeStrand && 
+          msp->qFrame == treeGetFrame(tree))
+        {
+          addMspToTree(msp, tree, store);
+        }
+    }
+}
+
+
+/* Add the given BlxSequence as a row in the given tree store */
+static void addSequenceToTree(BlxSequence *blxSeq, GtkWidget *tree, GtkListStore *store)
+{
+  /* Only add matches and transcripts to the detail-view. Also, 
+   * we exclude sequences with squash-identical-features set because
+   * these are added separately. */
+  if (!blxSequenceShownInDetailView(blxSeq) ||
+      blxSequenceGetFlag(blxSeq, MSPFLAG_SQUASH_IDENTICAL_FEATURES))
+    {
+      return;
+    }
+
+  /* If the squash-linked-features property is set, add all msps in this
+   * sequence to the same row; otherwise, add them to separate rows*/
+  if (blxSequenceGetFlag(blxSeq, MSPFLAG_SQUASH_LINKED_FEATURES))
+    addSequenceMspsToSingleRow(blxSeq, tree, store);
+  else
+    addSequenceMspsToSeparateRows(blxSeq, tree, store);
 }
 
 
@@ -1894,12 +1929,10 @@ static gboolean onLeaveTreeHeader(GtkWidget *header, GdkEventCrossing *event, gp
 
 
 /* Add a row to the given tree containing the given MSP */
-void addMspToTree(GtkWidget *tree, MSP *msp)
+void addMspToTree(MSP *msp, GtkWidget *tree, GtkListStore *store)
 {
   if (tree)
     {
-      GtkListStore *store = GTK_LIST_STORE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
-      
       GtkTreeIter iter;
       gtk_list_store_append(store, &iter);
       
