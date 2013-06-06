@@ -482,7 +482,7 @@ gboolean blxview(CommandLineOptions *options,
       /* Construct missing data and do any other required processing now we have all the sequence data */
       finaliseBlxSequences(featureLists, &options->mspList, &seqList, 
                            options->refSeqOffset, options->seqType, 
-                           options->numFrames, &options->refSeqRange, TRUE, options->linkFeaturesByName);
+                           options->numFrames, &options->refSeqRange, TRUE);
 
     }
 

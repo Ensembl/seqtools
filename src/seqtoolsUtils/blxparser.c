@@ -666,7 +666,7 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
                           score, UNSET_INT, 0,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame,
                           sName, sStart, sEnd, BLXSTRAND_FORWARD, NULL,
-                          TRUE, 0, &error);
+                          0, &error);
 
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
@@ -888,7 +888,7 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
                           score, UNSET_INT, 0,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame, 
                           sName, sStart, sEnd, sStrand, NULL,
-                          TRUE, 0, &error);
+                          0, &error);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
@@ -1452,7 +1452,7 @@ static void parseFsHsp(char *line, BlxBlastMode blastMode, GArray* featureLists[
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_HSP, NULL,  NULL,
                           score, UNSET_INT, 0, 
                           NULL, qName, qStart, qEnd, qStrand, qFrame, 
-                          sName, sStart, sEnd, sStrand, sSeq, TRUE, 0, &error);
+                          sName, sStart, sEnd, sStrand, sSeq, 0, &error);
 
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   checkReversedSubjectAllowed(msp, blastMode);
@@ -1504,7 +1504,7 @@ static void parseFsSeg(char *line, BlxBlastMode blastMode, GArray* featureLists[
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, NULL,
                           UNSET_INT, UNSET_INT, 0, 
                           NULL, qName, qStart, qEnd, BLXSTRAND_NONE, 1, 
-                          series, qStart, qEnd, BLXSTRAND_NONE, NULL, TRUE, 0, &error);
+                          series, qStart, qEnd, BLXSTRAND_NONE, NULL, 0, &error);
 
   /* Parse in additional feature-series info */
   parseLook(msp, look);
@@ -1554,7 +1554,7 @@ static void parseFsGff(char *line, BlxBlastMode blastMode, GArray* featureLists[
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_FS_SEG, NULL, NULL,
                           score, UNSET_INT, 0, 
                           NULL, qName, qStart, qEnd, qStrand, qFrame, 
-                          series, qStart, qEnd, BLXSTRAND_FORWARD, NULL, TRUE, 0, &error);
+                          series, qStart, qEnd, BLXSTRAND_FORWARD, NULL, 0, &error);
   
 
   /* Parse additional feature-series information */
@@ -1630,7 +1630,7 @@ static void parseFsXyHeader(char *line,
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, BLXMSP_XY_PLOT, NULL, NULL,
                           UNSET_INT, UNSET_INT, 0, 
                           NULL, qName, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, 1,
-                          series, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, NULL, TRUE, 0, &error);
+                          series, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, NULL, 0, &error);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 

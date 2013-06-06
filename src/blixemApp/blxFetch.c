@@ -1947,8 +1947,18 @@ static void readBlixemStanza(GKeyFile *key_file,
   if (!options->bulkFetchDefault)
     options->bulkFetchDefault = keyFileGetCsv(key_file, group, BLIXEM_OLD_BULK_FETCH, NULL);
 
-  /* Get the link-features-by-name value */
-  options->linkFeaturesByName = g_key_file_get_boolean(key_file, group, LINK_FEATURES_BY_NAME, NULL);
+  /* Get the default values for the MSP flags, if they're specified in the blixem stanza. */
+  MspFlag flag = MSPFLAG_MIN + 1;
+  for ( ; flag < MSPFLAG_NUM_FLAGS; ++flag)
+    {
+      GError *tmpError = NULL;
+      const char *key = mspFlagGetConfigKey(flag);
+      gboolean value = g_key_file_get_boolean(key_file, group, key, &tmpError);
+      
+      /* If found, set it as the default */
+      if (!tmpError)
+        mspFlagSetDefault(flag, value);
+    }
 }
 
 

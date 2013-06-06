@@ -1240,11 +1240,10 @@ static void drawMsps(SequenceCellRenderer *renderer,
 	    }
 	  else if (mspIsBlastMatch(msp))
 	    {
-              if (mspIsShortRead(msp))
+              if (mspGetFlag(msp, MSPFLAG_SQUASH_IDENTICAL_FEATURES))
                 {
-                  /* Short reads that are in the same row are duplicates, so
-                   * we only need to draw one. 
-                   * (to do: protect against the case where this might change!)
+                  /* Identical matches in the same row are duplicates, so we
+                   * only need to draw one.
                    * If any of the duplicates is selected, we want to draw the
                    * row as selected, so for the first pass, only draw an MSP
                    * if it is selected; but remember the first MSP that we see

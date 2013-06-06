@@ -49,7 +49,7 @@
 #define BLX_GFF3_ERROR g_quark_from_string("GFF 3 parser")
 
 typedef enum {
-  BLX_GFF3_ERROR_INVALID_STRAND,	      /* invalid strand in GFF3 input file */
+  BLX_GFF3_ERROR_INVALID_STRAND,	      /* invali strand in GFF3 input file */
   BLX_GFF3_ERROR_INVALID_TYPE,                /* invalid type in GFF3 input file */
   BLX_GFF3_ERROR_INVALID_NUM_TOKENS,          /* invalid number of columns from a line of the input file */
   BLX_GFF3_ERROR_INVALID_TAG,                 /* invalid format for a tag/data pair */
@@ -176,8 +176,10 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "polyA_signal_sequence", "SO:0000551", BLXMSP_POLYA_SIGNAL);
   addGffType(&supportedTypes, "polyA_site", "SO:0000553", BLXMSP_POLYA_SITE);
 
-  addGffType(&supportedTypes, "read", "SO:0000150", BLXMSP_SHORT_READ);
-  addGffType(&supportedTypes, "similarity", "SO:0000150", BLXMSP_SHORT_READ); /* not a true gff type but temp fix because it gets put in gff by bam-get script */
+  addGffType(&supportedTypes, "read", "SO:0000150", BLXMSP_MATCH);
+  addGffType(&supportedTypes, "read_PAIR", "SO:0000007", BLXMSP_MATCH);
+  addGffType(&supportedTypes, "similarity", "SO:0000150", BLXMSP_MATCH); /* not a true gff type but temp fix because it gets put in gff by bam-get script */
+
   addGffType(&supportedTypes, "region", "SO:0000001", BLXMSP_REGION);
 
   supportedTypes = g_slist_reverse(supportedTypes);
@@ -286,51 +288,41 @@ static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
 }
 
 
-/* Get the default value for the link-features-by-name option */
-static gboolean getLinkFeaturesDefault(GKeyFile *keyFile)
+/* Get the value for the given flag for the given group, and set 
+ * it in the datatype if found */
+static void getMspFlag(GKeyFile *keyFile, const char *group, const MspFlag flag, BlxDataType *dataType)
 {
-  gboolean result = LINK_FEATURES_DEFAULT;
+  /* Get the config-file key to use for this flag */
+  const char *key = mspFlagGetConfigKey(flag);
 
-  if (keyFile)
+  if (key)
     {
       GError *tmpError = NULL;
-      gboolean value = g_key_file_get_boolean(keyFile, BLIXEM_GROUP, LINK_FEATURES_BY_NAME, &tmpError);
-
+      gboolean result = g_key_file_get_boolean(keyFile, group, key, &tmpError);
+      
+      /* If found, update the value in the dataType */
       if (!tmpError)
-        result = value;
+        dataType->flags[flag] = result;
     }
-  
-  return result;
 }
 
-/* Get the value for the link-features-by-name option for the given 
- * group */
-static gboolean getLinkFeatures(GKeyFile *keyFile, const char *group)
-{
-  GError *tmpError = NULL;
-  gboolean result = g_key_file_get_boolean(keyFile, group, LINK_FEATURES_BY_NAME, &tmpError);
-  
-  if (tmpError)
-    result = getLinkFeaturesDefault(keyFile);
-  
-  return result;
-}
 
 /* Get the BlxDataType with the given name. Returns null and sets the error if 
  * we expected to find the name but didn't. */
 BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFile, GError **error)
 {
+  BlxDataType *result = NULL;
+
   /* If no data type was specified in the gff, see if there is a default for this gff type */
   if (!dataType)
     dataType = getBlxDataTypeDefault(source, keyFile);
 
   /* A keyfile might not be supplied if the calling program is not interested
    * in the data-type data (i.e. the data-type data is currently only used to
-   * supply fetch methods, which are not used by Dotter). */
+   * supply values that are used in blixem, so are irrelevant to dotter). */
   if (!keyFile || !dataType)
-    return NULL;
+    return result;
   
-  BlxDataType *result = NULL;
   static GHashTable *dataTypes = NULL;
 
   if (!dataTypes)
@@ -352,11 +344,17 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
               result = createBlxDataType();
               result->name = dataType;
 
-              /* Get the values. They're all optional so just ignore any errors.
-               * Valid keys are bulk-fetch and user-fetch */
+              /* Get the values. They're all optional so just ignore any errors. */
               result->bulkFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_BULK_FETCH, NULL); 
               result->userFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_USER_FETCH, NULL); 
-              result->linkFeaturesByName = getLinkFeatures(keyFile, typeName);
+              
+              /* Get the flags. Again, they're all optional. These calls update the
+               * flag in place if it is found, or leave it at the pre-set default otherwise. */
+              MspFlag flag = MSPFLAG_MIN + 1;
+              for ( ; flag < MSPFLAG_NUM_FLAGS; ++flag)
+                {
+                  getMspFlag(keyFile, typeName, flag, result);
+                }              
               
               /* Insert it into the table of data types */
               g_hash_table_insert(dataTypes, GINT_TO_POINTER(dataType), result);
@@ -422,8 +420,6 @@ static void createBlixemObject(BlxGffData *gffData,
 
   GQuark filename = getFeatureFilename(gffData, keyFile, NULL);
 
-  const gboolean linkFeaturesByName = dataType ? dataType->linkFeaturesByName : getLinkFeaturesDefault(keyFile);
-
   if (gffData->mspType > BLXMSP_NUM_TYPES)
     {
       /* "Invalid" MSP types, i.e. don't create a real MSP from these types. */
@@ -433,7 +429,7 @@ static void createBlixemObject(BlxGffData *gffData,
           /* For transcripts, although we don't create an MSP we do create a sequence */
           addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand,
                          dataType, gffData->source, seqList, gffData->sequence, NULL, 
-                         linkFeaturesByName, &tmpError);
+                         &tmpError);
         }
     }
   else
@@ -449,7 +445,7 @@ static void createBlixemObject(BlxGffData *gffData,
       
       if (!gffData->sName && !gffData->parentIdTag && 
 	  (gffData->mspType == BLXMSP_TRANSCRIPT || typeIsExon(gffData->mspType) || 
-	   typeIsMatch(gffData->mspType) || typeIsShortRead(gffData->mspType)))
+	   typeIsMatch(gffData->mspType)))
 	{
 	  g_set_error(error, BLX_ERROR, 1, "Target/name/parent-ID must be specified for exons and alignments.\n");
 	  return;
@@ -486,7 +482,6 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->sEnd, 
 			      gffData->sStrand, 
 			      gffData->sequence, 
-                              linkFeaturesByName,
                               filename,
 			      &tmpError);
 
@@ -649,27 +644,6 @@ static BlxStrand readStrand(char *token, GError **error)
 }
 
 
-/* To do: This is a bit of a hack to distinguish short-read matches from other
- * matches. It assumes that any match coming from a "sam/bam" source is a 
- * short-read, and anything else is not. This is obviously not ideal but at
- * the time of writing there is no consensus for how to represent short-reads
- * in a GFF file, and with our original input files we had no other way to 
- * distinguish them. We are moving to using the 'read' type for short reads
- * instead of 'match' because we want to use the source for something else, so
- * we will be able to distinguish them that way, and if this proves to be
- * accepted then this function can be removed altogether. */
-static void updateInputMspType(BlxGffData *gffData)
-{
-  if (gffData->mspType == BLXMSP_MATCH && gffData->source && stringsEqual(gffData->source, "sam/bam", FALSE))
-    {
-      gffData->mspType = BLXMSP_SHORT_READ;
-    }
-}
-
-
-
-
-
 /* Parse the columns in a GFF line and populate the parsed info into the given MSP. */
 static void parseGffColumns(GString *line_string, 
                             const int lineNum, 
@@ -700,7 +674,6 @@ static void parseGffColumns(GString *line_string,
       
       /* Type (converted to a seqtools type) */
       gffData->mspType = getBlxType(supportedTypes, tokens[2], &tmpError);
-      updateInputMspType(gffData);
     }
     
   if (!tmpError)
