@@ -274,12 +274,14 @@ typedef struct _CallbackData
     gpointer data;                /* User data to pass to the callback function */
   } CallbackData;
 
-/* Custom dialog response types, which can be used in addition to the default types specified by GtkResponseType */
+/* Custom dialog response types, which can be used in addition
+ * to the default types specified by GtkResponseType */
 typedef enum
   {
     BLX_RESPONSE_FORWARD, 
     BLX_RESPONSE_BACK,
-    BLX_RESPONSE_RESET
+    BLX_RESPONSE_RESET,
+    BLX_RESPONSE_CLEAR
   } BlxResponseType;
 
 
@@ -597,7 +599,8 @@ GtkRadioButton*                    createRadioButton(GtkTable *table,
                                                      const gboolean createTextEntry,
                                                      const gboolean multiline,
                                                      BlxResponseCallback callbackFunc,
-                                                     GtkWidget *blxWindow);
+                                                     GtkWidget *blxWindow,
+                                                     GSList **entryList);
 
 const char*                        getSystemTempDir();     
 

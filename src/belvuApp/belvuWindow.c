@@ -2127,8 +2127,8 @@ static void showFindDialog(BelvuContext *bc, GtkWidget *window)
       gtk_box_pack_start(contentArea, GTK_WIDGET(table), TRUE, TRUE, 0);
 
 
-      /*GtkRadioButton *button1 =*/ createRadioButton(table, 0, 0, NULL, "_Name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqs, window);
-      /*createRadioButton(table, 0, 1, button1, "_Residue sequence search", FALSE, TRUE, FALSE, onFindResidues, window);*/
+      /*GtkRadioButton *button1 =*/ createRadioButton(table, 0, 0, NULL, "_Name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqs, window, NULL);
+      /*createRadioButton(table, 0, 1, button1, "_Residue sequence search", FALSE, TRUE, FALSE, onFindResidues, window, NULL);*/
 
 
       gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(window));
