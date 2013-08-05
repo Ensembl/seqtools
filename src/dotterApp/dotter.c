@@ -891,7 +891,8 @@ int convertToDnaIdx(const int displayIdx,
 static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
                                                       const IntRange const *refSeqRange,
                                                       const IntRange const *matchSeqRange,
-                                                      const gdouble zoomFacIn)
+                                                      const gdouble zoomFacIn,
+						      const gboolean showWindow)
 {
   DEBUG_ENTER("createDotterWindowContext");
 
@@ -916,14 +917,22 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
 
   result->usePrintColors = FALSE;
 
-  result->pageSetup = gtk_page_setup_new();
-  gtk_page_setup_set_orientation(result->pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
-  
-  result->printSettings = gtk_print_settings_new();
-  gtk_print_settings_set_orientation(result->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
-  gtk_print_settings_set_quality(result->printSettings, GTK_PRINT_QUALITY_HIGH);
-  gtk_print_settings_set_resolution(result->printSettings, DEFAULT_PRINT_RESOLUTION);
-  
+  if (showWindow) 
+    {
+      result->pageSetup = gtk_page_setup_new();
+      gtk_page_setup_set_orientation(result->pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
+      
+      result->printSettings = gtk_print_settings_new();
+      gtk_print_settings_set_orientation(result->printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
+      gtk_print_settings_set_quality(result->printSettings, GTK_PRINT_QUALITY_HIGH);
+      gtk_print_settings_set_resolution(result->printSettings, DEFAULT_PRINT_RESOLUTION);
+    }
+  else 
+    {
+      result->pageSetup = NULL;
+      result->printSettings = NULL;
+    }
+
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;
   for ( ; dialogId < DOTDIALOG_NUM_DIALOGS; ++dialogId)
@@ -1089,7 +1098,7 @@ void dotter (const BlxBlastMode blastMode,
   DotterContext *dotterCtx = createDotterContext(options, blastMode, createWindow, refSeqStrand, matchSeqStrand, mspList, seqList, MATRIX, matrixName);
 
   /* Create a context specific to the initial dotter window */
-  DotterWindowContext *dotterWinCtx = createDotterWindowContext(dotterCtx, &dotterCtx->refSeqFullRange, &dotterCtx->matchSeqFullRange, options->dotterZoom);
+  DotterWindowContext *dotterWinCtx = createDotterWindowContext(dotterCtx, &dotterCtx->refSeqFullRange, &dotterCtx->matchSeqFullRange, options->dotterZoom, createWindow);
 
   /* Create the widgets */
   createDotterInstance(dotterCtx, 
@@ -1190,7 +1199,7 @@ void callDotterInternal(DotterContext *dc,
                         const gdouble zoomFactor,
                         const gboolean breaklinesOn)
 {
-  DotterWindowContext *dwc = createDotterWindowContext(dc, refSeqRange, matchSeqRange, zoomFactor);
+  DotterWindowContext *dwc = createDotterWindowContext(dc, refSeqRange, matchSeqRange, zoomFactor, TRUE);
   createDotterInstance(dc, dwc, NULL, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, FALSE);
 }
 
