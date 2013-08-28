@@ -451,7 +451,7 @@ typedef struct _BlxViewContext
     int refSeqOffset;                       /* how much the coordinate system has been offset from the input coords */
 
     BlxBlastMode blastMode;                 /* The type of blast matching that was used */
-    BlxSeqType seqType;                     /* The type of sequence, e.g. DNA or peptide */
+    BlxSeqType seqType;                     /* The type of the match sequences, e.g. DNA or peptide */
     char **geneticCode;                     /* The genetic code used to translate DNA <-> peptide */
     int numFrames;                          /* The number of reading frames */
 

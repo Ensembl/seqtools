@@ -125,6 +125,12 @@
   -s <int>, --vertical-offset=<int>\n\
     Vertical_sequence offset\n\
 \n\
+  --horizontal-type=p|d\n\
+    Horizontal_sequence type ('p' for peptide or 'd' for DNA)\n\
+\n\
+  --vertical-type=p|d\n\
+    Vertical_sequence type ('p' for peptide or 'd' for DNA)\n\
+\n\
   --abbrev-title-on\n\
     Abbreviate window title prefixes\n\
 \n\
@@ -365,7 +371,9 @@ int main(int argc, char **argv)
   static gboolean showCompiled = FALSE;
   static gboolean hozScaleRev = FALSE;
   static gboolean vertScaleRev = FALSE;
-    
+  static BlxSeqType qSeqType = BLXSEQ_INVALID;
+  static BlxSeqType sSeqType = BLXSEQ_INVALID;
+  
   /* The strand stuff is a bit hacky, because dotter was originally never designed to deal with
    * reverse match seq strands, so match and ref seq strands work in different ways. If the ref seq
    * strand is reversed then the horizontal scale is reversed as well. (Because the 'active' (top) strand
@@ -408,6 +416,8 @@ int main(int argc, char **argv)
       {"crick-only",            no_argument,        0, 'c'},
       {"horizontal-offset",     required_argument,  0, 'q'},
       {"vertical-offset",       required_argument,  0, 's'},
+      {"horizontal-type",       required_argument,  0, 0},
+      {"vertical-type",         required_argument,  0, 0},
       {"negate-coords",         no_argument,        0, 'N'},
       {0, 0, 0, 0}
     };
@@ -423,7 +433,28 @@ int main(int argc, char **argv)
       switch (optc) 
         {
 	  case 0:
-            /* we get here if getopt_long set a flag; nothing else to do */
+            if (long_options[optionIndex].flag != 0)
+              {
+                /* we get here if getopt_long set a flag; nothing else to do */
+              }
+            else if (stringsEqual(long_options[optionIndex].name, "horizontal-type", TRUE))
+              {
+                if (*optarg == 'p')
+                  qSeqType = BLXSEQ_PEPTIDE;
+                else if (*optarg == 'd')
+                  qSeqType = BLXSEQ_DNA;
+                else
+                  g_critical("Invalid value for horizontal-type argument: expected 'p' or 'd'\n");
+              }                
+            else if (stringsEqual(long_options[optionIndex].name, "vertical-type", TRUE))
+              {
+                if (*optarg == 'p')
+                  sSeqType = BLXSEQ_PEPTIDE;
+                else if (*optarg == 'd')
+                  sSeqType = BLXSEQ_DNA;
+                else
+                  g_critical("Invalid value for vertical-type argument: expected 'p' or 'd'\n");
+              }                
             break;
           
 	  case '?':
@@ -829,15 +860,22 @@ int main(int argc, char **argv)
     }
 
   /* Determine sequence types */
-  GError *error = NULL;
-  BlxSeqType qSeqType = determineSeqType(options.qseq, &error);
-  prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.qname);
-  reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
-
-  BlxSeqType sSeqType = determineSeqType(options.sseq, &error);
-  prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.sname);
-  reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
-
+  if (qSeqType == BLXSEQ_INVALID)
+    {
+      GError *error = NULL;
+      qSeqType = determineSeqType(options.qseq, &error);
+      prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.qname);
+      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+    }
+  
+  if (sSeqType == BLXSEQ_INVALID)
+    {
+      GError *error = NULL;
+      sSeqType = determineSeqType(options.sseq, &error);
+      prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.sname);
+      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+    }
+  
   if (qSeqType == BLXSEQ_PEPTIDE && sSeqType == BLXSEQ_PEPTIDE) 
     {
       g_message("\nDetected sequence types: Protein vs. Protein\n");

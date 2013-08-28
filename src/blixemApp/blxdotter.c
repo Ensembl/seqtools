@@ -338,8 +338,11 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
   GtkWidget *bigPicture = blxWindowGetBigPicture(dialogData->blxWindow);
   const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
 
-  const int qStart = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, bc->numFrames, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  int qStart = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, bc->numFrames, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+
+  boundsLimitValue(&qStart, &bc->refSeqRange);
+  boundsLimitValue(&qEnd, &bc->refSeqRange);
   
   char *startString = convertIntToString(getDisplayCoord(qStart, bc));
   char *endString = convertIntToString(getDisplayCoord(qEnd, bc));
@@ -1133,6 +1136,14 @@ static void callDotterChildProcess(const char *dotterBinary,
   argList = g_slist_append(argList, seq1OffsetStr);
   argList = g_slist_append(argList, g_strdup("-s"));
   argList = g_slist_append(argList, seq2OffsetStr);
+  argList = g_slist_append(argList, "--horizontal-type");
+  argList = g_slist_append(argList, "d");
+  argList = g_slist_append(argList, "--vertical-type");
+
+  if (bc->seqType == BLXSEQ_PEPTIDE)
+    argList = g_slist_append(argList, "p");
+  else
+    argList = g_slist_append(argList, "d");
 
   if (bc->flags[BLXFLAG_ABBREV_TITLE])
     argList = g_slist_append(argList, "--abbrev-title-on");

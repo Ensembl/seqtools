@@ -3005,94 +3005,107 @@ static void onButtonClickedLoadEmblData(GtkWidget *button, gpointer data)
 
 
 /* Create a button to allow the user to load the data for optional columns, if not already loaded */
-static GtkWidget* createColumnLoadDataButton(GtkBox *box, GtkWidget *detailView)
+static GtkWidget* createColumnLoadDataButton(GtkTable *table, 
+                                             GtkWidget *detailView,
+                                             int *row,
+                                             const int cols,
+                                             int xpad,
+                                             int ypad)
 {
-  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(box), hbox, FALSE, FALSE, 12);
-
   BlxViewContext *bc = blxWindowGetContext(detailViewGetBlxWindow(detailView));
   const gboolean dataLoaded = bc->flags[BLXFLAG_EMBL_DATA_LOADED];
   
   GtkWidget *button = gtk_button_new_with_label(LOAD_DATA_TEXT);
   gtk_widget_set_sensitive(button, !dataLoaded); /* only enable if data not yet loaded */
-  gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 12);
 
-  GtkWidget *label = gtk_label_new("Use this button to load EMBL data for the optional columns (those greyed\nout below, if any). This may take a while if there are a lot of sequences.");
-  gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 12);
+  /* Add the hbox to the table, spanning all of the columns */
+  gtk_table_attach(table, button, 1, cols + 1, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  *row += 1;
 
   return button;
 }
 
 
-/* Create a set of widgets that allow columns to be resized */
-static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
+/* Create the settings buttons for a single column */
+static void createColumnButton(DetailViewColumnInfo *columnInfo, GtkTable *table, int *row)
 {
-  /* Group these buttons in a frame */
-  GtkWidget *frame = gtk_frame_new("Columns");
-  gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
+  /* Create a label, checkbox and a text entry box */
+  GtkWidget *label = gtk_label_new(columnInfo->title);
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  
+  GtkWidget *button = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->visible);
+  widgetSetCallbackData(button, onColumnVisibilityChanged, (gpointer)columnInfo);
+  
+  GtkWidget *entry = gtk_entry_new();
+  
+  if (columnInfo->columnId == BLXCOL_SEQUENCE)
+    {
+      /* The sequence column updates dynamically, so don't allow the user to edit it */
+      char displayText[] = "<dynamic>";
+      gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+      gtk_widget_set_sensitive(entry, FALSE);
+      gtk_widget_set_sensitive(button, FALSE);
+      gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2); /* fudge up width a bit in case user enters longer text */
+    }
+  else
+    {
+      if (!columnInfo->dataLoaded)
+        {
+          gtk_widget_set_sensitive(button, FALSE);
+          gtk_widget_set_sensitive(entry, FALSE);
+        }
+      
+      char *displayText = convertIntToString(columnInfo->width);
+      gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+      
+      gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
+      gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+      
+      widgetSetCallbackData(entry, onColumnSizeChanged, (gpointer)columnInfo);
+      
+      g_free(displayText);
+    }
+  
+  gtk_table_attach(table, label,  1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, button, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, entry,  3, 4, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  *row += 1;
+}
 
-  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_container_add(GTK_CONTAINER(frame), vbox);
+/* Create a set of widgets that allow columns settings to be adjusted */
+static void createColumnButtons(GtkWidget *parent, GtkWidget *detailView, const int border)
+{
+  /* put all the column settings in a table. Put the table in a
+   * scrolled window, because there are likely to be many rows */
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(parent), scrollWin);
+  
+  GList *columnList = detailViewGetColumnList(detailView);
+  const int rows = g_list_length(columnList) + 1;
+  const int cols = 3;
+  int row = 1;
+
+  GtkTable *table = GTK_TABLE(gtk_table_new(rows, cols, FALSE));  
+
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), GTK_WIDGET(table));
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
   /* Create a button to allow the user to load the full EMBL data, if not already loaded */
-  GtkWidget *button = createColumnLoadDataButton(GTK_BOX(vbox), detailView);
-  
-  /* Arrange the column-size boxes horizontally */
-  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+  GtkWidget *button = createColumnLoadDataButton(table, detailView, &row, cols, border, border);
   
   /* Loop through each column in the detail view and create a text box showing the
    * current width. Compile a list of widgets that are disabled, so that we can enable
    * them if/when the user clicks the button to load their data. */
-  GList *listItem = detailViewGetColumnList(detailView);
+  GList *listItem = columnList;
 
   for ( ; listItem; listItem = listItem->next)
     {
       DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
-      
-      /* Create a label and a text entry box, arranged vertically in a vbox */
-      GtkWidget *vbox = createVBoxWithBorder(hbox, 4, FALSE, NULL);
-      
-      GtkWidget *label = gtk_label_new(columnInfo->title);
-      gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
-      
-      GtkWidget *button = gtk_check_button_new();
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->visible);
-      gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 0);
-      widgetSetCallbackData(button, onColumnVisibilityChanged, (gpointer)columnInfo);
-      
-      GtkWidget *entry = gtk_entry_new();
-      gtk_box_pack_start(GTK_BOX(vbox), entry, FALSE, FALSE, 0);
-      
-      if (columnInfo->columnId == BLXCOL_SEQUENCE)
-        {
-          /* The sequence column updates dynamically, so don't allow the user to edit it */
-          char displayText[] = "<dynamic>";
-          gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-          gtk_widget_set_sensitive(entry, FALSE);
-          gtk_widget_set_sensitive(button, FALSE);
-          gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2); /* fudge up width a bit in case user enters longer text */
-        }
-      else
-        {
-          if (!columnInfo->dataLoaded)
-            {
-              gtk_widget_set_sensitive(vbox, FALSE);
-            }
-          
-          char *displayText = convertIntToString(columnInfo->width);
-          gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-
-          gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
-          gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-
-          widgetSetCallbackData(entry, onColumnSizeChanged, (gpointer)columnInfo);
-          
-          g_free(displayText);
-        }
+      createColumnButton(columnInfo, table, &row);
     }
   
-  g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onButtonClickedLoadEmblData), hbox);
+  g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onButtonClickedLoadEmblData), table);
 }
 
 
@@ -3199,7 +3212,7 @@ static void createTextEntry(GtkWidget *parent,
 static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
 {
   /* Group these buttons in a frame */
-  GtkWidget *frame = gtk_frame_new("Grid properties");
+  GtkWidget *frame = gtk_frame_new("Overview section");
   gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
 
   /* Arrange the widgets horizontally */
@@ -3218,7 +3231,7 @@ static void createCoverageSettingsButtons(GtkWidget *parent, GtkWidget *bigPictu
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
   /* Group these buttons in a frame */
-  GtkWidget *frame = gtk_frame_new("Coverage view properties");
+  GtkWidget *frame = gtk_frame_new("Coverage section");
   gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
   
   /* Arrange the widgets horizontally */
@@ -3683,6 +3696,11 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
       g_free(title);
       
+      GdkScreen *screen = gtk_widget_get_screen(dialog);
+      const int width = gdk_screen_get_width(screen) * 0.33;
+      const int height = gdk_screen_get_height(screen) * 0.33;
+      gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
+      
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
@@ -3701,59 +3719,77 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   
-  /* Create separate pages for general settings and colors */
+  /* We'll put everything into a tabbed notebook */
   GtkWidget *notebook = gtk_notebook_new();
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), notebook, TRUE, TRUE, 0);
 
-  GtkWidget *settingsPage = gtk_vbox_new(FALSE, 0);
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(settingsPage), gtk_label_new("General"));
 
-  /* GENERAL PAGE */
-  GtkWidget *mainVBox = createVBoxWithBorder(settingsPage, borderWidth, FALSE, NULL);
+  /* OPTIONS PAGE */
+  GtkWidget *optionsPage = gtk_vbox_new(FALSE, 0);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(optionsPage), gtk_label_new_with_mnemonic("Opt_ions"));
 
-  /* Features */
-  GtkWidget *vbox1 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Features");
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(optionsPage), scrollWin);
 
-  GtkContainer *variationContainer = createParentCheckButton(vbox1, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS, NULL, G_CALLBACK(onParentBtnToggled));
-  createCheckButton(GTK_BOX(variationContainer), "Show variations _track", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
+  GtkWidget *optionsBox = gtk_vbox_new(FALSE, 0);
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), GTK_WIDGET(optionsBox));
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+  GtkContainer *variationContainer = createParentCheckButton(optionsBox, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS, NULL, G_CALLBACK(onParentBtnToggled));
+  createCheckButton(GTK_BOX(variationContainer), "Show variations trac_k", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
 
   /* show-polyA-tails option and its sub-options. Connect onToggleFlag twice to the 'when selected' button to also toggle the 'show signals when selected' button in unison. */
   GtkWidget *polyAParentBtn = NULL;
-  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE, &polyAParentBtn, G_CALLBACK(onShowAdditionalSeqToggled));
+  GtkContainer *polyAContainer = createParentCheckButton(optionsBox, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE, &polyAParentBtn, G_CALLBACK(onShowAdditionalSeqToggled));
   GtkWidget *polyABtn = createCheckButton(GTK_BOX(polyAContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SITE_SELECTED));
   g_signal_connect(G_OBJECT(polyAParentBtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG));
   g_signal_connect(G_OBJECT(polyABtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG_SELECTED));
-  
 
-  /* Display options */
-  GtkWidget *vbox2 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
   const gboolean squashMatches = (bc->modelId == BLXMODEL_SQUASHED);
   
   /* show-unaligned-sequence option and its sub-options */
-  GtkContainer *unalignContainer = createParentCheckButton(vbox2, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", BLXFLAG_SHOW_UNALIGNED, NULL, G_CALLBACK(onShowAdditionalSeqToggled));
+  GtkContainer *unalignContainer = createParentCheckButton(optionsBox, detailView, bc, "Show _unaligned sequence", BLXFLAG_SHOW_UNALIGNED, NULL, G_CALLBACK(onShowAdditionalSeqToggled));
   createLimitUnalignedBasesButton(unalignContainer, detailView, bc);
   createCheckButton(GTK_BOX(unalignContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED], G_CALLBACK(onToggleShowUnalignedSelected), detailView);
 
-  createCheckButton(GTK_BOX(vbox2), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
+  createCheckButton(GTK_BOX(optionsBox), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
 
-  createCheckButton(GTK_BOX(vbox2), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
-  createCheckButton(GTK_BOX(vbox2), "_Squash matches", squashMatches, G_CALLBACK(onSquashMatches), NULL);
+  createCheckButton(GTK_BOX(optionsBox), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
+  createCheckButton(GTK_BOX(optionsBox), "_Squash matches", squashMatches, G_CALLBACK(onSquashMatches), NULL);
 
-  
-  /* Other boxes */
-  GtkWidget *pfetchBox = createHBoxWithBorder(mainVBox, borderWidth, TRUE, "Settings");
-  createFontSelectionButton(GTK_BOX(pfetchBox), blxWindow);
-  
-  createColumnSizeButtons(mainVBox, detailView);
-  createGridSettingsButtons(mainVBox, bigPicture);
-  createCoverageSettingsButtons(mainVBox, bigPicture);
-  
-  /* APPEARANCE PAGE */
-  GtkWidget *appearancePage = gtk_vbox_new(FALSE, borderWidth);
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(appearancePage), gtk_label_new("Appearance"));
 
+  /* DISPLAY PAGE */
+  GtkWidget *displayPage = gtk_vbox_new(FALSE, 0);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(displayPage), gtk_label_new_with_mnemonic("_Display"));
+
+  GtkWidget *displayScrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(displayPage), displayScrollWin);
+
+  GtkWidget *displayBox = gtk_vbox_new(FALSE, 0);
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(displayScrollWin), GTK_WIDGET(displayBox));
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(displayScrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+  GtkWidget *settingsBox = createVBoxWithBorder(displayBox, borderWidth, TRUE, "General");
   const gboolean usePrintColours = blxWindowGetUsePrintColors(blxWindow);
-  createCheckButton(GTK_BOX(appearancePage), "Use _print colours", usePrintColours, G_CALLBACK(onTogglePrintColors), blxWindow);
+  createCheckButton(GTK_BOX(settingsBox), "Use _print colours", usePrintColours, G_CALLBACK(onTogglePrintColors), blxWindow);
+  createFontSelectionButton(GTK_BOX(settingsBox), blxWindow);
+
+  createGridSettingsButtons(displayBox, bigPicture);
+
+  createCoverageSettingsButtons(displayBox, bigPicture);
+
+
+  /* COLUMNS PAGE */
+  GtkWidget *columnsPage = gtk_vbox_new(FALSE, 0);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(columnsPage), gtk_label_new_with_mnemonic("Colum_ns"));
+
+  createColumnButtons(columnsPage, detailView, borderWidth);
+
+
+  /* COLOURS PAGE */
+  GtkWidget *appearancePage = gtk_vbox_new(FALSE, borderWidth);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(appearancePage), gtk_label_new_with_mnemonic("Colou_rs"));
+
   createColorButtons(appearancePage, blxWindow, borderWidth);
 
   
@@ -5103,8 +5139,8 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   /* matches */
   createBlxColor(bc->defaultColors, BLXCOLOR_MATCH, "Exact match", "Exact match", BLX_LIGHT_CYAN, BLX_LIGHT_GREY, BLX_CYAN, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_CONS, "Conserved match", "Conserved match", BLX_VIOLET, BLX_VERY_LIGHT_GREY, BLX_DARK_VIOLET, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#989898", NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_INSERTION, "Insertion", "Insertion", BLX_YELLOW, BLX_VERY_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_MISMATCH, "Mismatch", "Mismatch", "#FFFFFF", BLX_WHITE, "#FED4EA", NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_INSERTION, "Insertion", "Insertion", "#9E00FF", BLX_VERY_DARK_GREY, NULL, NULL);
   
   /* exons */
   createBlxColor(bc->defaultColors, BLXCOLOR_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
@@ -5138,7 +5174,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc->defaultColors, BLXCOLOR_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_VERY_LIGHT_GREY, NULL, NULL);
   
   /* misc */
-  createBlxColor(bc->defaultColors, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", defaultBgColorStr, BLX_WHITE, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", "#FFC432", BLX_WHITE, "#FFE8AD", NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_DARK_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_DARK_GREY, NULL, NULL);
@@ -5241,6 +5277,7 @@ static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *opti
   blxContext->flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
+  blxContext->flags[BLXFLAG_SHOW_SPLICE_SITES] = TRUE;
   blxContext->flags[BLXFLAG_EMBL_DATA_LOADED] = options->parseFullEmblInfo;
   blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
