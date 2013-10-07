@@ -502,18 +502,20 @@ int main(int argc, char **argv)
   const gboolean batchMode = options.savefile || options.exportfile;
 
   /* We create the window in batch mode only if exporting (because this needs
-   * to print the window); otherwise, don't create the window in batch mode. */
-  const gboolean createWindow = options.exportfile || !batchMode;
+   * to print the window); otherwise, don't create the window in batch mode.
+   * Obviously we don't need to create the window if just showing usage info either. */
+  const gboolean createWindow = (options.exportfile || !batchMode) && !showHelp && !showVersion && !showCompiled;
 
   /* Initialise gtk */
-  gtk_init(&argc, &argv);
+  if (createWindow)
+    gtk_init(&argc, &argv);
 
   /* Set the message handlers to use our custom handlers. We normally assign a popup
    * message handler for critical messages, but don't do this in batch mode because
    * we can't have user interaction, so use the default handler for all in that case. */
   g_log_set_default_handler(defaultMessageHandler, &options.msgData);
 
-  if (batchMode)
+  if (batchMode && !createWindow)
     g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, defaultMessageHandler, &options.msgData);
   else
     g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, &options.msgData);
@@ -854,7 +856,7 @@ int main(int argc, char **argv)
 
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       
-      finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE, LINK_FEATURES_DEFAULT);
+      finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
       
       blxDestroyGffTypeList(&supportedTypes);
     }

@@ -790,7 +790,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   finaliseFetch(newSeqs);
 
   finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->refSeqOffset, bc->seqType, 
-                       bc->numFrames, &bc->refSeqRange, TRUE, bc->flags[BLXFLAG_LINK_FEATURES]);
+                       bc->numFrames, &bc->refSeqRange, TRUE);
 
   /* Add the msps/sequences to the tree data models (must be done after finalise because
    * finalise populates the child msp lists for parent feaatures) */
@@ -1619,6 +1619,44 @@ static void createSearchColumnCombo(GtkTable *table, const int col, const int ro
 }
 
 
+static void onClearFindDialog(GtkWidget *button, gpointer data)
+{
+  GSList *entryList = (GSList*)data;
+  
+  for ( ; entryList; entryList = entryList->next)
+    {
+      if (GTK_IS_ENTRY(entryList->data))
+        {
+          GtkEntry *entry = GTK_ENTRY(entryList->data);
+          gtk_entry_set_text(entry, "");
+        }
+      else if (GTK_IS_TEXT_VIEW(entryList->data))
+        {
+          GtkTextView *textView = GTK_TEXT_VIEW(entryList->data);
+          gtk_text_buffer_set_text(gtk_text_view_get_buffer(textView), "", -1);
+        }
+      else
+        {
+          g_warning("onClearFindDialog: Unexpected widget type: expected GtkEntry or GtkTextView\n");
+        }
+    }
+}
+
+
+/* Clear up data created for the find dialog when it is destroyed
+ * (here for completeness but not actually called because the dialog
+ * is persistent). */
+static void onDestroyFindDialog(GtkWidget *widget, gpointer data)
+{
+  GSList *entryList = (GSList*)data;
+
+  if (entryList)
+    {
+      g_slist_free(entryList);
+    }
+}
+
+
 /* Show the 'Find' dialog */
 void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
@@ -1630,19 +1668,17 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
     {
       char *title = g_strdup_printf("%sFind sequences", blxGetTitlePrefix(bc));
 
+      /* Note that we add some buttons here but some more at the end because
+       * we want to create a custom Clear button in the middle somewhere */
       dialog = gtk_dialog_new_with_buttons(title, 
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
-                                           GTK_STOCK_GO_BACK,
+                                           GTK_STOCK_GO_BACK,     /* previous match */
                                            BLX_RESPONSE_BACK,
-                                           GTK_STOCK_GO_FORWARD,
+                                           GTK_STOCK_GO_FORWARD,  /* next match */
                                            BLX_RESPONSE_FORWARD,
-                                           GTK_STOCK_CLOSE,
-                                           GTK_RESPONSE_REJECT,
-                                           GTK_STOCK_OK,
-                                           GTK_RESPONSE_ACCEPT,
                                            NULL);
-
+      
       g_free(title);
       
       /* These calls are required to make the dialog persistent... */
@@ -1650,24 +1686,40 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
       
       GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
+      GtkBox *actionArea = GTK_BOX(GTK_DIALOG(dialog)->action_area);
       const int numRows = 3;
       const int numCols = 2;
       GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
       gtk_box_pack_start(contentArea, GTK_WIDGET(table), TRUE, TRUE, 0);
 
+      /* This list will be populated with the text entry widgets. */
+      GSList *entryList = NULL;
 
       /* Column 1: match-seq search options */
-      GtkRadioButton *button1 = createRadioButton(table, 1, 1, NULL, "_Text search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
-      createRadioButton(table, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow);
+      GtkRadioButton *button1 = createRadioButton(table, 1, 1, NULL, "_Text search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow, &entryList);
+      createRadioButton(table, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow, &entryList);
       createSearchColumnCombo(table, 1, 3, blxWindow);
       
-      
       /* Column 2: ref-seq search options */
-      createRadioButton(table, 2, 1, button1, "_DNA search", FALSE, TRUE, FALSE, onFindDnaString, blxWindow);
-
+      createRadioButton(table, 2, 1, button1, "_DNA search", FALSE, TRUE, FALSE, onFindDnaString, blxWindow, &entryList);
       
+      /* Add a button to clear the text entry fields. It's easier to do this
+       * here than in the response callback because we want to send different data */
+      GtkWidget *clearButton = gtk_button_new_from_stock(GTK_STOCK_CLEAR);
+      g_signal_connect(G_OBJECT(clearButton), "clicked", G_CALLBACK(onClearFindDialog), entryList);
+      gtk_box_pack_end(actionArea, clearButton, FALSE, FALSE, 0);
+
+      /* Add remaining buttons after the Clear button */
+      gtk_dialog_add_buttons(GTK_DIALOG(dialog),
+                             GTK_STOCK_CLOSE,       /* close / cancel */
+                             GTK_RESPONSE_REJECT,
+                             GTK_STOCK_OK,          /* ok, do the search */
+                             GTK_RESPONSE_ACCEPT,
+                             NULL);
+
       gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
+      g_signal_connect(dialog, "destroy", G_CALLBACK(onDestroyFindDialog), entryList);
     }
 
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
@@ -2658,12 +2710,12 @@ static void createCreateGroupTab(GtkNotebook *notebook, BlxViewContext *bc, GtkW
   gtk_notebook_append_page(notebook, GTK_WIDGET(table), gtk_label_new("Create group"));
   
   /* Create the left-hand-side column */
-  GtkRadioButton *button1 = createRadioButton(table, 1, 1, NULL, "_Text search (wildcards * and ?)", !seqsSelected, TRUE, FALSE, onAddGroupFromText, blxWindow);
-  createRadioButton(table, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onAddGroupFromList, blxWindow);
+  GtkRadioButton *button1 = createRadioButton(table, 1, 1, NULL, "_Text search (wildcards * and ?)", !seqsSelected, TRUE, FALSE, onAddGroupFromText, blxWindow, NULL);
+  createRadioButton(table, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onAddGroupFromList, blxWindow, NULL);
   createSearchColumnCombo(table, 1, 3, blxWindow);
   
   /* Create the right-hand-side column */
-  createRadioButton(table, 2, 1, button1, "Use current _selection", seqsSelected, FALSE, FALSE, onAddGroupFromSelection, blxWindow);
+  createRadioButton(table, 2, 1, button1, "Use current _selection", seqsSelected, FALSE, FALSE, onAddGroupFromSelection, blxWindow, NULL);
 }
 
 
@@ -5191,7 +5243,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
 /* Whether to include the given msp type in depth coverage calculations */
 static gboolean includeTypeInCoverage(BlxMspType mspType)
 {
-  return (mspType == BLXMSP_MATCH || mspType == BLXMSP_SHORT_READ);
+  return (mspType == BLXMSP_MATCH);
 }
 
 
@@ -5282,7 +5334,6 @@ static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *opti
   blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
   blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
-  blxContext->flags[BLXFLAG_LINK_FEATURES] = options->linkFeaturesByName;
   blxContext->flags[BLXFLAG_ABBREV_TITLE] = options->abbrevTitle;
 }
 

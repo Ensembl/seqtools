@@ -457,6 +457,9 @@ static GString* doFetchStringSubstitutions(const char *command,
                 if (filename)
                   g_string_append(result, filename);
                 break;
+              case 'g':
+                g_string_append_printf(result, "%d", SEQTOOLS_GFF_VERSION);
+                break;
               case '%':
                 g_string_append_c(result, *c);
                 break;
@@ -606,6 +609,7 @@ static GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod,
  *   %d:      dataset
  *   %S:      feature source
  *   %f:      file name
+ *   %g:      supported GFF version
  * 
  * Returns the command and args compiled into a single string.
  * The caller must free the result with g_string_free.
@@ -1943,8 +1947,18 @@ static void readBlixemStanza(GKeyFile *key_file,
   if (!options->bulkFetchDefault)
     options->bulkFetchDefault = keyFileGetCsv(key_file, group, BLIXEM_OLD_BULK_FETCH, NULL);
 
-  /* Get the link-features-by-name value */
-  options->linkFeaturesByName = g_key_file_get_boolean(key_file, group, LINK_FEATURES_BY_NAME, NULL);
+  /* Get the default values for the MSP flags, if they're specified in the blixem stanza. */
+  MspFlag flag = MSPFLAG_MIN + 1;
+  for ( ; flag < MSPFLAG_NUM_FLAGS; ++flag)
+    {
+      GError *tmpError = NULL;
+      const char *key = mspFlagGetConfigKey(flag);
+      gboolean value = g_key_file_get_boolean(key_file, group, key, &tmpError);
+      
+      /* If found, set it as the default */
+      if (!tmpError)
+        mspFlagSetDefault(flag, value);
+    }
 }
 
 

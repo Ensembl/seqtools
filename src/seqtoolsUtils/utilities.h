@@ -48,7 +48,7 @@
 #define MIN_FONT_SIZE                 2
 #define MAX_FONT_SIZE                 20
 #define MACHINE_RES                   0.000000001
-
+#define SEQTOOLS_GFF_VERSION          3    /* the default GFF version */
 
 
 /* Really the buffers that use this should be dynamic but I'm not going to do that, this
@@ -274,12 +274,14 @@ typedef struct _CallbackData
     gpointer data;                /* User data to pass to the callback function */
   } CallbackData;
 
-/* Custom dialog response types, which can be used in addition to the default types specified by GtkResponseType */
+/* Custom dialog response types, which can be used in addition
+ * to the default types specified by GtkResponseType */
 typedef enum
   {
     BLX_RESPONSE_FORWARD, 
     BLX_RESPONSE_BACK,
-    BLX_RESPONSE_RESET
+    BLX_RESPONSE_RESET,
+    BLX_RESPONSE_CLEAR
   } BlxResponseType;
 
 
@@ -597,7 +599,8 @@ GtkRadioButton*                    createRadioButton(GtkTable *table,
                                                      const gboolean createTextEntry,
                                                      const gboolean multiline,
                                                      BlxResponseCallback callbackFunc,
-                                                     GtkWidget *blxWindow);
+                                                     GtkWidget *blxWindow,
+                                                     GSList **entryList);
 
 const char*                        getSystemTempDir();     
 

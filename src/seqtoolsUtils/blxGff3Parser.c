@@ -39,7 +39,7 @@
 #include <seqtoolsUtils/utilities.h>
 #include <seqtoolsUtils/blxmsp.h>
 #include <string.h>
-
+#include <ctype.h>
 
 
 #define SOURCE_DATA_TYPES_GROUP "source-data-types" /* group name for stanza where default data types are specified for sources */
@@ -49,7 +49,7 @@
 #define BLX_GFF3_ERROR g_quark_from_string("GFF 3 parser")
 
 typedef enum {
-  BLX_GFF3_ERROR_INVALID_STRAND,	      /* invalid strand in GFF3 input file */
+  BLX_GFF3_ERROR_INVALID_STRAND,	      /* invali strand in GFF3 input file */
   BLX_GFF3_ERROR_INVALID_TYPE,                /* invalid type in GFF3 input file */
   BLX_GFF3_ERROR_INVALID_NUM_TOKENS,          /* invalid number of columns from a line of the input file */
   BLX_GFF3_ERROR_INVALID_TAG,                 /* invalid format for a tag/data pair */
@@ -61,6 +61,13 @@ typedef enum {
   BLX_GFF3_ERROR_OUT_OF_RANGE,                /* Feature is not in the reference sequence range */
   BLX_GFF3_ERROR_DATA_TYPE                   /* Error finding data type */
 } BlxGff3Error;
+
+
+typedef enum {
+  BLX_GAP_STRING_INVALID,
+  BLX_GAP_STRING_GFF3,                        /* The Gap string used in GFF3 e.g. M23 D3 M10 I1 M20 */
+  BLX_GAP_STRING_BAM_CIGAR                    /* The cigar format used by SAM/BAM, e.g. 23M3D10M1I20M */
+} BlxGapFormat;
 
 
 /* Utility struct to compile GFF fields and attributes into */
@@ -85,11 +92,29 @@ typedef struct _BlxGffData
     char *idTag;	/* ID of the item */
     char *parentIdTag;	/* Parent ID of the item */
     char *sequence;	/* sequence data */
-    char *gapString;	/* the gaps cigar string */
+    char *gapString;	/* the gap string (cigar) */
+    BlxGapFormat gapFormat;    /* the format of the gap string */
     GQuark dataType;    /* represents a string that should correspond to a data type in the config file */
     GQuark filename;    /* optional filename e.g. for fetching data from a bam file */
   } BlxGffData;
 
+
+/* Data used while parsing a gap string */
+typedef struct _GapStringData
+{
+  BlxGapFormat gapFormat; /* the type of gap string e.g. cigar_bam */
+  MSP **msp;              /* the msp that the gap string is for */
+  int qDirection;         /* the direction we're parsing the reference (query) sequence: 1 for forward strand, -1 for rev */
+  int sDirection;         /* the direction we're parsing the match (subject) sequence: 1 for forward strand, -1 for rev */
+  int resFactor;          /* residue factor (3 for a peptide sequence, 1 for dna) */
+  int *q;                 /* the current reference (query) sequence coord */
+  int *s;                 /* the current match (subject) sequence coord */
+  GArray **featureLists;  /* the array of lists of feature (one list per feature type) */
+  MSP **lastMsp;          /* the last msp in the main msp list */
+  MSP **mspList;          /* the main msp list */
+  GList **seqList;        /* the list of sequence structs */
+  GError *error;          /* gets set if there is an error */
+} GapStringData;
 
 
 static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, const IntRange const *refSeqRange, BlxGffData *gffData, GError **error);
@@ -98,11 +123,11 @@ static void           parseTagDataPair(char *text, const int lineNum, GList **se
 static void           parseNameTag(char *data, char **sName, const int lineNum, GError **error);
 static void           parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseSequenceTag(const char *text, const int lineNum, BlxGffData *gffData, GError **error);
-static void           parseGapString(char *text, MSP *msp, const int resFactor, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
+static void           parseGapString(char *text, BlxGapFormat gapFormat, MSP *msp, const int resFactor, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
 
 static BlxStrand      readStrand(char *token, GError **error);
 //static void           parseMspType(char *token, MSP *msp, GSList *supportedTypes, GError **error);
-static void           parseCigarStringSection(const char *text, MSP **msp, const int qDirection, const int sDirection, const int resFactor, int *q, int *s, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
+static void           parseCigarStringSection(const char *text, GapStringData *data);
 static int            validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error);
 //static void           validateMsp(const MSP *msp, GError **error);
 static void           addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType);
@@ -176,8 +201,10 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "polyA_signal_sequence", "SO:0000551", BLXMSP_POLYA_SIGNAL);
   addGffType(&supportedTypes, "polyA_site", "SO:0000553", BLXMSP_POLYA_SITE);
 
-  addGffType(&supportedTypes, "read", "SO:0000150", BLXMSP_SHORT_READ);
-  addGffType(&supportedTypes, "similarity", "SO:0000150", BLXMSP_SHORT_READ); /* not a true gff type but temp fix because it gets put in gff by bam-get script */
+  addGffType(&supportedTypes, "read", "SO:0000150", BLXMSP_MATCH);
+  addGffType(&supportedTypes, "read_PAIR", "SO:0000007", BLXMSP_MATCH);
+  addGffType(&supportedTypes, "similarity", "SO:0000150", BLXMSP_MATCH); /* not a true gff type but temp fix because it gets put in gff by bam-get script */
+
   addGffType(&supportedTypes, "region", "SO:0000001", BLXMSP_REGION);
 
   supportedTypes = g_slist_reverse(supportedTypes);
@@ -286,51 +313,41 @@ static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
 }
 
 
-/* Get the default value for the link-features-by-name option */
-static gboolean getLinkFeaturesDefault(GKeyFile *keyFile)
+/* Get the value for the given flag for the given group, and set 
+ * it in the datatype if found */
+static void getMspFlag(GKeyFile *keyFile, const char *group, const MspFlag flag, BlxDataType *dataType)
 {
-  gboolean result = LINK_FEATURES_DEFAULT;
+  /* Get the config-file key to use for this flag */
+  const char *key = mspFlagGetConfigKey(flag);
 
-  if (keyFile)
+  if (key)
     {
       GError *tmpError = NULL;
-      gboolean value = g_key_file_get_boolean(keyFile, BLIXEM_GROUP, LINK_FEATURES_BY_NAME, &tmpError);
-
+      gboolean result = g_key_file_get_boolean(keyFile, group, key, &tmpError);
+      
+      /* If found, update the value in the dataType */
       if (!tmpError)
-        result = value;
+        dataType->flags[flag] = result;
     }
-  
-  return result;
 }
 
-/* Get the value for the link-features-by-name option for the given 
- * group */
-static gboolean getLinkFeatures(GKeyFile *keyFile, const char *group)
-{
-  GError *tmpError = NULL;
-  gboolean result = g_key_file_get_boolean(keyFile, group, LINK_FEATURES_BY_NAME, &tmpError);
-  
-  if (tmpError)
-    result = getLinkFeaturesDefault(keyFile);
-  
-  return result;
-}
 
 /* Get the BlxDataType with the given name. Returns null and sets the error if 
  * we expected to find the name but didn't. */
 BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFile, GError **error)
 {
+  BlxDataType *result = NULL;
+
   /* If no data type was specified in the gff, see if there is a default for this gff type */
   if (!dataType)
     dataType = getBlxDataTypeDefault(source, keyFile);
 
   /* A keyfile might not be supplied if the calling program is not interested
    * in the data-type data (i.e. the data-type data is currently only used to
-   * supply fetch methods, which are not used by Dotter). */
+   * supply values that are used in blixem, so are irrelevant to dotter). */
   if (!keyFile || !dataType)
-    return NULL;
+    return result;
   
-  BlxDataType *result = NULL;
   static GHashTable *dataTypes = NULL;
 
   if (!dataTypes)
@@ -352,11 +369,17 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
               result = createBlxDataType();
               result->name = dataType;
 
-              /* Get the values. They're all optional so just ignore any errors.
-               * Valid keys are bulk-fetch and user-fetch */
+              /* Get the values. They're all optional so just ignore any errors. */
               result->bulkFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_BULK_FETCH, NULL); 
               result->userFetch = keyFileGetCsv(keyFile, typeName, SEQTOOLS_USER_FETCH, NULL); 
-              result->linkFeaturesByName = getLinkFeatures(keyFile, typeName);
+              
+              /* Get the flags. Again, they're all optional. These calls update the
+               * flag in place if it is found, or leave it at the pre-set default otherwise. */
+              MspFlag flag = MSPFLAG_MIN + 1;
+              for ( ; flag < MSPFLAG_NUM_FLAGS; ++flag)
+                {
+                  getMspFlag(keyFile, typeName, flag, result);
+                }              
               
               /* Insert it into the table of data types */
               g_hash_table_insert(dataTypes, GINT_TO_POINTER(dataType), result);
@@ -422,8 +445,6 @@ static void createBlixemObject(BlxGffData *gffData,
 
   GQuark filename = getFeatureFilename(gffData, keyFile, NULL);
 
-  const gboolean linkFeaturesByName = dataType ? dataType->linkFeaturesByName : getLinkFeaturesDefault(keyFile);
-
   if (gffData->mspType > BLXMSP_NUM_TYPES)
     {
       /* "Invalid" MSP types, i.e. don't create a real MSP from these types. */
@@ -433,7 +454,7 @@ static void createBlixemObject(BlxGffData *gffData,
           /* For transcripts, although we don't create an MSP we do create a sequence */
           addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand,
                          dataType, gffData->source, seqList, gffData->sequence, NULL, 
-                         linkFeaturesByName, &tmpError);
+                         &tmpError);
         }
     }
   else
@@ -449,7 +470,7 @@ static void createBlixemObject(BlxGffData *gffData,
       
       if (!gffData->sName && !gffData->parentIdTag && 
 	  (gffData->mspType == BLXMSP_TRANSCRIPT || typeIsExon(gffData->mspType) || 
-	   typeIsMatch(gffData->mspType) || typeIsShortRead(gffData->mspType)))
+	   typeIsMatch(gffData->mspType)))
 	{
 	  g_set_error(error, BLX_ERROR, 1, "Target/name/parent-ID must be specified for exons and alignments.\n");
 	  return;
@@ -486,7 +507,6 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->sEnd, 
 			      gffData->sStrand, 
 			      gffData->sequence, 
-                              linkFeaturesByName,
                               filename,
 			      &tmpError);
 
@@ -504,7 +524,7 @@ static void createBlixemObject(BlxGffData *gffData,
 	    }
 
 	  /* populate the gaps array */
-	  parseGapString(gffData->gapString, msp, resFactor, featureLists, lastMsp, mspList, seqList, &tmpError);
+	  parseGapString(gffData->gapString, gffData->gapFormat, msp, resFactor, featureLists, lastMsp, mspList, seqList, &tmpError);
 	}
     }
 
@@ -535,7 +555,7 @@ void parseGff3Body(const int lineNum,
   
   /* Parse the data into a temporary struct */
   BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
-			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, 0, 0};
+			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, BLX_GAP_STRING_INVALID, 0, 0};
 		      
   GError *error = NULL;
   parseGffColumns(line_string, lineNum, seqList, supportedTypes, refSeqRange, &gffData, &error);
@@ -649,27 +669,6 @@ static BlxStrand readStrand(char *token, GError **error)
 }
 
 
-/* To do: This is a bit of a hack to distinguish short-read matches from other
- * matches. It assumes that any match coming from a "sam/bam" source is a 
- * short-read, and anything else is not. This is obviously not ideal but at
- * the time of writing there is no consensus for how to represent short-reads
- * in a GFF file, and with our original input files we had no other way to 
- * distinguish them. We are moving to using the 'read' type for short reads
- * instead of 'match' because we want to use the source for something else, so
- * we will be able to distinguish them that way, and if this proves to be
- * accepted then this function can be removed altogether. */
-static void updateInputMspType(BlxGffData *gffData)
-{
-  if (gffData->mspType == BLXMSP_MATCH && gffData->source && stringsEqual(gffData->source, "sam/bam", FALSE))
-    {
-      gffData->mspType = BLXMSP_SHORT_READ;
-    }
-}
-
-
-
-
-
 /* Parse the columns in a GFF line and populate the parsed info into the given MSP. */
 static void parseGffColumns(GString *line_string, 
                             const int lineNum, 
@@ -700,7 +699,6 @@ static void parseGffColumns(GString *line_string,
       
       /* Type (converted to a seqtools type) */
       gffData->mspType = getBlxType(supportedTypes, tokens[2], &tmpError);
-      updateInputMspType(gffData);
     }
     
   if (!tmpError)
@@ -835,9 +833,15 @@ static void parseTagDataPair(char *text,
         {
           parseTargetTag(tokens[1], lineNum, seqList, gffData, &tmpError);
         }
-      else if (!strcmp(tokens[0], "Gap") || !strcmp(tokens[0], "Gaps")) /* to do: get rid of "Gaps" once zmap starts supporting the correct keyword "Gap" */
+      else if (!strcmp(tokens[0], "Gap"))
         {
           gffData->gapString = g_strdup(tokens[1]);
+          gffData->gapFormat = BLX_GAP_STRING_GFF3; 
+        }
+      else if (!strcmp(tokens[0], "cigar_bam"))
+        {
+          gffData->gapString = g_strdup(tokens[1]);
+          gffData->gapFormat = BLX_GAP_STRING_BAM_CIGAR; 
         }
       else if (!strcmp(tokens[0], "ID"))
         {
@@ -954,8 +958,9 @@ static void parseSequenceTag(const char *text, const int lineNum, BlxGffData *gf
 
 
 /* Parse the data from the "gaps" string, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
- * Populates the Gaps array in the given MSP.  */
+ * Populates the Gaps array in the given MSP.*/
 static void parseGapString(char *text,
+                           BlxGapFormat gapFormat,
                            MSP *msp,
                            const int resFactor,
                            GArray* featureLists[],
@@ -964,7 +969,7 @@ static void parseGapString(char *text,
                            GList **seqList, 
                            GError **error)
 {
-  if (!text)
+  if (!text || gapFormat == BLX_GAP_STRING_INVALID)
     {
       return;
     }
@@ -988,14 +993,16 @@ static void parseGapString(char *text,
   char **token = tokens;
   GError *tmpError = NULL;
 
-  while (token && *token && **token && !tmpError)
+  GapStringData gapStringData = {gapFormat, &msp, qDirection, sDirection, resFactor, &q, &s, 
+                                 featureLists, lastMsp, mspList, seqList, NULL};  
+
+  while (token && *token && **token)
     {
-      parseCigarStringSection(*token, &msp, qDirection, sDirection, resFactor, &q, &s,
-                              featureLists, lastMsp, mspList, seqList, &tmpError);
+      parseCigarStringSection(*token, &gapStringData);
       
       if (tmpError)
         {
-          prefixError(tmpError, "Invalid CIGAR string '%s'. ", text);
+          prefixError(tmpError, "Error parsing gap string '%s'. ", text);
         }
 
       ++token;
@@ -1010,7 +1017,170 @@ static void parseGapString(char *text,
 }
 
 
-/* Parse a section from a CIGAR string, e.g. "M8" or "I2" or "D3" etc. and create an array of
+/* Get the length part of a gap string section, e.g. if the text is "M76"
+ * then this returns 76 */
+static int getCigarStringSectionLen(const char *text, BlxGapFormat gapFormat)
+{
+  int result = 0;
+
+  switch (gapFormat)
+    {
+    case BLX_GAP_STRING_GFF3: /* e.g. M76 */
+      result = convertStringToInt(text+1);
+      break;
+      
+    case BLX_GAP_STRING_BAM_CIGAR: /* e.g. 76M */
+      convertStringToInt(text); /* uses atoi, which will ignore characters after */
+      break;
+
+    default:
+      g_warning("Invalid gap string format\n");
+      break;
+    };
+
+  return result;
+}
+
+
+/* Get the operator part of a gap string section, e.g. if the text is "M76"
+ * then this returns 'M' */
+static char getCigarStringSectionOperator(const char *text, BlxGapFormat gapFormat)
+{
+  char result = 0;
+
+  switch (gapFormat)
+    {
+    case BLX_GAP_STRING_GFF3:
+      result = *text;
+      break;
+      
+    case BLX_GAP_STRING_BAM_CIGAR:
+      {
+        const char *cp = text;
+        for ( ; cp && *cp && !isalpha(*cp); ++cp); /* find first alphabetic character */
+        if (cp) 
+          result = *cp;
+        break;
+      }
+      
+    default:
+      g_warning("Invalid gap string format\n");
+      break;
+    };
+  
+  return result;
+}
+
+
+static void parseCigarStringMatch(GapStringData *data, const int numNucleotides, const int numPeptides)
+{
+  MSP *msp = *data->msp;
+
+  /* We were at the end of the previous range or gap, so move to the next coord, where our range will start */
+  *data->q += data->qDirection;
+  *data->s += data->sDirection;
+  
+  /* Find the coords at the end of the range. */
+  int newQ = *data->q + (data->qDirection * (numNucleotides - 1));
+  int newS = *data->s + (data->sDirection * (numPeptides - 1));
+  
+  CoordRange *newRange = g_malloc(sizeof(CoordRange));
+  msp->gaps = g_slist_append(msp->gaps, newRange);
+  
+  newRange->qStart = *data->q;
+  newRange->qEnd = newQ;
+  newRange->sStart = *data->s;
+  newRange->sEnd = newS;
+  
+  *data->q = newQ;
+  *data->s = newS;
+}
+
+static void parseCigarStringIntron(GapStringData *data, const int numNucleotides, const int numPeptides)
+{
+  /* Intron. Create a separate msp under the same sequence. */
+  MSP *msp = *data->msp;
+  MSP *newMsp = copyMsp(msp, data->featureLists, data->lastMsp, data->mspList, data->seqList, &data->error);
+  
+  /* end current msp at the current coords */
+  if (data->qDirection > 0)
+    msp->qRange.max = *data->q;
+  else
+    msp->qRange.min = *data->q;
+  
+  if (data->sDirection > 0)
+    msp->sRange.max = *data->s;
+  else
+    msp->sRange.min = *data->s;
+  
+  /* start new msp at new coords */
+  *data->q += data->qDirection * numNucleotides;
+  
+  if (data->qDirection > 0)
+    newMsp->qRange.min = *data->q + 1;
+  else
+    newMsp->qRange.max = *data->q - 1;
+  
+  if (data->sDirection > 0)
+    newMsp->sRange.min = *data->s + 1;
+  else
+    newMsp->sRange.max = *data->s - 1;
+  
+  *data->msp = newMsp;
+}
+
+static void parseCigarStringDeletion(GapStringData *data, const int numNucleotides, const int numPeptides)
+{
+  /* Deletion from the subject sequence: increase the q coord by the number of nucleotides. */
+  *data->q += data->qDirection * numNucleotides;
+}
+
+static void parseCigarStringInsertion(GapStringData *data, const int numNucleotides, const int numPeptides)
+{
+  /* Insertion on the subject sequence: increase the s coord by the number of peptides. */
+  *data->s += data->sDirection * numPeptides;
+}
+
+
+/* Return TRUE if the given char is a valid operator for the
+ * given gap string format. */
+static gboolean validateCigarOperator(char operator, BlxGapFormat gapFormat)
+{
+  gboolean result = FALSE;
+  
+  switch (operator)
+    {
+    case 'M':    case 'm':
+    case 'N':    case 'n':
+    case 'D':    case 'd':
+    case 'I':    case 'i':
+      result = (gapFormat == BLX_GAP_STRING_GFF3 || gapFormat == BLX_GAP_STRING_BAM_CIGAR);
+      break;
+      
+    case 'X':    case 'x':
+    case 'P':    case 'p':
+    case 'S':    case 's':
+    case 'H':    case 'h':
+      result = (gapFormat == BLX_GAP_STRING_BAM_CIGAR);
+      break;
+
+    case 'F':    case 'f':
+    case 'R':    case 'r':
+      result = (gapFormat == BLX_GAP_STRING_GFF3);
+      break;
+
+    default:
+      result = FALSE;
+      break;
+    };
+
+  return result;
+}
+
+
+/* Parse a section from a CIGAR string, e.g.
+
+ "M8" or "I2" or "D3" etc. and create an array of
  * ranges where bases match.
  *
  * For example, the match between the following sequences:
@@ -1030,95 +1200,93 @@ static void parseGapString(char *text,
  *  qDirection and sDirection are 1 if coords are in an increasing direction or -1 if decreasing.
  */
 static void parseCigarStringSection(const char *text, 
-                                    MSP **mspPtr, 
-                                    const int qDirection, 
-                                    const int sDirection, 
-                                    const int resFactor,
-                                    int *q, 
-                                    int *s,
-                                    GArray* featureLists[],
-                                    MSP **lastMsp, 
-                                    MSP **mspList, 
-                                    GList **seqList, 
-                                    GError **error)
+                                    GapStringData *data)
 {
-  MSP *msp = *mspPtr;
-  
   /* Get the digit part of the string, which indicates the number of display coords (peptides in peptide matches,
    * nucleotides in nucelotide matches). */
-  const int numPeptides = convertStringToInt(text+1);
-  int numNucleotides = numPeptides * resFactor;
+  const int numPeptides = getCigarStringSectionLen(text, data->gapFormat);
+  int numNucleotides = numPeptides * data->resFactor;
+
+  char operator = getCigarStringSectionOperator(text, data->gapFormat);
   
-  if (text[0] == 'M' || text[0] == 'm')
-    {
-      /* We were at the end of the previous range or gap, so move to the next coord, where our range will start */
-      *q += qDirection;
-      *s += sDirection;
+  /*! \todo If the operator is not valid for this type of cigar string
+   * then we should set the error and return. However, for historic 
+   * reasons we have allowed invalid operators in the GFF Gap string,
+   * so continue allowing this for now and just give a warning. */
+  if (!validateCigarOperator(operator, data->gapFormat))
+    g_warning("Invalid operator '%c' for gap string format '%d'", operator, data->gapFormat);
 
-      /* Find the coords at the end of the range. */
-      int newQ = *q + (qDirection * (numNucleotides - 1));
-      int newS = *s + (sDirection * (numPeptides - 1));
-      
-      CoordRange *newRange = g_malloc(sizeof(CoordRange));
-      msp->gaps = g_slist_append(msp->gaps, newRange);
-      
-      newRange->qStart = *q;
-      newRange->qEnd = newQ;
-      newRange->sStart = *s;
-      newRange->sEnd = newS;
-      
-      *q = newQ;
-      *s = newS;
-    }
-  else if (text[0] == 'N' || text[0] == 'n')
+  switch (operator)
     {
-      /* Intron. Create a separate msp under the same sequence. */
-      MSP *newMsp = copyMsp(msp, featureLists, lastMsp, mspList, seqList, error);
+    case 'M':
+    case 'm':
+      parseCigarStringMatch(data, numNucleotides, numPeptides);
+      break;
+      
+    case 'N':
+    case 'n':
+      parseCigarStringIntron(data, numNucleotides, numPeptides);
+      break;
+      
+    case 'D':
+    case 'd':
+      parseCigarStringDeletion(data, numNucleotides, numPeptides);
+      break;
 
-      /* end current msp at the current coords */
-      if (qDirection > 0)
-        msp->qRange.max = *q;
-      else
-        msp->qRange.min = *q;
+    case 'I':
+    case 'i':
+      parseCigarStringInsertion(data, numNucleotides, numPeptides);
+      break;
       
-      if (sDirection > 0)
-        msp->sRange.max = *s;
-      else
-        msp->sRange.min = *s;
-      
-      /* start new msp at new coords */
-      *q += qDirection * numNucleotides;
-      
-      if (qDirection > 0)
-        newMsp->qRange.min = *q + 1;
-      else
-        newMsp->qRange.max = *q - 1;
+    case 'X':
+    case 'x':
+      /* Mismatch. For now just treat it like a match. Blixem detects mistmatches
+       * anyway as long as we have the reference sequence. */
+      /*! \todo It might be useful to parse mistmatches in the gap string. This 
+       * extra info may help e.g. to calculate percentID for matches that extend
+       * beyond the reference sequence range. We could do that calculation here
+       * if percentID was not given in the GFF? */
+      parseCigarStringMatch(data, numNucleotides, numPeptides);
+      break;
 
-      if (sDirection > 0)
-        newMsp->sRange.min = *s + 1;
-      else
-        newMsp->sRange.max = *s - 1;
+    case 'P':
+    case 'p':
+      /* Padding (silent deletion from the reference sequence). Not supported, but 
+       * ignoring these essentially gives us the unpadded cigar. */
+      break;
 
-      *mspPtr = newMsp;
-    }
-  else if (text[0] == 'D' || text[0] == 'd')
-    {
-      /* Deletion from the subject sequence: increase the q coord by the number of nucleotides. */
-      *q += qDirection * numNucleotides;
-    }
-  else if (text[0] == 'I' || text[0] == 'i')
-    {
-      /* Insertion on the subject sequence: increase the s coord by the number of peptides. */
-      *s += sDirection * numPeptides;
-    }
-  else if (text[0] == 'f' || text[0] == 'F' || text[0] == 'r' || text[0] == 'R')
-    {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Blixem does not handle Frameshift operators.\n");
-    }
-  else
-    {
-      g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Unknown operator '%c'.\n", text[0]);
-    }
+    case 'S':
+    case 's':
+      /* Soft clipping. This indicates whether the sequence aligns from the first
+       * residue to the last one, but blixem detects this anyway, so we can ignore
+       * this. */
+      break;
+      
+    case 'H':
+    case 'h':
+      /* Hard clipping - not supported */
+      /*! \todo We could probably implement this relatively easily. Hard clipping means
+       * that bases are excluded from the start/end of the sequence (to stop repeating
+       * the same bit of sequence when we have multiple matches from the same sequence).
+       * We'd probably need to pad the sequence (making sure we merge the bits of sequence
+       * from all matches for this sequence). We don't have any real examples of this yet so
+       * leaving it for now. */
+      g_set_error(&data->error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Blixem does not handle the hard-clipping operator.\n");
+      break;
+
+    case 'F':
+    case 'f':
+    case 'R':
+    case 'r':
+      /* Frameshift operators - not supported */
+      g_set_error(&data->error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Blixem does not handle Frameshift operators.\n");
+      break;
+      
+    default:
+      g_set_error(&data->error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Invalid operator '%c' in cigar string.\n", operator);
+      break;
+    };
+  
 }
 
 

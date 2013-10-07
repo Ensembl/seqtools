@@ -4639,7 +4639,8 @@ static gboolean onRadioButtonTextEntered(GtkWidget *textWidget, GdkEventButton *
 
 /* Utility to create a radio button with certain given properties, and to pack it
  * into the given container widget. Returns the radio button (so that further
- * buttons can be created in the same group by passing it as 'existingButton') */
+ * buttons can be created in the same group by passing it as 'existingButton').
+ * If entryList is passed, the new text entry widget is appended to it */
 GtkRadioButton* createRadioButton(GtkTable *table,
                                   const int col,
                                   const int row,
@@ -4649,7 +4650,8 @@ GtkRadioButton* createRadioButton(GtkTable *table,
                                   const gboolean createTextEntry,
                                   const gboolean multiline,
                                   BlxResponseCallback callbackFunc,
-                                  GtkWidget *window)
+                                  GtkWidget *window,
+                                  GSList **entryList)
 {
   GtkWidget *button = gtk_radio_button_new_with_mnemonic_from_widget(existingButton, mnemonic);
 
@@ -4692,6 +4694,9 @@ GtkRadioButton* createRadioButton(GtkTable *table,
 
   if (entry)
     {
+      if (entryList)
+        *entryList = g_slist_append(*entryList, entry);
+
       /* to do: don't want to set insensitive because want to receive clicks on text
        * box to activate it; however, it would be good to grey out the background */
 //      gtk_widget_set_sensitive(entry, isActive);
