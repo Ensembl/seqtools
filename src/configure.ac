@@ -45,7 +45,7 @@ AC_FUNC_MALLOC
 AC_CHECK_FUNCS([dup2 floor gethostbyname memset socket sqrt strcasecmp strchr strcspn strerror strncasecmp strrchr strstr strtol uname])
 
 # Check for dependencies required by all executables
-PKG_CHECK_MODULES([DEPS], [glib-2.0 gtk+-2.0 >= 2.10])
+PKG_CHECK_MODULES([DEPS], [glib-2.0 gtk+-3.0 >= 3.0])
 
 # Check for the curl library. This is only required by blixemh, so don't fail
 # if we can't find it, but set the USE_LIBCURL to false. Note: I think we should 
