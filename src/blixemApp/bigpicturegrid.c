@@ -324,7 +324,7 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
   
   /* Draw the grid lines */
   drawVerticalGridLines(&properties->gridRect, &properties->highlightRect, properties->gridYPadding, bc, bpProperties, drawable);
-  drawHorizontalGridLines(grid, properties->bigPicture, &properties->gridRect, bc, bpProperties, drawable, numVCells, percentPerCell, bpProperties->percentIdRange.max, "%");
+  drawHorizontalGridLines(grid, properties->bigPicture, &properties->gridRect, bc, bpProperties, drawable, numVCells, percentPerCell, bpProperties->percentIdRange.max, FALSE, "%");
   
   /* Draw lines corresponding to the MSPs */
   drawMspLines(grid, drawable);

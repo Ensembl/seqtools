@@ -338,8 +338,11 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
   GtkWidget *bigPicture = blxWindowGetBigPicture(dialogData->blxWindow);
   const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
 
-  const int qStart = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, bc->numFrames, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  int qStart = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, bc->numFrames, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+
+  boundsLimitValue(&qStart, &bc->refSeqRange);
+  boundsLimitValue(&qEnd, &bc->refSeqRange);
   
   char *startString = convertIntToString(getDisplayCoord(qStart, bc));
   char *endString = convertIntToString(getDisplayCoord(qEnd, bc));
@@ -554,9 +557,9 @@ static GtkWidget* createTextEntry(GtkTable *table,
 static char* getDotterTitle(const BlxViewContext *bc)
 {
   char *result = NULL;
-  
-  GString *resultStr = g_string_new("Blixem - Dotter sequence: ");
-  
+  GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
+  g_string_append(resultStr, "Dotter sequence: ");
+
   const int numSeqs = g_list_length(bc->selectedSeqs);
   
   if (numSeqs == 1)
@@ -1133,6 +1136,19 @@ static void callDotterChildProcess(const char *dotterBinary,
   argList = g_slist_append(argList, seq1OffsetStr);
   argList = g_slist_append(argList, g_strdup("-s"));
   argList = g_slist_append(argList, seq2OffsetStr);
+  argList = g_slist_append(argList, "--horizontal-type");
+  argList = g_slist_append(argList, "d");
+  argList = g_slist_append(argList, "--vertical-type");
+
+  if (bc->seqType == BLXSEQ_PEPTIDE)
+    argList = g_slist_append(argList, "p");
+  else
+    argList = g_slist_append(argList, "d");
+
+  if (bc->flags[BLXFLAG_ABBREV_TITLE])
+    argList = g_slist_append(argList, "--abbrev-title-on");
+  else
+    argList = g_slist_append(argList, "--abbrev-title-off");
   
   if (seq1Strand == BLXSTRAND_REVERSE)      argList = g_slist_append(argList, g_strdup("-r"));
   if (seq2Strand == BLXSTRAND_REVERSE)	    argList = g_slist_append(argList, g_strdup("-v"));
@@ -1365,7 +1381,10 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
       prefixError(rangeError, "Warning: ");
       postfixError(rangeError, "\nContinue?");
 
-      ok = (runConfirmationBox(blxWindow, "Blixem - Warning", rangeError->message) == GTK_RESPONSE_ACCEPT);
+      char *title = g_strdup_printf("%sWarning", blxGetTitlePrefix(bc));
+      ok = (runConfirmationBox(blxWindow, title, rangeError->message) == GTK_RESPONSE_ACCEPT);
+      
+      g_free(title);
       g_error_free(rangeError);
       rangeError = NULL;
       

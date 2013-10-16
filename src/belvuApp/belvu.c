@@ -2574,6 +2574,48 @@ void destroyBelvuContext(BelvuContext **bc)
  *                           Utilities                     *
  ***********************************************************/
 
+/* Returns a string which is the name of the Blixem application. */
+char *belvuGetAppName(void)
+{
+  return BELVU_TITLE ;
+}
+
+/* Returns a string which is the prefix to use for window titles. */
+const char *belvuGetTitlePrefix(BelvuContext *bc)
+{
+  return bc->abbrevTitle ? BELVU_PREFIX_ABBREV : BELVU_PREFIX ;
+}
+
+/* Returns a copyright string for the Blixem application. */
+char *belvuGetCopyrightString(void)
+{
+  return BELVU_COPYRIGHT_STRING ;
+}
+
+/* Returns the Blixem website URL. */
+char *belvuGetWebSiteString(void)
+{
+  return BELVU_WEBSITE_STRING ;
+}
+
+/* Returns a comments string for the Blixem application. */
+char *belvuGetCommentsString(void)
+{
+  return BELVU_COMMENTS_STRING() ;
+}
+
+/* Returns a license string for the belvu application. */
+char *belvuGetLicenseString(void)
+{
+  return BELVU_LICENSE_STRING ;
+}
+
+/* Returns a string representing the Version/Release/Update of the Blixem code. */
+char *belvuGetVersionString(void)
+{
+  return BELVU_VERSION_STRING ;
+}
+
 /* Utility to return the sequence data in the given alignment; returns null if
  * not set. */
 char* alnGetSeq(ALN *aln)

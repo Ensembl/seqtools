@@ -97,6 +97,7 @@ typedef struct _DotterOptions
     gboolean hozScaleRev;     /* revese the horizontal scale */
     gboolean vertScaleRev;    /* revese the vertical scale */
     gboolean negateCoords;    /* negate the displayed coords when the scale is reversed, i.e. so they still appear to increase from left-to-right */
+    gboolean abbrevTitle;     /* abbrev window title prefix to save space */
     
     BlxMessageData msgData;   /* data to be passed to the message handlers */
   } DotterOptions;

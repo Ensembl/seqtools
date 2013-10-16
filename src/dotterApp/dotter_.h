@@ -59,6 +59,8 @@ extern char *stdcode1[];        /* 1-letter amino acid translation code */
 
 /*            dotter program version and information.                        */
 #define DOTTER_TITLE   "Dotter"
+#define DOTTER_PREFIX  "Dotter - "
+#define DOTTER_PREFIX_ABBREV "D: "
 #define DOTTER_DESC    "Dot-matrix plotter for detailed comparision of two sequences."
 
 /* The Seqtools package version should be specified in src/version.m4. autoconf will then set PACKAGE_VERSION in config.h */
@@ -186,7 +188,8 @@ typedef struct _DotterContext
   gboolean vertScaleRev;                    /* true if vertical coords should increase from bottom-to-top rather than top-to-bottom */
   gboolean negateCoords;                    /* negate displayed coords if the scale is reversed, i.e. so coords still appear to increase left-to-right */
   gboolean displayMirror;                   /* whether to display a mirror image in self comparisons */
-  
+  gboolean abbrevTitle;                     /* abbreviate window titles to save space */
+
   double memoryLimit;                       /* maximum Mb allowed for dotplot */
   
   int scaleWidth;                           /* width of the dotplot scale */
@@ -282,6 +285,15 @@ typedef struct _DotplotProperties
   } DotplotProperties;
 
 
+
+
+char*               dotterGetAppName(void);
+char*               dotterGetTitlePrefix(DotterContext *dc);
+char*               dotterGetCopyrightString(void);
+char*               dotterGetWebSiteString(void);
+char*               dotterGetCommentsString(void);
+char*               dotterGetLicenseString(void);
+char*               dotterGetVersionString(void);
 
 int                 winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq, 
                                        double *exp_res_score, double *Lambda);

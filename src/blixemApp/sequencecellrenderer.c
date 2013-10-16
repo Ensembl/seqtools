@@ -1162,6 +1162,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
   GdkColor *matchColorSelected = getGdkColor(BLXCOLOR_MATCH, bc->defaultColors, TRUE, bc->usePrintColors);
   GdkColor *mismatchColor = getGdkColor(BLXCOLOR_MISMATCH, bc->defaultColors, FALSE, bc->usePrintColors);
   GdkColor *mismatchColorSelected = getGdkColor(BLXCOLOR_MISMATCH, bc->defaultColors, TRUE, bc->usePrintColors);
+  GdkColor *backgroundColorSelected = getGdkColor(BLXCOLOR_BACKGROUND, bc->defaultColors, TRUE, bc->usePrintColors);
   
   GdkGC *gc = gdk_gc_new(window);
   
@@ -1225,7 +1226,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
   
   /* If a base is selected highlight it now in case we don't come to process it (in 
    * which case this will get drawn over). */
-  highlightSelectedBase(data.selectedBaseIdx, mismatchColorSelected, &data);
+  highlightSelectedBase(data.selectedBaseIdx, backgroundColorSelected, &data);
 
   /* Draw all MSPs in this row */
   GList *mspListItem = renderer->mspGList;
@@ -1241,11 +1242,10 @@ static void drawMsps(SequenceCellRenderer *renderer,
 	    }
 	  else if (mspIsBlastMatch(msp))
 	    {
-              if (mspIsShortRead(msp))
+              if (mspGetFlag(msp, MSPFLAG_SQUASH_IDENTICAL_FEATURES))
                 {
-                  /* Short reads that are in the same row are duplicates, so
-                   * we only need to draw one. 
-                   * (to do: protect against the case where this might change!)
+                  /* Identical matches in the same row are duplicates, so we
+                   * only need to draw one.
                    * If any of the duplicates is selected, we want to draw the
                    * row as selected, so for the first pass, only draw an MSP
                    * if it is selected; but remember the first MSP that we see

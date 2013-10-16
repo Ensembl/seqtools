@@ -48,6 +48,7 @@
 #define MIN_FONT_SIZE                 2
 #define MAX_FONT_SIZE                 20
 #define MACHINE_RES                   0.000000001
+#define SEQTOOLS_GFF_VERSION          3    /* the default GFF version */
 
 
 /* Really the buffers that use this should be dynamic but I'm not going to do that, this
@@ -273,12 +274,14 @@ typedef struct _CallbackData
     gpointer data;                /* User data to pass to the callback function */
   } CallbackData;
 
-/* Custom dialog response types, which can be used in addition to the default types specified by GtkResponseType */
+/* Custom dialog response types, which can be used in addition
+ * to the default types specified by GtkResponseType */
 typedef enum
   {
     BLX_RESPONSE_FORWARD, 
     BLX_RESPONSE_BACK,
-    BLX_RESPONSE_RESET
+    BLX_RESPONSE_RESET,
+    BLX_RESPONSE_CLEAR
   } BlxResponseType;
 
 
@@ -371,6 +374,8 @@ char                  getStrandAsChar(const BlxStrand strand);
 
 int                   roundNearest(const double val);
 int                   roundToValue(const int inputVal, const int roundTo);
+int                   roundToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo);
+int                   roundUpToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo);
 
 char                  getSequenceIndex(char *seq, 
                                        const int qIdx, 
@@ -532,7 +537,7 @@ GtkComboBox*                       createComboBox();
 void                               addComboItem(GtkComboBox *combo, GtkTreeIter *parent, const int val, const char *text, const int initVal);
 
 const char*                        getSaveFileName(GtkWidget *widget, const char *currentName, const char *defaultPath, const char *defaultExtension, const char *title);
-const char*                        getLoadFileName(GtkWidget *widget, const char *defaultPath, const char *title);
+char*                              getLoadFileName(GtkWidget *widget, const char *defaultPath, const char *title);
 
 void                               enableMenuAction(GtkActionGroup *action_group, const char *actionName, const gboolean enable);
 void                               setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active);
@@ -592,7 +597,10 @@ GtkRadioButton*                    createRadioButton(GtkTable *table,
                                                      const gboolean createTextEntry,
                                                      const gboolean multiline,
                                                      BlxResponseCallback callbackFunc,
-                                                     GtkWidget *blxWindow);
+                                                     GtkWidget *blxWindow,
+                                                     GSList **entryList);
+
+const char*                        getSystemTempDir();     
 
 void                               errorHandler(const int sig); 
 

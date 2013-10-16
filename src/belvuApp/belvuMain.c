@@ -114,6 +114,8 @@
   -h, --help  Show more detailed usage information\n\
   --compiled  Show package compile date\n\
   --version   Show package version number\n\
+  --abbrev-title-on   Abbreviate window title prefixes\n\
+  --abbrev-title-off  Do not abbreviate window title prefixes\n\
 \n\
 "
 
@@ -318,29 +320,37 @@
 
 
 /* Prints usage info to stderr */
-static void showUsageText()
+static void showUsageText(const int exitCode)
 {
   /* Pring usage info followed by authors */
-  g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
+  /* Send to stderr if shown due to error, otherwise to stdout */
+  if (exitCode == EXIT_FAILURE)
+    g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
+  else
+    g_message("%s%s", USAGE_TEXT, FOOTER_TEXT);
 }
 
 /* Prints more detailed usage/help info to stderr */
-static void showHelpText()
+static void showHelpText(const int exitCode)
 {
   /* Pring usage info followed by authors */
-  g_message_info("%s%s", HELP_TEXT, FOOTER_TEXT);
+  /* Send to stderr if shown due to error, otherwise to stdout */
+  if (exitCode == EXIT_FAILURE)
+    g_message_info("%s%s", HELP_TEXT, FOOTER_TEXT);
+  else
+    g_message("%s%s", HELP_TEXT, FOOTER_TEXT);
 }
 
 /* Prints version info to stderr */
 static void showVersionInfo()
 {
-  g_message_info(VERSION_TEXT);  
+  g_message(VERSION_TEXT);  
 }
 
 /* Prints compiled date (must go to stdout for our build scripts to work) */
 static void showCompiledInfo()
 {
-  g_message_info("%s\n", UT_MAKE_COMPILE_DATE());  
+  g_message("%s\n", UT_MAKE_COMPILE_DATE());  
 }
 
 
@@ -554,7 +564,7 @@ int main(int argc, char **argv)
    *   
    */
   BlxMessageData msgData;
-  msgData.titlePrefix = g_strdup("Belvu - ");
+  msgData.titlePrefix = g_strdup(BELVU_PREFIX);
   msgData.parent = NULL;
   msgData.statusBar = NULL;
 
@@ -582,10 +592,13 @@ int main(int argc, char **argv)
   static gboolean showHelp = FALSE;
   static gboolean showCompiled = FALSE;
   static gboolean showVersion = FALSE;
+  static gboolean abbrevTitle = FALSE;
   
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
     {
+      {"abbrev-title-off",	no_argument,        &abbrevTitle, 0},
+      {"abbrev-title-on",	no_argument,        &abbrevTitle, 1},
       {"compiled",		no_argument,        &showCompiled, 1},
       {"version",	        no_argument,        &showVersion, 1},
 
@@ -710,26 +723,25 @@ int main(int argc, char **argv)
   if (showVersion)
     {
       showVersionInfo();
-      exit (EXIT_FAILURE);
+      exit (EXIT_SUCCESS);
     }
 
   if (showCompiled)
     {
       showCompiledInfo();
-      exit (EXIT_FAILURE);
+      exit (EXIT_SUCCESS);
     }
-  
   
   if (showHelp)
     { 
-      showHelpText();
-      exit(1);
+      showHelpText(EXIT_SUCCESS);
+      exit(EXIT_SUCCESS);
     }
   
   if (argc-optind < 1) 
     { 
-      showUsageText();
-      exit(1);
+      showUsageText(EXIT_FAILURE);
+      exit(EXIT_FAILURE);
     }
   
   if (!strcmp(argv[optind], "-")) 
@@ -748,6 +760,9 @@ int main(int argc, char **argv)
       bc->dirName = g_path_get_dirname(argv[optind]);
     }
   
+  bc->abbrevTitle = abbrevTitle;
+  msgData.titlePrefix = abbrevTitle ? g_strdup(BELVU_PREFIX_ABBREV) : g_strdup(BELVU_PREFIX);
+    
   if (bc->treeReadDistancesOn) 
     {
       /* Should this really be either or?  Problem: cannot read organism info when reading tree */

@@ -73,19 +73,19 @@ typedef struct _BlxGffType
  */
 typedef enum
   {
-    PARSER_START,	           /* indicates that we haven't started processing yet */
-    PARSER_ERROR,	           /* indiates an error state */
+    PARSER_START,                  /* indicates that we haven't started processing yet */
+    PARSER_ERROR,                  /* indiates an error state */
     
-    GFF_3_HEADER,	           /* GFF 3 header */
-    GFF_3_BODY,		           /* GFF 3 data */
+    GFF_3_HEADER,                  /* GFF 3 header */
+    GFF_3_BODY,                    /* GFF 3 data */
     
     FASTA_SEQ_HEADER,              /* FASTA sequence header */
     FASTA_SEQ_BODY,                /* Sequence data in FASTA format */
     
     EXBLX_BODY,                    /* Old style sequence entries. */
     SEQBL_BODY,                    /* Old style sequence entries. */
-    EXBLX_X_BODY,	           /* New style sequence entries with gaps and match strand. (_X stands for eXtended.) */ 
-    SEQBL_X_BODY,	           /* New style sequence entries with gaps and match strand. (_X stands for eXtended.) */
+    EXBLX_X_BODY,                  /* New style sequence entries with gaps and match strand. (_X stands for eXtended.) */ 
+    SEQBL_X_BODY,                  /* New style sequence entries with gaps and match strand. (_X stands for eXtended.) */
     
     FS_HSP_BODY,                   /* feature-series HSP data */
     
@@ -108,10 +108,10 @@ typedef enum
 /* External functions */
 void parseGff3Header(const int lineNum,
                      MSP **lastMsp, 
-		     MSP **mspList, 
-		     BlxParserState *parserState, 
-		     GString *line_string, 
-		     GList **seqList,
+                     MSP **mspList, 
+                     BlxParserState *parserState, 
+                     GString *line_string, 
+                     GList **seqList,
                      char *refSeqName,
                      IntRange *refSeqRange);
 
@@ -133,8 +133,11 @@ void parseFastaSeqHeader(char *line, const int lineNum,
                          char **refSeq, char *refSeqName, IntRange *refSeqRange,
                          char ***readSeq, int *readSeqLen, int *readSeqMaxLen,
                          BlxParserState *parserState);
-			 
-			 
+                         
+                         
 GSList*                            blxCreateSupportedGffTypeList();
 void                               blxDestroyGffTypeList(GSList **supportedTypes);
+BlxDataType*                       getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFile, GError **error);
+
+
 #endif /* BLX_GFF_P_H */

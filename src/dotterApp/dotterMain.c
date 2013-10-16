@@ -125,6 +125,18 @@
   -s <int>, --vertical-offset=<int>\n\
     Vertical_sequence offset\n\
 \n\
+  --horizontal-type=p|d\n\
+    Horizontal_sequence type ('p' for peptide or 'd' for DNA)\n\
+\n\
+  --vertical-type=p|d\n\
+    Vertical_sequence type ('p' for peptide or 'd' for DNA)\n\
+\n\
+  --abbrev-title-on\n\
+    Abbreviate window title prefixes\n\
+\n\
+  --abbrev-title-off\n\
+    Do not abbreviate window title prefixes\n\
+\n\
   --compiled\n\
     Show package compile date\n\
 \n\
@@ -191,8 +203,9 @@ static void setDefaultOptions(DotterOptions *options)
   options->hozScaleRev = FALSE;
   options->vertScaleRev = FALSE;
   options->negateCoords = FALSE;
+  options->abbrevTitle = FALSE;
   
-  options->msgData.titlePrefix = g_strdup("Dotter - ");
+  options->msgData.titlePrefix = g_strdup(DOTTER_PREFIX);
   options->msgData.parent = NULL;
   options->msgData.statusBar = NULL;
 }
@@ -263,21 +276,25 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const 
 
 
 /* Print the usage text to stderr */
-static void showUsageText()
+static void showUsageText(const int exitCode)
 {
-  g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
+  /* Send to stderr if shown due to error, otherwise to stdout */
+  if (exitCode == EXIT_FAILURE)
+    g_message_info("%s%s", USAGE_TEXT, FOOTER_TEXT);
+  else
+    g_message("%s%s", USAGE_TEXT, FOOTER_TEXT);
 }
 
 /* Prints version info to stderr */
 static void showVersionInfo()
 {
-  g_message_info(VERSION_TEXT);  
+  g_message(VERSION_TEXT);  
 }
 
 /* Prints compiled date (must go to stdout for our build scripts to work) */
 static void showCompiledInfo()
 {
-  g_message_info("%s\n", UT_MAKE_COMPILE_DATE());  
+  g_message("%s\n", UT_MAKE_COMPILE_DATE());  
 }
 
 
@@ -319,13 +336,14 @@ static char* getXOptions(char **argv, const int argc, const int idx)
 
 static void validateOptions(DotterOptions *options)
 {
+  options->msgData.titlePrefix = options->abbrevTitle ? g_strdup(DOTTER_PREFIX_ABBREV) : g_strdup(DOTTER_PREFIX);
 }
 
 
 int main(int argc, char **argv)
 {
   DEBUG_OUT("dotter main\n");
-  DotterOptions options;
+  static DotterOptions options;
   setDefaultOptions(&options);
   
   char   
@@ -348,11 +366,14 @@ int main(int argc, char **argv)
     }
   
   static char *dotterBinary = NULL;
+  static gboolean showHelp = FALSE;
   static gboolean showVersion = FALSE;
   static gboolean showCompiled = FALSE;
   static gboolean hozScaleRev = FALSE;
   static gboolean vertScaleRev = FALSE;
-    
+  static BlxSeqType qSeqType = BLXSEQ_INVALID;
+  static BlxSeqType sSeqType = BLXSEQ_INVALID;
+  
   /* The strand stuff is a bit hacky, because dotter was originally never designed to deal with
    * reverse match seq strands, so match and ref seq strands work in different ways. If the ref seq
    * strand is reversed then the horizontal scale is reversed as well. (Because the 'active' (top) strand
@@ -368,6 +389,8 @@ int main(int argc, char **argv)
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
     {
+      {"abbrev-title-off",	no_argument,        &options.abbrevTitle, 0},
+      {"abbrev-title-on",	no_argument,        &options.abbrevTitle, 1},
       {"version",		no_argument,        &showVersion, 1},
       {"compiled",		no_argument,        &showCompiled, 1},
       {"reverse-h-display",	no_argument,        &hozScaleRev, 1},
@@ -393,6 +416,8 @@ int main(int argc, char **argv)
       {"crick-only",            no_argument,        0, 'c'},
       {"horizontal-offset",     required_argument,  0, 'q'},
       {"vertical-offset",       required_argument,  0, 's'},
+      {"horizontal-type",       required_argument,  0, 0},
+      {"vertical-type",         required_argument,  0, 0},
       {"negate-coords",         no_argument,        0, 'N'},
       {0, 0, 0, 0}
     };
@@ -408,7 +433,28 @@ int main(int argc, char **argv)
       switch (optc) 
         {
 	  case 0:
-            /* we get here if getopt_long set a flag; nothing else to do */
+            if (long_options[optionIndex].flag != 0)
+              {
+                /* we get here if getopt_long set a flag; nothing else to do */
+              }
+            else if (stringsEqual(long_options[optionIndex].name, "horizontal-type", TRUE))
+              {
+                if (*optarg == 'p')
+                  qSeqType = BLXSEQ_PEPTIDE;
+                else if (*optarg == 'd')
+                  qSeqType = BLXSEQ_DNA;
+                else
+                  g_critical("Invalid value for horizontal-type argument: expected 'p' or 'd'\n");
+              }                
+            else if (stringsEqual(long_options[optionIndex].name, "vertical-type", TRUE))
+              {
+                if (*optarg == 'p')
+                  sSeqType = BLXSEQ_PEPTIDE;
+                else if (*optarg == 'd')
+                  sSeqType = BLXSEQ_DNA;
+                else
+                  g_critical("Invalid value for vertical-type argument: expected 'p' or 'd'\n");
+              }                
             break;
           
 	  case '?':
@@ -424,8 +470,7 @@ int main(int argc, char **argv)
             options.FSfilename = g_malloc(strlen(optarg)+1);
             strcpy(options.FSfilename, optarg);            break;
 	  case 'h': 
-	    showUsageText();
-	    exit(EXIT_FAILURE);			           break;
+            showHelp = TRUE;                               break;
           case 'H': options.hspsOnly = TRUE;               break;
           case 'i': options.install = 0;                   break;
           case 'l': 
@@ -453,16 +498,44 @@ int main(int argc, char **argv)
         }
     }
 
+  /* We're in batch mode if we've specified a save file or an export file */
+  const gboolean batchMode = options.savefile || options.exportfile;
+
+  /* We create the window in batch mode only if exporting (because this needs
+   * to print the window); otherwise, don't create the window in batch mode.
+   * Obviously we don't need to create the window if just showing usage info either. */
+  const gboolean createWindow = (options.exportfile || !batchMode) && !showHelp && !showVersion && !showCompiled;
+
+  /* Initialise gtk */
+  if (createWindow)
+    gtk_init(&argc, &argv);
+
+  /* Set the message handlers to use our custom handlers. We normally assign a popup
+   * message handler for critical messages, but don't do this in batch mode because
+   * we can't have user interaction, so use the default handler for all in that case. */
+  g_log_set_default_handler(defaultMessageHandler, &options.msgData);
+
+  if (batchMode && !createWindow)
+    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, defaultMessageHandler, &options.msgData);
+  else
+    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, &options.msgData);
+
+  if (showHelp)
+    {
+      showUsageText(EXIT_SUCCESS);
+      exit(EXIT_SUCCESS);
+    }
+  
   if (showVersion)
     {
       showVersionInfo();
-      exit (EXIT_FAILURE);
+      exit (EXIT_SUCCESS);
     }
   
   if (showCompiled)
     {
       showCompiledInfo();
-      exit (EXIT_FAILURE);
+      exit (EXIT_SUCCESS);
     }
   
   validateOptions(&options);
@@ -484,25 +557,6 @@ int main(int argc, char **argv)
       sStrand = BLXSTRAND_REVERSE;
     }
   
-  /* We're in batch mode if we've specified a save file or an export file */
-  const gboolean batchMode = options.savefile || options.exportfile;
-
-  /* We create the window in batch mode only if exporting (because this needs
-   * to print the window); otherwise, don't create the window in batch mode. */
-  const gboolean createWindow = options.exportfile || !batchMode;
-
-  /* Initialise gtk */
-  gtk_init(&argc, &argv);
-
-  /* Set the message handlers to use our custom handlers. We normally assign a popup
-   * message handler for critical messages, but don't do this in batch mode because
-   * we can't have user interaction, so use the default handler for all in that case. */
-  g_log_set_default_handler(defaultMessageHandler, &options.msgData);
-
-  if (batchMode)
-    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, defaultMessageHandler, &options.msgData);
-  else
-    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, &options.msgData);
   
   if (options.selfcall) /* Blixem/Dotter calling dotter */
     {
@@ -594,7 +648,7 @@ int main(int argc, char **argv)
        * only have, at most, one input argument: the Xoptions*/
       if (argc - optind > 1)
         {
-          showUsageText();
+          showUsageText(EXIT_FAILURE);
           exit(EXIT_FAILURE);
         }
       
@@ -607,7 +661,7 @@ int main(int argc, char **argv)
        * optional, so we should have 2 or 3 arguments */
       if (argc - optind < 2 || argc - optind > 3) 
         {
-          showUsageText();
+          showUsageText(EXIT_FAILURE);
           exit(EXIT_FAILURE);
         }
 
@@ -797,24 +851,34 @@ int main(int argc, char **argv)
       
       GSList *supportedTypes = blxCreateSupportedGffTypeList();
       GList *columnList = NULL;
+      GError *error = NULL;
 
-      parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, columnList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL);
+      parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, columnList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL, &error);
+
+      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       
-      finaliseBlxSequences(featureLists, &MSPlist, &seqList, columnList, 0, BLXSEQ_INVALID, -1, NULL, FALSE, LINK_FEATURES_DEFAULT);
+      finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
       
       blxDestroyGffTypeList(&supportedTypes);
     }
 
   /* Determine sequence types */
-  GError *error = NULL;
-  BlxSeqType qSeqType = determineSeqType(options.qseq, &error);
-  prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.qname);
-  reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
-
-  BlxSeqType sSeqType = determineSeqType(options.sseq, &error);
-  prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.sname);
-  reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
-
+  if (qSeqType == BLXSEQ_INVALID)
+    {
+      GError *error = NULL;
+      qSeqType = determineSeqType(options.qseq, &error);
+      prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.qname);
+      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+    }
+  
+  if (sSeqType == BLXSEQ_INVALID)
+    {
+      GError *error = NULL;
+      sSeqType = determineSeqType(options.sseq, &error);
+      prefixError(error, "Error starting dotter; could not determine the sequence type for '%s'.\n", options.sname);
+      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
+    }
+  
   if (qSeqType == BLXSEQ_PEPTIDE && sSeqType == BLXSEQ_PEPTIDE) 
     {
       g_message("\nDetected sequence types: Protein vs. Protein\n");

@@ -47,6 +47,8 @@
 
 /*            blixem program version and information.                        */
 #define BLIXEM_TITLE   "Blixem"
+#define BLIXEM_PREFIX  BLIXEM_TITLE" - "  /* The prefix to use for window titles etc. */
+#define BLIXEM_PREFIX_ABBREV  "B: "       /* An abbreviated version of the prefix to save space e.g. good for displaying in the taskbar */
 #define BLIXEM_DESC    "Multiple alignment visualisation tool."
 
 /* The Seqtools package version should be specified in src/version.m4. autoconf will then set PACKAGE_VERSION in config.h */
@@ -175,6 +177,10 @@ typedef enum
 
 /* would be good to get rid of this.... */
 #define FULLNAMESIZE               255
+
+
+#define MKSTEMP_CONST_CHARS_GFF               "BLIXEM_gff"        /* the prefix to use when creating a temp file name */
+#define MKSTEMP_REPLACEMENT_CHARS             "XXXXXX"            /* the required string that will be replaced by unique chars when creating a temp file name */
 
 
 
@@ -336,7 +342,7 @@ typedef enum
     BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */
     BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
     BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
-    BLXFLAG_LINK_FEATURES,          /* whether featuers with the same name should be linked */
+    BLXFLAG_ABBREV_TITLE,           /* whether to abbreviate the window titles to save space */
     
     BLXFLAG_NUM_FLAGS               /* Total number of flags e.g. for creating arrays and loops etc */
   } BlxFlag;
@@ -424,8 +430,10 @@ typedef struct _CommandLineOptions
   gboolean optionalColumns;       /* load data for optional columns on startup to populate additional info like tissue-type and strain */
   gboolean saveTempFiles;         /* save any temporary files that blixem creates */
   gboolean coverageOn;            /* show the coverage view on start-up */
-  gboolean linkFeaturesByName;    /* default for whether features with the same name are considered part of the same parent */
-
+  gboolean abbrevTitle;           /* if true, use a abbreviated window titles to save space */
+  
+  gboolean mspFlagDefaults[MSPFLAG_NUM_FLAGS]; /* default values for MSP flags */     
+  
   BlxBlastMode blastMode;         /* the blast match mode */
   BlxSeqType seqType;             /* whether the display shows sequences as peptides or nucleotides */
   int numFrames;                  /* the number of reading frames */
@@ -454,7 +462,7 @@ typedef struct _BlxViewContext
     int refSeqOffset;                       /* how much the coordinate system has been offset from the input coords */
 
     BlxBlastMode blastMode;                 /* The type of blast matching that was used */
-    BlxSeqType seqType;                     /* The type of sequence, e.g. DNA or peptide */
+    BlxSeqType seqType;                     /* The type of the match sequences, e.g. DNA or peptide */
     char **geneticCode;                     /* The genetic code used to translate DNA <-> peptide */
     int numFrames;                          /* The number of reading frames */
 
@@ -465,6 +473,7 @@ typedef struct _BlxViewContext
 
     char* dataset;                          /* the name of a dataset, e.g. 'human' */
     gboolean optionalColumns;               /* load data for optional columns on startup to populate additional info like tissue-type */
+    gboolean saveTempFiles;                 /* whether to save temporary files created to store results of file conversions */
 
     MSP *mspList;                           /* List of all MSPs. Obsolete - use featureLists array instead */
     GArray* featureLists[BLXMSP_NUM_TYPES]; /* Array indexed by the BlxMspType enum. Each array entry contains a zero-terminated array of all the MSPs of that type. */
@@ -557,6 +566,16 @@ void                               drawAssemblyGaps(GtkWidget *widget,
 
 GList*                             createColumns(const BlxSeqType seqType, const gboolean optionalColumns, const gboolean customSeqHeader);
 
+GSList*                            blxReadStylesFile(const char *keyFileName_in, GError **error);
+
+char*                              blxGetAppName();
+const char*                        blxGetTitlePrefix(const BlxViewContext* const bc);
+char*                              blxGetCopyrightString();
+char*                              blxGetWebSiteString();
+char*                              blxGetCommentsString();
+char*                              blxGetLicenseString();
+char*                              blxGetVersionString();        
+
 /* dotter.c */
 //void                               selectFeatures(void);
 
@@ -565,11 +584,15 @@ gboolean                           mspHasFs(const MSP *msp);
 char*                              readFastaSeq(FILE *seqfile, char *qname, int *startCoord, int *endCoord, const BlxSeqType seqType);
 
 /* blxFetch.c */
+BlxFetchMethod*                    getFetchMethodDetails(GQuark fetchMethodQuark, GHashTable *fetchMethods);
 GString*                           getFetchCommand(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq, const MSP* const msp, const char *refSeqName, const int refSeqOffset, const IntRange* const refSeqRange, const char *dataset, GError **error);
+GString*                           doGetFetchCommand(const BlxFetchMethod* const fetchMethod,const char *name,const char *refSeqName,const int startCoord,const int endCoord,const char *dataset,const char *source,const char *filename,GError **error);
 GString*                           getFetchArgs(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq,const MSP* const msp,const char *refSeqName,const int refSeqOffset,const IntRange* const refSeqRange,const char *dataset,GError **error);
 GString*                           getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, GError **error);
-void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer) ;
+void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result) ;
 void                               finaliseFetch(GList *seqList, GList *columnList);
+void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GError **error);
+const char*                        outputTypeStr(const BlxFetchOutputType outputType);
 
 void                               fetchSeqsIndividually(GList *seqsToFetch, GtkWidget *blxWindow);
 gboolean                           populateSequenceDataHtml(GList *seqsToFetch, const BlxSeqType seqType, const BlxFetchMethod* const fetchMethod) ;
@@ -579,7 +602,7 @@ gboolean                           populateFullDataPfetch(GList *seqsToFetch, Bl
 void                               blxInitConfig(const char *config_file, CommandLineOptions *options, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 
-void                               loadGffFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GList *columnList);
+void                               loadNativeFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GList *columnList, GError **error);
 void                               appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
 
 /* Create/destroy sequences and MSPs */

@@ -51,31 +51,30 @@
 
 
 /* Public function declarations */
-BlxViewContext*           blxWindowGetContext(GtkWidget *widget);
-GList*                    blxWindowGetColumnList(GtkWidget *blxWindow);
-gboolean                  blxWindowGetDisplayRev(GtkWidget *blxWindow);
-GtkWidget*                blxWindowGetBigPicture(GtkWidget *blxWindow);
-GtkWidget*                blxWindowGetDetailView(GtkWidget *blxWindow);
-GtkWidget*                blxWindowGetMainMenu(GtkWidget *blxWindow);
-BlxBlastMode              blxWindowGetBlastMode(GtkWidget *blxWindow);
-IntRange*                 blxWindowGetFullRange(GtkWidget *blxWindow);
-IntRange*                 blxWindowGetRefSeqRange(GtkWidget *blxWindow);
-const char*               blxWindowGetRefSeqName(GtkWidget *blxWindow);
-BlxSeqType                blxWindowGetSeqType(GtkWidget *blxWindow);
-char**                    blxWindowGetGeneticCode(GtkWidget *blxWindow);
-char*                     blxWindowGetRefSeq(GtkWidget *blxWindow);
-int                       blxWindowGetNumFrames(GtkWidget *blxWindow);
-int                       blxWindowGetDotterStart(GtkWidget *blxWindow);
-int                       blxWindowGetDotterEnd(GtkWidget *blxWindow);
-int                       blxWindowGetDotterZoom(GtkWidget *blxWindow);
-int                       blxWindowGetAutoDotter(GtkWidget *blxWindow);
-MSP*                      blxWindowGetMspList(GtkWidget *blxWindow);
-GList*                    blxWindowGetAllMatchSeqs(GtkWidget *blxWindow);
-GList*                    blxWindowGetSequenceGroups(GtkWidget *blxWindow);
-SequenceGroup*            blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind);
-const char*               blxWindowGetPaddingSeq(GtkWidget *blxWindow);
-int                       blxWindowGetOffset(GtkWidget *blxWindow);
-BlxStrand                 blxWindowGetActiveStrand(GtkWidget *blxWindow);
+BlxViewContext*		  blxWindowGetContext(GtkWidget *widget);
+gboolean		  blxWindowGetDisplayRev(GtkWidget *blxWindow);
+GtkWidget*		  blxWindowGetBigPicture(GtkWidget *blxWindow);
+GtkWidget*		  blxWindowGetDetailView(GtkWidget *blxWindow);
+GtkWidget*		  blxWindowGetMainMenu(GtkWidget *blxWindow);
+BlxBlastMode		  blxWindowGetBlastMode(GtkWidget *blxWindow);
+IntRange*		  blxWindowGetFullRange(GtkWidget *blxWindow);
+IntRange*		  blxWindowGetRefSeqRange(GtkWidget *blxWindow);
+const char*		  blxWindowGetRefSeqName(GtkWidget *blxWindow);
+BlxSeqType		  blxWindowGetSeqType(GtkWidget *blxWindow);
+char**			  blxWindowGetGeneticCode(GtkWidget *blxWindow);
+char*			  blxWindowGetRefSeq(GtkWidget *blxWindow);
+int			  blxWindowGetNumFrames(GtkWidget *blxWindow);
+int			  blxWindowGetDotterStart(GtkWidget *blxWindow);
+int			  blxWindowGetDotterEnd(GtkWidget *blxWindow);
+int			  blxWindowGetDotterZoom(GtkWidget *blxWindow);
+int			  blxWindowGetAutoDotter(GtkWidget *blxWindow);
+MSP*			  blxWindowGetMspList(GtkWidget *blxWindow);
+GList*			  blxWindowGetAllMatchSeqs(GtkWidget *blxWindow);
+GList*			  blxWindowGetSequenceGroups(GtkWidget *blxWindow);
+SequenceGroup*		  blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind);
+const char*		  blxWindowGetPaddingSeq(GtkWidget *blxWindow);
+int			  blxWindowGetOffset(GtkWidget *blxWindow);
+BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
 gboolean                  blxWindowGetNegateCoords(GtkWidget *blxWindow);
 
 GList*                    blxWindowGetSelectedSeqs(GtkWidget *blxWindow);

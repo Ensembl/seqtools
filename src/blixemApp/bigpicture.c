@@ -43,6 +43,7 @@
 #include <seqtoolsUtils/utilities.h>
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define DEFAULT_PREVIEW_BOX_LINE_WIDTH  1
 #define DEFAULT_GRID_NUM_HEADER_LINES   1	  /* the default number of lines of text in the grid header */
@@ -101,41 +102,6 @@ static void bigPictureRefreshAll(GtkWidget *bigPicture)
 }
 
 
-/* Function to round the given value to the nearest "nice" value, from the given
- * list of values to round by. Returns the value it rounded to the nearest of. */
-static int roundToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo)
-{
-  /* Decide what amount to round to the nearest number of, out of a list of possible
-   * "nice" values. Find the nearest value in this list to our result. The list 
-   * shouldn't be long, so this doesn't worry about efficiency */
-  GSList *listItem = roundValues;
-  int roundTo = UNSET_INT;
-  int smallestDiff = inputVal - roundTo;
-  
-  for ( ; listItem; listItem = listItem->next)
-    {
-      int val = GPOINTER_TO_INT(listItem->data);
-      int thisDiff = inputVal - val;
-      
-      if (roundTo == UNSET_INT || (val > 0 && abs(thisDiff) < smallestDiff))
-	{
-	  roundTo = val;
-	  smallestDiff = abs(thisDiff);
-	}
-    }
-  
-  /* Round the input to the nearest multiple of 'roundTo'. */
-  int result = roundNearest((double)inputVal / (double)roundTo) * roundTo;
-  
-  if (roundedTo)
-    {
-      *roundedTo = roundTo;
-    }
-  
-  return result;
-}
-
-
 /* This function calculates the cell size and number of cells for the big picture grids.
  * It should be called whenever the big picture is resized or its display range changes. */
 void calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *properties)
@@ -163,12 +129,71 @@ void calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *pr
 }
 
 
+/* Utility to convert the given decimal number (percent) to text 
+ * returned in 'text'). showDecimal indicates whether it should be
+ * shown as a decimal or not. If abbrev is true, 1000 is abbreviated 
+ * as 1k etc. 'unit' is a string displayed after the text and can be
+ * an empty string. */
+static void drawNumericLabel(char *text, 
+                             const gdouble percent,
+                             const gboolean showDecimal, 
+                             const gboolean abbrev, 
+                             const char *unit)
+{
+  if (!text)
+    {
+      return;
+    }
+  
+  if (showDecimal)
+    {
+      sprintf(text, "%1.1f%s", percent, unit);
+    }
+  else 
+    {
+      sprintf(text, "%d%s", (int)percent, unit);
+    
+      if (abbrev)
+        {
+          /* Abbreviate the number so 1000 becomes 1k, 1000000 becomes 1M etc. */
+          const int len = strlen(text);
+          int i = 3;
+
+          for ( ; i < len; i += 3)
+            {
+              char suffix = 0;
+
+              switch (i)
+                {
+                  case 3:  suffix = 'k'; break;
+                  case 6:  suffix = 'M'; break;
+                  case 9:  suffix = 'G'; break;
+                  case 12: suffix = 'T'; break;
+                  case 15: suffix = 'P'; break;
+                  case 18: suffix = 'E'; break;
+                  case 21: suffix = 'Z'; break;
+                  case 24: suffix = 'Y'; break;
+                  default: break;
+                };
+  
+              if (suffix && text[len-i]=='0' && text[len-i+1]=='0' && text[len-i+2]=='0')
+                {
+                  text[len-i] = suffix;
+                  text[len-i+1] = '\0';
+                }
+            }
+        }
+    }
+}
+
+
 static void drawVerticalGridLineHeaders(GtkWidget *header, 
 					GtkWidget *bigPicture, 
                                         GdkDrawable *drawable,
 					GdkGC *gc, 
 					const GdkColor const *textColor, 
-					const GdkColor const *lineColor)
+					const GdkColor const *lineColor,
+                                        const gboolean abbrev)
 {
   BlxViewContext *bc = bigPictureGetContext(bigPicture);
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
@@ -209,7 +234,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
             
 	  gdk_gc_set_foreground(gc, textColor);
 	  gchar text[numDigitsInInt(baseIdx) + 1];
-	  sprintf(text, "%d", baseIdx);
+          drawNumericLabel(text, baseIdx, FALSE, abbrev, "");
 
 	  PangoLayout *layout = gtk_widget_create_pango_layout(header, text);
 	  gdk_draw_layout(drawable, gc, x, 0, layout);
@@ -292,6 +317,7 @@ void drawHorizontalGridLines(GtkWidget *widget,
 			     const gint numCells, 
 			     const gdouble rangePerCell, 
 			     const gdouble maxVal,
+                             const gboolean abbrev,
 			     const char *unit)
 {
   const gint rightBorder = drawingRect->x + drawingRect->width;
@@ -317,15 +343,8 @@ void drawHorizontalGridLines(GtkWidget *widget,
       /* Label this gridline with the %ID */
       gdouble percent = maxVal - (rangePerCell * vCell);
       char text[bpProperties->leftBorderChars + 3]; /* +3 to include decimal point, 1dp, and terminating nul */
-      
-      if (showDecimal)
-	{
-	  sprintf(text, "%1.1f%s", percent, unit);
-	}
-      else
-	{
-	  sprintf(text, "%d%s", (int)percent, unit);
-	}
+
+      drawNumericLabel(text, percent, showDecimal, abbrev, unit);
       
       PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
       
@@ -398,7 +417,8 @@ static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, G
                               drawable,
 			      gc,
 			      getGdkColor(BLXCOLOR_GRID_TEXT, bc->defaultColors, FALSE, bc->usePrintColors), 
-			      getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors));
+			      getGdkColor(BLXCOLOR_GRID_LINE, bc->defaultColors, FALSE, bc->usePrintColors),
+                              FALSE);
 }
 
 

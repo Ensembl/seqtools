@@ -38,7 +38,7 @@
  *              Ideally also it would be separated out into a base feature and
  *              derived features for the different features types.
  *----------------------------------------------------------------------------
- */
+ */ 
 
 #ifndef _blxmsp_included_
 #define _blxmsp_included_
@@ -60,8 +60,6 @@
 #define SEQTOOLS_BULK_FETCH          "bulk-fetch"               /* methods(s) for batch-fetching sequences on start */
 #define SEQTOOLS_USER_FETCH          "user-fetch"               /* method(s) for interactively fetching sequences by the user */
 #define SEQTOOLS_OPTIONAL_FETCH      "optional-fetch"           /* method(s) for batch-fetching additional data on user request */
-#define LINK_FEATURES_BY_NAME        "link-features-by-name"    /* whether features with the same name have the same parent */
-#define LINK_FEATURES_DEFAULT        TRUE                       /* default value for link-features-by-name */
 #define SEQTOOLS_GFF_FILENAME_KEY    "file"
 
 /* Main Blixem error domain */
@@ -95,7 +93,6 @@ typedef enum
   BLXMSP_POLYA_SIGNAL,           /* polyA signal */
   
   BLXMSP_VARIATION,              /* SNP, substitution, deletion, insertion */
-  BLXMSP_SHORT_READ,             /* one fragment of a read-pair */
   
   BLXMSP_HSP,                    /* obsolete? */
   BLXMSP_GSP,                    /* obsolete? */
@@ -122,7 +119,6 @@ typedef enum
     BLXSEQUENCE_TRANSCRIPT,         /* transcript (i.e. collection of exons and introns) */
     BLXSEQUENCE_MATCH,              /* match sequence (i.e. collection of matches) */
     BLXSEQUENCE_VARIATION,          /* variation (i.e. insertion, deletion or substitution) */
-    BLXSEQUENCE_READ_PAIR,          /* read pair */
     BLXSEQUENCE_REGION              /* region */
   } BlxSequenceType;
 
@@ -137,6 +133,23 @@ typedef enum
     BLXMODEL_NUM_MODELS             /* the number of model IDs. MUST BE LAST IN LIST */
   } BlxModelId;
 
+/* This enum contains a list of all the boolean flags in the BlxDataType */
+/* YOU MUST UPDATE g_MspFlagConfigKeys AFTER CHANGING THIS ENUM */
+typedef enum
+  {
+    MSPFLAG_MIN,                        /* Start index for looping through flags */
+  
+    MSPFLAG_LINK_FEATURES_BY_NAME,      /* whether features with the same name are part of the same parent */
+    MSPFLAG_SQUASH_LINKED_FEATURES,     /* whether features with the same parent should be compressed onto the same line when you do 'squash matches' */
+    MSPFLAG_SQUASH_IDENTICAL_FEATURES,  /* whether alignments that are identical should be compressed onto the same line when you do 'squash matches' */
+    MSPFLAG_STRAND_SPECIFIC,            /* if false, show all features on the forward strand; else only show forward features on forward strand */
+    MSPFLAG_SHOW_REVERSE_STRAND,        /* if true, and strand-specific, show rev strand features in rev strand area of display */
+
+    /* Add new items above here. */
+    /* YOU MUST UPDATE g_MspFlagConfigKeys AFTER CHANGING THIS ENUM */
+
+    MSPFLAG_NUM_FLAGS                   /* Total number of flags e.g. for creating arrays and loops etc */
+  } MspFlag;
 
 
 /* Defines a data type for sequences. The data type contains properties applicable
@@ -147,7 +160,6 @@ typedef struct _BlxDataType
     GArray *bulkFetch;     /* list of fetch methods (by name as a GQuark) to use when bulk fetching sequences, in order of priority */
     GArray *userFetch;     /* list of fetch methods (by name as a GQuark) to use when user fetches a sequence, in order of priority */
     GArray *optionalFetch; /* list of fetch methods (by name as a GQuark) to use when user requests optional data to be loaded */
-    gboolean linkFeaturesByName; /* whether features with the same name are part of the same parent */
   } BlxDataType;
 
 
@@ -308,7 +320,6 @@ gboolean              typeIsIntron(const BlxMspType mspType);
 gboolean              typeIsTranscript(const BlxMspType mspType);
 gboolean              typeIsMatch(const BlxMspType mspType);
 gboolean              typeIsVariation(const BlxMspType mspType);
-gboolean              typeIsShortRead(const BlxMspType mspType);
 gboolean              typeIsRegion(const BlxMspType mspType);
 gboolean              typeShownInDetailView(const BlxMspType mspType);
 gboolean              blxSequenceShownInDetailView(const BlxSequence *blxSeq);
@@ -365,7 +376,6 @@ gboolean              mspIsSnp(const MSP const *msp);
 gboolean              mspIsBlastMatch(const MSP const *msp);
 gboolean              mspIsPolyASite(const MSP const *msp);
 gboolean              mspIsVariation(const MSP const *msp);
-gboolean              mspIsShortRead(const MSP const *msp);
 gboolean              mspIsZeroLenVariation(const MSP const *msp);
 
 gboolean              mspHasSName(const MSP const *msp);
@@ -374,6 +384,10 @@ gboolean              mspHasSCoords(const MSP const *msp);
 gboolean              mspHasSStrand(const MSP const *msp);
 gboolean              mspHasPolyATail(const MSP const *msp, const GArray const *polyASiteList);
 gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const GArray const *polyASiteList);
+gboolean              mspGetFlag(const MSP* const msp, const MspFlag flag);
+const char*           mspFlagGetConfigKey(const MspFlag flag);
+gboolean              mspFlagGetDefault(const MspFlag flag);
+void                  mspFlagSetDefault(const MspFlag flag, const gboolean value);
 
 int                   getMaxMspLen();
 void                  setMaxMspLen(const int len);
@@ -391,12 +405,12 @@ MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **
                                    BlxDataType *dataType, const char *source, const gdouble score, const gdouble percentId, const int phase,
                                    const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
-                                   const BlxStrand sStrand, char *sequence, const gboolean linkFeaturesByName, const GQuark filename, GError **error);  
+                                   const BlxStrand sStrand, char *sequence, const GQuark filename, GError **error);  
 MSP*                  copyMsp(const MSP const *src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
 
 //void                  insertFS(MSP *msp, char *series);
 
-void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, GList *columnList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame, const gboolean linkFeatures);
+void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, GList *columnList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame);
 int                   findMspListSExtent(GList *mspList, const gboolean findMin);
 int                   findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand);
 
@@ -442,7 +456,19 @@ const char*           blxSequenceGetGeneName(const BlxSequence *seq);
 const char*           blxSequenceGetTissueType(const BlxSequence *seq);
 const char*           blxSequenceGetStrain(const BlxSequence *seq);
 char*                 blxSequenceGetFasta(const BlxSequence *seq);
+gboolean              blxSequenceGetFlag(const BlxSequence* const blxSeq, const MspFlag flag);
 
 void                  destroyBlxSequence(BlxSequence *seq);
 
+/* BlxDataType */
+gboolean              dataTypeGetFlag(const BlxDataType* const dataType, const MspFlag flag);
+
 #endif /* _blxmsp_included_ */
+
+
+
+
+
+
+
+

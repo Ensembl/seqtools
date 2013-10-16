@@ -62,9 +62,6 @@
 #endif
 
 
-#define MKSTEMP_CONST_CHARS                   "BLIXEM_gff"        /* the prefix to use when creating a temp file name */
-#define MKSTEMP_REPLACEMENT_CHARS             "XXXXXX"            /* the required string that will be replaced by unique chars when creating a temp file name */
-
 
 /* States for parsing EMBL files */
 typedef enum
@@ -295,7 +292,7 @@ const char *outputTypeStr(const BlxFetchOutputType outputType)
 
 /* Get the fetch-method struct containing the details for the 
  * given fetch method */
-static BlxFetchMethod* getFetchMethodDetails(GQuark fetchMethodQuark, GHashTable *fetchMethods)
+BlxFetchMethod* getFetchMethodDetails(GQuark fetchMethodQuark, GHashTable *fetchMethods)
 {
   BlxFetchMethod *result = (BlxFetchMethod*)g_hash_table_lookup(fetchMethods, GINT_TO_POINTER(fetchMethodQuark));
   return result;
@@ -438,6 +435,9 @@ static GString* doFetchStringSubstitutions(const char *command,
                 if (filename)
                   g_string_append(result, filename);
                 break;
+              case 'g':
+                g_string_append_printf(result, "%d", SEQTOOLS_GFF_VERSION);
+                break;
               case '%':
                 g_string_append_c(result, *c);
                 break;
@@ -496,7 +496,7 @@ static gboolean fetchMethodUsesHttp(const BlxFetchMethod* const fetchMethod)
 
 
 /* Compile a command path and arguments into a single string */
-static GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
+GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
                                   const char *name,
                                   const char *refSeqName,
                                   const int startCoord,
@@ -586,6 +586,7 @@ GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *se
  *   %d:      dataset
  *   %S:      feature source
  *   %f:      file name
+ *   %g:      supported GFF version
  * 
  * Returns the command and args compiled into a single string.
  * The caller must free the result with g_string_free.
@@ -749,7 +750,10 @@ static void wwwFetchSequence(const BlxSequence *blxSeq,
           seqtoolsLaunchWebBrowser(url->str, &error);
         }
       
-      g_string_free(url, TRUE);
+      if (url)
+        {
+          g_string_free(url, TRUE);
+        }
 
       /* If failed, re-try with the next-preferred fetch method, if there is one */
       if (error)
@@ -794,7 +798,7 @@ static void commandFetchSequence(const BlxSequence *blxSeq,
     {
       if (displayResults && !error)
         {
-          char *title = g_strdup_printf("%s - %s", g_get_prgname(), command->str);
+          char *title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), command->str);
           displayFetchResults(title, resultText->str, blxWindow, dialog, text_buffer);
           g_free(title);
         }
@@ -834,7 +838,8 @@ static void internalFetchSequence(const BlxSequence *blxSeq,
 
       if (displayResults)
         {
-          char *title = g_strdup_printf("%s - %s", g_get_prgname(), seqName ? seqName : "");
+          BlxViewContext *bc = blxWindowGetContext(blxWindow);
+          char *title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), seqName ? seqName : "");
           displayFetchResults(title, result, blxWindow, dialog, text_buffer);
           g_free(title);
         }
@@ -883,7 +888,7 @@ static void socketFetchSequence(const BlxSequence *blxSeq,
     {
       if (displayResults)
         {
-          char *title = g_strdup_printf("Blixem - %s", command->str);
+          char *title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), command->str);
           displayFetchResults(title, resultText->str, blxWindow, dialog, text_buffer);
           g_free(title);
         }
@@ -1017,7 +1022,8 @@ static gboolean httpFetchList(GList *seqsToFetch,
   g_string_free(fetch_data.fetchData.tagName, TRUE);
   g_string_free(fetch_data.fetchData.curLine, TRUE);
 
-  g_string_free(request, FALSE);
+  if (request)
+    g_string_free(request, FALSE);
   
   return status ;
 }
@@ -1083,7 +1089,7 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
     }
   else
     {
-      pfetch_data->title = g_strdup_printf("%s - %s", g_get_prgname(), command->str);
+      pfetch_data->title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), command->str);
       
       if (pfetch_data->title)
         {
@@ -1132,7 +1138,8 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
 
       PFetchHandleFetch(pfetch_data->pfetch, request->str) ;
       
-      g_string_free(request, FALSE);
+      if (request)
+        g_string_free(request, FALSE);
     }
 }
 
@@ -1227,8 +1234,11 @@ gboolean socketFetchList(GList *seqsToFetch,
       destroyProgressBar(fetchData.bar);
       fetchData.bar = NULL ;
       
-      g_string_free(fetchData.tagName, TRUE);
-      g_string_free(fetchData.currentResult, TRUE);
+      if (tagName)
+        g_string_free(fetchData.tagName, TRUE);
+
+      if (fetchData.currentResult)
+        g_string_free(fetchData.currentResult, TRUE);
 
       if (fetchData.status && !tmpError && fetchData.numSucceeded != fetchData.numRequested)
         {
@@ -1837,8 +1847,18 @@ static void readBlixemStanza(GKeyFile *key_file,
   if (!options->bulkFetchDefault)
     options->bulkFetchDefault = keyFileGetCsv(key_file, group, BLIXEM_OLD_BULK_FETCH, NULL);
 
-  /* Get the link-features-by-name value */
-  options->linkFeaturesByName = g_key_file_get_boolean(key_file, group, LINK_FEATURES_BY_NAME, NULL);
+  /* Get the default values for the MSP flags, if they're specified in the blixem stanza. */
+  MspFlag flag = MSPFLAG_MIN + 1;
+  for ( ; flag < MSPFLAG_NUM_FLAGS; ++flag)
+    {
+      GError *tmpError = NULL;
+      const char *key = mspFlagGetConfigKey(flag);
+      gboolean value = g_key_file_get_boolean(key_file, group, key, &tmpError);
+      
+      /* If found, set it as the default */
+      if (!tmpError)
+        mspFlagSetDefault(flag, value);
+    }
 }
 
 
@@ -2139,7 +2159,9 @@ static void socketFetchInit(const BlxFetchMethod* const fetchMethod,
     {
       GString *command = getFetchArgsMultiple(fetchMethod, seqsToFetch, &tmpError);
       socketSend(*sock, command->str, &tmpError);
-      g_string_free(command, TRUE);
+      
+      if (command)
+        g_string_free(command, TRUE);
     }
   
 //  if (!tmpError)
@@ -2869,6 +2891,94 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
 }
 
 
+void sendFetchOutputToFile(GString *command,
+                           GKeyFile *keyFile,
+                           BlxBlastMode *blastMode,
+                           GArray* featureLists[],
+                           GSList *supportedTypes, 
+                           GSList *styles,
+                           GList **seqList,
+                           MSP **mspListIn,
+                           const char *fetchName,
+                           const gboolean saveTempFiles,
+                           MSP **newMsps,
+                           GList **newSeqs,
+                           GList *columnList,
+                           GError **error)
+{
+  /* Create a temp file for the results */
+  const char *tmpDir = getSystemTempDir();
+  char *fileName = g_strdup_printf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS_GFF, MKSTEMP_REPLACEMENT_CHARS);
+  int fileDesc = mkstemp(fileName);
+  GError *tmpError = NULL;
+  
+  if (!fileName || fileDesc == -1)
+    {
+      g_set_error(&tmpError, BLX_ERROR, 1, "  %s: Error creating temp file for fetch results (filename=%s)\n", fetchName, fileName);
+    }
+
+  if (fileDesc != -1)
+    {
+      close(fileDesc);
+    }
+
+  if (!tmpError)
+    {
+      /* Send the output to the temp file */
+      g_string_append_printf(command, " > %s", fileName);
+      
+      FILE *outputFile = fopen(fileName, "w");
+      
+      g_debug("Fetch command:\n%s\n", command->str);
+      
+      GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_NONE, "Fetching features...");
+      gtk_widget_show_all(dialog);
+
+      g_message_info("Executing fetch...\n");
+      const gboolean success = (system(command->str) == 0);
+
+      gtk_widget_destroy(dialog);
+      
+      fclose(outputFile);
+
+      if (success)
+        {
+          /* Parse the results */
+          g_message_info("... ok.\n");
+          g_message_info("Parsing fetch results...");
+          
+          loadNativeFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, newMsps, newSeqs, columnList, &tmpError);
+          
+          if (!tmpError)
+            {
+              g_message_info("... ok.\n");
+            }
+          else
+            {
+              g_message_info("... failed.\n");
+            }
+        }
+      else
+        {
+          g_message_info("... failed.\n");
+          g_set_error(&tmpError, BLX_ERROR, 1, "  %s: Command failed.\n", fetchName);
+        }
+    }
+
+  /* Delete the temp file (unless the 'save temp files' option is on) */
+  if (!saveTempFiles)
+    {
+      if (unlink(fileName) != 0)
+        g_warning("Error removing temp file '%s'.\n", fileName);
+    }
+
+  g_free(fileName);
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
+}
+
+
 /* Called by regionFetchList. Fetches the sequences for a specific region.
  *   tmpDir is the directory in which to place the temporary files
  *   script is the script to call to do the fetch
@@ -2893,75 +3003,35 @@ static void regionFetchFeature(const MSP const *msp,
 {
   GKeyFile *keyFile = blxGetConfig();
   const char *fetchName = g_quark_to_string(fetchMethod->name);
-  
-  /* Create a temp file for the results */
-  char *fileName = g_strdup_printf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS, MKSTEMP_REPLACEMENT_CHARS);
-  int fileDesc = mkstemp(fileName);
   GError *tmpError = NULL;
-  
-  if (!fileName || fileDesc == -1)
-    g_set_error(&tmpError, BLX_ERROR, 1, "  %s: Error creating temp file for fetch results (filename=%s)\n", fetchName, fileName);
 
-  GString *command = NULL;
+  /* Get the command string, including the args */
+  GString *command = getFetchCommand(fetchMethod, NULL, 
+                                     msp, mspGetRefName(msp), 
+                                     refSeqOffset, refSeqRange, 
+                                     dataset, &tmpError);
+
+  if (tmpError)
+    prefixError(tmpError, "  %s: Error constructing fetch command:\n", fetchName);
   
   if (!tmpError)
     {
-      close(fileDesc);
+      MSP *newMsps  = NULL;
+      GList *newSeqs = NULL;
       
-      /* Get the command string, including the args */
-      command = getFetchCommand(fetchMethod, NULL, 
-                                msp, mspGetRefName(msp), 
-                                refSeqOffset, refSeqRange, 
-                                dataset, &tmpError);
-      if (tmpError)
-        prefixError(tmpError, "  %s: Error constructing fetch command:\n", fetchName);
+      sendFetchOutputToFile(command, keyFile, blastMode, 
+                            featureLists, supportedTypes, styles, 
+                            seqList, mspListIn, fetchName, saveTempFiles, 
+                            &newMsps, &newSeqs, columnList, &tmpError);
+
+      appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
     }
   
-  if (!tmpError)
-    {
-      /* Send the output to the temp file */
-      g_string_append_printf(command, " > %s", fileName);
-      
-      FILE *outputFile = fopen(fileName, "w");
-      
-      g_debug("region-fetch command:\n%s\n", command->str);
-      
-      g_message_info("Calling region-fetch script...\n");
-      const gboolean success = (system(command->str) == 0);
-  
-      fclose(outputFile);
-      g_string_free(command, TRUE);
-      
-      if (success)
-        {
-          /* Parse the results */
-          g_message_info("Parsing region-fetch results...");
-          MSP *newMsps = NULL;
-          GList *newSeqs = NULL;
-          
-          loadGffFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, &newMsps, &newSeqs, columnList);
-          appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
-          
-          g_message_info(" complete.\n");
-        }
-      else
-        {
-          g_message_info("... failed.\n");
-          g_set_error(&tmpError, BLX_ERROR, 1, "  %s: Failed to fetch sequences for region [%d, %d].\n", fetchName, msp->qRange.min, msp->qRange.max);
-        }
-      
-      /* Delete the temp file (unless the 'save temp files' option is on) */
-      if (!saveTempFiles)
-        {
-          if (unlink(fileName) != 0)
-            g_warning("Error removing temp file '%s'.\n", fileName);
-        }
-    }
-  
+  if (command)
+    g_string_free(command, TRUE);
+
   if (tmpError)
     g_propagate_error(error, tmpError);
-
-  g_free(fileName);
 }
 
 
@@ -2998,12 +3068,7 @@ static void regionFetchList(GList *regionsToFetch,
       return;
     }
 
-  /* Get the temp directory. Some systems seem to have a trailing slash, 
-   * some not, so if it has one then remove it... */
-  char *tmpDir = g_strdup(g_get_tmp_dir());
-  
-  if (tmpDir[strlen(tmpDir) - 1] == '/')
-    tmpDir[strlen(tmpDir) - 1] = '\0';
+  const char *tmpDir = getSystemTempDir();
 
   /* Loop through each region, creating a GFF file with the results for each region */
   GList *regionItem = regionsToFetch;
@@ -3228,13 +3293,13 @@ gboolean bulkFetchSequences(const int attempt,
               success = TRUE;
               
               /* Compile all errors into a single error */
-              if (error)
+              if (error && tmpError)
                 {
                   prefixError(error, tmpError->message);
                   g_error_free(tmpError);
                   tmpError = NULL;
                 }
-              else
+              else if (tmpError)
                 {
                   error = tmpError;
                 }

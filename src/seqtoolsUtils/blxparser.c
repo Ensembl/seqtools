@@ -61,7 +61,8 @@ typedef enum {
   BLX_PARSER_ERROR_NO_STRAND,         /* MSP does not have a valid ref seq strand */
   BLX_PARSER_ERROR_INVALID_S_COORDS,  /* MSP does not have valid match coords */
   BLX_PARSER_ERROR_SEQS_DIFFER,       /* parsed data for the same sequence is different on different data lines */
-  BLX_PARSER_ERROR_COMPLEMENT_FAILED  /* failed to complement the sequence */
+  BLX_PARSER_ERROR_COMPLEMENT_FAILED, /* failed to complement the sequence */
+  BLX_PARSER_ERROR_INVALID_FILE,      /* unrecognised file format */
 } BlxDotterError;
 
 
@@ -179,7 +180,7 @@ static int getResFactorFromMode(const BlxBlastMode blastMode)
 }
 
 
-/* Function: parse a stream of SFS data
+/* Function: parse a feature file (GFF or obsolete SFS format)
  *
  * Assumptions:
  *
@@ -190,7 +191,8 @@ static int getResFactorFromMode(const BlxBlastMode blastMode)
  */
 void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
              GArray* featureLists[], GList **seqList, GList *columnList, GSList *supportedTypes, GSList *styles,
-	     char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, GKeyFile *keyFile)
+	     char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
+             GKeyFile *keyFile, GError **error)
 {
   DEBUG_ENTER("parseFS");
 
@@ -259,7 +261,7 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 	{
 	  /* If first line was not a valid header, it's an error */
 	  parserState = PARSER_ERROR;
-	  g_critical("Invalid header line '%s'.\n", line);
+	  g_set_error(error, BLX_PARSER_ERROR, BLX_PARSER_ERROR_INVALID_FILE, "Unrecognised file header '%s'.\n", line);
 	}
       else
 	{
@@ -665,7 +667,7 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
                           score, UNSET_INT, 0,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame,
                           sName, sStart, sEnd, BLXSTRAND_FORWARD, NULL,
-                          TRUE, 0, &error);
+                          0, &error);
 
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
@@ -888,7 +890,7 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
                           score, UNSET_INT, 0,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame, 
                           sName, sStart, sEnd, sStrand, NULL,
-                          TRUE, 0, &error);
+                          0, &error);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   
@@ -1458,7 +1460,7 @@ static void parseFsHsp(char *line,
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_HSP, NULL,  NULL,
                           score, UNSET_INT, 0, 
                           NULL, qName, qStart, qEnd, qStrand, qFrame, 
-                          sName, sStart, sEnd, sStrand, sSeq, TRUE, 0, &error);
+                          sName, sStart, sEnd, sStrand, sSeq, 0, &error);
 
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   checkReversedSubjectAllowed(msp, blastMode);
@@ -1523,7 +1525,7 @@ static void parseFsSeg(char *line,
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_FS_SEG, NULL, NULL,
                           UNSET_INT, UNSET_INT, 0, 
                           NULL, qName, qStart, qEnd, BLXSTRAND_NONE, 1, 
-                          series, qStart, qEnd, BLXSTRAND_NONE, NULL, TRUE, 0, &error);
+                          series, qStart, qEnd, BLXSTRAND_NONE, NULL, 0, &error);
 
   /* Parse in additional feature-series info */
   parseLook(msp, look);
@@ -1579,7 +1581,7 @@ static void parseFsGff(char *line,
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_FS_SEG, NULL, NULL,
                           score, UNSET_INT, 0, 
                           NULL, qName, qStart, qEnd, qStrand, qFrame, 
-                          series, qStart, qEnd, BLXSTRAND_FORWARD, NULL, TRUE, 0, &error);
+                          series, qStart, qEnd, BLXSTRAND_FORWARD, NULL, 0, &error);
   
 
   /* Parse additional feature-series information */
@@ -1656,7 +1658,7 @@ static void parseFsXyHeader(char *line,
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_XY_PLOT, NULL, NULL,
                           UNSET_INT, UNSET_INT, 0, 
                           NULL, qName, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, 1,
-                          series, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, NULL, TRUE, 0, &error);
+                          series, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, NULL, 0, &error);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 

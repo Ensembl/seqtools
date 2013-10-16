@@ -51,14 +51,15 @@
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      1    /* used to change the default border width around the blixem window */
 #define DEFAULT_COVERAGE_VIEW_BORDER     12   /* size of border to allow around the coverage view */
-#define DEFAULT_FONT_SIZE_ADJUSTMENT	 -2   /* used to start with a smaller font than the default widget font */
-#define DEFAULT_SCROLL_STEP_INCREMENT	 5    /* how many bases the scrollbar scrolls by for each increment */
-#define DEFAULT_WINDOW_WIDTH_FRACTION	 0.9  /* what fraction of the screen size the blixem window width defaults to */
-#define DEFAULT_WINDOW_HEIGHT_FRACTION	 0.6  /* what fraction of the screen size the blixem window height defaults to */
-#define MATCH_SET_GROUP_NAME		 "Match set"
+#define DEFAULT_FONT_SIZE_ADJUSTMENT     -2   /* used to start with a smaller font than the default widget font */
+#define DEFAULT_SCROLL_STEP_INCREMENT    5    /* how many bases the scrollbar scrolls by for each increment */
+#define DEFAULT_WINDOW_WIDTH_FRACTION    0.9  /* what fraction of the screen size the blixem window width defaults to */
+#define DEFAULT_WINDOW_HEIGHT_FRACTION   0.6  /* what fraction of the screen size the blixem window height defaults to */
+#define MATCH_SET_GROUP_NAME             "Match set"
 #define LOAD_DATA_TEXT                   "Load optional data"
 #define DEFAULT_TABLE_XPAD               2    /* default x-padding to use in tables */
 #define DEFAULT_TABLE_YPAD               2    /* default y-padding to use in tables */
+#define MAX_RECOMMENDED_COPY_LENGTH      100000 /* warn if about to copy text longer than this to the clipboard */
 
 
 typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
@@ -78,12 +79,12 @@ typedef struct _CompareSeqData
 /* Properties specific to the blixem window */
 typedef struct _BlxWindowProperties
   {
-    GtkWidget *bigPicture;	    /* The top section of the view, showing a "big picture" overview of the alignments */
-    GtkWidget *detailView;	    /* The bottom section of the view, showing a detailed list of the alignments */
-    GtkWidget *mainmenu;	    /* The main menu */
+    GtkWidget *bigPicture;          /* The top section of the view, showing a "big picture" overview of the alignments */
+    GtkWidget *detailView;          /* The bottom section of the view, showing a detailed list of the alignments */
+    GtkWidget *mainmenu;            /* The main menu */
     GtkActionGroup *actionGroup;    /* The action-group for the menus */
 
-    BlxViewContext *blxContext;	      /* The blixem view context */
+    BlxViewContext *blxContext;       /* The blixem view context */
 
     GtkPageSetup *pageSetup;          /* Page setup for printing */
     GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
@@ -91,15 +92,18 @@ typedef struct _BlxWindowProperties
 
 
 /* Local function declarations */
-static BlxWindowProperties*	  blxWindowGetProperties(GtkWidget *widget);
+static BlxWindowProperties*       blxWindowGetProperties(GtkWidget *widget);
 
-static void			  onHelpMenu(GtkAction *action, gpointer data);
-static void			  onAboutMenu(GtkAction *action, gpointer data);
-static void			  onQuit(GtkAction *action, gpointer data);
-static void			  onPrintMenu(GtkAction *action, gpointer data);
-static void			  onPageSetupMenu(GtkAction *action, gpointer data);
-static void			  onSettingsMenu(GtkAction *action, gpointer data);
-static void			  onLoadMenu(GtkAction *action, gpointer data);
+static void                       onHelpMenu(GtkAction *action, gpointer data);
+static void                       onAboutMenu(GtkAction *action, gpointer data);
+static void                       onQuit(GtkAction *action, gpointer data);
+static void                       onPrintMenu(GtkAction *action, gpointer data);
+static void                       onPageSetupMenu(GtkAction *action, gpointer data);
+static void                       onSettingsMenu(GtkAction *action, gpointer data);
+static void                       onLoadMenu(GtkAction *action, gpointer data);
+static void                       onCopySeqsMenu(GtkAction *action, gpointer data);
+static void                       onCopySeqDataMenu(GtkAction *action, gpointer data);
+static void                       onCopyRefSeqMenu(GtkAction *action, gpointer data);
 static void                       onSortMenu(GtkAction *action, gpointer data);
 static void                       onZoomInMenu(GtkAction *action, gpointer data);
 static void                       onZoomOutMenu(GtkAction *action, gpointer data);
@@ -115,35 +119,35 @@ static void                       onScrollLeft1Menu(GtkAction *action, gpointer 
 static void                       onScrollRight1Menu(GtkAction *action, gpointer data);
 static void                       onSquashMatchesMenu(GtkAction *action, gpointer data);
 static void                       onToggleStrandMenu(GtkAction *action, gpointer data);
-static void			  onViewMenu(GtkAction *action, gpointer data);
-static void			  onCreateGroupMenu(GtkAction *action, gpointer data);
-static void			  onEditGroupsMenu(GtkAction *action, gpointer data);
-static void			  onToggleMatchSet(GtkAction *action, gpointer data);
-static void			  onDotterMenu(GtkAction *action, gpointer data);
-static void			  onCloseAllDottersMenu(GtkAction *action, gpointer data);
-static void			  onSelectFeaturesMenu(GtkAction *action, gpointer data);
-static void			  onDeselectAllRows(GtkAction *action, gpointer data);
-static void			  onStatisticsMenu(GtkAction *action, gpointer data);
+static void                       onViewMenu(GtkAction *action, gpointer data);
+static void                       onCreateGroupMenu(GtkAction *action, gpointer data);
+static void                       onEditGroupsMenu(GtkAction *action, gpointer data);
+static void                       onToggleMatchSet(GtkAction *action, gpointer data);
+static void                       onDotterMenu(GtkAction *action, gpointer data);
+static void                       onCloseAllDottersMenu(GtkAction *action, gpointer data);
+static void                       onSelectFeaturesMenu(GtkAction *action, gpointer data);
+static void                       onDeselectAllRows(GtkAction *action, gpointer data);
+static void                       onStatisticsMenu(GtkAction *action, gpointer data);
 
-static gboolean			  onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpointer data);
-static void			  onUpdateBackgroundColor(GtkWidget *blxWindow);
+static gboolean                   onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpointer data);
+static void                       onUpdateBackgroundColor(GtkWidget *blxWindow);
 
-static void			  onDestroyBlxWindow(GtkWidget *widget);
+static void                       onDestroyBlxWindow(GtkWidget *widget);
 
-static BlxStrand		  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
+static BlxStrand                  blxWindowGetInactiveStrand(GtkWidget *blxWindow);
 
 static GtkComboBox*               widgetGetComboBox(GtkWidget *widget);
 static BlxColumnId                getColumnFromComboBox(GtkComboBox *combo);
 
-static void			  onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
-static void			  blxWindowGroupsChanged(GtkWidget *blxWindow);
-static void			  getSequencesThatMatch(gpointer listDataItem, gpointer data);
-static GList*			  getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, GError **error);
+static void                       onButtonClickedDeleteGroup(GtkWidget *button, gpointer data);
+static void                       blxWindowGroupsChanged(GtkWidget *blxWindow);
+static void                       getSequencesThatMatch(gpointer listDataItem, gpointer data);
+static GList*                     getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, GError **error);
 
 static void                       createSortBox(GtkBox *parent, GtkWidget *detailView, const BlxColumnId initSortColumn, GList *columnList, const char *labelText, const gboolean searchableOnly);
-static GtkWidget*		  createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, gpointer data);
-static void			  blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors);
-static gboolean			  blxWindowGetUsePrintColors(GtkWidget *blxWindow);
+static GtkWidget*                 createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, gpointer data);
+static void                       blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors);
+static gboolean                   blxWindowGetUsePrintColors(GtkWidget *blxWindow);
 
 static void                       blxWindowFindDnaString(GtkWidget *blxWindow, const char *inputSearchStr, const int startCoord, const gboolean searchLeft, const gboolean findAgain, GError **error);
 static GList*                     findSeqsFromList(GtkWidget *blxWindow, const char *inputText, const BlxColumnId inputCol, const gboolean rememberSearch, const gboolean findAgain, GError **error);
@@ -151,30 +155,40 @@ static int                        getSearchStartCoord(GtkWidget *blxWindow, cons
 static GList*                     findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, const gboolean rememberSearch, const gboolean findAgain, GError **error);
 static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
 static void                       killAllSpawned(BlxViewContext *bc);
+static void                       calculateDepth(BlxViewContext *bc);
 
 static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
+static void                       copySelectionToClipboard(GtkWidget *blxWindow);
+static void                       copySelectedSeqDataToClipboard(GtkWidget *blxWindow);
+static void                       copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
 
 
 /* MENU BUILDERS */
 
 /* Standard menu entries */
 static const GtkActionEntry mainMenuEntries[] = {
-  { "Quit",		GTK_STOCK_QUIT,           "_Quit",                    "<control>Q",         "Quit  Ctrl+Q",                         G_CALLBACK(onQuit)},
-  { "Help",		GTK_STOCK_HELP,           "_Help",                    "<control>H",         "Display help  Ctrl+H",                 G_CALLBACK(onHelpMenu)},
-  { "About",		GTK_STOCK_ABOUT,          "About",                    NULL,                 "Program information",                  G_CALLBACK(onAboutMenu)},
-  { "Print",		GTK_STOCK_PRINT,          "_Print...",                "<control>P",         "Print  Ctrl+P",                        G_CALLBACK(onPrintMenu)},
-  { "PageSetup",        GTK_STOCK_PAGE_SETUP,     "Page set_up...",           NULL,                 "Page setup",                           G_CALLBACK(onPageSetupMenu)},
-  { "Settings",		GTK_STOCK_PREFERENCES,    "_Settings...",             "<control>S",         "Settings  Ctrl+S",                     G_CALLBACK(onSettingsMenu)},
-  { "Load",		GTK_STOCK_OPEN,           "_Open features file...",    NULL,                 "Load additional features from file  Ctrl+L", G_CALLBACK(onLoadMenu)},
+  { "CopyMenuAction",   NULL, "Copy"},
 
-  { "Sort",		GTK_STOCK_SORT_ASCENDING, "Sort...",                  NULL,                 "Sort sequences",                       G_CALLBACK(onSortMenu)},
-  { "ZoomIn",		GTK_STOCK_ZOOM_IN,        "Zoom in",                  "equal",              "Zoom in  =",                           G_CALLBACK(onZoomInMenu)},
-  { "ZoomOut",		GTK_STOCK_ZOOM_OUT,       "Zoom out",                 "minus",              "Zoom out  -",                          G_CALLBACK(onZoomOutMenu)},
-  { "GoTo",		GTK_STOCK_JUMP_TO,        "Go to position...",        "P",                  "Go to position  P",                    G_CALLBACK(onGoToMenu)},
-  { "FirstMatch",	GTK_STOCK_GOTO_FIRST,     "First match",              "<control>Home",      "Go to first match in selection (or all, if none selected)  Ctrl+Home",    G_CALLBACK(onFirstMatchMenu)},
-  { "PrevMatch",	GTK_STOCK_GO_BACK,        "Previous match",           "<control>Left",      "Go to previous match in selection (or all, if none selected)  Ctrl+Left", G_CALLBACK(onPrevMatchMenu)},
-  { "NextMatch",	GTK_STOCK_GO_FORWARD,     "Next match",               "<control>Right",     "Go to next match in selection (or all, if none selected)  Ctrl+Right",    G_CALLBACK(onNextMatchMenu)},
-  { "LastMatch",	GTK_STOCK_GOTO_LAST,      "Last match",               "<control>End",       "Go to last match in selection (or all, if none selected)  Ctrl+End",      G_CALLBACK(onLastMatchMenu)},
+  { "Quit",             GTK_STOCK_QUIT,           "_Quit",                    "<control>Q",         "Quit  Ctrl+Q",                         G_CALLBACK(onQuit)},
+  { "Help",             GTK_STOCK_HELP,           "_Help",                    "<control>H",         "Display help  Ctrl+H",                 G_CALLBACK(onHelpMenu)},
+  { "About",            GTK_STOCK_ABOUT,          "About",                    NULL,                 "Program information",                  G_CALLBACK(onAboutMenu)},
+  { "Print",            GTK_STOCK_PRINT,          "_Print...",                "<control>P",         "Print  Ctrl+P",                        G_CALLBACK(onPrintMenu)},
+  { "PageSetup",        GTK_STOCK_PAGE_SETUP,     "Page set_up...",           NULL,                 "Page setup",                           G_CALLBACK(onPageSetupMenu)},
+  { "Settings",         GTK_STOCK_PREFERENCES,    "_Settings...",             "<control>S",         "Settings  Ctrl+S",                     G_CALLBACK(onSettingsMenu)},
+  { "Load",             GTK_STOCK_OPEN,           "_Open features file...",    NULL,                "Load additional features from file  Ctrl+O", G_CALLBACK(onLoadMenu)},
+
+  { "CopySeqNames",     NULL,                     "Copy sequence name(s)",    "<control>C",         "Copy selected sequences name(s)  Ctrl+C", G_CALLBACK(onCopySeqsMenu)},
+  { "CopySeqData",      NULL,                     "Copy sequence data",       "<shift><control>C",  "Copy selected sequences data  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMenu)},
+  { "CopyRefSeq",       NULL,                     "Copy reference sequence from mark",  NULL,                 "Copy selected sequences name(s)  Alt+C", G_CALLBACK(onCopyRefSeqMenu)},
+
+  { "Sort",             GTK_STOCK_SORT_ASCENDING, "Sort...",                  NULL,                 "Sort sequences",                       G_CALLBACK(onSortMenu)},
+  { "ZoomIn",           GTK_STOCK_ZOOM_IN,        "Zoom in",                  "equal",              "Zoom in  =",                           G_CALLBACK(onZoomInMenu)},
+  { "ZoomOut",          GTK_STOCK_ZOOM_OUT,       "Zoom out",                 "minus",              "Zoom out  -",                          G_CALLBACK(onZoomOutMenu)},
+  { "GoTo",             GTK_STOCK_JUMP_TO,        "Go to position...",        "P",                  "Go to position  P",                    G_CALLBACK(onGoToMenu)},
+  { "FirstMatch",       GTK_STOCK_GOTO_FIRST,     "First match",              "<control>Home",      "Go to first match in selection (or all, if none selected)  Ctrl+Home",    G_CALLBACK(onFirstMatchMenu)},
+  { "PrevMatch",        GTK_STOCK_GO_BACK,        "Previous match",           "<control>Left",      "Go to previous match in selection (or all, if none selected)  Ctrl+Left", G_CALLBACK(onPrevMatchMenu)},
+  { "NextMatch",        GTK_STOCK_GO_FORWARD,     "Next match",               "<control>Right",     "Go to next match in selection (or all, if none selected)  Ctrl+Right",    G_CALLBACK(onNextMatchMenu)},
+  { "LastMatch",        GTK_STOCK_GOTO_LAST,      "Last match",               "<control>End",       "Go to last match in selection (or all, if none selected)  Ctrl+End",      G_CALLBACK(onLastMatchMenu)},
   { "BackPage",         NULL,                     "<<",                       "<control>comma",     "Scroll left one page  Ctrl+,",         G_CALLBACK(onPageLeftMenu)},
   { "BackOne",          NULL,                     "<",                        "comma",              "Scroll left one index  ,",             G_CALLBACK(onScrollLeft1Menu)},
   { "FwdOne",           NULL,                     ">",                        "period",             "Scroll right one index  .",            G_CALLBACK(onScrollRight1Menu)},
@@ -182,17 +196,17 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Find",             GTK_STOCK_FIND,           "Find...",                  "<control>F",         "Find sequences  Ctrl+F",               G_CALLBACK(onFindMenu)},
   { "ToggleStrand",     GTK_STOCK_REFRESH,        "Toggle strand",            "T",                  "Toggle the active strand  T",          G_CALLBACK(onToggleStrandMenu)},
 
-  { "View",		GTK_STOCK_FULLSCREEN,     "_View...",                 "V",                  "Edit view settings  V",                G_CALLBACK(onViewMenu)},
-  { "CreateGroup",	NULL,                     "Create Group...",          "<shift><control>G",  "Create group  Shift+Ctrl+G",           G_CALLBACK(onCreateGroupMenu)},
-  { "EditGroups",	GTK_STOCK_EDIT,           "Edit _Groups...",          "<control>G",         "Edit groups  Ctrl+G",                  G_CALLBACK(onEditGroupsMenu)},
-  { "ToggleMatchSet",	NULL,                     "Toggle _match set group",  "G",                  "Create/clear the match set group  G",  G_CALLBACK(onToggleMatchSet)},
-  { "DeselectAllRows",	NULL,                     "Deselect _all",            "<shift><control>A",  "Deselect all  Shift+Ctrl+A",           G_CALLBACK(onDeselectAllRows)},
+  { "View",             GTK_STOCK_FULLSCREEN,     "_View...",                 "V",                  "Edit view settings  V",                G_CALLBACK(onViewMenu)},
+  { "CreateGroup",      NULL,                     "Create Group...",          "<shift><control>G",  "Create group  Shift+Ctrl+G",           G_CALLBACK(onCreateGroupMenu)},
+  { "EditGroups",       GTK_STOCK_EDIT,           "Edit _Groups...",          "<control>G",         "Edit groups  Ctrl+G",                  G_CALLBACK(onEditGroupsMenu)},
+  { "ToggleMatchSet",   NULL,                     "Toggle _match set group",  "G",                  "Create/clear the match set group  G",  G_CALLBACK(onToggleMatchSet)},
+  { "DeselectAllRows",  NULL,                     "Deselect _all",            "<shift><control>A",  "Deselect all  Shift+Ctrl+A",           G_CALLBACK(onDeselectAllRows)},
 
-  { "Dotter",		NULL,                     "_Dotter...",               "<control>D",         "Start Dotter  Ctrl+D",                 G_CALLBACK(onDotterMenu)},
+  { "Dotter",           NULL,                     "_Dotter...",               "<control>D",         "Start Dotter  Ctrl+D",                 G_CALLBACK(onDotterMenu)},
   { "CloseAllDotters",  GTK_STOCK_CLOSE,          "Close all Dotters",        NULL,                 "Close all Dotters",                    G_CALLBACK(onCloseAllDottersMenu)},
-  { "SelectFeatures",	GTK_STOCK_SELECT_ALL,     "Feature series selection tool...",  NULL,           "Feature series selection tool",        G_CALLBACK(onSelectFeaturesMenu)},
+  { "SelectFeatures",   GTK_STOCK_SELECT_ALL,     "Feature series selection tool...",  NULL,           "Feature series selection tool",        G_CALLBACK(onSelectFeaturesMenu)},
 
-  { "Statistics",	NULL,                     "Statistics",               NULL,                 "Show memory statistics",               G_CALLBACK(onStatisticsMenu)}
+  { "Statistics",       NULL,                     "Statistics",               NULL,                 "Show memory statistics",               G_CALLBACK(onStatisticsMenu)}
 };
 
 
@@ -213,6 +227,11 @@ static const char standardMenuDescription[] =
 "      <menuitem action='Settings'/>"
 "      <menuitem action='Load'/>"
 "      <separator/>"
+"      <menu action='CopyMenuAction'>"
+"        <menuitem action='CopySeqNames'/>"
+"        <menuitem action='CopySeqData'/>"
+"        <menuitem action='CopyRefSeq'/>"
+"      </menu>"
 "      <menuitem action='View'/>"
 "      <menuitem action='CreateGroup'/>"
 "      <menuitem action='EditGroups'/>"
@@ -261,7 +280,7 @@ static const char developerMenuDescription[] =
 
 
 /***********************************************************
- *			   Utilities			   *
+ *                         Utilities                       *
  ***********************************************************/
 
 /* Return true if the current user is in our list of developers. */
@@ -358,9 +377,9 @@ static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, con
       GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
 
       if (moveLeft)
-	firstMatch(detailView, selectedSeqs);
+        firstMatch(detailView, selectedSeqs);
       else
-	lastMatch(detailView, selectedSeqs);
+        lastMatch(detailView, selectedSeqs);
     }
   else
     {
@@ -368,9 +387,9 @@ static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, con
       const IntRange const *fullRange = blxWindowGetFullRange(blxWindow);
 
       if (moveLeft)
-	setDetailViewStartIdx(detailView, fullRange->min, seqType);
+        setDetailViewStartIdx(detailView, fullRange->min, seqType);
       else
-	setDetailViewEndIdx(detailView, fullRange->max, seqType);
+        setDetailViewEndIdx(detailView, fullRange->max, seqType);
     }
 }
 
@@ -407,13 +426,13 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
       int newSelectedBaseIdx = detailViewProperties->selectedBaseIdx;
       
       if (moveLeft)
-	{
-	  --newSelectedBaseIdx;
-	}
+        {
+          --newSelectedBaseIdx;
+        }
       else
-	{
-	  ++newSelectedBaseIdx;
-	}
+        {
+          ++newSelectedBaseIdx;
+        }
       
       IntRange *fullRange = blxWindowGetFullRange(window);
       boundsLimitValue(&newSelectedBaseIdx, fullRange);
@@ -430,13 +449,13 @@ static void zoomBlxWindow(GtkWidget *window, const gboolean zoomIn, const gboole
   if (ctrl)
     {
       if (shift)
-	{
-	  zoomWholeBigPicture(blxWindowGetBigPicture(window));
-	}
+        {
+          zoomWholeBigPicture(blxWindowGetBigPicture(window));
+        }
       else
-	{
-	  zoomBigPicture(blxWindowGetBigPicture(window), zoomIn);
-	}
+        {
+          zoomBigPicture(blxWindowGetBigPicture(window), zoomIn);
+        }
     }
   else
     {
@@ -463,9 +482,9 @@ void blxWindowRedrawAll(GtkWidget *blxWindow)
 /* Utility to create a vbox with the given border and pack it into the given box.
  * Also put a frame around it with the given label if includeFrame is true */
 static GtkWidget* createVBoxWithBorder(GtkWidget *parent, 
-				       const int borderWidth,
-				       const gboolean includeFrame,
-				       const char *frameTitle)
+                                       const int borderWidth,
+                                       const gboolean includeFrame,
+                                       const char *frameTitle)
 {
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_set_border_width(GTK_CONTAINER(vbox), borderWidth);
@@ -524,12 +543,208 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
       SequenceGroup *group = (SequenceGroup*)(groupList->data);
       
       if (group != blxContext->matchSetGroup || g_list_length(group->seqList) > 0)
-	{
-	  result = TRUE;
-	}
+        {
+          result = TRUE;
+        }
     }
   
   return result;
+}
+
+
+/* Utility to create a text entry widget displaying the given double value. The
+ * given callback will be called when the user OK's the dialog that this widget 
+ * is a child of. */
+static GtkWidget* createTextEntryString(const char *value)
+{
+  GtkWidget *entry = gtk_entry_new();
+  
+  gtk_entry_set_text(GTK_ENTRY(entry), value);
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(value) + 2);
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  
+  return entry;
+}
+
+
+/* Utility to create a text entry widget displaying the given double value. The
+ * given callback will be called when the user OK's the dialog that this widget 
+ * is a child of. */
+static GtkWidget* createTextEntryInt(const int value)
+{
+  GtkWidget *entry = gtk_entry_new();
+  
+  char *displayText = convertIntToString(value);
+  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+  
+  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
+  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+  
+  g_free(displayText);
+
+  return entry;
+}
+
+
+/* This dialog is shown when the user attempts to load a file that
+ * is not in a natively-supported format. It asks the user what the
+ * source should be, and allows the user to edit the coordinate range
+ * to fetch data for. If the user enters valid values and hits OK then
+ * the return values are populated and we return TRUE; else return FALSE. */
+static gboolean showNonNativeFileDialog(GtkWidget *window, 
+                                        const char *filename,
+                                        GString **source_out,
+                                        int *start_out,
+                                        int *end_out)
+{
+  BlxViewContext *bc = blxWindowGetContext(window);
+  
+  char *title = g_strdup_printf("%sLoad Non-Native File", blxGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
+                                                  GTK_WINDOW(window),
+                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  GTK_STOCK_CANCEL,
+                                                  GTK_RESPONSE_REJECT,
+                                                  GTK_STOCK_OK,
+                                                  GTK_RESPONSE_ACCEPT,
+                                                  NULL);
+
+  g_free(title);
+  
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+  GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);
+
+  char *labelStr = g_strdup_printf("\nFile '%s' is not a natively-supported file format.\n\nSpecify the Source to fetch data from this file using an external command\n(a fetch method for the Source must be specified in the config file)\n", filename);  
+  GtkWidget *label = gtk_label_new(labelStr);
+  g_free(labelStr);
+  
+  GtkWidget *sourceEntry = createTextEntryString("");
+  GtkWidget *label2 = gtk_label_new("\n\nRegion to fetch data for:");
+  GtkWidget *startEntry = createTextEntryInt(bc->refSeqRange.min);
+  GtkWidget *endEntry = createTextEntryInt(bc->refSeqRange.max);
+  
+  GtkTable *table = GTK_TABLE(gtk_table_new(5, 2, FALSE));
+  gtk_container_add(contentArea, GTK_WIDGET(table));
+
+  gtk_table_attach(table, label, 0, 2, 0, 1, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, gtk_label_new("Source"), 0, 1, 1, 2, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, sourceEntry, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, label2, 0, 2, 2, 3, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, gtk_label_new("Start"), 0, 1, 3, 4, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, startEntry, 1, 2, 3, 4, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, gtk_label_new("End"), 0, 1, 4, 5, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, endEntry, 1, 2, 4, 5, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+
+  gtk_widget_show_all(dialog);
+  gint response = gtk_dialog_run(GTK_DIALOG(dialog));
+  gboolean result = FALSE;
+  
+  if (response == GTK_RESPONSE_ACCEPT)
+    {
+      const gchar *source = gtk_entry_get_text(GTK_ENTRY(sourceEntry));
+      
+      /* source is mandatory */
+      if (source && *source)
+        {
+          result = TRUE;
+          *source_out = g_string_new(source);
+
+          /* to do: start and end */
+        }
+    }
+
+  gtk_widget_destroy(dialog);
+
+  return result;
+}
+
+
+/* This function loads the contents of a non-natively supported features-
+ * file into blixem, using an external script to convert the file into
+ * a supported file format such as GFF. A fetch method stanza must exist in the
+ * config to define the script and its parameters.
+ * This function asks the user what Source the file relates to so that it can 
+ * look up the fetch method that should be used. It optionally also allows the
+ * user to specify a coordinate range to limit the fetch to.. */
+static void loadNonNativeFile(const char *filename,
+                              GtkWidget *blxWindow,
+                              MSP **newMsps,
+                              GList **newSeqs)
+{
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  GKeyFile *keyFile = blxGetConfig();
+
+  GString *source = NULL;
+  int start = bc->refSeqRange.min, end = bc->refSeqRange.max;
+  
+  if (!showNonNativeFileDialog(blxWindow, filename, &source, &start, &end))
+    return;
+
+  GError *error = NULL;
+  BlxDataType *dataType = NULL;
+  const BlxFetchMethod *fetchMethod = NULL;
+
+  if (!source || !source->str)
+    {
+      g_set_error(&error, BLX_ERROR, 1, "No Source specified; cannot look up fetch method.\n");
+    }
+
+  if (!error)
+    {
+      dataType = getBlxDataType(0, source->str, keyFile, &error);
+
+      if (!dataType)
+        g_set_error(&error, BLX_ERROR, 1, "No data-type found for source '%s'\n", source->str);
+    }
+
+  if (!error)
+    {
+      if (dataType->bulkFetch)
+        {
+          GQuark fetchMethodQuark = g_array_index(dataType->bulkFetch, GQuark, 0);
+          fetchMethod = getFetchMethodDetails(fetchMethodQuark, bc->fetchMethods);
+        }
+
+      if (!fetchMethod)
+        {
+          g_set_error(&error, BLX_ERROR, 1, "No fetch method specified for data-type '%s'\n", g_quark_to_string(dataType->name));
+        }
+
+      /* The output of the fetch must be a natively supported file format (i.e. GFF) */
+      if (!error && fetchMethod->outputType != BLXFETCH_OUTPUT_GFF)
+        {
+          g_set_error(&error, BLX_ERROR, 1, "Expected fetch method output type to be '%s' but got '%s'\n", outputTypeStr(BLXFETCH_OUTPUT_GFF), outputTypeStr(fetchMethod->outputType));
+        }
+    }
+     
+  if (!error)
+    {
+      GString *command = doGetFetchCommand(fetchMethod,
+                                           NULL, 
+                                           bc->refSeqName, 
+                                           start, 
+                                           end, 
+                                           bc->dataset, 
+                                           source->str, 
+                                           filename,
+                                           &error);
+
+      if (!error && command && command->str)
+        {
+          const char *fetchName = g_quark_to_string(fetchMethod->name);
+          GSList *styles = blxReadStylesFile(NULL, NULL);
+
+          sendFetchOutputToFile(command, keyFile, &bc->blastMode, 
+                                bc->featureLists, bc->supportedTypes, styles,
+                                &bc->matchSeqs, &bc->mspList, 
+                                fetchName, bc->saveTempFiles, newMsps, newSeqs,
+                                &error);
+        }
+    }          
+
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 }
 
 
@@ -544,14 +759,30 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   GKeyFile *keyFile = blxGetConfig();
   
-  /* Load the features from the file into some temporary lists */
+  /* We'll load the features from the file into some temporary lists */
   MSP *newMsps = NULL;
   GList *newSeqs = NULL;
+  GError *error = NULL;
 
-  loadGffFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList);
+  /* Assume it's a natively-supported file and attempt to parse it. The first thing this
+   * does is check that it's a native file and if not it sets the error */
+  loadNativeFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, &error);
 
+  if (error)
+    {
+      /* Input file is not natively supported. We can still load it if
+       * there is a fetch method associated with it: ask the user what
+       * the Source is so that we can find the fetch method. */
+      g_error_free(error);
+      error = NULL;
+      
+      loadNonNativeFile(filename, blxWindow, &newMsps, &newSeqs);
+    }
+
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  
   /* Fetch any missing sequence data and finalise the new sequences */
-  bulkFetchSequences(0, FALSE, FALSE, bc->seqType, &newSeqs, bc->columnList,
+  bulkFetchSequences(0, FALSE, bc->saveTempFiles, bc->seqType, &newSeqs, bc->columnList,
                      bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
                      bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
                      &bc->refSeqRange, bc->dataset, FALSE);
@@ -573,6 +804,10 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   cacheMspDisplayRanges(bc, detailViewGetNumUnalignedBases(detailView));
   detailViewResortTrees(detailView);
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+
+  /* Recalculate the coverage */
+  calculateDepth(bc);
+  updateCoverageDepth(blxWindowGetCoverageView(blxWindow), bc);
   
   /* Re-calculate the height of the exon views */
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
@@ -585,7 +820,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
 
 
 /***********************************************************
- *			   View panes menu                 *
+ *                         View panes menu                 *
  ***********************************************************/
 
 /* Toggle visibility the n'th tree. This is the active strand's frame n if displaying
@@ -609,13 +844,13 @@ static void toggleTreeVisibility(GtkWidget *blxWindow, const int number)
       frame = 1;
       
       if (number == 1)
-	{
-	  strand = activeStrand;
-	}
+        {
+          strand = activeStrand;
+        }
       else if (number == 2)
-	{
-	  strand = toggled ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE;
-	}
+        {
+          strand = toggled ? BLXSTRAND_FORWARD : BLXSTRAND_REVERSE;
+        }
     }
   
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
@@ -670,13 +905,13 @@ static void togglePaneVisibility(GtkWidget *blxWindow, const int number, const g
     {
       /* If modifier 2 was also pressed, affects the exon views; otherwise the grids */
       if (modifier2)
-	{
-	  toggleExonViewVisibility(blxWindow, number);
-	}
+        {
+          toggleExonViewVisibility(blxWindow, number);
+        }
       else
-	{
-	  toggleGridVisibility(blxWindow, number);
-	}
+        {
+          toggleGridVisibility(blxWindow, number);
+        }
     }
   else
     {
@@ -777,25 +1012,25 @@ static void createTreeVisibilityButton(GtkWidget *detailView, const BlxStrand st
       gboolean isActiveStrand = ((strand == BLXSTRAND_FORWARD) != toggled);
 
       if (detailViewGetSeqType(detailView) == BLXSEQ_DNA)
-	{
-	  /* We only have 1 frame, but trees are from both strands, so distinguish between strands.
-	   * Put each strand in its own frame. */
-	  char text1[] = "Show _active strand";
-	  char text2[] = "Show othe_r strand";
+        {
+          /* We only have 1 frame, but trees are from both strands, so distinguish between strands.
+           * Put each strand in its own frame. */
+          char text1[] = "Show _active strand";
+          char text2[] = "Show othe_r strand";
 
-	  GtkWidget *frame = gtk_frame_new(isActiveStrand ? "Active strand" : "Other strand");
-  	  gtk_container_add(GTK_CONTAINER(container), frame);
-	  createVisibilityButton(tree, isActiveStrand ? text1 : text2, frame);
-	}
+          GtkWidget *frame = gtk_frame_new(isActiveStrand ? "Active strand" : "Other strand");
+          gtk_container_add(GTK_CONTAINER(container), frame);
+          createVisibilityButton(tree, isActiveStrand ? text1 : text2, frame);
+        }
       else
-	{
-	  /* All the visible trees should be in the same strand, so just distinguish by frame number. */
-	  char formatStr[] = "Show frame _%d";
-	  char displayText[strlen(formatStr) + numDigitsInInt(frame) + 1];
-	  sprintf(displayText, formatStr, frame);
+        {
+          /* All the visible trees should be in the same strand, so just distinguish by frame number. */
+          char formatStr[] = "Show frame _%d";
+          char displayText[strlen(formatStr) + numDigitsInInt(frame) + 1];
+          sprintf(displayText, formatStr, frame);
 
-	  createVisibilityButton(tree, displayText, container);
-	}
+          createVisibilityButton(tree, displayText, container);
+        }
     }
 }
 
@@ -834,12 +1069,16 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Blixem - View panes", 
+      char *title = g_strdup_printf("%sView panes", blxGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title, 
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_OK,
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
+
+      g_free(title);
 
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
@@ -904,7 +1143,7 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
 
 /***********************************************************
- *			    Find menu			   *
+ *                          Find menu                      *
  ***********************************************************/
 
 static GList* findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, const BlxColumnId inputCol, const gboolean rememberSearch, const gboolean findAgain, GError **error)
@@ -930,10 +1169,10 @@ static GList* findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, co
       searchCol = inputCol;
     
       if (rememberSearch)
-	{
-	  prevSearchStr = searchStr;
-	  prevSearchCol = searchCol;
-	}
+        {
+          prevSearchStr = searchStr;
+          prevSearchCol = searchCol;
+        }
     }
   
   if (!searchStr || searchCol == BLXCOL_NONE)
@@ -1016,10 +1255,10 @@ static GList* findSeqsFromList(GtkWidget *blxWindow,
       searchCol = inputCol;
     
       if (rememberSearch)
-	{
-	  prevSearchStr = searchStr;
-	  prevSearchCol = searchCol;
-	}
+        {
+          prevSearchStr = searchStr;
+          prevSearchCol = searchCol;
+        }
     }
       
   if (!searchStr || searchCol == BLXCOL_NONE)
@@ -1381,6 +1620,44 @@ static void createSearchColumnCombo(GtkTable *table, const int col, const int ro
 }
 
 
+static void onClearFindDialog(GtkWidget *button, gpointer data)
+{
+  GSList *entryList = (GSList*)data;
+  
+  for ( ; entryList; entryList = entryList->next)
+    {
+      if (GTK_IS_ENTRY(entryList->data))
+        {
+          GtkEntry *entry = GTK_ENTRY(entryList->data);
+          gtk_entry_set_text(entry, "");
+        }
+      else if (GTK_IS_TEXT_VIEW(entryList->data))
+        {
+          GtkTextView *textView = GTK_TEXT_VIEW(entryList->data);
+          gtk_text_buffer_set_text(gtk_text_view_get_buffer(textView), "", -1);
+        }
+      else
+        {
+          g_warning("onClearFindDialog: Unexpected widget type: expected GtkEntry or GtkTextView\n");
+        }
+    }
+}
+
+
+/* Clear up data created for the find dialog when it is destroyed
+ * (here for completeness but not actually called because the dialog
+ * is persistent). */
+static void onDestroyFindDialog(GtkWidget *widget, gpointer data)
+{
+  GSList *entryList = (GSList*)data;
+
+  if (entryList)
+    {
+      g_slist_free(entryList);
+    }
+}
+
+
 /* Show the 'Find' dialog */
 void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
@@ -1390,42 +1667,60 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Blixem - Find sequences", 
+      char *title = g_strdup_printf("%sFind sequences", blxGetTitlePrefix(bc));
+
+      /* Note that we add some buttons here but some more at the end because
+       * we want to create a custom Clear button in the middle somewhere */
+      dialog = gtk_dialog_new_with_buttons(title, 
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
-                                           GTK_STOCK_GO_BACK,
+                                           GTK_STOCK_GO_BACK,     /* previous match */
                                            BLX_RESPONSE_BACK,
-                                           GTK_STOCK_GO_FORWARD,
+                                           GTK_STOCK_GO_FORWARD,  /* next match */
                                            BLX_RESPONSE_FORWARD,
-                                           GTK_STOCK_CLOSE,
-                                           GTK_RESPONSE_REJECT,
-                                           GTK_STOCK_OK,
-                                           GTK_RESPONSE_ACCEPT,
                                            NULL);
-  
+      
+      g_free(title);
+      
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
       
       GtkBox *contentArea = GTK_BOX(GTK_DIALOG(dialog)->vbox);
+      GtkBox *actionArea = GTK_BOX(GTK_DIALOG(dialog)->action_area);
       const int numRows = 3;
       const int numCols = 2;
       GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
       gtk_box_pack_start(contentArea, GTK_WIDGET(table), TRUE, TRUE, 0);
 
+      /* This list will be populated with the text entry widgets. */
+      GSList *entryList = NULL;
 
       /* Column 1: match-seq search options */
-      GtkRadioButton *button1 = createRadioButton(table, 1, 1, NULL, "_Text search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow);
-      createRadioButton(table, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow);
+      GtkRadioButton *button1 = createRadioButton(table, 1, 1, NULL, "_Text search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqsFromName, blxWindow, &entryList);
+      createRadioButton(table, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onFindSeqsFromList, blxWindow, &entryList);
       createSearchColumnCombo(table, 1, 3, blxWindow);
       
-      
       /* Column 2: ref-seq search options */
-      createRadioButton(table, 2, 1, button1, "_DNA search", FALSE, TRUE, FALSE, onFindDnaString, blxWindow);
-
+      createRadioButton(table, 2, 1, button1, "_DNA search", FALSE, TRUE, FALSE, onFindDnaString, blxWindow, &entryList);
       
+      /* Add a button to clear the text entry fields. It's easier to do this
+       * here than in the response callback because we want to send different data */
+      GtkWidget *clearButton = gtk_button_new_from_stock(GTK_STOCK_CLEAR);
+      g_signal_connect(G_OBJECT(clearButton), "clicked", G_CALLBACK(onClearFindDialog), entryList);
+      gtk_box_pack_end(actionArea, clearButton, FALSE, FALSE, 0);
+
+      /* Add remaining buttons after the Clear button */
+      gtk_dialog_add_buttons(GTK_DIALOG(dialog),
+                             GTK_STOCK_CLOSE,       /* close / cancel */
+                             GTK_RESPONSE_REJECT,
+                             GTK_STOCK_OK,          /* ok, do the search */
+                             GTK_RESPONSE_ACCEPT,
+                             NULL);
+
       gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), GINT_TO_POINTER(TRUE));
+      g_signal_connect(dialog, "destroy", G_CALLBACK(onDestroyFindDialog), entryList);
     }
 
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
@@ -1442,7 +1737,7 @@ void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 /* Show the 'Info' dialog, which displays info about the currently-selected sequence(s) */
 void showInfoDialog(GtkWidget *blxWindow)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Feature Info", 
+  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Sequence info", 
 						  NULL, 
 						  GTK_DIALOG_DESTROY_WITH_PARENT,
 						  GTK_STOCK_CLOSE,
@@ -1453,8 +1748,6 @@ void showInfoDialog(GtkWidget *blxWindow)
 
   int width = blxWindow->allocation.width * 0.7;
   int height = blxWindow->allocation.height * 0.9;
-  
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Compile the message text from the selected sequence(s) */
   GString *resultStr = g_string_new("");
@@ -1495,7 +1788,7 @@ static void toggleBumpState(GtkWidget *blxWindow)
 }
 
 /***********************************************************
- *		      Group sequences menu                 *
+ *                    Group sequences menu                 *
  ***********************************************************/
 
 /* Utility to free the given list of  strings and (if the option is true) all
@@ -1505,15 +1798,15 @@ static void freeStringList(GList **stringList, const gboolean freeDataItems)
   if (stringList && *stringList)
     {
       if (freeDataItems)
-	{
-	  GList *item = *stringList;
-	  for ( ; item; item = item->next)
-	    {
-	      char *strData = (char*)(item->data);
-	      g_free(strData);
-	      item->data = NULL;
-	    }
-	}
+        {
+          GList *item = *stringList;
+          for ( ; item; item = item->next)
+            {
+              char *strData = (char*)(item->data);
+              g_free(strData);
+              item->data = NULL;
+            }
+        }
       
       g_list_free(*stringList);
       *stringList = NULL;
@@ -1531,21 +1824,21 @@ static void destroySequenceGroup(BlxViewContext *bc, SequenceGroup **seqGroup)
       
       /* If this is pointed to by the match-set pointer, null it */
       if (*seqGroup == bc->matchSetGroup)
-	{
-	  bc->matchSetGroup = NULL;
-	}
+        {
+          bc->matchSetGroup = NULL;
+        }
       
       /* Free the memory used by the group name */
       if ((*seqGroup)->groupName)
-	{
-	  g_free((*seqGroup)->groupName);
-	}
+        {
+          g_free((*seqGroup)->groupName);
+        }
       
       /* Free the list of sequences */
       if ((*seqGroup)->seqList)
-	{
-	  freeStringList(&(*seqGroup)->seqList, (*seqGroup)->ownsSeqNames);
-	}
+        {
+          freeStringList(&(*seqGroup)->seqList, (*seqGroup)->ownsSeqNames);
+        }
       
       g_free(*seqGroup);
       *seqGroup = NULL;
@@ -1689,7 +1982,7 @@ static gboolean onGroupNameChanged(GtkWidget *widget, const gint responseId, gpo
   else
     {
       if (group->groupName) 
-	g_free(group->groupName);
+        g_free(group->groupName);
       
       group->groupName = g_strdup(newName);
     }
@@ -1835,12 +2128,12 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
       g_signal_connect(G_OBJECT(deleteButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroup), group);
       
       /* Put everything in the table */
-      gtk_table_attach(table, nameWidget,		1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, isHiddenWidget,	2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, isHighlightedWidget,	3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, orderWidget,		4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, colorButton,		5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, deleteButton,		6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, nameWidget,               1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, isHiddenWidget,   2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, isHighlightedWidget,      3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, orderWidget,              4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, colorButton,              5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, deleteButton,             6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
     }
 }
 
@@ -1943,15 +2236,15 @@ static gboolean onAddGroupFromSelection(GtkWidget *button, const gint responseId
       BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
       
       if (g_list_length(blxContext->selectedSeqs) > 0)
-	{
-	  GList *list = g_list_copy(blxContext->selectedSeqs); /* group takes ownership of this */
-	  createSequenceGroup(blxWindow, list, FALSE, NULL);
-	}
+        {
+          GList *list = g_list_copy(blxContext->selectedSeqs); /* group takes ownership of this */
+          createSequenceGroup(blxWindow, list, FALSE, NULL);
+        }
       else
-	{
+        {
           result = FALSE;
-	  g_critical("Warning: cannot create group; no sequences are currently selected");
-	}
+          g_critical("Warning: cannot create group; no sequences are currently selected");
+        }
     }
   
   return result;
@@ -2081,18 +2374,18 @@ static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *cli
       BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
       
       if (!blxContext->matchSetGroup)
-	{
-	  blxContext->matchSetGroup = createSequenceGroup(blxWindow, seqList, FALSE, MATCH_SET_GROUP_NAME);
-	}
+        {
+          blxContext->matchSetGroup = createSequenceGroup(blxWindow, seqList, FALSE, MATCH_SET_GROUP_NAME);
+        }
       else
-	{
-	  if (blxContext->matchSetGroup->seqList)
-	    {
-	      g_list_free(blxContext->matchSetGroup->seqList);
-	    }
-	  
-	  blxContext->matchSetGroup->seqList = seqList;
-	}
+        {
+          if (blxContext->matchSetGroup->seqList)
+            {
+              g_list_free(blxContext->matchSetGroup->seqList);
+            }
+          
+          blxContext->matchSetGroup->seqList = seqList;
+        }
       
       /* Reset the highlighted/hidden properties to make sure the group is initially visible */
       blxContext->matchSetGroup->highlighted = TRUE;
@@ -2199,8 +2492,11 @@ static void onButtonClickedDeleteAllGroups(GtkWidget *button, gpointer data)
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
   /* Ask the user if they're sure */
-  gint response = runConfirmationBox(blxWindow, "Blixem - Delete groups", "This will delete ALL groups. Are you sure?");
-  
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  char *title = g_strdup_printf("%sDelete groups", blxGetTitlePrefix(bc));
+  gint response = runConfirmationBox(blxWindow, title, "This will delete ALL groups. Are you sure?");
+  g_free(title);
+
   if (response == GTK_RESPONSE_ACCEPT)
     {
       blxWindowDeleteAllSequenceGroups(blxWindow);
@@ -2224,7 +2520,10 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
   char messageText[strlen(formatStr) + strlen(group->groupName)];
   sprintf(messageText, formatStr, group->groupName);
   
-  gint response = runConfirmationBox(blxWindow, "Blixem - Delete group", messageText);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  char *title = g_strdup_printf("%sDelete group", blxGetTitlePrefix(bc));
+  gint response = runConfirmationBox(blxWindow, title, messageText);
+  g_free(title);
   
   if (response == GTK_RESPONSE_ACCEPT)
     {
@@ -2367,12 +2666,12 @@ static void createCreateGroupTab(GtkNotebook *notebook, BlxViewContext *bc, GtkW
   gtk_notebook_append_page(notebook, GTK_WIDGET(table), gtk_label_new("Create group"));
   
   /* Create the left-hand-side column */
-  GtkRadioButton *button1 = createRadioButton(table, 1, 1, NULL, "_Text search (wildcards * and ?)", !seqsSelected, TRUE, FALSE, onAddGroupFromText, blxWindow);
-  createRadioButton(table, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onAddGroupFromList, blxWindow);
+  GtkRadioButton *button1 = createRadioButton(table, 1, 1, NULL, "_Text search (wildcards * and ?)", !seqsSelected, TRUE, FALSE, onAddGroupFromText, blxWindow, NULL);
+  createRadioButton(table, 1, 2, button1, "_List search", FALSE, TRUE, TRUE, onAddGroupFromList, blxWindow, NULL);
   createSearchColumnCombo(table, 1, 3, blxWindow);
   
   /* Create the right-hand-side column */
-  createRadioButton(table, 2, 1, button1, "Use current _selection", seqsSelected, FALSE, FALSE, onAddGroupFromSelection, blxWindow);
+  createRadioButton(table, 2, 1, button1, "Use current _selection", seqsSelected, FALSE, FALSE, onAddGroupFromSelection, blxWindow, NULL);
 }
 
 
@@ -2400,10 +2699,10 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWi
   ++row;
   
   /* Add labels for each column in the table */
-  gtk_table_attach(table, gtk_label_new("Group name"),	  1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Hide"),	  2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Group name"),    1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Hide"),          2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, gtk_label_new("Highlight"),     3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Order"),	  4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Order"),         4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   ++row;
   
   /* Add a set of widgets for each group */
@@ -2436,7 +2735,9 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Blixem - Groups", 
+      char *title = g_strdup_printf("%sGroups", blxGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title,
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_CANCEL,
@@ -2447,6 +2748,8 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
 
+      g_free(title);
+      
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
@@ -2494,7 +2797,7 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
 
 
 /***********************************************************
- *			   Settings menu                   *
+ *                         Settings menu                   *
  ***********************************************************/
 
 /* This function should be called on the child widget of a dialog box that is a transient
@@ -2710,27 +3013,29 @@ static void onButtonClickedLoadOptional(GtkWidget *button, gpointer data)
 
 
 /* Create a button to allow the user to load the data for optional columns, if not already loaded */
-static GtkWidget* createColumnLoadDataButton(GtkBox *box, GtkWidget *detailView)
+static GtkWidget* createColumnLoadDataButton(GtkTable *table, 
+                                             GtkWidget *detailView,
+                                             int *row,
+                                             const int cols,
+                                             int xpad,
+                                             int ypad)
 {
-  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(box), hbox, FALSE, FALSE, 12);
-
   BlxViewContext *bc = blxWindowGetContext(detailViewGetBlxWindow(detailView));
   const gboolean dataLoaded = bc->flags[BLXFLAG_OPTIONAL_COLUMNS];
   
   GtkWidget *button = gtk_button_new_with_label(LOAD_DATA_TEXT);
   gtk_widget_set_sensitive(button, !dataLoaded); /* only enable if data not yet loaded */
-  gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 12);
 
-  GtkWidget *label = gtk_label_new("Use this button to load EMBL data for the optional columns (those greyed\nout below, if any). This may take a while if there are a lot of sequences.");
-  gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 12);
+  /* Add the hbox to the table, spanning all of the columns */
+  gtk_table_attach(table, button, 1, cols + 1, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  *row += 1;
 
   return button;
 }
 
 
-/* Create a set of widgets that allow columns to be resized */
-static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
+/* Create the settings buttons for a single column */
+static void createColumnButton(DetailViewColumnInfo *columnInfo, GtkTable *table, int *row)
 {
   /* Group these buttons in a frame */
   GtkWidget *frame = gtk_frame_new("Columns");
@@ -2753,7 +3058,7 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 
   for ( ; listItem; listItem = listItem->next)
     {
-      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
+      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
       
       /* Create a label and a text entry box, arranged vertically in a vbox */
       GtkWidget *vbox = createVBoxWithBorder(hbox, 4, FALSE, NULL);
@@ -2762,7 +3067,7 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
       gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
       
       GtkWidget *button = gtk_check_button_new();
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->showColumn);
+      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->visible);
       gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 0);
       widgetSetCallbackData(button, onColumnVisibilityChanged, (gpointer)columnInfo);
       
@@ -2797,7 +3102,7 @@ static void createColumnSizeButtons(GtkWidget *parent, GtkWidget *detailView)
 	}
     }
   
-  g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onButtonClickedLoadOptional), hbox);
+  g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onButtonClickedLoadEmblData), hbox);
 }
 
 
@@ -2844,10 +3149,10 @@ static gboolean onDepthPerCellChanged(GtkWidget *widget, const gint responseId, 
 // * given callback will be called when the user OK's the dialog that this widget 
 // * is a child of. */
 //static void createTextEntryFromInt(GtkWidget *parent, 
-//				   const char *title, 
-//				   const int value, 
-//				   BlxResponseCallback callbackFunc, 
-//				   gpointer callbackData)
+//                                 const char *title, 
+//                                 const int value, 
+//                                 BlxResponseCallback callbackFunc, 
+//                                 gpointer callbackData)
 //{
 //  /* Pack label and text entry into a vbox */
 //  GtkWidget *vbox = createVBoxWithBorder(parent, 4, FALSE, NULL);
@@ -2904,7 +3209,7 @@ static void createTextEntry(GtkWidget *parent,
 static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
 {
   /* Group these buttons in a frame */
-  GtkWidget *frame = gtk_frame_new("Grid properties");
+  GtkWidget *frame = gtk_frame_new("Overview section");
   gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
 
   /* Arrange the widgets horizontally */
@@ -2923,7 +3228,7 @@ static void createCoverageSettingsButtons(GtkWidget *parent, GtkWidget *bigPictu
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
   /* Group these buttons in a frame */
-  GtkWidget *frame = gtk_frame_new("Coverage view properties");
+  GtkWidget *frame = gtk_frame_new("Coverage section");
   gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
   
   /* Arrange the widgets horizontally */
@@ -2972,7 +3277,7 @@ static gboolean onChangeBackgroundColor(GtkWidget *button, const gint responseId
 
 /* Create a button to allow user to change the color of the given setting */
 static void createColorButton(GtkTable *table, GdkColor *color, BlxResponseCallback callbackFunc, gpointer callbackData,
-			      const int row, const int column, const int xpad, const int ypad)
+                              const int row, const int column, const int xpad, const int ypad)
 {
   GtkWidget *colorButton = gtk_color_button_new_with_color(color);
   widgetSetCallbackData(colorButton, callbackFunc, callbackData);
@@ -3157,7 +3462,7 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
                                              const char *label,
                                              const BlxFlag flag,
                                              GtkWidget **buttonOut,
-					     GCallback callbackFunc)
+                                             GCallback callbackFunc)
 {
   /* We'll the main button and any sub-components into a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
@@ -3273,8 +3578,14 @@ static void onResponseFontSelectionDialog(GtkDialog *dialog, gint responseId, gp
 
       if (!ok)
         {
+          BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
           char *msg = g_strdup_printf("Selected font '%s' is not a fixed-width font. Matches may not appear correctly aligned. Are you sure you want to continue?", fontName);
+          char *title = g_strdup_printf("%sWarning", blxGetTitlePrefix(bc));
+
           gint response = runConfirmationBox(GTK_WIDGET(dialog), "Blixem - Warning", msg);
+
+          g_free(title);
           g_free(msg);
 
           ok = (response == GTK_RESPONSE_ACCEPT);
@@ -3365,7 +3676,9 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       /* note: reset-to-defaults option commented out because it is incomplete:
        * for now, the help page tells the user to delete the ~/.blixemrc file
        * to reset to defaults */
-      dialog = gtk_dialog_new_with_buttons("Blixem - Settings", 
+      char *title = g_strdup_printf("%sSettings", blxGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title,
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
 //                                           "Reset to defaults",
@@ -3378,6 +3691,13 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
 
+      g_free(title);
+      
+      GdkScreen *screen = gtk_widget_get_screen(dialog);
+      const int width = gdk_screen_get_width(screen) * 0.33;
+      const int height = gdk_screen_get_height(screen) * 0.33;
+      gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
+      
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
@@ -3396,59 +3716,77 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   
-  /* Create separate pages for general settings and colors */
+  /* We'll put everything into a tabbed notebook */
   GtkWidget *notebook = gtk_notebook_new();
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), notebook, TRUE, TRUE, 0);
 
-  GtkWidget *settingsPage = gtk_vbox_new(FALSE, 0);
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(settingsPage), gtk_label_new("General"));
 
-  /* GENERAL PAGE */
-  GtkWidget *mainVBox = createVBoxWithBorder(settingsPage, borderWidth, FALSE, NULL);
+  /* OPTIONS PAGE */
+  GtkWidget *optionsPage = gtk_vbox_new(FALSE, 0);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(optionsPage), gtk_label_new_with_mnemonic("Opt_ions"));
 
-  /* Features */
-  GtkWidget *vbox1 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Features");
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(optionsPage), scrollWin);
 
-  GtkContainer *variationContainer = createParentCheckButton(vbox1, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS, NULL, G_CALLBACK(onParentBtnToggled));
-  createCheckButton(GTK_BOX(variationContainer), "Show variations _track", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
+  GtkWidget *optionsBox = gtk_vbox_new(FALSE, 0);
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), GTK_WIDGET(optionsBox));
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+  GtkContainer *variationContainer = createParentCheckButton(optionsBox, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS, NULL, G_CALLBACK(onParentBtnToggled));
+  createCheckButton(GTK_BOX(variationContainer), "Show variations trac_k", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
 
   /* show-polyA-tails option and its sub-options. Connect onToggleFlag twice to the 'when selected' button to also toggle the 'show signals when selected' button in unison. */
   GtkWidget *polyAParentBtn = NULL;
-  GtkContainer *polyAContainer = createParentCheckButton(vbox1, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE, &polyAParentBtn, G_CALLBACK(onShowAdditionalSeqToggled));
+  GtkContainer *polyAContainer = createParentCheckButton(optionsBox, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE, &polyAParentBtn, G_CALLBACK(onShowAdditionalSeqToggled));
   GtkWidget *polyABtn = createCheckButton(GTK_BOX(polyAContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SITE_SELECTED));
   g_signal_connect(G_OBJECT(polyAParentBtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG));
   g_signal_connect(G_OBJECT(polyABtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG_SELECTED));
-  
 
-  /* Display options */
-  GtkWidget *vbox2 = createVBoxWithBorder(mainVBox, borderWidth, TRUE, "Display options");
   const gboolean squashMatches = (bc->modelId == BLXMODEL_SQUASHED);
   
   /* show-unaligned-sequence option and its sub-options */
-  GtkContainer *unalignContainer = createParentCheckButton(vbox2, detailView, bc, "Show _unaligned sequence (only works if Squash Matches is off)", BLXFLAG_SHOW_UNALIGNED, NULL, G_CALLBACK(onShowAdditionalSeqToggled));
+  GtkContainer *unalignContainer = createParentCheckButton(optionsBox, detailView, bc, "Show _unaligned sequence", BLXFLAG_SHOW_UNALIGNED, NULL, G_CALLBACK(onShowAdditionalSeqToggled));
   createLimitUnalignedBasesButton(unalignContainer, detailView, bc);
   createCheckButton(GTK_BOX(unalignContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED], G_CALLBACK(onToggleShowUnalignedSelected), detailView);
 
-  createCheckButton(GTK_BOX(vbox2), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
+  createCheckButton(GTK_BOX(optionsBox), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
 
-  createCheckButton(GTK_BOX(vbox2), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
-  createCheckButton(GTK_BOX(vbox2), "_Squash matches", squashMatches, G_CALLBACK(onSquashMatches), NULL);
+  createCheckButton(GTK_BOX(optionsBox), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
+  createCheckButton(GTK_BOX(optionsBox), "_Squash matches", squashMatches, G_CALLBACK(onSquashMatches), NULL);
 
-  
-  /* Other boxes */
-  GtkWidget *pfetchBox = createHBoxWithBorder(mainVBox, borderWidth, TRUE, "Settings");
-  createFontSelectionButton(GTK_BOX(pfetchBox), blxWindow);
-  
-  createColumnSizeButtons(mainVBox, detailView);
-  createGridSettingsButtons(mainVBox, bigPicture);
-  createCoverageSettingsButtons(mainVBox, bigPicture);
-  
-  /* APPEARANCE PAGE */
-  GtkWidget *appearancePage = gtk_vbox_new(FALSE, borderWidth);
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(appearancePage), gtk_label_new("Appearance"));
 
+  /* DISPLAY PAGE */
+  GtkWidget *displayPage = gtk_vbox_new(FALSE, 0);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(displayPage), gtk_label_new_with_mnemonic("_Display"));
+
+  GtkWidget *displayScrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(displayPage), displayScrollWin);
+
+  GtkWidget *displayBox = gtk_vbox_new(FALSE, 0);
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(displayScrollWin), GTK_WIDGET(displayBox));
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(displayScrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+  GtkWidget *settingsBox = createVBoxWithBorder(displayBox, borderWidth, TRUE, "General");
   const gboolean usePrintColours = blxWindowGetUsePrintColors(blxWindow);
-  createCheckButton(GTK_BOX(appearancePage), "Use _print colours", usePrintColours, G_CALLBACK(onTogglePrintColors), blxWindow);
+  createCheckButton(GTK_BOX(settingsBox), "Use _print colours", usePrintColours, G_CALLBACK(onTogglePrintColors), blxWindow);
+  createFontSelectionButton(GTK_BOX(settingsBox), blxWindow);
+
+  createGridSettingsButtons(displayBox, bigPicture);
+
+  createCoverageSettingsButtons(displayBox, bigPicture);
+
+
+  /* COLUMNS PAGE */
+  GtkWidget *columnsPage = gtk_vbox_new(FALSE, 0);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(columnsPage), gtk_label_new_with_mnemonic("Colum_ns"));
+
+  createColumnButtons(columnsPage, detailView, borderWidth);
+
+
+  /* COLOURS PAGE */
+  GtkWidget *appearancePage = gtk_vbox_new(FALSE, borderWidth);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(appearancePage), gtk_label_new_with_mnemonic("Colou_rs"));
+
   createColorButtons(appearancePage, blxWindow, borderWidth);
 
   
@@ -3462,7 +3800,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
 
 /***********************************************************
- *                       Sort menu			   *
+ *                       Sort menu                         *
  ***********************************************************/
 
 /* See if this widget is a combo box, or if it has a child combo box */
@@ -3682,7 +4020,9 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Blixem - Sort", 
+      char *title = g_strdup_printf("%sSort", blxGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title,
                                            GTK_WINDOW(blxWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_CANCEL,
@@ -3692,6 +4032,8 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            GTK_STOCK_OK,
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
+
+      g_free(title);
       
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
@@ -3767,7 +4109,7 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
 
 /***********************************************************
- *		    Statistics menu			   *
+ *                  Statistics menu                        *
  ***********************************************************/
 
 static void getStats(GtkWidget *blxWindow, GString *result, MSP *MSPlist)
@@ -3821,21 +4163,26 @@ static void getStats(GtkWidget *blxWindow, GString *result, MSP *MSPlist)
                   "Total memory used by sequence data\t\t\t\t\t= ", seqDataSize, " bytes\n\n",
                   "Size of each sequence struct\t\t\t\t\t\t\t= ", (int)sizeof(BlxSequence), " bytes\n",
                   "Total memory used by sequence structs\t\t\t\t\t= ", seqStructSize, " bytes\n\n",
-		  "Number of MSPs\t\t\t\t\t\t\t\t\t\t= ", numMSPs, "\n",
+                  "Number of MSPs\t\t\t\t\t\t\t\t\t\t= ", numMSPs, "\n",
                   "Size of each MSP\t\t\t\t\t\t\t\t\t\t= ", (int)sizeof(MSP), " bytes\n",
-		  "Total memory used by MSP structs\t\t\t\t\t\t= ", (int)sizeof(MSP) * numMSPs, " bytes");
+                  "Total memory used by MSP structs\t\t\t\t\t\t= ", (int)sizeof(MSP) * numMSPs, " bytes");
 }
 
 
 static void showStatsDialog(GtkWidget *blxWindow, MSP *MSPlist)
 {
   /* Create a dialog widget with an OK button */
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Statistics", 
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  char *title = g_strdup_printf("%sStatistics", blxGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(blxWindow),
-						  GTK_DIALOG_DESTROY_WITH_PARENT,
-						  GTK_STOCK_OK,
-						  GTK_RESPONSE_ACCEPT,
-						  NULL);
+                                                  GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  GTK_STOCK_OK,
+                                                  GTK_RESPONSE_ACCEPT,
+                                                  NULL);
+
+  g_free(title);
   
   /* Ensure that the dialog box (along with any children) is destroyed when the user responds. */
   g_signal_connect (dialog, "response", G_CALLBACK(gtk_widget_destroy), NULL);
@@ -3860,45 +4207,8 @@ static void showStatsDialog(GtkWidget *blxWindow, MSP *MSPlist)
 
 
 /***********************************************************
- *			About dialog			   *
+ *                      About dialog                       *
  ***********************************************************/
-
-/* Returns a string which is the name of the Blixem application. */
-static char *blxGetAppName(void)
-{
-  return BLIXEM_TITLE ;
-}
-
-/* Returns a copyright string for the Blixem application. */
-static char *blxGetCopyrightString(void)
-{
-  return BLIXEM_COPYRIGHT_STRING ;
-}
-
-/* Returns the Blixem website URL. */
-static char *blxGetWebSiteString(void)
-{
-  return BLIXEM_WEBSITE_STRING ;
-}
-
-/* Returns a comments string for the Blixem application. */
-static char *blxGetCommentsString(void)
-{
-  return BLIXEM_COMMENTS_STRING() ;
-}
-
-/* Returns a license string for the blx application. */
-static char *blxGetLicenseString(void)
-{
-  return BLIXEM_LICENSE_STRING ;
-}
-
-/* Returns a string representing the Version/Release/Update of the Blixem code. */
-static char *blxGetVersionString(void)
-{
-  return BLIXEM_VERSION_STRING ;
-}
-
 
 /* A GtkAboutDialogActivateLinkFunc() called when user clicks on website link in "About" window. */
 static void aboutDialogOpenLinkCB(GtkAboutDialog *about, const gchar *link, gpointer data)
@@ -3932,7 +4242,7 @@ void showAboutDialog(GtkWidget *parent)
 
 
 /***********************************************************
- *			Help menu			   *
+ *                      Help menu                          *
  ***********************************************************/
 
 void onResponseHelpDialog(GtkDialog *dialog, gint responseId, gpointer data)
@@ -4026,7 +4336,7 @@ void showHelpDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 }
 
 /***********************************************************
- *			  Menu actions                     *
+ *                        Menu actions                     *
  ***********************************************************/
 
 /* Called when the user selects the quit menu option, or hits the Quit shortcut key.
@@ -4177,8 +4487,45 @@ static void onSettingsMenu(GtkAction *action, gpointer data)
 static void onLoadMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  const char *filename = getLoadFileName(blxWindow, NULL, "Load GFF file");
+
+  char *filename = getLoadFileName(blxWindow, NULL, "Load file");
   dynamicLoadFeaturesFile(blxWindow, filename);
+  
+  g_free(filename);
+}
+
+static void onCopySeqsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  copySelectionToClipboard(blxWindow);
+}
+
+static void onCopySeqDataMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  copySelectedSeqDataToClipboard(blxWindow);
+}
+
+static void onCopyRefSeqMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+
+  /* Copy the portion of the ref seq from the selected index
+   * to the clicked index */
+  
+  if (detailViewGetSelectedBaseSet(detailView))
+    {
+      const int fromIdx = detailViewGetSelectedDnaBaseIdx(detailView);
+      const int toIdx = detailViewGetClickedBaseIdx(detailView);
+
+      copyRefSeqToClipboard(blxWindow, fromIdx, toIdx);
+    }
+  else
+    {
+      g_critical("Please middle-click on a coordinate first to set the mark\n");
+    }
 }
 
 static void onSortMenu(GtkAction *action, gpointer data)
@@ -4287,7 +4634,7 @@ static void onPageSetupMenu(GtkAction *action, gpointer data)
 }  
 
 /***********************************************************
- *			   Events                          *
+ *                         Events                          *
  ***********************************************************/
 
 /* Mouse button handler */
@@ -4312,17 +4659,17 @@ static gboolean onButtonPressPanedWin(GtkWidget *panedWin, GdkEventButton *event
     {
     case 1: /* left button */
       {
-	if (event->type == GDK_2BUTTON_PRESS) /* double-click */
-	  {
-	    /* When the user double-clicks the paned window separator, reset the splitter position
-	     * (i.e. so that gets automatically positioned based on the child widgets' size)
-	     * to do: This makes the splitter jump temporarily to the desired position but then it
-	     * immediately jumps back, so I'm leaving it out for now */
-	    /* gtk_paned_set_position(GTK_PANED(panedWin), 100); */
-	    handled = TRUE;
-	  }
+        if (event->type == GDK_2BUTTON_PRESS) /* double-click */
+          {
+            /* When the user double-clicks the paned window separator, reset the splitter position
+             * (i.e. so that gets automatically positioned based on the child widgets' size)
+             * to do: This makes the splitter jump temporarily to the desired position but then it
+             * immediately jumps back, so I'm leaving it out for now */
+            /* gtk_paned_set_position(GTK_PANED(panedWin), 100); */
+            handled = TRUE;
+          }
 
-	break;
+        break;
       }
       
     default:
@@ -4390,19 +4737,6 @@ static gboolean onKeyPressPlusMinus(GtkWidget *window, const gboolean zoomIn, co
   return TRUE;
 }
 
-static gboolean onKeyPressC(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
-{
-  gboolean result = FALSE;
-  
-  if (ctrlModifier)
-    {
-      copySelectionToClipboard(window);
-      result = TRUE;
-    }
-  
-  return result;
-}
-
 static gboolean onKeyPressV(GtkWidget *window, const gboolean ctrlModifier, const gboolean shiftModifier)
 {
   gboolean result = FALSE;
@@ -4449,7 +4783,7 @@ static gboolean onKeyPressG(GtkWidget *window, const gboolean ctrlModifier, cons
   gboolean result = FALSE;
   
   if (!ctrlModifier)
-    {	    
+    {       
       toggleMatchSet(window);
       result = TRUE;
     }
@@ -4505,68 +4839,65 @@ static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpoin
   
   switch (event->keyval)
     {
-      case GDK_Escape:	    result = onKeyPressEscape(window, ctrlModifier, shiftModifier);	      break;
+      case GDK_Escape:      result = onKeyPressEscape(window, ctrlModifier, shiftModifier);           break;
       
-      case GDK_Left:	    result = onKeyPressLeftRight(window, TRUE, ctrlModifier, shiftModifier);  break;
-      case GDK_Right:	    result = onKeyPressLeftRight(window, FALSE, ctrlModifier, shiftModifier); break;
+      case GDK_Left:        result = onKeyPressLeftRight(window, TRUE, ctrlModifier, shiftModifier);  break;
+      case GDK_Right:       result = onKeyPressLeftRight(window, FALSE, ctrlModifier, shiftModifier); break;
       
-      case GDK_Up:	    result = onKeyPressUpDown(window, TRUE, ctrlModifier, shiftModifier);     break;
-      case GDK_Down:	    result = onKeyPressUpDown(window, FALSE, ctrlModifier, shiftModifier);    break;
-	
-      case GDK_Home:	    result = onKeyPressHomeEnd(window, TRUE, ctrlModifier, shiftModifier);    break;
-      case GDK_End:	    result = onKeyPressHomeEnd(window, FALSE, ctrlModifier, shiftModifier);   break;
+      case GDK_Up:          result = onKeyPressUpDown(window, TRUE, ctrlModifier, shiftModifier);     break;
+      case GDK_Down:        result = onKeyPressUpDown(window, FALSE, ctrlModifier, shiftModifier);    break;
+        
+      case GDK_Home:        result = onKeyPressHomeEnd(window, TRUE, ctrlModifier, shiftModifier);    break;
+      case GDK_End:         result = onKeyPressHomeEnd(window, FALSE, ctrlModifier, shiftModifier);   break;
 
-      case GDK_comma:	    result = onKeyPressComma(window, ctrlModifier, shiftModifier);	      break;
-      case GDK_period:	    result = onKeyPressPeriod(window, ctrlModifier, shiftModifier);	      break;
+      case GDK_comma:       result = onKeyPressComma(window, ctrlModifier, shiftModifier);            break;
+      case GDK_period:      result = onKeyPressPeriod(window, ctrlModifier, shiftModifier);           break;
 
-      case GDK_equal:	    /* fall through */
-      case GDK_plus:	    result = onKeyPressPlusMinus(window, TRUE, ctrlModifier, shiftModifier);  break;
+      case GDK_equal:       /* fall through */
+      case GDK_plus:        result = onKeyPressPlusMinus(window, TRUE, ctrlModifier, shiftModifier);  break;
       
-      case GDK_minus:	    /* fall through */
+      case GDK_minus:       /* fall through */
       case GDK_underscore:  result = onKeyPressPlusMinus(window, FALSE, ctrlModifier, shiftModifier); break;
       
-      case GDK_F3:	    result = onKeyPressF3(window, ctrlModifier, shiftModifier);		      break;
+      case GDK_F3:          result = onKeyPressF3(window, ctrlModifier, shiftModifier);               break;
 
-      case GDK_c:	    /* fall through */
-      case GDK_C:	    result = onKeyPressC(window, ctrlModifier, shiftModifier);		      break;
+      case GDK_v:           /* fall through */
+      case GDK_V:           result = onKeyPressV(window, ctrlModifier, shiftModifier);                break;
+        
+      case GDK_f:           /* fall through */
+      case GDK_F:           result = onKeyPressF(window, ctrlModifier, shiftModifier);                break;
 
-      case GDK_v:	    /* fall through */
-      case GDK_V:	    result = onKeyPressV(window, ctrlModifier, shiftModifier);		      break;
-	
-      case GDK_f:	    /* fall through */
-      case GDK_F:	    result = onKeyPressF(window, ctrlModifier, shiftModifier);		      break;
+      case GDK_g:           /* fall through */
+      case GDK_G:           result = onKeyPressG(window, ctrlModifier, shiftModifier);                break;
 
-      case GDK_g:	    /* fall through */
-      case GDK_G:	    result = onKeyPressG(window, ctrlModifier, shiftModifier);		      break;
+      case GDK_p:           /* fall through */
+      case GDK_P:           result = onKeyPressP(window, ctrlModifier, shiftModifier);                break;
+                
+      case GDK_b:           /* fall through */
+      case GDK_B:           result = onKeyPressB(window, ctrlModifier, shiftModifier);                break;
+        
+      case GDK_t:           /* fall through */
+      case GDK_T:           result = onKeyPressT(window, ctrlModifier, shiftModifier);                break;
 
-      case GDK_p:	    /* fall through */
-      case GDK_P:	    result = onKeyPressP(window, ctrlModifier, shiftModifier);		      break;
-		
-      case GDK_b:	    /* fall through */
-      case GDK_B:	    result = onKeyPressB(window, ctrlModifier, shiftModifier);		      break;
-	
-      case GDK_t:	    /* fall through */
-      case GDK_T:	    result = onKeyPressT(window, ctrlModifier, shiftModifier);		      break;
+      case GDK_i:           /* fall through */
+      case GDK_I:           result = onKeyPressI(window, ctrlModifier, shiftModifier);                break;
 
-      case GDK_i:	    /* fall through */
-      case GDK_I:	    result = onKeyPressI(window, ctrlModifier, shiftModifier);		      break;
+      case GDK_1:           /* fall through */
+      case GDK_exclam:      result = onKeyPressNumber(window, 1, ctrlModifier, shiftModifier);        break;
 
-      case GDK_1:	    /* fall through */
-      case GDK_exclam:	    result = onKeyPressNumber(window, 1, ctrlModifier, shiftModifier);	      break;
-
-      case GDK_2:	    /* fall through */
+      case GDK_2:           /* fall through */
       case GDK_quotedbl:    /* fall through */
-      case GDK_at:	    result = onKeyPressNumber(window, 2, ctrlModifier, shiftModifier);	      break;
+      case GDK_at:          result = onKeyPressNumber(window, 2, ctrlModifier, shiftModifier);        break;
 
-      case GDK_3:	    /* fall through */
-      case GDK_currency:    result = onKeyPressNumber(window, 3, ctrlModifier, shiftModifier);	      break;
+      case GDK_3:           /* fall through */
+      case GDK_currency:    result = onKeyPressNumber(window, 3, ctrlModifier, shiftModifier);        break;
     };
   
   return result;
 }
 
 /***********************************************************
- *			   Properties                      *
+ *                         Properties                      *
  ***********************************************************/
 
 static BlxWindowProperties* blxWindowGetProperties(GtkWidget *widget)
@@ -4638,26 +4969,26 @@ static void destroyBlxContext(BlxViewContext **bcPtr)
       /* Free the list of selected sequence names (not the names themselves
        * because we don't own them). */
       if (bc->selectedSeqs)
-	{
-	  g_list_free(bc->selectedSeqs);
-	  bc->selectedSeqs = NULL;
-	}
+        {
+          g_list_free(bc->selectedSeqs);
+          bc->selectedSeqs = NULL;
+        }
       
       blxContextDeleteAllSequenceGroups(bc);
 
       /* Free the color array */
       if (bc->defaultColors)
-	{
-	  BlxColorId i = BLXCOLOR_MIN + 1;
-	  for (; i < BLXCOL_NUM_COLORS; ++i)
-	    {
-	      BlxColor *blxColor = &g_array_index(bc->defaultColors, BlxColor, i);
-	      destroyBlxColor(blxColor);
-	    }
+        {
+          BlxColorId i = BLXCOLOR_MIN + 1;
+          for (; i < BLXCOL_NUM_COLORS; ++i)
+            {
+              BlxColor *blxColor = &g_array_index(bc->defaultColors, BlxColor, i);
+              destroyBlxColor(blxColor);
+            }
 
-	  g_array_free(bc->defaultColors, TRUE);
-	  bc->defaultColors = NULL;
-	}
+          g_array_free(bc->defaultColors, TRUE);
+          bc->defaultColors = NULL;
+        }
 
       /* destroy the feature lists. note that the stored msps are owned
       * by the msplist, not by the feature lists */
@@ -4765,17 +5096,17 @@ static void onDestroyBlxWindow(GtkWidget *widget)
       destroyBlxContext(&properties->blxContext);
 
       if (properties->mainmenu)
-	{
-	  gtk_widget_destroy(properties->mainmenu);
-	  properties->mainmenu = NULL;
-	}
+        {
+          gtk_widget_destroy(properties->mainmenu);
+          properties->mainmenu = NULL;
+        }
       
       /* Destroy the print settings */
       if (properties->printSettings)
-	{
-	  g_object_unref(properties->printSettings);
-	  properties->printSettings = NULL;
-	}
+        {
+          g_object_unref(properties->printSettings);
+          properties->printSettings = NULL;
+        }
       
       /* Free the properties struct itself */
       g_free(properties);
@@ -4816,8 +5147,8 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   /* matches */
   createBlxColor(bc->defaultColors, BLXCOLOR_MATCH, "Exact match", "Exact match", BLX_LIGHT_CYAN, BLX_LIGHT_GREY, BLX_CYAN, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_CONS, "Conserved match", "Conserved match", BLX_VIOLET, BLX_VERY_LIGHT_GREY, BLX_DARK_VIOLET, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MISMATCH, "Mismatch", "Mismatch", "#cacaca", BLX_WHITE, "#989898", NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_INSERTION, "Insertion", "Insertion", BLX_YELLOW, BLX_VERY_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_MISMATCH, "Mismatch", "Mismatch", "#FFFFFF", BLX_WHITE, "#FED4EA", NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_INSERTION, "Insertion", "Insertion", "#9E00FF", BLX_VERY_DARK_GREY, NULL, NULL);
   
   /* exons */
   createBlxColor(bc->defaultColors, BLXCOLOR_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
@@ -4851,7 +5182,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc->defaultColors, BLXCOLOR_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_VERY_LIGHT_GREY, NULL, NULL);
   
   /* misc */
-  createBlxColor(bc->defaultColors, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", defaultBgColorStr, BLX_WHITE, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", "#FFC432", BLX_WHITE, "#FFE8AD", NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_DARK_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_DARK_GREY, NULL, NULL);
@@ -4868,7 +5199,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
 /* Whether to include the given msp type in depth coverage calculations */
 static gboolean includeTypeInCoverage(BlxMspType mspType)
 {
-  return (mspType == BLXMSP_MATCH || mspType == BLXMSP_SHORT_READ);
+  return (mspType == BLXMSP_MATCH);
 }
 
 
@@ -4913,12 +5244,12 @@ static void calculateDepth(BlxViewContext *bc)
           int alignIdx = msp->displayRange.min;
           for ( ; alignIdx <= msp->displayRange.max; ++alignIdx)
             {
-	      /* Convert the msp coord to a zero-based coord. Note that parts of the
-	       * msp range may be outside the ref seq range. */
+              /* Convert the msp coord to a zero-based coord. Note that parts of the
+               * msp range may be outside the ref seq range. */
               const int displayIdx = alignIdx - bc->fullDisplayRange.min;
-	    
-	      if (displayIdx >= 0 && displayIdx < fullDisplayLen)
-		bc->depthArray[displayIdx] += 1;
+            
+              if (displayIdx >= 0 && displayIdx < fullDisplayLen)
+                bc->depthArray[displayIdx] += 1;
             }
         }
     } 
@@ -4954,11 +5285,11 @@ static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *opti
   blxContext->flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
-  blxContext->flags[BLXFLAG_OPTIONAL_COLUMNS] = options->optionalColumns;
+  blxContext->flags[BLXFLAG_EMBL_DATA_LOADED] = options->parseFullEmblInfo;
   blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
   blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
-  blxContext->flags[BLXFLAG_LINK_FEATURES] = options->linkFeaturesByName;
+  blxContext->flags[BLXFLAG_ABBREV_TITLE] = options->abbrevTitle;
 }
 
 
@@ -5014,14 +5345,14 @@ static void loadBlixemSettings(BlxViewContext *blxContext)
 
 
 static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
-					      const IntRange const *refSeqRange,
-					      const IntRange const *fullDisplayRange,
-					      const char *paddingSeq,
+                                              const IntRange const *refSeqRange,
+                                              const IntRange const *fullDisplayRange,
+                                              const char *paddingSeq,
                                               GArray* featureLists[],
                                               GList *seqList,
                                               GSList *supportedTypes,
-					      GtkWidget *widget,
-					      GtkWidget *statusBar,
+                                              GtkWidget *widget,
+                                              GtkWidget *statusBar,
                                               const gboolean External)
 {
   BlxViewContext *blxContext = g_malloc(sizeof *blxContext);
@@ -5035,7 +5366,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->fullDisplayRange.min = fullDisplayRange->min;
   blxContext->fullDisplayRange.max = fullDisplayRange->max;
   blxContext->refSeqOffset = options->refSeqOffset;
-  blxContext->optionalColumns = options->optionalColumns;
+  blxContext->loadOptionalData = options->parseFullEmblInfo;
 
   blxContext->mspList = options->mspList;
   blxContext->columnList = options->columnList;
@@ -5104,15 +5435,15 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 
 /* Create the properties struct and initialise all values. */
 static void blxWindowCreateProperties(CommandLineOptions *options,
-				      BlxViewContext *blxContext,
-				      GtkWidget *widget, 
-				      GtkWidget *bigPicture, 
-				      GtkWidget *detailView,
-				      GtkWidget *mainmenu,
+                                      BlxViewContext *blxContext,
+                                      GtkWidget *widget, 
+                                      GtkWidget *bigPicture, 
+                                      GtkWidget *detailView,
+                                      GtkWidget *mainmenu,
                                       GtkActionGroup *actionGroup,
-				      const IntRange const *refSeqRange,
-				      const IntRange const *fullDisplayRange,
-				      const char *paddingSeq)
+                                      const IntRange const *refSeqRange,
+                                      const IntRange const *fullDisplayRange,
+                                      const char *paddingSeq)
 {
   if (widget)
     {
@@ -5147,25 +5478,31 @@ gboolean blxWindowGetDisplayRev(GtkWidget *blxWindow)
 GtkWidget* blxWindowGetBigPicture(GtkWidget *blxWindow)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->bigPicture : FALSE;
+  return properties ? properties->bigPicture : NULL;
 }
 
 GtkWidget* blxWindowGetDetailView(GtkWidget *blxWindow)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->detailView : FALSE;
+  return properties ? properties->detailView : NULL;
+}
+
+GtkWidget* blxWindowGetCoverageView(GtkWidget *blxWindow)
+{
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  return properties ? bigPictureGetCoverageView(properties->bigPicture) : NULL;
 }
 
 GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->mainmenu : FALSE;
+  return properties ? properties->mainmenu : NULL;
 }
 
 BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->blastMode : FALSE;
+  return blxContext ? blxContext->blastMode : 0;
 }
 
 char * blxWindowGetRefSeq(GtkWidget *blxWindow)
@@ -5319,10 +5656,10 @@ SequenceGroup *blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSeq
       GList *foundItem = g_list_find(group->seqList, seqToFind);
       
       if (foundItem)
-	{
-	  result = group;
-	  break;
-	}
+        {
+          result = group;
+          break;
+        }
     }
   
   return result;
@@ -5389,13 +5726,13 @@ static GString* blxWindowGetSelectedSeqNames(GtkWidget *blxWindow)
     {
       /* Add a separator before the name, unless it's the first one */
       if (!first)
-	{
-	  g_string_append(result, "\n");
-	}
+        {
+          g_string_append(result, "\n");
+        }
       else
-	{
-	  first = FALSE;
-	}
+        {
+          first = FALSE;
+        }
 
       const BlxSequence *seq = (const BlxSequence*)(listItem->data);
       g_string_append(result, blxSequenceGetName(seq));
@@ -5405,19 +5742,97 @@ static GString* blxWindowGetSelectedSeqNames(GtkWidget *blxWindow)
 }
 
 
-/* This function copys the currently-selected sequences' names to the default
+/* Get the selected sequence data. Only works for a single selection.
+ * Returns null if fails. */
+static const char* blxWindowGetSelectedSeqData(GtkWidget *blxWindow)
+{
+  GList *listItem = blxWindowGetSelectedSeqs(blxWindow);
+  char *result = NULL;
+
+  if (g_list_length(listItem) < 1)
+    g_critical("Please select a sequence.\n");
+  else if (g_list_length(listItem) > 1)
+    g_critical("Please select a single sequence.\n");
+  else
+    {
+      const BlxSequence *seq = (const BlxSequence*)(listItem->data);
+      result = blxSequenceGetSeq(seq);
+    }
+
+  return result;
+}
+
+
+/* This function copies the currently-selected sequences' names to the default
  * clipboard. */
-void copySelectionToClipboard(GtkWidget *blxWindow)
+static void copySelectionToClipboard(GtkWidget *blxWindow)
 {
   if (g_list_length(blxWindowGetSelectedSeqs(blxWindow)) < 1)
     {
-      g_critical("No sequences selected.");
+      g_critical("Please select a sequence");
     }
   else
     {
       GString *displayText = blxWindowGetSelectedSeqNames(blxWindow);
-      setDefaultClipboardText(displayText->str);
-      g_string_free(displayText, TRUE);
+
+      if (displayText)
+        {
+          setDefaultClipboardText(displayText->str);
+          g_string_free(displayText, TRUE);
+          g_message("Copied selected sequence name(s) to clipboard\n");
+        }
+    }
+}
+
+
+/* This function copies the currently-selected sequence's data to the default
+ * clipboard. */
+static void copySelectedSeqDataToClipboard(GtkWidget *blxWindow)
+{
+  const char *displayText = blxWindowGetSelectedSeqData(blxWindow);
+
+  if (displayText)
+    {
+      const int len = strlen(displayText);
+      
+      /* Warn user if they're about to copy a large sequence */
+      if (len <= MAX_RECOMMENDED_COPY_LENGTH || 
+          runConfirmationBox(blxWindow, "Copy sequence", "You are about to copy a large amount of text to the clipboard\n\nAre you sure you want to continue?") == GTK_RESPONSE_ACCEPT)
+        {
+          setDefaultClipboardText(displayText);
+          g_message("Copied selected sequence data to clipboard\n");
+        }
+    }
+}
+
+
+/* This function copies the reference sequence, from the 
+ * clicked position to the marked position, onto the clipboard. */
+static void copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in)
+{
+  const char *refSeq = blxWindowGetRefSeq(blxWindow);
+
+  if (refSeq)
+    {
+      /* Need to get 0-based indices */
+      const IntRange* const refSeqRange = blxWindowGetRefSeqRange(blxWindow);
+      
+      const int fromIdx = min(fromIdx_in, toIdx_in) - refSeqRange->min;
+      const int toIdx = max(fromIdx_in, toIdx_in) - refSeqRange->min;
+      const int len = toIdx - fromIdx + 1;
+
+      /* Warn user if they're about to copy a large sequence */
+      if (len <= MAX_RECOMMENDED_COPY_LENGTH || 
+          runConfirmationBox(blxWindow, "Copy sequence", "You are about to copy a large amount of text to the clipboard\n\nAre you sure you want to continue?") == GTK_RESPONSE_ACCEPT)
+        {
+          const char *displayText = g_strndup(refSeq + fromIdx, toIdx - fromIdx + 1);
+      
+          if (displayText)
+            {
+              setDefaultClipboardText(displayText);
+              g_message("Copied reference sequence from %d to %d\n", fromIdx_in, toIdx_in);
+            }
+        }
     }
 }
 
@@ -5660,10 +6075,10 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                                                    BLXSEQ_DNA,        /* msp q coords are always nucleotide coords */
                                                    bc->seqType,       /* required seq type is the display seq type */
                                                    mspGetRefFrame(msp, bc->seqType),
-						   bc->numFrames,
-						   &bc->refSeqRange,
-						   bc->blastMode,
-						   bc->geneticCode,
+                                                   bc->numFrames,
+                                                   &bc->refSeqRange,
+                                                   bc->blastMode,
+                                                   bc->geneticCode,
                                                    bc->displayRev,
                                                    !qForward,
                                                    TRUE,
@@ -5671,13 +6086,13 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           
           if (!refSeqSegment)
             {
-	      prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", mspGetSName(msp), msp->sRange.min, msp->sRange.max);
+              prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", mspGetSName(msp), msp->sRange.min, msp->sRange.max);
               reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
               return;
             }
-	  else
-	    {
-	      /* If there's an error but the sequence was still returned it's 
+          else
+            {
+              /* If there's an error but the sequence was still returned it's 
                * a non-critical warning. Only issue one warning because we can
                * get many thousands and it can fill up the terminal if we output
                * them all. */
@@ -5694,7 +6109,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                   g_error_free(error);
                   error = NULL;
                 }
-	    }
+            }
           
           /* We need to find the number of characters that match out of the total number */
           int numMatchingChars = 0;
@@ -5717,7 +6132,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                         }
                     }
                 }
-              else						    /* blastn, blastp & blastx */
+              else                                                  /* blastn, blastp & blastx */
                 {
                   int i = 0;
                   for ( ; i < totalNumChars; i++)
@@ -5822,9 +6237,9 @@ static gdouble calculateMspData(MSP *mspList, BlxViewContext *bc)
       calcMspData(msp, bc);
       
       if (mspIsBlastMatch(msp) && (lowestId == -1.0 || msp->id < lowestId))
-	{
-	  lowestId = msp->id;
-	}
+        {
+          lowestId = msp->id;
+        }
     }
   
   return lowestId;
@@ -5938,11 +6353,11 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */
   GtkAdjustment *detailAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, /* initial value = 0 */
-								      fullDisplayRange.min, /* lower value */
-								      fullDisplayRange.max, /* upper value */
-								      DEFAULT_SCROLL_STEP_INCREMENT, /* step increment used for mouse wheel scrolling */
-								      0,   /* page increment dynamically set based on display range */
-								      0)); /* page size dunamically set based on display range */
+                                                                      fullDisplayRange.min, /* lower value */
+                                                                      fullDisplayRange.max, /* upper value */
+                                                                      DEFAULT_SCROLL_STEP_INCREMENT, /* step increment used for mouse wheel scrolling */
+                                                                      0,   /* page increment dynamically set based on display range */
+                                                                      0)); /* page size dunamically set based on display range */
   
   BlxViewContext *blxContext = blxWindowCreateContext(options, 
                                                       &refSeqRange, 
@@ -5952,7 +6367,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                                       seqList, 
                                                       supportedTypes,
                                                       window, 
-						      statusBar,
+                                                      statusBar,
                                                       External);
 
   /* Create the main menu */
@@ -5972,23 +6387,22 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   GtkWidget *coverageView = createCoverageView(window, blxContext);
   
   GtkWidget *bigPicture = createBigPicture(window,
-					   GTK_CONTAINER(panedWin),
+                                           GTK_CONTAINER(panedWin),
                                            coverageView,
-					   &fwdStrandGrid, 
-					   &revStrandGrid,
+                                           &fwdStrandGrid, 
+                                           &revStrandGrid,
                                            &options->bigPictRange,
                                            &refSeqRange,
-					   options->bigPictZoom,
-					   lowestId);
+                                           options->bigPictZoom,
+                                           lowestId);
 
   GtkWidget *detailView = createDetailView(window,
-					   GTK_CONTAINER(panedWin),
+                                           GTK_CONTAINER(panedWin),
                                            toolbar,
 					   detailAdjustment, 
 					   fwdStrandGrid, 
 					   revStrandGrid,
 					   options->mspList,
-                                           options->columnList,
 					   options->blastMode,
 					   options->seqType,
 					   options->numFrames,
@@ -5996,7 +6410,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 					   startCoord,
 					   options->sortInverted,
 					   options->initSortColumn,
-                                           options->optionalColumns);
+                                           options->parseFullEmblInfo);
 
   
   /* Add the coverage view underneath the main panes */
@@ -6014,15 +6428,15 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   
   /* Set required data for the blixem window */
   blxWindowCreateProperties(options,
-			    blxContext,
-			    window, 
-			    bigPicture, 
-			    detailView, 
-			    mainmenu,
+                            blxContext,
+                            window, 
+                            bigPicture, 
+                            detailView, 
+                            mainmenu,
                             actionGroup,
-			    &refSeqRange, 
-			    &fullDisplayRange,
-			    paddingSeq);
+                            &refSeqRange, 
+                            &fullDisplayRange,
+                            paddingSeq);
   
   /* Connect signals */
   g_signal_connect(G_OBJECT(panedWin), "button-press-event", G_CALLBACK(onButtonPressPanedWin), window);

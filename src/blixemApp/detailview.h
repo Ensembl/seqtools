@@ -63,8 +63,27 @@
 /* Column name to use when multiple, duplicate reads with different names are
  * shown on the same row. Note that this is a printf format that must take the
  * number of reads as an integer argument. */
-#define DUPLICATE_READS_COLUMN_NAME               "(%d) reads" 
-#define DUPLICATE_READS_COLUMN_NAME_SGL           "(%d) read" /* as above but for when there is just one read */
+#define DUPLICATE_READS_COLUMN_NAME               "(%d) matches" 
+#define DUPLICATE_READS_COLUMN_NAME_SGL           "(%d) match" /* as above but for when there is just one read */
+
+
+/* This struct describes a column in the detail view. Multiple widgets (i.e. headers
+ * and tree columns) in the detail view must all have columns that share the same
+ * properties (namely the column width). */
+typedef struct _DetailViewColumnInfo
+  {
+    BlxColumnId columnId;       /* the column identifier */
+    GtkWidget *headerWidget;    /* the header widget for this column (in the detail-view header) */
+    GtkCallback refreshFunc;    /* the function that will be called on the header widget when columns are refreshed */
+    char *title;                /* the default column title */
+    char *propertyName;         /* the property name (used to set the data for the SequenceCellRenderer) */
+    char *sortName;             /* the name to display in the sort-by drop-down box (NULL if the view is not sortable on this column) */
+    
+    int width;                  /* the column width */
+    gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
+    gboolean visible;           /* whether the column should be shown */
+    gboolean searchable;        /* whether searching sequences by data in this column is supported */
+  } DetailViewColumnInfo;
 
 
 /* This struct contains info about canonical splice sites */
@@ -90,6 +109,7 @@ typedef struct _DetailViewProperties
     GtkWidget *header;            /* Contains all the widgets in the detail view header */
     GtkWidget *feedbackBox;       /* A text box that feeds back info to the user about the currently selected items */
     GtkWidget *statusBar;         /* A status bar that feeds back info to the user about the currently moused-over items */
+    GList *columnList;            /* A list of details about all the columns in the detail view */    
     BlxColumnId* sortColumns;     /* Array of columns to sort by, in order of priority. The length of this array will be set to the same length as columnList */
     
     GList *fwdStrandTrees;        /* A list of all the trees that show the forward strand of the ref seq */
@@ -105,6 +125,9 @@ typedef struct _DetailViewProperties
     int selectedFrame;            /* The reading frame to display selected bases for */
     int selectedBaseNum;          /* The currently-selected base within the selected reading frame */
     int selectedDnaBaseIdx;       /* The currently-selected index in terms of the DNA sequence */
+
+    int clickedBaseIdx;           /* Stores the index the user right clicked on (used when copying a range of ref seq) */
+
     BlxStrand selectedStrand;     /* BlxStrand of the tree that the last-selected  */
     PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
 
@@ -126,7 +149,10 @@ typedef struct _DetailViewProperties
 /* Public function declarations */
 int                     detailViewGetNumFrames(GtkWidget *detailView);
 IntRange*               detailViewGetDisplayRange(GtkWidget *detailView);
+int                     detailViewGetClickedBaseIdx(GtkWidget *detailView);
 int                     detailViewGetSelectedBaseIdx(GtkWidget *detailView);
+gboolean                detailViewGetSelectedBaseSet(GtkWidget *detailView);
+int                     detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
 int                     detailViewGetOldSelectedBaseIdx(GtkWidget *detailView);
 GtkAdjustment*          detailViewGetAdjustment(GtkWidget *detailView);
 GtkWidget*              detailViewGetTree(GtkWidget *detailView, const BlxStrand strand, const int frame);
@@ -144,6 +170,7 @@ gdouble                 detailViewGetCharHeight(GtkWidget *detailView);
 int                     detailViewGetNumUnalignedBases(GtkWidget *detailView);
 BlxColumnId*            detailViewGetSortColumns(GtkWidget *detailView);
 GList*                  detailViewGetColumnList(GtkWidget *detailView);
+DetailViewColumnInfo*   detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId);
 GType*                  columnListGetTypes(GList *columnList);
 int                     detailViewGetActiveFrame(GtkWidget *detailView);
 BlxStrand               detailViewGetSelectedStrand(GtkWidget *detailView);
@@ -151,7 +178,12 @@ void                    detailViewSetSelectedStrand(GtkWidget *detailView, BlxSt
 
 DetailViewProperties*   detailViewGetProperties(GtkWidget *widget);
 
+int                     detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId);
+const char*             detailViewGetColumnTitle(GtkWidget *detailView, const BlxColumnId columnId);
+void                    detailViewGetColumnXCoords(DetailViewProperties *properties, const BlxColumnId columnId, IntRange *xRange);
+gboolean                detailViewShowColumn(DetailViewColumnInfo *columnInfo);
 void                    detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file);
+void                    detailViewResetColumnWidths(GtkWidget *detailView);
 
 int                     getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange const *displayRange);
 

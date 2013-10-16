@@ -96,7 +96,6 @@ static BlxViewContext*        detailViewGetContext(GtkWidget *detailView);
 static GtkWidget*             detailViewGetBigPicture(GtkWidget *detailView);
 static GtkWidget*             detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*             detailViewGetFeedbackBox(GtkWidget *detailView);
-static int                    detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
 static int                    detailViewGetSnpConnectorHeight(GtkWidget *detailView);
 static void                   refreshDetailViewHeaders(GtkWidget *detailView);
 
@@ -1104,7 +1103,7 @@ static GtkSortType getColumnSortOrder(BlxViewContext *bc, const BlxColumnId colu
   /* We're only interested in sorting exons and matches */
 static gboolean mspIsSortable(const MSP const *msp)
 {
-  return (msp && (typeIsMatch(msp->type) || typeIsShortRead(msp->type) || mspIsExon(msp)));
+  return (msp && (typeIsMatch(msp->type) || mspIsExon(msp)));
 }
 
 
@@ -1129,10 +1128,9 @@ gint sortByColumnCompareFunc(GList *mspGList1,
     return 1;
 
   /* Check whether either row has more than one MSP. If so, it means some options
-   * aren't applicable (unless they're short reads, which should be identical if
+   * aren't applicable (\to do: unless they're short reads, which should be identical if
    * they're in the same row, so we can treat those as singular). */
   const gboolean multipleMsps = 
-    (!mspIsShortRead(msp1) || !mspIsShortRead(msp2)) && 
     (g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1);
   
   BlxViewContext *bc = detailViewGetContext(detailView);
@@ -3225,7 +3223,13 @@ int detailViewGetSelectedBaseIdx(GtkWidget *detailView)
   return properties ? properties->selectedBaseIdx : UNSET_INT;
 }
 
-static int detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView)
+gboolean detailViewGetSelectedBaseSet(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->selectedBaseSet : FALSE;
+}
+
+int detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties ? properties->selectedDnaBaseIdx : UNSET_INT;
@@ -3381,6 +3385,33 @@ void detailViewSetSelectedBaseIdx(GtkWidget *detailView,
 
   updateFollowingBaseSelection(detailView, allowScroll, scrollMinimum);
 }
+
+
+int detailViewGetClickedBaseIdx(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties->clickedBaseIdx;
+}
+
+
+/* Set the selected base index to the given display index and base/frame number.
+ *  Performs any required refreshes. Scrolls the view to keep the selected base 
+ * in view if allowScroll is true. (Such scrolling is by the minimum
+ * number of bases necessary if scrollMinimum is true.) */
+void detailViewSetClickedBaseIdx(GtkWidget *detailView, 
+                                  const int clickedBaseIdx, 
+                                  const int frame, 
+                                  const int baseNum, 
+                                  const gboolean allowScroll,
+                                  const gboolean scrollMinimum)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
+  /* For protein matches, calculate the base index in terms of the DNA sequence and cache it */
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  properties->clickedBaseIdx = convertDisplayIdxToDnaIdx(clickedBaseIdx, bc->seqType, frame, baseNum, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+}
+
 
 static GtkWidget *detailViewGetBigPicture(GtkWidget *detailView)
 {
@@ -3786,7 +3817,17 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
       
     case 3:
     {
-      /* Right button: show context menu. */
+      /* Right button: store the clicked coord (required for copying ref seq),
+       * and then show the context menu. */
+      int baseIdx = getBaseIndexAtDetailViewCoords(detailView, event->x, event->y);
+      if (baseIdx != UNSET_INT)
+        {
+          const int baseNum = 1;
+          const int frame = detailViewGetActiveFrame(detailView);
+          detailViewSetClickedBaseIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE);
+        }
+      
+
       GtkWidget *mainmenu = blxWindowGetMainMenu(detailViewGetBlxWindow(detailView));
       gtk_menu_popup (GTK_MENU(mainmenu), NULL, NULL, NULL, NULL, event->button, event->time);
       handled = TRUE;
@@ -4127,15 +4168,20 @@ void toggleStrand(GtkWidget *detailView)
 void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 {
   static gchar defaultInput[32] = "";
+  BlxViewContext *bc = detailViewGetContext(detailView);
   
   /* Pop up a dialog to request a coord from the user */
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Blixem - Go to position: ", 
+  char *title = g_strdup_printf("%sGo to position", blxGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title,
                                                   NULL, 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_NO_SEPARATOR,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
 
+  g_free(title);
+  
   GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
 
   GtkWidget *entry = gtk_entry_new();
@@ -4163,7 +4209,6 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
           
           /* If display coords are negated, assume the user has entered a 
            * negative coord too, and un-negate it. */
-          BlxViewContext *bc = detailViewGetContext(detailView);
           const gboolean negate = bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS];
           
           if (negate)
@@ -4552,8 +4597,8 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
   const int charWidth = 8; /* guesstimate of char width for default font */
   
   gtk_widget_set_size_request(feedbackBox, numChars * charWidth, -1) ;
-  GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox, -1) ;
-  gtk_tool_item_set_expand(item, FALSE); 
+  //GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox, 0) ;
+  //gtk_tool_item_set_expand(item, FALSE); 
   
   /* We want the box to be printed, so connect the expose function that will 
    * draw to a pixmap for printing */
@@ -4573,8 +4618,8 @@ static GtkWidget* createStatusBar(GtkToolbar *toolbar)
   /* Make it expandable so we use all available space. Set minimum size to be 0
    * because it's better to show it small than not at all. */
   gtk_widget_set_size_request(statusBar, 0, -1) ;
-  GtkToolItem *item = addToolbarWidget(toolbar, statusBar, -1) ;
-  gtk_tool_item_set_expand(item, TRUE); /* make as big as possible */
+  //GtkToolItem *item = addToolbarWidget(toolbar, statusBar, 0) ;
+  //gtk_tool_item_set_expand(item, TRUE); /* make as big as possible */
 
   setStatusBarShadowStyle(statusBar, "GTK_SHADOW_NONE");
 
@@ -4595,13 +4640,25 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   
   gtk_toolbar_set_style(toolbar, GTK_TOOLBAR_ICONS);
   gtk_toolbar_set_icon_size(toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
-  
+
   *feedbackBox = createFeedbackBox(toolbar);
   *statusBar = createStatusBar(toolbar);
 
+  /* Create a parent hbox which will hold the main toolbar
+   * and the detail-view tools. (We do this rather than putting
+   * the detail-view tools directly into the toolbar so that
+   * we have more control over spacing. In particular, the 
+   * toolbar tools go into a nice drop-down box when there isn't
+   * enough space, but the detail-view tools won't display if 
+   * that happens, so we keep them separate.) */
+  GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
+  gtk_box_pack_start(hbox, toolbarIn, TRUE, TRUE, 0);
+  gtk_box_pack_start(hbox, *feedbackBox, FALSE, FALSE, 0);
+  gtk_box_pack_start(hbox, *statusBar, TRUE, TRUE, 0);
+
   /* Put the toolbar in a handle box so that it can be torn off */
   GtkWidget *toolbarContainer = createToolbarHandle();
-  gtk_container_add(GTK_CONTAINER(toolbarContainer), GTK_WIDGET(toolbar));
+  gtk_container_add(GTK_CONTAINER(toolbarContainer), GTK_WIDGET(hbox));
 
   return toolbarContainer;
 }
@@ -4746,7 +4803,8 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
 
           if (tree)
             {
-              addMspToTree(tree, msp);
+              GtkListStore *store = GTK_LIST_STORE(treeGetBaseDataModel(GTK_TREE_VIEW(tree)));
+              addMspToTree(msp, tree, store);
             }
           else
             {

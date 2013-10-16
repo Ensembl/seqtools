@@ -1083,7 +1083,9 @@ static void onunhideMenu(GtkAction *action, gpointer data)
  * still wishes to quit (or false if the user cancelled). */
 static gboolean saveAlignmentPrompt(GtkWidget *widget, BelvuContext *bc)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Save alignment?", 
+  char *title = g_strdup_printf("%sSave alignment?", belvuGetTitlePrefix(bc));
+  
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title,
                                                   GTK_WINDOW(widget), 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_YES, GTK_RESPONSE_YES,        /* yes, save the alignment and exit */
@@ -1091,6 +1093,8 @@ static gboolean saveAlignmentPrompt(GtkWidget *widget, BelvuContext *bc)
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,  /* don't save and don't exit */
                                                   NULL);
 
+  g_free(title);
+  
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_YES);
 
   /* Put message and icon into an hbox */
@@ -1648,7 +1652,9 @@ static void showFontDialog(BelvuContext *bc, GtkWidget *window)
   const int oldSize = pango_font_description_get_size(window->style->font_desc) / PANGO_SCALE;
   char *defaultText = g_strdup_printf("%d", oldSize);
 
-  GtkWidget *dialog = createPromptDialog(window, defaultText, "Belvu - Font", "Select font size:", "", &entry);
+  char *title = g_strdup_printf("%sFont", belvuGetTitlePrefix(bc));
+  GtkWidget *dialog = createPromptDialog(window, defaultText, title, "Select font size:", "", &entry);
+  g_free(title);
 
   gtk_widget_show_all(dialog);
 
@@ -1743,43 +1749,6 @@ static void endRemovingSequences(GtkWidget *belvuWindow)
 /***********************************************************
  *			About dialog			   *
  ***********************************************************/
-
-/* Returns a string which is the name of the Blixem application. */
-static char *belvuGetAppName(void)
-{
-  return BELVU_TITLE ;
-}
-
-/* Returns a copyright string for the Blixem application. */
-static char *belvuGetCopyrightString(void)
-{
-  return BELVU_COPYRIGHT_STRING ;
-}
-
-/* Returns the Blixem website URL. */
-static char *belvuGetWebSiteString(void)
-{
-  return BELVU_WEBSITE_STRING ;
-}
-
-/* Returns a comments string for the Blixem application. */
-static char *belvuGetCommentsString(void)
-{
-  return BELVU_COMMENTS_STRING() ;
-}
-
-/* Returns a license string for the belvu application. */
-static char *belvuGetLicenseString(void)
-{
-  return BELVU_LICENSE_STRING ;
-}
-
-/* Returns a string representing the Version/Release/Update of the Blixem code. */
-static char *belvuGetVersionString(void)
-{
-  return BELVU_VERSION_STRING ;
-}
-
 
 /* A GtkAboutDialogActivateLinkFunc() called when user clicks on website link in "About" window. */
 static void aboutDialogOpenLinkCB(GtkAboutDialog *about, const gchar *link, gpointer data)
@@ -1932,12 +1901,16 @@ static void onSaveCoordsToggled(GtkWidget *button, gpointer data)
 
 static void showSaveAsDialog(BelvuContext *bc, GtkWidget *window)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Save As", 
+  char *title = g_strdup_printf("%sSave As", belvuGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(window), 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
+
+  g_free(title);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 
@@ -2126,7 +2099,9 @@ static void showFindDialog(BelvuContext *bc, GtkWidget *window)
 
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Belvu - Find sequences",
+      char *title = g_strdup_printf("%sFind sequences", belvuGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title,
                                            GTK_WINDOW(window),
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
                                            GTK_STOCK_GO_BACK,
@@ -2139,6 +2114,8 @@ static void showFindDialog(BelvuContext *bc, GtkWidget *window)
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
 
+      g_free(title);
+      
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
@@ -2150,8 +2127,8 @@ static void showFindDialog(BelvuContext *bc, GtkWidget *window)
       gtk_box_pack_start(contentArea, GTK_WIDGET(table), TRUE, TRUE, 0);
 
 
-      /*GtkRadioButton *button1 =*/ createRadioButton(table, 0, 0, NULL, "_Name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqs, window);
-      /*createRadioButton(table, 0, 1, button1, "_Residue sequence search", FALSE, TRUE, FALSE, onFindResidues, window);*/
+      /*GtkRadioButton *button1 =*/ createRadioButton(table, 0, 0, NULL, "_Name search (wildcards * and ?)", TRUE, TRUE, FALSE, onFindSeqs, window, NULL);
+      /*createRadioButton(table, 0, 1, button1, "_Residue sequence search", FALSE, TRUE, FALSE, onFindResidues, window, NULL);*/
 
 
       gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(window));
@@ -2224,7 +2201,12 @@ static void showRemoveGappySeqsDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("50");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are ", "% or more gaps.", &entry);
+  BelvuContext *bc = windowGetContext(belvuWindow);
+  
+  char *title = g_strdup_printf("%sremove sequences", belvuGetTitlePrefix(bc));
+
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, title, "Remove sequences that are ", "% or more gaps.", &entry);
+  g_free(title);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -2250,7 +2232,10 @@ static void showMakeNonRedundantDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("80.0");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are more than ", "% identical.", &entry);
+  BelvuContext *bc = windowGetContext(belvuWindow);
+  char *title = g_strdup_printf("%sremove sequences", belvuGetTitlePrefix(bc));
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, title, "Remove sequences that are more than ", "% identical.", &entry);
+  g_free(title);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -2276,7 +2261,11 @@ static void showRemoveOutliersDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("20.0");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that are less than ", "% identical with any other.", &entry);
+  BelvuContext *bc = windowGetContext(belvuWindow);
+  char *title = g_strdup_printf("%sremove sequences", belvuGetTitlePrefix(bc));
+
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, title, "Remove sequences that are less than ", "% identical with any other.", &entry);
+  g_free(title);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -2302,7 +2291,10 @@ static void showRemoveByScoreDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("20.0");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - remove sequences", "Remove sequences that have a score less than ", "", &entry);
+  BelvuContext *bc = windowGetContext(belvuWindow);
+  char *title = g_strdup_printf("%sremove sequences", belvuGetTitlePrefix(bc));
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, title, "Remove sequences that have a score less than ", "", &entry);
+  g_free(title);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -2329,12 +2321,16 @@ static void showRemoveColumnsDialog(GtkWidget *belvuWindow)
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   BelvuContext *bc = properties->bc;
   
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Remove Columns", 
+  char *title = g_strdup_printf("%sRemove Columns", belvuGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(belvuWindow), 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
+
+  g_free(title);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   
@@ -2400,12 +2396,16 @@ static void showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow)
   if (!toText)
     toText = g_strdup_printf("%.2f", 0.9);
   
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Remove Columns", 
+  char *title = g_strdup_printf("%sRemove Columns", belvuGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(belvuWindow), 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
+
+  g_free(title);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   
@@ -2472,7 +2472,9 @@ static void showRemoveGappyColumnsDialog(GtkWidget *belvuWindow)
     inputText = g_strdup_printf("%.0f", 50.0);
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - Remove Columns", "Remove columns with more than ", " % gaps", &entry);
+  char *title = g_strdup_printf("%sRemove Columns", belvuGetTitlePrefix(bc));
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, title, "Remove columns with more than ", " % gaps", &entry);
+  g_free(title);
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
@@ -2498,12 +2500,16 @@ static void showSelectGapCharDialog(GtkWidget *belvuWindow)
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   BelvuContext *bc = properties->bc;
 
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Gap Character", 
+  char *title = g_strdup_printf("%sGap Character", belvuGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title,
                                                   GTK_WINDOW(belvuWindow), 
                                                   GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   NULL);
+
+  g_free(title);
   
   g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), belvuWindow);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
@@ -2580,8 +2586,11 @@ static void showColorByResIdDialog(GtkWidget *belvuWindow)
     inputText = g_strdup("20.0");
   
   GtkWidget *entry = NULL;
-  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, "Belvu - Color by Residue ID", "Only colour residues above ", "% identity", &entry);
-
+  BelvuContext *bc = windowGetContext(belvuWindow);
+  char *title = g_strdup_printf("%sColor by Residue ID", belvuGetTitlePrefix(bc));
+  GtkWidget *dialog = createPromptDialog(belvuWindow, inputText, title, "Only colour residues above ", "% identity", &entry);
+  g_free(title);
+  
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
       if (inputText)
@@ -2890,12 +2899,16 @@ static void showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean b
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Belvu - Edit Residue Colors", 
+      char *title = g_strdup_printf("%sEdit Residue Colors", belvuGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title,
                                            GTK_WINDOW(belvuWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
                                            GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                            GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                            NULL);
+
+      g_free(title);
       
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
@@ -3195,7 +3208,9 @@ static void showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean brin
   
   if (!dialog)
     {
-      dialog = gtk_dialog_new_with_buttons("Belvu - Edit Conservation Colors", 
+      char *title = g_strdup_printf("%sEdit Conservation Colors", belvuGetTitlePrefix(bc));
+
+      dialog = gtk_dialog_new_with_buttons(title, 
                                            GTK_WINDOW(belvuWindow), 
                                            GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
                                            GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
@@ -3203,6 +3218,8 @@ static void showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean brin
                                            GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                            NULL);
 
+      g_free(title);
+      
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
@@ -3273,12 +3290,16 @@ static GtkWidget* createTextEntryWithLabel(const char *labelText,
  * view and then opens the wrap-alignment window on ok. */
 static void showWrapDialog(BelvuContext *bc, GtkWidget *belvuWindow)
 {
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - wrap alignment", 
+  char *title = g_strdup_printf("%swrap alignment", belvuGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(belvuWindow), 
                                                   GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
+
+  g_free(title);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
@@ -3358,7 +3379,8 @@ static void createWrapWindow(GtkWidget *belvuWindow, const int linelen, const gc
   GtkWidget *wrapWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   setWrapWindowStyleProperties(wrapWindow);
   
-  char *windowTitle = g_strdup_printf("Belvu - %s", properties->bc->Title);
+  BelvuContext *bc = windowGetContext(belvuWindow);
+  char *windowTitle = g_strdup_printf("%s%s", belvuGetTitlePrefix(bc), properties->bc->Title);
   gtk_window_set_title(GTK_WINDOW(wrapWindow), windowTitle);
   g_free(windowTitle);
   
@@ -3496,7 +3518,9 @@ static void createOrganismWindow(BelvuContext *bc)
   setOrgsWindowStyleProperties(bc->orgsWindow, bc);
   g_signal_connect(bc->orgsWindow, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
   
-  gtk_window_set_title(GTK_WINDOW(bc->orgsWindow), "Belvu - Organisms");
+  char *title = g_strdup_printf("%sOrganisms", belvuGetTitlePrefix(bc));
+  gtk_window_set_title(GTK_WINDOW(bc->orgsWindow), title);
+  g_free(title);
   
   /* We must add all toplevel windows to the list of spawned windows */
   bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, bc->orgsWindow);
@@ -3565,11 +3589,15 @@ void showAnnotationWindow(BelvuContext *bc)
     }
   
   /* Create the dialog */
-  GtkWidget *dialog = gtk_dialog_new_with_buttons("Belvu - Annotations", 
+  char *title = g_strdup_printf("%sAnnotations", belvuGetTitlePrefix(bc));
+
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   NULL, 
                                                   GTK_DIALOG_DESTROY_WITH_PARENT,
                                                   GTK_STOCK_CLOSE, GTK_RESPONSE_ACCEPT,
                                                   NULL);
+
+  g_free(title);
   
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_CLOSE);
   g_signal_connect(G_OBJECT(dialog), "response", G_CALLBACK(gtk_widget_destroy), NULL);
@@ -4001,7 +4029,7 @@ gboolean createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData)
   bc->belvuWindow = window;
 
   /* Set the title */
-  char *title = g_strdup_printf("Belvu - %s", bc->Title);
+  char *title = g_strdup_printf("%s%s", belvuGetTitlePrefix(bc), bc->Title);
   gtk_window_set_title(GTK_WINDOW(window), title);
   g_free(title);
   
