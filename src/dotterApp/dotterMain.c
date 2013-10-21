@@ -857,7 +857,7 @@ int main(int argc, char **argv)
 
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       
-      finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
+      finaliseBlxSequences(featureLists, &MSPlist, &seqList, columnList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
       
       blxDestroyGffTypeList(&supportedTypes);
     }

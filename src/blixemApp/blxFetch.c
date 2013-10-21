@@ -1234,7 +1234,7 @@ gboolean socketFetchList(GList *seqsToFetch,
       destroyProgressBar(fetchData.bar);
       fetchData.bar = NULL ;
       
-      if (tagName)
+      if (fetchData.tagName)
         g_string_free(fetchData.tagName, TRUE);
 
       if (fetchData.currentResult)

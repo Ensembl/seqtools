@@ -52,9 +52,11 @@
 
 /* Public function declarations */
 BlxViewContext*		  blxWindowGetContext(GtkWidget *widget);
+GList*                    blxWindowGetColumnList(GtkWidget *blxWindow);
 gboolean		  blxWindowGetDisplayRev(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetBigPicture(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetDetailView(GtkWidget *blxWindow);
+GtkWidget*                blxWindowGetCoverageView(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetMainMenu(GtkWidget *blxWindow);
 BlxBlastMode		  blxWindowGetBlastMode(GtkWidget *blxWindow);
 IntRange*		  blxWindowGetFullRange(GtkWidget *blxWindow);

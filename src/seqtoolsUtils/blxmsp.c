@@ -1393,228 +1393,6 @@ gint compareFuncMspArray(gconstpointer a, gconstpointer b)
 }
 
 
-/* Determine the type of BlxSequence that a particular MSP type belongs to */
-static BlxSequenceType getBlxSequenceTypeForMsp(const BlxMspType mspType)
-{
-  BlxSequenceType result = BLXSEQUENCE_UNSET;
-  
-  if (mspType == BLXMSP_MATCH)
-    {
-      result = BLXSEQUENCE_MATCH;
-    }
-  else if (typeIsExon(mspType) || typeIsIntron(mspType) || mspType == BLXMSP_TRANSCRIPT)
-    {
-      result = BLXSEQUENCE_TRANSCRIPT;
-    }
-  else if (typeIsVariation(mspType))
-    {
-      result = BLXSEQUENCE_VARIATION;
-    }
-  else if (typeIsShortRead(mspType))
-    {
-      result = BLXSEQUENCE_READ_PAIR;
-    }
-  else if (mspType == BLXMSP_REGION)
-    {
-      result = BLXSEQUENCE_REGION;
-    }
-
-  return result;
-}
-
-
-/* Utility to get the unique key for a given text string and strand */
-static GQuark getLookupKey(const char *text, const BlxStrand strand)
-{
-  char *keyStr = g_strdup_printf("%s%c", text, (strand == BLXSTRAND_FORWARD ? '+' : '-'));
-  GQuark key = g_quark_from_string(keyStr);
-  g_free(keyStr);
-  
-  return key;
-}
-
-
-/* Utility to find a blxsequence with the given name/id/strand in the 
- * given hash table. Returns null if it is not there. */
-static BlxSequence* findBlxSequence(GHashTable *lookupTable,
-                                    const char *name, 
-                                    const char *idTag,
-                                    const BlxStrand strand,
-                                    const gboolean linkFeaturesByName)
-{
-  BlxSequence *result = NULL;
-
-  if (idTag)
-    {
-      /* We compare on the id tag and strand, so combine these into a single
-       * string and convert it to a quark for quicker comparisions.
-       * (This is the key for the hash table.) */
-      GQuark key = getLookupKey(idTag, strand);
-      result = (BlxSequence*)g_hash_table_lookup(lookupTable, GINT_TO_POINTER(key));
-    }
-
-  if (!result && name && linkFeaturesByName)
-    {
-      /* No id tag is given but we are asked to link features with the same
-       * name, so do the comparison using name and strand */
-      GQuark key = getLookupKey(name, strand);
-      result = (BlxSequence*)g_hash_table_lookup(lookupTable, GINT_TO_POINTER(key));
-    }
-
-  return result;
-}
-
-
-/* Add or create a BlxSequence struct, creating the BlxSequence if one does not
- * already exist for the MSP's sequence name. Seperate BlxSequence structs are created
- * for the forward and reverse strands of the same sequence. The passed-in sequence 
- * should always be forwards, and we reverse complement it here if we need the 
- * reverse strand. Returns the new BlxSequence */
-BlxSequence* addBlxSequence(const char *name, 
-			    const char *idTag, 
-			    BlxStrand strand,
-			    BlxDataType *dataType,
-                            const char *source,
-			    GList **seqList, 
-			    char *sequence, 
-			    MSP *msp, 
-                            const gboolean linkFeaturesByName,
-			    GError **error)
-{
-  BlxSequence *blxSeq = NULL;
-  
-  /* Put all blxseqs in a hash table indexed on a quark of the name
-   * so that we can quickly check if the same one already exists */
-  static GHashTable *lookupTable =  NULL;
-
-  if (!lookupTable)
-    lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
-    
-  if (name || idTag)
-    {
-      /* If this is an exon or intron the match strand is not applicable. The exon should 
-       * be in the same direction as the ref seq, so use the ref seq strand. */
-      if (msp && (mspIsExon(msp) || mspIsIntron(msp)))
-        {
-          strand = msp->qStrand;
-        }
-    
-      /* See if this sequence already exists. This matches on name (if linkFeaturesByName is
-       * true) or on tag, and strand. */
-      blxSeq = findBlxSequence(lookupTable, name, idTag, strand, linkFeaturesByName);
-      
-      if (!blxSeq)
-        {
-          /* Create a new BlxSequence, and take ownership of the passed in sequence (if any) */
-          blxSeq = createEmptyBlxSequence(name, idTag, NULL);
-          blxSeq->strand = strand;
-          blxSeq->dataType = dataType;
-          blxSeq->source = g_strdup(source);
-          
-          /* Add it to the return sequence list */
-          *seqList = g_list_prepend(*seqList, blxSeq);
-
-          /* Add an entry to the lookup table (add an entry for both id and name, if given,
-           * because the next feature may have only one or the other set.) */
-          if (idTag)
-            g_hash_table_insert(lookupTable, GINT_TO_POINTER(getLookupKey(idTag, strand)), blxSeq);
-
-          if (name && linkFeaturesByName)
-            g_hash_table_insert(lookupTable, GINT_TO_POINTER(getLookupKey(name, strand)), blxSeq);
-        }
-      else
-        {
-          if (dataType && !blxSeq->dataType)
-            blxSeq->dataType = dataType;
-          else if (dataType && blxSeq->dataType != dataType)
-            g_warning("Duplicate sequences have different data types [name=%s, ID=%s, strand=%d, orig type=%s, new type=%s].\n", name, idTag, strand, g_quark_to_string(blxSeq->dataType->name), g_quark_to_string(dataType->name));
-          
-          if (source && !blxSeq->source)
-            blxSeq->source = g_strdup(source);
-          else if (source && !stringsEqual(blxSeq->source, source, FALSE))
-            g_warning("Duplicate sequences have different sources [name=%s, ID=%s, strand=%d, orig source=%s, new source=%s].\n", name, idTag, strand, blxSeq->source, source);
-        }
-      
-      if (name && !blxSeq->fullName)
-	{
-	  /* It's possible that the BlxSequence was created without a name if we found an
-	   * unnamed child exon before we found the parent transcript, so set the name if we have it. */
-	  blxSequenceSetName(blxSeq, name);
-
-          /* Add an entry to the lookup table keyed on name, now that we know it */
-          if (linkFeaturesByName)
-            g_hash_table_insert(lookupTable, GINT_TO_POINTER(getLookupKey(name, strand)), blxSeq);
-	}
-      
-      if (msp)
-        {
-          /* Add the MSP to the BlxSequence's list. Keep it sorted by position. */
-          blxSeq->mspList = g_list_insert_sorted(blxSeq->mspList, msp, compareFuncMspPos);
-          msp->sSequence = blxSeq;
-          
-          if (blxSeq->type == BLXSEQUENCE_UNSET)
-            {
-              blxSeq->type = getBlxSequenceTypeForMsp(msp->type);
-            }
-          else if (blxSeq->type != getBlxSequenceTypeForMsp(msp->type))
-            {
-              g_warning("Adding MSP of type %d to parent of type %d (expected parent type to be %d)\n", 
-			msp->type, blxSeq->type, getBlxSequenceTypeForMsp(msp->type));
-            }
-        }
-      
-      /* Add the sequence data */
-      addBlxSequenceData(blxSeq, sequence, error);
-    }
-  else
-    {
-      g_set_error(error, BLX_ERROR, 1, "Sequence name or parent ID must be set.\n");
-    }
-  
-  return blxSeq;
-}
-
-
-
-/* Add the given sequence data to a BlxSequence. Validates that the existing sequence data is
- * either null or is the same as the new data; sets the given error if not. We claim ownership
- * of the given sequence data (either the BlxSequence owns it, or we delete it if it is not 
- * required). The given sequence should always be the forward strand; we complement it ourselves
- * here if this BlxSequence requires the reverse strand. */
-void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
-{
-  if (!sequence)
-    {
-      return;
-    }
-  
-  gboolean sequenceUsed = FALSE;
-  
-  if (blxSeq && blxSequenceRequiresSeqData(blxSeq))
-    {
-      if (!blxSeq->sequence)
-        {
-          /* Sequence does not yet exist, so add it */
-          blxSeq->sequence = g_string_new(sequence);
-          sequenceUsed = TRUE;
-        }
-      else if (error && *error)
-        {
-          /* Sequence already exists. Validate that it's the same as the existing one. */
-          if (!stringsEqual(sequence, blxSeq->sequence->str, FALSE))
-            {
-              g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_DATA_MISMATCH, "Sequence data for '%s' does not match previously-found data.\n", blxSequenceGetFullName(blxSeq));
-            }
-        }
-    }      
-  
-  if (!sequenceUsed)
-    {
-      g_free(sequence);
-    }
-}
-
-
 /* returns true if the given msp should be output when piping features to dotter */
 static gboolean outputMsp(const MSP const *msp, IntRange *range1, IntRange *range2)
 {
@@ -2352,7 +2130,7 @@ static void constructTranscriptData(BlxSequence *blxSeq,
                                curExon->score, curExon->id, 0, blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
                                blxSequenceGetName(blxSeq), UNSET_INT, UNSET_INT, blxSeq->strand, NULL, 
-                               blxSequenceGetLinkFeatures(blxSeq, linkFeatures), 0, &tmpError);
+                               0, &tmpError);
                   
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }
@@ -2579,7 +2357,7 @@ void finaliseBlxSequences(GArray* featureLists[],
           blxSeq->strand == BLXSTRAND_REVERSE && 
           blxSequenceGetFlag(blxSeq, MSPFLAG_STRAND_SPECIFIC) &&
           blxSequenceGetFlag(blxSeq, MSPFLAG_SHOW_REVERSE_STRAND) &&
-          blxSequenceGetSeq(blxSeq))
+          blxSequenceGetSequence(blxSeq))
         {
           char *sequence = g_strdup(blxSequenceGetSequence(blxSeq));
           blxComplement(sequence);
@@ -2587,7 +2365,7 @@ void finaliseBlxSequences(GArray* featureLists[],
         }
       
       findSequenceExtents(blxSeq);
-      constructTranscriptData(blxSeq, featureLists, &lastMsp, mspList, seqList, columnLis);
+      constructTranscriptData(blxSeq, featureLists, &lastMsp, mspList, seqList, columnList);
     }
 
   /* Sort msp arrays by start coord (only applicable to msp types that
@@ -2810,10 +2588,6 @@ static BlxSequenceType getBlxSequenceTypeForMsp(const BlxMspType mspType)
     {
       result = BLXSEQUENCE_VARIATION;
     }
-  else if (typeIsShortRead(mspType))
-    {
-      result = BLXSEQUENCE_READ_PAIR;
-    }
   else if (mspType == BLXMSP_REGION)
     {
       result = BLXSEQUENCE_REGION;
@@ -2954,7 +2728,6 @@ BlxSequence* addBlxSequence(const char *name,
                             GList *columnList,
 			    char *sequence, 
 			    MSP *msp, 
-                            const gboolean linkFeaturesByName,
 			    GError **error)
 {
   BlxSequence *blxSeq = NULL;
@@ -2977,6 +2750,7 @@ BlxSequence* addBlxSequence(const char *name,
     
       /* See if this sequence already exists. This matches on name (if linkFeaturesByName is
        * true) or on tag, and strand. */
+      gboolean linkFeaturesByName = dataTypeGetFlag(dataType, MSPFLAG_LINK_FEATURES_BY_NAME);
       blxSeq = findBlxSequence(lookupTable, name, idTag, strand, linkFeaturesByName);
       
       if (!blxSeq)

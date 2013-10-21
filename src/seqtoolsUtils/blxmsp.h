@@ -160,6 +160,7 @@ typedef struct _BlxDataType
     GArray *bulkFetch;     /* list of fetch methods (by name as a GQuark) to use when bulk fetching sequences, in order of priority */
     GArray *userFetch;     /* list of fetch methods (by name as a GQuark) to use when user fetches a sequence, in order of priority */
     GArray *optionalFetch; /* list of fetch methods (by name as a GQuark) to use when user requests optional data to be loaded */
+    gboolean flags[MSPFLAG_NUM_FLAGS];  /* boolean flags */
   } BlxDataType;
 
 
@@ -428,7 +429,7 @@ void                  destroyBlxDataType(BlxDataType **blxDataType);
 const char*           getDataTypeName(BlxDataType *blxDataType);
 BlxSequence*          createEmptyBlxSequence();
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, GList *columnList, char *sequence, MSP *msp, const gboolean linkFeaturesByName, GError **error);
+BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, GList *columnList, char *sequence, MSP *msp, GError **error);
 void                  blxSequenceSetValue(const BlxSequence *seq, const int columnId, GValue *value);
 void                  blxSequenceSetValueFromString(const BlxSequence *seq, const int columnId, const char *inputStr);
 void                  blxSequenceSetColumn(BlxSequence *seq, const char *colName, const char *value, GList *columnList);

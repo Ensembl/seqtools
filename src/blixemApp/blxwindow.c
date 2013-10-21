@@ -158,7 +158,6 @@ static void                       killAllSpawned(BlxViewContext *bc);
 static void                       calculateDepth(BlxViewContext *bc);
 
 static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
-static void                       copySelectionToClipboard(GtkWidget *blxWindow);
 static void                       copySelectedSeqDataToClipboard(GtkWidget *blxWindow);
 static void                       copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
 
@@ -740,7 +739,7 @@ static void loadNonNativeFile(const char *filename,
                                 bc->featureLists, bc->supportedTypes, styles,
                                 &bc->matchSeqs, &bc->mspList, 
                                 fetchName, bc->saveTempFiles, newMsps, newSeqs,
-                                &error);
+                                bc->columnList, &error);
         }
     }          
 
@@ -790,7 +789,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   finaliseFetch(newSeqs, bc->columnList);
 
   finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->columnList, bc->refSeqOffset, bc->seqType, 
-                       bc->numFrames, &bc->refSeqRange, TRUE, bc->flags[BLXFLAG_LINK_FEATURES]);
+                       bc->numFrames, &bc->refSeqRange, TRUE);
 
   /* Add the msps/sequences to the tree data models (must be done after finalise because
    * finalise populates the child msp lists for parent feaatures) */
@@ -1749,6 +1748,8 @@ void showInfoDialog(GtkWidget *blxWindow)
   int width = blxWindow->allocation.width * 0.7;
   int height = blxWindow->allocation.height * 0.9;
   
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
   /* Compile the message text from the selected sequence(s) */
   GString *resultStr = g_string_new("");
   GList *seqItem = bc->selectedSeqs;
@@ -3037,72 +3038,84 @@ static GtkWidget* createColumnLoadDataButton(GtkTable *table,
 /* Create the settings buttons for a single column */
 static void createColumnButton(DetailViewColumnInfo *columnInfo, GtkTable *table, int *row)
 {
-  /* Group these buttons in a frame */
-  GtkWidget *frame = gtk_frame_new("Columns");
-  gtk_box_pack_start(GTK_BOX(parent), frame, FALSE, FALSE, 0);
+  /* Create a label, checkbox and a text entry box */
+  GtkWidget *label = gtk_label_new(columnInfo->title);
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  
+  GtkWidget *button = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->visible);
+  widgetSetCallbackData(button, onColumnVisibilityChanged, (gpointer)columnInfo);
+  
+  GtkWidget *entry = gtk_entry_new();
+  
+  if (columnInfo->columnId == BLXCOL_SEQUENCE)
+    {
+      /* The sequence column updates dynamically, so don't allow the user to edit it */
+      char displayText[] = "<dynamic>";
+      gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+      gtk_widget_set_sensitive(entry, FALSE);
+      gtk_widget_set_sensitive(button, FALSE);
+      gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2); /* fudge up width a bit in case user enters longer text */
+    }
+  else
+    {
+      if (!columnInfo->dataLoaded)
+        {
+          gtk_widget_set_sensitive(button, FALSE);
+          gtk_widget_set_sensitive(entry, FALSE);
+        }
+      
+      char *displayText = convertIntToString(columnInfo->width);
+      gtk_entry_set_text(GTK_ENTRY(entry), displayText);
+      
+      gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
+      gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
+      
+      widgetSetCallbackData(entry, onColumnSizeChanged, (gpointer)columnInfo);
+      
+      g_free(displayText);
+    }
+  
+  gtk_table_attach(table, label,  1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, button, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, entry,  3, 4, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  *row += 1;
+}
 
-  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_container_add(GTK_CONTAINER(frame), vbox);
+
+/* Create a set of widgets that allow columns settings to be adjusted */
+static void createColumnButtons(GtkWidget *parent, GtkWidget *detailView, const int border)
+{
+  /* put all the column settings in a table. Put the table in a
+   * scrolled window, because there are likely to be many rows */
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(parent), scrollWin);
+  
+  GList *columnList = detailViewGetColumnList(detailView);
+  const int rows = g_list_length(columnList) + 1;
+  const int cols = 3;
+  int row = 1;
+
+  GtkTable *table = GTK_TABLE(gtk_table_new(rows, cols, FALSE));  
+
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), GTK_WIDGET(table));
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
   /* Create a button to allow the user to load the full EMBL data, if not already loaded */
-  GtkWidget *button = createColumnLoadDataButton(GTK_BOX(vbox), detailView);
-  
-  /* Arrange the column-size boxes horizontally */
-  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+  GtkWidget *button = createColumnLoadDataButton(table, detailView, &row, cols, border, border);
   
   /* Loop through each column in the detail view and create a text box showing the
    * current width. Compile a list of widgets that are disabled, so that we can enable
    * them if/when the user clicks the button to load their data. */
-  GList *listItem = detailViewGetColumnList(detailView);
+  GList *listItem = columnList;
 
   for ( ; listItem; listItem = listItem->next)
     {
       DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
-      
-      /* Create a label and a text entry box, arranged vertically in a vbox */
-      GtkWidget *vbox = createVBoxWithBorder(hbox, 4, FALSE, NULL);
-      
-      GtkWidget *label = gtk_label_new(columnInfo->title);
-      gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
-      
-      GtkWidget *button = gtk_check_button_new();
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->visible);
-      gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 0);
-      widgetSetCallbackData(button, onColumnVisibilityChanged, (gpointer)columnInfo);
-      
-      GtkWidget *entry = gtk_entry_new();
-      gtk_box_pack_start(GTK_BOX(vbox), entry, FALSE, FALSE, 0);
-      
-      if (columnInfo->columnId == BLXCOL_SEQUENCE)
-	{
-	  /* The sequence column updates dynamically, so don't allow the user to edit it */
-	  char displayText[] = "<dynamic>";
-	  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-	  gtk_widget_set_sensitive(entry, FALSE);
-	  gtk_widget_set_sensitive(button, FALSE);
-	  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2); /* fudge up width a bit in case user enters longer text */
-	}
-      else
-	{
-          if (!columnInfo->dataLoaded)
-            {
-              gtk_widget_set_sensitive(vbox, FALSE);
-            }
-          
-	  char *displayText = convertIntToString(columnInfo->width);
-	  gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-
-	  gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2);
-	  gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-
-	  widgetSetCallbackData(entry, onColumnSizeChanged, (gpointer)columnInfo);
-          
-          g_free(displayText);
-	}
+      createColumnButton(columnInfo, table, &row);
     }
   
-  g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onButtonClickedLoadEmblData), hbox);
+  g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onButtonClickedLoadOptional), table);
 }
 
 
@@ -5285,7 +5298,7 @@ static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *opti
   blxContext->flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
-  blxContext->flags[BLXFLAG_EMBL_DATA_LOADED] = options->parseFullEmblInfo;
+  blxContext->flags[BLXFLAG_SHOW_SPLICE_SITES] = TRUE;
   blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
   blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
@@ -5366,7 +5379,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->fullDisplayRange.min = fullDisplayRange->min;
   blxContext->fullDisplayRange.max = fullDisplayRange->max;
   blxContext->refSeqOffset = options->refSeqOffset;
-  blxContext->loadOptionalData = options->parseFullEmblInfo;
+  blxContext->optionalColumns = options->optionalColumns;
 
   blxContext->mspList = options->mspList;
   blxContext->columnList = options->columnList;
@@ -5747,7 +5760,7 @@ static GString* blxWindowGetSelectedSeqNames(GtkWidget *blxWindow)
 static const char* blxWindowGetSelectedSeqData(GtkWidget *blxWindow)
 {
   GList *listItem = blxWindowGetSelectedSeqs(blxWindow);
-  char *result = NULL;
+  const char *result = NULL;
 
   if (g_list_length(listItem) < 1)
     g_critical("Please select a sequence.\n");
@@ -5756,7 +5769,7 @@ static const char* blxWindowGetSelectedSeqData(GtkWidget *blxWindow)
   else
     {
       const BlxSequence *seq = (const BlxSequence*)(listItem->data);
-      result = blxSequenceGetSeq(seq);
+      result = blxSequenceGetSequence(seq);
     }
 
   return result;
@@ -5765,7 +5778,7 @@ static const char* blxWindowGetSelectedSeqData(GtkWidget *blxWindow)
 
 /* This function copies the currently-selected sequences' names to the default
  * clipboard. */
-static void copySelectionToClipboard(GtkWidget *blxWindow)
+void copySelectionToClipboard(GtkWidget *blxWindow)
 {
   if (g_list_length(blxWindowGetSelectedSeqs(blxWindow)) < 1)
     {
@@ -6403,6 +6416,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 					   fwdStrandGrid, 
 					   revStrandGrid,
 					   options->mspList,
+                                           options->columnList,
 					   options->blastMode,
 					   options->seqType,
 					   options->numFrames,
@@ -6410,7 +6424,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 					   startCoord,
 					   options->sortInverted,
 					   options->initSortColumn,
-                                           options->parseFullEmblInfo);
+                                           options->optionalColumns);
 
   
   /* Add the coverage view underneath the main panes */

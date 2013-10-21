@@ -1965,6 +1965,7 @@ void addMspToTree(MSP *msp, GtkWidget *tree, GtkListStore *store)
 {
   if (tree)
     {
+      GtkWidget *detailView = treeGetDetailView(tree);
       GList *columnList = detailViewGetColumnList(detailView);
 
       GtkTreeIter iter;

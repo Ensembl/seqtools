@@ -343,6 +343,7 @@ typedef enum
     BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
     BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
     BLXFLAG_ABBREV_TITLE,           /* whether to abbreviate the window titles to save space */
+    BLXFLAG_LINK_FEATURES,          /* whether featuers with the same name should be linked */
     
     BLXFLAG_NUM_FLAGS               /* Total number of flags e.g. for creating arrays and loops etc */
   } BlxFlag;
@@ -589,9 +590,9 @@ GString*                           getFetchCommand(const BlxFetchMethod* const f
 GString*                           doGetFetchCommand(const BlxFetchMethod* const fetchMethod,const char *name,const char *refSeqName,const int startCoord,const int endCoord,const char *dataset,const char *source,const char *filename,GError **error);
 GString*                           getFetchArgs(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq,const MSP* const msp,const char *refSeqName,const int refSeqOffset,const IntRange* const refSeqRange,const char *dataset,GError **error);
 GString*                           getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, GError **error);
-void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result) ;
+void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer) ;
 void                               finaliseFetch(GList *seqList, GList *columnList);
-void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GError **error);
+void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GList *columnList, GError **error);
 const char*                        outputTypeStr(const BlxFetchOutputType outputType);
 
 void                               fetchSeqsIndividually(GList *seqsToFetch, GtkWidget *blxWindow);
