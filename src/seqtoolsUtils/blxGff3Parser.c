@@ -43,6 +43,7 @@
 
 
 #define SOURCE_DATA_TYPES_GROUP "source-data-types" /* group name for stanza where default data types are specified for sources */
+#define DATA_TYPE_TAG "dataType" /* tag name for dataType */
 
 
 /* Error codes and domain */
@@ -291,10 +292,9 @@ void parseGff3Header(const int lineNum,
 }
 
 
-/* Look in the given config file to see if there is a default
- * datatype specified for the given source. If so, return its
- * name as a quark. Otherwise, return 0. */
-static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
+/* Get the dataType for the given source from the source-to-data-type mapping 
+ * stanza in the config file. Returns 0 if not found. */
+static GQuark getBlxDataTypeFromSourceMapping(const char *source, GKeyFile *keyFile)
 {
   GQuark dataType = 0;
 
@@ -309,6 +309,43 @@ static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
         }
     }
 
+  return dataType;
+}
+
+
+/* Get the dataType for the given source from the source stanza. Returns 0 if
+ * not found. */
+static GQuark getBlxDataTypeFromSource(const char *source, GKeyFile *keyFile)
+{
+  GQuark dataType = 0;
+
+  if (keyFile && g_key_file_has_group(keyFile, source))
+    {
+      char *dataTypeName = g_key_file_get_string(keyFile, source, DATA_TYPE_TAG, NULL);
+      
+      if (dataTypeName)
+        {
+          dataType = g_quark_from_string(dataTypeName);
+          g_free(dataTypeName);
+        }
+    }
+
+  return dataType;
+}
+
+
+/* Find the default data type for this source. */
+static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
+{
+  GQuark dataType = 0;
+
+  /* Check in the source stanza first */
+  dataType = getBlxDataTypeFromSource(source, keyFile);
+  
+  /* If not there, check in the source-to-data-types mapping stanza */
+  if (!dataType)
+    dataType = getBlxDataTypeFromSourceMapping(source, keyFile);
+  
   return dataType;
 }
 
@@ -338,7 +375,8 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
 {
   BlxDataType *result = NULL;
 
-  /* If no data type was specified in the gff, see if there is a default for this gff type */
+  /* If no data type was specified in the gff, see if there is a default 
+   * data-type for this source */
   if (!dataType)
     dataType = getBlxDataTypeDefault(source, keyFile);
 
@@ -863,7 +901,7 @@ static void parseTagDataPair(char *text,
         {
           gffData->sequence = g_strdup(tokens[1]);
         }
-      else if (!strcmp(tokens[0], "dataType"))
+      else if (!strcmp(tokens[0], DATA_TYPE_TAG))
         {
           gffData->dataType = g_quark_from_string(tokens[1]);
         }
