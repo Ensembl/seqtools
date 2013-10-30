@@ -395,11 +395,15 @@ void fetchSequence(const BlxSequence *blxSeq,
 }
 
 
-static void doFetchStringSubstitutionChar(const char substitution_char, 
+/* Process a single substitution character. Returns false if it's not
+ * a known substitution char. */
+static gboolean doFetchStringSubstitutionChar(const char substitution_char, 
                                           MatchSequenceData *match_data,
                                           GString *result, 
                                           GString *errorMsg)
 {
+  gboolean ok = TRUE;
+  
   switch (substitution_char)
     {
     case 'p': 
@@ -443,11 +447,16 @@ static void doFetchStringSubstitutionChar(const char substitution_char,
     case '%':
       break;
     default:
+      ok = FALSE;
+      
       if (!errorMsg)
         errorMsg = g_string_new("");
+      
       g_string_append_printf(errorMsg, "  Unknown substitution character '%%%c'\n", substitution_char);
       break;
     };
+
+  return ok;
 }
 
 
@@ -455,11 +464,12 @@ static void doFetchStringSubstitutionChar(const char substitution_char,
  *    %(<keyword>) 
  * where <keyword> is a column name e.g. Source or a key value to 
  * look up in the source stanza in the config file. */
-static void doFetchStringSubstitutionKeyword(const char* input_string, 
-                                             MatchSequenceData *match_data,
-                                             GString *result, 
-                                             GString *errorMsg)
+static int doFetchStringSubstitutionKeyword(const char* input_string, 
+                                            MatchSequenceData *match_data,
+                                            GString *result, 
+                                            GString *errorMsg)
 {
+  int len = 0;
   gboolean ok = FALSE;
 
   /* The input should start with '('. Search for the closing ')' and process
@@ -470,7 +480,7 @@ static void doFetchStringSubstitutionKeyword(const char* input_string,
       
       if (cp)
         {
-          int len = cp - input_string - 1;
+          len = cp - input_string - 1;
           
           if (len > 0)
             {
@@ -513,6 +523,8 @@ static void doFetchStringSubstitutionKeyword(const char* input_string,
      
       g_string_append_printf(errorMsg, "  Failed to process substitution string '%s'\n", input_string);
     }
+  
+  return len;
 }
 
 
@@ -528,7 +540,7 @@ static GString* doFetchStringSubstitutions(const char *command,
   GString *errorMsg = NULL;
   const char *c = command;
       
-  for ( ; c && *c; ++c)
+  while (c && *c)
     {
       /* If it's preceded by the special char, substitute it for the real value */
       if (*c == '%')
@@ -540,14 +552,26 @@ static GString* doFetchStringSubstitutions(const char *command,
             {
               switch (*c) {
               case '%':
-                g_string_append_c(result, *c);
-                break;
+                {
+                  g_string_append_c(result, *c);
+                  ++c;
+                  break;
+                }
               case '(':
-                doFetchStringSubstitutionKeyword(c, match_data, result, errorMsg);
-                break;
+                {
+                  int len = doFetchStringSubstitutionKeyword(c, match_data, result, errorMsg);
+                  if (len > 0)
+                    c += len + 2; /* progress past the len of the keyword plus the two brackets */
+                  else 
+                    ++c; /* failed; just increment past the current char */
+                  break;
+                }
               default:
-                doFetchStringSubstitutionChar(*c, match_data, result, errorMsg);
-                break;
+                {
+                  doFetchStringSubstitutionChar(*c, match_data, result, errorMsg);
+                  ++c; /* Progress to next char even if failed */
+                  break;
+                }
               };
             }
         }
@@ -555,6 +579,7 @@ static GString* doFetchStringSubstitutions(const char *command,
         {
           /* Normal char; just append to the result */
           g_string_append_c(result, *c);
+          ++c;
         }
     }
 
@@ -1176,6 +1201,7 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
   PFetchData pfetch_data ;
   GError *tmpError = NULL;
   GString *command = NULL;
+  GString *request = NULL;
 
   if (fetchMethod->location == NULL)
     g_set_error(&tmpError, BLX_ERROR, 1, "%s", "Failed to obtain preferences specifying how to pfetch.\n");
@@ -1197,6 +1223,13 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
       pfetch_data->fetchMethod = fetchMethod;
       
       command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset, &tmpError);
+    }
+  
+  if (!tmpError)
+    {
+      request = getFetchArgs(fetchMethod, blxSeq, NULL, 
+                             bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, 
+                             bc->dataset, &tmpError);
     }
   
   if (tmpError)
@@ -1246,20 +1279,15 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
         }
       
       g_signal_connect(G_OBJECT(pfetch_data->pfetch), "reader", G_CALLBACK(pfetch_reader_func), pfetch_data);
-      
       g_signal_connect(G_OBJECT(pfetch_data->pfetch), "closed", G_CALLBACK(pfetch_closed_func), pfetch_data);
-
-      GError *error = NULL;
-      GString *request = getFetchArgs(fetchMethod, blxSeq, NULL, 
-                                      bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, 
-                                      bc->dataset, &error);
-
-      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
 
       PFetchHandleFetch(pfetch_data->pfetch, request->str) ;
       
-      if (request)
-        g_string_free(request, FALSE);
+    }
+
+  if (request)
+    {
+      g_string_free(request, FALSE);
     }
 }
 
