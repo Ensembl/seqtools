@@ -720,15 +720,8 @@ static void loadNonNativeFile(const char *filename,
      
   if (!error)
     {
-      GString *command = doGetFetchCommand(fetchMethod,
-                                           NULL, 
-                                           bc->refSeqName, 
-                                           start, 
-                                           end, 
-                                           bc->dataset, 
-                                           source->str, 
-                                           filename,
-                                           &error);
+      MatchSequenceData match_data = {NULL, bc->refSeqName, start, end, bc->dataset, source->str, filename};
+      GString *command = doGetFetchCommand(fetchMethod, &match_data, &error);
 
       if (!error && command && command->str)
         {
