@@ -835,13 +835,28 @@ static void parseTagDataPair(char *text,
         }
       else if (!strcmp(tokens[0], "Gap"))
         {
+          /* This might have already been set if we have more than one type of gap string */
+          if (!gffData->gapString)
+            {
+              /*! \todo For now, override the cigar_bam string because we are experiencing
+               * bugs with it. Longer term it shouldn't really matter which we use, although 
+               * we may want to give preference to more informative gap strings e.g. vulgar */
+              g_free(gffData->gapString);
+              gffData->gapString = NULL;
+              gffData->gapFormat = BLX_GAP_STRING_INVALID;
+            }
+          
           gffData->gapString = g_strdup(tokens[1]);
           gffData->gapFormat = BLX_GAP_STRING_GFF3; 
         }
       else if (!strcmp(tokens[0], "cigar_bam"))
         {
-          gffData->gapString = g_strdup(tokens[1]);
-          gffData->gapFormat = BLX_GAP_STRING_BAM_CIGAR; 
+          /* This might have already been set if we have more than one type of gap string */
+          if (!gffData->gapString)
+            {
+              gffData->gapString = g_strdup(tokens[1]);
+              gffData->gapFormat = BLX_GAP_STRING_BAM_CIGAR; 
+            }
         }
       else if (!strcmp(tokens[0], "ID"))
         {
