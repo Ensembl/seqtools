@@ -56,6 +56,9 @@ PKG_CHECK_MODULES([DEPS], [glib-2.0 gtk+-2.0 >= 2.10])
 AC_CHECK_HEADERS([curl/curl.h], [HAVE_LIBCURL=1], [HAVE_LIBCURL=0])
 AM_CONDITIONAL([USE_LIBCURL], [test "$HAVE_LIBCURL" -eq 1])
 
+# Check for execinfo.h. This is used to provide backtraces but is not available
+# on all systems.
+AC_CHECK_HEADERS([execinfo.h])
 
 AC_OUTPUT
 

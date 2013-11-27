@@ -42,7 +42,10 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/utsname.h>
+
+#ifdef HAVE_EXECINFO_H
 #include <execinfo.h>
+#endif
 
 #ifdef DEBUG
 #include <gdk/gdkx.h>
@@ -4851,12 +4854,17 @@ void errorHandler(const int sig)
   fprintf(stderr, "Error: signal %d:\n", sig);
   fflush(stderr);
 
+#ifdef HAVE_EXECINFO_H
   // get void*'s for all entries on the stack
   void *array[10];
   size_t size = backtrace(array, 10);
 
   // print out all the frames to stderr
   backtrace_symbols_fd(array, size, 2);
+#else
+  fprintf(stderr, "Cannot print backtrace\n");
+  fflush(stderr);
+#endif
 
   exit(EXIT_FAILURE);
 }
