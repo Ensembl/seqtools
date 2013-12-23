@@ -395,14 +395,143 @@ void fetchSequence(const BlxSequence *blxSeq,
 }
 
 
+/* Process a single substitution character. Returns false if it's not
+ * a known substitution char. */
+static gboolean doFetchStringSubstitutionChar(const char substitution_char, 
+                                          MatchSequenceData *match_data,
+                                          GString *result, 
+                                          GString *errorMsg)
+{
+  gboolean ok = TRUE;
+  
+  switch (substitution_char)
+    {
+    case 'p': 
+      g_string_append(result, g_get_prgname());
+      break;
+    case 'h': 
+      g_string_append(result, g_get_host_name());
+      break;
+    case 'u': 
+      g_string_append(result, g_get_user_name());
+      break;
+    case 'm': 
+      if (match_data->match_name)
+        g_string_append(result, match_data->match_name);
+      break;
+    case 'r': 
+      if (match_data->ref_name)
+        g_string_append(result, match_data->ref_name);
+      break;
+    case 's': 
+      g_string_append_printf(result, "%d", match_data->match_start);
+      break;
+    case 'e': 
+      g_string_append_printf(result, "%d", match_data->match_end);
+      break;
+    case 'd':
+      if (match_data->dataset)
+        g_string_append(result, match_data->dataset);
+      break;
+    case 'S':
+      if (match_data->source)
+        g_string_append(result, match_data->source);
+      break;
+    case 'f':
+      if (match_data->filename)
+        g_string_append(result, match_data->filename);
+      break;
+    case 'g':
+      g_string_append_printf(result, "%d", SEQTOOLS_GFF_VERSION);
+      break;
+    case '%':
+      break;
+    default:
+      ok = FALSE;
+      
+      if (!errorMsg)
+        errorMsg = g_string_new("");
+      
+      g_string_append_printf(errorMsg, "  Unknown substitution character '%%%c'\n", substitution_char);
+      break;
+    };
+
+  return ok;
+}
+
+
+/* Process a single substitution keyword. Its format should be:
+ *    %(<keyword>) 
+ * where <keyword> is a column name e.g. Source or a key value to 
+ * look up in the source stanza in the config file. */
+static int doFetchStringSubstitutionKeyword(const char* input_string, 
+                                            MatchSequenceData *match_data,
+                                            GString *result, 
+                                            GString *errorMsg)
+{
+  int len = 0;
+  gboolean ok = FALSE;
+
+  /* The input should start with '('. Search for the closing ')' and process
+   * the text in between */
+  if (input_string && *input_string == '(')
+    {
+      char *cp = strchr(input_string, ')');
+      
+      if (cp)
+        {
+          len = cp - input_string - 1;
+          
+          if (len > 0)
+            {
+              char *key = g_strdup_printf("%s", input_string + 1);
+              key[len] = '\0';
+              
+              /*! \todo Ideally we'd allow the keyword to be a known column name in which case
+               * we'd need to add a check here. Needs a bit of code reorganisation to 
+               * create the columnList before we parse & fetch sequences - currently the columnList
+               * is only created when the window is created, i.e. after parsing & fetching is complete. */
+              
+              /* See if it's a field in this match's source stanza */
+              if (match_data->source)
+                {
+                  GKeyFile *key_file = blxGetConfig();
+                  
+                  if (key_file)
+                    {
+                      char *value = g_key_file_get_string(key_file, match_data->source, key, NULL);
+                      
+                      if (value)
+                        {
+                          g_string_append(result, value);
+                          ok = TRUE;
+                          
+                          g_free(value);
+                        }
+                    }
+                }
+              
+              g_free(key);
+            }
+        }        
+    }
+
+  if (!ok)
+    {
+      if (!errorMsg)
+        errorMsg = g_string_new("");
+     
+      g_string_append_printf(errorMsg, "  Failed to process substitution string '%s'\n", input_string);
+    }
+  
+  return len;
+}
+
+
+/* Process the fetch string, substituting the special substitution characters 
+ * for the actual data */
 static GString* doFetchStringSubstitutions(const char *command,
-                                           const char *name,
-                                           const char *refSeqName,
-                                           const int startCoord,
-                                           const int endCoord,
-                                           const char *dataset,
-                                           const char *source,
-                                           const char *filename,
+                                           MatchSequenceData *match_data,
                                            GError **error)
 {
   GString *result = g_string_new("");
@@ -411,7 +540,7 @@ static GString* doFetchStringSubstitutions(const char *command,
   GString *errorMsg = NULL;
   const char *c = command;
       
-  for ( ; c && *c; ++c)
+  while (c && *c)
     {
       /* If it's preceded by the special char, substitute it for the real value */
       if (*c == '%')
@@ -422,52 +551,27 @@ static GString* doFetchStringSubstitutions(const char *command,
           if (c && *c)
             {
               switch (*c) {
-              case 'p': 
-                g_string_append(result, g_get_prgname());
-                break;
-              case 'h': 
-                g_string_append(result, g_get_host_name());
-                break;
-              case 'u': 
-                g_string_append(result, g_get_user_name());
-                break;
-              case 'm': 
-                if (name)
-                  g_string_append(result, name);
-                break;
-              case 'r': 
-                if (refSeqName)
-                  g_string_append(result, refSeqName);
-                break;
-              case 's': 
-                g_string_append_printf(result, "%d", startCoord);
-                break;
-              case 'e': 
-                g_string_append_printf(result, "%d", endCoord);
-                break;
-              case 'd':
-                if (dataset)
-                  g_string_append(result, dataset);
-                break;
-              case 'S':
-                if (source)
-                  g_string_append(result, source);
-                break;
-              case 'f':
-                if (filename)
-                  g_string_append(result, filename);
-                break;
-              case 'g':
-                g_string_append_printf(result, "%d", SEQTOOLS_GFF_VERSION);
-                break;
               case '%':
-                g_string_append_c(result, *c);
-                break;
+                {
+                  g_string_append_c(result, *c);
+                  ++c;
+                  break;
+                }
+              case '(':
+                {
+                  int len = doFetchStringSubstitutionKeyword(c, match_data, result, errorMsg);
+                  if (len > 0)
+                    c += len + 2; /* progress past the len of the keyword plus the two brackets */
+                  else 
+                    ++c; /* failed; just increment past the current char */
+                  break;
+                }
               default:
-                if (!errorMsg)
-                  errorMsg = g_string_new("");
-                g_string_append_printf(errorMsg, "  Unknown substitution character '%%%c'\n", *c);
-                break;
+                {
+                  doFetchStringSubstitutionChar(*c, match_data, result, errorMsg);
+                  ++c; /* Progress to next char even if failed */
+                  break;
+                }
               };
             }
         }
@@ -475,6 +579,7 @@ static GString* doFetchStringSubstitutions(const char *command,
         {
           /* Normal char; just append to the result */
           g_string_append_c(result, *c);
+          ++c;
         }
     }
 
@@ -490,17 +595,10 @@ static GString* doFetchStringSubstitutions(const char *command,
 
 
 static GString* doGetFetchArgs(const BlxFetchMethod* const fetchMethod,
-                               const char *name,
-                               const char *refSeqName,
-                               const int startCoord,
-                               const int endCoord,
-                               const char *dataset,
-                               const char *source,
-                               const char *filename,
+                               MatchSequenceData *match_data,
                                GError **error)
 {
-  GString *result = doFetchStringSubstitutions(fetchMethod->args, name, refSeqName, startCoord, endCoord,
-                                      dataset, source, filename, error);
+  GString *result = doFetchStringSubstitutions(fetchMethod->args, match_data, error);
 
   return result;
 }
@@ -518,14 +616,8 @@ static gboolean fetchMethodUsesHttp(const BlxFetchMethod* const fetchMethod)
 
 
 GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
-                                  const char *name,
-                                  const char *refSeqName,
-                                  const int startCoord,
-                                  const int endCoord,
-                                  const char *dataset,
-                                  const char *source,
-                                  const char *filename,
-                                  GError **error)
+                           MatchSequenceData *match_data,
+                           GError **error)
 {
   GString *result = NULL;
   GError *tmpError = NULL;
@@ -553,8 +645,7 @@ GString* doGetFetchCommand(const BlxFetchMethod* const fetchMethod,
           else
             return result;
           
-          result = doFetchStringSubstitutions(command, name, refSeqName, startCoord, endCoord,
-                                              dataset, source, filename, error);
+          result = doFetchStringSubstitutions(command, match_data, error);
           
           /* Clean up */
           g_free(command);
@@ -584,8 +675,8 @@ static GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod,
       g_string_append_printf(seq_string, "%s%s", blxSequenceGetFullName(blxSeq), separator);
     }
 
-  GString *result = doGetFetchArgs(fetchMethod, seq_string->str, NULL, 0, 0,
-                                   NULL, NULL, NULL, error);
+  MatchSequenceData match_data = {seq_string->str, NULL, 0, 0, NULL, NULL, NULL};
+  GString *result = doGetFetchArgs(fetchMethod, &match_data, error);
 
   g_string_free(seq_string, TRUE);
   
@@ -644,7 +735,8 @@ GString* getFetchCommand(const BlxFetchMethod* const fetchMethod,
   boundsLimitValue(&endCoord, refSeqRange);
 
   /* Do the substitutions */
-  GString *result = doGetFetchCommand(fetchMethod, name, refSeqName, startCoord, endCoord, dataset, source, filename, error);
+  MatchSequenceData match_data = {name, refSeqName, startCoord, endCoord, dataset, source, filename};
+  GString *result = doGetFetchCommand(fetchMethod, &match_data, error);
   
   return result;
 }
@@ -677,7 +769,8 @@ static GString* getFetchArgs(const BlxFetchMethod* const fetchMethod,
   boundsLimitValue(&endCoord, refSeqRange);
 
   /* Do the substitutions */
-  GString *result = doGetFetchArgs(fetchMethod, name, refSeqName, startCoord, endCoord, dataset, source, filename, error);
+  MatchSequenceData match_data = {name, refSeqName, startCoord, endCoord, dataset, source, filename};
+  GString *result = doGetFetchArgs(fetchMethod, &match_data, error);
   
   return result;
 }
@@ -1108,6 +1201,7 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
   PFetchData pfetch_data ;
   GError *tmpError = NULL;
   GString *command = NULL;
+  GString *request = NULL;
 
   if (fetchMethod->location == NULL)
     g_set_error(&tmpError, BLX_ERROR, 1, "%s", "Failed to obtain preferences specifying how to pfetch.\n");
@@ -1129,6 +1223,13 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
       pfetch_data->fetchMethod = fetchMethod;
       
       command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset, &tmpError);
+    }
+  
+  if (!tmpError)
+    {
+      request = getFetchArgs(fetchMethod, blxSeq, NULL, 
+                             bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, 
+                             bc->dataset, &tmpError);
     }
   
   if (tmpError)
@@ -1178,20 +1279,15 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
         }
       
       g_signal_connect(G_OBJECT(pfetch_data->pfetch), "reader", G_CALLBACK(pfetch_reader_func), pfetch_data);
-      
       g_signal_connect(G_OBJECT(pfetch_data->pfetch), "closed", G_CALLBACK(pfetch_closed_func), pfetch_data);
-
-      GError *error = NULL;
-      GString *request = getFetchArgs(fetchMethod, blxSeq, NULL, 
-                                      bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, 
-                                      bc->dataset, &error);
-
-      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
 
       PFetchHandleFetch(pfetch_data->pfetch, request->str) ;
       
-      if (request)
-        g_string_free(request, FALSE);
+    }
+
+  if (request)
+    {
+      g_string_free(request, FALSE);
     }
 }
 

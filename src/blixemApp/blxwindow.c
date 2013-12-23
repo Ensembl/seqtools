@@ -721,15 +721,8 @@ static void loadNonNativeFile(const char *filename,
      
   if (!error)
     {
-      GString *command = doGetFetchCommand(fetchMethod,
-                                           NULL, 
-                                           bc->refSeqName, 
-                                           start, 
-                                           end, 
-                                           bc->dataset, 
-                                           source->str, 
-                                           filename,
-                                           &error);
+      MatchSequenceData match_data = {NULL, bc->refSeqName, start, end, bc->dataset, source->str, filename};
+      GString *command = doGetFetchCommand(fetchMethod, &match_data, &error);
 
       if (!error && command && command->str)
         {
@@ -793,7 +786,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
                        bc->numFrames, &bc->refSeqRange, TRUE);
 
   /* Add the msps/sequences to the tree data models (must be done after finalise because
-   * finalise populates the child msp lists for parent feaatures) */
+   * finalise populates the child msp lists for parent features) */
   detailViewAddMspData(blxWindowGetDetailView(blxWindow), newMsps, newSeqs);
 
   /* Merge the temporary lists into the main lists */

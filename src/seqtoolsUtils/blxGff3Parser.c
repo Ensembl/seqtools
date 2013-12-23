@@ -43,6 +43,7 @@
 
 
 #define SOURCE_DATA_TYPES_GROUP "source-data-types" /* group name for stanza where default data types are specified for sources */
+#define DATA_TYPE_TAG "dataType" /* tag name for dataType */
 
 
 /* Error codes and domain */
@@ -127,7 +128,7 @@ static void           parseGapString(char *text, BlxGapFormat gapFormat, MSP *ms
 
 static BlxStrand      readStrand(char *token, GError **error);
 //static void           parseMspType(char *token, MSP *msp, GSList *supportedTypes, GError **error);
-static void           parseCigarStringSection(const char *text, GapStringData *data);
+static const char*           parseCigarStringSection(const char *text, GapStringData *data);
 static int            validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error);
 //static void           validateMsp(const MSP *msp, GError **error);
 static void           addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType);
@@ -291,10 +292,9 @@ void parseGff3Header(const int lineNum,
 }
 
 
-/* Look in the given config file to see if there is a default
- * datatype specified for the given source. If so, return its
- * name as a quark. Otherwise, return 0. */
-static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
+/* Get the dataType for the given source from the source-to-data-type mapping 
+ * stanza in the config file. Returns 0 if not found. */
+static GQuark getBlxDataTypeFromSourceMapping(const char *source, GKeyFile *keyFile)
 {
   GQuark dataType = 0;
 
@@ -309,6 +309,43 @@ static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
         }
     }
 
+  return dataType;
+}
+
+
+/* Get the dataType for the given source from the source stanza. Returns 0 if
+ * not found. */
+static GQuark getBlxDataTypeFromSource(const char *source, GKeyFile *keyFile)
+{
+  GQuark dataType = 0;
+
+  if (keyFile && g_key_file_has_group(keyFile, source))
+    {
+      char *dataTypeName = g_key_file_get_string(keyFile, source, DATA_TYPE_TAG, NULL);
+      
+      if (dataTypeName)
+        {
+          dataType = g_quark_from_string(dataTypeName);
+          g_free(dataTypeName);
+        }
+    }
+
+  return dataType;
+}
+
+
+/* Find the default data type for this source. */
+static GQuark getBlxDataTypeDefault(const char *source, GKeyFile *keyFile)
+{
+  GQuark dataType = 0;
+
+  /* Check in the source stanza first */
+  dataType = getBlxDataTypeFromSource(source, keyFile);
+  
+  /* If not there, check in the source-to-data-types mapping stanza */
+  if (!dataType)
+    dataType = getBlxDataTypeFromSourceMapping(source, keyFile);
+  
   return dataType;
 }
 
@@ -338,7 +375,8 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
 {
   BlxDataType *result = NULL;
 
-  /* If no data type was specified in the gff, see if there is a default for this gff type */
+  /* If no data type was specified in the gff, see if there is a default 
+   * data-type for this source */
   if (!dataType)
     dataType = getBlxDataTypeDefault(source, keyFile);
 
@@ -878,7 +916,7 @@ static void parseTagDataPair(char *text,
         {
           gffData->sequence = g_strdup(tokens[1]);
         }
-      else if (!strcmp(tokens[0], "dataType"))
+      else if (!strcmp(tokens[0], DATA_TYPE_TAG))
         {
           gffData->dataType = g_quark_from_string(tokens[1]);
         }
@@ -989,9 +1027,6 @@ static void parseGapString(char *text,
       return;
     }
   
-  /* Split on spaces */
-  char **tokens = g_strsplit_set(text, " ", -1); /* -1 means do all tokens */
-
   /* If we have the forward strand of either sequence, start at the min coord
    * and increase values as we progress through the cigar string; if we have the
    * reverse strand, start at the max coord and decrease. */
@@ -1005,30 +1040,29 @@ static void parseGapString(char *text,
   int q = qForward ? msp->qRange.min - 1 : msp->qRange.max + 1;
   int s = sForward ? msp->sRange.min - 1 : msp->sRange.max + 1;
   
-  char **token = tokens;
   GError *tmpError = NULL;
 
   GapStringData gapStringData = {gapFormat, &msp, qDirection, sDirection, resFactor, &q, &s, 
                                  featureLists, lastMsp, mspList, seqList, NULL};  
 
-  while (token && *token && **token)
+  const char *cp = text;
+  
+  while (cp && *cp)
     {
-      parseCigarStringSection(*token, &gapStringData);
+      const char *cp_new = parseCigarStringSection(cp, &gapStringData);
       
       if (tmpError)
         {
-          prefixError(tmpError, "Error parsing gap string '%s'. ", text);
+          prefixError(tmpError, "Error parsing gap string '%s'. ", cp);
         }
 
-      ++token;
+      cp = cp_new;
     }
   
   if (tmpError)
     {
       g_propagate_error(error, tmpError);
     }
-  
-  g_strfreev(tokens);
 }
 
 
@@ -1045,7 +1079,7 @@ static int getCigarStringSectionLen(const char *text, BlxGapFormat gapFormat)
       break;
       
     case BLX_GAP_STRING_BAM_CIGAR: /* e.g. 76M */
-      convertStringToInt(text); /* uses atoi, which will ignore characters after */
+      result = convertStringToInt(text); /* uses atoi, which will ignore characters after */
       break;
 
     default:
@@ -1059,22 +1093,31 @@ static int getCigarStringSectionLen(const char *text, BlxGapFormat gapFormat)
 
 /* Get the operator part of a gap string section, e.g. if the text is "M76"
  * then this returns 'M' */
-static char getCigarStringSectionOperator(const char *text, BlxGapFormat gapFormat)
+static char getCigarStringSectionOperator(const char *text, BlxGapFormat gapFormat, const char **cp_out)
 {
   char result = 0;
+  const char *cp = text;
 
   switch (gapFormat)
     {
     case BLX_GAP_STRING_GFF3:
-      result = *text;
+      result = *cp;
+
+      /* Move cp on to the start of the next section in the cigar, i.e. next alpha char */
+      for (++cp ; cp && *cp && !isalpha(*cp); ++cp);
+
       break;
       
     case BLX_GAP_STRING_BAM_CIGAR:
       {
-        const char *cp = text;
         for ( ; cp && *cp && !isalpha(*cp); ++cp); /* find first alphabetic character */
+
         if (cp) 
           result = *cp;
+
+        /* Move cp on to the start of the next section in the cigar, i.e. next digit */
+        for (cp++ ; cp && *cp && !isdigit(*cp); ++cp);
+
         break;
       }
       
@@ -1082,6 +1125,9 @@ static char getCigarStringSectionOperator(const char *text, BlxGapFormat gapForm
       g_warning("Invalid gap string format\n");
       break;
     };
+
+  if (cp_out)
+    *cp_out = cp;
   
   return result;
 }
@@ -1214,15 +1260,16 @@ static gboolean validateCigarOperator(char operator, BlxGapFormat gapFormat)
  *
  *  qDirection and sDirection are 1 if coords are in an increasing direction or -1 if decreasing.
  */
-static void parseCigarStringSection(const char *text, 
-                                    GapStringData *data)
+static const char* parseCigarStringSection(const char *text, 
+                                     GapStringData *data)
 {
   /* Get the digit part of the string, which indicates the number of display coords (peptides in peptide matches,
    * nucleotides in nucelotide matches). */
   const int numPeptides = getCigarStringSectionLen(text, data->gapFormat);
   int numNucleotides = numPeptides * data->resFactor;
 
-  char operator = getCigarStringSectionOperator(text, data->gapFormat);
+  const char *cp = text;
+  char operator = getCigarStringSectionOperator(text, data->gapFormat, &cp);
   
   /*! \todo If the operator is not valid for this type of cigar string
    * then we should set the error and return. However, for historic 
@@ -1301,7 +1348,8 @@ static void parseCigarStringSection(const char *text,
       g_set_error(&data->error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Invalid operator '%c' in cigar string.\n", operator);
       break;
     };
-  
+
+  return cp;
 }
 
 

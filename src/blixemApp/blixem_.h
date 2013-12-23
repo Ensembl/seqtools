@@ -509,6 +509,19 @@ typedef struct
   } PfetchParams ;
 
 
+/* Used to pass around info about a match sequence when getting fetch command arguments */
+typedef struct
+{
+  const char *match_name;
+  const char *ref_name;
+  int match_start;
+  int match_end;
+  const char *dataset;
+  const char *source;
+  const char *filename;
+} MatchSequenceData ;
+
+
 /* blxview.c */
 /* Function to show blixem window, can be called from any application. */
 gboolean                            blxview(CommandLineOptions *options,
@@ -562,7 +575,7 @@ char*                              readFastaSeq(FILE *seqfile, char *qname, int 
 /* blxFetch.c */
 BlxFetchMethod*                    getFetchMethodDetails(GQuark fetchMethodQuark, GHashTable *fetchMethods);
 GString*                           getFetchCommand(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq, const MSP* const msp, const char *refSeqName, const int refSeqOffset, const IntRange* const refSeqRange, const char *dataset, GError **error);
-GString*                           doGetFetchCommand(const BlxFetchMethod* const fetchMethod,const char *name,const char *refSeqName,const int startCoord,const int endCoord,const char *dataset,const char *source,const char *filename,GError **error);
+GString*                           doGetFetchCommand(const BlxFetchMethod* const fetchMethod,MatchSequenceData *match_data, GError **error);
 void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result) ;
 void                               finaliseFetch(GList *seqList);
 void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GError **error);
