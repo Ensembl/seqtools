@@ -63,6 +63,10 @@ AM_CONDITIONAL([USE_LIBCURL], [test "$HAVE_LIBCURL" -eq 1])
 AC_CHECK_HEADERS([sqlite3.h], [HAVE_SQLITE3=1], [HAVE_SQLITE3=0])
 AM_CONDITIONAL([USE_SQLITE3], [test "$HAVE_SQLITE3" -eq 1])
 
+# Check for execinfo.h. This is used to provide backtraces but is not available
+# on all systems.
+AC_CHECK_HEADERS([execinfo.h])
+
 AC_OUTPUT
 
 
