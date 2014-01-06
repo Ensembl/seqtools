@@ -2225,6 +2225,30 @@ static void readConfigFile(GKeyFile *key_file, CommandLineOptions *options, GErr
         }
     }
   
+  /* For backwards compatibility with config files that do not set the optional-fetch
+   * field: If the default optional-fetch method is not set then find any fetch methods that
+   * have an output type of 'embl'. gb10: we may wish to remove this once we no longer have these
+   * config files. */
+  if (!options->optionalFetchDefault)
+    {
+      GHashTableIter iter;
+      gpointer key, value;
+
+      g_hash_table_iter_init (&iter, options->fetchMethods);
+      while (g_hash_table_iter_next (&iter, &key, &value))
+        {
+          BlxFetchMethod* fetchMethod = (BlxFetchMethod*)value;
+
+          if (fetchMethod->outputType == BLXFETCH_OUTPUT_EMBL)
+            {
+              if (!options->optionalFetchDefault)
+                options->optionalFetchDefault = g_array_sized_new(FALSE, TRUE, sizeof(GQuark), 1);
+
+              g_array_append_val(options->optionalFetchDefault, fetchMethod->name);
+            }
+        }
+    }
+
   g_strfreev(groups);
 }
 
