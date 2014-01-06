@@ -3029,14 +3029,14 @@ static GtkWidget* createColumnLoadDataButton(GtkTable *table,
 
 
 /* Create the settings buttons for a single column */
-static void createColumnButton(DetailViewColumnInfo *columnInfo, GtkTable *table, int *row)
+static void createColumnButton(BlxColumnInfo *columnInfo, GtkTable *table, int *row)
 {
   /* Create a label, checkbox and a text entry box */
   GtkWidget *label = gtk_label_new(columnInfo->title);
   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
   
   GtkWidget *button = gtk_check_button_new();
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->visible);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->showColumn);
   widgetSetCallbackData(button, onColumnVisibilityChanged, (gpointer)columnInfo);
   
   GtkWidget *entry = gtk_entry_new();
@@ -3104,7 +3104,7 @@ static void createColumnButtons(GtkWidget *parent, GtkWidget *detailView, const 
 
   for ( ; listItem; listItem = listItem->next)
     {
-      DetailViewColumnInfo *columnInfo = (DetailViewColumnInfo*)(listItem->data);
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
       createColumnButton(columnInfo, table, &row);
     }
   
