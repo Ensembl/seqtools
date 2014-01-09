@@ -67,25 +67,6 @@
 #define DUPLICATE_READS_COLUMN_NAME_SGL           "(%d) match" /* as above but for when there is just one read */
 
 
-/* This struct describes a column in the detail view. Multiple widgets (i.e. headers
- * and tree columns) in the detail view must all have columns that share the same
- * properties (namely the column width). */
-typedef struct _DetailViewColumnInfo
-  {
-    BlxColumnId columnId;       /* the column identifier */
-    GtkWidget *headerWidget;    /* the header widget for this column (in the detail-view header) */
-    GtkCallback refreshFunc;    /* the function that will be called on the header widget when columns are refreshed */
-    char *title;                /* the default column title */
-    char *propertyName;         /* the property name (used to set the data for the SequenceCellRenderer) */
-    char *sortName;             /* the name to display in the sort-by drop-down box (NULL if the view is not sortable on this column) */
-    
-    int width;                  /* the column width */
-    gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
-    gboolean visible;           /* whether the column should be shown */
-    gboolean searchable;        /* whether searching sequences by data in this column is supported */
-  } DetailViewColumnInfo;
-
-
 /* This struct contains info about canonical splice sites */
 typedef struct _BlxSpliceSite
   {
@@ -109,8 +90,8 @@ typedef struct _DetailViewProperties
     GtkWidget *header;            /* Contains all the widgets in the detail view header */
     GtkWidget *feedbackBox;       /* A text box that feeds back info to the user about the currently selected items */
     GtkWidget *statusBar;         /* A status bar that feeds back info to the user about the currently moused-over items */
-    GList *columnList;            /* A list of details about all the columns in the detail view */
-    BlxColumnId sortColumns[BLXCOL_NUM_COLUMNS];  /* List of columns to sort by, in order of priority */
+    GList *columnList;            /* A list of details about all the columns in the detail view */    
+    BlxColumnId* sortColumns;     /* Array of columns to sort by, in order of priority. The length of this array will be set to the same length as columnList */
     
     GList *fwdStrandTrees;        /* A list of all the trees that show the forward strand of the ref seq */
     GList *revStrandTrees;        /* A list of all the trees that show the reverse strand of the ref seq */
@@ -170,7 +151,7 @@ gdouble                 detailViewGetCharHeight(GtkWidget *detailView);
 int                     detailViewGetNumUnalignedBases(GtkWidget *detailView);
 BlxColumnId*            detailViewGetSortColumns(GtkWidget *detailView);
 GList*                  detailViewGetColumnList(GtkWidget *detailView);
-DetailViewColumnInfo*   detailViewGetColumnInfo(GtkWidget *detailView, const BlxColumnId columnId);
+GType*                  columnListGetTypes(GList *columnList);
 int                     detailViewGetActiveFrame(GtkWidget *detailView);
 BlxStrand               detailViewGetSelectedStrand(GtkWidget *detailView);
 void                    detailViewSetSelectedStrand(GtkWidget *detailView, BlxStrand strand);
@@ -180,7 +161,7 @@ DetailViewProperties*   detailViewGetProperties(GtkWidget *widget);
 int                     detailViewGetColumnWidth(GtkWidget *detailView, const BlxColumnId columnId);
 const char*             detailViewGetColumnTitle(GtkWidget *detailView, const BlxColumnId columnId);
 void                    detailViewGetColumnXCoords(DetailViewProperties *properties, const BlxColumnId columnId, IntRange *xRange);
-gboolean                detailViewShowColumn(DetailViewColumnInfo *columnInfo);
+gboolean                detailViewShowColumn(BlxColumnInfo *columnInfo);
 void                    detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file);
 void                    detailViewResetColumnWidths(GtkWidget *detailView);
 
@@ -307,6 +288,7 @@ GtkWidget*              createDetailView(GtkWidget *blxWindow,
                                          GtkWidget *fwdStrandGrid, 
                                          GtkWidget *revStrandGrid,
                                          MSP *mspList,
+                                         GList *columnList,
                                          BlxBlastMode mode,
                                          BlxSeqType seqType,
                                          int numFrames,

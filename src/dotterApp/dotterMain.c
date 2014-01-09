@@ -850,13 +850,14 @@ int main(int argc, char **argv)
         }
       
       GSList *supportedTypes = blxCreateSupportedGffTypeList();
+      GList *columnList = NULL;
       GError *error = NULL;
 
-      parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL, &error);
+      parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, columnList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL, &error);
 
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       
-      finaliseBlxSequences(featureLists, &MSPlist, &seqList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
+      finaliseBlxSequences(featureLists, &MSPlist, &seqList, columnList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
       
       blxDestroyGffTypeList(&supportedTypes);
     }

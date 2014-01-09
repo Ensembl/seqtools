@@ -56,9 +56,10 @@
 
 
 /* Key names for values in data-type stanzas in the config file */
-#define BLIXEM_GROUP                 "blixem"
-#define SEQTOOLS_BULK_FETCH          "bulk-fetch"
-#define SEQTOOLS_USER_FETCH          "user-fetch"
+#define BLIXEM_GROUP                 "blixem"                   /* [blixem] stanza */
+#define SEQTOOLS_BULK_FETCH          "bulk-fetch"               /* methods(s) for batch-fetching sequences on start */
+#define SEQTOOLS_USER_FETCH          "user-fetch"               /* method(s) for interactively fetching sequences by the user */
+#define SEQTOOLS_OPTIONAL_FETCH      "optional-fetch"           /* method(s) for batch-fetching additional data on user request */
 #define SEQTOOLS_GFF_FILENAME_KEY    "file"
 
 /* Main Blixem error domain */
@@ -155,11 +156,77 @@ typedef enum
  * to multiple sequences, e.g. which fetch method to use. */
 typedef struct _BlxDataType
   {
-    GQuark name;                        /* the name of the data-type */
-    GArray *bulkFetch;                  /* list of fetch methods (by name as a GQuark) to use when bulk fetching sequences, in order of priority */
-    GArray *userFetch;                  /* list of fetch methods (by name as a GQuark) to use when user fetches a sequence, in order of priority */
+    GQuark name;           /* the name of the data-type */
+    GArray *bulkFetch;     /* list of fetch methods (by name as a GQuark) to use when bulk fetching sequences, in order of priority */
+    GArray *userFetch;     /* list of fetch methods (by name as a GQuark) to use when user fetches a sequence, in order of priority */
+    GArray *optionalFetch; /* list of fetch methods (by name as a GQuark) to use when user requests optional data to be loaded */
     gboolean flags[MSPFLAG_NUM_FLAGS];  /* boolean flags */
   } BlxDataType;
+
+
+/* COLUMNS: To add a new column you must do the following:
+ *    - create the column in createColumns(...)
+ * and optionally:
+ *    - add a BlxColumnId enum, if you need a convenient way of referring specifically to the column in the code;
+ *    - add a custom data function in createTreeColumn;
+ *    - add a custom header widget and/or header refresh function in createTreeColHeader;
+ *    - specify specific sort behaviour in sortColumnCompareFunc. */
+
+/* This enum declares identifiers for known columns in the 
+ * detail-view trees. It is NOT A COMPREHENSIVE LIST of columns 
+ * because further columns can be added dynamically to the column 
+ * list in createColumns(...). This enum is just used as a convenient
+ * way of referring to the main set of known columns. */
+typedef enum
+  {
+    BLXCOL_NONE=-1,             /* Used for sorting to indicate that no sorting is required; negative value => not a valid column ID in the trees */
+
+    BLXCOL_SEQNAME=0,           /* The match sequence's name */
+    BLXCOL_SOURCE,              /* The match sequence's source */
+
+    BLXCOL_GROUP,               /* The group that this alignment belongs to */
+    BLXCOL_SCORE,               /* The alignment's score */
+    BLXCOL_ID,                  /* The alignment's %ID */
+    BLXCOL_START,               /* The start coord of the alignment on the match sequence */
+    BLXCOL_SEQUENCE,            /* This column will display the part of the alignment currently in the display range. */
+    BLXCOL_END,                 /* The end coord of the alignment on the match sequence */
+
+    /* The following columns are optional */
+    BLXCOL_ORGANISM,
+    BLXCOL_GENE_NAME,
+    BLXCOL_TISSUE_TYPE,
+    BLXCOL_STRAIN,
+
+    BLXCOL_NUM_COLUMNS          /* Number of main columns. Further additional columns may be
+                                 * added dynamically with a columnId greater than or equal to this. */
+  } BlxColumnId;
+
+
+/* This struct describes a column in the detail view. Multiple widgets (i.e. headers
+ * and tree columns) in the detail view must all have columns that share the same
+ * properties (namely the column width). */
+typedef struct _BlxColumnInfo
+  {
+    BlxColumnId columnId;       /* the column identifier */
+    int columnIdx;              /* 0-based index of columns in display order */
+    GType type;                 /* the type of data, e.g. G_TYPE_STRING */
+    GtkWidget *headerWidget;    /* the header widget for this column (in the detail-view header) */
+    GtkCallback refreshFunc;    /* the function that will be called on the header widget when columns are refreshed */
+    char *title;                /* the default column title */
+    char *propertyName;         /* the property name (used to set the data for the SequenceCellRenderer) */
+    char *sortName;             /* the name to display in the sort-by drop-down box (NULL if the view is not sortable on this column) */
+
+    GQuark emblId;              /* 2-char embl line ID, e.g. 'SQ' for sequence or 'OS' for organism */
+    GQuark emblTag;             /* tag name within an embl line, e.g. the 'tissue_type' tag within the 'FT' section. 
+                                 * Only supports tags of the following format (i.e. like those in the 'FT' section):
+                                 *     /tissue_type="testis"    */
+
+    int width;                  /* the column width */
+    gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
+    gboolean showColumn;        /* whether the column should be shown in the detail view */
+    gboolean showSummary;       /* whether the column should be shown in the summary info (i.e. the mouse-over feedback bar) */
+    gboolean searchable;        /* whether searching sequences by data in this column is supported */
+  } BlxColumnInfo;
 
 
 /* Structure that contains information about a sequence */
@@ -167,23 +234,16 @@ typedef struct _BlxSequence
 {
   BlxSequenceType type;            /* What type of collection of MSPs this is */
   BlxDataType *dataType;           /* Optional data type that specifies additional properties for this type of sequence data */
-
   char *idTag;                     /* Unique identifier e.g. from ID tag in GFF files */
-  char *source;                    /* Optional source text for the sequence */
 
-  GQuark fullName;                 /* full name of the sequence, including variant postfix, e.g. AV274505.2 */
-  char *shortName;                 /* short name of the sequence, excluding variant, e.g. AV274505 */
-  
-  GString *organism;               /* organism from the EMBL data OS line */
-  GString *geneName;               /* gene name from the EMBL data GN line */
-  GString *tissueType;             /* tissue type from the /tissue_type attribute from the FT lines in the EMBL file */
-  GString *strain;                 /* strain from the /strain attribute from the FT lines in the EMBL file */
-  
+  GArray* values;                  /* Array of values (as GValue) for the columns */
+ 
   BlxStrand strand;                /* which strand of the sequence this is */
-  GString *sequence;               /* the actual sequence data */
   gboolean sequenceReqd;           /* whether the sequence data is required (e.g. it is not needed for exons/introns etc.) */
+
   IntRange qRangeFwd;              /* the extent of alignments from this sequence on the ref sequence forward strand */ 
   IntRange qRangeRev;              /* the extent of alignments from this sequence on the ref sequence reverse strand */ 
+  char *organismAbbrev;            /* internally-calculated abbreviation for the Organism column value, if set */
   
   GList *mspList;                  /* list of MSPs from this sequence */
 } BlxSequence;
@@ -279,7 +339,6 @@ int                   mspGetQStart(const MSP const *msp);
 int                   mspGetQEnd(const MSP const *msp);
 int                   mspGetSStart(const MSP const *msp);
 int                   mspGetSEnd(const MSP const *msp);
-char*                 mspGetSSeq(const MSP const *msp);
 int                   mspGetQRangeLen(const MSP const *msp);
 int                   mspGetSRangeLen(const MSP const *msp);
 int                   mspGetMatchSeqLen(const MSP const *msp);
@@ -298,10 +357,12 @@ const GdkColor*       mspGetColor(const MSP const *msp,
                                   const int utrFillColorId,
                                   const int utrLineColorId);
 
-char*                 mspGetOrganism(const MSP const *msp);
-char*                 mspGetGeneName(const MSP const *msp);
-char*                 mspGetTissueType(const MSP const *msp);
-char*                 mspGetStrain(const MSP const *msp);
+const char*           mspGetColumn(const MSP const *msp, const BlxColumnId columnId);
+const char*           mspGetOrganism(const MSP const *msp);
+const char*           mspGetOrganismAbbrev(const MSP const *msp);
+const char*           mspGetGeneName(const MSP const *msp);
+const char*           mspGetTissueType(const MSP const *msp);
+const char*           mspGetStrain(const MSP const *msp);
 char*                 mspGetCoordsAsString(const MSP const *msp);
 gchar*                mspGetTreePath(const MSP const *msp, BlxModelId modelId);
 
@@ -341,7 +402,7 @@ void                  destroyMspList(MSP **mspList);
 void                  destroyBlxSequenceList(GList **seqList);
 void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
-MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, const BlxMspType mspType, 
+MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GList *columnList, const BlxMspType mspType, 
                                    BlxDataType *dataType, const char *source, const gdouble score, const gdouble percentId, const int phase,
                                    const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
@@ -350,7 +411,7 @@ MSP*                  copyMsp(const MSP const *src, GArray* featureLists[], MSP 
 
 //void                  insertFS(MSP *msp, char *series);
 
-void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame);
+void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, GList *columnList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame);
 int                   findMspListSExtent(GList *mspList, const gboolean findMin);
 int                   findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand);
 
@@ -358,32 +419,43 @@ int                   findMspListQExtent(GList *mspList, const gboolean findMin,
 gint                  fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in);
 gint                  fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in);
 
+/* Columns */
+gint                  columnIdxCompareFunc(gconstpointer a, gconstpointer b);
+
 /* BlxSequence */
-char*                 blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq);
-BlxSequence*          createEmptyBlxSequence(const char *fullName, const char *idTag, GError **error);
+char*                 blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq, GList *columnList);
 BlxDataType*          createBlxDataType();
 void                  destroyBlxDataType(BlxDataType **blxDataType);
 const char*           getDataTypeName(BlxDataType *blxDataType);
+BlxSequence*          createEmptyBlxSequence();
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, char *sequence, MSP *msp, GError **error);
-void                  blxSequenceSetName(BlxSequence *seq, const char *fullName);
-const char*           blxSequenceGetFullName(const BlxSequence *seq);
-const char*           blxSequenceGetDisplayName(const BlxSequence *seq);
-GQuark                blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk, const int index, const GArray *defaultMethods);
-const char*           blxSequenceGetShortName(const BlxSequence *seq);
+BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, GList *columnList, char *sequence, MSP *msp, GError **error);
+void                  blxSequenceSetValue(const BlxSequence *seq, const int columnId, GValue *value);
+void                  blxSequenceSetValueFromString(const BlxSequence *seq, const int columnId, const char *inputStr);
+void                  blxSequenceSetColumn(BlxSequence *seq, const char *colName, const char *value, GList *columnList);
+const char*           blxSequenceGetName(const BlxSequence *seq);
+GQuark                blxSequenceGetFetchMethod(const BlxSequence *seq, const gboolean bulk, const gboolean optionalColumns, const int index, const GArray *defaultMethods);
 int                   blxSequenceGetLength(const BlxSequence *seq);
-char*                 blxSequenceGetSeq(const BlxSequence *seq);
+const char*           blxSequenceGetSequence(const BlxSequence *seq);
 gboolean              blxSequenceRequiresSeqData(const BlxSequence *seq);
 gboolean              blxSequenceRequiresOptionalData(const BlxSequence *seq);
+gboolean              blxSequenceRequiresColumnData(const BlxSequence *seq, const BlxColumnId columnId);
 BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs);
-char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, const gboolean dataLoaded);
+char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, GList *columnList);
 int                   blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand);
 int                   blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand);
 const char*           blxSequenceGetSource(const BlxSequence *seq);
-char*                 blxSequenceGetOrganism(const BlxSequence *seq);
-char*                 blxSequenceGetGeneName(const BlxSequence *seq);
-char*                 blxSequenceGetTissueType(const BlxSequence *seq);
-char*                 blxSequenceGetStrain(const BlxSequence *seq);
+gboolean              blxSequenceGetLinkFeatures(const BlxSequence *seq, const gboolean defaultLinkFeatures);
+
+GValue*               blxSequenceGetValue(const BlxSequence *seq, const int columnId);
+
+const char*           blxSequenceGetValueAsString(const BlxSequence *seq, const int columnId);
+const char*           blxSequenceGetColumn(const BlxSequence const *blxSeq, const BlxColumnId columnId);
+const char*           blxSequenceGetOrganism(const BlxSequence *seq);
+const char*           blxSequenceGetOrganismAbbrev(const BlxSequence *seq);
+const char*           blxSequenceGetGeneName(const BlxSequence *seq);
+const char*           blxSequenceGetTissueType(const BlxSequence *seq);
+const char*           blxSequenceGetStrain(const BlxSequence *seq);
 char*                 blxSequenceGetFasta(const BlxSequence *seq);
 gboolean              blxSequenceGetFlag(const BlxSequence* const blxSeq, const MspFlag flag);
 

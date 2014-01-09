@@ -67,6 +67,26 @@ UT_COMPILE_PHRASE " " UT_MAKE_COMPILE_DATE() ")\n\n"            \
 AUTHOR_TEXT "\n"
 
 
+
+
+#define COLUMN_WIDTHS_GROUP             "column-widths"  /* group name in the config file */
+
+/* Define the columns' default widths and titles. */
+#define BLXCOL_DEFAULT_WIDTH            50    /* default width for generic columns */
+#define BLXCOL_SEQNAME_WIDTH            120   /* default width for the name column */
+#define BLXCOL_SCORE_WIDTH              40    /* default width for the score column */
+#define BLXCOL_ID_WIDTH                 45    /* default width for the ID column */
+#define BLXCOL_SOURCE_WIDTH             85    /* default width for source column  */
+#define BLXCOL_GROUP_WIDTH              58    /* default width for group column  */
+#define BLXCOL_START_WIDTH              50    /* default width for the start coord column */
+#define BLXCOL_END_WIDTH                80    /* default width for end coord column (bigger because it also spans the scrollbar) */
+#define BLXCOL_SEQUENCE_WIDTH           40    /* default width for sequence column */
+#define BLXCOL_ORGANISM_WIDTH           28    /* default width for organism column */
+#define BLXCOL_GENE_NAME_WIDTH          58    /* default width for gene-name column  */
+#define BLXCOL_STRAIN_WIDTH             85    /* default width for strain column  */
+#define BLXCOL_TISSUE_TYPE_WIDTH        100   /* default width for tissue-type column  */
+
+
 /* 
  * config file groups/keywords, these should not be changed willy nilly as they
  * are used external programs and users when constructing config files.
@@ -89,7 +109,7 @@ typedef enum
 #endif
     BLXFETCH_MODE_SOCKET,
     BLXFETCH_MODE_WWW,
-    BLXFETCH_MODE_DB,
+    BLXFETCH_MODE_SQLITE,
     BLXFETCH_MODE_COMMAND,
     BLXFETCH_MODE_INTERNAL,
     BLXFETCH_MODE_NONE,
@@ -120,7 +140,9 @@ typedef enum
 #define WWW_FETCH_ARGS           "request"
 
 /* Required keys for db-fetch groups */
-/* not implemented yet */
+#define DB_FETCH_LOCATION        "location"
+#define DB_FETCH_QUERY           "query"
+#define DB_FETCH_COLUMNS         "columns"
 
 /* Required keys for command-fetch groups */
 #define COMMAND_FETCH_SCRIPT        "command"
@@ -162,6 +184,40 @@ typedef enum
 
 
 
+
+/* Blixem config/fetch error domain */
+#define BLX_CONFIG_ERROR g_quark_from_string("Blixem config")
+#define BLX_FETCH_ERROR g_quark_from_string("Blixem config")
+
+/* Error codes */
+typedef enum
+  {
+    BLX_CONFIG_ERROR_NO_GROUPS,             /* no groups in config file */
+    BLX_CONFIG_ERROR_INVALID_KEY_TYPE,      /* invalid key type given in config file */
+    BLX_CONFIG_ERROR_MISSING_KEY,           /* a required key is missing */
+    BLX_CONFIG_ERROR_INVALID_FETCH_MODE,    /* invalid fetch mode specified */
+    BLX_CONFIG_ERROR_INVALID_OUTPUT_FORMAT, /* invalid output format specified for fetch mode */
+    BLX_CONFIG_ERROR_WARNINGS,              /* warnings found while reading config file */
+    BLX_CONFIG_ERROR_SUBSTITUTION,          /* error with substitution string */
+    BLX_CONFIG_ERROR_INVALID_FETCH_METHOD,  /* null fetch method */
+    BLX_CONFIG_ERROR_NO_EXE,                /* fetch method executable does not exist */
+    BLX_CONFIG_ERROR_NULL_FETCH,            /* fetch method is null */
+    BLX_CONFIG_ERROR_NO_ARGS               /* mandatory args weren't specified */
+  } BlxConfigError;
+
+
+/* Error codes */
+typedef enum
+  {
+    BLX_FETCH_ERROR_SOCKET,                /* error creating socket */
+    BLX_FETCH_ERROR_HOST,                  /* unknown host */
+    BLX_FETCH_ERROR_CONNECT,               /* error connecting to host */
+    BLX_FETCH_ERROR_SEND,                  /* error sending to socket */
+    BLX_FETCH_ERROR_PATH                   /* executable not found in path */
+  } BlxFetchError;
+
+
+
 /* Function pointer to a function that performs a fetch of a particular sequence */
 typedef void(*FetchFunc)(const char *seqName, gpointer fetchMethod, const gboolean bulk, GtkWidget *blxWindow);
 
@@ -171,9 +227,10 @@ typedef enum
 {
   BLXFETCH_OUTPUT_INVALID,
   BLXFETCH_OUTPUT_RAW,      /* raw sequence data, separated by newlines */
-  BLXFETCH_OUTPUT_FASTA,
-  BLXFETCH_OUTPUT_EMBL,
-  BLXFETCH_OUTPUT_GFF,
+  BLXFETCH_OUTPUT_FASTA,    /* sequence data in FASTA format */
+  BLXFETCH_OUTPUT_EMBL,     /* the sequence's EMBL entry */
+  BLXFETCH_OUTPUT_LIST,     /* a list of named columns is returned */
+  BLXFETCH_OUTPUT_GFF,      /* a new gff for re-parsing is returned */
 
   BLXFETCH_NUM_OUTPUT_TYPES
 } BlxFetchOutputType;
@@ -185,11 +242,13 @@ typedef struct _BlxFetchMethod
   GQuark name;                      /* fetch method name */
   BlxFetchMode mode;                /* the type of fetch method */
   
-  char *location;                   /* e.g. url, script, command, etc. */
+  char *location;                   /* e.g. url, script, command, db location etc. */
   char *node;                       /* for socket fetch mode */
   int port;                         /* for socket and http/pipe fetch modes */
   char *cookie_jar;                 /* for http/pipe fetch mode */
-  char *args;                       /* arguments for standard (full) fetch call */
+  char *args;                       /* arguments/query/request */
+  GArray *columns;                  /* for db-fetch, the list of columns the query will populate */
+
   char *separator;                  /* separator when combining multiple sequence names into a list */
   GArray *errors;                   /* array of messages (as GQuarks) that indicate that an error occurred, e.g. "no match" */
   BlxFetchOutputType outputType;    /* the output format to expect from the fetch command */
@@ -278,12 +337,13 @@ typedef enum
     BLXFLAG_SHOW_POLYA_SIG,         /* Show polyA signals in the reference sequence */
     BLXFLAG_SHOW_POLYA_SIG_SELECTED,/* Only show polyA signals for the currently-selected sequence(s) */
     BLXFLAG_SHOW_SPLICE_SITES,      /* Highlights splice sites in the reference sequence for the currently-selected MSPs */
-    BLXFLAG_EMBL_DATA_LOADED,       /* Gets set to true if the full EMBL data is parsed and populated in the MSPs */
+    BLXFLAG_OPTIONAL_COLUMNS,       /* Gets set to true if the optional columns have been loaded */
     BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
     BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */
     BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
     BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
     BLXFLAG_ABBREV_TITLE,           /* whether to abbreviate the window titles to save space */
+    BLXFLAG_LINK_FEATURES,          /* whether featuers with the same name should be linked */
     
     BLXFLAG_NUM_FLAGS               /* Total number of flags e.g. for creating arrays and loops etc */
   } BlxFlag;
@@ -322,56 +382,6 @@ typedef enum
   } BlxOptsIdx ;
 
 
-
-/* COLUMNS: To add a new column you must do the following:
- *    - add an identifier for the column to the BlxColumnId enum;
- *    - add the type to the TREE_COLUMN_TYPE_LIST definition; and
- *    - specify the data source in addSequenceStructToRow and addMspToRow;
- *    - create the column in createColumns(...)
- * and optionally:
- *    - add a custom data function in createTreeColumn;
- *    - add a custom header widget and/or header refresh function in createTreeColHeader;
- *    - specify sort behaviour in sortColumnCompareFunc. */
-
-/* This enum declares identifiers for each column in the detail-view trees. If you add an enum
- * here you must also add its type to the TREE_COLUMN_TYPE_LIST definition below. */
-typedef enum
-  {
-    BLXCOL_SEQNAME,             /* The match sequence's name */
-    BLXCOL_SOURCE,              /* The match's source */
-    BLXCOL_ORGANISM,            
-    BLXCOL_GENE_NAME,            
-    BLXCOL_TISSUE_TYPE,            
-    BLXCOL_STRAIN,            
-    BLXCOL_GROUP,               /* The group that this alignment belongs to */
-    BLXCOL_SCORE,               /* The alignment's score */
-    BLXCOL_ID,                  /* The alignment's %ID */
-    BLXCOL_START,               /* The start coord of the alignment on the match sequence */
-    BLXCOL_SEQUENCE,            /* This column will display the part of the alignment currently in the display range. */
-    BLXCOL_END,                 /* The end coord of the alignment on the match sequence */
-    
-    BLXCOL_NUM_COLUMNS,         /* The number of columns; must always appear AFTER all valid tree column IDs */
-    BLXCOL_NONE                 /* Used for sorting to indicate that no sorting is required; not a valid column ID in the trees, so appears after NUM_COLUMNS */
-  } BlxColumnId;
-
-
-/* This defines the variable type for each detail-view-tree column. These MUST be the 
- * correct types (in the correct order) for the columns listed in the BlxColumnId enum above. */
-#define TREE_COLUMN_TYPE_LIST                     \
-    G_TYPE_STRING,              /* seq name */    \
-    G_TYPE_STRING,              /* source */      \
-    G_TYPE_STRING,              /* organism */    \
-    G_TYPE_STRING,              /* gene name */   \
-    G_TYPE_STRING,              /* tissue type */ \
-    G_TYPE_STRING,              /* strain */      \
-    G_TYPE_STRING,              /* group */       \
-    G_TYPE_DOUBLE,              /* score */       \
-    G_TYPE_DOUBLE,              /* id */          \
-    G_TYPE_INT,                 /* start */       \
-    G_TYPE_POINTER,             /* sequence */    \
-    G_TYPE_INT                  /* end */
-
-
 /* This enum contains IDs for all the persistent dialogs in the application, and should be used
  * to access a stored dialog in the dialogList array in the BlxViewContext. Note that the dialogList
  * array will contain null entries until the dialogs are created for the first time */
@@ -402,6 +412,7 @@ typedef struct _CommandLineOptions
   int startCoord;                 /* which coord to start the initial display range at */
   gboolean startCoordSet;         /* true if the start coord has been specified on the command line */
   MSP *mspList;                   /* the list of alignments */
+  GList *columnList;              /* the list of display columns */
   char **geneticCode;             /* the genetic code */
   
   BlxStrand activeStrand;         /* which strand will initially be the active one */
@@ -417,7 +428,7 @@ typedef struct _CommandLineOptions
   gboolean dotterFirst;           /* open dotter when blixem starts */
   gboolean startNextMatch;        /* start at the coord of the next match from the default start coord */
   gboolean squashMatches;         /* start with the 'squash matches' option on */
-  gboolean parseFullEmblInfo;     /* parse the full EMBL files on startup to populate additional info like tissue-type */
+  gboolean optionalColumns;       /* load data for optional columns on startup to populate additional info like tissue-type and strain */
   gboolean saveTempFiles;         /* save any temporary files that blixem creates */
   gboolean coverageOn;            /* show the coverage view on start-up */
   gboolean abbrevTitle;           /* if true, use a abbreviated window titles to save space */
@@ -430,6 +441,7 @@ typedef struct _CommandLineOptions
   GHashTable *fetchMethods;       /* table of fetch methods (keyed on name as a GQuark) */
   GArray *bulkFetchDefault;       /* the default method(s) for bulk fetching sequences (can be overridden by an MSPs data-type properties) */
   GArray *userFetchDefault;       /* the default method(s) for fetching individual sequences interactively */
+  GArray *optionalFetchDefault;   /* the default method(s) for bulk fetching optional sequence data */
   char *dataset;                  /* the name of a dataset, e.g. 'human' */
   BlxMessageData msgData;         /* data to be passed to the message handlers */
   gboolean mapCoords;             /* whether the map-coords command-line argument was specified */
@@ -457,10 +469,11 @@ typedef struct _BlxViewContext
 
     GArray *bulkFetchDefault;               /* The default method(s) of bulk fetching sequences (can be overridden by an MSPs data-type properties) */
     GArray *userFetchDefault;               /* The default method(s) for interactively fetching individual sequences */
+    GArray *optionalFetchDefault;           /* The default method(s) for bulk fetching optional sequence data */
     GHashTable *fetchMethods;               /* List of fetch methods, keyed on name as a GQuark */
 
     char* dataset;                          /* the name of a dataset, e.g. 'human' */
-    gboolean loadOptionalData;              /* parse the full EMBL files on startup to populate additional info like tissue-type */
+    gboolean optionalColumns;               /* load data for optional columns on startup to populate additional info like tissue-type */
     gboolean saveTempFiles;                 /* whether to save temporary files created to store results of file conversions */
 
     MSP *mspList;                           /* List of all MSPs. Obsolete - use featureLists array instead */
@@ -487,6 +500,8 @@ typedef struct _BlxViewContext
     
     GArray *defaultColors;                  /* Default colors used by Blixem */
     gboolean usePrintColors;                /* Whether to use print colors (i.e. black and white) */
+
+    GList *columnList;                      /* A list of details about all the columns in the detail view (might have been better to use an array here but it's a short list so not important) */
     
     gboolean flags[BLXFLAG_NUM_FLAGS];              /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
     GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
@@ -532,6 +547,14 @@ gboolean                            blxview(CommandLineOptions *options,
                                             char *align_types, 
                                             gboolean External) ;
 
+BlxColumnInfo*                     getColumnInfo(GList *columnList, const BlxColumnId columnId);
+int                                getColumnWidth(GList *columnList, const BlxColumnId columnId);
+const char*                        getColumnTitle(GList *columnList, const BlxColumnId columnId);
+void                               getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *xRange);
+void                               saveColumnWidths(GList *columnList, GKeyFile *key_file);
+gboolean                           showColumn(BlxColumnInfo *columnInfo);
+void                               resetColumnWidths(GList *columnList);
+
 void                               blviewRedraw(void);
 GtkWidget*                         getBlixemWindow(void);
 const IntRange*                    mspGetFullSRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
@@ -555,6 +578,8 @@ void                               drawAssemblyGaps(GtkWidget *widget,
                                                     const IntRange const *dnaRange,
                                                     const GArray *mspArray);
 
+GList*                             createColumns(const BlxSeqType seqType, const gboolean optionalColumns, const gboolean customSeqHeader);
+
 GSList*                            blxReadStylesFile(const char *keyFileName_in, GError **error);
 
 char*                              blxGetAppName();
@@ -576,9 +601,11 @@ char*                              readFastaSeq(FILE *seqfile, char *qname, int 
 BlxFetchMethod*                    getFetchMethodDetails(GQuark fetchMethodQuark, GHashTable *fetchMethods);
 GString*                           getFetchCommand(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq, const MSP* const msp, const char *refSeqName, const int refSeqOffset, const IntRange* const refSeqRange, const char *dataset, GError **error);
 GString*                           doGetFetchCommand(const BlxFetchMethod* const fetchMethod,MatchSequenceData *match_data, GError **error);
-void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer, char **result) ;
-void                               finaliseFetch(GList *seqList);
-void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GError **error);
+GString*                           getFetchArgs(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq,const MSP* const msp,const char *refSeqName,const int refSeqOffset,const IntRange* const refSeqRange,const char *dataset,GError **error);
+GString*                           getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, GError **error);
+void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer) ;
+void                               finaliseFetch(GList *seqList, GList *columnList);
+void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GList *columnList, GError **error);
 const char*                        outputTypeStr(const BlxFetchOutputType outputType);
 
 void                               fetchSeqsIndividually(GList *seqsToFetch, GtkWidget *blxWindow);
@@ -589,7 +616,7 @@ gboolean                           populateFullDataPfetch(GList *seqsToFetch, Bl
 void                               blxInitConfig(const char *config_file, CommandLineOptions *options, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 
-void                               loadNativeFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GError **error);
+void                               loadNativeFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GList *columnList, GError **error);
 void                               appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
 
 /* Create/destroy sequences and MSPs */
@@ -605,6 +632,7 @@ gboolean                           bulkFetchSequences(const int attempt,
                                                       const gboolean saveTempFiles,
                                                       const BlxSeqType seqType,
                                                       GList **seqList, /* list of BlxSequence structs for all required sequences */
+                                                      GList *columnList,
                                                       const GArray *defaultFetchMethods,
                                                       GHashTable *fetchMethods,
                                                       MSP **mspList,
@@ -615,7 +643,7 @@ gboolean                           bulkFetchSequences(const int attempt,
                                                       const int refSeqOffset,
                                                       const IntRange const *refSeqRange,
                                                       const char *dataset,
-                                                      const gboolean loadOptionalData
+                                                      const gboolean optionalColumns
                                                       );
 
 
@@ -626,6 +654,11 @@ extern int       PAM120[23][23];
 extern int       dotterGraph;
 extern float     fsPlotHeight;
 extern GtkWidget *blixemWindow;
+
+
+/* blxFetchDb.c */
+void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GList *columnList, GError **error);
+void sqliteFetchSequence(const BlxSequence* const blxSeq, const BlxFetchMethod* const fetchMethod,const gboolean displayResults, const int attempt,GtkWidget *blxWindow);
 
 
 #endif /*  !defined DEF_BLIXEM_P_H */
