@@ -1248,17 +1248,20 @@ void destroyBlxSequence(BlxSequence *seq)
 {
   if (seq)
     {
-      /* Free all column values */
-      int i = 0;      
-      for ( ; i < seq->values->len; ++i)
+      if (seq->values)
         {
-          GValue *value = &g_array_index(seq->values, GValue, i);
-          g_value_unset(value);
+          /* Free all column values */
+          int i = 0;      
+          for ( ; i < seq->values->len; ++i)
+            {
+              GValue *value = &g_array_index(seq->values, GValue, i);
+              g_value_unset(value);
+            }
         }
-      
+
       if (seq->idTag)
         g_free(seq->idTag);
-      
+          
       g_free(seq);
     }
 }
