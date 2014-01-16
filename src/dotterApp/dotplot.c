@@ -156,9 +156,9 @@ static void                       calculateDotplotBorders(GtkWidget *dotplot, Do
 static GdkColormap*               insertGreyRamp (DotplotProperties *properties);
 static void                       transformGreyRampImage(GdkImage *image, unsigned char *pixmap, DotplotProperties *properties);
 static void                       initPixmap(unsigned char **pixmap, const int width, const int height);
-static const char*                getShortMspName(const MSP const *msp);
+static const char*                getShortMspName(const MSP* const msp);
 static void                       calculateImageHsps(int strength, int sx, int sy, int ex, int ey, DotplotProperties *properties);
-static void                       getMspScreenCoords(const MSP const *msp, DotplotProperties *properties, int *sx, int *ex, int *sy, int *ey);
+static void                       getMspScreenCoords(const MSP* const msp, DotplotProperties *properties, int *sx, int *ex, int *sy, int *ey);
 static void                       setCoordsFromPos(GtkWidget *dotplot, const int x, const int y);
 static void                       getCoordsFromPos(GtkWidget *dotplot, const int x, const int y, int *refCoord, int *matchCoord);
 static void			  getPosFromSelectedCoords(GtkWidget *dotplot, int *x, int *y);
@@ -224,7 +224,7 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
                                                   const gboolean breaklinesOn,
                                                   const char *exportFileName)
 {
-  DotplotProperties *properties = g_malloc(sizeof *properties);
+  DotplotProperties *properties = (DotplotProperties*)g_malloc(sizeof *properties);
   
   properties->dotterWinCtx = dwc;
   properties->hozExons1 = NULL;
@@ -722,7 +722,7 @@ static int getImageDimension(DotplotProperties *properties, const gboolean horiz
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   
-  const IntRange const *seqRange = horizontal ? &dwc->refSeqRange : &dwc->matchSeqRange;
+  const IntRange* const seqRange = horizontal ? &dwc->refSeqRange : &dwc->matchSeqRange;
   const int seqLen = getRangeLength(seqRange);
   DEBUG_OUT("Sequence length = %d\n", seqLen);
   
@@ -1198,14 +1198,14 @@ static void createScoreVec(DotterWindowContext *dwc, const int vecLen, const int
 {
   DotterContext *dc = dwc->dotterCtx;
   
-  *scoreVecPtr = handleAlloc(handle, vecLen * sizeof(int*));
+  *scoreVecPtr = (gint32**)handleAlloc(handle, vecLen * sizeof(int*));
   gint32 **scoreVec = *scoreVecPtr;
 
   /* Allocate memory for each row in the score vector. Each row is the length of the ref sequence */
   int rowIdx = 0;
   for ( ; rowIdx < vecLen; ++rowIdx)
     {
-      scoreVec[rowIdx] = handleAlloc(handle, qlen * sizeof(gint32));
+      scoreVec[rowIdx] = (gint32*)handleAlloc(handle, qlen * sizeof(gint32));
     }
 
   if (dc->blastMode != BLXMODE_BLASTN)
@@ -1499,14 +1499,14 @@ static void calculateImage(DotplotProperties *properties)
   gint32 **scoreVec = NULL;
   createScoreVec(dwc, vecLen, pepQSeqLen, &handle, &scoreVec);
 
-  gint32 *sIndex = handleAlloc(&handle, slen * sizeof(gint32));
+  gint32 *sIndex = (gint32*)handleAlloc(&handle, slen * sizeof(gint32));
   populateMatchSeqBinaryVals(dwc, slen, getTranslationTable(dc->matchSeqType, BLXSTRAND_FORWARD), sIndex);
   
   /* Allocate some vectors for use in averaging the values for whole rows at a time. Initialise the
    * 'zero' array now but leave the sum arrays because these will be reset in doCalculateWindow. */
-  gint32 *zero = handleAlloc(&handle, pepQSeqLen * sizeof(gint32));
-  gint32 *sum1 = handleAlloc(&handle, pepQSeqLen * sizeof(gint32));
-  gint32 *sum2 = handleAlloc(&handle, pepQSeqLen * sizeof(gint32));
+  gint32 *zero = (gint32*)handleAlloc(&handle, pepQSeqLen * sizeof(gint32));
+  gint32 *sum1 = (gint32*)handleAlloc(&handle, pepQSeqLen * sizeof(gint32));
+  gint32 *sum2 = (gint32*)handleAlloc(&handle, pepQSeqLen * sizeof(gint32));
 
   int idx = 0;
   for (idx = 0; idx < pepQSeqLen; ++idx) 
@@ -2055,7 +2055,7 @@ static void createScaleLabels(GtkWidget *dotplot,
    * drawTickmarkLabels will take care of re-showing any that are
    * required later.) */
   i = scale->numMarks;
-  for ( ; i < scale->labels->len; ++i)
+  for ( ; i < (int)scale->labels->len; ++i)
     {
       GtkWidget *eventBox = GTK_WIDGET(g_array_index(scale->labels, GtkWidget*, i));
       gtk_widget_hide(eventBox);
@@ -2230,7 +2230,7 @@ void redrawDotplot(GtkWidget *dotplot)
   widgetClearCachedDrawable(properties->vertExons1, NULL);
   widgetClearCachedDrawable(properties->vertExons2, NULL);
 
-  callFuncOnAllChildWidgets(dotplot, widgetClearCachedDrawable);
+  callFuncOnAllChildWidgets(dotplot, (gpointer)widgetClearCachedDrawable);
 
   gtk_widget_queue_draw(dotplot);
 }
@@ -2322,7 +2322,7 @@ static void drawTickmarkLabel(GtkWidget *dotplot,
                               const int coordIn,
                               const int xIn,
                               const int yIn,
-                              const GdkRectangle const *rect,
+                              const GdkRectangle* const rect,
                               const gboolean horizontal)
 {
   int coord = getDisplayCoord(coordIn, dc, horizontal);
@@ -2359,7 +2359,7 @@ static void drawTickmarkLabel(GtkWidget *dotplot,
 static void drawScaleMarkers(GtkWidget *dotplot, 
                              GdkDrawable *drawable, 
                              GdkGC *gc, 
-                             const IntRange const *displayRange,
+                             const IntRange* const displayRange,
                              DotplotProperties *properties,
                              const gboolean horizontal)
 {
@@ -2402,7 +2402,7 @@ static void drawScaleMarkers(GtkWidget *dotplot,
       /* Draw a lable on major tick marks */
       if (isMajorTick)
         {
-          if (majorTickIdx < scale->labels->len)
+          if (majorTickIdx < (int)scale->labels->len)
             {
               GtkWidget *label = g_array_index(scale->labels, GtkWidget*, majorTickIdx);
               drawTickmarkLabel(dotplot, dc, drawable, label, coord, x1, y1, &properties->plotRect, horizontal);
@@ -2478,7 +2478,7 @@ static void drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable)
 
 
 /* Draw an individual breakline */
-static void drawBreakline(const MSP const *msp, GtkWidget *dotplot, DotplotProperties *properties, GdkDrawable *drawable, GdkGC *gc)
+static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotProperties *properties, GdkDrawable *drawable, GdkGC *gc)
 {
   g_assert(msp && msp->type == BLXMSP_FS_SEG);
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
@@ -2567,7 +2567,7 @@ static void drawBreaklines(GtkWidget *dotplot, GdkDrawable *drawable)
       gdk_gc_set_foreground(gc, color);
 
       /* Loop through all MSPs and draw any that are segment ends */
-      const MSP const *msp = dc->mspList;
+      const MSP* msp = dc->mspList;
     
       for ( ; msp; msp = msp->next)
 	{
@@ -2710,7 +2710,7 @@ static void drawImage(GtkWidget *dotplot, GdkDrawable *drawable)
 /* Utility to cut off anything before the ':' in an MSP name. Returns the full name if 
  * there is no colon. Returns a pointer into the original name, so the result should not 
  * be free'd */
-static const char* getShortMspName(const MSP const *msp)
+static const char* getShortMspName(const MSP* const msp)
 {
   const char *result = NULL;
   const char *sName = mspGetSName(msp);
@@ -2770,7 +2770,7 @@ static void calculateImageHsps(int strength, int sx, int sy, int ex, int ey, Dot
 
 
 /* Utility to get the screen coords for the start and end coords of the given MSP */
-static void getMspScreenCoords(const MSP const *msp, DotplotProperties *properties, int *sx, int *ex, int *sy, int *ey)
+static void getMspScreenCoords(const MSP* const msp, DotplotProperties *properties, int *sx, int *ex, int *sy, int *ey)
 {
   const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
 

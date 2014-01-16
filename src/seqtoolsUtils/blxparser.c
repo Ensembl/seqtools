@@ -136,7 +136,7 @@ enum Colour    {WHITE, BLACK, LIGHTGRAY, DARKGRAY,
 		BACKCOLOR	/* pseudocolor to force box->bcol after graphColor() */
                } ;
 
-static char *colorNames[NUM_TRUECOLORS] =
+static const char *colorNames[NUM_TRUECOLORS] =
   {
     "WHITE", 
     "BLACK", 
@@ -432,7 +432,7 @@ static char *concatenateFastaSeqs(FILE *seqfile, char *seqName, int *startCoord,
   GArray *resultArr = readFastaSeqsFromFile(seqfile, seqName, startCoord, endCoord, seqType);
   
   int i = 0;
-  for ( ; i < resultArr->len; ++i)
+  for ( ; i < (int)resultArr->len; ++i)
     {
       SeqStruct *curSeq = &g_array_index(resultArr, SeqStruct, i);
       
@@ -577,7 +577,7 @@ static char* prepSeq(const int sStart, char *inputSeq, BlxBlastMode blastMode)
     }
   else 
     {
-      result = g_malloc(sStart + strlen(inputSeq)+1);
+      result = (char*)g_malloc(sStart + strlen(inputSeq)+1);
       memset(result, SEQUENCE_CHAR_PAD,sStart); /* Fill up with dashes */
       strcpy(result + sStart - 1, inputSeq);
     }
@@ -750,7 +750,7 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
        * to do.... */
       if (strcspn(line, "acgt") != 0)
 	{
-	  sequence = g_malloc(line_string->len + 1) ;
+	  sequence = (char*)g_malloc(line_string->len + 1) ;
 	  
 	  if (sscanf(seq_pos, "%s", sequence) != 1)
 	    {
@@ -1114,7 +1114,7 @@ static gboolean parseGaps(char **text, MSP *msp, const gboolean hasGapsTag)
 	    case 0:
 	    {
 	      /* First value is start of subject sequence range. Create the range struct */
-              currentGap = g_malloc(sizeof(CoordRange));
+              currentGap = (CoordRange*)g_malloc(sizeof(CoordRange));
               msp->gaps = g_slist_append(msp->gaps, currentGap);
 	      currentGap->sStart = convertStringToInt(currentGapStr);
 	      break;
@@ -1230,14 +1230,14 @@ static char* parseSequence(char **text, MSP *msp, const BlxBlastMode blastMode)
       ++validLen;
     }
   
-  if (validLen < 1 || validLen < strlen(startPtr))
+  if (validLen < 1 || validLen < (int)strlen(startPtr))
     {
       g_error("Error parsing sequence data for MSP '%s'; sequence is only valid up to %d (out of length %d).\n",
 		mspGetSName(msp), origLen, validLen) ;
     }
   else
     {
-      result = g_malloc(validLen + 1) ;
+      result = (char*)g_malloc(validLen + 1) ;
 	  
       if (sscanf(startPtr, "%s", result) != 1)
 	{
@@ -1667,7 +1667,7 @@ static void parseFsXyHeader(char *line,
   
   for (i = 0; i < seqlen; i++)
     {
-      int *iPtr = g_malloc(sizeof(int));
+      int *iPtr = (int*)g_malloc(sizeof(int));
       *iPtr = XY_NOT_FILLED;
       g_array_append_val(msp->xy, *iPtr);
     }
@@ -1726,7 +1726,7 @@ static void parseFsSeqHeader(char *line,
     }
   
   *readSeqMaxLen = MAXLINE;
-  **readSeq = g_malloc(*readSeqMaxLen + 1);
+  **readSeq = (char*)g_malloc(*readSeqMaxLen + 1);
   *readSeqLen = 0;
   
   /* Update the parser state so that we proceed to parse the sequence data next */
@@ -1756,11 +1756,11 @@ static void parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *read
     }
   
   /* Also reealloc memory if necessary */
-  if (*readSeqLen + strlen(line) > *readSeqMaxLen) 
+  if (*readSeqLen + (int)strlen(line) > *readSeqMaxLen) 
     {
       char *tmp;
       *readSeqMaxLen += MAXLINE + strlen(line);
-      tmp = g_malloc(*readSeqMaxLen + 1);
+      tmp = (char*)g_malloc(*readSeqMaxLen + 1);
       strcpy(tmp, **readSeq);
       g_free(**readSeq);
       **readSeq = tmp;

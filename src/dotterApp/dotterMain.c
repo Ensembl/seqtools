@@ -258,7 +258,7 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const 
       msp = createEmptyMsp(&lastMsp, MSPlist);
     }
 
-  msp->qname = g_malloc(strlen(name)+1);
+  msp->qname = (char*)g_malloc(strlen(name)+1);
   strcpy(msp->qname, name);
 
   msp->desc = g_strdup(desc);
@@ -320,7 +320,7 @@ static char* getXOptions(char **argv, const int argc, const int idx)
   
   if (len > 0)
     {
-      result = g_malloc(len+1);
+      result = (char*)g_malloc(len+1);
       
       for (i = idx; i < argc; ++i) 
         {
@@ -422,7 +422,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
     };
 
-  char        *optstring="b:cDe:f:F:hHil:M:m:Np:q:Rrs:SvW:wz:";
+  const char  *optstring="b:cDe:f:F:hHil:M:m:Np:q:Rrs:SvW:wz:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -467,17 +467,17 @@ int main(int argc, char **argv)
           case 'f': options.FSfilename = g_strdup(optarg); break;
           case 'F': 
             options.seqInSFS = 1;        
-            options.FSfilename = g_malloc(strlen(optarg)+1);
+            options.FSfilename = (char*)g_malloc(strlen(optarg)+1);
             strcpy(options.FSfilename, optarg);            break;
 	  case 'h': 
             showHelp = TRUE;                               break;
           case 'H': options.hspsOnly = TRUE;               break;
           case 'i': options.install = 0;                   break;
           case 'l': 
-            options.loadfile = g_malloc(strlen(optarg)+1);
+            options.loadfile = (char*)g_malloc(strlen(optarg)+1);
             strcpy(options.loadfile, optarg);              break;
           case 'M': 
-            options.mtxfile = g_malloc(strlen(optarg)+1);
+            options.mtxfile = (char*)g_malloc(strlen(optarg)+1);
             strcpy(options.mtxfile, optarg);               break;
           case 'm': options.memoryLimit = atof(optarg);    break;
 	  case 'N': options.negateCoords = TRUE;           break;
@@ -490,7 +490,7 @@ int main(int argc, char **argv)
             options.selfcall = TRUE;                       break;
           case 'v': sStrand = BLXSTRAND_REVERSE;	   break;
           case 'W': 
-            options.winsize = g_malloc(strlen(optarg)+1);
+            options.winsize = (char*)g_malloc(strlen(optarg)+1);
             strcpy(options.winsize, optarg);               break;
           case 'w': options.watsonOnly = TRUE;             break;
           case 'z': options.dotterZoom = atoi(optarg);     break;
@@ -516,9 +516,9 @@ int main(int argc, char **argv)
   g_log_set_default_handler(defaultMessageHandler, &options.msgData);
 
   if (batchMode && !createWindow)
-    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, defaultMessageHandler, &options.msgData);
+    g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION), defaultMessageHandler, &options.msgData);
   else
-    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, &options.msgData);
+    g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION), popupMessageHandler, &options.msgData);
 
   if (showHelp)
     {
@@ -577,8 +577,8 @@ int main(int argc, char **argv)
       options.xOptions = getXOptions(argv, argc, optind + 5);
       
       /* Allocate memory for the sequences, now we know their lengths */
-      options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
-      options.sseq = g_malloc(sizeof(char) * (options.slen+1));
+      options.qseq = (char*)g_malloc(sizeof(char) * (options.qlen+1));
+      options.sseq = (char*)g_malloc(sizeof(char) * (options.slen+1));
 
       /* Read in the sequences from the piped input */
       DEBUG_OUT("Reading sequences from pipe...\n");
@@ -706,8 +706,8 @@ int main(int argc, char **argv)
         }
 
       /* Allocate memory for the sequences, now we know their lengths */
-      options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
-      options.sseq = g_malloc(sizeof(char) * (options.slen+1));
+      options.qseq = (char*)g_malloc(sizeof(char) * (options.qlen+1));
+      options.sseq = (char*)g_malloc(sizeof(char) * (options.slen+1));
 
       /* Read in the sequences */
       int l = 0, count = 0;
@@ -734,7 +734,7 @@ int main(int argc, char **argv)
               if (++l == 1) 
                 {
 
-                  options.qname = g_malloc(strlen(cq)+1); strNamecpy(options.qname, cq);
+                  options.qname = (char*)g_malloc(strlen(cq)+1); strNamecpy(options.qname, cq);
                   firstdesc = g_strdup(cq);
                 }
               else
@@ -750,7 +750,7 @@ int main(int argc, char **argv)
                       addBreakline (&MSPlist, qfilename, firstdesc, options.qoffset, 1);
                       
                       /* change sequence name to filename */
-                      options.qname = g_malloc(strlen(qfilename)+1); strcpy(options.qname, qfilename);
+                      options.qname = (char*)g_malloc(strlen(qfilename)+1); strcpy(options.qname, qfilename);
                     }
                   
                   addBreakline (&MSPlist, qfilename, cq, count + options.qoffset, 1);
@@ -793,7 +793,7 @@ int main(int argc, char **argv)
           if ((cq = (char *)strchr(line, '>'))) {
       	cq++;
       	if (++l == 1) {
-      	    options.sname = g_malloc(strlen(cq)+1); strNamecpy(options.sname, cq);
+          options.sname = (char*)g_malloc(strlen(cq)+1); strNamecpy(options.sname, cq);
       	    firstdesc = g_strdup(cq);
       	}
       	else {
@@ -806,7 +806,7 @@ int main(int argc, char **argv)
       	        addBreakline (&MSPlist, sfilename, firstdesc, options.soffset, 2);
       		
       		/* change sequence name to filename */
-      		options.sname = g_malloc(strlen(sfilename)+1); strcpy(options.sname, sfilename);
+      		options.sname = (char*)g_malloc(strlen(sfilename)+1); strcpy(options.sname, sfilename);
       	    }
       	    addBreakline (&MSPlist, sfilename, cq, count + options.soffset, 2);
       	}
@@ -850,7 +850,7 @@ int main(int argc, char **argv)
         }
       
       GSList *supportedTypes = blxCreateSupportedGffTypeList();
-      GList *columnList = NULL;
+      GList *columnList = dotterCreateColumns();
       GError *error = NULL;
 
       parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, columnList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL, &error);

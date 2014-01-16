@@ -557,11 +557,11 @@ void                               resetColumnWidths(GList *columnList);
 
 void                               blviewRedraw(void);
 GtkWidget*                         getBlixemWindow(void);
-const IntRange*                    mspGetFullSRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
-const IntRange*                    mspGetDisplayRange(const MSP const *msp);
-const IntRange*                    mspGetFullDisplayRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
-void                               mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int numUnalignedBases);
-void                               cacheMspDisplayRanges(const BlxViewContext const *bc, const int numUnalignedBases);
+const IntRange*                    mspGetFullSRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc);
+const IntRange*                    mspGetDisplayRange(const MSP* const msp);
+const IntRange*                    mspGetFullDisplayRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc);
+void                               mspCalculateFullExtents(MSP *msp, const BlxViewContext* const bc, const int numUnalignedBases);
+void                               cacheMspDisplayRanges(const BlxViewContext* const bc, const int numUnalignedBases);
 
 int                                mspGetMatchCoord(const MSP *msp, 
                                                     const int qIdx, 
@@ -575,20 +575,20 @@ void                               drawAssemblyGaps(GtkWidget *widget,
                                                     GdkColor *color,
                                                     const gboolean displayRev,
                                                     GdkRectangle *rect, 
-                                                    const IntRange const *dnaRange,
+                                                    const IntRange* const dnaRange,
                                                     const GArray *mspArray);
 
-GList*                             createColumns(const BlxSeqType seqType, const gboolean optionalColumns, const gboolean customSeqHeader);
+GList*                             blxCreateColumns(const gboolean optionalColumns, const gboolean customSeqHeader);
 
 GSList*                            blxReadStylesFile(const char *keyFileName_in, GError **error);
 
-char*                              blxGetAppName();
+const char*                        blxGetAppName();
 const char*                        blxGetTitlePrefix(const BlxViewContext* const bc);
-char*                              blxGetCopyrightString();
-char*                              blxGetWebSiteString();
-char*                              blxGetCommentsString();
-char*                              blxGetLicenseString();
-char*                              blxGetVersionString();        
+const char*                        blxGetCopyrightString();
+const char*                        blxGetWebSiteString();
+const char*                        blxGetCommentsString();
+const char*                        blxGetLicenseString();
+const char*                        blxGetVersionString();        
 
 /* dotter.c */
 //void                               selectFeatures(void);
@@ -641,7 +641,7 @@ gboolean                           bulkFetchSequences(const int attempt,
                                                       GSList *supportedTypes, 
                                                       GSList *styles,
                                                       const int refSeqOffset,
-                                                      const IntRange const *refSeqRange,
+                                                      const IntRange* const refSeqRange,
                                                       const char *dataset,
                                                       const gboolean optionalColumns
                                                       );

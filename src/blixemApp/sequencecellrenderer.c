@@ -67,7 +67,7 @@ typedef struct _RenderData
     const int cellYPadding;
     const gdouble charWidth;
     const gdouble charHeight;
-    const IntRange const *displayRange;
+    const IntRange* const displayRange;
     const gboolean highlightDiffs;
     GdkDrawable *drawable;
     GtkWidget *blxWindow;
@@ -126,12 +126,12 @@ void		drawVisibleExonBoundaries(GtkWidget *tree, RenderData *data);
 
 static void drawSequenceText(GtkWidget *tree,
 			     gchar *displayText, 
-			     const IntRange const *segmentRange,
+			     const IntRange* const segmentRange,
 			     RenderData *data);
 
 
 static void getCoordsForBaseIdx(const int segmentIdx, 
-				const IntRange const *segmentRange,
+				const IntRange* const segmentRange,
 				RenderData *data,
 				int *x, 
 				int* y);
@@ -146,12 +146,12 @@ static void     sequence_cell_renderer_get_size   (GtkCellRenderer            *c
                                                           gint                       *width,
                                                           gint                       *height);
 static void     sequence_cell_renderer_render     (GtkCellRenderer            *cell,
-                                                          GdkWindow                  *window,
+                                                          GdkDrawable                *window,
                                                           GtkWidget                  *tree,
                                                           GdkRectangle               *background_area,
                                                           GdkRectangle               *cell_area,
                                                           GdkRectangle               *expose_area,
-                                                          guint                       flags);
+                                                          GtkCellRendererState       flags);
 static void sequence_cell_renderer_get_property (GObject      *object,
 					 guint         param_id,
 					 GValue	      *value,
@@ -296,7 +296,8 @@ sequence_cell_renderer_get_type (void)
       cell_sequence_type = g_type_register_static (GTK_TYPE_CELL_RENDERER,
 						   "SequenceCellRenderer",
 						   &cell_sequence_info,
-						   0);
+						   G_TYPE_FLAG_ABSTRACT); /* gb10: not sure what
+                                                                             the flag should be */
     }
   
   return cell_sequence_type;
@@ -405,7 +406,7 @@ sequence_cell_renderer_finalize (GObject *object)
 GtkCellRenderer *
 sequence_cell_renderer_new (void)
 {
-  return g_object_new(SEQUENCE_CELL_RENDERER_TYPE, NULL);
+  return (GtkCellRenderer*)g_object_new(SEQUENCE_CELL_RENDERER_TYPE, NULL);
 }
 
 
@@ -565,7 +566,7 @@ static void highlightSelectedBase(const int selectedBaseIdx,
 
 
 /* Utility to get the exon color based on whether it is CDS/UTR and whether it is selected */
-static GdkColor* getExonFillColor(const MSP const *msp, const gboolean isSelected, RenderData *data)
+static GdkColor* getExonFillColor(const MSP* const msp, const gboolean isSelected, RenderData *data)
 {
   GdkColor *result = NULL;
 
@@ -589,7 +590,7 @@ static GdkColor* getExonFillColor(const MSP const *msp, const gboolean isSelecte
 /* Returns true if the min coord (or max coord, if 'start' is false) is a
  * partial codon, i.e. if it does not start at base 1 (if start) or end at
  * base 3 (if end)... or vice versa if the display is reversed */
-static gboolean isPartialCodon(const MSP const *msp, const gboolean start, RenderData *data, int *displayIdxOut)
+static gboolean isPartialCodon(const MSP* const msp, const gboolean start, RenderData *data, int *displayIdxOut)
 {
   /* To be a complete codon, if we're at the start the the coord must be base 1 
    * or if we're at the end then coord must be base 3 */
@@ -615,7 +616,7 @@ static gboolean isPartialCodon(const MSP const *msp, const gboolean start, Rende
 /* Highlight the start (min) peptide of the given msp if it is a partial codon, i.e. if it
  * does not start at base 1 (or end at base 3, if the display is reversed). OR highlight the end
  * (max) codon if 'start' is FALSE. The x/y coords give the top left corner of the peptide. */
-static void highlightPartialCodons(const MSP const *msp, 
+static void highlightPartialCodons(const MSP* const msp, 
 				   const gboolean start, 
 				   const int x, 
 				   const int y, 
@@ -693,7 +694,7 @@ static char getMatchSeqBase(BlxSequence *blxSeq, const int sIdx, const BlxSeqTyp
   
   const char *sequence = blxSequenceGetSequence(blxSeq);
   
-  if (sequence && sIdx <= strlen(sequence))
+  if (sequence && sIdx <= (int)strlen(sequence))
     {
       result = sequence[sIdx - 1];
       result = convertBaseToCorrectCase(result, seqType);
@@ -709,7 +710,7 @@ static char getMatchSeqBase(BlxSequence *blxSeq, const int sIdx, const BlxSeqTyp
  * UNSET_INT if there is none. */
 static void drawBase(MSP *msp,
 		     const int segmentIdx, 
-		     const IntRange const *segmentRange,
+		     const IntRange* const segmentRange,
 		     char *refSeqSegment, 
 		     RenderData *data,
 		     const int x,
@@ -819,7 +820,7 @@ static PangoLayout* getLayoutFromText(gchar *displayText, GtkWidget *tree, Pango
  * with the given index in the segment, where the segment starts at the given 
  * index in the display. */
 static void getCoordsForBaseIdx(const int segmentIdx, 
-				const IntRange const *segmentRange,
+				const IntRange* const segmentRange,
 				RenderData *data,
 				int *x, 
 				int* y)
@@ -843,7 +844,7 @@ static gboolean drawExonBoundary(const MSP *msp, RenderData *rd)
   if (msp && msp->type == BLXMSP_EXON)
     {
       /* Get the msp's start/end in terms of the display coords */
-      const IntRange const *mspRange = mspGetDisplayRange(msp);
+      const IntRange* const mspRange = mspGetDisplayRange(msp);
       
       if (valueWithinRange(mspRange->min, rd->displayRange))
 	{
@@ -939,7 +940,7 @@ static void drawInsertionMarker(int sIdx,
 
 static void drawSequenceText(GtkWidget *tree,
 			     gchar *displayText, 
-			     const IntRange const *segmentRange,
+			     const IntRange* const segmentRange,
 			     RenderData *data)
 {
   if (g_utf8_validate(displayText, -1, NULL))
@@ -1003,10 +1004,10 @@ static gboolean getVisibleMspRange(MSP *msp, RenderData *data, IntRange *result)
 /* If the current MSP has been clipped (i.e. extends outside the current reference
  * sequence range) then draw a marker at the clip point so that the user knows there
  * is more data for the match that isn't shown. */
-static void drawClippedMarker(const MSP const *msp,
+static void drawClippedMarker(const MSP* const msp,
 			      const int qIdx, 
 			      const int segmentIdx, 
-			      const IntRange const *segmentRange,
+			      const IntRange* const segmentRange,
 			      const int x, 
 			      const int y, 
 			      RenderData *data)
@@ -1281,7 +1282,7 @@ static void drawMsps(SequenceCellRenderer *renderer,
 
 
 
-static GtkStateType getState(GtkWidget *widget, guint flags)
+static GtkStateType getState(GtkWidget *widget, GtkCellRendererState flags)
 {
   GtkStateType state;
   if ((flags & GTK_CELL_RENDERER_SELECTED) == GTK_CELL_RENDERER_SELECTED)
@@ -1307,14 +1308,14 @@ static GtkStateType getState(GtkWidget *widget, guint flags)
 
 /* Utility function that returns true if any of the MSPs in the given list
  * is selected. */
-static gboolean listContainsSelectedMsp(GList *mspList, const BlxViewContext const *bc)
+static gboolean listContainsSelectedMsp(GList *mspList, const BlxViewContext* const bc)
 {
   gboolean isSelected = FALSE;
   GList *mspItem = mspList;
   
   for ( ; mspItem && !isSelected; mspItem = mspItem->next)
     {
-      const MSP const *msp = (const MSP const *)(mspItem->data);
+      const MSP* const msp = (const MSP*)(mspItem->data);
       isSelected = blxContextIsSeqSelected(bc, msp->sSequence);
     }
   
@@ -1326,14 +1327,14 @@ static gboolean listContainsSelectedMsp(GList *mspList, const BlxViewContext con
  * to return that group.  Returns the first group found and ignores any 
  * subsequent MSPs in the list that also have groups. Returns null if no group
  * was found. */
-static SequenceGroup* listContainsGroupedMsp(GList *mspList, const BlxViewContext const *bc)
+static SequenceGroup* listContainsGroupedMsp(GList *mspList, const BlxViewContext* const bc)
 {
   SequenceGroup *group = NULL;
   GList *mspItem = mspList;
   
   for ( ; mspItem && !group; mspItem = mspItem->next)
     {
-      const MSP const *msp = (const MSP const *)(mspItem->data);
+      const MSP* const msp = (const MSP*)(mspItem->data);
       group = blxContextGetSequenceGroup(bc, msp->sSequence);
     }
   
@@ -1351,11 +1352,11 @@ static void setBackgroundColor(GtkCellRenderer *cell, GtkWidget *tree, GdkWindow
     {
       /* Find out whether the MSP(s) that this cell is displaying are in 
        * a grouped sequence or are selected. */
-      const BlxViewContext const *bc = blxWindowGetContext(treeGetBlxWindow(tree));
+      const BlxViewContext* const bc = blxWindowGetContext(treeGetBlxWindow(tree));
       GList *mspList = renderer->data;
       
       const gboolean isSelected = listContainsSelectedMsp(mspList, bc);
-      const SequenceGroup const *group = listContainsGroupedMsp(mspList, bc);
+      const SequenceGroup* const group = listContainsGroupedMsp(mspList, bc);
       
       GdkGC *gc = gdk_gc_new(window);
 
@@ -1454,12 +1455,12 @@ sequence_cell_renderer_get_size (GtkCellRenderer *cell,
 
 static void
 sequence_cell_renderer_render (GtkCellRenderer *cell,
-			       GdkWindow       *window,
+			       GdkDrawable     *window,
 			       GtkWidget       *tree,
 			       GdkRectangle    *background_area,
 			       GdkRectangle    *cell_area,
 			       GdkRectangle    *expose_area,
-			       guint            flags)
+			       GtkCellRendererState flags)
 {
   setBackgroundColor(cell, tree, window, background_area);
   

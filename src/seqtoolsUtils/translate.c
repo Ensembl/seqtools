@@ -197,7 +197,7 @@ void blxComplement(char *seq)
     return ;
 
   fwdp = seq;
-  for (pos = 0; pos < strlen(seq); pos++)
+  for (pos = 0; pos < (int)strlen(seq); pos++)
     {
       *fwdp = complementChar(*fwdp, NULL);
       fwdp++;

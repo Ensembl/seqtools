@@ -285,7 +285,7 @@ static const char developerMenuDescription[] =
 /* Return true if the current user is in our list of developers. */
 static gboolean userIsDeveloper()
 {
-  gchar* developers[] = {"edgrif", "gb10"};
+  const gchar* developers[] = {"edgrif", "gb10"};
 
   gboolean result = FALSE;
   const gchar *user = g_get_user_name();
@@ -383,7 +383,7 @@ static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, con
   else
     {
       const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
-      const IntRange const *fullRange = blxWindowGetFullRange(blxWindow);
+      const IntRange* const fullRange = blxWindowGetFullRange(blxWindow);
 
       if (moveLeft)
         setDetailViewStartIdx(detailView, fullRange->min, seqType);
@@ -602,7 +602,7 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(window),
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_CANCEL,
                                                   GTK_RESPONSE_REJECT,
                                                   GTK_STOCK_OK,
@@ -629,12 +629,12 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
 
   gtk_table_attach(table, label, 0, 2, 0, 1, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   gtk_table_attach(table, gtk_label_new("Source"), 0, 1, 1, 2, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
-  gtk_table_attach(table, sourceEntry, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, sourceEntry, 1, 2, 1, 2, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   gtk_table_attach(table, label2, 0, 2, 2, 3, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   gtk_table_attach(table, gtk_label_new("Start"), 0, 1, 3, 4, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
-  gtk_table_attach(table, startEntry, 1, 2, 3, 4, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, startEntry, 1, 2, 3, 4, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   gtk_table_attach(table, gtk_label_new("End"), 0, 1, 4, 5, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
-  gtk_table_attach(table, endEntry, 1, 2, 4, 5, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, endEntry, 1, 2, 4, 5, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
 
   gtk_widget_show_all(dialog);
   gint response = gtk_dialog_run(GTK_DIALOG(dialog));
@@ -1527,7 +1527,7 @@ static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginni
       else
         {
           /* The start display coord is the min coord if we're searching left and the max if searching right. */
-          const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+          const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
           result = searchLeft ? displayRange->max : displayRange->min;
         }
 
@@ -1602,7 +1602,7 @@ static gboolean onFindDnaString(GtkWidget *button, const gint responseId, gpoint
 static void createSearchColumnCombo(GtkTable *table, const int col, const int row, GtkWidget *blxWindow)
 {
   GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
-  gtk_table_attach(table, hbox, col, col + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, hbox, col, col + 1, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
@@ -1906,7 +1906,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Create the new group */
-  SequenceGroup *group = g_malloc(sizeof(SequenceGroup));
+  SequenceGroup *group = (SequenceGroup*)g_malloc(sizeof(SequenceGroup));
   
   group->seqList = seqList;
   group->ownsSeqNames = ownSeqNames;
@@ -1934,7 +1934,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
       /* Create a default name based on the unique ID */
       char formatStr[] = "Group%d";
       const int nameLen = strlen(formatStr) + numDigitsInInt(group->groupId);
-      group->groupName = g_malloc(nameLen * sizeof(*group->groupName));
+      group->groupName = (char*)g_malloc(nameLen * sizeof(*group->groupName));
       sprintf(group->groupName, formatStr, group->groupId);
     }
   
@@ -2122,7 +2122,7 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
       g_signal_connect(G_OBJECT(deleteButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroup), group);
       
       /* Put everything in the table */
-      gtk_table_attach(table, nameWidget,               1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, nameWidget,               1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
       gtk_table_attach(table, isHiddenWidget,   2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
       gtk_table_attach(table, isHighlightedWidget,      3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
       gtk_table_attach(table, orderWidget,              4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
@@ -2134,7 +2134,7 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
 
 /* Like blxSequenceGetColumn but also supports the group column (which
  * needs the context for its data) */
-static const char* blxSequenceGetColumnData(const BlxSequence const *blxSeq, 
+static const char* blxSequenceGetColumnData(const BlxSequence* const blxSeq, 
                                             const BlxColumnId columnId,
                                             const BlxViewContext *bc)
 {
@@ -2693,7 +2693,7 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWi
   ++row;
   
   /* Add labels for each column in the table */
-  gtk_table_attach(table, gtk_label_new("Group name"),    1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Group name"),    1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, gtk_label_new("Hide"),          2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, gtk_label_new("Highlight"),     3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, gtk_label_new("Order"),         4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
@@ -2713,7 +2713,7 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWi
   gtk_button_set_image(GTK_BUTTON(deleteGroupsButton), gtk_image_new_from_stock(GTK_STOCK_DELETE, GTK_ICON_SIZE_BUTTON));
   gtk_widget_set_size_request(deleteGroupsButton, -1, 30);
   g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
-  gtk_table_attach(table, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
 }
 
 
@@ -2819,7 +2819,7 @@ static gboolean setFlagFromButton(GtkWidget *button, gpointer data)
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  BlxFlag flag = GPOINTER_TO_INT(data);
+  BlxFlag flag = (BlxFlag)GPOINTER_TO_INT(data);
   const gboolean newValue = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   
   bc->flags[flag] = newValue;
@@ -3220,7 +3220,7 @@ static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
 
   /* Arrange the widgets horizontally */
   GtkWidget *hbox = createHBoxWithBorder(frame, 12, FALSE, NULL);
-  const DoubleRange const *percentIdRange = bigPictureGetPercentIdRange(bigPicture);
+  const DoubleRange* const percentIdRange = bigPictureGetPercentIdRange(bigPicture);
   
   createTextEntry(hbox, "%ID per cell", bigPictureGetIdPerCell(bigPicture), onIdPerCellChanged, bigPicture);
   createTextEntry(hbox, "Max %ID", percentIdRange->max, onMaxPercentIdChanged, bigPicture);
@@ -3327,7 +3327,7 @@ static void createColorButtons(GtkWidget *parent, GtkWidget *blxWindow, const in
     
       BlxColor *blxCol = getBlxColor(bc->defaultColors, colorId);
       GtkWidget *label = gtk_label_new(blxCol->name);
-      gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, label, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
 
       /* Special callback for the background color */
       BlxResponseCallback callbackFunc = (colorId == BLXCOLOR_BACKGROUND) ? onChangeBackgroundColor : onChangeBlxColor;
@@ -3857,7 +3857,7 @@ static BlxColumnId getColumnFromComboBox(GtkComboBox *combo)
           GValue val = {0};
           gtk_tree_model_get_value(model, &iter, SORT_TYPE_COL, &val);
           
-          result = g_value_get_int(&val);
+          result = (BlxColumnId)g_value_get_int(&val);
         }
     }
   
@@ -4985,7 +4985,7 @@ static void destroyBlxContext(BlxViewContext **bcPtr)
       /* Free the color array */
       if (bc->defaultColors)
         {
-          BlxColorId i = BLXCOLOR_MIN + 1;
+          int i = BLXCOLOR_MIN + 1;
           for (; i < BLXCOL_NUM_COLORS; ++i)
             {
               BlxColor *blxColor = &g_array_index(bc->defaultColors, BlxColor, i);
@@ -5048,11 +5048,11 @@ static const char* getFlagName(const BlxFlag flag)
 static void saveBlixemSettingsFlags(BlxViewContext *bc, GKeyFile *key_file)
 {
   /* loop through each (save-able) setting */
-  BlxFlag flag = BLXFLAG_MIN + 1;
+  int flag = BLXFLAG_MIN + 1;
   
   for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
     {
-      const char *flagName = getFlagName(flag);
+      const char *flagName = getFlagName((BlxFlag)flag);
 
       if (flagName)
         g_key_file_set_integer(key_file, SETTINGS_GROUP, flagName, bc->flags[flag]);
@@ -5136,7 +5136,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   
   for ( ; i < BLXCOL_NUM_COLORS; ++i)
     {
-      BlxColor *blxColor = g_malloc(sizeof(BlxColor));
+      BlxColor *blxColor = (BlxColor*)g_malloc(sizeof(BlxColor));
       blxColor->name = NULL;
       blxColor->desc = NULL;
       g_array_append_val(bc->defaultColors, *blxColor);
@@ -5219,7 +5219,7 @@ static void calculateDepth(BlxViewContext *bc)
   if (displayLen < 1)
     return; 
   
-  bc->depthArray = g_malloc(sizeof(int) * displayLen);
+  bc->depthArray = (int*)g_malloc(sizeof(int) * displayLen);
   
   /* Initialise each entry to zero */  
   int i = 0;
@@ -5234,7 +5234,7 @@ static void calculateDepth(BlxViewContext *bc)
   for ( ; mspType < BLXMSP_NUM_TYPES; ++mspType)
     {
       /* Only include MSPs of relevant types */
-      if (!includeTypeInCoverage(mspType))
+      if (!includeTypeInCoverage((BlxMspType)mspType))
         continue;
       
       /* Loop through all MSPs in this list */
@@ -5325,11 +5325,11 @@ static void loadBlixemSettings(BlxViewContext *blxContext)
     }
 
   /* loop through all the flags and see if any of them are given */
-  BlxFlag flag = BLXFLAG_MIN + 1;
+  int flag = BLXFLAG_MIN + 1;
   
   for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
     {
-      const char *flagName = getFlagName(flag);
+      const char *flagName = getFlagName((BlxFlag)flag);
       
       if (flagName)
         {
@@ -5351,8 +5351,8 @@ static void loadBlixemSettings(BlxViewContext *blxContext)
 
 
 static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
-                                              const IntRange const *refSeqRange,
-                                              const IntRange const *fullDisplayRange,
+                                              const IntRange* const refSeqRange,
+                                              const IntRange* const fullDisplayRange,
                                               const char *paddingSeq,
                                               GArray* featureLists[],
                                               GList *seqList,
@@ -5361,7 +5361,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
                                               GtkWidget *statusBar,
                                               const gboolean External)
 {
-  BlxViewContext *blxContext = g_malloc(sizeof *blxContext);
+  BlxViewContext *blxContext = (BlxViewContext*)g_malloc(sizeof *blxContext);
   
   blxContext->statusBar = statusBar;
   
@@ -5447,13 +5447,13 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
                                       GtkWidget *detailView,
                                       GtkWidget *mainmenu,
                                       GtkActionGroup *actionGroup,
-                                      const IntRange const *refSeqRange,
-                                      const IntRange const *fullDisplayRange,
+                                      const IntRange* const refSeqRange,
+                                      const IntRange* const fullDisplayRange,
                                       const char *paddingSeq)
 {
   if (widget)
     {
-      BlxWindowProperties *properties = g_malloc(sizeof *properties);
+      BlxWindowProperties *properties = (BlxWindowProperties*)g_malloc(sizeof *properties);
       
       properties->blxContext = blxContext;
 
@@ -5508,7 +5508,7 @@ GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
 BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->blastMode : 0;
+  return blxContext ? blxContext->blastMode : (BlxBlastMode)0;
 }
 
 char * blxWindowGetRefSeq(GtkWidget *blxWindow)
@@ -5544,7 +5544,7 @@ GList* blxWindowGetAllMatchSeqs(GtkWidget *blxWindow)
 BlxSeqType blxWindowGetSeqType(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->seqType : FALSE;
+  return blxContext ? blxContext->seqType : BLXSEQ_INVALID;
 }
 
 IntRange* blxWindowGetFullRange(GtkWidget *blxWindow)
@@ -5926,7 +5926,7 @@ void blxWindowDeselectAllSeqs(GtkWidget *blxWindow)
 }
 
 
-gboolean blxContextIsSeqSelected(const BlxViewContext const *bc, const BlxSequence *seq)
+gboolean blxContextIsSeqSelected(const BlxViewContext* const bc, const BlxSequence *seq)
 {
   GList *foundItem = NULL;
   

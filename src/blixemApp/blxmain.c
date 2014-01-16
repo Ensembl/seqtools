@@ -480,7 +480,7 @@ int main(int argc, char **argv)
    * g_warning, g_debug etc. Note that g_error is always fatal.
    */
   g_log_set_default_handler(defaultMessageHandler, &options.msgData);
-  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
+  g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION), 
                     popupMessageHandler, &options.msgData);
 
   /* Get the list of supported GFF types, in case we need to print them out in the usage text */
@@ -525,7 +525,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
    };
 
-  char        *optstring="a:c:him:no:rs:t:x:y:z:";
+  const char  *optstring="a:c:him:no:rs:t:x:y:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -542,7 +542,7 @@ int main(int argc, char **argv)
               }
             else if (stringsEqual(long_options[optionIndex].name, "fetch-server", TRUE))
               {
-                pfetch = g_malloc(sizeof(PfetchParams)) ;
+                pfetch = (PfetchParams*)g_malloc(sizeof(PfetchParams)) ;
                 pfetch->net_id = strtok(optarg, ":") ;
                 pfetch->port = atoi(strtok(NULL, ":")) ;
               }                
@@ -726,7 +726,7 @@ int main(int argc, char **argv)
   char dummyseqname[FULLNAMESIZE+1] = "";
 
   /* Create the columns */
-  options.columnList = createColumns(options.seqType, options.optionalColumns, (options.seqType == BLXSEQ_PEPTIDE));
+  options.columnList = blxCreateColumns(options.optionalColumns, (options.seqType == BLXSEQ_PEPTIDE));
 
   /* Pass the config file to parseFS */
   GKeyFile *inputConfigFile = blxGetConfig();

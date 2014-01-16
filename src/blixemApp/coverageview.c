@@ -99,7 +99,7 @@ static void coverageViewCreateProperties(GtkWidget *widget,
 {
   if (widget)
     { 
-      CoverageViewProperties *properties = g_malloc(sizeof *properties);
+      CoverageViewProperties *properties = (CoverageViewProperties*)g_malloc(sizeof *properties);
       
       properties->blxWindow = blxWindow;
       properties->viewYPadding = DEFAULT_COVERAGE_VIEW_Y_PADDING;
@@ -285,7 +285,7 @@ static void drawCoveragePlot(GtkWidget *coverageView, GdkDrawable *drawable)
   const int bottomBorder = properties->viewRect.y + properties->viewRect.height;
   
   /* Loop through each coord in the display range */
-  const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
+  const IntRange* const displayRange = bigPictureGetDisplayRange(bigPicture);
   
   double startX = -1.0;
   double prevX = -1.0;

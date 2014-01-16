@@ -314,7 +314,7 @@ GdkDrawable*          createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *win
 gboolean              clickedInRect(GdkEventButton *event, GdkRectangle *rect, const int minWidth);
 
 BlxSeqType            determineSeqType(char *seq, GError **error);
-void                  argvAdd(int *argc, char ***argv, char *s);
+void                  argvAdd(int *argc, char ***argv, const char *s);
 char*                 getSystemErrorText();
 gpointer              handleAlloc(BlxHandle *handle, size_t numBytes);
 BlxHandle             handleCreate();
@@ -324,10 +324,10 @@ BlxStyle*             getBlxStyle(const char *styleName, GSList *styles, GError 
 void                  sortValues(int *val1, int *val2, gboolean forwards);
 int                   numDigitsInInt(int val);
 gboolean              getColorFromString(const char *colorStr, GdkColor *color, GError **error);
-void                  getSelectionColor(const GdkColor const *origColor, GdkColor *result);
-void                  getDropShadowColor(const GdkColor const *origColor, GdkColor *result);
-void                  convertToGrayscale(const GdkColor const *origColor, GdkColor *result);
-void                  adjustColorBrightness(const GdkColor const *origColor, const double factor, GdkColor *result);
+void                  getSelectionColor(const GdkColor* const origColor, GdkColor *result);
+void                  getDropShadowColor(const GdkColor* const origColor, GdkColor *result);
+void                  convertToGrayscale(const GdkColor* const origColor, GdkColor *result);
+void                  adjustColorBrightness(const GdkColor* const origColor, const double factor, GdkColor *result);
 
 void                  getCoordRangeExtents(CoordRange *range, int *qRangeMin, int *qRangeMax, int *sRangeMin, int *sRangeMax);
 
@@ -335,23 +335,23 @@ gboolean              isDelimiter(const char c);
 char*                 removeDelimiters(char *text);
 GArray*               keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GError **error);
 
-int                   getRangeLength(const IntRange const *range);
-int                   getRangeCentre(const IntRange const *range);
+int                   getRangeLength(const IntRange* const range);
+int                   getRangeCentre(const IntRange* const range);
 void                  centreRangeOnCoord(IntRange *range, const int coord, const int length);
-gboolean              valueWithinRange(const int value, const IntRange const *range);
-gboolean              rangesOverlap(const IntRange const *range1, const IntRange const *range2);
-gboolean              rangesAdjacent(const IntRange const *range1, const IntRange const *range2);
-gboolean              rangesEqual(const IntRange const *range1, const IntRange const *range2);
-void                  boundsLimitValue(int *value, const IntRange const *range);
-void                  boundsLimitRange(IntRange *range, const IntRange const *limit, const gboolean maintainLen);
-gboolean              pointInRect(const int x, const int y, const GdkRectangle const *rect);
+gboolean              valueWithinRange(const int value, const IntRange* const range);
+gboolean              rangesOverlap(const IntRange* const range1, const IntRange* const range2);
+gboolean              rangesAdjacent(const IntRange* const range1, const IntRange* const range2);
+gboolean              rangesEqual(const IntRange* const range1, const IntRange* const range2);
+void                  boundsLimitValue(int *value, const IntRange* const range);
+void                  boundsLimitRange(IntRange *range, const IntRange* const limit, const gboolean maintainLen);
+gboolean              pointInRect(const int x, const int y, const GdkRectangle* const rect);
 char                  convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
 
-void                  convertDisplayRangeToDnaRange(const IntRange const * displayRange, 
+void                  convertDisplayRangeToDnaRange(const IntRange* const displayRange, 
                                                     const BlxSeqType displaySeqType,
                                                     const int numFrames,
                                                     const gboolean displayRev,
-                                                    const IntRange const *refSeqRange,
+                                                    const IntRange* const refSeqRange,
                                                     IntRange *result);
 
 int                   convertDisplayIdxToDnaIdx(const int inputIdx, 
@@ -360,14 +360,14 @@ int                   convertDisplayIdxToDnaIdx(const int inputIdx,
                                                 const int baseNum, 
                                                 const int numFrames,
                                                 const gboolean displayRev,
-                                                const IntRange const *dnaIdxRange);
+                                                const IntRange* const dnaIdxRange);
 
 int                   convertDnaIdxToDisplayIdx(const int dnaIdx, 
                                                 const BlxSeqType displaySeqType,
                                                 const int frame,
                                                 const int numFrames, 
                                                 const gboolean displayRev,
-                                                const IntRange const *dnaIdxRange,
+                                                const IntRange* const dnaIdxRange,
                                                 int *baseNum);
 
 char                  getStrandAsChar(const BlxStrand strand);
@@ -380,22 +380,22 @@ int                   roundUpToValueFromList(const int inputVal, GSList *roundVa
 char                  getSequenceIndex(char *seq, 
                                        const int qIdx, 
                                        const gboolean complement, 
-                                       const IntRange const *seqRange,
+                                       const IntRange* const seqRange,
                                        const BlxSeqType seqType);
 
-int                   getStartDnaCoord(const IntRange const *displayRange, 
+int                   getStartDnaCoord(const IntRange* const displayRange, 
                                        const int frame,
                                        const BlxSeqType displaySeqType, 
                                        const gboolean displayRev, 
                                        const int numFrames,
-                                       const IntRange const *refSeqRange);
+                                       const IntRange* const refSeqRange);
 
-int                   getEndDnaCoord(const IntRange const *displayRange, 
+int                   getEndDnaCoord(const IntRange* const displayRange, 
                                      const int frame,
                                      const BlxSeqType displaySeqType, 
                                      const gboolean displayRev, 
                                      const int numFrames,
-                                     const IntRange const *refSeqRange);
+                                     const IntRange* const refSeqRange);
 
 int                   wildcardSearch(const char *textToSearch, const char *searchStr);
 
@@ -410,11 +410,11 @@ gboolean              isValidIupacChar(const char inputChar, const BlxSeqType se
 void                  stringProtect(FILE *file, const char *string);
 char*                 stringUnprotect(char **textp, char *target);
 
-int                   invertCoord(const int coord, const IntRange const *range, const gboolean invert);
+int                   invertCoord(const int coord, const IntRange* const range, const gboolean invert);
 
 void                  popupMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 void                  defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
-void                  g_message_info(char *formatStr, ...);
+void                  g_message_info(const char *formatStr, ...);
 
 GtkWidget*            showMessageDialog(const char *title,  
                                         const char *messageText,
@@ -459,10 +459,10 @@ GList*                parseMatchList(const char *inputText);
 
 GtkWidget*            getNamedChildWidget(GtkWidget *widget, const gchar *searchName);
 
-gint                  runConfirmationBox(GtkWidget *blxWindow, char *title, char *messageText);
+gint                  runConfirmationBox(GtkWidget *blxWindow, const char *title, const char *messageText);
 
-void                  prefixError(GError *error, char *prefixStr, ...);
-void                  postfixError(GError *error, char *formatStr, ...);
+void                  prefixError(GError *error, const char *prefixStr, ...);
+void                  postfixError(GError *error, const char *formatStr, ...);
 void                  reportAndClearIfError(GError **error, GLogLevelFlags log_level);
 
 void                  intrangeSetValues(IntRange *range, const int val1, const int val2);
@@ -472,7 +472,7 @@ void                  debugLogLevel(const int increaseAmt);
 #endif
 
 void                  drawRect(GdkDrawable *drawable, GdkColor *color, const int x, const int y, const int width, const int height, const double alpha, cairo_operator_t op);
-void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle const *rect, const gint minWidth, GdkColor *color);
+void                  drawHighlightBox(GdkDrawable *drawable, const GdkRectangle* const rect, const gint minWidth, GdkColor *color);
 
 void                  blxPrintWidget(GtkWidget *widget, GdkDrawable *drawable, GtkWindow *window, GtkPrintSettings **printSettings, GtkPageSetup **pageSetup, const char *filename, const gboolean printCachedOnly, const PrintScaleType scaleType);
 void                  setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle);
@@ -494,23 +494,23 @@ void                  createBlxColor(GArray *defaultColors,
                                      const char *printColSelected);
 
 gdouble               pixelsPerBase(const gint displayWidth, 
-                                    const IntRange const *displayRange);
+                                    const IntRange* const displayRange);
 
 gdouble               convertBaseIdxToRectPos(const gint dnaIdx, 
-                                              const GdkRectangle const *rect, 
-                                              const IntRange const *dnaDispRange,
+                                              const GdkRectangle* const rect, 
+                                              const IntRange* const dnaDispRange,
                                               const gboolean horizontal,
                                               const gboolean displayRev,
                                               const gboolean clip);
 
-gchar*                    getSequenceSegment(const char const *dnaSequence,
+gchar*                    getSequenceSegment(const char* const dnaSequence,
                                              IntRange *qRange,
                                              const BlxStrand strand,
                                              const BlxSeqType srcSeqType,
                                              const BlxSeqType destSeqType,
                                              const int frame,
                                              const int numFrames,
-                                             const IntRange const *refSeqRange,
+                                             const IntRange* const refSeqRange,
                                              const BlxBlastMode blastMode,
                                              char **geneticCode,
                                              const gboolean displayRev,
@@ -543,7 +543,7 @@ void                               enableMenuAction(GtkActionGroup *action_group
 void                               setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active);
 void                               setRadioMenuStatus(GtkActionGroup *action_group, const char *actionName, const gint value);
 
-GtkWidget*                         externalCommand(char *command, char *progName, GtkWidget *widget, GError **error);
+GtkWidget*                         externalCommand(const char *command, const char *progName, GtkWidget *widget, GError **error);
 GString*                           getExternalCommandOutput(const char *command, GError **error);
 GtkWidget*                         displayFetchResults(const char *title, const char *displayText, GtkWidget *widget, GtkWidget *dialog, GtkTextBuffer **textBuffer);
 
@@ -576,8 +576,8 @@ GtkWidget*                         createTextEntryFromDouble(GtkWidget *widget,
 
 void                               drawHScale(GtkWidget *widget, 
                                               GdkDrawable *drawable,
-                                              const IntRange const *range,
-                                              const GdkRectangle const *rect,
+                                              const IntRange* const range,
+                                              const GdkRectangle* const rect,
                                               const int widthPerVal,       
                                               const int majorTickInterval, 
                                               const int labelInterval,     

@@ -118,7 +118,7 @@ typedef struct _GapStringData
 } GapStringData;
 
 
-static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, const IntRange const *refSeqRange, BlxGffData *gffData, GError **error);
+static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, const IntRange* const refSeqRange, BlxGffData *gffData, GError **error);
 static void           parseAttributes(char *attributes, GList **seqList, const int lineNum, BlxGffData *gffData, GError **error);
 static void           parseTagDataPair(char *text, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseNameTag(char *data, char **sName, const int lineNum, GError **error);
@@ -131,7 +131,7 @@ static BlxStrand      readStrand(char *token, GError **error);
 static const char*           parseCigarStringSection(const char *text, GapStringData *data);
 static int            validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error);
 //static void           validateMsp(const MSP *msp, GError **error);
-static void           addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType);
+static void           addGffType(GSList **supportedTypes, const char *name, const char *soId, BlxMspType blxType);
 static void           destroyGffType(BlxGffType **gffType);
 
 
@@ -414,10 +414,10 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
               
               /* Get the flags. Again, they're all optional. These calls update the
                * flag in place if it is found, or leave it at the pre-set default otherwise. */
-              MspFlag flag = MSPFLAG_MIN + 1;
+              int flag = MSPFLAG_MIN + 1;
               for ( ; flag < MSPFLAG_NUM_FLAGS; ++flag)
                 {
-                  getMspFlag(keyFile, typeName, flag, result);
+                  getMspFlag(keyFile, typeName, (MspFlag)flag, result);
                 }              
               
               /* Insert it into the table of data types */
@@ -591,7 +591,7 @@ void parseGff3Body(const int lineNum,
                    GSList *styles,
                    const int resFactor, 
                    GKeyFile *keyFile,
-                   const IntRange const *refSeqRange)
+                   const IntRange* const refSeqRange)
 {
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
@@ -668,7 +668,7 @@ void parseFastaSeqHeader(char *line, const int lineNum,
     {
       *readSeq = refSeq;
       *readSeqMaxLen = MAXLINE;
-      **readSeq = g_malloc(*readSeqMaxLen + 1);
+      **readSeq = (char*)g_malloc(*readSeqMaxLen + 1);
       *readSeqLen = 0;
     }
       
@@ -716,7 +716,7 @@ static void parseGffColumns(GString *line_string,
                             const int lineNum, 
                             GList **seqList,
                             GSList *supportedTypes,
-                            const IntRange const *refSeqRange,
+                            const IntRange* const refSeqRange,
 			    BlxGffData *gffData,
                             GError **error)
 {
@@ -1149,7 +1149,7 @@ static void parseCigarStringMatch(GapStringData *data, const int numNucleotides,
   int newQ = *data->q + (data->qDirection * (numNucleotides - 1));
   int newS = *data->s + (data->sDirection * (numPeptides - 1));
   
-  CoordRange *newRange = g_malloc(sizeof(CoordRange));
+  CoordRange *newRange = (CoordRange*)g_malloc(sizeof(CoordRange));
   msp->gaps = g_slist_append(msp->gaps, newRange);
   
   newRange->qStart = *data->q;
@@ -1209,11 +1209,11 @@ static void parseCigarStringInsertion(GapStringData *data, const int numNucleoti
 
 /* Return TRUE if the given char is a valid operator for the
  * given gap string format. */
-static gboolean validateCigarOperator(char operator, BlxGapFormat gapFormat)
+static gboolean validateCigarOperator(char op, BlxGapFormat gapFormat)
 {
   gboolean result = FALSE;
   
-  switch (operator)
+  switch (op)
     {
     case 'M':    case 'm':
     case 'N':    case 'n':
@@ -1273,16 +1273,16 @@ static const char* parseCigarStringSection(const char *text,
   int numNucleotides = numPeptides * data->resFactor;
 
   const char *cp = text;
-  char operator = getCigarStringSectionOperator(text, data->gapFormat, &cp);
+  char op = getCigarStringSectionOperator(text, data->gapFormat, &cp);
   
   /*! \todo If the operator is not valid for this type of cigar string
    * then we should set the error and return. However, for historic 
    * reasons we have allowed invalid operators in the GFF Gap string,
    * so continue allowing this for now and just give a warning. */
-  if (!validateCigarOperator(operator, data->gapFormat))
-    g_warning("Invalid operator '%c' for gap string format '%d'", operator, data->gapFormat);
+  if (!validateCigarOperator(op, data->gapFormat))
+    g_warning("Invalid operator '%c' for gap string format '%d'", op, data->gapFormat);
 
-  switch (operator)
+  switch (op)
     {
     case 'M':
     case 'm':
@@ -1349,7 +1349,7 @@ static const char* parseCigarStringSection(const char *text,
       break;
       
     default:
-      g_set_error(&data->error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Invalid operator '%c' in cigar string.\n", operator);
+      g_set_error(&data->error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Invalid operator '%c' in cigar string.\n", op);
       break;
     };
 
@@ -1380,9 +1380,9 @@ static int validateNumTokens(char **tokens, const int minReqd, const int maxReqd
 
 
 /* Create a gff type with the given info and add it to the given list */
-static void addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType)
+static void addGffType(GSList **supportedTypes, const char *name, const char *soId, BlxMspType blxType)
 {
-  BlxGffType *gffType = g_malloc(sizeof *gffType);
+  BlxGffType *gffType = (BlxGffType*)g_malloc(sizeof *gffType);
   
   gffType->name = g_strdup(name);
   gffType->soId = g_strdup(soId);

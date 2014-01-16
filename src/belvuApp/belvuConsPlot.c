@@ -116,7 +116,7 @@ static void consPlotCreateProperties(GtkWidget *consPlot,
 {
   if (consPlot)
     {
-      ConsPlotProperties *properties = g_malloc(sizeof *properties);
+      ConsPlotProperties *properties = (ConsPlotProperties*)g_malloc(sizeof *properties);
       
       properties->bc = bc;
       properties->actionGroup = actionGroup;
@@ -327,7 +327,7 @@ static void showSettingsDialog(GtkWidget *consPlot)
 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(consPlot), 
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
@@ -404,7 +404,7 @@ static void calculateConservation(GtkWidget *consPlot)
   if (properties->smooth)
     g_free(properties->smooth);
   
-  properties->smooth = g_malloc(bc->maxLen * sizeof(double));
+  properties->smooth = (double*)g_malloc(bc->maxLen * sizeof(double));
   
   double sum = 0.0;
   

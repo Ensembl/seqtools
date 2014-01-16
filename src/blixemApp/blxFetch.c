@@ -766,12 +766,12 @@ static gboolean stringInArray(const char *str, GArray *array)
       const int len1 = strlen(str);
       int i = 0;
       
-      for ( ; !found && i < array->len; ++i)
+      for ( ; !found && i < (int)array->len; ++i)
         {
           GQuark curQuark = g_array_index(array, GQuark, i);
           const char *curStr = g_quark_to_string(curQuark);
           
-          int len = min(strlen(curStr), len1);
+          int len = min((int)strlen(curStr), len1);
           
           if (strncasecmp(curStr, str, len) == 0)
             found = TRUE;
@@ -1415,7 +1415,7 @@ void blxInitConfig(const char *config_file, CommandLineOptions *options, GError 
       /* Merge both file contents. Note that the second file supplied here
        * will take priority if there are duplicate fields across the two files */
       len = len1 + len2 + 2; /* need 2 extra chars for the sprintf below (newline and terminating nul) */
-      content = g_malloc(len);
+      content = (gchar*)g_malloc(len);
       sprintf(content, "%s\n%s", content1, content2);
       
       /* Free the original strings */
@@ -1526,7 +1526,7 @@ static void socketSend (int sock, const char *text, GError **error)
   /* so 0x20 is added to mark the end of the string and the C string term-   */
   /* inator is moved up one and is not actually sent.                        */
   len = strlen(text) ;
-  tmp = g_malloc(len + 2) ;
+  tmp = (char*)g_malloc(len + 2) ;
   strcpy(tmp, text) ;
   tmp[len] = 0x20 ;                                         /* Add new string terminator. */
   tmp[len + 1] = 0 ;
@@ -1944,16 +1944,16 @@ static void readBlixemStanza(GKeyFile *key_file,
     options->bulkFetchDefault = keyFileGetCsv(key_file, group, BLIXEM_OLD_BULK_FETCH, NULL);
 
   /* Get the default values for the MSP flags, if they're specified in the blixem stanza. */
-  MspFlag flag = MSPFLAG_MIN + 1;
+  int flag = MSPFLAG_MIN + 1;
   for ( ; flag < MSPFLAG_NUM_FLAGS; ++flag)
     {
       GError *tmpError = NULL;
-      const char *key = mspFlagGetConfigKey(flag);
+      const char *key = mspFlagGetConfigKey((MspFlag)flag);
       gboolean value = g_key_file_get_boolean(key_file, group, key, &tmpError);
       
       /* If found, set it as the default */
       if (!tmpError)
-        mspFlagSetDefault(flag, value);
+        mspFlagSetDefault((MspFlag)flag, value);
     }
 }
 
@@ -1962,7 +1962,7 @@ static void readBlixemStanza(GKeyFile *key_file,
 static BlxFetchMethod* createBlxFetchMethod(const char *fetchName, 
                                             const GQuark fetchMode)
 {
-  BlxFetchMethod *result = g_malloc(sizeof *result);
+  BlxFetchMethod *result = (BlxFetchMethod*)g_malloc(sizeof *result);
 
   result->name = g_quark_from_string(fetchName);
   result->mode = BLXFETCH_MODE_NONE;
@@ -1976,7 +1976,7 @@ static BlxFetchMethod* createBlxFetchMethod(const char *fetchName,
 
   result->separator = NULL;
   result->errors = NULL;
-  result->outputType = 0;
+  result->outputType = BLXFETCH_OUTPUT_INVALID;
 
   return result;
 }
@@ -1995,13 +1995,13 @@ static BlxFetchOutputType readFetchOutputType(GKeyFile *key_file, const char *gr
   if (!tmpError)
     {
       /* Loop through all output types looking for one with this name */
-      BlxFetchOutputType outputType = 0;
+      int outputType = 0;
       
       for ( ; outputType < BLXFETCH_NUM_OUTPUT_TYPES; ++outputType)
         {
-          if (stringsEqual(outputTypeName, outputTypeStr(outputType), FALSE))
+          if (stringsEqual(outputTypeName, outputTypeStr((BlxFetchOutputType)outputType), FALSE))
             {
-              result = outputType;
+              result = (BlxFetchOutputType)outputType;
               break;
             }
         }
@@ -2209,7 +2209,7 @@ static void readConfigFile(GKeyFile *key_file, CommandLineOptions *options, GErr
   char **group = groups;
   int i = 0;
   
-  for ( ; i < num_groups ; i++, group++)
+  for ( ; i < (int)num_groups ; i++, group++)
     {
       /* Read in the data in this stanza */
       GError *tmpError = NULL;
@@ -2983,7 +2983,7 @@ static GHashTable* getSeqsToPopulate(GList *inputList,
                 {
                   /* Get the result list for this fetch method. It's ok if it is 
                    * null because the list will be created by g_list_prepend. */
-                  GList *resultList = g_hash_table_lookup(resultTable, GINT_TO_POINTER(fetchMethodQuark));
+                  GList *resultList = (GList*)g_hash_table_lookup(resultTable, GINT_TO_POINTER(fetchMethodQuark));
                   resultList = g_list_prepend(resultList, blxSeq);
                   
                   /* Update the existing (or insert the new) list */
@@ -3103,8 +3103,8 @@ void sendFetchOutputToFile(GString *command,
  *   tmpDir is the directory in which to place the temporary files
  *   script is the script to call to do the fetch
  *   dataset will be passed as the -dataset argument to the script if it is not null */
-static void regionFetchFeature(const MSP const *msp, 
-                               const BlxSequence const *blxSeq,
+static void regionFetchFeature(const MSP* const msp, 
+                               const BlxSequence* const blxSeq,
                                const BlxFetchMethod* const fetchMethod,
                                const char *script,
                                const char *dataset,
@@ -3118,7 +3118,7 @@ static void regionFetchFeature(const MSP const *msp,
                                GSList *supportedTypes, 
                                GSList *styles,
                                const gboolean saveTempFiles,
-                               const IntRange const *refSeqRange,
+                               const IntRange* const refSeqRange,
                                GError **error)
 {
   GKeyFile *keyFile = blxGetConfig();
@@ -3176,7 +3176,7 @@ static void regionFetchList(GList *regionsToFetch,
                             const BlxSeqType seqType,
                             const int refSeqOffset,
                             const char *dataset,
-                            const IntRange const *refSeqRange,
+                            const IntRange* const refSeqRange,
                             GError **error)
 {
   /* Get the command to run */
@@ -3201,7 +3201,7 @@ static void regionFetchList(GList *regionsToFetch,
     
       for ( ; mspItem; mspItem = mspItem->next)
         {
-          const MSP const *msp = (const MSP const*)(mspItem->data);
+          const MSP* const msp = (const MSP*)(mspItem->data);
 
           /* Only fetch regions that are at least partly inside our display range */
           if (!rangesOverlap(&msp->qRange, refSeqRange))
@@ -3233,7 +3233,7 @@ static void commandFetchList(GList *regionsToFetch,
                              const BlxSeqType seqType,
                              const int refSeqOffset,
                              const char *dataset,
-                             const IntRange const *refSeqRange,
+                             const IntRange* const refSeqRange,
                              GError **error)
 {
   /* Currently we only support an output type of gff */
@@ -3268,7 +3268,7 @@ static gboolean fetchList(GList *seqsToFetch,
                           GSList *supportedTypes, 
                           GSList *styles,
                           const int refSeqOffset,
-                          const IntRange const *refSeqRange,
+                          const IntRange* const refSeqRange,
                           const char *dataset,
                           GError **error)
 {
@@ -3362,7 +3362,7 @@ gboolean bulkFetchSequences(const int attempt,
                             GSList *supportedTypes, 
                             GSList *styles,
                             const int refSeqOffset,
-                            const IntRange const *refSeqRange,
+                            const IntRange* const refSeqRange,
                             const char *dataset,
                             const gboolean optionalColumns)
 {

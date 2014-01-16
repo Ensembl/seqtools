@@ -336,7 +336,7 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
   DotterDialogData *dialogData = (DotterDialogData*)data;
   BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(dialogData->blxWindow);
-  const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
+  const IntRange* const displayRange = bigPictureGetDisplayRange(bigPicture);
 
   int qStart = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, bc->numFrames, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
@@ -523,7 +523,7 @@ static GtkWidget* createTextEntry(GtkTable *table,
 				  int row, 
 				  const int xpad, 
 				  const int ypad, 
-				  char *title,
+				  const char *title,
 				  BlxResponseCallback callbackFunc,
 				  GtkWidget *blxWindow,
 				  const int initValue)
@@ -612,7 +612,7 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       
       /* Create the dialog data struct first time round, but re-populate it each time. Create 
        * a destructor function that will free the struct. */
-      dialogData = g_malloc(sizeof(DotterDialogData));
+      dialogData = (DotterDialogData*)g_malloc(sizeof(DotterDialogData));
       dialogData->blxWindow = NULL;
       dialogData->autoButton = NULL;
       dialogData->manualButton = NULL;
@@ -935,7 +935,7 @@ static gboolean smartDotterRangeSelf(GtkWidget *blxWindow,
   /* We'll just use a large-ish range centred on the current display range */
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
   
   int mid = getRangeCentre(displayRange);
 
@@ -979,7 +979,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
     }
 
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  const IntRange const *bigPicRange = bigPictureGetDisplayRange(bigPicture);
+  const IntRange* const bigPicRange = bigPictureGetDisplayRange(bigPicture);
   const BlxStrand activeStrand = (bc->displayRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD) ;
 
   /* Loop through all MSPs in the selected sequence. We'll estimate the wanted
@@ -993,7 +993,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
       const MSP *msp = (MSP*)(mspListItem->data);
       
       /* Get the msp start/end in terms of display coords, and find the min/max */
-      const IntRange const *mspDisplayRange = mspGetDisplayRange(msp);
+      const IntRange* const mspDisplayRange = mspGetDisplayRange(msp);
 
       /* Check if the MSP is in a visible strand is entirely within the big picture range */
       if ((msp->qStrand == activeStrand || (bc->blastMode == BLXMODE_BLASTN)) &&
@@ -1109,11 +1109,11 @@ static void callDotterChildProcess(const char *dotterBinary,
 				   const int dotterZoom,
                                    const gboolean hspsOnly,
                                    const char *seq1Name,
-                                   const IntRange const *seq1Range,
+                                   const IntRange* const seq1Range,
                                    const BlxStrand seq1Strand,
 				   const gboolean seq1DisplayRev,
                                    const char *seq2Name,
-                                   const IntRange const *seq2Range,
+                                   const IntRange* const seq2Range,
                                    const BlxStrand seq2Strand,
 				   const gboolean seq2DisplayRev,
 				   int *pipes, 
@@ -1136,19 +1136,19 @@ static void callDotterChildProcess(const char *dotterBinary,
   argList = g_slist_append(argList, seq1OffsetStr);
   argList = g_slist_append(argList, g_strdup("-s"));
   argList = g_slist_append(argList, seq2OffsetStr);
-  argList = g_slist_append(argList, "--horizontal-type");
-  argList = g_slist_append(argList, "d");
-  argList = g_slist_append(argList, "--vertical-type");
+  argList = g_slist_append(argList, g_strdup("--horizontal-type"));
+  argList = g_slist_append(argList, g_strdup("d"));
+  argList = g_slist_append(argList, g_strdup("--vertical-type"));
 
   if (bc->seqType == BLXSEQ_PEPTIDE)
-    argList = g_slist_append(argList, "p");
+    argList = g_slist_append(argList, g_strdup("p"));
   else
-    argList = g_slist_append(argList, "d");
+    argList = g_slist_append(argList, g_strdup("d"));
 
   if (bc->flags[BLXFLAG_ABBREV_TITLE])
-    argList = g_slist_append(argList, "--abbrev-title-on");
+    argList = g_slist_append(argList, g_strdup("--abbrev-title-on"));
   else
-    argList = g_slist_append(argList, "--abbrev-title-off");
+    argList = g_slist_append(argList, g_strdup("--abbrev-title-off"));
   
   if (seq1Strand == BLXSTRAND_REVERSE)      argList = g_slist_append(argList, g_strdup("-r"));
   if (seq2Strand == BLXSTRAND_REVERSE)	    argList = g_slist_append(argList, g_strdup("-v"));
@@ -1340,7 +1340,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
       
       for ( ; mspItem && !found; mspItem = mspItem->next)
         {
-          const MSP const *msp = (const MSP const *)(mspItem->data);
+          const MSP* const msp = (const MSP*)(mspItem->data);
           found = (msp->qStrand == qStrand);
         }
       

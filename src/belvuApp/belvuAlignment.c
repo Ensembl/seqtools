@@ -122,7 +122,7 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
 {
   if (belvuAlignment)
     {
-      BelvuAlignmentProperties *properties = g_malloc(sizeof *properties);
+      BelvuAlignmentProperties *properties = (BelvuAlignmentProperties*)g_malloc(sizeof *properties);
       
       properties->bc = bc;
       properties->columnsArea = columnsArea;
@@ -563,13 +563,13 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
   
   
   /* Initialise the sequence and position array */
-  char *seq = g_malloc(properties->wrapWidth + 1);
+  char *seq = (char*)g_malloc(properties->wrapWidth + 1);
   
   if (!pos) 
     pos = (int *)g_malloc(bc->alignArr->len * sizeof(int *));
   
   int j = 0;
-  for (j = 0; j < bc->alignArr->len; ++j) 
+  for (j = 0; j < (int)bc->alignArr->len; ++j) 
     pos[j] = g_array_index(bc->alignArr, ALN*, j)->start;
   
   
@@ -591,7 +591,7 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
     {
       gboolean emptyPara = TRUE;
       
-      for (j = 0; j < bc->alignArr->len; ++j)
+      for (j = 0; j < (int)bc->alignArr->len; ++j)
         {
           ALN *alnp = g_array_index(bc->alignArr, ALN*, j);
           char *alnpSeq = alnGetSeq(alnp);
@@ -1497,7 +1497,7 @@ static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
   int count = -1;
   bc->selectedAln = NULL;
   
-  for ( i = 0; i < bc->alignArr->len; ++i)
+  for ( i = 0; i < (int)bc->alignArr->len; ++i)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
       
@@ -1790,11 +1790,11 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
       
       /* Place all the widgets in the table */
       gtk_table_attach(GTK_TABLE(belvuAlignment), columnsHeader,0, 1, 0, 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(GTK_TABLE(belvuAlignment), columnsArea,  0, 1, 1, 2, GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
+      gtk_table_attach(GTK_TABLE(belvuAlignment), columnsArea,  0, 1, 1, 2, GTK_FILL, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), xpad, ypad);
       gtk_table_attach(GTK_TABLE(belvuAlignment), seqHeader,    1, 2, 0, 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(GTK_TABLE(belvuAlignment), seqArea,      1, 2, 1, 2, GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, xpad, ypad);
-      gtk_table_attach(GTK_TABLE(belvuAlignment), hScrollbar,   1, 2, 2, 3, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(GTK_TABLE(belvuAlignment), vScrollbar,   2, 3, 1, 2, GTK_SHRINK, GTK_EXPAND | GTK_FILL, xpad, ypad);
+      gtk_table_attach(GTK_TABLE(belvuAlignment), seqArea,      1, 2, 1, 2, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), xpad, ypad);
+      gtk_table_attach(GTK_TABLE(belvuAlignment), hScrollbar,   1, 2, 2, 3, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(GTK_TABLE(belvuAlignment), vScrollbar,   2, 3, 1, 2, GTK_SHRINK, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), xpad, ypad);
 
       /* Connect signals */
       gtk_widget_add_events(columnsArea, GDK_BUTTON_PRESS_MASK);

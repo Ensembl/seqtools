@@ -191,8 +191,8 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 					GtkWidget *bigPicture, 
                                         GdkDrawable *drawable,
 					GdkGC *gc, 
-					const GdkColor const *textColor, 
-					const GdkColor const *lineColor,
+					const GdkColor* const textColor, 
+					const GdkColor* const lineColor,
                                         const gboolean abbrev)
 {
   BlxViewContext *bc = bigPictureGetContext(bigPicture);
@@ -404,7 +404,7 @@ static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, G
   
   /* First, highlight any assembly gaps */
   /* Get the display range in dna coords */
-  const IntRange const *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
+  const IntRange* const displayRange = bigPictureGetDisplayRange(properties->bigPicture);
   IntRange bpRange;
   convertDisplayRangeToDnaRange(displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
   
@@ -553,8 +553,8 @@ void refreshGridOrder(GtkWidget *bigPicture)
  * widgets of the big picture */
 static void updateHighlightBox(GtkWidget *bigPicture, BigPictureProperties *properties)
 {
-  callFuncOnAllBigPictureGrids(bigPicture, calculateGridHighlightBoxBorders);
-  callFuncOnAllBigPictureExonViews(bigPicture, calculateExonViewHighlightBoxBorders);
+  callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridHighlightBoxBorders);
+  callFuncOnAllBigPictureExonViews(bigPicture, (gpointer)calculateExonViewHighlightBoxBorders);
   calculateCoverageViewHighlightBoxBorders(properties->coverageView);
 }
 
@@ -820,8 +820,8 @@ static void updateOnPercentIdChanged(GtkWidget *bigPicture)
   
   calculateNumVCells(bigPicture);
   
-  callFuncOnAllBigPictureGrids(bigPicture, calculateGridBorders);
-  callFuncOnAllBigPictureGrids(bigPicture, calculateGridHighlightBoxBorders);
+  callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridBorders);
+  callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridHighlightBoxBorders);
   calculateCoverageViewBorders(properties->coverageView);
   
   bigPictureRedrawAll(bigPicture);
@@ -836,8 +836,8 @@ void bigPicturePrepareForPrinting(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
-  callFuncOnAllBigPictureGrids(bigPicture, gridPrepareForPrinting);
-  callFuncOnAllBigPictureExonViews(bigPicture, exonViewPrepareForPrinting);
+  callFuncOnAllBigPictureGrids(bigPicture, (gpointer)gridPrepareForPrinting);
+  callFuncOnAllBigPictureExonViews(bigPicture, (gpointer)exonViewPrepareForPrinting);
   coverageViewPrepareForPrinting(properties->coverageView);
 }
 
@@ -897,9 +897,9 @@ static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpo
 
 /* Convert an x coord in the given rectangle to a base index (in nucleotide coords) */
 static gint convertRectPosToBaseIdx(const gint x, 
-                                      const GdkRectangle const *displayRect,  
-                                      const IntRange const *dnaDispRange,
-                                      const gboolean displayRev)
+                                    const GdkRectangle* const displayRect,  
+                                    const IntRange* const dnaDispRange,
+                                    const gboolean displayRev)
 {
   gint result = UNSET_INT;
   
@@ -1174,14 +1174,14 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
 				       GtkWidget *fwdExonView,
 				       GtkWidget *revExonView,
 				       int previewBoxCentre,
-                                       const IntRange const *initRange,
-                                       const IntRange const *fullRange,
+                                       const IntRange* const initRange,
+                                       const IntRange* const fullRange,
 				       const int initialZoom,
 				       const gdouble lowestId)
 {
   if (bigPicture)
     { 
-      BigPictureProperties *properties = g_malloc(sizeof *properties);
+      BigPictureProperties *properties = (BigPictureProperties*)g_malloc(sizeof *properties);
       
       properties->blxWindow = blxWindow;
       properties->header = header;
@@ -1257,7 +1257,7 @@ static void gridHeaderCreateProperties(GtkWidget *gridHeader, GtkWidget *bigPict
 {
   if (gridHeader)
     {
-      GridHeaderProperties *properties = g_malloc(sizeof *properties);
+      GridHeaderProperties *properties =(GridHeaderProperties*)g_malloc(sizeof *properties);
       
       properties->bigPicture = bigPicture;
       properties->refButton = refButton;
@@ -1473,7 +1473,7 @@ gboolean bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue
  ***********************************************************/
 
 /* Create a tool button for the big picture header */
-static GtkWidget* createButton(GtkWidget *container, char *label, char *tooltip, GtkSignalFunc callback_func, gpointer data)
+static GtkWidget* createButton(GtkWidget *container, const char *label, const char *tooltip, GtkSignalFunc callback_func, gpointer data)
 {
   GtkWidget *eventBox = gtk_event_box_new();
   gtk_box_pack_start(GTK_BOX(container), eventBox, FALSE, FALSE, 0);
@@ -1523,8 +1523,8 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
                             GtkWidget *coverageView,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid,
-                            const IntRange const *initRange,
-                            const IntRange const *fullRange,
+                            const IntRange* const initRange,
+                            const IntRange* const fullRange,
 			    const int initialZoom,
 			    const gdouble lowestId)
 {

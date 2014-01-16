@@ -360,13 +360,13 @@ static void suffix2organism(GArray *alignArr, GArray *organismArr)
   int i = 0;
   char *cp = NULL;
   
-  for (i = 0; i < alignArr->len; ++i) 
+  for (i = 0; i < (int)alignArr->len; ++i) 
     {
       ALN *alnp = g_array_index(alignArr, ALN*, i);
       
       if (!alnp->markup && (cp = strchr(alnp->name, '_'))) 
         {
-          char *suffix = g_malloc(strlen(cp) + 1);
+          char *suffix = (char*)g_malloc(strlen(cp) + 1);
           strcpy(suffix, cp + 1);
           
           /* Add organism to table of organisms.  This is necessary to make all 
@@ -376,7 +376,7 @@ static void suffix2organism(GArray *alignArr, GArray *organismArr)
           
           /* Only insert a new organism if it is not already in the array */
           int ip = 0;
-          if (!alnArrayFind(organismArr, alnp, &ip, (void*)organism_order))
+          if (!alnArrayFind(organismArr, alnp, &ip, organism_order))
             {
 	      ALN *organism = createEmptyAln();
 	      alncpy(organism, alnp);
@@ -569,7 +569,7 @@ int main(int argc, char **argv)
   msgData.statusBar = NULL;
 
   g_log_set_default_handler(defaultMessageHandler, &msgData);
-  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
+  g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION), 
                     popupMessageHandler, &msgData);
 
 
@@ -584,7 +584,7 @@ int main(int argc, char **argv)
   setTreeScaleCorr(bc, bc->treeMethod);
   
   
-  char *OrganismLabel = "OS";
+  char *OrganismLabel = g_strdup("OS");
     
   gboolean verbose = FALSE;
   gboolean init_rmPartial = FALSE;
@@ -606,7 +606,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
     };
   
-  char        *optstring="aBb:CcGhil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
+  const char  *optstring="aBb:CcGhil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -795,7 +795,7 @@ int main(int argc, char **argv)
       int i = 0;
       bc->selectedAln = g_array_index(bc->alignArr, ALN*, i);
 
-      while (i < bc->alignArr->len && bc->selectedAln && bc->selectedAln->markup)
+      while (i < (int)bc->alignArr->len && bc->selectedAln && bc->selectedAln->markup)
         {
           ++i;
           bc->selectedAln = g_array_index(bc->alignArr, ALN*, i);
@@ -997,6 +997,8 @@ int main(int argc, char **argv)
     {
       gtk_main();
     }
+
+  g_free(OrganismLabel) ;
   
   return(EXIT_SUCCESS) ;
 }

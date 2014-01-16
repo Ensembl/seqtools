@@ -210,7 +210,7 @@ static void sequenceCreateProperties(GtkWidget *widget,
 {
   if (widget)
     {
-      SequenceProperties *properties = g_malloc(sizeof *properties);
+      SequenceProperties *properties = (SequenceProperties*)g_malloc(sizeof *properties);
       
       properties->seqName = seqName;
       properties->sequence = sequence;
@@ -254,7 +254,7 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
 {
   if (widget)
     {
-      AlignmentToolProperties *properties = g_malloc(sizeof *properties);
+      AlignmentToolProperties *properties = (AlignmentToolProperties*)g_malloc(sizeof *properties);
     
       properties->dotterWinCtx = dotterWinCtx;
       properties->actionGroup = NULL;
@@ -282,7 +282,7 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
 
 static void redrawAll(GtkWidget *alignmentTool)
 {
-  callFuncOnAllChildWidgets(alignmentTool, widgetClearCachedDrawable);
+  callFuncOnAllChildWidgets(alignmentTool, (gpointer)widgetClearCachedDrawable);
   gtk_widget_queue_draw(alignmentTool);
 }
 
@@ -798,7 +798,7 @@ static void createDrawingAreaWidget(DotterContext *dc,
 {
   GtkWidget *widget = gtk_drawing_area_new();
   gtk_widget_set_size_request(widget, -1, height);
-  gtk_table_attach(table, widget, 2, 3, *row, *row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, widget, 2, 3, *row, *row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
   g_signal_connect(G_OBJECT(widget), "expose-event", exposeFunc, exposeFuncData);
 
   *row += 1;
@@ -1054,7 +1054,7 @@ static void drawSequenceHeader(GtkWidget *widget,
   /* Find the coord to display */
   const int coord = horizontal ? dwc->refCoord : dwc->matchCoord;
 
-  const IntRange const *displayRange = horizontal ? &properties->refDisplayRange : &properties->matchDisplayRange;
+  const IntRange* const displayRange = horizontal ? &properties->refDisplayRange : &properties->matchDisplayRange;
   
   /* Find the position to display at. Find the position of the char at this coord */
   const int displayIdx = convertToDisplayIdx(coord - displayRange->min, horizontal, dc, 1, NULL) - 1;
@@ -1256,7 +1256,7 @@ static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
   int numChars = endCoord - startCoord + 1;
   
   /* Sanity check that we're not going to try to index out of range */
-  if (startIdx + numChars > strlen(properties->sequence))
+  if (startIdx + numChars > (int)strlen(properties->sequence))
     {
       /* We shouldn't get here, but if we do then just limiting
        * it to the string length should give something sensible */

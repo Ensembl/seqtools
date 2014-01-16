@@ -165,7 +165,7 @@ gboolean                detailViewShowColumn(BlxColumnInfo *columnInfo);
 void                    detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file);
 void                    detailViewResetColumnWidths(GtkWidget *detailView);
 
-int                     getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange const *displayRange);
+int                     getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange* const displayRange);
 
 MSP*                    prevMatch(GtkWidget *detailView, GList *seqList);
 MSP*                    nextMatch(GtkWidget *detailView, GList *seqList);
@@ -186,7 +186,7 @@ void                    detailViewSetSortColumn(GtkWidget *detailView, const Blx
 void                    zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 
 void                    updateDynamicColumnWidths(GtkWidget *detailView);
-void                    refilterDetailView(GtkWidget *detailView, const IntRange const *oldRange);
+void                    refilterDetailView(GtkWidget *detailView, const IntRange* const oldRange);
 
 void                    detailViewSetSelectedBaseIdx(GtkWidget *detailView, 
                                                      const int selectedBaseIdx, 
@@ -241,7 +241,7 @@ void                    seqColHeaderSetRow(GtkWidget *header, const int frame);
 int                     seqColHeaderGetRow(GtkWidget *header);
 int                     seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames);
 
-GHashTable*             getRefSeqBasesToHighlight(GtkWidget *detailView, const IntRange const *displayRange, const BlxSeqType seqType, const BlxStrand strand);
+GHashTable*             getRefSeqBasesToHighlight(GtkWidget *detailView, const IntRange* const displayRange, const BlxSeqType seqType, const BlxStrand strand);
 
 void                    drawColumnSeparatorLine(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const BlxViewContext *bc);
 gboolean                onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
@@ -292,7 +292,7 @@ GtkWidget*              createDetailView(GtkWidget *blxWindow,
                                          BlxBlastMode mode,
                                          BlxSeqType seqType,
                                          int numFrames,
-                                         const char const *refSeqName,
+                                         const char* const refSeqName,
                                          const int startCoord,
                                          const gboolean sortInverted,
                                          const BlxColumnId sortColumn,

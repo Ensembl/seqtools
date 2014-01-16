@@ -117,7 +117,7 @@ gint convertValueToGridPos(GtkWidget *grid, const gdouble value)
 /* Calculates the size and position of an MSP line in the given grid. Return
  * args can be null if not required. */
 void calculateMspLineDimensions(GtkWidget *grid, 
-				const MSP const *msp, 
+				const MSP* const msp, 
 				int *x, 
 				int *y, 
 				int *width, 
@@ -162,15 +162,15 @@ void calculateMspLineDimensions(GtkWidget *grid,
 
 /* Returns true if the given msp is displayed in the given grid, i.e. is the 
  * correct strand, is not an intron or exon, and is not out of range */
-static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
+static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid)
 {
   gboolean result = FALSE;
   
   if (mspIsBlastMatch(msp) && mspGetRefStrand(msp) == gridGetStrand(grid))
     {
       /* See if the msp lies within the grid's display range */
-      const IntRange const *displayRange = gridGetDisplayRange(grid);
-      const IntRange const *mspRange = mspGetDisplayRange(msp);
+      const IntRange* const displayRange = gridGetDisplayRange(grid);
+      const IntRange* const mspRange = mspGetDisplayRange(msp);
       result = rangesOverlap(mspRange, displayRange);
     }
   
@@ -179,7 +179,7 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
 
 
 /* Draw a line on the given grid to represent the given match */
-static void drawMspLine(const MSP const *msp, DrawGridData *drawData)
+static void drawMspLine(const MSP* const msp, DrawGridData *drawData)
 {
   /* Ignore introns. */
   if (mspShownInGrid(msp, drawData->grid))
@@ -674,7 +674,7 @@ static void gridCreateProperties(GtkWidget *widget,
        * largest label value plus one (for a '%' character)
        * Add a fudge factor to give more space to allow for the fact that 
        * the calculated char width is approximate and may not give enough space */
-      GridProperties *properties = g_malloc(sizeof *properties);
+      GridProperties *properties = (GridProperties*)g_malloc(sizeof *properties);
       
       properties->bigPicture = bigPicture;
       properties->strand = strand;

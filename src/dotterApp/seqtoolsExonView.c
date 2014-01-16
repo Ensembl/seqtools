@@ -50,7 +50,7 @@ typedef struct _ExonViewProperties
   
     BlxStrand strand;                 /* Which strand of the sequence this view displays exons for */
     gboolean horizontal;              /* Whether these exons are for the horizontal or vertical sequence  */
-    const IntRange const *qRange;     /* the range of ref seq coords the exon view displays, in nucleotide coords */
+    const IntRange* qRange;           /* the range of ref seq coords the exon view displays, in nucleotide coords */
     
     gboolean bumped;		      /* Whether the exon view is expanded (bumped) or compressed */
     int yPad;			      /* y padding */
@@ -72,7 +72,7 @@ typedef struct _DrawData
     DotterWindowContext *dwc;
 
     GdkRectangle *exonViewRect;
-    const IntRange const *qRange;
+    const IntRange* const qRange;
     
     int yPad;			      /* y padding */
     int y;			      /* y position to draw this exon at (constant if view compressed; increases if view bumped) */
@@ -96,7 +96,7 @@ static void                     drawExonView(GtkWidget *exonView, GdkDrawable *d
  ***********************************************************/
 
 /* Draw an exon */
-static void drawExon(const MSP const *msp, 
+static void drawExon(const MSP* const msp, 
                      DrawData *data, 
                      const BlxSequence *blxSeq, 
                      const gboolean isSelected, 
@@ -214,7 +214,7 @@ static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const g
 
 
 /* Draw an intron */
-static void drawIntron(const MSP const *msp, 
+static void drawIntron(const MSP* const msp, 
                        DrawData *data, 
                        const BlxSequence *blxSeq, 
                        const gboolean isSelected, 
@@ -558,12 +558,12 @@ static void exonViewCreateProperties(GtkWidget *exonView,
 				     DotterContext *dc,
 				     DotterWindowContext *dwc,
 				     const int width,
-				     const IntRange const *qRange,
+				     const IntRange* const qRange,
                                      const gboolean showCrosshair)
 {
   if (exonView)
     {
-      ExonViewProperties *properties = g_malloc(sizeof *properties);
+      ExonViewProperties *properties = (ExonViewProperties*)g_malloc(sizeof *properties);
       
       properties->parent	      = parent;
       properties->refreshFunc	      = refreshFunc;
@@ -713,7 +713,7 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
 				DotterWindowContext *dwc,
 				const int width,
                                 const int height,
-				const IntRange const *qRange,
+				const IntRange* const qRange,
                                 const gboolean showCrosshair,
                                 GtkWidget **exonViewOut)
 {

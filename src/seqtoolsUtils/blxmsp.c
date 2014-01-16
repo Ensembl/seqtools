@@ -121,14 +121,14 @@ gboolean blxSequenceShownInGrid(const BlxSequence *blxSeq)
   return (blxSeq->type == BLXSEQUENCE_MATCH);
 }
 
-gboolean mspIsExon(const MSP const *msp)
+gboolean mspIsExon(const MSP* const msp)
 {
   return (msp && typeIsExon(msp->type));
 }
 
 
 /* Determine whether the given msp is in a visible layer */
-gboolean mspLayerIsVisible(const MSP const *msp)
+gboolean mspLayerIsVisible(const MSP* const msp)
 {
   gboolean result = TRUE;
   
@@ -148,7 +148,7 @@ gboolean mspLayerIsVisible(const MSP const *msp)
  * exons, this is determined by the exon type. For introns, we have to look at the
  * adjacent exons to determine whether to show them as CDS or UTR - only show it as
  * CDS if there is a CDS exon on both sides of the intron. */
-static const GdkColor* mspGetIntronColor(const MSP const *msp, 
+static const GdkColor* mspGetIntronColor(const MSP* const msp, 
 					 GArray *defaultColors,
                                          const int defaultColorId,
 					 const BlxSequence *blxSeq,
@@ -224,27 +224,27 @@ static const GdkColor* mspGetIntronColor(const MSP const *msp,
   return result;
 }
 
-gboolean mspIsIntron(const MSP const *msp)
+gboolean mspIsIntron(const MSP* const msp)
 {
   return (msp && msp->type == BLXMSP_INTRON);
 }
 
-gboolean mspIsBlastMatch(const MSP const *msp)
+gboolean mspIsBlastMatch(const MSP* const msp)
 {
   return (msp && (msp->type == BLXMSP_MATCH));
 }
 
-gboolean mspIsPolyASite(const MSP const *msp)
+gboolean mspIsPolyASite(const MSP* const msp)
 {
   return (msp && msp->type == BLXMSP_POLYA_SITE);
 }
 
-gboolean mspIsVariation(const MSP const *msp)
+gboolean mspIsVariation(const MSP* const msp)
 {
   return (msp && typeIsVariation(msp->type));
 }
 
-gboolean mspIsZeroLenVariation(const MSP const *msp)
+gboolean mspIsZeroLenVariation(const MSP* const msp)
 {
   gboolean result = mspIsVariation(msp);
   
@@ -258,28 +258,28 @@ gboolean mspIsZeroLenVariation(const MSP const *msp)
 }
 
 /* Whether the msp has a Target name (i.e. Subject sequence name) */
-gboolean mspHasSName(const MSP const *msp)
+gboolean mspHasSName(const MSP* const msp)
 {
   return TRUE;
 }
 
 /* Whether the MSP requires subject sequence coords to be set. Only matches 
  * and exons have coords on the subject sequence. (to do: is this optional for exons?) */
-gboolean mspHasSCoords(const MSP const *msp)
+gboolean mspHasSCoords(const MSP* const msp)
 {
   return mspIsExon(msp) || mspIsBlastMatch(msp);
 }
 
 /* Whether the MSP requires subject sequence strand to be set. Only matches 
  * require strand on the subject sequence, although exons may have them set. */
-gboolean mspHasSStrand(const MSP const *msp)
+gboolean mspHasSStrand(const MSP* const msp)
 {
   return mspIsBlastMatch(msp);
 }
 
 /* Whether the MSP requires the actual sequence data for the subject sequence. Only
  * matches require the sequence data. */
-gboolean mspHasSSeq(const MSP  const *msp)
+gboolean mspHasSSeq(const MSP* const msp)
 {
   return mspIsBlastMatch(msp);
 }
@@ -290,39 +290,39 @@ gboolean mspHasSSeq(const MSP  const *msp)
  ***********************************************************/
 
 /* Get the range of coords of the alignment on the reference sequence */
-const IntRange const *mspGetRefCoords(const MSP const *msp)
+const IntRange* mspGetRefCoords(const MSP* const msp)
 {
   return &msp->qRange;
 }
 
 /* Get the range of coords of the alignment on the match sequence */
-const IntRange const *mspGetMatchCoords(const MSP const *msp)
+const IntRange* mspGetMatchCoords(const MSP* const msp)
 {
   return &msp->sRange;
 }
 
 /* Return the length of the range of alignment coords on the ref seq */
-int mspGetQRangeLen(const MSP const *msp)
+int mspGetQRangeLen(const MSP* const msp)
 {
   return msp->qRange.max - msp->qRange.min + 1;
 }
 
 /* Return the length of the range of alignment coords on the match seq */
-int mspGetSRangeLen(const MSP const *msp)
+int mspGetSRangeLen(const MSP* const msp)
 {
   return msp->sRange.max - msp->sRange.min + 1;
 }
 
 /* Get the start (5 prime) coord of the alignment on the reference sequence. This is
  * the lowest value coord if the strand is forwards or the highest if it is reverse. */
-int mspGetQStart(const MSP const *msp)
+int mspGetQStart(const MSP* const msp)
 {
   return (mspGetRefStrand(msp) == BLXSTRAND_REVERSE ? msp->qRange.max : msp->qRange.min);
 }
 
 /* Get the end (3 prime) coord of the alignment on the reference sequence. This is
  * the highest value coord if the strand is forwards or the lowest if it is reverse. */
-int mspGetQEnd(const MSP const *msp)
+int mspGetQEnd(const MSP* const msp)
 {
   return (mspGetRefStrand(msp) == BLXSTRAND_REVERSE ? msp->qRange.min : msp->qRange.max);
 }
@@ -330,7 +330,7 @@ int mspGetQEnd(const MSP const *msp)
 /* Get the start coord of the alignment on the match sequence. This is
  * the lowest value coord if the match strand is the same direction as the ref seq strand,
  * or the highest value coord otherwise. */
-int mspGetSStart(const MSP const *msp)
+int mspGetSStart(const MSP* const msp)
 {
   return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.min : msp->sRange.max);
 }
@@ -338,7 +338,7 @@ int mspGetSStart(const MSP const *msp)
 /* Get the end coord of the alignment on the match sequence. This is
  * the highest value coord if the match strand is in the same direction as the ref seq strand, 
  * or the lowest value coord otherwise. */
-int mspGetSEnd(const MSP const *msp)
+int mspGetSEnd(const MSP* const msp)
 {
   return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.max : msp->sRange.min);
 }
@@ -346,7 +346,7 @@ int mspGetSEnd(const MSP const *msp)
 
 /* Return the match sequence name. (Gets it from the BlxSequence if the MSP itself doesn't have
  * a name) */
-const char *mspGetSName(const MSP const *msp)
+const char *mspGetSName(const MSP* const msp)
 {
   const char *result = NULL;
   
@@ -367,13 +367,13 @@ const char *mspGetSName(const MSP const *msp)
 
 
 /* Return the length of the match sequence that the given MSP lies on */
-int mspGetMatchSeqLen(const MSP const *msp)
+int mspGetMatchSeqLen(const MSP* const msp)
 {
   return blxSequenceGetLength(msp->sSequence);
 }
 
 /* Return the reading frame of the ref sequence that the given MSP is a match against */
-int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
+int mspGetRefFrame(const MSP* const msp, const BlxSeqType seqType)
 {
   int result = UNSET_INT;
   
@@ -391,13 +391,13 @@ int mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType)
 }
 
 /* Return the reference sequence name that this msp aligns against */
-const char* mspGetRefName(const MSP const *msp)
+const char* mspGetRefName(const MSP* const msp)
 {
   return msp->qname;
 }
 
 /* Return the strand of the ref sequence that the given MSP is a match against */
-BlxStrand mspGetRefStrand(const MSP const *msp)
+BlxStrand mspGetRefStrand(const MSP* const msp)
 {
   BlxStrand result = msp->qStrand;
   
@@ -409,7 +409,7 @@ BlxStrand mspGetRefStrand(const MSP const *msp)
 }
 
 /* Return the strand of the match sequence that the given MSP is a match on */
-BlxStrand mspGetMatchStrand(const MSP const *msp)
+BlxStrand mspGetMatchStrand(const MSP* const msp)
 {
   BlxStrand result = (msp->sSequence ? msp->sSequence->strand : BLXSTRAND_NONE);
 
@@ -421,13 +421,13 @@ BlxStrand mspGetMatchStrand(const MSP const *msp)
 }
 
 /* Get the match sequence for the given MSP */
-const char* mspGetMatchSeq(const MSP const *msp)
+const char* mspGetMatchSeq(const MSP* const msp)
 {
   return (msp ? blxSequenceGetSequence(msp->sSequence) : NULL);
 }
 
 /* Get the source of the MSP */
-const char* mspGetSource(const MSP const *msp)
+const char* mspGetSource(const MSP* const msp)
 {
   return blxSequenceGetSource(msp->sSequence);
 }
@@ -474,7 +474,7 @@ static const GdkColor *styleGetColor(const BlxStyle *style,
 /* Get the color for drawing the given MSP (If 'selected' is true, returns
  * the color when the MSP is selected.). Returns the fill color if 'fill' is 
  * true, otherwise the line color */
-const GdkColor* mspGetColor(const MSP const *msp, 
+const GdkColor* mspGetColor(const MSP* const msp, 
 			    GArray *defaultColors, 
                             const int defaultColorId,
 			    const BlxSequence *blxSeq,
@@ -532,39 +532,39 @@ const GdkColor* mspGetColor(const MSP const *msp,
 
 /* Get functions from msps for various sequence properties. Result is owned by the sequence
  * and should not be free'd. Returns NULL if the property is not set. */
-const char *mspGetColumn(const MSP const *msp, const BlxColumnId columnId)
+const char *mspGetColumn(const MSP* const msp, const BlxColumnId columnId)
 {
   return (msp ? blxSequenceGetColumn(msp->sSequence, columnId) : NULL);
 }
 
-const char *mspGetOrganism(const MSP const *msp)
+const char *mspGetOrganism(const MSP* const msp)
 {
   return (msp ? blxSequenceGetOrganism(msp->sSequence) : NULL);
 }
 
-const char *mspGetOrganismAbbrev(const MSP const *msp)
+const char *mspGetOrganismAbbrev(const MSP* const msp)
 {
   return (msp ? blxSequenceGetOrganismAbbrev(msp->sSequence) : NULL);
 }
 
-const char *mspGetGeneName(const MSP const *msp)
+const char *mspGetGeneName(const MSP* const msp)
 {
   return (msp ? blxSequenceGetGeneName(msp->sSequence) : NULL);
 }
 
-const char *mspGetTissueType(const MSP const *msp)
+const char *mspGetTissueType(const MSP* const msp)
 {
   return (msp ? blxSequenceGetTissueType(msp->sSequence) : NULL);
 }
 
-const char *mspGetStrain(const MSP const *msp)
+const char *mspGetStrain(const MSP* const msp)
 {
   return (msp ? blxSequenceGetStrain(msp->sSequence) : NULL);
 }
 
 
 /* Return the coords of an MSP as a string. The result should be free'd with g_free */
-char *mspGetCoordsAsString(const MSP const *msp)
+char *mspGetCoordsAsString(const MSP* const msp)
 {
   char *result = NULL;
   
@@ -586,7 +586,7 @@ char *mspGetCoordsAsString(const MSP const *msp)
 
 
 /* Return the path in the given tree model that this MSP lies in */
-gchar* mspGetTreePath(const MSP const *msp, BlxModelId modelId)
+gchar* mspGetTreePath(const MSP* const msp, BlxModelId modelId)
 {
   return msp->treePaths[modelId];
 }
@@ -691,11 +691,11 @@ gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 
 
 /* Get the MSP at the given index in the given array. Returns null if out of bounds */
-MSP* mspArrayIdx(const GArray const *array, const int idx)
+MSP* mspArrayIdx(const GArray* const array, const int idx)
 {
   MSP *msp = NULL;
   
-  if (idx >= 0 && idx < array->len)
+  if (idx >= 0 && idx < (int)array->len)
     msp = g_array_index(array, MSP*, idx);
   
   return msp;
@@ -704,7 +704,7 @@ MSP* mspArrayIdx(const GArray const *array, const int idx)
 
 /* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. The input
  * list should be a list containing all polya sites (and only polya sites) */
-gboolean mspHasPolyATail(const MSP const *msp, const GArray const *polyASiteList)
+gboolean mspHasPolyATail(const MSP* const msp, const GArray* const polyASiteList)
 {
   gboolean found = FALSE;
   
@@ -738,7 +738,7 @@ gboolean mspHasPolyATail(const MSP const *msp, const GArray const *polyASiteList
 
 /* Returns true if the given MSP coord (in ref seq nucleotide coords) is inside a polyA tail, if
  * this MSP has one. */
-gboolean mspCoordInPolyATail(const int coord, const MSP const *msp, const GArray *polyASiteList)
+gboolean mspCoordInPolyATail(const int coord, const MSP* const msp, const GArray *polyASiteList)
 {
   gboolean result = mspHasPolyATail(msp, polyASiteList);
   
@@ -769,7 +769,7 @@ static void appendTextIfNonNull(GString *gstr, const char *separator, const char
 
 /* Return summary info about a given BlxSequence (e.g. for displaying in the status bar). The
  * result should be free'd with g_free. */
-char* blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq, GList *columnList)
+char* blxSequenceGetSummaryInfo(const BlxSequence* const blxSeq, GList *columnList)
 {
   char *result = NULL;
   
@@ -865,11 +865,11 @@ GQuark blxSequenceGetFetchMethod(const BlxSequence *seq,
       else
         array = seq->dataType->userFetch;
       
-      if (array && index >= 0 && index < array->len)
+      if (array && index >= 0 && index < (int)array->len)
         result = g_array_index(array, GQuark, index);
     }
 
-  if (!result && defaultMethods && index >= 0 && index < defaultMethods->len) 
+  if (!result && defaultMethods && index >= 0 && index < (int)defaultMethods->len) 
     {
       result = g_array_index(defaultMethods, GQuark, index);
     }
@@ -958,7 +958,7 @@ GValue* blxSequenceGetValue(const BlxSequence *seq, const int columnId)
 {
   GValue *result = NULL;
   
-  if (seq && columnId < seq->values->len)
+  if (seq && columnId < (int)seq->values->len)
     result = &g_array_index(seq->values, GValue, columnId);
 
   return result;
@@ -1028,7 +1028,7 @@ const char* blxSequenceGetValueAsString(const BlxSequence *seq, const int column
 
 /* Get the relevant data about a sequence for the given column ID (at the moment
  * this only supports string data) */
-const char* blxSequenceGetColumn(const BlxSequence const *blxSeq, const BlxColumnId columnId)
+const char* blxSequenceGetColumn(const BlxSequence* const blxSeq, const BlxColumnId columnId)
 {
   const char *result = NULL;
 
@@ -1129,7 +1129,7 @@ char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, GLis
       
       for ( ; mspItem; mspItem = mspItem->next)
         {
-          const MSP const *msp = (const MSP const *)(mspItem->data);
+          const MSP* const msp = (const MSP*)(mspItem->data);
           
           /* Don't show 'exon' msps because we show the exon's
            * individual 'cds' and 'utr' instead */
@@ -1252,7 +1252,7 @@ void destroyBlxSequence(BlxSequence *seq)
         {
           /* Free all column values */
           int i = 0;      
-          for ( ; i < seq->values->len; ++i)
+          for ( ; i < (int)seq->values->len; ++i)
             {
               GValue *value = &g_array_index(seq->values, GValue, i);
               g_value_unset(value);
@@ -1296,7 +1296,7 @@ void blxSequenceSetColumn(BlxSequence *seq, const char *colName, const char *val
 /* Utility to create a BlxSequence with the given name. */
 BlxSequence* createEmptyBlxSequence()
 {
-  BlxSequence *seq = g_malloc(sizeof(BlxSequence));
+  BlxSequence *seq = (BlxSequence*)g_malloc(sizeof(BlxSequence));
   
   seq->type = BLXSEQUENCE_UNSET;
   seq->dataType = NULL;
@@ -1312,14 +1312,14 @@ BlxSequence* createEmptyBlxSequence()
 
 BlxDataType* createBlxDataType()
 {
-  BlxDataType *result = g_malloc(sizeof *result);
+  BlxDataType *result = (BlxDataType*)g_malloc(sizeof *result);
   
   result->name = 0;
   result->bulkFetch = NULL;
   result->userFetch = NULL;
 
   /* Loop through the flags, setting them all to false initially */
-  MspFlag flag = MSPFLAG_MIN;
+  int flag = MSPFLAG_MIN;
   for ( ; flag < MSPFLAG_NUM_FLAGS; ++flag)
     {
       result->flags[flag] = FALSE;
@@ -1356,8 +1356,8 @@ gint compareFuncMspPos(gconstpointer a, gconstpointer b)
 {
   gint result = 0;
 
-  const MSP const *msp1 = (const MSP const*)a;
-  const MSP const *msp2 = (const MSP const*)b;
+  const MSP* const msp1 = (const MSP*)a;
+  const MSP* const msp2 = (const MSP*)b;
   
   if (msp1->qRange.min == msp2->qRange.min)
     {
@@ -1379,8 +1379,8 @@ gint compareFuncMspArray(gconstpointer a, gconstpointer b)
 {
   gint result = 0;
   
-  const MSP const *msp1 = *((const MSP const**)a);
-  const MSP const *msp2 = *((const MSP const**)b);
+  const MSP* const msp1 = *((const MSP**)a);
+  const MSP* const msp2 = *((const MSP**)b);
   
   if (msp1->qRange.min == msp2->qRange.min)
     {
@@ -1397,7 +1397,7 @@ gint compareFuncMspArray(gconstpointer a, gconstpointer b)
 
 
 /* returns true if the given msp should be output when piping features to dotter */
-static gboolean outputMsp(const MSP const *msp, IntRange *range1, IntRange *range2)
+static gboolean outputMsp(const MSP* const msp, IntRange *range1, IntRange *range2)
 {
   return ((msp->type == BLXMSP_FS_SEG || mspIsExon(msp) || mspIsIntron(msp) || mspIsBlastMatch(msp)) && 
           (rangesOverlap(&msp->qRange, range1) || rangesOverlap(&msp->qRange, range2))
@@ -1406,14 +1406,14 @@ static gboolean outputMsp(const MSP const *msp, IntRange *range1, IntRange *rang
 
 
 /* Counts the number of msps that should be output when piping to dotter */
-static int countMspsToOutput(const BlxSequence const *blxSeq, IntRange *range1, IntRange *range2)
+static int countMspsToOutput(const BlxSequence* const blxSeq, IntRange *range1, IntRange *range2)
 {
   int numMsps = 0;
   
   GList *mspItem = blxSeq->mspList;
   for ( ; mspItem; mspItem = mspItem->next)
     {
-      const MSP const *msp = (const MSP const *)(mspItem->data);
+      const MSP* const msp = (const MSP*)(mspItem->data);
       
       if (outputMsp(msp, range1, range2))
         ++numMsps;
@@ -1448,7 +1448,7 @@ void writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *r
       GList *mspItem = blxSeq->mspList;
       for ( ; mspItem; mspItem = mspItem->next)
         {
-          const MSP const *msp = (const MSP const *)(mspItem->data);
+          const MSP* const msp = (const MSP*)(mspItem->data);
           
           if (outputMsp(msp, range1, range2))
             {
@@ -1486,10 +1486,10 @@ BlxSequence* readBlxSequenceFromText(char *text, int *numMsps)
   
   nextChar(&curChar);
   
-  blxSeq->type = strtol(curChar, &curChar, 10);
+  blxSeq->type = (BlxSequenceType)strtol(curChar, &curChar, 10);
   nextChar(&curChar);
 
-  blxSeq->strand = strtol(curChar, &curChar, 10);
+  blxSeq->strand = (BlxStrand)strtol(curChar, &curChar, 10);
   nextChar(&curChar);
 
   *numMsps = strtol(curChar, &curChar, 10);
@@ -1507,7 +1507,7 @@ BlxSequence* readBlxSequenceFromText(char *text, int *numMsps)
 
 
 /* write data from the given msp to the given output pipe. */
-void writeMspToOutput(FILE *pipe, const MSP const *msp)
+void writeMspToOutput(FILE *pipe, const MSP* const msp)
 {
   fprintf(pipe, "%d %f %f %d %d %d %d %d %d %d", 
           msp->type,
@@ -1536,7 +1536,7 @@ void readMspFromText(MSP *msp, char *text)
   char *curChar = text;
 
   nextChar(&curChar);
-  msp->type = strtol(curChar, &curChar, 10);
+  msp->type = (BlxMspType)strtol(curChar, &curChar, 10);
 
   nextChar(&curChar);
   msp->score = g_strtod(curChar, &curChar);
@@ -1565,7 +1565,7 @@ void readMspFromText(MSP *msp, char *text)
   intrangeSetValues(&msp->sRange, sStart, sEnd);
   
   nextChar(&curChar);
-  msp->qStrand = strtol(curChar, &curChar, 10);
+  msp->qStrand = (BlxStrand)strtol(curChar, &curChar, 10);
 
   nextChar(&curChar);
   msp->qFrame = strtol(curChar, &curChar, 10);
@@ -1804,7 +1804,7 @@ MSP* createNewMsp(GArray* featureLists[],
 
 
 /* Make a copy of an MSP */
-MSP* copyMsp(const MSP const *src,
+MSP* copyMsp(const MSP* const src,
              GArray* featureLists[],             
              MSP **lastMsp, 
              MSP **mspList,
@@ -2261,7 +2261,7 @@ static int getOffsetToCodonStart(const int coord, const int numFrames, const Blx
 /* Calculate the reference sequence reading frame that the given MSP belongs to, if not
  * already set. Requires either the phase to be set, or the frame to already be set; otherwise
  * assumes a phase of 0 and gives a warning. */
-static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange)
+static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFrames, const IntRange* const refSeqRange)
 {
   /* For matches and exons, calculate frame if the phase is known, because the old code that 
    * used to pass the reading frame in exblx files seemed to occasionally pass an incorrect reading frame. */
@@ -2327,7 +2327,7 @@ void finaliseBlxSequences(GArray* featureLists[],
 			  const int offset,
 			  const BlxSeqType seqType, 
 			  const int numFrames,
-			  const IntRange const *refSeqRange,
+			  const IntRange* const refSeqRange,
 			  const gboolean calcFrame)
 {
   /* Loop through all MSPs and adjust their coords by the offest, then calculate their reading
@@ -2377,7 +2377,7 @@ void finaliseBlxSequences(GArray* featureLists[],
   int typeId = 0;
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
     {
-      if (typeShownInDetailView(typeId))
+      if (typeShownInDetailView((BlxMspType)typeId))
         g_array_sort(featureLists[typeId], compareFuncMspArray);
     }
 }
@@ -2394,7 +2394,7 @@ int findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand s
   
   for ( ; mspItem; mspItem = mspItem->next)
     {
-      const MSP const *msp = (const MSP const*)(mspItem->data);
+      const MSP* const msp = (const MSP*)(mspItem->data);
     
       if (msp->qStrand == strand || strand == BLXSTRAND_NONE)
 	{      
@@ -2428,7 +2428,7 @@ int findMspListSExtent(GList *mspList, const gboolean findMin)
   
   for ( ; mspItem; mspItem = mspItem->next)
     {
-      const MSP const *msp = (const MSP const*)(mspItem->data);
+      const MSP* const msp = (const MSP*)(mspItem->data);
       
       if (first)
 	{
@@ -2550,7 +2550,7 @@ const char* mspFlagGetConfigKey(const MspFlag flag)
        * The array is terminated with a "dummy" value, so if we find this
        * before we find our flag, there must be enum values that haven't
        * been added to the array, which is a programming error. */
-      MspFlag i = MSPFLAG_MIN + 1;
+      int i = MSPFLAG_MIN + 1;
       for ( ; i <= flag; ++i)
         {
           if (stringsEqual(g_MspFlagConfigKeys[i], "dummy", FALSE))
@@ -2867,3 +2867,59 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
     }
 }
 
+
+/***********************************************************
+ *                      Columns
+ ***********************************************************/
+
+/* Creates a data "column" from the given info and adds it to the columnList. */
+void blxColumnCreate(BlxColumnId columnId, 
+                     const gboolean createHeader,
+                     const char *title,
+                     GType type,
+                     const char *propertyName,
+                     const int defaultWidth,
+                     const gboolean dataLoaded,
+                     const gboolean showColumn,
+                     const gboolean showSummary,
+                     const gboolean searchable,
+                     const char *sortName,
+                     const char *emblId,
+                     const char *emblTag,
+                     GList **columnList)
+{
+  /* Create a simple label for the header (unless told not to) */
+  GtkWidget *headerWidget = NULL;
+  
+  if (createHeader)
+    {
+      headerWidget = createLabel(title, 0.0, 1.0, TRUE, TRUE, TRUE);
+      gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
+    }
+  
+  /* Create the column info */
+  BlxColumnInfo *columnInfo = (BlxColumnInfo*)g_malloc(sizeof(BlxColumnInfo));
+
+  static int columnIdx = 0;  
+  columnInfo->columnIdx = columnIdx;
+  ++columnIdx;
+
+  columnInfo->columnId = columnId;
+  columnInfo->headerWidget = headerWidget;
+  columnInfo->refreshFunc = NULL;
+  columnInfo->title = title;
+  columnInfo->propertyName = propertyName;
+  columnInfo->width = defaultWidth;
+  columnInfo->sortName = sortName;
+  columnInfo->emblId = g_quark_from_string(emblId);
+  columnInfo->emblTag = g_quark_from_string(emblTag);
+  columnInfo->dataLoaded = TRUE;
+  columnInfo->showColumn = showColumn;
+  columnInfo->showSummary = showSummary;
+  columnInfo->searchable = searchable;
+  columnInfo->type = type;
+  
+  /* Place it in the list. List must be sorted in the same order
+   * as the GtkListStore or gtk_list_store_set fails */
+  *columnList = g_list_insert_sorted(*columnList, columnInfo, columnIdxCompareFunc);
+}
