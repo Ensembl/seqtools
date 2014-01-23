@@ -3781,7 +3781,7 @@ void onColSelectionChanged(BelvuContext *bc)
 void onTreeOrderChanged(BelvuContext *bc)
 {
   /* If sorting by tree order, we need to refresh the sort order */
-  if (bc->sortType == BELVU_SORT_TREE);
+  if (bc->sortType == BELVU_SORT_TREE)
     doSort(bc, bc->sortType, FALSE);
 
   /* Recenter on the highlighted alignment */
