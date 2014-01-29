@@ -1,8 +1,8 @@
 
 INSTALLING SEQTOOLS
-===============
+===================
 
-Supported platforms are Linux and Mac OS X (Intel).  The installation procedure for both is as follows.
+Supported platforms are Linux and Mac OS X (Intel).  The installation procedure for both is as follows.  It is also possible to install on Windows using Cygwin - see the instructions in INSTALL.windows for how to set this up.
 
 To install in the default location (usually /usr/bin), type the following commands on a command line:
 > ./configure
@@ -22,7 +22,7 @@ Note that on Macs, GTK+ is often installed in a different location to the defaul
 
 
 DEPENDENCIES
-==========
+============
 
 This section describes what to do if the installation fails due to missing dependencies.
 
@@ -44,7 +44,7 @@ The SeqTools programs require GTK+ version 2.12 or later to be installed on your
 
 
 Non-default location
------------------
+--------------------
 If GTK+ is installed but is in a different location to the default (/usr/lib), then you need to tell the configure script its location, e.g. if GTK+ is installed in /opt/local/lib (common on Macs) then you would run configure as follows:
 > ./configure PKG_CONFIG_PATH=/opt/local/lib/pkgconfig LDFLAGS="-Xlinker -rpath -Xlinker /opt/local/lib"
 
@@ -55,13 +55,13 @@ Note that we used the -rpath linker option in the example above to make sure the
 
 
 Installing GTK+ on UNIX-like systems
-------------------------------
+------------------------------------
 If GTK+ is not installed, you can install it on Debian-like systems as follows:
 > sudo apt-get install libgtk2.0-dev
 
 
 Installing GTK+ on Macs
--------------------
+-----------------------
 To install GTK+ on a Mac we recommend that you use MacPorts (www.macports.org).  GTK+ has a lot of dependencies, and MacPorts installs the correct versions of those dependencies for you.
 
 You can check whether MacPorts is already available on your system by typing the following in the Terminal:
