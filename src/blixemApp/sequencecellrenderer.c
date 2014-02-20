@@ -1149,10 +1149,7 @@ static void drawMsp(SequenceCellRenderer *renderer,
 /* Draw a colinearity line between the two given MSPs, if applicable */
 static void mspDrawColinearityLine(const MSP* msp1, const MSP* msp2, const gboolean selected, RenderData *data)
 {
-  if (msp1 && msp2 && 
-      data && data->bc && 
-      data->bc->flags[BLXFLAG_SHOW_COLINEARITY] &&
-      (selected || !data->bc->flags[BLXFLAG_SHOW_COLINEARITY_SELECTED]))
+  if (msp1 && msp2 && data && data->bc)
     {
       /* If the display is reversed we need to swap the order of the msps */
       if (data->bc->displayRev)
@@ -1199,6 +1196,62 @@ static void mspDrawColinearityLine(const MSP* msp1, const MSP* msp2, const gbool
               drawLine2(data->window, data->drawable, data->gc, x1, y, x2, y);
             }
         }
+    }
+}
+
+
+/* Draw a colinearity line between the given msp and the previous/next one in the BlxSequence's list */
+static void mspDrawColinearityLineAdjacent(const MSP* msp, const gboolean selected, RenderData *data, gboolean prev)
+{
+  if (data && msp && msp->sSequence)
+    {
+      /* Find the current msp in the list, and get the one before it */
+      GList *mspItem = msp->sSequence->mspList;
+
+      for ( ; mspItem; mspItem = mspItem->next)
+        {
+          if (mspItem->data == msp)
+            break;
+        }
+      
+      if (mspItem) /* found it */
+        {
+          GList *adjacentItem = (prev ? mspItem->prev : mspItem->next);
+          
+          if (adjacentItem)
+            {
+              const MSP* adjacentMsp = (const MSP*)(adjacentItem->data);
+
+              if (prev)
+                mspDrawColinearityLine(adjacentMsp, msp, selected, data);
+              else
+                mspDrawColinearityLine(msp, adjacentMsp, selected, data);
+            }  
+        }
+    }
+}
+
+
+/* Draw colinearity lines between for the given MSP, if applicable */
+static void mspDrawColinearityLines(const MSP* cur_msp, const MSP* prev_msp, const gboolean selected, RenderData *data)
+{
+  g_return_if_fail(data);
+
+  if (data && data->bc && data->bc->flags[BLXFLAG_SHOW_COLINEARITY] &&
+      (selected || !data->bc->flags[BLXFLAG_SHOW_COLINEARITY_SELECTED]))
+    {
+      /* Draw the line between cur_msp and prev_msp */
+      mspDrawColinearityLine(prev_msp, cur_msp, selected, data);
+
+      /* If it's the first MSP in the row, then check for adjacent MSPs in the sequence that may be
+       * in different rows. */
+      if (prev_msp == NULL)
+        mspDrawColinearityLineAdjacent(cur_msp, selected, data, TRUE);
+
+      /* If it's the last MSP in the row, then check for adjacent MSPs in the sequence that may be
+       * in different rows. */
+      if (cur_msp == NULL)
+        mspDrawColinearityLineAdjacent(prev_msp, selected, data, FALSE);
     }
 }
 
@@ -1338,13 +1391,18 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
             {
               /* Ordinary row: draw all MSPs */
               drawMsp(renderer, msp, tree, &data);
-              mspDrawColinearityLine(msp, prevMsp, selected, &data);
+              mspDrawColinearityLines(msp, prevMsp, selected, &data);
             }
         }
       
       prevMsp = msp;
     }
   
+  /* Draw colinearity lines for the last msp. Passing curMsp as null indicates it's the last msp
+   * so we search for adjacent msps in different rows. */
+  if (prevMsp)
+    mspDrawColinearityLines(NULL, prevMsp, blxWindowIsSeqSelected(detailViewProperties->blxWindow, prevMsp->sSequence), &data);
+
   if (savedMsp)
     drawMsp(renderer, savedMsp, tree, &data);
   
