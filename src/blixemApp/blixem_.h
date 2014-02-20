@@ -299,6 +299,9 @@ typedef enum
     BLXCOLOR_ASSEMBLY_GAP,  /* highlight color for assembly gaps */
     BLXCOLOR_SELECTION,     /* highlight color for selections */
     BLXCOLOR_PARTIAL_EXON_CROSSHATCH, /* color of cross-hatch lines for partial exons */
+    BLXCOLOR_COLINEAR_PERFECT, /* color of lines joining alignment blocks that are perfectly colinear */
+    BLXCOLOR_COLINEAR_IMPERFECT, /* color of lines joining alignment blocks that are imperfectly colinear */
+    BLXCOLOR_COLINEAR_NOT,  /* color of lines joining alignment blocks that are not colinear */
 
     BLXCOL_NUM_COLORS
   } BlxColorId;

@@ -390,6 +390,8 @@ const char*           mspFlagGetConfigKey(const MspFlag flag);
 gboolean              mspFlagGetDefault(const MspFlag flag);
 void                  mspFlagSetDefault(const MspFlag flag, const gboolean value);
 
+ColinearityType       mspIsColinear(const MSP* const msp1, const MSP* const msp2);
+
 int                   getMaxMspLen();
 void                  setMaxMspLen(const int len);
 

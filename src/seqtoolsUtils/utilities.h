@@ -294,7 +294,17 @@ typedef struct _CoordRange
     int sEnd;       /* end coord on the match (Subject) seq */
   } CoordRange;
   
-  
+
+/* Used to specify the degree of colinearity between two alignment blocks. */
+typedef enum
+  {
+    COLINEAR_INVALID,
+    COLINEAR_NOT,                                          /* blocks not colinear. */
+    COLINEAR_IMPERFECT,                                    /* blocks colinear but not contiguous. */
+    COLINEAR_PERFECT,                                      /* blocks colinear and contiguous. */
+    COLINEARITY_N_TYPE
+  } ColinearityType ;
+
 
 GdkDrawable*          widgetGetDrawable(GtkWidget *widget);
 void                  widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);
