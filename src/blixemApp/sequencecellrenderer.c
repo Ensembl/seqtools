@@ -1052,7 +1052,8 @@ static void mspDrawClippedMarker(const MSP* const msp,
 
 /* Draw the the given MSP. As well as the sequence text this also draws the background
  * color for each base based on how well it matches the reference sequence, and also
- * draws insertion markers and "clipped" markers. */
+ * draws insertion markers and "clipped" markers. 
+ * Optionally returns the visible range of the MSP in segmentRange_out. */
 static void drawMsp(SequenceCellRenderer *renderer,
                     MSP *msp,
                     GtkWidget *tree,
@@ -1140,9 +1141,59 @@ static void drawMsp(SequenceCellRenderer *renderer,
 
   /* Draw the sequence text */
   mspDrawSequenceText(tree, displayText, &segmentRange, data);
-  
+
   g_free(refSeqSegment);
 }    
+
+
+static void mspDrawColinearityLine(const MSP* msp1, const MSP* msp2, RenderData *data)
+{
+  /* If the display is reversed we need to swap the order of the msps */
+  if (data->bc->displayRev)
+    {
+      const MSP* tmp = msp1;
+      msp1 = msp2;
+      msp2 = tmp;
+    }
+
+  ColinearityType colinearityType = COLINEAR_INVALID;
+
+  if ((data->bc->displayRev && msp1->qStrand == BLXSTRAND_FORWARD) || (!data->bc->displayRev && msp1->qStrand != BLXSTRAND_FORWARD))
+    colinearityType = mspIsColinear(msp2, msp1);
+  else
+    colinearityType = mspIsColinear(msp1, msp2);
+
+  if (colinearityType != COLINEAR_INVALID)
+    {
+      /* get the line color */
+      GdkColor *color = NULL;
+
+      if (colinearityType == COLINEAR_PERFECT)
+        color = getGdkColor(BLXCOLOR_COLINEAR_PERFECT, data->bc->defaultColors, FALSE, data->bc->usePrintColors);
+      else if (colinearityType == COLINEAR_IMPERFECT)
+        color = getGdkColor(BLXCOLOR_COLINEAR_IMPERFECT, data->bc->defaultColors, FALSE, data->bc->usePrintColors);
+      else
+        color = getGdkColor(BLXCOLOR_COLINEAR_NOT, data->bc->defaultColors, FALSE, data->bc->usePrintColors);
+
+      gdk_gc_set_foreground(data->gc, color);
+
+      /* Get the coords of the line */
+      const int y = data->cell_area->y + (data->charHeight / 2);
+      int x1 = data->cell_area->x + ((msp1->displayRange.max + 1 - data->displayRange->min) * data->charWidth); /* +1 to get rightmost edge of char */
+      int x2 = data->cell_area->x + ((msp2->displayRange.min - data->displayRange->min) * data->charWidth) - 1; /* -1 offset by 1 pixel so we don't overdraw the char */
+
+      if (x1 < data->cell_area->x + data->cell_area->width && x2 > data->cell_area->x)
+        {
+          if (x1 < data->cell_area->x)
+            x1 = data->cell_area->x;
+      
+          if (x2 > data->cell_area->x + data->cell_area->width)
+            x2 = data->cell_area->x + data->cell_area->width;
+
+          drawLine2(data->window, data->drawable, data->gc, x1, y, x2, y);
+        }
+    }
+}
 
 
 /* There can be multiple MSPs in the same cell. This function loops through them
@@ -1235,6 +1286,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
   /* Draw all MSPs in this row */
   GList *mspListItem = renderer->mspGList;
   MSP *savedMsp = NULL;
+  MSP *prevMsp = NULL;
   
   for ( ; mspListItem; mspListItem = mspListItem->next)
     {
@@ -1277,8 +1329,13 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
             {
               /* Ordinary row: draw all MSPs */
               drawMsp(renderer, msp, tree, &data);
+              
+              if (prevMsp)
+                mspDrawColinearityLine(msp, prevMsp, &data);
             }
         }
+      
+      prevMsp = msp;
     }
   
   if (savedMsp)
