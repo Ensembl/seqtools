@@ -1246,15 +1246,21 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
         }
       else if (mspIsBlastMatch(msp))
         {
-          if (mspGetFlag(msp, MSPFLAG_SQUASH_IDENTICAL_FEATURES))
+          if (mspGetFlag(msp, MSPFLAG_SQUASH_IDENTICAL_FEATURES) && !mspGetFlag(msp, MSPFLAG_SQUASH_LINKED_FEATURES))
             {
-              /* Identical matches in the same row are duplicates, so we
-               * only need to draw one.
-               * If any of the duplicates is selected, we want to draw the
-               * row as selected, so for the first pass, only draw an MSP
-               * if it is selected; but remember the first MSP that we see
-               * so that we can go back and draw that if none were found to
-               * be selected. */
+              /* The first condition here means that identical matches are placed in the
+               * same row and the second means that matches linked in any other way aren't. Hence
+               * if we get here we know that if we have multiple MSPs in this row then they
+               * must be identical (i.e. duplicate) matches and we only need to draw one of them.
+               * This is an important optimisation for BAM data, where we can have hundreds of
+               * identical reads on the same row.
+               * gb10 2014: Ideally we should add optimisation for the case where we have both 
+               * linked features and identical matches in the same row, but this isn't used at the
+               * moment. */
+              
+              /* If any of the MSPs is selected, we want to draw the row as selected, so loop through
+               * checking if any are selected. If a selected one is found then draw it; otherwise,
+               * save the first MSP so we can go back and draw that. */
               if (blxWindowIsSeqSelected(detailViewProperties->blxWindow, msp->sSequence))
                 {
                   data.seqSelected = TRUE;
