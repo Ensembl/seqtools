@@ -225,9 +225,12 @@ static void drawMspLine(const MSP* const msp, DrawGridData *drawData)
 /* Draw colinearity lines between the given MSP list item and the next one (if there is one) */
 static void drawColinearityLines(GList *mspListItem, DrawGridData *drawData)
 {
-  if (drawData && drawData->drawColinearityLines && mspListItem && mspListItem->next)
+  g_return_if_fail(drawData);
+
+  BlxViewContext *bc = gridGetContext(drawData->grid);
+  
+  if (drawData->drawColinearityLines && mspListItem && mspListItem->next && bc->flags[BLXFLAG_SHOW_COLINEARITY])
     {
-      BlxViewContext *bc = gridGetContext(drawData->grid);
       const IntRange* const displayRange = gridGetDisplayRange(drawData->grid);
 
       const MSP* msp1 = (const MSP*)mspListItem->data;
@@ -365,7 +368,8 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable)
   g_list_foreach(bc->sequenceGroups, drawGroupedMspLines, &drawData);
   
   /* Finally, draw selected sequences. These will appear on top of everything else and will have
-   * colinearity lines displayed. */
+   * colinearity lines displayed (we only ever display colinearity lines for selected sequences
+   * in the grid because it would be too cluttered otherwise). */
   drawData.color = gridGetMspLineColor(grid, TRUE);
   GdkColor shadowColor;
   getDropShadowColor(drawData.color, &shadowColor);

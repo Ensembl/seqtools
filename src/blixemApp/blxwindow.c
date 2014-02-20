@@ -2821,8 +2821,9 @@ static gboolean setFlagFromButton(GtkWidget *button, gpointer data)
   
   BlxFlag flag = (BlxFlag)GPOINTER_TO_INT(data);
   const gboolean newValue = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-  
-  bc->flags[flag] = newValue;
+
+  if (flag > BLXFLAG_MIN && flag < BLXFLAG_NUM_FLAGS)
+    bc->flags[flag] = newValue;
   
   return newValue;
 }
@@ -3489,7 +3490,9 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
 
   /* Connect the toggleFlag callback first so that the flag is set correctly before the callbackFunc is called */
   g_signal_connect(G_OBJECT(btn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(flag));
-  g_signal_connect(G_OBJECT(btn), "toggled", callbackFunc, subContainer);
+  
+  if (callbackFunc)
+    g_signal_connect(G_OBJECT(btn), "toggled", callbackFunc, subContainer);
 
   if (buttonOut)
     *buttonOut = btn;
@@ -3754,6 +3757,10 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   GtkContainer *unalignContainer = createParentCheckButton(optionsBox, detailView, bc, "Show _unaligned sequence", BLXFLAG_SHOW_UNALIGNED, NULL, G_CALLBACK(onShowAdditionalSeqToggled));
   createLimitUnalignedBasesButton(unalignContainer, detailView, bc);
   createCheckButton(GTK_BOX(unalignContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED], G_CALLBACK(onToggleShowUnalignedSelected), detailView);
+
+  /* show-colinearity-lines option and its sub-options */
+  GtkContainer *colinearityContainer = createParentCheckButton(optionsBox, detailView, bc, "Show _colinearity lines", BLXFLAG_SHOW_COLINEARITY, NULL, G_CALLBACK(onParentBtnToggled));
+  createCheckButton(GTK_BOX(colinearityContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_COLINEARITY_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_COLINEARITY_SELECTED));
 
   createCheckButton(GTK_BOX(optionsBox), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
 
@@ -5035,6 +5042,8 @@ static const char* getFlagName(const BlxFlag flag)
       names[BLXFLAG_SHOW_POLYA_SIG] = SETTING_NAME_SHOW_POLYA_SIG;
       names[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = SETTING_NAME_SHOW_POLYA_SIG_SELECTED;
       names[BLXFLAG_SHOW_SPLICE_SITES] = SETTING_NAME_SHOW_SPLICE_SITES;
+      names[BLXFLAG_SHOW_COLINEARITY] = SETTING_NAME_SHOW_COLINEARITY;
+      names[BLXFLAG_SHOW_COLINEARITY_SELECTED] = SETTING_NAME_SHOW_COLINEARITY_SELECTED;
     }
 
   if (flag <= BLXFLAG_MIN || flag >= BLXFLAG_NUM_FLAGS)

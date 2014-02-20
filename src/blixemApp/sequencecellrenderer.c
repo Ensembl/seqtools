@@ -1146,51 +1146,58 @@ static void drawMsp(SequenceCellRenderer *renderer,
 }    
 
 
-static void mspDrawColinearityLine(const MSP* msp1, const MSP* msp2, RenderData *data)
+/* Draw a colinearity line between the two given MSPs, if applicable */
+static void mspDrawColinearityLine(const MSP* msp1, const MSP* msp2, const gboolean selected, RenderData *data)
 {
-  /* If the display is reversed we need to swap the order of the msps */
-  if (data->bc->displayRev)
+  if (msp1 && msp2 && 
+      data && data->bc && 
+      data->bc->flags[BLXFLAG_SHOW_COLINEARITY] &&
+      (selected || !data->bc->flags[BLXFLAG_SHOW_COLINEARITY_SELECTED]))
     {
-      const MSP* tmp = msp1;
-      msp1 = msp2;
-      msp2 = tmp;
-    }
-
-  ColinearityType colinearityType = COLINEAR_INVALID;
-
-  if ((data->bc->displayRev && msp1->qStrand == BLXSTRAND_FORWARD) || (!data->bc->displayRev && msp1->qStrand != BLXSTRAND_FORWARD))
-    colinearityType = mspIsColinear(msp2, msp1);
-  else
-    colinearityType = mspIsColinear(msp1, msp2);
-
-  if (colinearityType != COLINEAR_INVALID)
-    {
-      /* get the line color */
-      GdkColor *color = NULL;
-
-      if (colinearityType == COLINEAR_PERFECT)
-        color = getGdkColor(BLXCOLOR_COLINEAR_PERFECT, data->bc->defaultColors, FALSE, data->bc->usePrintColors);
-      else if (colinearityType == COLINEAR_IMPERFECT)
-        color = getGdkColor(BLXCOLOR_COLINEAR_IMPERFECT, data->bc->defaultColors, FALSE, data->bc->usePrintColors);
-      else
-        color = getGdkColor(BLXCOLOR_COLINEAR_NOT, data->bc->defaultColors, FALSE, data->bc->usePrintColors);
-
-      gdk_gc_set_foreground(data->gc, color);
-
-      /* Get the coords of the line */
-      const int y = data->cell_area->y + (data->charHeight / 2);
-      int x1 = data->cell_area->x + ((msp1->displayRange.max + 1 - data->displayRange->min) * data->charWidth); /* +1 to get rightmost edge of char */
-      int x2 = data->cell_area->x + ((msp2->displayRange.min - data->displayRange->min) * data->charWidth) - 1; /* -1 offset by 1 pixel so we don't overdraw the char */
-
-      if (x1 < data->cell_area->x + data->cell_area->width && x2 > data->cell_area->x)
+      /* If the display is reversed we need to swap the order of the msps */
+      if (data->bc->displayRev)
         {
-          if (x1 < data->cell_area->x)
-            x1 = data->cell_area->x;
-      
-          if (x2 > data->cell_area->x + data->cell_area->width)
-            x2 = data->cell_area->x + data->cell_area->width;
+          const MSP* tmp = msp1;
+          msp1 = msp2;
+          msp2 = tmp;
+        }
 
-          drawLine2(data->window, data->drawable, data->gc, x1, y, x2, y);
+      ColinearityType colinearityType = COLINEAR_INVALID;
+
+      if ((data->bc->displayRev && msp1->qStrand == BLXSTRAND_FORWARD) || (!data->bc->displayRev && msp1->qStrand != BLXSTRAND_FORWARD))
+        colinearityType = mspIsColinear(msp2, msp1);
+      else
+        colinearityType = mspIsColinear(msp1, msp2);
+
+      if (colinearityType != COLINEAR_INVALID)
+        {
+          /* get the line color */
+          GdkColor *color = NULL;
+
+          if (colinearityType == COLINEAR_PERFECT)
+            color = getGdkColor(BLXCOLOR_COLINEAR_PERFECT, data->bc->defaultColors, FALSE, data->bc->usePrintColors);
+          else if (colinearityType == COLINEAR_IMPERFECT)
+            color = getGdkColor(BLXCOLOR_COLINEAR_IMPERFECT, data->bc->defaultColors, FALSE, data->bc->usePrintColors);
+          else
+            color = getGdkColor(BLXCOLOR_COLINEAR_NOT, data->bc->defaultColors, FALSE, data->bc->usePrintColors);
+
+          gdk_gc_set_foreground(data->gc, color);
+
+          /* Get the coords of the line */
+          const int y = data->cell_area->y + (data->charHeight / 2);
+          int x1 = data->cell_area->x + ((msp1->displayRange.max + 1 - data->displayRange->min) * data->charWidth); /* +1 to get rightmost edge of char */
+          int x2 = data->cell_area->x + ((msp2->displayRange.min - data->displayRange->min) * data->charWidth) - 1; /* -1 offset by 1 pixel so we don't overdraw the char */
+
+          if (x1 < data->cell_area->x + data->cell_area->width && x2 > data->cell_area->x)
+            {
+              if (x1 < data->cell_area->x)
+                x1 = data->cell_area->x;
+      
+              if (x2 > data->cell_area->x + data->cell_area->width)
+                x2 = data->cell_area->x + data->cell_area->width;
+
+              drawLine2(data->window, data->drawable, data->gc, x1, y, x2, y);
+            }
         }
     }
 }
@@ -1298,6 +1305,8 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
         }
       else if (mspIsBlastMatch(msp))
         {
+          gboolean selected = blxWindowIsSeqSelected(detailViewProperties->blxWindow, msp->sSequence);
+
           if (mspGetFlag(msp, MSPFLAG_SQUASH_IDENTICAL_FEATURES) && !mspGetFlag(msp, MSPFLAG_SQUASH_LINKED_FEATURES))
             {
               /* The first condition here means that identical matches are placed in the
@@ -1313,7 +1322,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
               /* If any of the MSPs is selected, we want to draw the row as selected, so loop through
                * checking if any are selected. If a selected one is found then draw it; otherwise,
                * save the first MSP so we can go back and draw that. */
-              if (blxWindowIsSeqSelected(detailViewProperties->blxWindow, msp->sSequence))
+              if (selected)
                 {
                   data.seqSelected = TRUE;
                   drawMsp(renderer, msp, tree, &data);
@@ -1329,9 +1338,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
             {
               /* Ordinary row: draw all MSPs */
               drawMsp(renderer, msp, tree, &data);
-              
-              if (prevMsp)
-                mspDrawColinearityLine(msp, prevMsp, &data);
+              mspDrawColinearityLine(msp, prevMsp, selected, &data);
             }
         }
       
