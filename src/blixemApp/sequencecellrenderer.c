@@ -97,8 +97,6 @@ typedef struct _RenderData
     int exonBoundaryWidth;
     GdkLineStyle exonBoundaryStyle;
     GdkLineStyle exonBoundaryStylePartial;
-    gboolean showUnalignedSeq;
-    gboolean showUnalignedSelected;
     gboolean limitUnalignedBases;
     int numUnalignedBases;
   } RenderData;
@@ -1333,8 +1331,6 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
     detailViewProperties->exonBoundaryLineWidth,
     detailViewProperties->exonBoundaryLineStyle,
     detailViewProperties->exonBoundaryLineStylePartial,
-    bc->flags[BLXFLAG_SHOW_UNALIGNED],
-    bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED],
     bc->flags[BLXFLAG_LIMIT_UNALIGNED_BASES],
     detailViewProperties->numUnalignedBases
   };  

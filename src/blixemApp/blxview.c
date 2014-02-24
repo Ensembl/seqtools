@@ -722,10 +722,19 @@ const IntRange* mspGetFullDisplayRange(const MSP* const msp, const gboolean seqS
 {
   const IntRange *result = NULL;
   
-  if (seqSelected || !bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED] || !bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED])
-    result = &msp->fullRange;
+  /* Check if showing unaligned sequence or polya tails for all sequences, or just the selected
+     sequence */
+  if ((bc->flags[BLXFLAG_SHOW_UNALIGNED] || bc->flags[BLXFLAG_SHOW_POLYA_SITE]) && 
+      (seqSelected || 
+       (bc->flags[BLXFLAG_SHOW_UNALIGNED] && !bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED]) || 
+       (bc->flags[BLXFLAG_SHOW_POLYA_SITE] && !bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED])))
+    {
+      result = &msp->fullRange;
+    }
   else
-    result = &msp->displayRange;
+    {
+      result = &msp->displayRange;
+    }
   
   return result;
 }
