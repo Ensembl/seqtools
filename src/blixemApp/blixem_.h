@@ -173,6 +173,8 @@ typedef enum
 #define SETTING_NAME_SHOW_POLYA_SIG_SELECTED "show-polya-sig-selected-seq"
 #define SETTING_NAME_SHOW_SPLICE_SITES "show-splice-sites"
 #define SETTING_NAME_SQUASH_MATCHES "squash-matches"
+#define SETTING_NAME_SHOW_COLINEARITY "show-colinearity"
+#define SETTING_NAME_SHOW_COLINEARITY_SELECTED "show-colinearity-selected"
 
 
 /* would be good to get rid of this.... */
@@ -299,6 +301,9 @@ typedef enum
     BLXCOLOR_ASSEMBLY_GAP,  /* highlight color for assembly gaps */
     BLXCOLOR_SELECTION,     /* highlight color for selections */
     BLXCOLOR_PARTIAL_EXON_CROSSHATCH, /* color of cross-hatch lines for partial exons */
+    BLXCOLOR_COLINEAR_PERFECT, /* color of lines joining alignment blocks that are perfectly colinear */
+    BLXCOLOR_COLINEAR_IMPERFECT, /* color of lines joining alignment blocks that are imperfectly colinear */
+    BLXCOLOR_COLINEAR_NOT,  /* color of lines joining alignment blocks that are not colinear */
 
     BLXCOL_NUM_COLORS
   } BlxColorId;
@@ -343,7 +348,9 @@ typedef enum
     BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
     BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
     BLXFLAG_ABBREV_TITLE,           /* whether to abbreviate the window titles to save space */
-    BLXFLAG_LINK_FEATURES,          /* whether featuers with the same name should be linked */
+    BLXFLAG_LINK_FEATURES,          /* whether features with the same name should be linked */
+    BLXFLAG_SHOW_COLINEARITY,       /* whether to show colinearity lines between alignment blocks */
+    BLXFLAG_SHOW_COLINEARITY_SELECTED, /* whether to show colinearity lines for selected sequence only */
     
     BLXFLAG_NUM_FLAGS               /* Total number of flags e.g. for creating arrays and loops etc */
   } BlxFlag;

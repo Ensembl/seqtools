@@ -1358,17 +1358,23 @@ gint compareFuncMspPos(gconstpointer a, gconstpointer b)
 
   const MSP* const msp1 = (const MSP*)a;
   const MSP* const msp2 = (const MSP*)b;
+
+  /* First, sort by strand (because it's meaningless comparing matches on different strands) */
+  result = (int)msp1->qStrand - (int)msp2->qStrand;
   
-  if (msp1->qRange.min == msp2->qRange.min)
+  if (result == 0)
     {
-      /* Sort by type. Lower type numbers should appear first. */
-      result = msp2->type - msp1->type;
+      if (msp1->qRange.min == msp2->qRange.min)
+        {
+          /* Sort by type. Lower type numbers should appear first. */
+          result = msp2->type - msp1->type;
+        }
+      else 
+        {
+          result = msp1->qRange.min -  msp2->qRange.min;
+        }
     }
-  else 
-    {
-      result = msp1->qRange.min -  msp2->qRange.min;
-    }
-  
+
   return result;
 }
 
@@ -2493,6 +2499,27 @@ void mspFlagSetDefault(const MspFlag flag, const gboolean value)
     {
       g_critical("Program error: attempt to use unknown MSP flag '%d'\n", flag);
     }
+}
+
+
+/* Returns the colinearity of the two msps */
+ColinearityType mspIsColinear(const MSP* const msp1, const MSP* const msp2)
+{
+  ColinearityType result = COLINEAR_INVALID;
+
+  if (msp1 && msp2 && msp1->qStrand == msp2->qStrand && 
+      msp1->sSequence && msp2->sSequence && 
+      msp1->sSequence->strand == msp2->sSequence->strand)
+    {
+      if (msp2->sRange.min < msp1->sRange.max)
+        result = COLINEAR_NOT;
+      else if (msp2->sRange.min == msp1->sRange.max + 1)
+        result = COLINEAR_PERFECT;
+      else
+        result = COLINEAR_IMPERFECT;
+    }
+
+  return result;
 }
 
 
