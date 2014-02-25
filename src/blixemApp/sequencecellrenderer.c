@@ -1230,7 +1230,7 @@ static void mspDrawColinearityLineAdjacent(const MSP* msp, const gboolean select
 }
 
 
-/* Draw colinearity lines between for the given MSP, if applicable */
+/* Draw colinearity lines between the two given, adjacent MSPs in the same row, if applicable */
 static void mspDrawColinearityLines(const MSP* cur_msp, const MSP* prev_msp, const gboolean selected, RenderData *data)
 {
   g_return_if_fail(data);
@@ -1238,18 +1238,35 @@ static void mspDrawColinearityLines(const MSP* cur_msp, const MSP* prev_msp, con
   if (data && data->bc && data->bc->flags[BLXFLAG_SHOW_COLINEARITY] &&
       (selected || !data->bc->flags[BLXFLAG_SHOW_COLINEARITY_SELECTED]))
     {
-      /* Draw the line between cur_msp and prev_msp */
-      mspDrawColinearityLine(prev_msp, cur_msp, selected, data);
+      if (data->bc->seqType == BLXSEQ_DNA)
+        {
+          /* Draw a line between the adjacent MSPs*/
+          mspDrawColinearityLine(prev_msp, cur_msp, selected, data);
 
-      /* If it's the first MSP in the row, then check for adjacent MSPs in the sequence that may be
-       * in different rows. */
-      if (prev_msp == NULL)
-        mspDrawColinearityLineAdjacent(cur_msp, selected, data, TRUE);
+          /* If it's the first MSP in the row, then check for adjacent MSPs in the sequence that may be
+           * in different rows. */
+          if (prev_msp == NULL)
+            mspDrawColinearityLineAdjacent(cur_msp, selected, data, TRUE);
+          
+          /* If it's the last MSP in the row, then check for adjacent MSPs in the sequence that may be
+           * in different rows. */
+          if (cur_msp == NULL)
+            mspDrawColinearityLineAdjacent(prev_msp, selected, data, FALSE);
+        }
+      else
+        {
+          /* Protein mode. The two given MSPs are in the same row and hence the same frame, but
+           * we therefore can't assume they're adjacent because the real next/previous MSP might
+           * be in a different frame. Therefore we have to draw the line to the previous AND next
+           * MSP for every MSP (i.e. we draw the joining lines twice; if they are in the same frame
+           * they will overlap but otherwise they need to be shown in each frame) */
+          if (cur_msp)
+            mspDrawColinearityLineAdjacent(cur_msp, selected, data, TRUE);
+          
+          if (prev_msp)
+            mspDrawColinearityLineAdjacent(prev_msp, selected, data, FALSE);
+        }
 
-      /* If it's the last MSP in the row, then check for adjacent MSPs in the sequence that may be
-       * in different rows. */
-      if (cur_msp == NULL)
-        mspDrawColinearityLineAdjacent(prev_msp, selected, data, FALSE);
     }
 }
 

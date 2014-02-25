@@ -246,7 +246,7 @@ static void addSequenceMspsToSingleRow(BlxSequence *blxSeq, GtkWidget *tree, Gtk
       MSP *msp  = (MSP*)(mspItem->data);
       if (typeShownInDetailView(msp->type) && msp->qStrand == treeStrand && msp->qFrame == treeGetFrame(tree))
         {
-          mspsToAdd = g_list_prepend(mspsToAdd, msp);
+          mspsToAdd = g_list_append(mspsToAdd, msp);
         }
     }
 
