@@ -4168,6 +4168,8 @@ void toggleStrand(GtkWidget *detailView)
 void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 {
   static gchar defaultInput[32] = "";
+  static gboolean toplevelCoords = FALSE;
+
   BlxViewContext *bc = detailViewGetContext(detailView);
   
   /* Pop up a dialog to request a coord from the user */
@@ -4182,21 +4184,35 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 
   g_free(title);
   
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
+  const int padding = 4;
+
+  /* Create a text-entry widget for the user to enter the coord */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(contentArea), hbox, FALSE, FALSE, padding);
+
+  GtkWidget *label = gtk_label_new("Enter coord: ");
+  gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, padding);
 
   GtkWidget *entry = gtk_entry_new();
-  gtk_box_pack_start(GTK_BOX(contentArea), entry, TRUE, TRUE, 0);
-
   gtk_entry_set_text(GTK_ENTRY(entry), defaultInput);
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  gtk_widget_show(entry);
-  
+  gtk_box_pack_start(GTK_BOX(hbox), entry, TRUE, TRUE, padding);
+
+  /* Create a tick-box to toggle to top-level coords (default is local coords) */
+  GtkWidget *checkBox = gtk_check_button_new_with_mnemonic("Use _top-level coords");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkBox), toplevelCoords);
+  gtk_box_pack_start(GTK_BOX(contentArea), checkBox, FALSE, FALSE, padding);
+
+  /* Show the dialog and wait for a response */
+  gtk_widget_show_all(dialog);
 
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
       const gchar *inputText = gtk_entry_get_text(GTK_ENTRY(entry));
-      
+      toplevelCoords = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(checkBox));
+
       /* Convert the input string to an int */
       int requestedCoord = atoi(inputText);
       
@@ -4214,6 +4230,12 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
           if (negate)
             {
               coord *= -1;
+            }
+
+          /* If the user entered a top-level coord, apply the offset to convert to local coords */
+          if (toplevelCoords)
+            {
+              coord += bc->refSeqOffset;
             }
 
           /* Check if it's in range. If not, try negating it in case the user
