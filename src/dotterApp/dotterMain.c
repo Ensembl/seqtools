@@ -188,7 +188,6 @@ static void setDefaultOptions(DotterOptions *options)
   options->mtxfile = NULL;
 
   options->winsize = NULL;
-  options->xOptions = NULL;
   options->qname = NULL;
   options->qseq = NULL;
   options->sname = NULL;
@@ -295,42 +294,6 @@ static void showVersionInfo()
 static void showCompiledInfo()
 {
   g_message("%s\n", UT_MAKE_COMPILE_DATE());  
-}
-
-
-/* Get the Xoptions as a string from the arguments in the argv list. idx should indicate which
- * index in argv the Xoptions start at. The returned string should be free'd with g_free. It may
- * be null if there were no options. */
-static char* getXOptions(char **argv, const int argc, const int idx)
-{
-  DEBUG_ENTER("getXOptions");
-
-  char *result = NULL;
-  
-  int len = 0;
-  int i = idx;
-
-  /* First calculate the length of the string that we need */
-  for ( ; i < argc; ++i)
-    {
-      len += strlen(argv[i])+1;
-    }
-
-  DEBUG_OUT("xOptions len = %d\n", len);
-  
-  if (len > 0)
-    {
-      result = (char*)g_malloc(len+1);
-      
-      for (i = idx; i < argc; ++i) 
-        {
-          strcat(result, argv[i]);
-          strcat(result, " ");
-        }
-    }
-  
-  DEBUG_EXIT("getXOptions returning %s", result);
-  return result;
 }
 
 
@@ -562,9 +525,8 @@ int main(int argc, char **argv)
     {
       DEBUG_OUT("Dotter was called internally.\n");
       
-      /* The input arguments (following the options) are: qname, qlen, sname, slen, dotterBinary, Xoptions.
-       * Xoptions are optional, so we should have 5 or 6 arguments */
-      if (argc - optind < 5 || argc - optind > 6)
+      /* The input arguments (following the options) are: qname, qlen, sname, slen, dotterBinary. */
+      if (argc - optind < 5 || argc - optind > 5)
         {
           g_error("Incorrect number of arguments passed to dotter from internal program call\n"); 
         }
@@ -574,7 +536,6 @@ int main(int argc, char **argv)
       options.sname = g_strdup(argv[optind + 2]);
       options.slen = atoi(argv[optind + 3]);
       dotterBinary = g_strdup(argv[optind + 4]);
-      options.xOptions = getXOptions(argv, argc, optind + 5);
       
       /* Allocate memory for the sequences, now we know their lengths */
       options.qseq = (char*)g_malloc(sizeof(char) * (options.qlen+1));
@@ -645,28 +606,23 @@ int main(int argc, char **argv)
   else if (options.seqInSFS)
     {
       /* The -F option has been used, which replaces the input sequence files. We should therefore
-       * only have, at most, one input argument: the Xoptions*/
-      if (argc - optind > 1)
+       * only have 0 input arguments*/
+      if (argc - optind > 0)
         {
           showUsageText(EXIT_FAILURE);
           exit(EXIT_FAILURE);
         }
-      
-      options.xOptions = getXOptions(argv, argc, optind);
     }
   else
     {
 
-      /* The input arguments (following the options) are: qfile, sfile, Xoptions. Xoptions are
-       * optional, so we should have 2 or 3 arguments */
-      if (argc - optind < 2 || argc - optind > 3) 
+      /* The input arguments (following the options) are: qfile, sfile, so we should have 2 arguments */
+      if (argc - optind < 2 || argc - optind > 2) 
         {
           showUsageText(EXIT_FAILURE);
           exit(EXIT_FAILURE);
         }
 
-      options.xOptions = getXOptions(argv, argc, optind + 2);
-      
       if(!(qfile = fopen(argv[optind], "r"))) 
         {
           g_error("Cannot open %s\n", argv[optind]); 

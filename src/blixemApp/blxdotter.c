@@ -1117,8 +1117,7 @@ static void callDotterChildProcess(const char *dotterBinary,
                                    const BlxStrand seq2Strand,
 				   const gboolean seq2DisplayRev,
 				   int *pipes, 
-				   BlxViewContext *bc,
-				   char *Xoptions)
+                                   BlxViewContext *bc)
 {
   DEBUG_OUT("callDotterChildProcess\n");
 
@@ -1167,10 +1166,9 @@ static void callDotterChildProcess(const char *dotterBinary,
   argList = g_slist_append(argList, g_strdup(seq2Name));
   argList = g_slist_append(argList, seq2LenStr);
   argList = g_slist_append(argList, g_strdup(dotterBinary));
-  argList = g_slist_append(argList, g_strdup(Xoptions));
 
-  if (Xoptions)
-    argList = g_slist_append(argList, NULL); /* add null on end, if Xoptions wasn't already null */
+  /* Terminate list with null */
+  argList = g_slist_append(argList, NULL);
 
   /* Convert the list to an array */
   DEBUG_OUT("Args = ");
@@ -1210,7 +1208,6 @@ gboolean callDotterExternal(BlxViewContext *bc,
                             char *seq2,
 			    const BlxStrand seq2Strand,
 			    const gboolean seq2DisplayRev,
-                            char *Xoptions,
                             GError **error)
 {
 #if !defined(NO_POPEN)
@@ -1262,7 +1259,7 @@ gboolean callDotterExternal(BlxViewContext *bc,
       callDotterChildProcess(dotterBinary, dotterZoom, hspsOnly, 
                              seq1Name, seq1Range, seq1Strand, seq1DisplayRev,
                              seq2Name, seq2Range, seq2Strand, seq2DisplayRev,
-			     pipes, bc, Xoptions);
+                             pipes, bc);
     }
   else
     {
@@ -1453,7 +1450,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   return callDotterExternal(bc, dotterZoom, hspsOnly, 
                             bc->refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
                             dotterSName, &sRange, dotterSSeq, selectedSeq->strand, revVertScale,
-                            NULL, error);
+                            error);
 }
 
 
@@ -1540,7 +1537,7 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
   callDotterExternal(bc, dotterZoom, FALSE,
                      bc->refSeqName, &qRange, refSeqSegment, qStrand, revScale,
                      bc->refSeqName, &qRange, dotterSSeq, qStrand, revScale,
-                     NULL, error);
+                     error);
 
   return TRUE;
 }

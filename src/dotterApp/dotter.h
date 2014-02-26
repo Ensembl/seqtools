@@ -81,7 +81,6 @@ typedef struct _DotterOptions
     char *mtxfile;            /* caller-supplied matrix file */
     
     char *winsize;            /* caller-supplied sliding-window size */
-    char *xOptions;           /* x-options */
     
     char *qname;              /* reference (horizontal) sequence name */
     char *qseq;               /* reference (horizontal) sequence data */
