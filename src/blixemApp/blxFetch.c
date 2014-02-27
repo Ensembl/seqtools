@@ -1786,7 +1786,7 @@ static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod,
   
   if (error)
     {
-      fetch_data->err_txt = error->message;
+      fetch_data->err_txt = g_strdup(error->message);
       g_error_free(error);
       error = NULL;
     }
@@ -2800,6 +2800,11 @@ static void appendCharToString(const char curChar, GString *result)
  * was successful, false if not */
 static gboolean pfetchFinishSequence(GeneralFetchData *fetchData)
 {
+  /* We issue warnings if a sequence fetch failed but set a limit on the number so we don't end
+   * up with pages and pages of terminal output */
+  static int numWarnings = 0;
+  const int maxWarnings = 50;
+
   fetchData->numFetched += 1;
   
   if (fetchData->numFetched >= fetchData->numRequested)
@@ -2818,12 +2823,38 @@ static gboolean pfetchFinishSequence(GeneralFetchData *fetchData)
     {
       pfetch_ok = TRUE;
     }
-  else if (fetchData->currentResult && fetchData->currentResult->len > 0 &&
-           !stringInArray(fetchData->currentResult->str, fetchData->fetchMethod->errors))
+  else 
     {
-      /* Succeeded: save the result in the blxsequence */
-      pfetch_ok = TRUE;
-      blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_SEQUENCE, fetchData->currentResult->str);
+      if (!fetchData->currentResult || fetchData->currentResult->len == 0)
+        {
+          if (numWarnings < maxWarnings)
+            {
+              ++numWarnings;
+              g_warning("No sequence data fetched for '%s'\n", blxSequenceGetName(fetchData->currentSeq));
+            }
+        }
+      else if (stringInArray(fetchData->currentResult->str, fetchData->fetchMethod->errors))
+        {
+          if (numWarnings < maxWarnings)
+            {
+              ++numWarnings;
+              g_warning("Sequence fetch failed for '%s': %s\n", blxSequenceGetName(fetchData->currentSeq), fetchData->currentResult->str);
+            }
+        }
+      else if (!isValidIupacChar(fetchData->currentResult->str[0], fetchData->seqType))
+        {
+          if (numWarnings < maxWarnings)
+            {
+              ++numWarnings;
+              g_warning("Sequence fetch failed for '%s': invalid character '%c' found in fetched text: %s\n", blxSequenceGetName(fetchData->currentSeq), fetchData->currentResult->str[0], fetchData->currentResult->str);
+            }
+        }
+      else
+        {
+          /* Succeeded: save the result in the blxsequence */
+          pfetch_ok = TRUE;
+          blxSequenceSetValueFromString(fetchData->currentSeq, BLXCOL_SEQUENCE, fetchData->currentResult->str);
+        }
     }
   
   if (pfetch_ok)
