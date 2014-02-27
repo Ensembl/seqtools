@@ -702,32 +702,75 @@ MSP* mspArrayIdx(const GArray* const array, const int idx)
 }
 
 
-/* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. The input
- * list should be a list containing all polya sites (and only polya sites) */
-gboolean mspHasPolyATail(const MSP* const msp, const GArray* const polyASiteList)
+/* Check if the given character is a polyA character (i.e. 'a', or if the strand is reverse 't') */
+static gboolean isPolyAChar(const char c, const BlxStrand strand)
+{
+  gboolean result = FALSE;
+
+  if (strand == BLXSTRAND_FORWARD)
+    result = (c == 'a' || c == 'A');
+  else
+    result = (c == 't' || c == 'T');
+
+  return result;
+}
+
+
+/* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. */
+gboolean mspHasPolyATail(const MSP* const msp)
 {
   gboolean found = FALSE;
   
   /* Only matches have polyA tails. */
   if (mspIsBlastMatch(msp))
     {
-      /* For now, loop through all poly A sites and see if the site coord matches the 3' end coord of
-       * the alignment. If speed proves to be an issue we could do some pre-processing to link MSPs 
-       * to relevant polyA signals/sites so that we don't have to loop each time we want to check. */
-      int i = 0;
-      MSP *curPolyASite = mspArrayIdx(polyASiteList, i);
+      const char *seq = mspGetMatchSeq(msp);
       
-      for ( ; !found && curPolyASite; curPolyASite = mspArrayIdx(polyASiteList, ++i))
+      if (seq)
         {
-          const int qEnd = mspGetQEnd(msp);
-          
-          if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
+          const int numRequired = 5; /* number of times we want to match an 'a' to say it's a polyA tail */
+          const int len = strlen(seq);
+          BlxStrand sStrand = mspGetMatchStrand(msp);
+          BlxStrand qStrand = mspGetRefStrand(msp);
+          int sCoord = mspGetSEnd(msp);
+
+          if (qStrand == sStrand) 
             {
-              found = (qEnd == curPolyASite->qRange.min);
+              ++sCoord; /* next coord after alignment block end */
+              const int sMax = sCoord + numRequired;
+
+              if (sMax <= len)
+                {
+                  found = TRUE;
+
+                  for ( ; sCoord <= sMax; ++sCoord)
+                    {
+                      if (!isPolyAChar(seq[sCoord - 1], qStrand))
+                        {
+                          found = FALSE;
+                          break;
+                        }
+                    }
+                }
             }
           else
             {
-              found = (qEnd == curPolyASite->qRange.min + 1);
+              --sCoord; /* next coord after alignment block end */
+              const int sMin = sCoord - numRequired;
+
+              if (sMin >= 1)
+                {
+                  found = TRUE;
+
+                  for ( ; sCoord >= sMin; --sCoord)
+                    {
+                      if (!isPolyAChar(seq[sCoord - 1], qStrand))
+                        {
+                          found = FALSE;
+                          break;
+                        }
+                    }
+                }
             }
         }
     }
@@ -738,15 +781,16 @@ gboolean mspHasPolyATail(const MSP* const msp, const GArray* const polyASiteList
 
 /* Returns true if the given MSP coord (in ref seq nucleotide coords) is inside a polyA tail, if
  * this MSP has one. */
-gboolean mspCoordInPolyATail(const int coord, const MSP* const msp, const GArray *polyASiteList)
+gboolean mspCoordInPolyATail(const int coord, const MSP* const msp)
 {
-  gboolean result = mspHasPolyATail(msp, polyASiteList);
+  gboolean result = mspHasPolyATail(msp);
   
   /* See if the coord is outside the 3' end of the alignment range (i.e. is greater than the
    * max coord if we're on the forward strand or less than the min coord if on the reverse). */
-  result &= ((mspGetRefStrand(msp) == BLXSTRAND_FORWARD && coord > msp->qRange.max) ||
-             (mspGetRefStrand(msp) == BLXSTRAND_REVERSE && coord < msp->qRange.min));
-  
+  //result &= ((mspGetRefStrand(msp) == BLXSTRAND_FORWARD && coord > msp->displayRange.max) ||
+  //           (mspGetRefStrand(msp) == BLXSTRAND_REVERSE && coord < msp->displayRange.min));
+  result &= coord > msp->displayRange.max;
+
   return result;
 }
 

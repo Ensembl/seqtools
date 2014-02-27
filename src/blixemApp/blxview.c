@@ -778,7 +778,7 @@ static void mspCalcFullSRange(const MSP* const msp,
 	    }
 	}
       
-      if (flags[BLXFLAG_SHOW_POLYA_SITE] && mspHasPolyATail(msp, polyASiteList))
+      if (flags[BLXFLAG_SHOW_POLYA_SITE] && mspHasPolyATail(msp))
 	{
 	  /* We're displaying polyA tails, so override the 3' end coord with the full extent of
 	   * the s sequence if there is a polyA site here. The 3' end is the min q coord if the

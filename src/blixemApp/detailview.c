@@ -1909,7 +1909,7 @@ GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
               
               if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED])
                 {
-                   if (mspHasPolyATail(msp, bc->featureLists[BLXMSP_POLYA_SITE]))
+                   if (mspHasPolyATail(msp))
                      {
                        polyATailMsps = g_slist_append(polyATailMsps, msp);
                      }

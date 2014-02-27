@@ -741,7 +741,7 @@ static void mspDrawBaseBg(MSP *msp,
 
           if (data->bc->flags[BLXFLAG_SHOW_POLYA_SITE] && 
               (!data->bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] || data->seqSelected) &&
-              mspCoordInPolyATail(*qIdx, msp, data->bc->featureLists[BLXMSP_POLYA_SITE]))
+              mspCoordInPolyATail(*qIdx, msp))
             {
               baseBgColor = selected ? data->polyAColorSelected : data->polyAColor;
             }
