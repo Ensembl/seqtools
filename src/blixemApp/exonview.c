@@ -868,16 +868,14 @@ static gboolean onScrollExonView(GtkWidget *exonView, GdkEventScroll *event, gpo
     {
       case GDK_SCROLL_LEFT:
 	{
-          GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
-	  scrollDetailViewLeftStep(blxWindowGetDetailView(blxWindow));
+          scrollBigPictureLeftStep(exonViewGetBigPicture(exonView));
 	  handled = TRUE;
 	  break;
 	}
 	
       case GDK_SCROLL_RIGHT:
 	{
-          GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
-	  scrollDetailViewRightStep(blxWindowGetDetailView(blxWindow));
+          scrollBigPictureRightStep(exonViewGetBigPicture(exonView));
 	  handled = TRUE;
 	  break;
 	}

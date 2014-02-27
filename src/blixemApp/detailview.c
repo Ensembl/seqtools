@@ -896,6 +896,23 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
 }
 
 
+/* Scroll the detail-view if necessary to keep it within the given range */
+void detailViewScrollToKeepInRange(GtkWidget *detailView, const IntRange* const range)
+{
+  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  const BlxSeqType seqType = detailViewGetSeqType(detailView);
+      
+  if (displayRange->min < range->min)
+    {
+      setDetailViewStartIdx(detailView, range->min, seqType);
+    }
+  else if (displayRange->max > range->max)
+    {
+      setDetailViewEndIdx(detailView, range->max, seqType);
+    }
+}
+
+
 /* If the selected base index is outside the current display range, scroll to
  * keep it in range. We scroll by the minimum number of bases possible if 
  * scrollMinimum is true; otherwise we re-centre on the selection. */
@@ -903,7 +920,7 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
 {
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
-  
+
   if (selectedBaseIdx != UNSET_INT && !valueWithinRange(selectedBaseIdx, displayRange))
     {
       const BlxSeqType seqType = detailViewGetSeqType(detailView);

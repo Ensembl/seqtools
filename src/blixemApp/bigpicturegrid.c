@@ -67,7 +67,6 @@ typedef struct _DrawGridData
 static BlxViewContext*	    gridGetContext(GtkWidget *grid);
 static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineColor(GtkWidget *grid, const gboolean selected);
-static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
 static GtkWidget*	    gridGetBlxWindow(GtkWidget *grid);
 static void                 drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable);
 
@@ -680,14 +679,14 @@ static gboolean onScrollGrid(GtkWidget *grid, GdkEventScroll *event, gpointer da
     {
       case GDK_SCROLL_LEFT:
 	{
-	  scrollDetailViewLeftStep(gridGetDetailView(grid));
+          scrollBigPictureLeftStep(gridGetBigPicture(grid));
 	  handled = TRUE;
 	  break;
 	}
 	
       case GDK_SCROLL_RIGHT:
 	{
-	  scrollDetailViewRightStep(gridGetDetailView(grid));
+          scrollBigPictureRightStep(gridGetBigPicture(grid));
 	  handled = TRUE;
 	  break;
 	}
@@ -796,12 +795,6 @@ static IntRange* gridGetDisplayRange(GtkWidget *grid)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
   return bigPictureGetDisplayRange(bigPicture);
-}
-
-static GtkWidget* gridGetDetailView(GtkWidget *grid)
-{
-  GtkWidget *blxWindow = gridGetBlxWindow(grid);
-  return blxWindowGetDetailView(blxWindow);
 }
 
 static GdkColor *gridGetMspLineColor(GtkWidget *grid, const gboolean selected)

@@ -63,6 +63,8 @@
 #define BIG_PICTURE_GRID_HEADER_NAME	"BigPictureGridHeader"
 #define BIG_PICTURE_WIDGET_NAME		"BigPictureWidget" /* name of the direct parent of the grids etc. */
 #define MAX_BIG_PICTURE_HEIGHT_RATIO	0.4	  /* max height of the big picture wrt the whole window size */
+#define BLX_SCROLL_INCREMENT_RATIO      20        /* determines speed of scrolling of big picture
+                                                   * (we use 1/nth of the display range as the scroll step) */
 
 /* Local function declarations */
 static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
@@ -559,6 +561,23 @@ static void updateHighlightBox(GtkWidget *bigPicture, BigPictureProperties *prop
 }
 
 
+/* This should be called to do the required updates after the big picture range has changed */
+static void onBigPictureRangeChanged(GtkWidget *bigPicture, BigPictureProperties *properties)
+{
+  /* Recalculate the exon view height, because it may have changed with more/less
+   * exons being scrolled into view */
+  calculateExonViewHeight(properties->fwdExonView);
+  calculateExonViewHeight(properties->revExonView);
+
+  /* We must force a resize, because the size-allocate signal does not
+   * get emitted if the exon views have shrunk, only if they have expanded. */
+  forceResize(bigPicture);
+      
+  /* Do a complete redraw */
+  bigPictureRedrawAll(bigPicture);
+}
+
+
 /* Set the display range for the big picture, based on the given width (i.e. number of
  * bases wide). Keeps the display centred on the same range that is shown in the detail view.
  * If recalcHighlightBox is true, the highlight box borders are recalculated. */
@@ -647,23 +666,12 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
   if (changedRange)
     {
       boundsLimitRange(displayRange, fullRange, TRUE);
-  
-      /* Recalculate the exon view height, because it may have changed with more/less
-       * exons being scrolled into view */
-      calculateExonViewHeight(properties->fwdExonView);
-      calculateExonViewHeight(properties->revExonView);
-
-      /* We must force a resize, because the size-allocate signal does not
-       * get emitted if the exon views have shrunk, only if they have expanded. */
-      forceResize(bigPicture);
-      
-      /* Do a complete redraw */
-      bigPictureRedrawAll(bigPicture);
+      onBigPictureRangeChanged(bigPicture, properties);
     }
   
   updateHighlightBox(bigPicture, properties);
   bigPictureRefreshAll(bigPicture);
-  
+
   DEBUG_EXIT("setBigPictureDisplayRange returning");
 }
 
@@ -892,6 +900,69 @@ static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpo
     }
   
   return TRUE;
+}
+
+
+/* Scroll the big picture left by one increment */
+void scrollBigPictureLeftStep(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  
+  IntRange *displayRange = &properties->displayRange;
+  
+  if (displayRange->min > bc->fullDisplayRange.min)
+    {
+      /* Check we can scroll the full increment amount. If not, scroll to the end of the full range */
+      int diff = getRangeLength(displayRange) / BLX_SCROLL_INCREMENT_RATIO;
+
+      if (displayRange->min - diff < bc->fullDisplayRange.min)
+        diff = displayRange->min - bc->fullDisplayRange.min;
+
+      /* Update the range */
+      displayRange->min -= diff;
+      displayRange->max -= diff;
+
+      /* Update */
+      onBigPictureRangeChanged(bigPicture, properties);
+      updateHighlightBox(bigPicture, properties);
+      bigPictureRefreshAll(bigPicture);
+
+      /* Scroll the detail view too if necessary to keep it visible */
+      detailViewScrollToKeepInRange(bigPictureGetDetailView(bigPicture), displayRange);
+    }
+}
+
+
+/* Scroll the big picture right by one increment */
+void scrollBigPictureRightStep(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  
+  IntRange *displayRange = &properties->displayRange;
+  
+  /* Check we're not already at the max of the full range. */
+  if (displayRange->max < bc->fullDisplayRange.max)
+    {
+      /* Check we can scroll the full increment amount. If not, scroll to the end of the full range */
+      int diff = getRangeLength(displayRange) / BLX_SCROLL_INCREMENT_RATIO;
+
+      if (displayRange->max + diff > bc->fullDisplayRange.max)
+        diff = bc->fullDisplayRange.max - displayRange->max;
+
+      /* Adjust the range */
+      displayRange->min += diff;
+      displayRange->max += diff;
+
+      /* Update */
+      onBigPictureRangeChanged(bigPicture, properties);
+      updateHighlightBox(bigPicture, properties);
+      bigPictureRefreshAll(bigPicture);
+
+      /* Scroll the detail view too if necessary to keep it visible */
+      detailViewScrollToKeepInRange(bigPictureGetDetailView(bigPicture), displayRange);
+    }
 }
 
 

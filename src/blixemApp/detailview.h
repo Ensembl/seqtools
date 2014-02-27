@@ -201,6 +201,8 @@ void                    detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
                                                         const gboolean allowScroll,
                                                         const gboolean scrollMinimum);
 
+void                    detailViewScrollToKeepInRange(GtkWidget *detailView, const IntRange* const range);
+
 void                    detailViewUnsetSelectedBaseIdx(GtkWidget *detailView);
 void                    detailViewSetActiveFrame(GtkWidget *detailView, const int frame);
 void                    detailViewResortTrees(GtkWidget *detailView);

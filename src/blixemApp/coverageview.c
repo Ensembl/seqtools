@@ -176,12 +176,6 @@ static GtkWidget *coverageViewGetBigPicture(GtkWidget *coverageView)
   return (properties ? blxWindowGetBigPicture(properties->blxWindow) : NULL);
 }
 
-static GtkWidget *coverageViewGetDetailView(GtkWidget *coverageView)
-{
-  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
-  return (properties ? blxWindowGetDetailView(properties->blxWindow) : NULL);
-}
-
 double coverageViewGetDepthPerCell(GtkWidget *coverageView)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
@@ -525,14 +519,14 @@ static gboolean onScrollCoverageView(GtkWidget *coverageView, GdkEventScroll *ev
   {
     case GDK_SCROLL_LEFT:
     {
-      scrollDetailViewLeftStep(coverageViewGetDetailView(coverageView));
+      scrollBigPictureLeftStep(coverageViewGetBigPicture(coverageView));
       handled = TRUE;
       break;
     }
       
     case GDK_SCROLL_RIGHT:
     {
-      scrollDetailViewRightStep(coverageViewGetDetailView(coverageView));
+      scrollBigPictureRightStep(coverageViewGetBigPicture(coverageView));
       handled = TRUE;
       break;
     }
