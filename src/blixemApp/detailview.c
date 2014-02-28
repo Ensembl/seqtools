@@ -61,6 +61,7 @@
 #define DEFAULT_SNP_CONNECTOR_HEIGHT    0
 #define DEFAULT_NUM_UNALIGNED_BASES     5     /* the default number of additional bases to show if displaying unaligned parts of the match sequence */
 #define POLYA_SIG_BASES_UPSTREAM        50    /* the number of bases upstream from a polyA tail to search for polyA signals */
+#define POLYA_SIGNAL                    "aataaa"
 
 #define SETTING_NAME_NUM_UNALIGNED_BASES "num-unaligned-bases"
 
@@ -1810,7 +1811,6 @@ static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *pol
   if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && (!bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] || g_slist_length(polyATailMsps) > 0))
     {
       BlxColorId colorId = BLXCOLOR_POLYA_TAIL;
-      const int direction = (qStrand == BLXSTRAND_REVERSE ? -1 : 1);
 
       /* Loop through all polyA signals */
       int i = 0;
@@ -1855,6 +1855,45 @@ static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *pol
                     {
                       g_hash_table_insert(result, GINT_TO_POINTER(i), GINT_TO_POINTER(colorId));
                     }
+                }
+            }
+        }
+    }
+}
+
+
+/* Scan upstream from any polyA tails to see if there are any polyA signals in the reference
+ * sequence. Actually, because the visible range in the detail-view is generally quite small and
+ * we don't want to re-scan lots of times, lets just scan through the whole visible range once
+ * and show all signals - but only if there is at least one visible polyA tail in the range. */
+static void scanForPolyASignalBasesToHighlight(GtkWidget *detailView, const BlxViewContext *bc, GSList *polyATailMsps, const IntRange* const qRange, GHashTable *result)
+{
+  /* If only showing polyAs for selected sequences, check that there's a (selected) msp with a
+     polyA tail in range (i.e. in the input list). Otherwise show all polyA signals. */
+  if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && (!bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] || g_slist_length(polyATailMsps) > 0))
+    {
+      BlxColorId colorId = BLXCOLOR_POLYA_TAIL;
+                                        
+      /* Loop through each base in the visible range */
+      const char *seq = bc->refSeq;
+      const IntRange* const range = detailViewGetDisplayRange(detailView);
+      int idx = range->min - bc->refSeqRange.min; /* convert to 0-based */
+      const char *cp = seq + idx;
+      const char *comparison = POLYA_SIGNAL;
+      const int comparison_len = strlen(comparison);
+
+      for ( ; idx < range->max; ++idx, ++cp)
+        {
+          if (!strncasecmp(cp, comparison, comparison_len))
+            {
+              /* Add each base in the polyA signal range to the hash table. This may overwrite
+               * splice site bases that we previously found, which is fine (something has to take priority). */
+              int i = idx + bc->refSeqRange.min; /* convert back to coords */
+              const int max = i + comparison_len;
+
+              for ( ; i < max; ++i)
+                {
+                  g_hash_table_insert(result, GINT_TO_POINTER(i), GINT_TO_POINTER(colorId));
                 }
             }
         }
@@ -1907,12 +1946,9 @@ GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
                   mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
                 }
               
-              if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED])
+              if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && mspHasPolyATail(msp))
                 {
-                   if (mspHasPolyATail(msp))
-                     {
-                       polyATailMsps = g_slist_append(polyATailMsps, msp);
-                     }
+                  polyATailMsps = g_slist_append(polyATailMsps, msp);
                 }
             }
         }
@@ -1920,6 +1956,7 @@ GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
   
   /* Now check the polyA signals and see if any of them are in range. */
   getPolyASignalBasesToHighlight(bc, polyATailMsps, qStrand, qRange, result);
+  scanForPolyASignalBasesToHighlight(detailView, bc, polyATailMsps, qRange, result);
   
   return result;
 }
