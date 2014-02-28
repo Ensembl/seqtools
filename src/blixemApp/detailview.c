@@ -1831,8 +1831,8 @@ static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *pol
                   for ( ; item && !addSignal; item = item->next)
                     {
                       const MSP* const tailMsp = (const MSP*)(item->data);
-                      const int qEnd = mspGetQEnd(tailMsp);
-                      const int qStart = qEnd - direction * POLYA_SIG_BASES_UPSTREAM;
+                      const int qEnd = tailMsp->qRange.max;
+                      const int qStart = qEnd - POLYA_SIG_BASES_UPSTREAM;
                       
                       IntRange upstreamRange;
                       intrangeSetValues(&upstreamRange, qStart, qEnd); /* sorts out which is min and which is max */
