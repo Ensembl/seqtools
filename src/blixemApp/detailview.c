@@ -1876,13 +1876,12 @@ static void scanForPolyASignalBasesToHighlight(GtkWidget *detailView, const BlxV
                                         
       /* Loop through each base in the visible range */
       const char *seq = bc->refSeq;
-      const IntRange* const range = detailViewGetDisplayRange(detailView);
-      int idx = range->min - bc->refSeqRange.min; /* convert to 0-based */
+      int idx = qRange->min - bc->refSeqRange.min; /* convert to 0-based */
       const char *cp = seq + idx;
       const char *comparison = POLYA_SIGNAL;
       const int comparison_len = strlen(comparison);
 
-      for ( ; idx < range->max; ++idx, ++cp)
+      for ( ; idx < qRange->max; ++idx, ++cp)
         {
           if (!strncasecmp(cp, comparison, comparison_len))
             {
