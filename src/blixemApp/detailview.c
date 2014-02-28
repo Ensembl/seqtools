@@ -2311,12 +2311,17 @@ void drawHeaderChar(BlxViewContext *bc,
    * inverted selection color.) */
   gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, data->dnaIdx, data->strand, data->frame, data->seqType);
   data->shadeBackground = (data->displayIdxSelected != inSelectedMspRange);
-  
+
+  /* Reset background color and outline to defaults */
+  data->outlineColor = NULL;
+  data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
+ 
   /* Check if this coord already has a special color stored for it */
   gpointer hashValue = g_hash_table_lookup(basesToHighlight, GINT_TO_POINTER(data->dnaIdx));
 
   if (hashValue)
     {
+      /* Use the stored color */
       BlxColorId colorId = (BlxColorId)GPOINTER_TO_INT(hashValue);
       data->fillColor = getGdkColor(colorId, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
     }
