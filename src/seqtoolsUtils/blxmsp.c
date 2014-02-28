@@ -40,7 +40,8 @@
 #include <string.h>
 
 
-#define POLYA_TAIL_BASES_TO_CHECK 3 /* number of bases to check when looking for a polyA tail */
+#define POLYA_TAIL_BASES_TO_CHECK -1 /* number of bases to check when looking for a polyA tail (-1
+                                        means check all of the unaligned sequence) */
 
 
 /* Globals */
@@ -740,6 +741,7 @@ gboolean mspHasPolyATail(const MSP* const msp)
       if (seq)
         {
           const int numRequired = getNumPolyATailBasesToCheck();
+          const int minRequired = 3; /* check at least 3 bases */
           const int len = strlen(seq);
           BlxStrand sStrand = mspGetMatchStrand(msp);
           BlxStrand qStrand = mspGetRefStrand(msp);
@@ -748,9 +750,12 @@ gboolean mspHasPolyATail(const MSP* const msp)
           if (qStrand == sStrand) 
             {
               ++sCoord; /* next coord after alignment block end */
-              const int sMax = sCoord + numRequired;
+              int sMax = mspGetSStart(msp);
 
-              if (sMax <= len)
+              if (numRequired > 0) /* -1 means check all of the unaligned sequence */
+                sMax = sCoord + numRequired;
+
+              if (sMax <= len && sMax - sCoord >= minRequired)
                 {
                   found = TRUE;
 
@@ -767,9 +772,12 @@ gboolean mspHasPolyATail(const MSP* const msp)
           else
             {
               --sCoord; /* next coord after alignment block end */
-              const int sMin = sCoord - numRequired;
+              int sMin = 1;
+              
+              if (numRequired > 0)
+                sMin = sCoord - numRequired;
 
-              if (sMin >= 1)
+              if (sMin >= 1 && sCoord - sMin >= minRequired)
                 {
                   found = TRUE;
 
