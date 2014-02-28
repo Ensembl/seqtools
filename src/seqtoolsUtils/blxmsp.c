@@ -40,6 +40,9 @@
 #include <string.h>
 
 
+#define POLYA_TAIL_BASES_TO_CHECK 3 /* number of bases to check when looking for a polyA tail */
+
+
 /* Globals */
 static int g_MaxMspLen = 0;                   /* max length in display coords of all MSPs in the detail-view */
 static BlxDataType *g_DefaultDataType = NULL; /* data type containing default values; used if sequences do not have a data-type specified */
@@ -716,6 +719,14 @@ static gboolean isPolyAChar(const char c, const BlxStrand strand)
 }
 
 
+/* Get the number of bases to check when looking for a polyA tail. We may want to make this configurable? */
+static int getNumPolyATailBasesToCheck()
+{
+  static int result = POLYA_TAIL_BASES_TO_CHECK;
+  return result;
+}
+
+
 /* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. */
 gboolean mspHasPolyATail(const MSP* const msp)
 {
@@ -728,7 +739,7 @@ gboolean mspHasPolyATail(const MSP* const msp)
       
       if (seq)
         {
-          const int numRequired = 5; /* number of times we want to match an 'a' to say it's a polyA tail */
+          const int numRequired = getNumPolyATailBasesToCheck();
           const int len = strlen(seq);
           BlxStrand sStrand = mspGetMatchStrand(msp);
           BlxStrand qStrand = mspGetRefStrand(msp);
