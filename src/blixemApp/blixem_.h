@@ -295,6 +295,9 @@ typedef enum
     BLXCOLOR_CANONICAL,     /* background highlight color for canonical intron bases */
     BLXCOLOR_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
     BLXCOLOR_POLYA_TAIL,    /* background color for polyA tails in the detail view */
+    BLXCOLOR_POLYA_SIGNAL,  /* background color for non-annotated polyA signals in the detail view */
+    BLXCOLOR_POLYA_SIGNAL_ANN,/* background color for annotated polyA signals in the detail view */
+    BLXCOLOR_POLYA_SITE_ANN,/* background color for annotated polyA sites in the detail view */
     BLXCOLOR_TREE_GRID_LINES,/* color of the tree grid lines (i.e. column separator lines) */
     BLXCOLOR_CLIP_MARKER,   /* color of the marker line used to indicate a match has been clipped */
     BLXCOLOR_COVERAGE_PLOT, /* color of the coverage plot */

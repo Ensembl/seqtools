@@ -1804,13 +1804,17 @@ static void mspGetSpliceSiteCoords(const MSP* const msp,
  * selected sequences only' option is enabled, then any selected sequence MSPs that have polyA tails
  * should be passed in the given GSList. Any coords within a relevant polyA signal range are added to
  * the given hash table with the BlxColorId that they should be drawn with. */
-static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *polyATailMsps, const BlxStrand qStrand, const IntRange* const qRange, GHashTable *result)
+static void getAnnotatedPolyASignalBasesToHighlight(const BlxViewContext *bc,
+                                                    GSList *polyATailMsps,
+                                                    const BlxStrand qStrand,
+                                                    const IntRange* const qRange,
+                                                    GHashTable *result)
 {
   /* We've more work to do if showing polyA signals (unless we're only showing them for selected
    * sequences and there were no relevant selected sequences) */
   if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && (!bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] || g_slist_length(polyATailMsps) > 0))
     {
-      BlxColorId colorId = BLXCOLOR_POLYA_TAIL;
+      BlxColorId colorId = BLXCOLOR_POLYA_SIGNAL_ANN;
 
       /* Loop through all polyA signals */
       int i = 0;
@@ -1866,13 +1870,17 @@ static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *pol
  * sequence. Actually, because the visible range in the detail-view is generally quite small and
  * we don't want to re-scan lots of times, lets just scan through the whole visible range once
  * and show all signals - but only if there is at least one visible polyA tail in the range. */
-static void scanForPolyASignalBasesToHighlight(GtkWidget *detailView, const BlxViewContext *bc, GSList *polyATailMsps, const IntRange* const qRange, GHashTable *result)
+static void getPolyASignalBasesToHighlight(GtkWidget *detailView,
+                                           const BlxViewContext *bc,
+                                           GSList *polyATailMsps,
+                                           const IntRange* const qRange,
+                                           GHashTable *result)
 {
   /* If only showing polyAs for selected sequences, check that there's a (selected) msp with a
      polyA tail in range (i.e. in the input list). Otherwise show all polyA signals. */
   if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && (!bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] || g_slist_length(polyATailMsps) > 0))
     {
-      BlxColorId colorId = BLXCOLOR_POLYA_TAIL;
+      BlxColorId colorId = BLXCOLOR_POLYA_SIGNAL;
                                         
       /* Loop through each base in the visible range */
       const char *seq = bc->refSeq;
@@ -1894,6 +1902,37 @@ static void scanForPolyASignalBasesToHighlight(GtkWidget *detailView, const BlxV
                 {
                   g_hash_table_insert(result, GINT_TO_POINTER(i), GINT_TO_POINTER(colorId));
                 }
+            }
+        }
+    }
+}
+
+
+/* This looks through all of the polyA sites and sees if any of them are in the given display
+ * range (in nucleotide coords) and whether we want to display them. */
+static void getAnnotatedPolyASiteBasesToHighlight(const BlxViewContext *bc,
+                                                  const BlxStrand qStrand,
+                                                  const IntRange* const qRange,
+                                                  GHashTable *result)
+{
+  /* We've more work to do if showing polyA signals (unless we're only showing them for selected
+   * sequences and there were no relevant selected sequences) */
+  if (bc->flags[BLXFLAG_SHOW_POLYA_SIG])
+    {
+      BlxColorId colorId = BLXCOLOR_POLYA_SITE_ANN;
+
+      /* Loop through all polyA signals */
+      int i = 0;
+      const MSP *siteMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], i);
+      
+      for ( ; siteMsp; siteMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], ++i))
+        {
+          /* Only interested the polyA site has the correct strand and is within the display range. */
+          if (siteMsp->qStrand == qStrand && rangesOverlap(&siteMsp->qRange, qRange))
+            {
+              /* Add just the first base in the polyA signal range to the hash table (because the
+               * site is between the two bases in the range and we only want to draw it once). */
+              g_hash_table_insert(result, GINT_TO_POINTER(siteMsp->qRange.min), GINT_TO_POINTER(colorId));
             }
         }
     }
@@ -1941,22 +1980,19 @@ GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
           if ((mspIsBlastMatch(msp) || msp->type == BLXMSP_EXON) && mspGetRefStrand(msp) == qStrand)
             {
               if (bc->flags[BLXFLAG_SHOW_SPLICE_SITES])
-                {
-                  mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
-                }
+                mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
               
               if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && mspHasPolyATail(msp))
-                {
-                  polyATailMsps = g_slist_append(polyATailMsps, msp);
-                }
+                polyATailMsps = g_slist_append(polyATailMsps, msp);
             }
         }
     }
   
-  /* Now check the polyA signals and see if any of them are in range. */
-  getPolyASignalBasesToHighlight(bc, polyATailMsps, qStrand, qRange, result);
-  scanForPolyASignalBasesToHighlight(detailView, bc, polyATailMsps, qRange, result);
-  
+  /* Now check the polyA signals and sites and see if any of them are in range. */
+  getPolyASignalBasesToHighlight(detailView, bc, polyATailMsps, qRange, result);
+  getAnnotatedPolyASignalBasesToHighlight(bc, polyATailMsps, qStrand, qRange, result);
+  getAnnotatedPolyASiteBasesToHighlight(bc, qStrand, qRange, result);
+
   return result;
 }
 
@@ -2348,18 +2384,34 @@ void drawHeaderChar(BlxViewContext *bc,
   gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, data->dnaIdx, data->strand, data->frame, data->seqType);
   data->shadeBackground = (data->displayIdxSelected != inSelectedMspRange);
 
-  /* Reset background color and outline to defaults */
+  /* Reset background color and outlines to defaults */
   data->outlineColor = NULL;
   data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
+  data->drawStart = FALSE;
+  data->drawEnd = FALSE;
+  data->drawJoiningLines = FALSE;
  
   /* Check if this coord already has a special color stored for it */
   gpointer hashValue = g_hash_table_lookup(basesToHighlight, GINT_TO_POINTER(data->dnaIdx));
 
   if (hashValue)
     {
-      /* Use the stored color */
       BlxColorId colorId = (BlxColorId)GPOINTER_TO_INT(hashValue);
-      data->fillColor = getGdkColor(colorId, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
+      GdkColor *color = getGdkColor(colorId, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
+
+      if (colorId == BLXCOLOR_POLYA_SITE_ANN)
+        {
+          /* For polyA sites we don't shade the background; instead we want to draw a bar to the
+           * right of the coord, so set the outline. 
+           * (NB Bit of a hack to use the colorId to identify polyA sites here but it works fine.) */ 
+          data->outlineColor = color;
+          data->drawEnd = TRUE;
+        }
+      else
+        {
+          /* Normal highlighting: just fill in the background with the specified color */
+          data->fillColor = color;
+        }
     }
 
   /* Check if this base is in the currently-selected codon and needs highlighting */
@@ -2371,6 +2423,7 @@ void drawHeaderChar(BlxViewContext *bc,
            * on whether the actual nucleotide itself is selected, or just the codon that it 
            * belongs to. */
           data->fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, data->dnaIdxSelected, bc->usePrintColors);
+          
         }
       else if (!data->fillColor)
         {
