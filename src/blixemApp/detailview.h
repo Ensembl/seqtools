@@ -277,16 +277,6 @@ gint                    sortByColumnCompareFunc(GList *mspGList1,
                                                 GtkWidget *detailView, 
                                                 const BlxColumnId sortColumn);
 
-gboolean                coordAffectedByVariation(const int dnaIdx,
-                                                 const BlxStrand strand, 
-                                                 BlxViewContext *bc,
-                                                 const MSP **msp,
-                                                 gboolean *drawStartBoundary, 
-                                                 gboolean *drawEndBoundary, 
-                                                 gboolean *drawJoiningLines, 
-                                                 gboolean *drawBackground,
-                                                 gboolean *multipleVariations);
-
 void                    drawHeaderChar(BlxViewContext *bc,
                                        DetailViewProperties *properties,
                                        GdkDrawable *drawable,

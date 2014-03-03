@@ -58,6 +58,8 @@
 #define NO_SUBJECT_SELECTED_TEXT        "<no subject selected>"
 #define MULTIPLE_SUBJECTS_SELECTED_TEXT "<multiple subjects selected>"
 #define MULTIPLE_VARIATIONS_TEXT        "<multiple variations>"
+#define MULTIPLE_POLYA_SIGNALS_TEXT     "<multiple polyA signals>"
+#define MULTIPLE_POLYA_SITES_TEXT       "<multiple polyA sites>"
 #define DEFAULT_SNP_CONNECTOR_HEIGHT    0
 #define DEFAULT_NUM_UNALIGNED_BASES     5     /* the default number of additional bases to show if displaying unaligned parts of the match sequence */
 #define POLYA_SIG_BASES_UPSTREAM        50    /* the number of bases upstream from a polyA tail to search for polyA signals */
@@ -114,6 +116,28 @@ static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite
 static int                    getNumSnpTrackRows(const BlxViewContext *bc, DetailViewProperties *properties, const BlxStrand strand, const int frame);
 static int                    getVariationRowNumber(const IntRange* const rangeIn, const int numRows, GSList **rows);
 static void                   freeRowsList(GSList *rows);
+
+static gboolean               coordAffectedByVariation(const int dnaIdx,
+                                                       const BlxStrand strand, 
+                                                       BlxViewContext *bc,
+                                                       const MSP **msp,
+                                                       gboolean *drawStartBoundary, 
+                                                       gboolean *drawEndBoundary, 
+                                                       gboolean *drawJoiningLines, 
+                                                       gboolean *drawBackground,
+                                                       gboolean *multipleVariations);
+
+static gboolean               coordAffectedByPolyASignal(const int dnaIdx,
+                                                         const BlxStrand strand, 
+                                                         BlxViewContext *bc,
+                                                         const MSP **mspOut,
+                                                         gboolean *multipleVariations);
+
+static gboolean                coordAffectedByPolyASite(const int dnaIdx,
+                                                        const BlxStrand strand, 
+                                                        BlxViewContext *bc,
+                                                        const MSP **mspOut,
+                                                        gboolean *multipleVariations);
 
 
 /***********************************************************
@@ -867,9 +891,9 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
       /* See if there's a variation at the given coord */
       const MSP *msp = NULL;
       
-      gboolean multipleVariations = FALSE;
+      gboolean multiple = FALSE;
       
-      if (coordAffectedByVariation(dnaIdx, strand, bc, &msp, NULL, NULL, NULL, NULL, &multipleVariations))
+      if (coordAffectedByVariation(dnaIdx, strand, bc, &msp, NULL, NULL, NULL, NULL, &multiple))
         {
           if (msp && mspGetSName(msp))
             {
@@ -881,7 +905,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
               /* If there are multiple variations on this coord, display some summary text.
                * Otherwise, check we've got the sequence info to display. We should have, but 
                * if not just display the name. */
-              if (multipleVariations)
+              if (multiple)
                 displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_VARIATIONS_TEXT);
               else if (mspGetMatchSeq(msp))
                 displayText = g_strdup_printf("%d  %s : %s", coord, mspGetSName(msp), mspGetMatchSeq(msp));
@@ -892,6 +916,42 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
               gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
               g_free(displayText);
             }
+        }
+      else if (coordAffectedByPolyASignal(dnaIdx, strand, bc, &msp, &multiple) && msp)
+        {
+          char *displayText = NULL;
+
+          /* If we're displaying coords negated, negate it now */
+          int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * dnaIdx : dnaIdx);
+
+          /* If there are multiple signals on this coord, display some summary text.
+           * Otherwise, check we've got the sequence info to display. If not just display the name. */
+          if (multiple)
+            displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_POLYA_SIGNALS_TEXT);
+          else
+            displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", msp->qRange.min, msp->qRange.max);
+              
+          /* Send the message to the status bar */
+          gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+          g_free(displayText);
+        }
+      else if (coordAffectedByPolyASite(dnaIdx, strand, bc, &msp, &multiple) && msp)
+        {
+          char *displayText = NULL;
+
+          /* If we're displaying coords negated, negate it now */
+          int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * dnaIdx : dnaIdx);
+
+          /* If there are multiple sites on this coord, display some summary text.
+           * Otherwise, check we've got the sequence info to display. If not just display the name. */
+          if (multiple)
+            displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_POLYA_SITES_TEXT);
+          else
+            displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", msp->qRange.min, msp->qRange.max);
+              
+          /* Send the message to the status bar */
+          gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+          g_free(displayText);
         }
     }
 }
@@ -2171,15 +2231,15 @@ static gboolean trueOrNotRequested(const gboolean* const ptr)
  * if the background of the base should be highlighted in the variation color (i.e. if the base
  * is part of a selected variation). Sets multipleVariations to true if there is more than
  * one variation at this coord */
-gboolean coordAffectedByVariation(const int dnaIdx,
-                                  const BlxStrand strand, 
-                                  BlxViewContext *bc,
-                                  const MSP **mspOut, /* the variation we found */
-                                  gboolean *drawStartBoundary, 
-                                  gboolean *drawEndBoundary, 
-                                  gboolean *drawJoiningLines, 
-                                  gboolean *drawBackground,
-                                  gboolean *multipleVariations)
+static gboolean coordAffectedByVariation(const int dnaIdx,
+                                         const BlxStrand strand, 
+                                         BlxViewContext *bc,
+                                         const MSP **mspOut, /* the variation we found */
+                                         gboolean *drawStartBoundary, 
+                                         gboolean *drawEndBoundary, 
+                                         gboolean *drawJoiningLines, 
+                                         gboolean *drawBackground,
+                                         gboolean *multipleVariations)
 {
   gboolean result = FALSE;
   
@@ -2237,6 +2297,86 @@ gboolean coordAffectedByVariation(const int dnaIdx,
               trueOrNotRequested(drawJoiningLines) && 
               trueOrNotRequested(drawBackground) &&
               trueOrNotRequested(multipleVariations))
+            break;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Determine whether the given coord in the given frame/strand is affected by
+ * a polyA signal */
+static gboolean coordAffectedByPolyASignal(const int dnaIdx,
+                                           const BlxStrand strand, 
+                                           BlxViewContext *bc,
+                                           const MSP **mspOut, /* the variation we found */
+                                           gboolean *multiple)
+{
+  gboolean result = FALSE;
+  
+  /* Loop through all variations */
+  int i = 0;
+  const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], i);
+  
+  for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], ++i))
+    {
+      if (mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
+        {
+          /* If result has already been set, then there are multiple signals on this coord */
+          if (result && multiple)
+            *multiple = TRUE;
+
+          result = TRUE;
+          
+          if (mspOut)
+            *mspOut = msp;
+          
+          /* If we only want to know if this coord is affected by a polyA signal, we can return now.
+           *
+           * If we need to return whether there are multiple sites at this coord, we can return
+           * after we've found the second on (i.e. after multiple is set to TRUE). */
+          if (trueOrNotRequested(multiple))
+            break;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Determine whether the given coord in the given frame/strand is affected by
+ * a polyA site */
+static gboolean coordAffectedByPolyASite(const int dnaIdx,
+                                         const BlxStrand strand, 
+                                         BlxViewContext *bc,
+                                         const MSP **mspOut, /* the variation we found */
+                                         gboolean *multiple)
+{
+  gboolean result = FALSE;
+  
+  /* Loop through all variations */
+  int i = 0;
+  const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], i);
+  
+  for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], ++i))
+    {
+      if (mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
+        {
+          /* If result has already been set, then there are multiple sites on this coord */
+          if (result && multiple)
+            *multiple = TRUE;
+
+          result = TRUE;
+          
+          if (mspOut)
+            *mspOut = msp;
+          
+          /* If we only want to know if this coord is affected by a polyA signal, we can return now.
+           *
+           * If we need to return whether there are multiple sites at this coord, we can return
+           * after we've found the second on (i.e. after multiple is set to TRUE). */
+          if (trueOrNotRequested(multiple))
             break;
         }
     }
