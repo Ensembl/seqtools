@@ -58,9 +58,12 @@
 #define NO_SUBJECT_SELECTED_TEXT        "<no subject selected>"
 #define MULTIPLE_SUBJECTS_SELECTED_TEXT "<multiple subjects selected>"
 #define MULTIPLE_VARIATIONS_TEXT        "<multiple variations>"
+#define MULTIPLE_POLYA_SIGNALS_TEXT     "<multiple polyA signals>"
+#define MULTIPLE_POLYA_SITES_TEXT       "<multiple polyA sites>"
 #define DEFAULT_SNP_CONNECTOR_HEIGHT    0
 #define DEFAULT_NUM_UNALIGNED_BASES     5     /* the default number of additional bases to show if displaying unaligned parts of the match sequence */
 #define POLYA_SIG_BASES_UPSTREAM        50    /* the number of bases upstream from a polyA tail to search for polyA signals */
+#define POLYA_SIGNAL                    "aataaa"
 
 #define SETTING_NAME_NUM_UNALIGNED_BASES "num-unaligned-bases"
 
@@ -113,6 +116,28 @@ static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite
 static int                    getNumSnpTrackRows(const BlxViewContext *bc, DetailViewProperties *properties, const BlxStrand strand, const int frame);
 static int                    getVariationRowNumber(const IntRange* const rangeIn, const int numRows, GSList **rows);
 static void                   freeRowsList(GSList *rows);
+
+static gboolean               coordAffectedByVariation(const int dnaIdx,
+                                                       const BlxStrand strand, 
+                                                       BlxViewContext *bc,
+                                                       const MSP **msp,
+                                                       gboolean *drawStartBoundary, 
+                                                       gboolean *drawEndBoundary, 
+                                                       gboolean *drawJoiningLines, 
+                                                       gboolean *drawBackground,
+                                                       gboolean *multipleVariations);
+
+static gboolean               coordAffectedByPolyASignal(const int dnaIdx,
+                                                         const BlxStrand strand, 
+                                                         BlxViewContext *bc,
+                                                         const MSP **mspOut,
+                                                         gboolean *multipleVariations);
+
+static gboolean                coordAffectedByPolyASite(const int dnaIdx,
+                                                        const BlxStrand strand, 
+                                                        BlxViewContext *bc,
+                                                        const MSP **mspOut,
+                                                        gboolean *multipleVariations);
 
 
 /***********************************************************
@@ -866,9 +891,9 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
       /* See if there's a variation at the given coord */
       const MSP *msp = NULL;
       
-      gboolean multipleVariations = FALSE;
+      gboolean multiple = FALSE;
       
-      if (coordAffectedByVariation(dnaIdx, strand, bc, &msp, NULL, NULL, NULL, NULL, &multipleVariations))
+      if (coordAffectedByVariation(dnaIdx, strand, bc, &msp, NULL, NULL, NULL, NULL, &multiple))
         {
           if (msp && mspGetSName(msp))
             {
@@ -880,7 +905,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
               /* If there are multiple variations on this coord, display some summary text.
                * Otherwise, check we've got the sequence info to display. We should have, but 
                * if not just display the name. */
-              if (multipleVariations)
+              if (multiple)
                 displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_VARIATIONS_TEXT);
               else if (mspGetMatchSeq(msp))
                 displayText = g_strdup_printf("%d  %s : %s", coord, mspGetSName(msp), mspGetMatchSeq(msp));
@@ -891,6 +916,58 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
               gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
               g_free(displayText);
             }
+        }
+      else if (coordAffectedByPolyASignal(dnaIdx, strand, bc, &msp, &multiple) && msp)
+        {
+          char *displayText = NULL;
+
+          /* If we're displaying coords negated, negate it now */
+          const int negate = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 : 1);
+          int coord = negate * dnaIdx;
+
+          /* If there are multiple signals on this coord, display some summary text.
+           * Otherwise, check we've got the sequence info to display. If not just display the name. */
+          if (multiple)
+            {
+              displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_POLYA_SIGNALS_TEXT);
+            }
+          else
+            {
+              if (bc->displayRev) /* swap coords and negage if applicable */
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", negate * msp->qRange.max, negate * msp->qRange.min);
+              else
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", msp->qRange.min, msp->qRange.max);
+            }
+              
+          /* Send the message to the status bar */
+          gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+          g_free(displayText);
+        }
+      else if (coordAffectedByPolyASite(dnaIdx, strand, bc, &msp, &multiple) && msp)
+        {
+          char *displayText = NULL;
+
+          /* If we're displaying coords negated, negate it now */
+          const int negate = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 : 1);
+          int coord = negate * dnaIdx;
+
+          /* If there are multiple sites on this coord, display some summary text.
+           * Otherwise, check we've got the sequence info to display. If not just display the name. */
+          if (multiple)
+            {
+              displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_POLYA_SITES_TEXT);
+            }
+          else
+            {
+              if (bc->displayRev) /* swap coords and negate if applicable */
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", negate * msp->qRange.max, negate * msp->qRange.min);
+              else
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", msp->qRange.min, msp->qRange.max);
+            }
+              
+          /* Send the message to the status bar */
+          gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+          g_free(displayText);
         }
     }
 }
@@ -1803,14 +1880,17 @@ static void mspGetSpliceSiteCoords(const MSP* const msp,
  * selected sequences only' option is enabled, then any selected sequence MSPs that have polyA tails
  * should be passed in the given GSList. Any coords within a relevant polyA signal range are added to
  * the given hash table with the BlxColorId that they should be drawn with. */
-static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *polyATailMsps, const BlxStrand qStrand, const IntRange* const qRange, GHashTable *result)
+static void getAnnotatedPolyASignalBasesToHighlight(const BlxViewContext *bc,
+                                                    GSList *polyATailMsps,
+                                                    const BlxStrand qStrand,
+                                                    const IntRange* const qRange,
+                                                    GHashTable *result)
 {
   /* We've more work to do if showing polyA signals (unless we're only showing them for selected
    * sequences and there were no relevant selected sequences) */
   if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && (!bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] || g_slist_length(polyATailMsps) > 0))
     {
-      BlxColorId colorId = BLXCOLOR_POLYA_TAIL;
-      const int direction = (qStrand == BLXSTRAND_REVERSE ? -1 : 1);
+      BlxColorId colorId = BLXCOLOR_POLYA_SIGNAL_ANN;
 
       /* Loop through all polyA signals */
       int i = 0;
@@ -1831,8 +1911,8 @@ static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *pol
                   for ( ; item && !addSignal; item = item->next)
                     {
                       const MSP* const tailMsp = (const MSP*)(item->data);
-                      const int qEnd = mspGetQEnd(tailMsp);
-                      const int qStart = qEnd - direction * POLYA_SIG_BASES_UPSTREAM;
+                      const int qEnd = tailMsp->qRange.max;
+                      const int qStart = qEnd - POLYA_SIG_BASES_UPSTREAM;
                       
                       IntRange upstreamRange;
                       intrangeSetValues(&upstreamRange, qStart, qEnd); /* sorts out which is min and which is max */
@@ -1856,6 +1936,79 @@ static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *pol
                       g_hash_table_insert(result, GINT_TO_POINTER(i), GINT_TO_POINTER(colorId));
                     }
                 }
+            }
+        }
+    }
+}
+
+
+/* Scan upstream from any polyA tails to see if there are any polyA signals in the reference
+ * sequence. Actually, because the visible range in the detail-view is generally quite small and
+ * we don't want to re-scan lots of times, lets just scan through the whole visible range once
+ * and show all signals - but only if there is at least one visible polyA tail in the range. */
+static void getPolyASignalBasesToHighlight(GtkWidget *detailView,
+                                           const BlxViewContext *bc,
+                                           GSList *polyATailMsps,
+                                           const IntRange* const qRange,
+                                           GHashTable *result)
+{
+  /* If only showing polyAs for selected sequences, check that there's a (selected) msp with a
+     polyA tail in range (i.e. in the input list). Otherwise show all polyA signals. */
+  if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && (!bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] || g_slist_length(polyATailMsps) > 0))
+    {
+      BlxColorId colorId = BLXCOLOR_POLYA_SIGNAL;
+                                        
+      /* Loop through each base in the visible range */
+      const char *seq = bc->refSeq;
+      int idx = qRange->min - bc->refSeqRange.min; /* convert to 0-based */
+      const char *cp = seq + idx;
+      const char *comparison = POLYA_SIGNAL;
+      const int comparison_len = strlen(comparison);
+
+      for ( ; idx < qRange->max; ++idx, ++cp)
+        {
+          if (!strncasecmp(cp, comparison, comparison_len))
+            {
+              /* Add each base in the polyA signal range to the hash table. This may overwrite
+               * splice site bases that we previously found, which is fine (something has to take priority). */
+              int i = idx + bc->refSeqRange.min; /* convert back to coords */
+              const int max = i + comparison_len;
+
+              for ( ; i < max; ++i)
+                {
+                  g_hash_table_insert(result, GINT_TO_POINTER(i), GINT_TO_POINTER(colorId));
+                }
+            }
+        }
+    }
+}
+
+
+/* This looks through all of the polyA sites and sees if any of them are in the given display
+ * range (in nucleotide coords) and whether we want to display them. */
+static void getAnnotatedPolyASiteBasesToHighlight(const BlxViewContext *bc,
+                                                  const BlxStrand qStrand,
+                                                  const IntRange* const qRange,
+                                                  GHashTable *result)
+{
+  /* We've more work to do if showing polyA signals (unless we're only showing them for selected
+   * sequences and there were no relevant selected sequences) */
+  if (bc->flags[BLXFLAG_SHOW_POLYA_SIG])
+    {
+      BlxColorId colorId = BLXCOLOR_POLYA_SITE_ANN;
+
+      /* Loop through all polyA signals */
+      int i = 0;
+      const MSP *siteMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], i);
+      
+      for ( ; siteMsp; siteMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], ++i))
+        {
+          /* Only interested the polyA site has the correct strand and is within the display range. */
+          if (siteMsp->qStrand == qStrand && rangesOverlap(&siteMsp->qRange, qRange))
+            {
+              /* Add just the first base in the polyA signal range to the hash table (because the
+               * site is between the two bases in the range and we only want to draw it once). */
+              g_hash_table_insert(result, GINT_TO_POINTER(siteMsp->qRange.min), GINT_TO_POINTER(colorId));
             }
         }
     }
@@ -1903,24 +2056,19 @@ GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
           if ((mspIsBlastMatch(msp) || msp->type == BLXMSP_EXON) && mspGetRefStrand(msp) == qStrand)
             {
               if (bc->flags[BLXFLAG_SHOW_SPLICE_SITES])
-                {
-                  mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
-                }
+                mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
               
-              if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED])
-                {
-                   if (mspHasPolyATail(msp, bc->featureLists[BLXMSP_POLYA_SITE]))
-                     {
-                       polyATailMsps = g_slist_append(polyATailMsps, msp);
-                     }
-                }
+              if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && mspHasPolyATail(msp))
+                polyATailMsps = g_slist_append(polyATailMsps, msp);
             }
         }
     }
   
-  /* Now check the polyA signals and see if any of them are in range. */
-  getPolyASignalBasesToHighlight(bc, polyATailMsps, qStrand, qRange, result);
-  
+  /* Now check the polyA signals and sites and see if any of them are in range. */
+  getPolyASignalBasesToHighlight(detailView, bc, polyATailMsps, qRange, result);
+  getAnnotatedPolyASignalBasesToHighlight(bc, polyATailMsps, qStrand, qRange, result);
+  getAnnotatedPolyASiteBasesToHighlight(bc, qStrand, qRange, result);
+
   return result;
 }
 
@@ -1993,19 +2141,21 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   int qIdx = bc->displayRev ? qRange.max : qRange.min;
   int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, activeFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   const int y = 0;
+  DrawBaseData baseData = {qIdx, 0, strand, UNSET_INT, BLXSEQ_DNA, TRUE, FALSE, FALSE, FALSE, highlightSnps, TRUE, BLXCOLOR_BACKGROUND, NULL, NULL, FALSE, FALSE, FALSE, FALSE};
   
   while (qIdx >= qRange.min && qIdx <= qRange.max)
     {
-      /* Get the character to display at this index */
+      /* Get the character to display at this index, and its position */
       displayText[displayTextPos] = getSequenceIndex(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
-      
-      /* Color the base depending on whether it is selected or affected by a SNP */
-      const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
-      const gboolean dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
       const int x = (int)((gdouble)displayTextPos * properties->charWidth);
-      const char base = displayText[displayTextPos];
+      
+      baseData.dnaIdx = qIdx;
+      baseData.baseChar = displayText[displayTextPos];
+      baseData.displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
+      baseData.dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
 
-      drawHeaderChar(bc, properties, qIdx, base, strand, UNSET_INT, BLXSEQ_DNA, TRUE, displayIdxSelected, dnaIdxSelected, FALSE, highlightSnps, TRUE, BLXCOLOR_BACKGROUND, drawable, gc, x, y, basesToHighlight);
+      /* Color the base depending on whether it is selected or affected by a SNP */
+      drawHeaderChar(bc, properties, drawable, gc, x, y, basesToHighlight, &baseData);
       
       /* Increment indices */
       ++displayTextPos;
@@ -2097,15 +2247,15 @@ static gboolean trueOrNotRequested(const gboolean* const ptr)
  * if the background of the base should be highlighted in the variation color (i.e. if the base
  * is part of a selected variation). Sets multipleVariations to true if there is more than
  * one variation at this coord */
-gboolean coordAffectedByVariation(const int dnaIdx,
-                                  const BlxStrand strand, 
-                                  BlxViewContext *bc,
-                                  const MSP **mspOut, /* the variation we found */
-                                  gboolean *drawStartBoundary, 
-                                  gboolean *drawEndBoundary, 
-                                  gboolean *drawJoiningLines, 
-                                  gboolean *drawBackground,
-                                  gboolean *multipleVariations)
+static gboolean coordAffectedByVariation(const int dnaIdx,
+                                         const BlxStrand strand, 
+                                         BlxViewContext *bc,
+                                         const MSP **mspOut, /* the variation we found */
+                                         gboolean *drawStartBoundary, 
+                                         gboolean *drawEndBoundary, 
+                                         gboolean *drawJoiningLines, 
+                                         gboolean *drawBackground,
+                                         gboolean *multipleVariations)
 {
   gboolean result = FALSE;
   
@@ -2163,6 +2313,86 @@ gboolean coordAffectedByVariation(const int dnaIdx,
               trueOrNotRequested(drawJoiningLines) && 
               trueOrNotRequested(drawBackground) &&
               trueOrNotRequested(multipleVariations))
+            break;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Determine whether the given coord in the given frame/strand is affected by
+ * a polyA signal */
+static gboolean coordAffectedByPolyASignal(const int dnaIdx,
+                                           const BlxStrand strand, 
+                                           BlxViewContext *bc,
+                                           const MSP **mspOut, /* the variation we found */
+                                           gboolean *multiple)
+{
+  gboolean result = FALSE;
+  
+  /* Loop through all variations */
+  int i = 0;
+  const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], i);
+  
+  for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], ++i))
+    {
+      if (mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
+        {
+          /* If result has already been set, then there are multiple signals on this coord */
+          if (result && multiple)
+            *multiple = TRUE;
+
+          result = TRUE;
+          
+          if (mspOut)
+            *mspOut = msp;
+          
+          /* If we only want to know if this coord is affected by a polyA signal, we can return now.
+           *
+           * If we need to return whether there are multiple sites at this coord, we can return
+           * after we've found the second on (i.e. after multiple is set to TRUE). */
+          if (trueOrNotRequested(multiple))
+            break;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Determine whether the given coord in the given frame/strand is affected by
+ * a polyA site */
+static gboolean coordAffectedByPolyASite(const int dnaIdx,
+                                         const BlxStrand strand, 
+                                         BlxViewContext *bc,
+                                         const MSP **mspOut, /* the variation we found */
+                                         gboolean *multiple)
+{
+  gboolean result = FALSE;
+  
+  /* Loop through all variations */
+  int i = 0;
+  const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], i);
+  
+  for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], ++i))
+    {
+      if (mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
+        {
+          /* If result has already been set, then there are multiple sites on this coord */
+          if (result && multiple)
+            *multiple = TRUE;
+
+          result = TRUE;
+          
+          if (mspOut)
+            *mspOut = msp;
+          
+          /* If we only want to know if this coord is affected by a polyA signal, we can return now.
+           *
+           * If we need to return whether there are multiple sites at this coord, we can return
+           * after we've found the second on (i.e. after multiple is set to TRUE). */
+          if (trueOrNotRequested(multiple))
             break;
         }
     }
@@ -2269,116 +2499,140 @@ static gboolean isCoordInSelectedMspRange(const BlxViewContext *bc,
   return inSelectedMspRange;
 }
 
+
+/* Determine whether any highlighting needs to be done for snps in the ref seq */
+static void getSnpHighlighting(DrawBaseData *data,
+                               BlxViewContext *bc)
+{     
+  gboolean drawBackground = FALSE;
+  
+  if (coordAffectedByVariation(data->dnaIdx, data->strand, bc, NULL,
+                               &data->drawStart, &data->drawEnd, &data->drawJoiningLines, &drawBackground, NULL))
+    {
+      /* The coord is affected by a SNP. Outline it in the "selected" SNP color
+       * (which is darker than the normal color) */
+      data->outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
+      
+      /* If the SNP is selected, also fill it with the SNP color (using the
+       * "unselected" SNP color, which is lighter than the outline). */
+      if (drawBackground)
+        {
+          data->fillColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
+        }
+    }
+}
+
+
 /* Draw a given nucleotide or peptide. Determines the color depending on various
  * parameters */
 void drawHeaderChar(BlxViewContext *bc,
                     DetailViewProperties *properties,
-                    const int dnaIdx,
-                    const char baseChar,
-                    const BlxStrand strand,
-                    const int frame,
-                    const BlxSeqType seqType,
-                    const gboolean topToBottom,       /* true if we're displaying bases top-to-bottom instead of left-to-right */
-                    const gboolean displayIdxSelected,
-                    const gboolean dnaIdxSelected,
-                    const gboolean showBackground,    /* whether to use default background color or leave blank */
-                    const gboolean highlightSnps,     /* whether to highlight variations */
-                    const gboolean showCodons,        /* whether to highlight DNA bases within the selected codon, for protein matches */
-                    const BlxColorId defaultBgColor,  /* the default background color for the header */
                     GdkDrawable *drawable,
                     GdkGC *gc,
                     const int x,
                     const int y,
-                    GHashTable *basesToHighlight)
+                    GHashTable *basesToHighlight,
+                    DrawBaseData *data)
 {
-  GdkColor *fillColor = NULL;
-  GdkColor *outlineColor = NULL;
-  
-  /* If drawing an outline, these need to be set to true to draw the specific parts of the outline */
-  gboolean drawStart = FALSE, drawEnd = FALSE, drawJoiningLines = FALSE;
-
   /* Shade the background if the base is selected XOR if the base is within the range of a 
    * selected sequence. (If both conditions are true we don't shade, to give the effect of an
    * inverted selection color.) */
-  gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, dnaIdx, strand, frame, seqType);
-  const gboolean shadeBackground = (displayIdxSelected != inSelectedMspRange);
-  
+  gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, data->dnaIdx, data->strand, data->frame, data->seqType);
+  data->shadeBackground = (data->displayIdxSelected != inSelectedMspRange);
+
+  /* Reset background color and outlines to defaults */
+  data->outlineColor = NULL;
+  data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
+  data->drawStart = FALSE;
+  data->drawEnd = FALSE;
+  data->drawJoiningLines = FALSE;
+ 
   /* Check if this coord already has a special color stored for it */
-  gpointer hashValue = g_hash_table_lookup(basesToHighlight, GINT_TO_POINTER(dnaIdx));
-  
+  gpointer hashValue = g_hash_table_lookup(basesToHighlight, GINT_TO_POINTER(data->dnaIdx));
+
   if (hashValue)
     {
       BlxColorId colorId = (BlxColorId)GPOINTER_TO_INT(hashValue);
-      fillColor = getGdkColor(colorId, bc->defaultColors, shadeBackground, bc->usePrintColors);
+      GdkColor *color = getGdkColor(colorId, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
+
+      if (colorId == BLXCOLOR_POLYA_SITE_ANN)
+        {
+          /* For polyA sites we don't shade the background; instead we want to draw a bar after the
+           * coord (or before if the display is reversed), so set the outline. 
+           * (NB Bit of a hack to use the colorId to identify polyA sites here but it works fine.) */ 
+          data->outlineColor = color;
+          
+          if (bc->displayRev)
+            data->drawStart = TRUE;
+          else
+            data->drawEnd = TRUE;
+        }
+      else
+        {
+          /* Normal highlighting: just fill in the background with the specified color */
+          data->fillColor = color;
+        }
     }
-  
-  if (seqType == BLXSEQ_DNA && showCodons && (dnaIdxSelected || displayIdxSelected || shadeBackground))
+
+  /* Check if this base is in the currently-selected codon and needs highlighting */
+  if (data->seqType == BLXSEQ_DNA && data->showCodons && (data->dnaIdxSelected || data->displayIdxSelected || data->shadeBackground))
     {
-      if (dnaIdxSelected || displayIdxSelected)
+      if (data->dnaIdxSelected || data->displayIdxSelected)
         {
           /* The coord is a nucleotide in the currently-selected codon. The color depends
            * on whether the actual nucleotide itself is selected, or just the codon that it 
            * belongs to. */
-          fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, dnaIdxSelected, bc->usePrintColors);
+          data->fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, data->dnaIdxSelected, bc->usePrintColors);
+          
         }
-      else if (!fillColor)
+      else if (!data->fillColor)
         {
           /* The coord is not selected but this coord is within the range of a selected MSP, so 
            * shade the background. */
-          fillColor = getGdkColor(defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
     }
 
-  if (highlightSnps)
+  /* Check if this base is a SNP (or other variation) and needs highlighting */
+  if (data->highlightSnps)
     {
-      gboolean drawBackground = FALSE;
-    
-      if (coordAffectedByVariation(dnaIdx, strand, bc, NULL,
-                                   &drawStart, &drawEnd, &drawJoiningLines, &drawBackground, NULL))
-        {
-          /* The coord is affected by a SNP. Outline it in the "selected" SNP color
-           * (which is darker than the normal color) */
-          outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
-          
-          /* If the SNP is selected, also fill it with the SNP color (using the
-           * "unselected" SNP color, which is lighter than the outline). */
-          if (drawBackground)
-            {
-              fillColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, shadeBackground, bc->usePrintColors);
-            }
-        }
+      getSnpHighlighting(data, bc);
     }
   
-  if (!fillColor)
+  /* If the base is not already assigned some special highlighting, then
+   * check whether it should be highlighted as a stop or MET. Otherwise,
+   * give it the default background colour. */
+  if (!data->fillColor)
     {
-      if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_MET)
+      if (data->seqType == BLXSEQ_PEPTIDE && data->baseChar == SEQUENCE_CHAR_MET)
         {
           /* The coord is a MET codon */
-          fillColor = getGdkColor(BLXCOLOR_MET, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(BLXCOLOR_MET, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
-      else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_STOP)
+      else if (data->seqType == BLXSEQ_PEPTIDE && data->baseChar == SEQUENCE_CHAR_STOP)
         {
           /* The coord is a STOP codon */
-          fillColor = getGdkColor(BLXCOLOR_STOP, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(BLXCOLOR_STOP, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
-      else if (showBackground)
+      else if (data->showBackground)
         {
           /* Use the default background color for the reference sequence */
-          fillColor = getGdkColor(defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
     }
   
-  if (topToBottom)
+  /* Ok, now we know all the colours and outlines, draw the background for the base */
+  if (data->topToBottom)
     {
       /* We're drawing nucleotides from top-to-bottom instead of left-to-right, so the start border is
        * the top border and the bottom border is the end border. */
-      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
-                    drawJoiningLines, drawJoiningLines, drawStart, drawEnd);
+      drawRectangle(drawable, gc, data->fillColor, data->outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
+                    data->drawJoiningLines, data->drawJoiningLines, data->drawStart, data->drawEnd);
     }
   else
     {
-      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
-                    drawStart, drawEnd, drawJoiningLines, drawJoiningLines);
+      drawRectangle(drawable, gc, data->fillColor, data->outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
+                    data->drawStart, data->drawEnd, data->drawJoiningLines, data->drawJoiningLines);
     }
 }
 

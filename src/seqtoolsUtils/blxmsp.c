@@ -40,6 +40,10 @@
 #include <string.h>
 
 
+#define POLYA_TAIL_BASES_TO_CHECK -1 /* number of bases to check when looking for a polyA tail (-1
+                                        means check all of the unaligned sequence) */
+
+
 /* Globals */
 static int g_MaxMspLen = 0;                   /* max length in display coords of all MSPs in the detail-view */
 static BlxDataType *g_DefaultDataType = NULL; /* data type containing default values; used if sequences do not have a data-type specified */
@@ -702,32 +706,90 @@ MSP* mspArrayIdx(const GArray* const array, const int idx)
 }
 
 
-/* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. The input
- * list should be a list containing all polya sites (and only polya sites) */
-gboolean mspHasPolyATail(const MSP* const msp, const GArray* const polyASiteList)
+/* Check if the given character is a polyA character (i.e. 'a', or if the strand is reverse 't') */
+static gboolean isPolyAChar(const char c, const BlxStrand strand)
+{
+  gboolean result = FALSE;
+
+  if (strand == BLXSTRAND_FORWARD)
+    result = (c == 'a' || c == 'A');
+  else
+    result = (c == 't' || c == 'T');
+
+  return result;
+}
+
+
+/* Get the number of bases to check when looking for a polyA tail. We may want to make this configurable? */
+static int getNumPolyATailBasesToCheck()
+{
+  static int result = POLYA_TAIL_BASES_TO_CHECK;
+  return result;
+}
+
+
+/* Returns true if there is a polyA site at the 3' end of this MSP's alignment range. */
+gboolean mspHasPolyATail(const MSP* const msp)
 {
   gboolean found = FALSE;
   
   /* Only matches have polyA tails. */
   if (mspIsBlastMatch(msp))
     {
-      /* For now, loop through all poly A sites and see if the site coord matches the 3' end coord of
-       * the alignment. If speed proves to be an issue we could do some pre-processing to link MSPs 
-       * to relevant polyA signals/sites so that we don't have to loop each time we want to check. */
-      int i = 0;
-      MSP *curPolyASite = mspArrayIdx(polyASiteList, i);
+      const char *seq = mspGetMatchSeq(msp);
       
-      for ( ; !found && curPolyASite; curPolyASite = mspArrayIdx(polyASiteList, ++i))
+      if (seq)
         {
-          const int qEnd = mspGetQEnd(msp);
-          
-          if (mspGetRefStrand(msp) == BLXSTRAND_FORWARD)
+          const int numRequired = getNumPolyATailBasesToCheck();
+          const int minRequired = 3; /* check at least 3 bases */
+          const int len = strlen(seq);
+          BlxStrand sStrand = mspGetMatchStrand(msp);
+          BlxStrand qStrand = mspGetRefStrand(msp);
+          int sCoord = mspGetSEnd(msp);
+
+          if (qStrand == sStrand) 
             {
-              found = (qEnd == curPolyASite->qRange.min);
+              ++sCoord; /* next coord after alignment block end */
+              int sMax = mspGetSStart(msp);
+
+              if (numRequired > 0) /* -1 means check all of the unaligned sequence */
+                sMax = sCoord + numRequired;
+
+              if (sMax <= len && sMax - sCoord >= minRequired)
+                {
+                  found = TRUE;
+
+                  for ( ; sCoord <= sMax; ++sCoord)
+                    {
+                      if (!isPolyAChar(seq[sCoord - 1], qStrand))
+                        {
+                          found = FALSE;
+                          break;
+                        }
+                    }
+                }
             }
           else
             {
-              found = (qEnd == curPolyASite->qRange.min + 1);
+              --sCoord; /* next coord after alignment block end */
+              int sMin = 1;
+              
+              if (numRequired > 0)
+                sMin = sCoord - numRequired;
+
+              if (sMin >= 1 && sCoord - sMin >= minRequired)
+                {
+                  found = TRUE;
+
+                  for ( ; sCoord >= sMin; --sCoord)
+                    {
+                      if (!isPolyAChar(seq[sCoord - 1], qStrand))
+                        {
+                          found = FALSE;
+                          break;
+                        }
+                    }
+                }
             }
         }
     }
@@ -738,15 +800,16 @@ gboolean mspHasPolyATail(const MSP* const msp, const GArray* const polyASiteList
 
 /* Returns true if the given MSP coord (in ref seq nucleotide coords) is inside a polyA tail, if
  * this MSP has one. */
-gboolean mspCoordInPolyATail(const int coord, const MSP* const msp, const GArray *polyASiteList)
+gboolean mspCoordInPolyATail(const int coord, const MSP* const msp)
 {
-  gboolean result = mspHasPolyATail(msp, polyASiteList);
+  gboolean result = mspHasPolyATail(msp);
   
   /* See if the coord is outside the 3' end of the alignment range (i.e. is greater than the
    * max coord if we're on the forward strand or less than the min coord if on the reverse). */
-  result &= ((mspGetRefStrand(msp) == BLXSTRAND_FORWARD && coord > msp->qRange.max) ||
-             (mspGetRefStrand(msp) == BLXSTRAND_REVERSE && coord < msp->qRange.min));
-  
+  //result &= ((mspGetRefStrand(msp) == BLXSTRAND_FORWARD && coord > msp->displayRange.max) ||
+  //           (mspGetRefStrand(msp) == BLXSTRAND_REVERSE && coord < msp->displayRange.min));
+  result &= coord > msp->displayRange.max;
+
   return result;
 }
 
