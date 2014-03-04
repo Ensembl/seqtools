@@ -922,14 +922,22 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
           char *displayText = NULL;
 
           /* If we're displaying coords negated, negate it now */
-          int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * dnaIdx : dnaIdx);
+          const int negate = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 : 1);
+          int coord = negate * dnaIdx;
 
           /* If there are multiple signals on this coord, display some summary text.
            * Otherwise, check we've got the sequence info to display. If not just display the name. */
           if (multiple)
-            displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_POLYA_SIGNALS_TEXT);
+            {
+              displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_POLYA_SIGNALS_TEXT);
+            }
           else
-            displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", msp->qRange.min, msp->qRange.max);
+            {
+              if (bc->displayRev) /* swap coords and negage if applicable */
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", negate * msp->qRange.max, negate * msp->qRange.min);
+              else
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", msp->qRange.min, msp->qRange.max);
+            }
               
           /* Send the message to the status bar */
           gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
@@ -940,14 +948,22 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
           char *displayText = NULL;
 
           /* If we're displaying coords negated, negate it now */
-          int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * dnaIdx : dnaIdx);
+          const int negate = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 : 1);
+          int coord = negate * dnaIdx;
 
           /* If there are multiple sites on this coord, display some summary text.
            * Otherwise, check we've got the sequence info to display. If not just display the name. */
           if (multiple)
-            displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_POLYA_SITES_TEXT);
+            {
+              displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_POLYA_SITES_TEXT);
+            }
           else
-            displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", msp->qRange.min, msp->qRange.max);
+            {
+              if (bc->displayRev) /* swap coords and negate if applicable */
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", negate * msp->qRange.max, negate * msp->qRange.min);
+              else
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", msp->qRange.min, msp->qRange.max);
+            }
               
           /* Send the message to the status bar */
           gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
@@ -2541,11 +2557,15 @@ void drawHeaderChar(BlxViewContext *bc,
 
       if (colorId == BLXCOLOR_POLYA_SITE_ANN)
         {
-          /* For polyA sites we don't shade the background; instead we want to draw a bar to the
-           * right of the coord, so set the outline. 
+          /* For polyA sites we don't shade the background; instead we want to draw a bar after the
+           * coord (or before if the display is reversed), so set the outline. 
            * (NB Bit of a hack to use the colorId to identify polyA sites here but it works fine.) */ 
           data->outlineColor = color;
-          data->drawEnd = TRUE;
+          
+          if (bc->displayRev)
+            data->drawStart = TRUE;
+          else
+            data->drawEnd = TRUE;
         }
       else
         {
