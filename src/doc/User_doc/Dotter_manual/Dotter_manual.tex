@@ -9,7 +9,7 @@
 %
 % This file was converted to LaTeX by Writer2LaTeX ver. 1.0.2
 % see http://writer2latex.sourceforge.net for more info
-\documentclass{report}
+\documentclass[letterpaper]{article}
 \usepackage[latin1]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[english]{babel}
@@ -20,17 +20,111 @@
 \usepackage{supertabular}
 \usepackage{hhline}
 \usepackage{hyperref}
-\hypersetup{pdftex, colorlinks=true, linkcolor=blue, citecolor=blue, filecolor=blue, urlcolor=blue, pdftitle=Blixem User Manual, pdfauthor=Gemma Barson, pdfsubject=, pdfkeywords=}
+\usepackage{titlesec}
+\hypersetup{pdftex, colorlinks=true, linkcolor=blue, citecolor=blue, filecolor=blue, urlcolor=blue, pdftitle=Dotter User Manual, pdfauthor=Gemma Barson, pdfsubject=, pdfkeywords=}
 \usepackage[pdftex]{graphicx}
 % Paragraph styles
 \setlength{\parindent}{0pt}
 % Text styles
 \newcommand\textstyleInternetlink[1]{\textcolor{blue}{#1}}
+\newcommand\textstyleSourceText[1]{\texttt{#1}}
+\newcommand\textstyleFootnoteSymbol[1]{\textsuperscript{#1}}
+\definecolor{darkblue}{rgb}{0.2,0.3,0.5}
+\definecolor{lightblue}{rgb}{0.3,0.5,0.8}
+%\DeclareFixedFont{\sectionfont}{T1}{phv}{bx}{n}{16pt}
+%\DeclareFixedFont{\subsectionfont}{T1}{phv}{bx}{n}{14pt}
+%\DeclareFixedFont{\subsubsectionfont}{T1}{phv}{bx}{n}{12pt}
+\titleformat{\section} {\normalfont\LARGE\bf\color{darkblue}}{\thesection}{1em}{}
+\titleformat{\subsection} {\normalfont\large\bf\color{lightblue}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection} {\normalfont\normalsize\bf\color{lightblue}}{\thesubsubsection}{1em}{}
 % Outline numbering
 \setcounter{secnumdepth}{0}
 \makeatletter
 \newcommand\arraybslash{\let\\\@arraycr}
 \makeatother
+% List styles
+\newcommand\liststyleLi{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{{\textbullet}}
+\renewcommand\labelitemiii{{\textbullet}}
+\renewcommand\labelitemiv{{\textbullet}}
+}
+\newcommand\liststyleLii{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{{\textbullet}}
+\renewcommand\labelitemiii{{\textbullet}}
+\renewcommand\labelitemiv{{\textbullet}}
+}
+\newcommand\liststyleLiii{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{{\textbullet}}
+\renewcommand\labelitemiii{{\textbullet}}
+\renewcommand\labelitemiv{{\textbullet}}
+}
+\newcommand\liststyleWWviiiNumxxxvi{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{o}
+\renewcommand\labelitemiii{[F0A7?]}
+\renewcommand\labelitemiv{[F0B7?]}
+}
+\newcommand\liststyleLiv{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{${\circ}$}
+\renewcommand\labelitemiii{${\blacksquare}$}
+\renewcommand\labelitemiv{{\textbullet}}
+}
+\newcommand\liststyleWWviiiNumxxxi{%
+\renewcommand\theenumi{\arabic{enumi}}
+\renewcommand\theenumii{\alph{enumii}}
+\renewcommand\theenumiii{\roman{enumiii}}
+\renewcommand\theenumiv{\arabic{enumiv}}
+\renewcommand\labelenumi{\theenumi.}
+\renewcommand\labelenumii{\theenumii.}
+\renewcommand\labelenumiii{\theenumiii.}
+\renewcommand\labelenumiv{\theenumiv.}
+}
+\newcommand\liststyleWWviiiNumxxxv{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{o}
+\renewcommand\labelitemiii{[F0A7?]}
+\renewcommand\labelitemiv{[F0B7?]}
+}
+\newcommand\liststyleWWviiiNumxiii{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{o}
+\renewcommand\labelitemiii{[F0A7?]}
+\renewcommand\labelitemiv{[F0B7?]}
+}
+\newcommand\liststyleWWviiiNumxxvii{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{o}
+\renewcommand\labelitemiii{[F0A7?]}
+\renewcommand\labelitemiv{[F0B7?]}
+}
+\newcommand\liststyleWWviiiNumxxvi{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{o}
+\renewcommand\labelitemiii{[F0A7?]}
+\renewcommand\labelitemiv{[F0B7?]}
+}
+\newcommand\liststyleWWviiiNumxvi{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{o}
+\renewcommand\labelitemiii{[F0A7?]}
+\renewcommand\labelitemiv{[F0B7?]}
+}
+\newcommand\liststyleWWviiiNumxxxvii{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{o}
+\renewcommand\labelitemiii{[F0A7?]}
+\renewcommand\labelitemiv{[F0B7?]}
+}
+\newcommand\liststyleWWviiiNumxx{%
+\renewcommand\labelitemi{{\textbullet}}
+\renewcommand\labelitemii{o}
+\renewcommand\labelitemiii{[F0A7?]}
+\renewcommand\labelitemiv{[F0B7?]}
+}
 % Page layout (geometry)
 \setlength\voffset{-1in}
 \setlength\hoffset{-1in}
@@ -64,9 +158,16 @@
 \pagestyle{Standard}
 \setlength\tabcolsep{1mm}
 \renewcommand\arraystretch{1.3}
-\title{Blixem User Manual}
+% footnotes configuration
+\makeatletter
+\renewcommand\thefootnote{\arabic{footnote}}
+\makeatother
+\newcounter{Figure}
+\renewcommand\theFigure{\arabic{Figure}}
+
+\title{Dotter User Manual}
 \author{Gemma Barson}
-\date{2014-03-05}
+\date{2011-01-18}
 
 \begin{document}
 
@@ -188,7 +289,10 @@
 
 \setcounter{tocdepth}{10}
 \renewcommand\contentsname{Contents}
+
+\clearpage
 \tableofcontents
+
 \clearpage{\color[rgb]{0.0,0.27058825,0.5254902}\section[Introduction]{Introduction}}
 {This manual explains how to configure, run and
 use Dotter. Dotter is a graphical

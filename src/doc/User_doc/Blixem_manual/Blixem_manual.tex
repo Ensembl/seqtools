@@ -21,6 +21,7 @@
 \usepackage{supertabular}
 \usepackage{hhline}
 \usepackage{hyperref}
+\usepackage{titlesec}
 \hypersetup{pdftex, colorlinks=true, linkcolor=blue, citecolor=blue, filecolor=blue, urlcolor=blue, pdftitle=Blixem User Manual, pdfauthor=Gemma Barson, pdfsubject=, pdfkeywords=}
 \usepackage[pdftex]{graphicx}
 % Paragraph styles
@@ -29,6 +30,14 @@
 \newcommand\textstyleInternetlink[1]{\textcolor{blue}{#1}}
 \newcommand\textstyleSourceText[1]{\texttt{#1}}
 \newcommand\textstyleFootnoteSymbol[1]{\textsuperscript{#1}}
+\definecolor{darkblue}{rgb}{0.2,0.3,0.5}
+\definecolor{lightblue}{rgb}{0.3,0.5,0.8}
+%\DeclareFixedFont{\sectionfont}{T1}{phv}{bx}{n}{16pt}
+%\DeclareFixedFont{\subsectionfont}{T1}{phv}{bx}{n}{14pt}
+%\DeclareFixedFont{\subsubsectionfont}{T1}{phv}{bx}{n}{12pt}
+\titleformat{\section} {\normalfont\LARGE\bf\color{darkblue}}{\thesection}{1em}{}
+\titleformat{\subsection} {\normalfont\large\bf\color{lightblue}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection} {\normalfont\normalsize\bf\color{lightblue}}{\thesubsubsection}{1em}{}
 % Outline numbering
 \setcounter{secnumdepth}{0}
 \makeatletter
@@ -156,9 +165,10 @@
 \makeatother
 \newcounter{Figure}
 \renewcommand\theFigure{\arabic{Figure}}
+
 \title{Blixem User Manual}
 \author{Gemma Barson}
-\date{2014-03-06}
+\date{2011-01-17}
 
 \begin{document}
 
@@ -185,7 +195,7 @@
 \large{Wellcome Trust Sanger Institute}
 \par}
 {\centering
-18 January 2011
+17 January 2011
 \par}
 
 
@@ -193,7 +203,6 @@
 \clearpage
 {\color[rgb]{0.0,0.27058825,0.5254902}\section[Revision History]{Revision History}}
 \hypertarget{RefHeading334316266717}{}
-\bigskip
 
 \begin{center}
 \tablehead{}
