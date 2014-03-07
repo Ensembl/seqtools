@@ -320,22 +320,24 @@ grey-scale image represents.}
 
 \bigskip
 
-{
-{Dotter is maintained by the Wellcome Trust
+Dotter is maintained by the Wellcome Trust
 Sanger Institute and is available as part of the SeqTools package.
 \ The software can be downloaded from the Sanger
-Institute{\textquoteright}s website:}
-\href{http://www.sanger.ac.uk/}{\textstyleInternetlink{http://www.sanger.ac.uk}}.
-}
+Institute{\textquoteright}s website:
+
+\href{http://www.sanger.ac.uk/resources/software/seqtools/}
+{\textstyleInternetlink{http://www.sanger.ac.uk/resources/software/seqtools}}
 
 {\color[rgb]{0.0,0.27058825,0.5254902}\section[Getting Started]{Getting Started}}
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Running Dotter]{Running Dotter}}
 
 As a minimum, Dotter takes the following required arguments:
 
+\begin{quote}
 \begin{verbatim}
 dotter <horizontal_sequence> <vertical_sequence>
 \end{verbatim}
+\end{quote}
 
 where \texttt{{\textless}horizontal\_sequence{\textgreater}} and
 \texttt{{\textless}vertical\_sequence{\textgreater}} are the path names of FASTA
@@ -398,13 +400,17 @@ sequence name. \ The next line contains the start of the sequence data.
 it is usually separated by newlines every 50 characters to aid
 readability.}
 
+\bigskip
+
+\begin{quote}
 \begin{verbatim}
-chr4-04
+>chr4-04
 tcttgtttctgtaggagaggccatctccatcagctataaccaaaaaaaaa
 acaaaaaactcctctttttgacaagtttgtaaagcctgtccatctgggtc
 tataataatcctccaggccctatgccactcctctttattcagccagttca
 ...
 \end{verbatim}
+\end{quote}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[GFF file]{GFF file}}
 {Dotter uses the GFF version 3 file format. \ In this section we give a
@@ -419,15 +425,19 @@ description.}
 
 \bigskip
 
+\begin{quote}
 \begin{verbatim}
 ##gff-version 3
 ##sequence-region chr4-04 44144 154265
 \end{verbatim}
+\end{quote}
 Each subsequent line defines a feature. \ A feature line must have the
 following 8 tab-separated columns:
+\begin{quote}
 \begin{verbatim}
 reference_sequence_name source type start end score strand phase
 \end{verbatim}
+\end{quote}
 An optional 9\textsuperscript{th} column defines any tags (separated by
 semi-colons). \ Dotter supports the following GFF tags. \ (Additional
 tags can be supplied but may be ignored.)
@@ -463,6 +473,9 @@ components as long as enough information is provided. }
 {A sample GFF file may look like this ({\textquoteleft}{\dots}{\textquoteleft} denotes that text has been
 omitted).}
 
+\bigskip
+
+\begin{quote}
 \begin{verbatim}
 ##gff-version 3
 ##sequence-region chr4-04 44144 154265
@@ -477,6 +490,7 @@ chr4-04 Augustus mRNA 119534 119941 . - . ID=transcript21;Name=AUGUSTUS000000517
 chr4-04 Augustus exon 119534 119941 . - . Parent=transcript21
 chr4-04 Augustus CDS 119534 119941 . - 0 Parent=transcript21
 \end{verbatim}
+\end{quote}
 
 {\color[rgb]{0.0,0.27058825,0.5254902}\section[The Dotter Windows]{The Dotter Windows}}
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[The dot{}-plot window]{The dot-plot window}}

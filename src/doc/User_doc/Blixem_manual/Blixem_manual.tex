@@ -301,12 +301,13 @@ a reference sequence.}}
 
 \bigskip
 
-{
-{Blixem is maintained by the Wellcome Trust
+Blixem is maintained by the Wellcome Trust
 Sanger Institute and is available as part of the SeqTools package.
 \ The software can be downloaded from the Sanger
 Institute{\textquoteright}s website:
-}\href{http://www.sanger.ac.uk/}{\textstyleInternetlink{{http://www.sanger.ac.uk}}}{.}}
+
+\href{http://www.sanger.ac.uk/resources/software/seqtools/}
+{\textstyleInternetlink{http://www.sanger.ac.uk/resources/software/seqtools}}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[An aside about the name
 {\textquotedblleft}Blixem{\textquotedblright}]{
@@ -327,9 +328,11 @@ so the correct name is just
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Running Blixem]{Running Blixem}}
 \hypertarget{RefHeading1481056909880}{}{
 As a minimum, Blixem takes the following required arguments:}
+\begin{quote}
 \begin{verbatim}
 blixem --display-type=N|P <features_file>
 \end{verbatim}
+\end{quote}
 {where \texttt{{\textless}features\_file{\textgreater}} is the path name of a GFF
 version 3 file containing the alignments and any other features. The
  \texttt{{\textquoteleft}{}-{}-display-type{\textquoteleft}} or
@@ -346,9 +349,13 @@ Blixem takes one or two files as input: a mandatory GFF version 3 file
 containing the features and, optionally, a separate file containing the
 reference sequence in FASTA format.}
 
+\bigskip
+
+\begin{quote}
 \begin{verbatim}
 blixem --t N|P [<reference\sequence\file>] <features_file>
 \end{verbatim}
+\end{quote}
 
 {If the reference sequence file is not provided, the reference sequence
 must be supplied in FASTA format at the end of the GFF file, following
@@ -374,15 +381,19 @@ description.}
 
 {The GFF file should start with the following two comment lines.
 \ (Additional comments can be included but may be ignored.)
+\begin{quote}
 \begin{verbatim}
 ##gff-version 3
 ##sequence-region chr4-04 44144 154265
 \end{verbatim}
+\end{quote}
 Each subsequent line defines a feature. \ A feature line must have the
 following 8 tab-separated columns:
+\begin{quote}
 \begin{verbatim}
 reference_sequence_name source type start end score strand phase}
 \end{verbatim}
+\end{quote}
 An optional 9\textsuperscript{th} column defines any tags (separated by
 semi-colons). \ Blixem supports the following GFF tags. \ (Additional
 tags can be supplied but may be ignored.)}
@@ -443,29 +454,32 @@ omitted).}
 
 \bigskip
 
+\begin{quote}
 \begin{verbatim}
 ##gff-version 3
 ##sequence-region chr4-04 44144 154265
-chr4-04 EST_Human nucleotide_match 79195 79311 95.000000 - . Target=DA692754.1 \
-287 403 +;percentID=90.6;sequence=GATCTGGC...
-chr4-04 EST_Human nucleotide_match 79195 79323 121.000000 + . Target=AI095103.1 \
-326 454 +;percentID=96.9;sequence=TTTAAATT...
-chr4-04 ensembl_variation deletion 80798 80799 . + . Name=rs60725655;url=http%3A\
-%2F%2Fwww.ensembl.org%2FHomo_sapiens%2FVariation%2FSummary%3Fv%3Drs60725655;vari\
-ant_sequence=AA/-;
-chr4-04 ensembl_variation sequence_alteration 80799 80799 . + . Name=rs57681246;\
-url=http%3A%2F%2Fwww.ensembl.org%2FHomo_sapiens%2FVariation%2FSummary%3Fv%3Drs57\
-681246;variant_sequence=A/-/C;
-chr4-04 ensembl_variation SNP 81040 81040 . + . Name=rs2352935;url=http%3A%2F%2F\
-www.ensembl.org%2FHomo_sapiens%2FVariation%2FSummary%3Fv%3Drs2352935;variant_seq\
-uence=T/C;
-chr4-04 ensembl_variation insertion 82229 82230 . + . Name=rs35105663;url=http%3\
-A%2F%2Fwww.ensembl.org%2FHomo_sapiens%2FVariation%2FSummary%3Fv%3Drs35105663;var\
-iant_sequence=-/G;
-chr4-04 Augustus mRNA 119534 119941 . - . ID=transcript21;Name=AUGUSTUS00000051712
+chr4-04 EST_Human nucleotide_match 79195 79311 95.000000 - . Target=DA692754\
+.1 287 403 +;percentID=90.6;sequence=GATCTGGC...
+chr4-04 EST_Human nucleotide_match 79195 79323 121.000000 + . Target=AI09510\
+3.1 326 454 +;percentID=96.9;sequence=TTTAAATT...
+chr4-04 ensembl_variation deletion 80798 80799 . + . Name=rs60725655;url=htt\
+p%3A%2F%2Fwww.ensembl.org%2FHomo_sapiens%2FVariation%2FSummary%3Fv%3Drs60725\
+655;variant_sequence=AA/-;
+chr4-04 ensembl_variation sequence_alteration 80799 80799 . + . Name=rs57681\
+246;url=http%3A%2F%2Fwww.ensembl.org%2FHomo_sapiens%2FVariation%2FSummary%3F\
+v%3Drs57681246;variant_sequence=A/-/C;
+chr4-04 ensembl_variation SNP 81040 81040 . + . Name=rs2352935;url=http%3A%2\
+F%2Fwww.ensembl.org%2FHomo_sapiens%2FVariation%2FSummary%3Fv%3Drs2352935;var\
+iant_sequence=T/C;
+chr4-04 ensembl_variation insertion 82229 82230 . + . Name=rs35105663;url=ht\
+tp%3A%2F%2Fwww.ensembl.org%2FHomo_sapiens%2FVariation%2FSummary%3Fv%3Drs3510\
+5663;variant_sequence=-/G;
+chr4-04 Augustus mRNA 119534 119941 . - . ID=transcript21;Name=AUGUSTUS00000\
+051712
 chr4-04 Augustus exon 119534 119941 . - . Parent=transcript21
 chr4-04 Augustus CDS 119534 119941 . - 0 Parent=transcript21
 \end{verbatim}
+\end{quote}
 
 \bigskip
 
@@ -481,6 +495,7 @@ sequence range may be different to the GFF file range.}
 data can be on a single line or separated by newlines; it is usually
 separated by newlines every 50 characters to aid readability.}
 
+\begin{quote}
 \begin{verbatim}
 >chr4-04 44144 154265
 tcttgtttctgtaggagaggccatctccatcagctataaccaaaaaaaaa
@@ -488,16 +503,18 @@ acaaaaaactcctctttttgacaagtttgtaaagcctgtccatctgggtc
 tataataatcctccaggccctatgccactcctctttattcagccagttca
 ...
 \end{verbatim}
+\end{quote}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Combined GFF and FASTA file]{Combined GFF and FASTA file}}
 
+\begin{quote}
 \begin{verbatim}
 ##gff-version 3
 ##sequence-region chr4-04 44144 154265
-chr4-04_210623-364887 EST_Human nucleotide_match 79195 79311 95.000000 - . Target=DA692754.1 \
-287 403 +;percentID=90.6
-chr4-04_210623-364887 EST_Human nucleotide_match 79195 79323 121.000000 + . Target=AI095103.1\
-326 454 +;percentID=96.9
+chr4-04_210623-364887 EST_Human nucleotide_match 79195 79311 95.000000 - . \
+Target=DA692754.1 287 403 +;percentID=90.6
+chr4-04_210623-364887 EST_Human nucleotide_match 79195 79323 121.000000 + .\
+ Target=AI095103.1 326 454 +;percentID=96.9
 ...
 ##FASTA
 >chr4-04 44144 154265
@@ -506,6 +523,7 @@ acaaaaaactcctctttttgacaagtttgtaaagcctgtccatctgggtc
 tataataatcctccaggccctatgccactcctctttattcagccagttca
 ...
 \end{verbatim}
+\end{quote}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Configuration file]{Configuration file}}
 {Blixem supports {\textquotedblleft}.ini-style{\textquotedblright}
@@ -544,12 +562,14 @@ be set are described below. }
 
 \bigskip
 
+\begin{quote}
 \begin{verbatim}
 [blixem]
 link-features-by-name=false
 bulk-fetch = none
 user-fetch = internal
 \end{verbatim}
+\end{quote}
 
 {\textstyleSourceText{\textrm{\textbf{link-features-by-name}}}\textbf{ }}
 {If true, features with the same name are considered to have the same
@@ -701,6 +721,7 @@ or in the Source stanza) }
 \bigskip
 \end{itemize}
 
+\begin{quote}
 \begin{verbatim}
 [pfetch-socket]
 fetch-mode=socket
@@ -747,6 +768,7 @@ fetch-mode=internal
 [none]
 fetch-mode=none
 \end{verbatim}
+\end{quote}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Data types ]{Data types }}
 \hypertarget{RefHeading37731724351149}{}{
@@ -758,6 +780,7 @@ key-value pairs are the same as for the Program defaults. }
 
 \bigskip
 
+\begin{quote}
 \begin{verbatim}
 [dna-match]
 link-features-by-name=true
@@ -772,6 +795,7 @@ user-fetch=pfetch-socket-embl,pfetch-socket-fasta,internal
 [ensembl-variation]
 user-fetch=variation-fetch
 \end{verbatim}
+\end{quote}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Source mapping ]{Source mapping }}
 \hypertarget{RefHeading37751724351149}{}{
@@ -779,6 +803,7 @@ This stanza allows you to map a source to a particular data type. The
 keys should be valid sources that appear in the GFF file ,and the
 values must be stanzas specified in the data-type stanzas. }
 
+\begin{quote}
 \begin{verbatim}
 [source-data-types]
 EST\_Human=dna-match
@@ -789,6 +814,7 @@ SwissProt=protein-match
 TrEMBL=protein-match
 ensembl\_variation=ensembl-variation
 \end{verbatim}
+\end{quote}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Sources ]{Sources }}
 \hypertarget{RefHeading37771724351149}{}{
@@ -797,10 +823,12 @@ basis. Currently, the only supported keyword is \texttt{file}. This
 specifies a file name which can be included in fetch method arguments
 using the \texttt{\%f} substitution variable. }
 
+\begin{quote}
 \begin{verbatim}
 [Tier2_HepG2_cytosol_longPolyA_rep2]
 file=wgEncodeCshlLongRnaSeqHepg2CytosolPapAlnRep2.bam
 \end{verbatim}
+\end{quote}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[User settings ]{User settings }}
 \hypertarget{RefHeading37791724351149}{}{
@@ -821,6 +849,7 @@ except for num-unaligned-bases which takes an integer value.}} }
 
 \bigskip
 
+\begin{quote}
 \begin{verbatim}
 [user-settings]
 highlight-diffs=0
@@ -837,6 +866,7 @@ show-splice-sites=0
 num-unaligned-bases=
 squash-matches=0
 \end{verbatim}
+\end{quote}
 
 {\textstyleSourceText{\textrm{\textbf{column-widths }}}}
 
@@ -846,6 +876,7 @@ column by specifying a width of zero. Column names should be exactly as
 they appear in the column headers in Blixem, and are case-sensitive.
 Widths are specified in pixels. }}}
 
+\begin{quote}
 \begin{verbatim}
 [column-widths]
 Name=120
@@ -860,6 +891,7 @@ Score=
 Start=
 End=80
 \end{verbatim}
+\end{quote}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Colour key file ]{Colour key file }}
 \hypertarget{RefHeading30392057371307}{}{
@@ -867,11 +899,13 @@ A {\textquotedblleft}.ini{\textquotedblright}-style key file can be
 supplied via the -{}-styles-file argument in order to tell Blixem what
 colour to draw certain features in, e.g.}
 
+\begin{quote}
 \begin{verbatim}
 [EST_Human]
 fill_color=#ff0000
 line_color=#bb0000
 \end{verbatim}
+\end{quote}
 
 {The group name (in square brackets) denotes a source, and the colours
 will apply to any features from the GFF file with the same source name.
@@ -885,6 +919,7 @@ string in hexadecimal format
 ({\textquotedblleft}\#RRGGBB{\textquotedblright}). \ Valid colour
 identifiers recognized by Blixem are:}
 
+\begin{quote}
 \begin{verbatim}
 fill_color
 line_color
@@ -895,6 +930,7 @@ line_color_utr
 fill_color_utr_selected
 line_color_utr_selected
 \end{verbatim}
+\end{quote}
 
 {Only \texttt{fill\_color }and \texttt{line\_color }are mandatory; the
 selection colors will be calculated automatically if not specified
