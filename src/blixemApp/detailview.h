@@ -232,6 +232,7 @@ void                    detailViewSetActiveFrame(GtkWidget *detailView, const in
 void                    detailViewResortTrees(GtkWidget *detailView);
 
 void                    updateFeedbackBox(GtkWidget *detailView);
+void                    clearFeedbackArea(GtkWidget *detailView);
 void                    updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const BlxStrand strand);
 void                    toggleStrand(GtkWidget *detailView);
 

@@ -69,7 +69,9 @@ AUTHOR_TEXT "\n"
 
 
 
-#define COLUMN_WIDTHS_GROUP             "column-widths"  /* group name in the config file */
+#define COLUMN_WIDTHS_GROUP             "column-widths"   /* group name in the config file */
+#define COLUMN_SUMMARY_GROUP            "summary-columns" /* group name in the config file for
+                                                             columns to include in the summary info */
 
 /* Define the columns' default widths and titles. */
 #define BLXCOL_DEFAULT_WIDTH            50    /* default width for generic columns */
@@ -562,6 +564,7 @@ int                                getColumnWidth(GList *columnList, const BlxCo
 const char*                        getColumnTitle(GList *columnList, const BlxColumnId columnId);
 void                               getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *xRange);
 void                               saveColumnWidths(GList *columnList, GKeyFile *key_file);
+void                               saveSummaryColumns(GList *columnList, GKeyFile *key_file);
 gboolean                           showColumn(BlxColumnInfo *columnInfo);
 void                               resetColumnWidths(GList *columnList);
 

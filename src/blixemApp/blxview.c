@@ -1601,10 +1601,8 @@ const char *blxGetVersionString()
  *                      Columns
  ***********************************************************/
 
-/* This checks if the column has any properties specified for it in the config
- * file and, if so, overrides the default values in the given column with 
- * the config file values. */
-static void getColumnConfig(BlxColumnInfo *columnInfo)
+/* Check if the column has a column-width set in the config and if so override the default value */
+static void getColumnWidthsConfig(BlxColumnInfo *columnInfo)
 {
   /* Do nothing for the sequence column, because it has dynamic width */
   if (columnInfo->columnId == BLXCOL_SEQUENCE)
@@ -1637,6 +1635,35 @@ static void getColumnConfig(BlxColumnInfo *columnInfo)
 }
 
 
+/* Check if the column has a column-summary flag set in the config and if so 
+ * override the default value */
+static void getColumnSummaryConfig(BlxColumnInfo *columnInfo)
+{
+  /* Do nothing for the sequence column, because we never want to include it in the summary info */
+  if (columnInfo->columnId == BLXCOL_SEQUENCE)
+    return;
+    
+  GKeyFile *key_file = blxGetConfig();
+
+  if (key_file && g_key_file_has_group(key_file, COLUMN_SUMMARY_GROUP))
+    {
+      /* The value is true if we should include the column in summary info, false if we should
+       * not. If the group exists but the column is not listed then that also indicates we should not
+       * show it (this call will correctly return false in that case). */
+      columnInfo->showSummary = g_key_file_get_boolean(key_file, COLUMN_SUMMARY_GROUP, columnInfo->title, NULL);
+    }
+}
+
+
+/* This checks if the column has any properties specified for it in the config
+ * file and, if so, overrides the default values in the given column with 
+ * the config file values. */
+static void getColumnConfig(BlxColumnInfo *columnInfo)
+{
+  getColumnWidthsConfig(columnInfo);
+  getColumnSummaryConfig(columnInfo);
+}
+
 //static void destroyColumnList(GList **columnList)
 //{
 //  GList *column = *columnList;
@@ -1667,7 +1694,7 @@ GList* blxCreateColumns(const gboolean optionalColumns, const gboolean customSeq
   blxColumnCreate(BLXCOL_TISSUE_TYPE, TRUE,             "Tissue Type",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    optionalColumns, FALSE, TRUE,  TRUE,   "Tissue type", "FT", "tissue_type", &columnList);
   blxColumnCreate(BLXCOL_STRAIN,      TRUE,             "Strain",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         optionalColumns, FALSE, TRUE,  TRUE,   "Strain",      "FT", "strain", &columnList);
 
-  /* Insert optional columns here, with a dynamically-created ID */
+  /* Insert optional columns here, with a dynamically-created IDs that are >= BLXCOL_NUM_COLS */
   int columnId = BLXCOL_NUM_COLUMNS;
   blxColumnCreate((BlxColumnId)columnId++, TRUE,        "Description",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_DEFAULT_WIDTH,        optionalColumns, FALSE, TRUE,  TRUE,   "Description", "DE", NULL, &columnList);
                                                                                                                                                                                                       
@@ -1785,6 +1812,23 @@ void saveColumnWidths(GList *columnList, GKeyFile *key_file)
     }
 }
 
+
+/* Save the summary columns to the given config file. */
+void saveSummaryColumns(GList *columnList, GKeyFile *key_file)
+{
+  /* Loop through each column */
+  GList *listItem = columnList;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
+
+      if (columnInfo && columnInfo->columnId != BLXCOL_SEQUENCE)
+        {
+          g_key_file_set_boolean(key_file, COLUMN_SUMMARY_GROUP, columnInfo->title, columnInfo->showSummary);
+        }
+    }
+}
 
 
 /* Reset column widths to default values */

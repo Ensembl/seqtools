@@ -193,6 +193,7 @@ void detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file)
   
   g_key_file_set_integer(key_file, SETTINGS_GROUP, SETTING_NAME_NUM_UNALIGNED_BASES, properties->numUnalignedBases);
   saveColumnWidths(detailViewGetColumnList(detailView), key_file);
+  saveSummaryColumns(detailViewGetColumnList(detailView), key_file);
 }
 
 
@@ -871,6 +872,24 @@ void updateFeedbackBox(GtkWidget *detailView)
   gtk_widget_queue_draw(feedbackBox);
   
   g_free(messageText);
+}
+
+
+/* Clear the feedback area */
+void clearFeedbackArea(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
+  if (properties)
+    {
+      GtkStatusbar *statusBar = GTK_STATUSBAR(properties->statusBar);
+      
+      if (statusBar)
+        {
+          guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+          gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, "");
+        }
+    }
 }
 
 

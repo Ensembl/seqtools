@@ -2938,6 +2938,25 @@ static gboolean onColumnVisibilityChanged(GtkWidget *button, const gint response
 }
 
 
+/* Callback to be called when the user has toggled which columns are included in summary info */
+static gboolean onSummaryColumnsChanged(GtkWidget *button, const gint responseId, gpointer data)
+{
+  gboolean result = TRUE;
+  
+  BlxColumnInfo *columnInfo = (BlxColumnInfo*)data;
+  columnInfo->showSummary = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+
+  /* Just clear the moused-over feedback area to make sure it's not showing invalid data. The
+   * user can mouse-over again to see the new data. */
+  clearFeedbackArea(detailView);
+  
+  return result;
+}
+
+
 /* Just calls gtk_widget_set_sensitive, but so that we can use it as a callback */
 static void widgetSetSensitive(GtkWidget *widget, gpointer data)
 {
@@ -3032,13 +3051,19 @@ static GtkWidget* createColumnLoadDataButton(GtkTable *table,
 /* Create the settings buttons for a single column */
 static void createColumnButton(BlxColumnInfo *columnInfo, GtkTable *table, int *row)
 {
-  /* Create a label, checkbox and a text entry box */
+  /* Create a label showing the column name */
   GtkWidget *label = gtk_label_new(columnInfo->title);
   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
   
-  GtkWidget *button = gtk_check_button_new();
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->showColumn);
-  widgetSetCallbackData(button, onColumnVisibilityChanged, (gpointer)columnInfo);
+  /* Tick-box controlling whether column is displayed */
+  GtkWidget *showColButton = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(showColButton), columnInfo->showColumn);
+  widgetSetCallbackData(showColButton, onColumnVisibilityChanged, (gpointer)columnInfo);
+
+  /* Tick-box controlling whether column is included in summary info */
+  GtkWidget *showSummaryButton = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(showSummaryButton), columnInfo->showSummary);
+  widgetSetCallbackData(showSummaryButton, onSummaryColumnsChanged, (gpointer)columnInfo);
   
   GtkWidget *entry = gtk_entry_new();
   
@@ -3048,14 +3073,16 @@ static void createColumnButton(BlxColumnInfo *columnInfo, GtkTable *table, int *
       char displayText[] = "<dynamic>";
       gtk_entry_set_text(GTK_ENTRY(entry), displayText);
       gtk_widget_set_sensitive(entry, FALSE);
-      gtk_widget_set_sensitive(button, FALSE);
+      gtk_widget_set_sensitive(showSummaryButton, FALSE);
+      gtk_widget_set_sensitive(showSummaryButton, FALSE);
       gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2); /* fudge up width a bit in case user enters longer text */
     }
   else
     {
       if (!columnInfo->dataLoaded)
         {
-          gtk_widget_set_sensitive(button, FALSE);
+          gtk_widget_set_sensitive(showColButton, FALSE);
+          gtk_widget_set_sensitive(showSummaryButton, FALSE);
           gtk_widget_set_sensitive(entry, FALSE);
         }
       
@@ -3070,12 +3097,31 @@ static void createColumnButton(BlxColumnInfo *columnInfo, GtkTable *table, int *
       g_free(displayText);
     }
   
-  gtk_table_attach(table, label,  1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
-  gtk_table_attach(table, button, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
-  gtk_table_attach(table, entry,  3, 4, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, label,             0, 1, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, showColButton,     1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, showSummaryButton, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, entry,             3, 4, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
   *row += 1;
 }
 
+
+/* Create labels for the column properties widgets created by createColumnButton */
+static void createColumnButtonHeaders(GtkTable *table, int *row)
+{
+  GtkWidget *label = gtk_label_new("Display\ncolumn");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  gtk_table_attach(table, label, 1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+
+  label = gtk_label_new("Display in\nmouse-over");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  gtk_table_attach(table, label, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+
+  label = gtk_label_new("Column\nwidth");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  gtk_table_attach(table, label, 3, 4, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+
+  *row += 1;
+}
 
 /* Create a set of widgets that allow columns settings to be adjusted */
 static void createColumnButtons(GtkWidget *parent, GtkWidget *detailView, const int border)
@@ -3087,7 +3133,7 @@ static void createColumnButtons(GtkWidget *parent, GtkWidget *detailView, const 
   
   GList *columnList = detailViewGetColumnList(detailView);
   const int rows = g_list_length(columnList) + 1;
-  const int cols = 3;
+  const int cols = 4;
   int row = 1;
 
   GtkTable *table = GTK_TABLE(gtk_table_new(rows, cols, FALSE));  
@@ -3098,11 +3144,10 @@ static void createColumnButtons(GtkWidget *parent, GtkWidget *detailView, const 
   /* Create a button to allow the user to load the full EMBL data, if not already loaded */
   GtkWidget *button = createColumnLoadDataButton(table, detailView, &row, cols, border, border);
   
-  /* Loop through each column in the detail view and create a text box showing the
-   * current width. Compile a list of widgets that are disabled, so that we can enable
-   * them if/when the user clicks the button to load their data. */
-  GList *listItem = columnList;
+  /* Loop through each column and create widgets to control the properties */
+  createColumnButtonHeaders(table, &row);
 
+  GList *listItem = columnList;
   for ( ; listItem; listItem = listItem->next)
     {
       BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
