@@ -81,6 +81,7 @@ typedef enum
     
     FASTA_SEQ_HEADER,              /* FASTA sequence header */
     FASTA_SEQ_BODY,                /* Sequence data in FASTA format */
+    FASTA_SEQ_IGNORE,              /* A FASTA sequence we're not interested in */
     
     EXBLX_BODY,                    /* Old style sequence entries. */
     SEQBL_BODY,                    /* Old style sequence entries. */

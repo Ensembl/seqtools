@@ -1406,6 +1406,16 @@ static gboolean parseHeaderLine(char *line, BlxBlastMode *blastMode, MSP *msp, I
 	
       processed = TRUE;
     }
+  else if (*line == '>' && 
+           (*parserState == FASTA_SEQ_BODY || *parserState == FASTA_SEQ_IGNORE))
+    {
+      /* We can have multiple fasta sequences after the ##FASTA comment line.
+       * They don't have another ##FASTA comment so we need to look for the 
+       * '>' which indicates the header line of the fasta data. Only do this if
+       * we've already seen the ##FASTA comment, though. */
+      *parserState = FASTA_SEQ_HEADER;
+      processed = FALSE; /* more info exists on the header line that we need to parse out */      
+    }
 
   DEBUG_EXIT("parseHeaderLine returning processed = %d, (parserState = %d)", processed, *parserState);
   return processed ;
@@ -1843,6 +1853,10 @@ static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, con
     case FS_SEQ_BODY: /* fall through */
     case FASTA_SEQ_BODY:
       parseSeqData(line, readSeq, readSeqLen, readSeqMaxLen, BLXSEQ_DNA); /* ref seq is always dna, not peptide */
+      break;
+
+    case FASTA_SEQ_IGNORE:
+      /* ignore this line of fasta sequence */
       break;
       
     case PARSER_ERROR:

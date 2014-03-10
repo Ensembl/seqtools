@@ -632,50 +632,69 @@ void parseFastaSeqHeader(char *line, const int lineNum,
                          char ***readSeq, int *readSeqLen, int *readSeqMaxLen,
                          BlxParserState *parserState)
 {
+  gboolean status = TRUE;
   char seqName[MAXLINE + 1];
   
   /* Read the ref seq name (and optionally the coords) from the header line */
   int startCoord = UNSET_INT, endCoord = UNSET_INT;
   const int numFound = sscanf(line, ">%s %d %d", seqName, &startCoord, &endCoord);
   
-  if (numFound < 1)
+  if (numFound < 1 || !seqName || !seqName[0])
     {
       /* Didn't find name - this is required */
+      status = FALSE;
       g_error("Error parsing data file: FASTA_SEQ_HEADER line \"%s\" is the wrong format; expected '>seq_name [start_coord end_coord].\n", line);
     }
-  else if (numFound == 3 && refSeqRange)
+
+  /* Trim out the name. The text can have additional info separated by '|' characters that we're not
+   * interested in (at the moment) so just trim everything off after the first '|' char. */
+  char *cp = strchr(seqName, '|');
+  if (cp)
+    *cp = 0;
+
+  /* Set the name, if not already set. (gb10: we shouldn't really get here so should probably add
+   * some error checking to make sure refSeqName is set so we can check we have the right
+   * sequence. However for now we're flexible and if there's only one fasta sequence in the GFF
+   * then we take that to be the reference sequence. If there are multiple in the GFF and no
+   * reference sequence name is specified then we'll get in trouble here because we have no way of
+   * telling which is the correct one.) */
+  if (status && *refSeqName == 0)
     {
-      /* We found the coords too. These override anything that was set from the
-       * ##sequence_header line, which is fine; however, we don't currently 
-       * handle the case where there might be more than one fasta sequence in 
-       * the GFF file (we will end up overwriting the coords each time...). */
+      strcpy(refSeqName, seqName);
+    }
+  else if (status && !stringsEqual(refSeqName, seqName, FALSE))
+    {
+      /* Not the sequence we're looking for so quit */
+      status = FALSE;
+    }
+
+  /* Check if we also found coordinates in the header line. (There should be exactly three text
+   * items if so) */
+  if (status && numFound == 3 && refSeqRange)
+    {
       intrangeSetValues(refSeqRange, startCoord, endCoord);
     }
 
-  /* Set the name. Again, this will overwrite anything already set. */
-  if (*refSeqName == '\0')
-    {
-      strcpy(refSeqName, seqName);
-    }
-  else if (!stringsEqual(refSeqName, seqName, FALSE))
-    {
-      g_warning("Reference sequence name was previously set to '%s' but the name in the FASTA data is '%s'; the name will overwritten with the new value.\n", refSeqName, seqName);
-      strcpy(refSeqName, seqName);
-    }
-
   /* Now allocate memory for the sequence data (if the sequence is not already populated) */
-  if (*refSeq == NULL)
+  if (status && *refSeq == NULL)
     {
       *readSeq = refSeq;
       *readSeqMaxLen = MAXLINE;
       **readSeq = (char*)g_malloc(*readSeqMaxLen + 1);
       *readSeqLen = 0;
     }
-      
-  /* Update the parser state so that we proceed to parse the sequence data next. (Even if
-   * we're not populating the ref seq, we still need to loop over these lines. Leaving the
-   * readSeqLen as unset will mean that the fasta sequence parser will ignore the input.) */
-  *parserState = FASTA_SEQ_BODY;
+
+  if (status)
+    {
+      /* Update the parser state so that we proceed to parse the sequence data next. (Even if
+       * we're not populating the ref seq, we still need to loop over these lines. Leaving the
+       * readSeqLen as unset will mean that the fasta sequence parser will ignore the input.) */
+      *parserState = FASTA_SEQ_BODY;
+    }
+  else
+    {
+      *parserState = FASTA_SEQ_IGNORE;
+    }
 }
 
 
