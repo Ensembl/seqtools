@@ -1080,6 +1080,10 @@ const char* blxSequenceGetValueAsString(const BlxSequence *seq, const int column
     {
       if (G_VALUE_HOLDS_STRING(value))
         result = g_value_get_string(value);
+      else if (G_VALUE_HOLDS_INT(value))
+        result = convertIntToString(g_value_get_int(value));
+      else if (G_VALUE_HOLDS_DOUBLE(value))
+        result = convertDoubleToString(g_value_get_double(value), 2);
     }
   
   /* Return null if it's an empty value (i.e. if it's unset) */
@@ -2972,6 +2976,7 @@ void blxColumnCreate(BlxColumnId columnId,
                      const gboolean dataLoaded,
                      const gboolean showColumn,
                      const gboolean showSummary,
+                     const gboolean canShowSummary,
                      const gboolean searchable,
                      const char *sortName,
                      const char *emblId,
@@ -3006,6 +3011,7 @@ void blxColumnCreate(BlxColumnId columnId,
   columnInfo->dataLoaded = TRUE;
   columnInfo->showColumn = showColumn;
   columnInfo->showSummary = showSummary;
+  columnInfo->canShowSummary = canShowSummary;
   columnInfo->searchable = searchable;
   columnInfo->type = type;
   

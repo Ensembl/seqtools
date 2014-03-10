@@ -56,7 +56,7 @@
 #define DEFAULT_WINDOW_WIDTH_FRACTION    0.9  /* what fraction of the screen size the blixem window width defaults to */
 #define DEFAULT_WINDOW_HEIGHT_FRACTION   0.6  /* what fraction of the screen size the blixem window height defaults to */
 #define MATCH_SET_GROUP_NAME             "Match set"
-#define LOAD_DATA_TEXT                   "Load optional data"
+#define LOAD_DATA_TEXT                   "Load optional\ndata"
 #define DEFAULT_TABLE_XPAD               2    /* default x-padding to use in tables */
 #define DEFAULT_TABLE_YPAD               2    /* default y-padding to use in tables */
 #define MAX_RECOMMENDED_COPY_LENGTH      100000 /* warn if about to copy text longer than this to the clipboard */
@@ -3036,12 +3036,18 @@ static GtkWidget* createColumnLoadDataButton(GtkTable *table,
 {
   BlxViewContext *bc = blxWindowGetContext(detailViewGetBlxWindow(detailView));
   const gboolean dataLoaded = bc->flags[BLXFLAG_OPTIONAL_COLUMNS];
-  
+
+  /* Create the button */
   GtkWidget *button = gtk_button_new_with_label(LOAD_DATA_TEXT);
   gtk_widget_set_sensitive(button, !dataLoaded); /* only enable if data not yet loaded */
 
-  /* Add the hbox to the table, spanning all of the columns */
-  gtk_table_attach(table, button, 1, cols + 1, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  /* Add the button to the table, spanning all of the remaining columns */
+  gtk_table_attach(table, button, 0, 1, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  
+  /* Create an explanatory label spanning the rest of the columns */
+  GtkWidget *label = gtk_label_new("Fetches additional information e.g. from an\nEMBL file (as determined by the config).");
+  gtk_table_attach(table, label, 1, cols, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+
   *row += 1;
 
   return button;
@@ -3079,13 +3085,18 @@ static void createColumnButton(BlxColumnInfo *columnInfo, GtkTable *table, int *
     }
   else
     {
+      /* Grey out all the options if the column hasn't been loaded */
       if (!columnInfo->dataLoaded)
         {
           gtk_widget_set_sensitive(showColButton, FALSE);
           gtk_widget_set_sensitive(showSummaryButton, FALSE);
           gtk_widget_set_sensitive(entry, FALSE);
         }
-      
+      else if (!columnInfo->canShowSummary)
+        {
+          gtk_widget_set_sensitive(showSummaryButton, FALSE);          
+        }
+
       char *displayText = convertIntToString(columnInfo->width);
       gtk_entry_set_text(GTK_ENTRY(entry), displayText);
       
@@ -3108,16 +3119,16 @@ static void createColumnButton(BlxColumnInfo *columnInfo, GtkTable *table, int *
 /* Create labels for the column properties widgets created by createColumnButton */
 static void createColumnButtonHeaders(GtkTable *table, int *row)
 {
-  GtkWidget *label = gtk_label_new("Display\ncolumn");
-  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  GtkWidget *label = gtk_label_new("Show\ncolumn");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 1.0);
   gtk_table_attach(table, label, 1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
 
-  label = gtk_label_new("Display in\nmouse-over");
-  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  label = gtk_label_new("Show mouse-\nover details");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 1.0);
   gtk_table_attach(table, label, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
 
-  label = gtk_label_new("Column\nwidth");
-  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+  label = gtk_label_new("Column width");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 1.0);
   gtk_table_attach(table, label, 3, 4, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
 
   *row += 1;

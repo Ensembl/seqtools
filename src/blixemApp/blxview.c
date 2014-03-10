@@ -1639,8 +1639,8 @@ static void getColumnWidthsConfig(BlxColumnInfo *columnInfo)
  * override the default value */
 static void getColumnSummaryConfig(BlxColumnInfo *columnInfo)
 {
-  /* Do nothing for the sequence column, because we never want to include it in the summary info */
-  if (columnInfo->columnId == BLXCOL_SEQUENCE)
+  /* Do nothing if we can't show the summary for this column */
+  if (!columnInfo->canShowSummary)
     return;
     
   GKeyFile *key_file = blxGetConfig();
@@ -1686,24 +1686,24 @@ GList* blxCreateColumns(const gboolean optionalColumns, const gboolean customSeq
   
   /* Create the columns' data structs. The columns appear in the order
    * that they are added here. */
-  blxColumnCreate(BLXCOL_SEQNAME,     TRUE,             "Name",       G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,            TRUE,  TRUE,  TRUE,   "Name",        NULL, NULL, &columnList);
-  blxColumnCreate(BLXCOL_SOURCE,      TRUE,             "Source",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,            TRUE,  TRUE,  TRUE,   "Source",      NULL, NULL, &columnList);
-                                                                                                                                                                                                       
-  blxColumnCreate(BLXCOL_ORGANISM,    TRUE,             "Organism",   G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       optionalColumns, TRUE,  TRUE,  TRUE,   "Organism",    "OS", NULL, &columnList);
-  blxColumnCreate(BLXCOL_GENE_NAME,   TRUE,             "Gene Name",  G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      optionalColumns, FALSE, TRUE,  TRUE,   "Gene name",   "GN", NULL, &columnList);
-  blxColumnCreate(BLXCOL_TISSUE_TYPE, TRUE,             "Tissue Type",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    optionalColumns, FALSE, TRUE,  TRUE,   "Tissue type", "FT", "tissue_type", &columnList);
-  blxColumnCreate(BLXCOL_STRAIN,      TRUE,             "Strain",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         optionalColumns, FALSE, TRUE,  TRUE,   "Strain",      "FT", "strain", &columnList);
-
-  /* Insert optional columns here, with a dynamically-created IDs that are >= BLXCOL_NUM_COLS */
-  int columnId = BLXCOL_NUM_COLUMNS;
-  blxColumnCreate((BlxColumnId)columnId++, TRUE,        "Description",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_DEFAULT_WIDTH,        optionalColumns, FALSE, TRUE,  TRUE,   "Description", "DE", NULL, &columnList);
-                                                                                                                                                                                                      
-  blxColumnCreate(BLXCOL_GROUP,       TRUE,             "Group",      G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GROUP_WIDTH,          TRUE,            FALSE, FALSE, TRUE,   "Group",       NULL, NULL, &columnList);
-  blxColumnCreate(BLXCOL_SCORE,       TRUE,             "Score",      G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_SCORE_WIDTH,          TRUE,            TRUE,  FALSE, FALSE,  "Score",       NULL, NULL, &columnList);
-  blxColumnCreate(BLXCOL_ID,          TRUE,             "%Id",        G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_ID_WIDTH,             TRUE,            TRUE,  FALSE, FALSE,  "Identity",    NULL, NULL, &columnList);
-  blxColumnCreate(BLXCOL_START,       TRUE,             "Start",      G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,            TRUE,  FALSE, FALSE,  "Position",    NULL, NULL, &columnList);
-  blxColumnCreate(BLXCOL_SEQUENCE,    !customSeqHeader, "Sequence",   G_TYPE_POINTER,RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,            TRUE,  FALSE, FALSE,  NULL,          "SQ", NULL, &columnList);
-  blxColumnCreate(BLXCOL_END,         TRUE,             "End",        G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,            TRUE,  FALSE, FALSE,  NULL,          NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_SEQNAME,     TRUE,             "Name",       G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,            TRUE,  TRUE,  TRUE,  TRUE,   "Name",        NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_SOURCE,      TRUE,             "Source",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,            TRUE,  TRUE,  TRUE,  TRUE,   "Source",      NULL, NULL, &columnList);
+                                                                                                                                                                                                              
+  blxColumnCreate(BLXCOL_ORGANISM,    TRUE,             "Organism",   G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       optionalColumns, TRUE,  TRUE,  TRUE,  TRUE,   "Organism",    "OS", NULL, &columnList);
+  blxColumnCreate(BLXCOL_GENE_NAME,   TRUE,             "Gene Name",  G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      optionalColumns, FALSE, TRUE,  TRUE,  TRUE,   "Gene name",   "GN", NULL, &columnList);
+  blxColumnCreate(BLXCOL_TISSUE_TYPE, TRUE,             "Tissue Type",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    optionalColumns, FALSE, TRUE,  TRUE,  TRUE,   "Tissue type", "FT", "tissue_type", &columnList);
+  blxColumnCreate(BLXCOL_STRAIN,      TRUE,             "Strain",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         optionalColumns, FALSE, TRUE,  TRUE,  TRUE,   "Strain",      "FT", "strain", &columnList);
+                                                                                                                                                                             
+  /* Insert optional columns here, with a dynamically-created IDs that are >= BLXCOL_NUM_COLS */                                                                             
+  int columnId = BLXCOL_NUM_COLUMNS;                                                                                                                                         
+  blxColumnCreate((BlxColumnId)columnId++, TRUE,        "Description",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_DEFAULT_WIDTH,        optionalColumns, FALSE, TRUE,  TRUE,  TRUE,   "Description", "DE", NULL, &columnList);
+                                                                                                                                                                                                             
+  blxColumnCreate(BLXCOL_GROUP,       TRUE,             "Group",      G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GROUP_WIDTH,          TRUE,            FALSE, FALSE, FALSE, TRUE,   "Group",       NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_SCORE,       TRUE,             "Score",      G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_SCORE_WIDTH,          TRUE,            TRUE,  FALSE, FALSE, FALSE,  "Score",       NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_ID,          TRUE,             "%Id",        G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_ID_WIDTH,             TRUE,            TRUE,  FALSE, FALSE, FALSE,  "Identity",    NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_START,       TRUE,             "Start",      G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,            TRUE,  FALSE, FALSE, FALSE,  "Position",    NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_SEQUENCE,    !customSeqHeader, "Sequence",   G_TYPE_POINTER,RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,            TRUE,  FALSE, FALSE, FALSE,  NULL,          "SQ", NULL, &columnList);
+  blxColumnCreate(BLXCOL_END,         TRUE,             "End",        G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,            TRUE,  FALSE, FALSE, FALSE,  NULL,          NULL, NULL, &columnList);
 
   /* For each column, check if it is configured in the config file and if so update accordingly */
   GList *columnItem  = columnList;
@@ -1823,7 +1823,7 @@ void saveSummaryColumns(GList *columnList, GKeyFile *key_file)
     {
       BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
 
-      if (columnInfo && columnInfo->columnId != BLXCOL_SEQUENCE)
+      if (columnInfo && columnInfo->canShowSummary)
         {
           g_key_file_set_boolean(key_file, COLUMN_SUMMARY_GROUP, columnInfo->title, columnInfo->showSummary);
         }

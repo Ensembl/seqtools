@@ -225,6 +225,7 @@ typedef struct _BlxColumnInfo
     gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
     gboolean showColumn;        /* whether the column should be shown in the detail view */
     gboolean showSummary;       /* whether the column should be shown in the summary info (i.e. the mouse-over feedback bar) */
+    gboolean canShowSummary;    /* whether it's possible to show summary info for this column */
     gboolean searchable;        /* whether searching sequences by data in this column is supported */
   } BlxColumnInfo;
 
@@ -466,7 +467,7 @@ void                  destroyBlxSequence(BlxSequence *seq);
 void                  blxColumnCreate(BlxColumnId columnId, const gboolean createHeader, const char *title,
                                       GType type, const char *propertyName, const int defaultWidth,
                                       const gboolean dataLoaded, const gboolean showColumn,
-                                      const gboolean showSummary, const gboolean searchable,
+                                      const gboolean showSummary, const gboolean canShowSummary, const gboolean searchable,
                                       const char *sortName, const char *emblId, const char *emblTag,
                                       GList **columnList);
 

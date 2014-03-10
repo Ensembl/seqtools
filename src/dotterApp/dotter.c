@@ -3432,7 +3432,7 @@ GList* dotterCreateColumns()
   
   /* Create the columns' data structs. The columns appear in the order
    * that they are added here. */
-  blxColumnCreate(BLXCOL_SEQNAME, FALSE, "Name", G_TYPE_STRING, NULL, 0, TRUE, TRUE, FALSE, FALSE, "Name", NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_SEQNAME, FALSE, "Name", G_TYPE_STRING, NULL, 0, TRUE, TRUE, FALSE, FALSE, FALSE, "Name", NULL, NULL, &columnList);
 
   return columnList;
 }
