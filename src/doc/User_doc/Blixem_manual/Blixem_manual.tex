@@ -177,26 +177,21 @@
 
 \thispagestyle{FirstPage}
 {\centering\sffamily\bfseries\color[rgb]{0.0,0.27058825,0.5254902}
-\Huge\bf{Blixem User Manual}
-\par}
+\Huge\bf{Blixem User Manual}}
 
 \bigskip
 
 {\centering
-\large{Written by Gemma Barson}
-\par}
+\large{Written by Gemma Barson}}
 {\centering
-{\textless}\href{mailto:gb10@sanger.ac.uk}{gb10@sanger.ac.uk}{\textgreater}
-\par}
+{\textless}\href{mailto:gb10@sanger.ac.uk}{gb10@sanger.ac.uk}{\textgreater}}
 
 \bigskip
 
 {\centering
-\large{Wellcome Trust Sanger Institute}
-\par}
+\large{Wellcome Trust Sanger Institute}}
 {\centering
-17 January 2011
-\par}
+17 January 2011}
 
 
 
@@ -235,48 +230,27 @@
  Updated for Blixem v4.14 &
  15/06/12 &
  Gemma Barson\\\hline
-~
+ Updated for Blixem v4.26  &
+ 07/03/14 &
+ Gemma Barson\\\hline
  &
-~
  &
-~
-\\\hline
-~
+ \\\hline
  &
-~
  &
-~
-\\\hline
-~
+ \\\hline
  &
-~
  &
-~
-\\\hline
-~
+ \\\hline
  &
-~
  &
-~
-\\\hline
-~
+ \\\hline
  &
-~
  &
-~
-\\\hline
-~
+ \\\hline
  &
-~
  &
-~
-\\\hline
-~
- &
-~
- &
-~
-\\\hline
+ \\\hline
 \end{supertabular}
 \end{center}
 
@@ -310,8 +284,7 @@ Institute{\textquoteright}s website:
 {\textstyleInternetlink{http://www.sanger.ac.uk/resources/software/seqtools}}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[An aside about the name
-{\textquotedblleft}Blixem{\textquotedblright}]{
-An aside about the name {\textquotedblleft}Blixem{\textquotedblright}}}
+{\textquotedblleft}Blixem{\textquotedblright}]{An aside about the name {\textquotedblleft}Blixem{\textquotedblright}}}
 \hypertarget{RefHeading1441056909880}{}{
 {{\textquotedblleft}BLIXEM{\textquotedbl} was
 originally an acronym for
@@ -495,6 +468,8 @@ sequence range may be different to the GFF file range.}
 data can be on a single line or separated by newlines; it is usually
 separated by newlines every 50 characters to aid readability.}
 
+\bigskip
+
 \begin{quote}
 \begin{verbatim}
 >chr4-04 44144 154265
@@ -566,16 +541,32 @@ be set are described below. }
 \begin{verbatim}
 [blixem]
 link-features-by-name=false
+squash-linked-features=true
+squash-identical-features=false
 bulk-fetch = none
 user-fetch = internal
+stylesfile = ~/.ZMap/styles.ini
 \end{verbatim}
 \end{quote}
 
 {\textstyleSourceText{\textrm{\textbf{link-features-by-name}}}\textbf{ }}
+
 {If true, features with the same name are considered to have the same
 parent, e.g. exons and introns with the same name are part of the same
 transcript, or matches with the same name are from the same match
 sequence. }
+
+\bigskip
+
+{\textstyleSourceText{\textrm{\textbf{squash-linked-features}}}\textbf{ }}
+
+{If true, features that are linked under the same parent are squashed onto the same line when 'squash matches' is on.}
+
+\bigskip
+
+{\textstyleSourceText{\textrm{\textbf{squash-identical-features}}}\textbf{ }}
+
+{If true, matches that are identical are squashed onto the same line when 'squash matches' is on.}
 
 \bigskip
 
@@ -593,7 +584,7 @@ Blixem. The bulk-fetch method can be overriden for specific data types
 fetch methods should be used if the first fetch fails for some reason.
 Each fetch method is tried in turn, in the order listed, until all
 sequences have been successfully fetched or we run out of methods to
-try. }
+try.}
 
 \bigskip
 
@@ -613,6 +604,53 @@ fetch methods should be used if the first fetch fails for some reason.
 Each fetch method is tried in turn, in the order listed, until the
 sequence has been successfully fetched or we run out of methods to try.}
 
+\bigskip
+
+{\textstyleSourceText{\textrm{\textbf{stylesfile}}}\textbf{ }}
+
+This specifies an ini-type file which is used to specify the colours that should be used for features in Blixem's transcript view. The file should contain one or more source stanzas followed by one or more key=value pairs, i.e.
+
+\begin{quote}
+\begin{verbatim}
+[<source>]
+<key>=<value>
+...
+\end{verbatim}
+\end{quote}
+
+\texttt{{\textless}key{\textgreater}} can be one of:
+\begin{quote}
+\texttt{colours}: default colours
+
+\texttt{transcript-cds-colours}: used to specify a different colour for CDS sections
+\end{quote}
+
+\bigskip
+
+\texttt{{\textless}value{\textgreater}} is a semi-colon separated list of fill and line colours of the format
+
+\begin{quote}
+\begin{verbatim}
+<normal|selected> <fill|border> <colour>
+\end{verbatim}
+\end{quote}
+
+\texttt{{\textless}colour{\textgreater}} can be in any of the forms accepted by XParseColor; these include name for a colour from rgb.txt, such as DarkSlateGray, or a hex specification such as \texttt{\#305050}.
+
+\bigskip
+
+{\textstyleSourceText{\textrm{\textbf{Example}}}\textbf{}}
+\begin{quote}
+\begin{verbatim}
+colours=normal border #0000af ; selected border #0000af ; normal fill white ;\
+selected fill #ffddcc ; 
+transcript-cds-colours=normal border #0000af ; selected border #0000af ; norm\
+al fill white ; selected fill #ffddcc ;
+\end{verbatim}
+\end{quote}
+
+Note that selection colors will be calculated automatically if they are not specified (a darker shade of the default color will be used when the feature is selected).
+
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Fetch methods ]{Fetch methods }}
 {These stanzas define custom methods for fetching sequence data. Each
 fetch method must specify the \textstyleSourceText{fetch-mode} key,
@@ -621,18 +659,13 @@ the fetch mode. Valid fetch modes and their required keys are: }
 
 \liststyleLii
 \begin{itemize}
-\item {\ttfamily
-\textbf{socket}: node, port, command, args }
-\item {\ttfamily
-\textbf{http}: url, port, cookie-jar, request }
-\item {\ttfamily
-\textbf{command}: command, args }
-\item {\ttfamily
-\textbf{www}: url, request (user-fetch only; opens browser) }
-\item {\ttfamily
-\textbf{internal}: (user-fetch only; displays stored sequence) }
-\item {\ttfamily
-\textbf{none}: none }
+\item {\ttfamily\textbf{socket}: node, port, command, args }
+\item {\ttfamily\textbf{http}: url, port, cookie-jar, request }
+\item {\ttfamily\textbf{command}: command, args }
+\item {\ttfamily\textbf{sqlite}: location, query }
+\item {\ttfamily\textbf{www}: url, request (user-fetch only; opens browser) }
+\item {\ttfamily\textbf{internal}: (user-fetch only; displays stored sequence) }
+\item {\ttfamily\textbf{none}: none }
 \end{itemize}
 
 \bigskip
@@ -643,25 +676,16 @@ In addition, the following keywords are required for bulk-fetch methods:
 
 \liststyleLii
 \begin{itemize}
+\item {\texttt{\textbf{separator}}: Specifies the separator between multiple sequence names when they are compiled into a list. }
 \item {
-\texttt{\textbf{separator}}: Specifies the separator between multiple
-sequence names when they are compiled into a list. }
-\item {
-\texttt{\textbf{output}}: Defines the output format and can be one of
-the following: }
-\end{itemize}
-\liststyleLiii
+\texttt{\textbf{output}}: Defines the output format and can be one of the following: 
 \begin{itemize}
-\item \begin{itemize}
-\item {
-\texttt{raw}: raw sequence data; each sequence separated by a new line}
-\item {
-\texttt{fasta}: FASTA format }
-\item {
-\texttt{embl}: EMBL format }
-\item {
-\texttt{gff}: GFF format for re-parsing }
-\end{itemize}
+\item {\texttt{raw}: raw sequence data; each sequence separated by a new line}
+\item {\texttt{fasta}: FASTA format }
+\item {\texttt{embl}: EMBL format }
+\item {\texttt{list}: A list of named columns is returned }
+\item {\texttt{gff}: GFF format for re-parsing }
+\end{itemize}}
 \end{itemize}
 
 \bigskip
@@ -697,25 +721,16 @@ Use \texttt{\%\%} to represent a normal \texttt{\%} character. }
 \end{itemize}
 \liststyleLii
 \begin{itemize}
-\item {
-\texttt{\textbf{\%h}}: host name }
-\item {
-\texttt{\textbf{\%u}}: user name }
-\item {
-\texttt{\textbf{\%m}}: match sequence name(s) }
-\item {
-\texttt{\textbf{\%r}}: reference sequence name }
-\item {
-\texttt{\textbf{\%s}}: start coord of feature on reference sequence }
-\item {
-\texttt{\textbf{\%e}}: end coord of feature on reference sequence }
-\item {
-\texttt{\textbf{\%d}}: dataset }
-\item {
-\texttt{\textbf{\%S}}: feature source }
-\item {
-\texttt{\textbf{\%f}}: file name (specified in the file tag in the GFF
-or in the Source stanza) }
+\item {\texttt{\textbf{\%h}}: host name }
+\item {\texttt{\textbf{\%u}}: user name }
+\item {\texttt{\textbf{\%m}}: match sequence name(s) }
+\item {\texttt{\textbf{\%r}}: reference sequence name }
+\item {\texttt{\textbf{\%s}}: start coord of feature on reference sequence }
+\item {\texttt{\textbf{\%e}}: end coord of feature on reference sequence }
+\item {\texttt{\textbf{\%d}}: dataset }
+\item {\texttt{\textbf{\%S}}: feature source }
+\item {\texttt{\textbf{\%f}}: file name (specified in the file tag in the GFF or in the Source stanza) }
+\item {\texttt{\textbf{\%(<key>)}}: where \texttt{<key>} is any named key in the Source stanza }
 
 
 \bigskip
@@ -738,7 +753,7 @@ fetch-mode=http
 url=http://www.sanger.ac.uk:80/cgi-bin/otter/65/pfetch
 request=request=%m
 port=80}
-cookie-jar=/nfs/users/nfs_g/gb10/.otter/ns_cookie_jar}
+cookie-jar=/nfs/users/nfs_g/gb10/.otter/ns_cookie_jar
 errors="no match","Not authorized"
 separator=" "
 output=fasta
@@ -750,7 +765,7 @@ request=request=-F \%m
 
 [variation-fetch]
 fetch-mode=www
-url=http://www.ensembl.org/Homo\_sapiens/Variation/Summary
+url=http://www.ensembl.org/Homo_sapiens/Variation/Summary
 request=v=%m
 
 [bam-fetch]
@@ -803,25 +818,26 @@ This stanza allows you to map a source to a particular data type. The
 keys should be valid sources that appear in the GFF file ,and the
 values must be stanzas specified in the data-type stanzas. }
 
+\bigskip
+
 \begin{quote}
 \begin{verbatim}
 [source-data-types]
-EST\_Human=dna-match
-EST\_Mouse=dna-match
-EST\_Pig=dna-match
-EST\_Other=dna-match
+EST_Human=dna-match
+EST_Mouse=dna-match
+EST_Pig=dna-match
+EST_Other=dna-match
 SwissProt=protein-match
 TrEMBL=protein-match
-ensembl\_variation=ensembl-variation
+ensembl_variation=ensembl-variation
 \end{verbatim}
 \end{quote}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Sources ]{Sources }}
-\hypertarget{RefHeading37771724351149}{}{
-These stanzas allow you to set additional information on a per-source
-basis. Currently, the only supported keyword is \texttt{file}. This
-specifies a file name which can be included in fetch method arguments
-using the \texttt{\%f} substitution variable. }
+\hypertarget{RefHeading37771724351149}{}
+These stanzas allow you to set additional information on a per-source basis. You can substitute any value specified here using the \texttt{\%(<key>)} substitution format, e.g. in the following example you could include the filename by using the substitution variable \texttt{\%(file)}.
+
+\bigskip
 
 \begin{quote}
 \begin{verbatim}
@@ -856,25 +872,21 @@ highlight-diffs=0
 highlight-variations=1
 show-variations-track=1
 show-unaligned=0
-show-unaligned-selected-seq=
+show-unaligned-selected-seq=0
 limit-unaligned=0
 show-polya-site=0
 show-poly-site-selected-seq=1
 show-poly-sig=0
 show-polya-sig-selected-seq=1
 show-splice-sites=0
-num-unaligned-bases=
+num-unaligned-bases=5
 squash-matches=0
 \end{verbatim}
 \end{quote}
 
 {\textstyleSourceText{\textrm{\textbf{column-widths }}}}
 
-{\textstyleSourceText{\textrm{This stanza is used to specify column
-widths that Blixem will use on start-up. It can also be used to hide a
-column by specifying a width of zero. Column names should be exactly as
-they appear in the column headers in Blixem, and are case-sensitive.
-Widths are specified in pixels. }}}
+This stanza is used to specify column widths that Blixem will use on start-up. It can also be used to hide a column by specifying a width of zero. Column names should be exactly as they appear in the column headers in Blixem, and are case-sensitive. Widths are specified in pixels. 
 
 \begin{quote}
 \begin{verbatim}
@@ -883,13 +895,30 @@ Name=120
 Source=85
 Organism=25
 Gene Name=0
-Tissue Type=
-Strain=
-Group=
-Score=
+Tissue Type=0
+Strain=0
+Group=0
+Score=0
 \%Id=45
 Start=
 End=80
+\end{verbatim}
+\end{quote}
+
+{\textstyleSourceText{\textrm{\textbf{summary-columns }}}}
+
+This stanza is used to specify which columns are included in the sequence summary details, which are shown in the feedback area when you mouse-over a sequence.  Note that per-match columns such as Score, Start, End, etc. cannot be included so will be ignored if included in this stanza.
+
+\begin{quote}
+\begin{verbatim}
+[summary-columns]
+Name=true
+Source=true
+Organism=true
+Gene Name=true
+Tissue Type=true
+Strain=true
+Description=true
 \end{verbatim}
 \end{quote}
 
@@ -898,6 +927,8 @@ End=80
 A {\textquotedblleft}.ini{\textquotedblright}-style key file can be
 supplied via the -{}-styles-file argument in order to tell Blixem what
 colour to draw certain features in, e.g.}
+
+\bigskip
 
 \begin{quote}
 \begin{verbatim}
@@ -916,7 +947,7 @@ source does not have a group in the key file will use default colours.}
 
 {The key-value pairs give the identifier of the colour and the colour
 string in hexadecimal format
-({\textquotedblleft}\#RRGGBB{\textquotedblright}). \ Valid colour
+({\textquotedblleft}\texttt{\#RRGGBB{\textquotedblright}}). \ Valid colour
 identifiers recognized by Blixem are:}
 
 \begin{quote}
@@ -940,7 +971,6 @@ fill\_color/line\_color/etc items are used for CDS regions and
 different colors can be specified for UTR regions using
 fill\_color\_utr, line\_color\_utr etc.}
 
-\clearpage
 {\color[rgb]{0.0,0.27058825,0.5254902}\section[The Blixem Window]{The Blixem Window}}
 {The Blixem window consists of two main sections: an overview section
 called the {\textquotedblleft}big picture{\textquotedblright}, and a
@@ -2218,11 +2248,11 @@ Institute).}
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Load optional data
 ]{Load optional data }}
 \hypertarget{RefHeading2501056909880}{}
-Click this button to load optional data from EMBL entries (currently
+{Click this button to load optional data from EMBL entries (currently
 only applicable to authorised users within the Sanger Institute).
 \ Note that this operation can take a long time if there are many
 sequences. \ The button will be greyed out once optional data has been
-loaded.
+loaded.}
 
 \bigskip
 
