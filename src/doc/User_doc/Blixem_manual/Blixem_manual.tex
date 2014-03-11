@@ -2042,7 +2042,11 @@ You can double-click a variation to open its URL.
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Show polyA tails]{Show polyA tails}}
 \hypertarget{RefHeading2281056909880}{}
-When this option is enabled, polyA tails are shown and highlighted in the alignment lists and polyA signals are highlighted in the reference sequence (nucleotide) header. If the sub-option {\textquoteleft}Selected sequences only{\textquoteright} is enabled, polyA features will only be shown for the currently selected sequences.
+When this option is enabled, polyA tails are shown and highlighted in the alignment lists and polyA signals are highlighted in the reference sequence (nucleotide) header. If the sub-option {\textquoteleft}Selected sequences only{\textquoteright} is enabled, polyA tails will only be shown for the currently selected sequences.
+
+\bigskip
+
+Annotated polyA sites and signals form the input features file are also highlighted in the reference sequence. Mouse-over an annotated site/signal to see its details.
 
 \bigskip
 
@@ -2055,12 +2059,18 @@ When this option is enabled, any additional, unaligned portions of the match seq
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Show Colinearity Lines ]{Show Colinearity Lines }}
 \hypertarget{RefHeading2321056909880}{}
 When this option is enabled, colinearity lines are displayed between alignment blocks of the same sequence. The lines are green to indicate perfectly colinear, orange to indicate imperfectly colinear, and red to indicate not colinear. If the {\textquoteleft}Selected sequences only{\textquoteright} sub-option is enabled, colinearity lines are only displayed for the currently selected sequence(s) in the detail view, otherwise they are shown for all sequences in the detail view. Note that colinearity lines are only displayed for the selected sequence(s) in the big picture regardless of this setting, to save cluttering the screen.
-
 \bigskip
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Show Splice Sites]{Show Splice Sites}}
 \hypertarget{RefHeading2341056909880}{}
 When this option is enabled, splice sites are highlighted in the reference sequence (nucleotide) header for the currently-selected sequence(s). The two bases from the adjacent introns are highlighted in green if they are canonical or red if they are non-canonical.
+
+\begin{figure}
+\centering
+\color[rgb]{0.30980393,0.5058824,0.7411765}
+\includegraphics[width=\textwidth]{img_view_colinearity.png}
+\caption{Colinearity lines between alignment blocks and highlighted splice-sites in the reference sequence}
+\end{figure}
 
 \bigskip
 
