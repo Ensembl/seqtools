@@ -177,21 +177,17 @@
 
 \thispagestyle{FirstPage}
 {\centering\sffamily\bfseries\color[rgb]{0.0,0.27058825,0.5254902}
-\Huge\bf{Blixem User Manual}}
+\Huge\bf{Blixem User Manual}\par}
 
 \bigskip
 
-{\centering
-\large{Written by Gemma Barson}}
-{\centering
-{\textless}\href{mailto:gb10@sanger.ac.uk}{gb10@sanger.ac.uk}{\textgreater}}
+{\centering\large{Written by Gemma Barson}\par}
+{\centering{\textless}\href{mailto:gb10@sanger.ac.uk}{gb10@sanger.ac.uk}{\textgreater}\par}
 
 \bigskip
 
-{\centering
-\large{Wellcome Trust Sanger Institute}}
-{\centering
-17 January 2011}
+{\centering\large{Wellcome Trust Sanger Institute}\par}
+{\centering17 January 2011\par}
 
 
 
@@ -265,7 +261,7 @@
 {\color[rgb]{0.0,0.27058825,0.5254902}\section[Introduction]{Introduction}}
 \hypertarget{RefHeading1421056909880}{}{
 {This manual explains how to configure, run and
-use Blixem. \ }{Blixem is an interactive
+use Blixem. }{Blixem is an interactive
 browser of pairwise matches displayed as multiple alignments. It is not
 strictly a multiple alignment tool, rather a
 {\textquotesingle}one-to-many{\textquotesingle} alignment. It is used
@@ -277,7 +273,7 @@ a reference sequence.}}
 
 Blixem is maintained by the Wellcome Trust
 Sanger Institute and is available as part of the SeqTools package.
-\ The software can be downloaded from the Sanger
+The software can be downloaded from the Sanger
 Institute{\textquoteright}s website:
 
 \href{http://www.sanger.ac.uk/resources/software/seqtools/}
@@ -291,7 +287,7 @@ originally an acronym for
 }{{\textquotedbl}BLast matches In an X-windows
 Embedded Multiple alignment{\textquotedbl}, although this is a bit of a
 misnomer now because Blixem can handle any kind of alignment, not just
-BLAST matches. \ We have dropped the acronym, and the capital letters,
+BLAST matches. We have dropped the acronym, and the capital letters,
 so the correct name is just
 {\textquotedblleft}Blixem{\textquotedblright}.}}
 
@@ -310,7 +306,7 @@ blixem --display-type=N|P <features_file>
 version 3 file containing the alignments and any other features. The
  \texttt{{\textquoteleft}{}-{}-display-type{\textquoteleft}} or
 \texttt{{\textquoteleft}{}-t{\textquoteleft}} argument is the only mandatory
-argument. \ It defines the display mode:
+argument. It defines the display mode:
 \texttt{{\textquoteleft}N{\textquoteleft}} for nucleotide or
 \texttt{{\textquoteleft}P{\textquoteleft}} for protein. 
 Run {\textquoteleft}blixem{\textquoteleft} without any arguments to see
@@ -345,7 +341,7 @@ protein mode.}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[GFF file]{GFF file}}
 \hypertarget{RefHeading1521056909880}{}{
-Blixem uses the GFF version 3 file format. \ In this section we give a
+Blixem uses the GFF version 3 file format. In this section we give a
 very brief description of this file format; see
 \url{http://www.sequenceontology.org/gff3.shtml} for a full
 description.}
@@ -353,14 +349,17 @@ description.}
 \bigskip
 
 {The GFF file should start with the following two comment lines.
-\ (Additional comments can be included but may be ignored.)
+(Additional comments can be included but may be ignored.)
+
+\bigskip
+
 \begin{quote}
 \begin{verbatim}
 ##gff-version 3
 ##sequence-region chr4-04 44144 154265
 \end{verbatim}
 \end{quote}
-Each subsequent line defines a feature. \ A feature line must have the
+Each subsequent line defines a feature. A feature line must have the
 following 8 tab-separated columns:
 \begin{quote}
 \begin{verbatim}
@@ -368,7 +367,7 @@ reference_sequence_name source type start end score strand phase}
 \end{verbatim}
 \end{quote}
 An optional 9\textsuperscript{th} column defines any tags (separated by
-semi-colons). \ Blixem supports the following GFF tags. \ (Additional
+semi-colons). Blixem supports the following GFF tags. (Additional
 tags can be supplied but may be ignored.)}
 \begin{center}
 \begin{supertabular}{p{2.802cm}p{10.704cm}} 
@@ -393,7 +392,7 @@ tags can be supplied but may be ignored.)}
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Transcripts]{Transcripts}}
 
 {Note that exons should have a Parent transcript defined, and the Name
-tag should be set in the parent rather than the child exons. \ Note
+tag should be set in the parent rather than the child exons. Note
 that Blixem \textit{will} recognise exons that do not have a Parent tag
 if they have a Name tag instead, but they may not get grouped correctly
 with other exons from the same transcript.}
@@ -402,7 +401,7 @@ with other exons from the same transcript.}
 
 {Typically, one defines the parent transcript, the exons, and the CDS
 regions; Blixem will then calculate the missing components (in this
-case, the UTR regions and the introns). \ Blixem will recognise other
+case, the UTR regions and the introns). Blixem will recognise other
 combinations of inputs, and will always calculate the missing
 components as long as enough information is provided. }
 
@@ -411,7 +410,7 @@ components as long as enough information is provided. }
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Variations]{Variations}}
 
 {SNPs, insertions and deletions are supported, as well as combined
-variations. \ One may use the generic
+variations. One may use the generic
 {\textquoteleft}sequence\_alteration{\textquoteleft} type for these but
 it is good practice to use more specific types such as
 {\textquoteleft}SNP{\textquoteleft} or
@@ -459,12 +458,12 @@ chr4-04 Augustus CDS 119534 119941 . - 0 Parent=transcript21
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[FASTA file]{FASTA file}}
 \hypertarget{RefHeading1541056909880}{}{
 A FASTA file has a header line that starts with
-{\textquoteleft}{\textgreater}{\textquoteright}. \ We use a custom
+{\textquoteleft}{\textgreater}{\textquoteright}. We use a custom
 FASTA header format that contains the sequence name followed by the
-start and end coordinates, separated by spaces. \ Note that the FASTA
+start and end coordinates, separated by spaces. Note that the FASTA
 sequence range may be different to the GFF file range.}
 
-{The next line contains the start of the sequence data. \ The sequence
+{The next line contains the start of the sequence data. The sequence
 data can be on a single line or separated by newlines; it is usually
 separated by newlines every 50 characters to aid readability.}
 
@@ -940,14 +939,14 @@ line_color=#bb0000
 
 {The group name (in square brackets) denotes a source, and the colours
 will apply to any features from the GFF file with the same source name.
-\ As many groups as required can be defined. \ Any features whose
+As many groups as required can be defined. Any features whose
 source does not have a group in the key file will use default colours.}
 
 \bigskip
 
 {The key-value pairs give the identifier of the colour and the colour
 string in hexadecimal format
-({\textquotedblleft}\texttt{\#RRGGBB{\textquotedblright}}). \ Valid colour
+({\textquotedblleft}\texttt{\#RRGGBB{\textquotedblright}}). Valid colour
 identifiers recognized by Blixem are:}
 
 \begin{quote}
@@ -966,7 +965,7 @@ line_color_utr_selected
 {Only \texttt{fill\_color }and \texttt{line\_color }are mandatory; the
 selection colors will be calculated automatically if not specified
 explicitly (a darker shade of the default color will be used when the
-feature is selected). \ For transcripts, the
+feature is selected). For transcripts, the
 fill\_color/line\_color/etc items are used for CDS regions and
 different colors can be specified for UTR regions using
 fill\_color\_utr, line\_color\_utr etc.}
@@ -974,9 +973,9 @@ fill\_color\_utr, line\_color\_utr etc.}
 {\color[rgb]{0.0,0.27058825,0.5254902}\section[The Blixem Window]{The Blixem Window}}
 {The Blixem window consists of two main sections: an overview section
 called the {\textquotedblleft}big picture{\textquotedblright}, and a
-detail section showing the actual sequence data. \ These sections are
+detail section showing the actual sequence data. These sections are
 separated by a splitter bar, so you can maximise the space for the area
-you are interested in. \ You can also hide sections of the window using
+you are interested in. You can also hide sections of the window using
 the {\textquoteleft}View{\textquoteright} menu.}
 
 \bigskip
@@ -1000,7 +999,7 @@ the {\textquoteright}Toggle{\textquoteright} button or the
 \caption{Protein mode. There are three
 panes in the detail-view; one for each reading frame of the active
 strand. The other strand can be activated by hitting the
-{\textquoteleft}Toggle{\textquoteright} \ button or the
+{\textquoteleft}Toggle{\textquoteright} button or the
 {\textquoteleft}t{\textquoteright} shortcut key.}
 \end{figure}
 
@@ -1011,14 +1010,13 @@ strand. The other strand can be activated by hitting the
 The {\textquotedblleft}active{\textquotedblright} reference sequence
 strand in Blixem controls the orientation of the display -- coordinates
 are shown increasing from left-to-right for the forward strand and
-decreasing for the reverse strand. \ The active strand is always shown
+decreasing for the reverse strand. The active strand is always shown
 at the top -- i.e. the top grid and top transcript view in the big
-picture and the \ top pane in the detail view.}
+picture and the top pane in the detail view.}
 
 \bigskip
 
-{In protein mode, only the active strand is shown in the detail view.
-\ One must toggle the strand to view the other strand.}
+In protein mode, only the active strand is shown in the detail view. One must toggle the strand to view the other strand.
 
 \bigskip
 
@@ -1044,10 +1042,10 @@ argument.}
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Big Picture]{Big Picture}}
 \hypertarget{RefHeading1641056909880}{}{
 The {\textquoteleft}Big Picture{\textquoteright} section shows an
-overview of the reference sequence. \ The reference sequence
-coordinates are shown along the top. \ You can zoom in to view a
+overview of the reference sequence. The reference sequence
+coordinates are shown along the top. You can zoom in to view a
 shorter range by using the {\textquotesingle}Zoom in{\textquotesingle}
-button at the top left of the screen. \ Use {\textquotesingle}Zoom
+button at the top left of the screen. Use {\textquotesingle}Zoom
 out{\textquotesingle} or {\textquotesingle}Whole{\textquotesingle} to
 zoom out -- {\textquotesingle}Whole{\textquotesingle} zooms out to view
 the full length of the reference sequence.}
@@ -1056,8 +1054,8 @@ the full length of the reference sequence.}
 
 {The big picture consists of two grids showing the alignments for each
 strand, and two sections between these grids showing the transcripts
-for each strand. \ The grids have a scale on the left-hand side showing
-the percent-ID, and alignments are plotted against this scale. \ The
+for each strand. The grids have a scale on the left-hand side showing
+the percent-ID, and alignments are plotted against this scale. The
 scale and extents of the grids can both be edited - see the Grid
 properties section in the Settings dialog.}
 
@@ -1066,8 +1064,8 @@ properties section in the Settings dialog.}
 
 {
 The active strand alignments and transcripts are shown at the top and
-the other strand at the bottom. \ The direction of the coordinates is
-determined by the active strand. \ The active strand can be toggled
+the other strand at the bottom. The direction of the coordinates is
+determined by the active strand. The active strand can be toggled
 using the {\textquotesingle}t{\textquotesingle} shortcut key or the
 {\textquotesingle}Toggle strand{\textquotesingle} button on the
 toolbar.}
@@ -1082,14 +1080,14 @@ toolbar.}
 \end{figure}
 
 {Red shaded areas in the big picture indicate assembly gaps (gaps in the
-reference sequence). \ Assembly gaps are represented by dashes in the
+reference sequence). Assembly gaps are represented by dashes in the
 FASTA input file.}
 
 \bigskip
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Bumping the transcript view]{Bumping the transcript view}}
 {By default, exons and introns for the same strand are drawn overlapping
-each other. \ \ \ They can be expanded (or
+each other. They can be expanded (or
 {\textquotesingle}bumped{\textquotesingle}) by pressing the
 {\textquotesingle}b{\textquotesingle} shortcut key or by enabling the
 relevant option in the View dialog (see Hiding sections of the
@@ -1125,8 +1123,8 @@ match.}
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Alignment lists]{Alignment lists}}
 \hypertarget{RefHeading1701056909880}{}{
 There are separate lists of alignments for each strand and reading frame
-of the reference sequence. \ Each list has a yellow header bar
-containing the reference sequence. \ At the left, the yellow bar shows
+of the reference sequence. Each list has a yellow header bar
+containing the reference sequence. At the left, the yellow bar shows
 the reference sequence name and which strand/frame it is, e.g. (+1)
 means forward strand, reading frame 1; (-2) means reverse strand,
 reading frame 2.}
@@ -1143,7 +1141,7 @@ reading frame 2.}
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Nucleotide mode]{Nucleotide mode}}
 \hypertarget{RefHeading1721056909880}{}{
 There are two sections to the detail view in nucleotide mode: one for
-each strand. \ The active strand is shown at the top and defines the
+each strand. The active strand is shown at the top and defines the
 coordinate direction (increasing if the forward strand is active,
 decreasing if the reverse is active).}
 
@@ -1159,16 +1157,16 @@ decreasing if the reverse is active).}
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Protein mode]{Protein mode}}
 \hypertarget{RefHeading1741056909880}{}{
 There are three sections in the detail view in protein mode: one for
-each of the three reading frames for the active strand. \ Only the
-active strand is shown. \ To view the other strand, toggle the display
+each of the three reading frames for the active strand. Only the
+active strand is shown. To view the other strand, toggle the display
 using the {\textquoteleft}Toggle strand{\textquoteright} button or the
 {\textquoteleft}t{\textquoteright} shortcut key.}
 
 \bigskip
 
 {In protein mode, the yellow header bars show the translated reference
-sequence for that reading frame. \ STOP and MET codons in the reference
-sequence are highlighted in red and green. \ There is also an
+sequence for that reading frame. STOP and MET codons in the reference
+sequence are highlighted in red and green. There is also an
 additional header section at the top showing the nucleotide sequence.}
 
 \begin{figure}
@@ -1182,9 +1180,9 @@ additional header section at the top showing the nucleotide sequence.}
 
 {In the nucleotide-sequence header, codons are read from top-to-bottom
 and then left-to-right, starting at row 1 for frame 1, row 2 for frame
-2 etc. \ Middle-clicking on a coordinate will highlight the three
+2 etc. Middle-clicking on a coordinate will highlight the three
 nucleotides for the selected codon and the currently-active reading
-frame (by default, frame 1). \ Left-clicking in an alignment list sets
+frame (by default, frame 1). Left-clicking in an alignment list sets
 the active reading frame.}
 
 \begin{figure}
@@ -1198,17 +1196,17 @@ the active reading frame.}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Exons]{Exons}}
 {Exons are displayed as solid-colour blocks in the detail-view, coloured
-green for CDS, red for UTR. \ Vertical blue lines are drawn at the
+green for CDS, red for UTR. Vertical blue lines are drawn at the
 start and end of the blocks so that it is easy to see whether
 alignments line up with the exon boundaries.}
 
 \bigskip
 
 {In protein mode, an exon may not start or end exactly at a codon
-boundary. \ A {\textquotedblleft}partial{\textquotedblright} or
+boundary. A {\textquotedblleft}partial{\textquotedblright} or
 {\textquotedblleft}split{\textquotedblright} codon like this is
 indicated in the detail-view by cross-hatch highlighting, and by
-drawing a dotted blue line rather than a solid line. \ (Note that
+drawing a dotted blue line rather than a solid line. (Note that
 dotted lines may be obscured by solid lines at the same position.)}
 
 \bigskip
@@ -1234,7 +1232,7 @@ DNA header.}
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Coverage view]{Coverage view}}
 \hypertarget{RefHeading2953469222304}{}{
 The coverage view shows a plot of how many alignments there are at each
-coordinate along the reference sequence. \ It can give an indication of
+coordinate along the reference sequence. It can give an indication of
 where the regions of interest are.}
 
 \begin{figure}
@@ -1360,7 +1358,7 @@ Toggle which strand is the active strand\\
 \end{supertabular}
 \end{center}
 
-\footnotetext[1]{\ Acts only on selected sequences, if there is currently a
+\footnotetext[1]{Acts only on selected sequences, if there is currently a
 selection; if no sequences are currently selected, then this operation
 acts on all sequences.}
 
@@ -1369,9 +1367,9 @@ acts on all sequences.}
 {\bfseries Feedback box }
 
 {The feedback box contains information about the currently selected
-sequence and/or coordinate, if either is selected. \ Click on a row in
-the detail-view to select a sequence. \ Middle-click on a base in the
-detail-view to select that coordinate. \ Text in the feedback box can
+sequence and/or coordinate, if either is selected. Click on a row in
+the detail-view to select a sequence. Middle-click on a base in the
+detail-view to select that coordinate. Text in the feedback box can
 be selected and copied.}
 
 \begin{figure}
@@ -1437,7 +1435,7 @@ Right-click anywhere in the Blixem window to pop up the main menu.}
 \bfseries Toggle match set group &
 \itshape G &
  Toggle the special {\textquotedblleft}match
-set{\textquotedblright} group on and off. \ This is a quick way of
+set{\textquotedblright} group on and off. This is a quick way of
 creating a group from the current selection buffer, which should
 contain match sequence names.\\
 \bfseries Deselect all &
@@ -1522,8 +1520,7 @@ drag in big picture}
 
 ~
  &
- Jump to a particular region. \ Dragging moves
-the highlight box.\\
+ Jump to a particular region. Dragging moves the highlight box.\\
 {\bfseries Click on the highlight box and drag}
 
 ~
@@ -1533,9 +1530,7 @@ the highlight box.\\
 
 ~
  &
- Select a base. \ Releasing the mouse button
-scrolls the display to centre on the selected base (hold down Ctrl to
-avoid scrolling.)\\
+ Select a base. Releasing the mouse button scrolls the display to centre on the selected base (hold down Ctrl to avoid scrolling.)\\
 \bfseries Click a feature in the big picture &
 { Selects that feature and scrolls the
 detail-view vertically so that it is visible (if it is in the current
@@ -1663,26 +1658,13 @@ length of the reference sequence.\\
 \hypertarget{RefHeading1921056909880}{}
 \liststyleWWviiiNumxxxv
 \begin{itemize}
-\item {
-You can select a sequence by clicking on its row in the alignment list.
-\ Selected sequences are highlighted in cyan in the big picture.}
-\item {
-You can select a sequence by clicking on it in the big picture.}
-\item {
-The name of the sequence you selected is displayed in the feedback box
-on the toolbar. \ If there are multiple alignments for the same
-sequence, all of them will be selected.}
-\item {
-You can select multiple sequences by holding down the Ctrl or Shift keys
-while selecting rows.}
-\item {
-You can deselect a single sequence by Ctrl-clicking on its row.}
-\item {
-You can deselect all sequences by right-clicking and selecting
-{\textquotesingle}Deselect all{\textquotesingle}, or with the
-Shift-Ctrl-A keyboard shortcut.}
-\item {
-You can move the selection up/down a row using the up/down arrow keys.}
+\item {You can select a sequence by clicking on its row in the alignment list. Selected sequences are highlighted in cyan in the big picture.}
+\item {You can select a sequence by clicking on it in the big picture.}
+\item {The name of the sequence you selected is displayed in the feedback box on the toolbar. If there are multiple alignments for the same sequence, all of them will be selected.}
+\item {You can select multiple sequences by holding down the Ctrl or Shift keys while selecting rows.}
+\item {You can deselect a single sequence by Ctrl-clicking on its row.}
+\item {You can deselect all sequences by right-clicking and selecting {\textquotesingle}Deselect all{\textquotesingle}, or with the Shift-Ctrl-A keyboard shortcut.}
+\item {You can move the selection up/down a row using the up/down arrow keys.}
 \end{itemize}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Selecting coordinates]{Selecting coordinates}}
@@ -1701,20 +1683,20 @@ currently-selected amino acid in reading-frame 3. Selected nucleotide
 \begin{itemize}
 \item {
 You can select a nucleotide/peptide by middle-clicking on it in the
-detail view. \ This selects the entire column at that index, and the
+detail view. This selects the entire column at that index, and the
 coordinate number on the reference sequence is shown in the feedback
-box. \ (The coordinate on the match sequence is also shown if a match
+box. (The coordinate on the match sequence is also shown if a match
 sequence is selected.)}
 \item {
 By default the display will centre on the selected base when you middle
-click. \ To select a base without scrolling, hold down Ctrl when you
+click. To select a base without scrolling, hold down Ctrl when you
 middle click.}
 \item {
 For protein matches, when a peptide is selected, the three nucleotides
 for that peptide (for the active reading frame) are highlighted in the
-header in blue. \ (The active reading frame is whichever alignment list
+header in blue. (The active reading frame is whichever alignment list
 currently has the focus - click in a different list to change the
-reading frame.) \ Darker blue highlighting indicates the specific
+reading frame.) Darker blue highlighting indicates the specific
 nucleotide that is currently selected (i.e. whose coordinate is
 displayed in the feedback box).}
 \item {
@@ -1733,7 +1715,7 @@ otherwise).}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Finding sequences]{Finding sequences}}
 \hypertarget{RefHeading1961056909880}{}{
-The Find dialog allows the user to search for sequences by name. \ Press
+The Find dialog allows the user to search for sequences by name. Press
 the Find 
 \includegraphics[width=0.487cm,height=0.487cm]{img_button_find.png} 
 button on the toolbar or hit the
@@ -1756,9 +1738,9 @@ dialog.}
 \item {
 Text search: Search for match sequences by name (or another column from
 the {\textquotesingle}Search column{\textquotesingle} drop-down box).
-\ The wild-card {\textquoteleft}*{\textquoteright} means any number (or
+The wild-card {\textquoteleft}*{\textquoteright} means any number (or
 zero) of any character and {\textquoteleft}?{\textquoteright} means 1
-character (which can be any character). \ Any sequences whose relevant
+character (which can be any character). Any sequences whose relevant
 column data matches the search string will be selected and the display
 will scroll to the start of the selection. }
 \item {
@@ -1766,16 +1748,16 @@ List search: the same as text-search, but you can enter multiple search
 strings by placing them on separate lines in the text box.}
 \item {
 DNA search: This searches for a given sub-sequence of nucleotides in the
-reference sequence. \ If the sub-sequence is found, the display will
+reference sequence. If the sub-sequence is found, the display will
 scroll to the start of the sub-sequence and the first base in the
 sub-sequence will be selected.}
 \end{itemize}
 
 {Enter your search text in the appropriate box and click the OK button to
-perform the search. \ By default, Blixem will start searching from the
-beginning of the reference sequence range. \ To start the search from
+perform the search. By default, Blixem will start searching from the
+beginning of the reference sequence range. To start the search from
 the current position instead, click the Forward or Back button instead
-of OK. \ This will start searching from the currently-selected base, if
+of OK. This will start searching from the currently-selected base, if
 there is one selected; if not, it will start from the beginning of the
 current detail-view display range when searching forwards or from the
 end of the display range if searching backwards.}
@@ -1786,12 +1768,11 @@ end of the display range if searching backwards.}
 {\bfseries
 Repeat a Find}
 
-{
 After clicking OK on the Find dialog, press F3 to repeat the search in a
 forwards direction or Shift-F3 to repeat in a backwards direction.
-\ Alternatively, if you had selected the Forward or Back button in the
+Alternatively, if you had selected the Forward or Back button in the
 Find dialog then click the Forward or Back buttons again to jump to the
-next result in that direction.}
+next result in that direction.
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Copy and paste]{Copy and paste}}
 \hypertarget{RefHeading1981056909880}{}\liststyleWWviiiNumxxvi
@@ -1840,28 +1821,12 @@ dialogs such as the Groups or Find dialog by using Ctrl-V.}
 
 \liststyleWWviiiNumxxvi
 \begin{itemize}
-\item {
-Click the sort button on the toolbar to open the Sort dialog.}
-\item {
-Select the column you wish to sort by from the top drop-down box on the
-dialog.}
-\item {
-You may optionally sort by further columns. \ You can sort by as many
-columns as you wish by adding further drop-down boxes using the Add
-button.}
-\item {
-The default sort order may be ascending or descending depending on what
-makes most sense for the selected column: e.g. sorting by position is
-\textit{ascending} by default, but sorting by score or ID is \textit{descending}.}
-\item {
-To get the inverse of the default sort order, select the
-{\textquoteleft}Invert sort order{\textquoteright} option on the Sort
-dialog.}
-\item {
-Alignments can also be sorted by group. \ Alignments that are part of a
-group will then be listed first (before any that are not in a group),
-and ordered according to the group{\textquoteright}s order number.
-\ See the Groups section for more details.}
+\item {Click the sort button on the toolbar to open the Sort dialog.}
+\item {Select the column you wish to sort by from the top drop-down box on the dialog.}
+\item {You may optionally sort by further columns. You can sort by as many columns as you wish by adding further drop-down boxes using the Add button.}
+\item {The default sort order may be ascending or descending depending on what makes most sense for the selected column: e.g. sorting by position is \textit{ascending} by default, but sorting by score or ID is \textit{descending}.}
+\item {To get the inverse of the default sort order, select the {\textquoteleft}Invert sort order{\textquoteright} option on the Sort dialog.}
+\item {Alignments can also be sorted by group. Alignments that are part of a group will then be listed first (before any that are not in a group), and ordered according to the group{\textquoteright}s order number. See the Groups section for more details.}
 \end{itemize}
 
 \begin{figure}
@@ -1890,21 +1855,9 @@ sorted/highlighted/hidden etc.}
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Creating a group from a selection]{Creating a group from a selection}}
 \hypertarget{RefHeading2061056909880}{}\liststyleWWviiiNumxvi
 \begin{itemize}
-\item {
-Select the sequences you wish to include in the group by left-clicking
-their rows in the detail view. \ Multiple rows can be selected by
-holding the Ctrl or Shift keys while clicking.}
-\item {
-Right-click and select {\textquotesingle}Create Group{\textquotesingle},
-or use the Shift-Ctrl-G shortcut key. (Note that Ctrl-G will also
-shortcut to here if no groups currently exist.)}
-\item {
-Ensure that the {\textquotesingle}From selection{\textquotesingle} radio
-button is selected, and click {\textquotesingle}OK{\textquotesingle} or
-{\textquoteleft}Apply{\textquoteright}. \ If you click
-{\textquoteleft}Apply{\textquoteright}, you will be shown the group you
-just created so that you can edit it. \ If you click
-{\textquoteleft}OK{\textquoteright} the group will be created with the
+\item {Select the sequences you wish to include in the group by left-clicking their rows in the detail view. Multiple rows can be selected by holding the Ctrl or Shift keys while clicking.}
+\item {Right-click and select {\textquotesingle}Create Group{\textquotesingle}, or use the Shift-Ctrl-G shortcut key. (Note that Ctrl-G will also shortcut to here if no groups currently exist.)}
+\item {Ensure that the {\textquotesingle}From selection{\textquotesingle} radio button is selected, and click {\textquotesingle}OK{\textquotesingle} or {\textquoteleft}Apply{\textquoteright}. If you click {\textquoteleft}Apply{\textquoteright}, you will be shown the group you just created so that you can edit it. If you click {\textquoteleft}OK{\textquoteright} the group will be created with the
 default properties.}
 \end{itemize}
 
@@ -1940,22 +1893,10 @@ Notes}
 
 \liststyleWWviiiNumxvi
 \begin{itemize}
-\item {
-{\textquotesingle}List search{\textquotesingle} allows you to enter
-multiple search strings; place each string on a separate line.}
-\item {
-You can use the following wild-cards in the search text: an asterisk (*)
-represents any number of characters; a question mark (?) represents any
-single character.}
-\item {
-You can paste text into the search boxes from the selection buffer by
-middle-clicking or from the clipboard using Ctrl-V.}
-\item {
-You may paste sequence names directly from another compatible program
-(e.g. ZMap): click on the feature in ZMap and then middle-click in the
-text box on the Groups dialog. \ (Grouping in Blixem works on the
-sequence name alone, so the feature coords output by ZMap will be
-ignored.)}
+\item {{\textquotesingle}List search{\textquotesingle} allows you to enter multiple search strings; place each string on a separate line.}
+\item {You can use the following wild-cards in the search text: an asterisk (*) represents any number of characters; a question mark (?) represents any single character.}
+\item {You can paste text into the search boxes from the selection buffer by middle-clicking or from the clipboard using Ctrl-V.}
+\item {You may paste sequence names directly from another compatible program (e.g. ZMap): click on the feature in ZMap and then middle-click in the text box on the Groups dialog. (Grouping in Blixem works on the sequence name alone, so the feature coords output by ZMap will be ignored.)}
 \end{itemize}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Creating a temporary
@@ -1965,33 +1906,11 @@ selection]{Creating a temporary
 selection}}
 \hypertarget{RefHeading2121056909880}{}\liststyleWWviiiNumxvi
 \begin{itemize}
-\item {
-You can quickly create a group from a current selection (e.g. selected
-features in ZMap or just the current selection in Blixem) using the
-{\textquotesingle}Toggle match set{\textquotesingle} option.}
-\item {
-To create a match-set group, select the required items and then select
-{\textquotesingle}Toggle match set{\textquotesingle} from the
-right-click menu in Blixem, or hit the
-{\textquotesingle}g{\textquotesingle} shortcut key.}
-\item {
-To clear the match-set group, choose the {\textquotesingle}Toggle match
-set{\textquotesingle} option again, or hit the
-{\textquotesingle}g{\textquotesingle} shortcut key again.}
-\item {
-While it is enabled (i.e. toggled on), the match-set group can be edited
-like any other group, via the {\textquotesingle}Edit
-Groups{\textquotesingle} dialog. \ Any settings you change (e.g.
-highlight colour) will be saved even if the match-set group is toggled
-off and then on again.}
-\item {
-If you delete the match-set group using the {\textquotesingle}Edit
-Groups{\textquotesingle} dialog, all of its settings will be lost; you
-will get the default settings again the next time you enable the
-match-set group. \ To avoid this, disable it by toggling it off using
-the {\textquotesingle}Toggle match set{\textquotesingle} menu option
-(or {\textquotesingle}g{\textquotesingle} shortcut key) rather than by
-deleting it in the Groups dialog.}
+\item {You can quickly create a group from a current selection (e.g. selected features in ZMap or just the current selection in Blixem) using the {\textquotesingle}Toggle match set{\textquotesingle} option.}
+\item {To create a match-set group, select the required items and then select {\textquotesingle}Toggle match set{\textquotesingle} from the right-click menu in Blixem, or hit the {\textquotesingle}g{\textquotesingle} shortcut key.}
+\item {To clear the match-set group, choose the {\textquotesingle}Toggle match set{\textquotesingle} option again, or hit the {\textquotesingle}g{\textquotesingle} shortcut key again.}
+\item {While it is enabled (i.e. toggled on), the match-set group can be edited like any other group, via the {\textquotesingle}Edit Groups{\textquotesingle} dialog. Any settings you change (e.g. highlight colour) will be saved even if the match-set group is toggled off and then on again.}
+\item {If you delete the match-set group using the {\textquotesingle}Edit Groups{\textquotesingle} dialog, all of its settings will be lost; you will get the default settings again the next time you enable the match-set group. To avoid this, disable it by toggling it off using the {\textquotesingle}Toggle match set{\textquotesingle} menu option (or {\textquotesingle}g{\textquotesingle} shortcut key) rather than by deleting it in the Groups dialog.}
 \end{itemize}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Editing groups]{Editing groups}}
@@ -2006,8 +1925,7 @@ Groups{\textquotesingle}, or use the Ctrl-G shortcut key.}
 \caption{Groups dialog -- edit groups}
 \end{figure}
 
-{You can change the following properties for a group. \ Click on Apply or
-OK to apply the changes.}
+You can change the following properties for a group. Click on Apply or OK to apply the changes.
 
 \bigskip
 
@@ -2024,7 +1942,7 @@ alignment lists.\\
  Tick this box to highlight the alignments.\\
 \bfseries Colour &
  The colour the group will be highlighted in, if
-{\textquotesingle}Highlight{\textquotesingle} is enabled. \ The default
+{\textquotesingle}Highlight{\textquotesingle} is enabled. The default
 colour for all groups is orange, so you may wish to change this if you
 want different groups to be highlighted in different colours.\\
 \bfseries Order &
@@ -2037,21 +1955,12 @@ will appear before alignments that are not in a group.\\
 
 \bigskip
 
-{
-You can also hide all sequences that are not part of a group by ticking
-the {\textquotesingle}Hide all sequences not in a
-group{\textquotesingle} option. \ This is a quick way of filtering
-sequences to show only those that you are interested in; any sequences
-that are not part of a group will be hidden. \ Note that any sequences
-in a hidden group will also still be hidden.}
+You can also hide all sequences that are not part of a group by ticking the {\textquotesingle}Hide all sequences not in a group{\textquotesingle} option. This is a quick way of filtering sequences to show only those that you are interested in; any sequences that are not part of a group will be hidden. Note that any sequences in a hidden group will also still be hidden.
 
 
 \bigskip
 
-{
-To delete a group, click one of the following buttons. \ This will have
-an immediate effect (i.e. you don{\textquoteright}t have to click
-{\textquoteleft}Apply{\textquoteright}).}
+To delete a group, click one of the following buttons. This will have an immediate effect (i.e. you don{\textquoteright}t have to click {\textquoteleft}Apply{\textquoteright}).
 
 \liststyleWWviiiNumxxxvii
 \begin{itemize}
@@ -2082,44 +1991,18 @@ shortcut. The Dotter dialog will pop up.}
 
 \liststyleWWviiiNumxxxvii
 \begin{itemize}
-\item {
-Select the sequence you wish to run Dotter on before or after opening
-the dialog. \ The selected sequence name will be shown at the top of
-the dialog.}
-\item {
-Alternatively, if you just wish to edit the settings, you do not need to
-select a sequence.}
-\item {
-To run Dotter with the default (automatic) parameters, just hit RETURN,
-or click the {\textquotesingle}Execute{\textquotesingle} button.}
-\item {
-To enter custom parameters, select the
-{\textquotesingle}Manual{\textquotesingle} radio button and enter the
-values in the {\textquotesingle}Start{\textquotesingle} and
-{\textquotesingle}End{\textquotesingle} boxes.}
-\item {
-To save the parameters without running Dotter, click Save and then
-Cancel{\textquotesingle}.}
-\item {
-To save the parameters and run Dotter, click
-{\textquotesingle}Execute{\textquotesingle}.}
-\item {
-To revert to the last-saved manual parameters, click the
-{\textquotesingle}Last saved{\textquotesingle} button.}
-\item {
-To revert back to automatic parameters, click the
-{\textquotesingle}Auto{\textquotesingle} radio button. \ The
-coordinates in the Start and End box will be recalculated for the
-currently-selected sequence.}
+\item {Select the sequence you wish to run Dotter on before or after opening the dialog. The selected sequence name will be shown at the top of the dialog.}
+\item {Alternatively, if you just wish to edit the settings, you do not need to select a sequence.}
+\item {To run Dotter with the default (automatic) parameters, just hit RETURN, or click the {\textquotesingle}Execute{\textquotesingle} button.}
+\item {To enter custom parameters, select the {\textquotesingle}Manual{\textquotesingle} radio button and enter the values in the {\textquotesingle}Start{\textquotesingle} and {\textquotesingle}End{\textquotesingle} boxes.}
+\item {To save the parameters without running Dotter, click Save and then Cancel{\textquotesingle}.}
+\item {To save the parameters and run Dotter, click {\textquotesingle}Execute{\textquotesingle}.}
+\item {To revert to the last-saved manual parameters, click the {\textquotesingle}Last saved{\textquotesingle} button.}
+\item {To revert back to automatic parameters, click the {\textquotesingle}Auto{\textquotesingle} radio button. The coordinates in the Start and End box will be recalculated for the currently-selected sequence.}
 \end{itemize}
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Reference sequence versus itself]{Reference sequence
-versus itself}}
-\hypertarget{RefHeading2181056909880}{}{
-To run Dotter on the reference sequence versus itself, select the
-{\textquoteleft}Call on self{\textquoteright} tick box in the Dotter
-dialog and then click {\textquoteleft}Execute{\textquoteright}. \ This
-can be useful to analyse internal repeats etc. (see the Dotter manual
-for more information).}
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Reference sequence versus itself]{Reference sequence versus itself}}
+\hypertarget{RefHeading2181056909880}{}
+To run Dotter on the reference sequence versus itself, select the {\textquoteleft}Call on self{\textquoteright} tick box in the Dotter dialog and then click {\textquoteleft}Execute{\textquoteright}. This can be useful to analyse internal repeats etc. (see the Dotter manual for more information).
 
 \bigskip
 
@@ -2131,32 +2014,22 @@ manual).}
 \bigskip
 
 {\color[rgb]{0.0,0.27058825,0.5254902}\section[Settings]{Settings}}
-\hypertarget{RefHeading2221056909880}{}{
-The settings menu can be accessed by right-clicking and selecting
-Settings, or by the shortcut Ctrl-S.}
+\hypertarget{RefHeading2221056909880}{}
+The settings menu can be accessed by right-clicking and selecting Settings, or by the shortcut Ctrl-S.
 
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Features]{Features}}
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Features]{Options}}
 \hypertarget{RefHeading2241056909880}{}
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Highlight
-variations]{Highlight variations}}
-\hypertarget{RefHeading2261056909880}{}{
-When this option is enabled, bases in the reference sequence that have
-know variations (such as SNPs, insertions, deletions etc., loaded from
-the GFF file) are highlighted in the reference sequence (nucleotide)
-header.}
-
-{
-If the {\textquoteleft}Show variations track{\textquoteright} sub-option
-is also enabled, then an additional line is shown above the nucleotide
-header showing the alternative bases for each variation. \ Note that
-the Variations track can be quickly enabled or disabled by
-double-clicking the nucleotide header.}
-
-{
-You can double-click a variation to open its URL.}
-
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Highlight variations]{Highlight variations}}
+\hypertarget{RefHeading2261056909880}{}
+When this option is enabled, bases in the reference sequence that have know variations (such as SNPs, insertions, deletions etc., loaded from the GFF file) are highlighted in the reference sequence (nucleotide) header.
 
 \bigskip
+
+If the {\textquoteleft}Show variations track{\textquoteright} sub-option is also enabled, then an additional line is shown above the nucleotide header showing the alternative bases for each variation. Note that the Variations track can be quickly enabled or disabled by double-clicking the nucleotide header.
+
+\bigskip
+
+You can double-click a variation to open its URL.
 
 \begin{figure}
 \centering
@@ -2165,159 +2038,106 @@ You can double-click a variation to open its URL.}
 \caption{Variations track}
 \end{figure}
 
+\bigskip
+
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Show polyA tails]{Show polyA tails}}
-\hypertarget{RefHeading2281056909880}{}{
-When this option is enabled, polyA tails are shown and highlighted in
-the alignment lists and polyA signals are highlighted in the reference
-sequence (nucleotide) header. \ If the sub-option
-{\textquoteleft}Selected sequences only{\textquoteright} is enabled,
-polyA features will only be shown for the currently selected
-sequences.}
+\hypertarget{RefHeading2281056909880}{}
+When this option is enabled, polyA tails are shown and highlighted in the alignment lists and polyA signals are highlighted in the reference sequence (nucleotide) header. If the sub-option {\textquoteleft}Selected sequences only{\textquoteright} is enabled, polyA features will only be shown for the currently selected sequences.
 
 \bigskip
 
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Display options]{Display options}}
-\hypertarget{RefHeading2301056909880}{}
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Show Unaligned
-Sequence ]{Show Unaligned Sequence }}
-\hypertarget{RefHeading2321056909880}{}{
-When this option is enabled, any additional, unaligned portions of the
-match sequences are displayed at the start and end of the alignments.
-\ If the {\textquoteleft}Limit to{\textquoteright} sub-option is also
-enabled, you can specify the maximum number of additional bases to
-display. \ If the {\textquoteleft}Selected sequences
-only{\textquoteright} sub-option is enabled, only the currently
-selected sequence(s) will display unaligned portions of sequence.}
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Show Unaligned Sequence ]{Show Unaligned Sequence }}
+\hypertarget{RefHeading2321056909880}{}
+When this option is enabled, any additional, unaligned portions of the match sequences are displayed at the start and end of the alignments. If the {\textquoteleft}Limit to{\textquoteright} sub-option is also enabled, you can specify the maximum number of additional bases to display. If the {\textquoteleft}Selected sequences only{\textquoteright} sub-option is enabled, only the currently selected sequence(s) will display unaligned portions of sequence.
+
+\bigskip
+
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Show Colinearity Lines ]{Show Colinearity Lines }}
+\hypertarget{RefHeading2321056909880}{}
+When this option is enabled, colinearity lines are displayed between alignment blocks of the same sequence. The lines are green to indicate perfectly colinear, orange to indicate imperfectly colinear, and red to indicate not colinear. If the {\textquoteleft}Selected sequences only{\textquoteright} sub-option is enabled, colinearity lines are only displayed for the currently selected sequence(s) in the detail view, otherwise they are shown for all sequences in the detail view. Note that colinearity lines are only displayed for the selected sequence(s) in the big picture regardless of this setting, to save cluttering the screen.
 
 \bigskip
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Show Splice Sites]{Show Splice Sites}}
-\hypertarget{RefHeading2341056909880}{}{
-When this option is enabled, splice sites are highlighted in the
-reference sequence (nucleotide) header for the currently-selected
-sequence(s). \ The two bases from the adjacent introns are highlighted
-in green if they are canonical or red if they are non-canonical.}
+\hypertarget{RefHeading2341056909880}{}
+When this option is enabled, splice sites are highlighted in the reference sequence (nucleotide) header for the currently-selected sequence(s). The two bases from the adjacent introns are highlighted in green if they are canonical or red if they are non-canonical.
 
 \bigskip
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Highlight Differences]{Highlight Differences}}
-\hypertarget{RefHeading2361056909880}{}{
-When this option is enabled, matching bases are blanked out and
-mismatches are highlighted, making it easier to see where alignments
-differ from the reference sequence.}
+\hypertarget{RefHeading2361056909880}{}
+When this option is enabled, matching bases are blanked out and mismatches are highlighted, making it easier to see where alignments differ from the reference sequence.
 
 \bigskip
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Squash Matches ]{Squash Matches }}
-\hypertarget{RefHeading2381056909880}{}{
-This groups multiple alignments from the same sequence together into the
-same row in the detail view, rather than showing them on separate
-rows.}
+\hypertarget{RefHeading2381056909880}{}
+This groups multiple alignments from the same sequence together into the same row in the detail view, rather than showing them on separate rows.
 
 \bigskip
 
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[General settings]{General settings}}
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Display]{Display}}
 \hypertarget{RefHeading2421056909880}{}
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Font]{Font}}
-\hypertarget{RefHeading2441056909880}{}{
-Allows you to change the font that is used to display alignments in the
-detail-view. \ Note that you must select a monospace font; otherwise
-matches will not be shown aligned correctly. \ Blixem will warn you if
-the font you have selected is not monospace.}
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Use print colours]{Use print colours}}
+\hypertarget{RefHeading2641056909880}{}
+Select this option to make Blixem use grey-scale colours, suitable for printing.
 
 \bigskip
 
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Fetch mode ]{Fetch mode }}
-\hypertarget{RefHeading2461056909880}{}
-Allows you to change the program used to fetch sequence EMBL entries.
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Font]{Font}}
+\hypertarget{RefHeading2441056909880}{}
+Allows you to change the font that is used to display alignments in the detail-view. Note that you must select a monospace font; otherwise matches will not be shown aligned correctly. Blixem will warn you if the font you have selected is not monospace.
+
+\bigskip
+
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[\%ID per cell]{\%ID per cell}}
+\hypertarget{RefHeading2561056909880}{}
+Use this to change the vertical scale of the big picture grid; a smaller value means the grid will be more spaced out, a larger value means the grid will be more compact.
+
+\bigskip
+
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Max \%ID]{Max \%ID}}
+\hypertarget{RefHeading2581056909880}{}
+Defines the maximum cut-off value for the \%ID scale in the big picture grid.
+
+\bigskip
+
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Min \%ID]{Min \%ID}}
+\hypertarget{RefHeading2601056909880}{}
+Defines the minimum cut-off value for the \%ID scale in the big picture grid.
+
+\bigskip
+
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Depth per cell]{Depth per cell}}
+\hypertarget{RefHeading334716266717}{}
+Use this to change the vertical scale of the grid for the Coverage View (see the View menu to turn on the Coverage View); a smaller value means the grid will be more spaced out, a larger value means the grid will be more compact.
 
 \bigskip
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Columns]{Columns}}
 \hypertarget{RefHeading2481056909880}{}
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Load optional data
-]{Load optional data }}
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Load optional data]{Load optional data }}
 \hypertarget{RefHeading2501056909880}{}
 Click this button to load optional data from EMBL entries (an \texttt{optional-fetch} method must be set up in the blixem config file). Note that this operation can take a long time if there are many sequences. The button will be greyed out once optional data has been loaded.
 
 \bigskip
 
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Column visibility]{Column visibility}}
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Column settings]{Column settings}}
 \hypertarget{RefHeading2521056909880}{}
-Tick/un-tick the check-marks to show/hide individual columns. \ Adjust
-the column width by entering the new width in the text box in pixels.
-\ Note that if you enter a zero width then the column will be hidden,
-regardless of whether the check-mark is ticked or not. \ Greyed-out
-columns are optional-data columns, and will only become available once
-optional data has been loaded.
+Tick/un-tick the check-marks to show/hide individual columns and to include/hide column details in the mouse-over box. Adjust the column width by entering the new width in the text box in pixels. Note that if you enter a zero width then the column will be hidden, regardless of whether the check-mark is ticked or not. Greyed-out columns are optional-data columns, and will only become available once optional data has been loaded.
 
 \bigskip
 
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Grid properties]{Grid properties}}
-\hypertarget{RefHeading2541056909880}{}\label{bkm:RefHeading2541056909880}
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[\%ID per cell]{\%ID per cell}}
-\hypertarget{RefHeading2561056909880}{}{
-Use this to change the vertical scale of the grid; a smaller value means
-the grid will be more spaced out, a larger value means the grid will be
-more compact.}
-
-\bigskip
-
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Max \%ID]{Max \%ID}}
-\hypertarget{RefHeading2581056909880}{}{
-Defines the maximum cut-off value for the \%ID scale.}
-
-\bigskip
-
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Min \%ID]{Min \%ID}}
-\hypertarget{RefHeading2601056909880}{}{
-Defines the minimum cut-off value for the \%ID scale.}
-
-\bigskip
-
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Coverage view properties]{Coverage view properties}}
-\hypertarget{RefHeading334516266717}{}
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Depth per
-cell]{Depth per cell}}
-\hypertarget{RefHeading334716266717}{}{
-Use this to change the vertical scale of the grid for the Coverage View
-(see the View menu to turn on the Coverage View); a smaller value means
-the grid will be more spaced out, a larger value means the grid will be
-more compact.}
-
-\bigskip
-
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Appearance]{Appearance}}
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Appearance]{Colours}}
 \hypertarget{RefHeading2621056909880}{}
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Use print
-colours]{Use print colours}}
-\hypertarget{RefHeading2641056909880}{}{
-Select this option to make Blixem use grey-scale colours, suitable for
-printing.}
-
-\bigskip
-
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Display colours]{Display colours}}
-\hypertarget{RefHeading2661056909880}{}{
-Change any of Blixem{\textquoteright}s custom display colours, such as
-the colour aligned bases are shown in or the colour stop codons are
-highlighted in etc. \ There are four colours for each item: }
+Change any of Blixem{\textquoteright}s custom display colours, such as the colour aligned bases are shown in or the colour stop codons are highlighted in etc. There are four colours for each item:
 
 \liststyleWWviiiNumxx
 \begin{itemize}
-\item {
-Normal: this is the standard display colour;}
-\item {
-Normal (selected): this is the colour used when the item is selected (if
-applicable). \ Typically one would use a slightly darker or lighter
-shade of the Normal colour for this, so that the item does not look
-radically different when it is selected;}
-\item {
-Print: this is the standard colour used when the {\textquoteleft}Use
-print colours{\textquoteright} option is enabled;}
-\item {
-Print (selected): this is the colour used when {\textquoteleft}Use print
-colours{\textquoteright} is enabled and the item is selected. }
+\item {Normal: this is the standard display colour;}
+\item {Normal (selected): this is the colour used when the item is selected (if applicable). Typically one would use a slightly darker or lighter shade of the Normal colour for this, so that the item does not look radically different when it is selected;}
+\item {Print: this is the standard colour used when the {\textquoteleft}Use print colours{\textquoteright} option is enabled;}
+\item {Print (selected): this is the colour used when {\textquoteleft}Use print colours{\textquoteright} is enabled and the item is selected. }
 \end{itemize}
 
 {\color[rgb]{0.0,0.27058825,0.5254902}\section[Key]{Key}}
@@ -2325,45 +2145,22 @@ colours{\textquoteright} is enabled and the item is selected. }
 In the detail view, the following colours and symbols have the following
 meanings:}
 
-
 \bigskip
 
 \begin{flushleft}
 \tablehead{}
 \begin{supertabular}{p{3.8009999cm}p{3.552cm}p{6.3cm}}
- Alignment list header &
- Yellow background &
- Reference sequence\\\hline
- Alignment list &
- Cyan background &
- Identical residues\\\hline
- Alignment list &
- Violet background &
- Conserved residues\\\hline
- Alignment list &
- Grey background &
- Mismatch\\\hline
- Alignment list &
- {\textquoteleft}.{\textquoteright} with grey
-background &
- Deletion\\\hline
- Alignment list &
- Yellow vertical line &
- Insertion\\\hline
- Alignment list &
- Thin blue vertical line &
- Boundary of an exon\\\hline
- Nucleotide header (protein mode) &
- Sky-blue background &
- The three nucleotides for the
-currently-selected codon; darker blue indicates the nucleotide whose
-coordinate is displayed in the feedback box\\\hline
- Alignment list header (protein mode) &
- Pale red background &
- STOP codon\\\hline
- Alignment list header (protein mode) &
- Green background &
- MET codon\\
+ Alignment list header &  Yellow background &  Reference sequence\\\hline
+ Alignment list &  Cyan background &  Identical residues\\\hline
+ Alignment list & Violet background & Conserved residues\\\hline
+ Alignment list & Grey background & Mismatch\\\hline
+ Alignment list & {\textquoteleft}.{\textquoteright} with grey background & Deletion\\\hline
+ Alignment list & Purple vertical line & Insertion\\\hline
+ Alignment list & Thin blue vertical line & Boundary of an exon\\\hline
+ Alignment list & Thin horizontal line & Colinearity lines between alignment blocks: green for perfect colinearity, orange for imperfect colinearity, red if not colinear\\\hline
+ Nucleotide header (protein mode) & Sky-blue background & The three nucleotides for the currently-selected codon; darker blue indicates the nucleotide whose coordinate is displayed in the feedback box\\\hline
+ Alignment list header (protein mode) & Pale red background & STOP codon\\\hline
+ Alignment list header (protein mode) & Green background & MET codon\\
 \end{supertabular}
 \end{flushleft}
 
