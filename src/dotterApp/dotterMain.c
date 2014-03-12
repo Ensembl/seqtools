@@ -348,6 +348,8 @@ int main(int argc, char **argv)
    * always set to false, even if we have the reverse match seq strand (which is indicated with the -v option). */
   BlxStrand qStrand = BLXSTRAND_FORWARD;
   BlxStrand sStrand = BLXSTRAND_FORWARD;
+
+  gtk_parse_args(&argc, &argv);
   
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =

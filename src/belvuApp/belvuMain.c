@@ -593,6 +593,8 @@ int main(int argc, char **argv)
   static gboolean showCompiled = FALSE;
   static gboolean showVersion = FALSE;
   static gboolean abbrevTitle = FALSE;
+
+  gtk_parse_args(&argc, &argv);
   
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =

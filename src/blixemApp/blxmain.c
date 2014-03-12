@@ -486,6 +486,8 @@ int main(int argc, char **argv)
   /* Get the list of supported GFF types, in case we need to print them out in the usage text */
   GSList* supportedTypes = blxCreateSupportedGffTypeList();
 
+  gtk_parse_args(&argc, &argv);
+
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
     {
