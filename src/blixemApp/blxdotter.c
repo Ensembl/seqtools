@@ -1105,7 +1105,8 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 
 
 /* This actually executes the dotter child process */
-static void callDotterChildProcess(const char *dotterBinary, 
+static void callDotterChildProcess(GtkWidget *blxWindow,
+                                   const char *dotterBinary, 
 				   const int dotterZoom,
                                    const gboolean hspsOnly,
                                    const char *seq1Name,
@@ -1167,6 +1168,19 @@ static void callDotterChildProcess(const char *dotterBinary,
   argList = g_slist_append(argList, seq2LenStr);
   argList = g_slist_append(argList, g_strdup(dotterBinary));
 
+  /* Now pass the screen number - we want to start dotter on the same screen as blixem's main
+   * window */
+  if (blxWindow && GTK_IS_WINDOW(blxWindow))
+    {
+      GdkScreen *screen = gtk_window_get_screen(GTK_WINDOW(blxWindow));
+      if (screen)
+        {
+          char *screenStr = convertIntToString(gdk_screen_get_number(screen));
+          argList = g_slist_append(argList, g_strdup("--screen"));
+          argList = g_slist_append(argList, screenStr);
+        }
+    }
+
   /* Terminate list with null */
   argList = g_slist_append(argList, NULL);
 
@@ -1195,7 +1209,8 @@ static void callDotterChildProcess(const char *dotterBinary,
 
 
 /* Call dotter as an external process */
-gboolean callDotterExternal(BlxViewContext *bc,
+gboolean callDotterExternal(GtkWidget *blxWindow,
+                            BlxViewContext *bc,
                             int dotterZoom, 
                             const gboolean hspsOnly,
                             const char *seq1Name,
@@ -1256,7 +1271,7 @@ gboolean callDotterExternal(BlxViewContext *bc,
       close(pipes[1]);
 
       DEBUG_OUT("Calling dotter child process\n");
-      callDotterChildProcess(dotterBinary, dotterZoom, hspsOnly, 
+      callDotterChildProcess(blxWindow, dotterBinary, dotterZoom, hspsOnly, 
                              seq1Name, seq1Range, seq1Strand, seq1DisplayRev,
                              seq2Name, seq2Range, seq2Strand, seq2DisplayRev,
                              pipes, bc);
@@ -1447,7 +1462,7 @@ gboolean callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterS
   const gboolean revHozScale = (refSeqStrand == BLXSTRAND_REVERSE);
   const gboolean revVertScale = FALSE; /* don't rev match seq scale, because it would show in dotter with -ve coords, but blixem always shows +ve coords */
 
-  return callDotterExternal(bc, dotterZoom, hspsOnly, 
+  return callDotterExternal(blxWindow, bc, dotterZoom, hspsOnly, 
                             bc->refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
                             dotterSName, &sRange, dotterSSeq, selectedSeq->strand, revVertScale,
                             error);
@@ -1534,7 +1549,7 @@ static gboolean callDotterSelf(GtkWidget *blxWindow, GError **error)
   
   g_message("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
 
-  callDotterExternal(bc, dotterZoom, FALSE,
+  callDotterExternal(blxWindow, bc, dotterZoom, FALSE,
                      bc->refSeqName, &qRange, refSeqSegment, qStrand, revScale,
                      bc->refSeqName, &qRange, dotterSSeq, qStrand, revScale,
                      error);
