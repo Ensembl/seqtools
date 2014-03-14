@@ -1980,11 +1980,12 @@ static void getPolyASignalBasesToHighlight(GtkWidget *detailView,
       /* Loop through each base in the visible range */
       const char *seq = bc->refSeq;
       int idx = qRange->min - bc->refSeqRange.min; /* convert to 0-based */
+      const int max_idx = qRange->max - bc->refSeqRange.min; /* convert to 0-based */
       const char *cp = seq + idx;
       const char *comparison = POLYA_SIGNAL;
       const int comparison_len = strlen(comparison);
 
-      for ( ; idx < qRange->max; ++idx, ++cp)
+      for ( ; idx < max_idx && cp && *cp; ++idx, ++cp)
         {
           if (!strncasecmp(cp, comparison, comparison_len))
             {
