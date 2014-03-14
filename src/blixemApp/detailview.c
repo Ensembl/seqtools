@@ -2561,7 +2561,7 @@ void drawHeaderChar(BlxViewContext *bc,
 
   /* Reset background color and outlines to defaults */
   data->outlineColor = NULL;
-  data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
+  data->fillColor = NULL;
   data->drawStart = FALSE;
   data->drawEnd = FALSE;
   data->drawJoiningLines = FALSE;
