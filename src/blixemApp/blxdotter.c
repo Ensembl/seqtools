@@ -1149,6 +1149,9 @@ static void callDotterChildProcess(GtkWidget *blxWindow,
     argList = g_slist_append(argList, g_strdup("--abbrev-title-on"));
   else
     argList = g_slist_append(argList, g_strdup("--abbrev-title-off"));
+
+  if (bc->windowColor)
+    argList = g_slist_append(argList, g_strdup_printf("--session_colour=%s", bc->windowColor));
   
   if (seq1Strand == BLXSTRAND_REVERSE)      argList = g_slist_append(argList, g_strdup("-r"));
   if (seq2Strand == BLXSTRAND_REVERSE)	    argList = g_slist_append(argList, g_strdup("-v"));

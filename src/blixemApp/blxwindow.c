@@ -5487,6 +5487,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   blxContext->defaultColors = NULL;
   blxContext->usePrintColors = FALSE;
+  blxContext->windowColor = options->windowColor;
   
   createBlxColors(blxContext, widget);
   

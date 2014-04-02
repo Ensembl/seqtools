@@ -513,6 +513,7 @@ typedef struct _BlxViewContext
     
     GArray *defaultColors;                  /* Default colors used by Blixem */
     gboolean usePrintColors;                /* Whether to use print colors (i.e. black and white) */
+    char *windowColor;                      /* If not null, background color for the window */
 
     GList *columnList;                      /* A list of details about all the columns in the detail view (might have been better to use an array here but it's a short list so not important) */
     
