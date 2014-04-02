@@ -302,7 +302,8 @@ GtkWidget*              createDetailView(GtkWidget *blxWindow,
                                          const int startCoord,
                                          const gboolean sortInverted,
                                          const BlxColumnId sortColumn,
-                                         const gboolean optionalDataLoaded);
+                                         const gboolean optionalDataLoaded,
+                                         char *windowColor);
 
 GtkWidget*              createDetailViewScrollBar(GtkAdjustment *adjustment, 
                                                   GtkWidget *blxWindow);

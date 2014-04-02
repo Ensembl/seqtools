@@ -4897,9 +4897,11 @@ static void createSeqColHeader(GtkWidget *detailView,
 
 /* Create the feedback box. (This feeds back info to the user about the currently-
  * selected base/sequence.) */
-static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
+static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
 {
   GtkWidget *feedbackBox = gtk_entry_new() ;
+
+  blxSetWidgetColor(feedbackBox, windowColor);
 
   /* User can copy text out but not edit contents */
   gtk_editable_set_editable(GTK_EDITABLE(feedbackBox), FALSE);
@@ -4923,10 +4925,11 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
 
 /* Create the status bar for the detail-view toolbar. (This feeds back info to the user 
  * about the currently-moused-over sequence.) */
-static GtkWidget* createStatusBar(GtkToolbar *toolbar)
+static GtkWidget* createStatusBar(GtkToolbar *toolbar, char *windowColor)
 {
   GtkWidget *statusBar = gtk_statusbar_new() ;
   gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(statusBar), FALSE);
+  blxSetWidgetColor(statusBar, windowColor);
 
   /* Make it expandable so we use all available space. Set minimum size to be 0
    * because it's better to show it small than not at all. */
@@ -4946,16 +4949,19 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
                                             BlxBlastMode mode,
                                             const BlxColumnId sortColumn,
                                             GList *columnList,
+                                            char *windowColor,
                                             GtkWidget **feedbackBox,
                                             GtkWidget **statusBar)
 {
   GtkToolbar *toolbar = GTK_TOOLBAR(toolbarIn);
+
+  blxSetWidgetColor(GTK_WIDGET(toolbar), windowColor);
   
   gtk_toolbar_set_style(toolbar, GTK_TOOLBAR_ICONS);
   gtk_toolbar_set_icon_size(toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
 
-  *feedbackBox = createFeedbackBox(toolbar);
-  *statusBar = createStatusBar(toolbar);
+  *feedbackBox = createFeedbackBox(toolbar, windowColor);
+  *statusBar = createStatusBar(toolbar, windowColor);
 
   /* Create a parent hbox which will hold the main toolbar
    * and the detail-view tools. (We do this rather than putting
@@ -4972,6 +4978,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   /* Put the toolbar in a handle box so that it can be torn off */
   GtkWidget *toolbarContainer = createToolbarHandle();
   gtk_container_add(GTK_CONTAINER(toolbarContainer), GTK_WIDGET(hbox));
+  blxSetWidgetColor(toolbarContainer, windowColor);
 
   return toolbarContainer;
 }
@@ -5153,7 +5160,8 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
                             const int startCoord,
                             const gboolean sortInverted,
                             const BlxColumnId sortColumn,
-                            const gboolean optionalDataLoaded)
+                            const gboolean optionalDataLoaded,
+                            char *windowColor)
 {
   /* We'll group the trees in their own container so that we can pass them all around
    * together (so that operations like zooming and scrolling can act on the group). The
@@ -5178,7 +5186,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   /* Create the toolbar. We need to remember the feedback box and status bar so we can set them in the properties. */
   GtkWidget *feedbackBox = NULL;
   GtkWidget *statusBar = NULL;
-  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, toolbar, mode, sortColumn, columnList, &feedbackBox, &statusBar);
+  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, toolbar, mode, sortColumn, columnList, windowColor, &feedbackBox, &statusBar);
 
   /* Create a custom cell renderer to render the sequences in the detail view */
   GtkCellRenderer *renderer = sequence_cell_renderer_new();

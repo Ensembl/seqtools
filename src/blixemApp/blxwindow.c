@@ -5487,6 +5487,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   blxContext->defaultColors = NULL;
   blxContext->usePrintColors = FALSE;
+  blxContext->windowColor = options->windowColor;
   
   createBlxColors(blxContext, widget);
   
@@ -6058,7 +6059,7 @@ BlxSequence* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
  ***********************************************************/
 
 /* Set various properties for the blixem window */
-static void setStyleProperties(GtkWidget *widget)
+static void setStyleProperties(GtkWidget *widget, char *windowColor)
 {
   /* Set the initial window size based on some fraction of the screen size */
   GdkScreen *screen = gtk_widget_get_screen(widget);
@@ -6416,7 +6417,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   
   /* Create the main blixem window */
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  setStyleProperties(window);
+  setStyleProperties(window, options->windowColor);
 
   /* Create a status bar */
   GtkWidget *statusBar = gtk_statusbar_new();
@@ -6492,7 +6493,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 					   startCoord,
 					   options->sortInverted,
 					   options->initSortColumn,
-                                           options->optionalColumns);
+                                           options->optionalColumns,
+                                           options->windowColor);
 
   
   /* Add the coverage view underneath the main panes */
