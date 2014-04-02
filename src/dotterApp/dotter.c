@@ -149,7 +149,7 @@ static void DNAmatrix(int mtx[24][24]);
 
 static void                   showGreyrampTool(GtkWidget *dotterWindow);
 static void                   showAlignmentTool(GtkWidget *dotterWindow);
-static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot, const char *exportFileName, GtkUIManager **uiManager);
+static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot, const char *exportFileName, GtkUIManager **uiManager, char *windowColor);
 static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
@@ -173,7 +173,8 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        const int zoomFacIn,
                                        const int qcenter,
                                        const int scenter,
-                                       const gboolean greyramSwap);
+                                       const gboolean greyramSwap,
+                                       char *windowColor);
 
 static void                       onQuitMenu(GtkAction *action, gpointer data);
 static void                       onCloseMenu(GtkAction *action, gpointer data);
@@ -1039,7 +1040,7 @@ void dotter (const BlxBlastMode blastMode,
               int   scenter,
               MSP  *mspList,
               GList *seqList,
-              int   MSPoff)
+             int   MSPoff)
 {
   DEBUG_ENTER("dotter(mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d)",
               blastMode, options->qname, options->qoffset, refSeqStrand, options->sname, options->soffset, matchSeqStrand);
@@ -1113,7 +1114,8 @@ void dotter (const BlxBlastMode blastMode,
                        options->dotterZoom,
                        qcenter,
                        scenter,
-                       options->swapGreyramp);
+                       options->swapGreyramp,
+                       options->windowColor);
 
   DEBUG_EXIT("dotter returning");
   return ;
@@ -1135,7 +1137,8 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        const int zoomFacIn,
                                        const int qcenter,
                                        const int scenter,
-                                       const gboolean greyrampSwap)
+                                       const gboolean greyrampSwap,
+                                       char *windowColor)
 {
   DEBUG_ENTER("createDotterInstance");
 
@@ -1165,7 +1168,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
   
       const DotterHspMode hspMode = dotplotGetHspMode(dotplot);
       GtkUIManager *uiManager = NULL;
-      dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, greyrampTool, dotplotWidget, dotplot, exportFileName, &uiManager);
+      dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, greyrampTool, dotplotWidget, dotplot, exportFileName, &uiManager, windowColor);
 
       /* Set the handlers for the alignment and greyramp tools. Connect them here so we can pass
        * the main window as data. */
@@ -1200,7 +1203,7 @@ void callDotterInternal(DotterContext *dc,
                         const gboolean breaklinesOn)
 {
   DotterWindowContext *dwc = createDotterWindowContext(dc, refSeqRange, matchSeqRange, zoomFactor, TRUE);
-  createDotterInstance(dc, dwc, NULL, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, FALSE);
+  createDotterInstance(dc, dwc, NULL, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, FALSE, NULL);
 }
 
 
@@ -3489,7 +3492,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
                                      GtkWidget *dotplotContainer, 
                                      GtkWidget *dotplot,
                                      const char *exportFileName,
-                                     GtkUIManager **uiManager)
+                                     GtkUIManager **uiManager,
+                                     char *windowColor)
 { 
   DEBUG_ENTER("createDotterWindow");
 
@@ -3508,6 +3512,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   GtkWidget *menuBar = createDotterMenu(dotterWindow, mainMenuDescription, "/MenuBar", *uiManager);
   GtkWidget *contextMenu = createDotterMenu(dotterWindow, mainMenuDescription, "/ContextMenu", *uiManager);
   
+  blxSetWidgetColor(menuBar, windowColor);
+
   /* We'll put everything in a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(dotterWindow), GTK_WIDGET(vbox));
