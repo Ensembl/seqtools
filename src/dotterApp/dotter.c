@@ -1163,8 +1163,10 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
     {
       GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, 40, 100, greyrampSwap);
       registerGreyrampCallback(greyrampTool, dotplot, dotplotUpdateGreymap);
-      
+      blxSetWidgetColor(greyrampTool, windowColor);
+
       GtkWidget *alignmentTool = createAlignmentTool(dotterWinCtx);
+      blxSetWidgetColor(alignmentTool, windowColor);
   
       const DotterHspMode hspMode = dotplotGetHspMode(dotplot);
       GtkUIManager *uiManager = NULL;
