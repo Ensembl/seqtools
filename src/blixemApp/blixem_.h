@@ -459,6 +459,7 @@ typedef struct _CommandLineOptions
   gboolean mapCoords;             /* whether the map-coords command-line argument was specified */
   int mapCoordsFrom;              /* the coord to map from */
   int mapCoordsTo;                /* the coord to map to */
+  char *windowColor;              /* if not null, set the main window background color to this */
 } CommandLineOptions;
 
 

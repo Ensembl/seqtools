@@ -1933,6 +1933,9 @@ static void readBlixemStanza(GKeyFile *key_file,
   /* Note that all values are optional, so don't set the error if they
    * do not exist */
 
+  /* Get the window background color if set */
+  options->windowColor = g_key_file_get_string(key_file, group, SEQTOOLS_WINDOW_COLOR, NULL);
+
   /* Get the comma-separated list of possible fetch methods */
   options->bulkFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_BULK_FETCH, NULL);
   options->userFetchDefault = keyFileGetCsv(key_file, group, SEQTOOLS_USER_FETCH, NULL);

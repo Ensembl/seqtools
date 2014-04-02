@@ -314,6 +314,7 @@ void                  hideUserHiddenWidget(GtkWidget *widget, gpointer data);
 void                  widgetClearCachedDrawable(GtkWidget *widget, gpointer data);
 void                  callFuncOnAllChildWidgets(GtkWidget *widget, gpointer data);
 
+void                  blxSetWidgetColor(GtkWidget* widget, char *colorName);
 gboolean              onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer data);
 GtkWidget*            createLabel(const char *text, const gdouble xalign, const gdouble yalign, const gboolean ellipsize, const gboolean enableCopyPaste, const gboolean showWhenPrinting);
 GtkWidget*            getLabelWidget(GtkWidget *widget);
