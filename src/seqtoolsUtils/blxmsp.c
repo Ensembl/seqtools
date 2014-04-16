@@ -1021,7 +1021,7 @@ GValue* blxSequenceGetValue(const BlxSequence *seq, const int columnId)
 {
   GValue *result = NULL;
   
-  if (seq && columnId < (int)seq->values->len)
+  if (seq && seq->values && columnId < (int)seq->values->len)
     result = &g_array_index(seq->values, GValue, columnId);
 
   return result;
@@ -1044,28 +1044,31 @@ void blxSequenceSetValueFromString(const BlxSequence *seq, const int columnId, c
   if (inputStr && seq && seq->values)
     {
       GValue *value = blxSequenceGetValue(seq, columnId);
-      g_value_reset(value);
 
-      if (G_VALUE_HOLDS_STRING(value))
+      if (value)
         {
-          g_value_take_string(value, g_strdup(inputStr));
-        }
-      else if (G_VALUE_HOLDS_INT(value))
-        {
-          const int tmp = atoi(inputStr);
-          g_value_set_int(value, tmp);
-        }
-      else if (G_VALUE_HOLDS_DOUBLE(value))
-        {
-          const gdouble tmp = g_strtod(inputStr, NULL);
-          g_value_set_double(value, tmp);
-        }
-      else
-        {
-          g_warning("Tried to set value of unknown type for column '%d'\n", columnId);
+          g_value_reset(value);
+
+          if (G_VALUE_HOLDS_STRING(value))
+            {
+              g_value_take_string(value, g_strdup(inputStr));
+            }
+          else if (G_VALUE_HOLDS_INT(value))
+            {
+              const int tmp = atoi(inputStr);
+              g_value_set_int(value, tmp);
+            }
+          else if (G_VALUE_HOLDS_DOUBLE(value))
+            {
+              const gdouble tmp = g_strtod(inputStr, NULL);
+              g_value_set_double(value, tmp);
+            }
+          else
+            {
+              g_warning("Tried to set value of unknown type for column '%d'\n", columnId);
+            }
         }
     }
-
 }
 
 /* Get the string value for the given column. Returns null if the
