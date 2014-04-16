@@ -954,6 +954,47 @@ static gboolean smartDotterRangeSelf(GtkWidget *blxWindow,
 }
 
 
+/* Attempts to set the range of dotter in a sensible way, when calling dotter on the reference
+ * sequence versus itself. For now it just uses the big picture range. It's different to setting
+ * the big picture range using manual coords because it gets updated whenever the user scrolls,
+ * whereas manual coords don't change until the user hits the button again.
+ * gb10: this is a much simpler replacement for the ifdef'd out smartDotterRange. We could do
+ * something much smarter but at the moment it doesn't seem to be necessary. */
+static gboolean smartDotterRange(GtkWidget *blxWindow,
+                                 const char *dotterSSeq, 
+                                 int *dotter_start_out,
+                                 int *dotter_end_out,
+                                 GError **error)
+{
+  /* We'll just use a large-ish range centred on the current display range */
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const IntRange* const displayRange = bigPictureGetDisplayRange(bigPicture);
+  
+  /* Convert to DNA coords */
+  int start = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  int end = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  
+  if (dotter_start_out)
+    *dotter_start_out = start;
+  
+  if (dotter_end_out)
+    *dotter_end_out = end;
+
+  boundsLimitValue(dotter_start_out, &bc->refSeqRange);
+  boundsLimitValue(dotter_end_out, &bc->refSeqRange);
+  
+  return TRUE;
+}
+
+
+#ifdef USE_OLD_AUTO_DOTTER_COORDS
+/* gb10: Users never liked this way of calculating auto dotter coords because it can return a range
+ * that is nowhere near the visible range in the big picture. I've changed auto coords to just
+ * use the visible big picture range instead for now. I've left the old code here because it's _almost_
+ * good - it just needs to do something more sensible when clipping the range - so this might be
+ * useful in future if we can improve it.  */
+
 /* Attempts to set the range of dotter in some sort of sensible way. The problem is that
  * hits can occur over a much wider range than the user is looking at, so the function
  * attempts to find the range of hits that corresponds to what the user can see.
@@ -1097,6 +1138,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   
   return TRUE;
 }
+#endif
 
 
 /*******************************************************************

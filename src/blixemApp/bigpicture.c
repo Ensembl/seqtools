@@ -575,6 +575,9 @@ static void onBigPictureRangeChanged(GtkWidget *bigPicture, BigPictureProperties
       
   /* Do a complete redraw */
   bigPictureRedrawAll(bigPicture);
+
+  /* Refresh the dotter dialog, if it's open, because it may be tracking the big picture range */
+  refreshDialog(BLXDIALOG_DOTTER, properties->blxWindow);
 }
 
 
