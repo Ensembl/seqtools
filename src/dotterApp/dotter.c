@@ -2510,14 +2510,17 @@ static void settingsDialogParamControls(GtkWidget *dialog, GtkWidget *dotterWind
   const int sStart = getDisplayCoord(getStartCoord(dwc, FALSE), dc, FALSE);
   const int sEnd = getDisplayCoord(getEndCoord(dwc, FALSE), dc, FALSE);
   
-  createTextEntryFromDouble(dotterWindow, table, 1, 2, xpad, ypad, "_Zoom: ", dwc->zoomFactor, onZoomFactorChanged);
+  GtkWidget *zoomEntry = createTextEntryFromDouble(dotterWindow, table, 1, 2, xpad, ypad, "_Zoom: ", dwc->zoomFactor, onZoomFactorChanged);
+  gtk_widget_set_tooltip_text(zoomEntry, "Zoom out by this factor, e.g. a zoom factor of 3 will shrink the window to 1/3 of its full size");
+
+  GtkWidget *windowEntry = NULL;
   
   /* Create the boxes for the sequence ranges. If it's a self comparison, we only really have one range. */
   if (dwc->selfComp)
     {
       createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "Range: ", qStart, onQStartChanged);
       createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
-      createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+      windowEntry = createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
     }
   else
     {
@@ -2525,9 +2528,11 @@ static void settingsDialogParamControls(GtkWidget *dialog, GtkWidget *dotterWind
       createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
       createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "_Vertical range: ", sStart, onSStartChanged);
       createTextEntryFromInt(dotterWindow, table, 3, 3, xpad, ypad, NULL, sEnd, onSEndChanged);
-      createTextEntryFromInt(dotterWindow, table, 4, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+      windowEntry = createTextEntryFromInt(dotterWindow, table, 4, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
     }
-  
+
+  if (windowEntry)
+    gtk_widget_set_tooltip_text(windowEntry, "The size of the sliding window used to average pairwise scores. Note that this causes the matrix to be recalculated, which may time a long time for a large plot.");
 }
 
 
@@ -2579,7 +2584,7 @@ static void settingsDialogDisplayControls(GtkWidget *dialog, GtkWidget *dotterWi
   widgetSetCallbackData(hozBtn, onSetHozLabelsOn, dotterWindow);
 
   GtkWidget *vertBtn = gtk_check_button_new_with_mnemonic("Show _vertical sequence labels");
-  gtk_widget_set_tooltip_text(hozBtn, "Show labels for each breakline between multiple sequences on the vertical axis");
+  gtk_widget_set_tooltip_text(vertBtn, "Show labels for each breakline between multiple sequences on the vertical axis");
   gtk_container_add(GTK_CONTAINER(vbox), vertBtn);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(vertBtn), dotplotProperties->vertLabelsOn);
   widgetSetCallbackData(vertBtn, onSetVertLabelsOn, dotterWindow);
