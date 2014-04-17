@@ -140,6 +140,14 @@ static void                        clearSequenceSelection(GtkWidget *alignmentTo
 static int                         getSequenceStart(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords);
 static int                         getSequenceEnd(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords);
 
+static void highlightSpliceSite(SequenceProperties *seq1,
+                                AlignmentToolProperties *atProperties,
+                                DotterWindowContext *dwc,
+                                const int coord,
+                                const gboolean isStart,
+                                GdkGC *gc,
+                                GdkDrawable *drawable);
+
 
 /* Menu builders - standard menu entries */
 static const GtkActionEntry alignmentToolMenuEntries[] = {
@@ -943,7 +951,63 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
  *                           Drawing                       *
  ***********************************************************/
 
-/* Draw the sequence data for the given sequence-widget */
+/* Highlight splice site dinucleotides for known HSPs */
+static void drawSequenceSpliceSites(GdkDrawable *drawable,
+                                    GtkWidget *widget, 
+                                    GtkWidget *alignmentTool, 
+                                    SequenceProperties *seq1,
+                                    GdkGC *gc)
+{
+  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+  DotterWindowContext *dwc = atProperties->dotterWinCtx;
+  DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
+
+  /* Only do the highlighting in the reference sequence */
+  if (!seq1 || !seq1->seqName || !dc->refSeqName || strcmp(seq1->seqName, dc->refSeqName) != 0)
+    return;
+
+  /* Loop through each MSP looking for one that has the relevant sequence name, and has start/end
+   * within the current visible range */
+  MSP *msp = dc->mspList;
+  
+  for ( ; msp; msp = msp->next)
+    {
+      const char *mspName = msp->sname;
+
+      if (!mspName || 
+          msp->type != BLXMSP_MATCH || 
+          msp->qStrand != seq1->strand || 
+          strcmp(mspName, dc->matchSeqName))
+        {
+          /* Not an MSP from our match sequence */
+          continue;
+        }
+
+      /* If the splice site adjacent to the start coord is within range then highlight it */
+      if (valueWithinRange(msp->qRange.min - 1, seq1->displayRange) || 
+          valueWithinRange(msp->qRange.min - 2, seq1->displayRange))
+        {
+          /* Get the leftmost coord (for rev strand this is the max of the two coords) */
+          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.min - 1 : msp->qRange.min - 2;
+          gboolean isStart = (seq1->strand == BLXSTRAND_FORWARD);
+          highlightSpliceSite(seq1, atProperties, dwc, coord, isStart, gc, drawable);
+        }
+
+      /* If the splice site adjacent to the end coord is within range then highlight it */
+      if (valueWithinRange(msp->qRange.max + 1, seq1->displayRange) || 
+          valueWithinRange(msp->qRange.max + 2, seq1->displayRange))
+        {
+          /* Get the leftmost coord (for rev strand this is the max of the two coords) */
+          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.max + 2 : msp->qRange.max + 1;
+          gboolean isEnd = (seq1->strand == BLXSTRAND_FORWARD);
+          highlightSpliceSite(seq1, atProperties, dwc, coord, !isEnd, gc, drawable);
+        }
+    }
+}
+
+
+/* Draw the sequence data for the given sequence-widget. Draws the text and highlights each base
+ * according to how well it matches */
 static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool)
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
@@ -985,7 +1049,10 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   /* terminate the display text string */
   seq1Text[displayIdx] = '\0';
   
-  /* Draw the sequence text. */
+  /* Highlight splice sites */
+  drawSequenceSpliceSites(drawable, widget, alignmentTool, seq1, gc);
+
+  /* Draw the sequence text over the top of any highlighting */
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, seq1Text);
   pango_layout_set_font_description(layout, dc->fontDesc);
   
@@ -1432,6 +1499,35 @@ static DotterColorId getBaseHighlightColor(SequenceProperties *seq1,
     }
 
   return colorId;
+}
+
+
+static void highlightSpliceSite(SequenceProperties *seq1,
+                                AlignmentToolProperties *atProperties,
+                                DotterWindowContext *dwc,
+                                const int coord,
+                                const gboolean isStart,
+                                GdkGC *gc,
+                                GdkDrawable *drawable)
+{
+  DotterContext *dc = dwc->dotterCtx;
+
+  /* check if it's canonical (green if yes, red if not) */
+  DotterColorId colorId = DOTCOLOR_NON_CANONICAL;
+
+  int seqIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->fullRange->max - coord : coord - seq1->fullRange->min);
+
+  if (isStart && strncasecmp(&seq1->sequence[seqIdx], "ag", 2) == 0)
+    colorId = DOTCOLOR_CANONICAL;
+  else if (!isStart && strncasecmp(&seq1->sequence[seqIdx], "gt", 2) == 0)
+    colorId = DOTCOLOR_CANONICAL;
+ 
+  GdkColor *color = getGdkColor(colorId, dc->defaultColors, FALSE, dwc->usePrintColors);
+  gdk_gc_set_foreground(gc, color);
+
+  int displayIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->displayRange->max - coord : coord - seq1->displayRange->min - 1);
+  const int x = (int)((gdouble)displayIdx * dc->charWidth);
+  gdk_draw_rectangle(drawable, gc, TRUE, x, 0, ceil(dc->charWidth * 2), roundNearest(dc->charHeight));
 }
 
 

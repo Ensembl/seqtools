@@ -448,6 +448,8 @@ static void createDotterColors(DotterContext *dc)
 
   /* misc */
   createBlxColor(dc->defaultColors, DOTCOLOR_BREAKLINE, "Breakline color", "Color of the separator lines between sequences, if there were multiple sequences in the input file", BLX_GREEN, BLX_GREEN, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_CANONICAL, "Canonical", "Canonical splice sites", BLX_GREEN, BLX_GREEN, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_NON_CANONICAL, "Non-canonical", "Non-canonical splice sites", BLX_RED, BLX_RED, NULL, NULL);
 }
 
 
