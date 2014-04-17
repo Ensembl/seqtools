@@ -325,6 +325,8 @@ void                updateGreyMap(GtkWidget *greyramp);
 /* alignmenttool.c */
 GtkWidget*          createAlignmentTool(DotterWindowContext *dotterWinCtx);
 void                updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc);
+void                alignmentToolSetSpliceSitesOn(GtkWidget *alignmentTool, const gboolean spliceSitesOn);
+gboolean            alignmentToolGetSpliceSitesOn(GtkWidget *alignmentTool);
 
 
 /* dotplot.c */

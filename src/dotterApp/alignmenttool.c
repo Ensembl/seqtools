@@ -112,6 +112,8 @@ typedef struct _AlignmentToolProperties
   
   DotterWindowContext *dotterWinCtx;
   GtkActionGroup *actionGroup;
+
+  gboolean spliceSitesOn;
 } AlignmentToolProperties;
 
 
@@ -278,6 +280,8 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
       properties->selectionRange.min = UNSET_INT;
       properties->selectionRange.max = UNSET_INT;
       
+      properties->spliceSitesOn = TRUE;
+
       g_object_set_data(G_OBJECT(widget), "AlignmentToolProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyAlignmentTool), NULL); 
     }
@@ -484,6 +488,36 @@ static gboolean onMouseMoveSequence(GtkWidget *sequenceWidget, GdkEventMotion *e
     }
   
   return handled;
+}
+
+
+void alignmentToolSetSpliceSitesOn(GtkWidget *alignmentTool, const gboolean spliceSitesOn)
+{
+  if (alignmentTool)
+    {
+      AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+      
+      if (properties)
+        {
+          properties->spliceSitesOn = spliceSitesOn;
+          redrawAll(alignmentTool);
+        }
+    }
+}
+
+gboolean alignmentToolGetSpliceSitesOn(GtkWidget *alignmentTool)
+{
+  gboolean result = FALSE;
+
+  if (alignmentTool)
+    {
+      AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+
+      if (properties)
+        result = properties->spliceSitesOn;
+    }
+
+  return result;
 }
 
 
@@ -959,6 +993,10 @@ static void drawSequenceSpliceSites(GdkDrawable *drawable,
                                     GdkGC *gc)
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+  if (!atProperties || !atProperties->spliceSitesOn)
+    return;
+
   DotterWindowContext *dwc = atProperties->dotterWinCtx;
   DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
 

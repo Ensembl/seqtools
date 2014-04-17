@@ -2391,6 +2391,18 @@ static gboolean onSlidingWinSizeChanged(GtkWidget *widget, const gint responseId
 }
 
 
+/* Callback called when the user has changed the 'splice sites on' option */
+static gboolean onSetSpliceSitesOn(GtkWidget *button, const gint responseId, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  const gboolean spliceSitesOn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  alignmentToolSetSpliceSitesOn(properties->alignmentTool, spliceSitesOn);
+  
+  return TRUE;
+}
+
 /* Callback called when the user has changed the 'breaklines on' option */
 static gboolean onSetBreaklinesOn(GtkWidget *button, const gint responseId, gpointer data)
 {
@@ -2523,6 +2535,7 @@ static void settingsDialogParamControls(GtkWidget *dialog, GtkWidget *dotterWind
 static void settingsDialogDisplayControls(GtkWidget *dialog, GtkWidget *dotterWindow, const int border)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotplotProperties *dotplotProperties = dotplotGetProperties(properties->dotplot);
   
   /* Put everything in a vbox inside a frame */
   GtkWidget *frame = gtk_frame_new("Display");
@@ -2531,11 +2544,18 @@ static void settingsDialogDisplayControls(GtkWidget *dialog, GtkWidget *dotterWi
   
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(frame), vbox);
+
+  /* Create a check box for toggling splice sites on and off */
+  GtkWidget *splicesBtn = gtk_check_button_new_with_mnemonic("Highlight _splice sites");
+  gtk_widget_set_tooltip_text(splicesBtn, "For known high-scoring pairs, highlight splice-sites in the alignment tool");
+  gtk_container_add(GTK_CONTAINER(vbox), splicesBtn);
+  gboolean spliceSitesOn = alignmentToolGetSpliceSitesOn(properties->alignmentTool);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(splicesBtn), spliceSitesOn);
+  widgetSetCallbackData(splicesBtn, onSetSpliceSitesOn, dotterWindow);
   
   /* Create a check box for toggling breaklines on and off. If breaklines are
    * off at startup then it means that there are not multiple sequences, so
    * the option is not applicable. */
-  DotplotProperties *dotplotProperties = dotplotGetProperties(properties->dotplot);
   static int disableBreaklines = -1; /* -1 for unset; 0 for false; 1 for true */
 
   if (disableBreaklines == -1)
