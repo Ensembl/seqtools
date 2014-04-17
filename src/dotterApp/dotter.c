@@ -2563,6 +2563,7 @@ static void settingsDialogDisplayControls(GtkWidget *dialog, GtkWidget *dotterWi
   
   GtkWidget *breaklinesBtn = gtk_check_button_new_with_mnemonic("Show _breaklines");
   gtk_container_add(GTK_CONTAINER(vbox), breaklinesBtn);
+  gtk_widget_set_tooltip_text(breaklinesBtn, "Show breaklines between sequences when dottering multiple sequences that have been concatenated");
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(breaklinesBtn), dotplotProperties->breaklinesOn);
   
   if (disableBreaklines)
@@ -2572,11 +2573,13 @@ static void settingsDialogDisplayControls(GtkWidget *dialog, GtkWidget *dotterWi
   
   /* Add buttons to allow the user to turn off hoz/vert annotation labels */
   GtkWidget *hozBtn = gtk_check_button_new_with_mnemonic("Show _horizontal sequence labels");
+  gtk_widget_set_tooltip_text(hozBtn, "Show labels for each breakline between multiple sequences on the horizontal axis");
   gtk_container_add(GTK_CONTAINER(vbox), hozBtn);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hozBtn), dotplotProperties->hozLabelsOn);
   widgetSetCallbackData(hozBtn, onSetHozLabelsOn, dotterWindow);
 
   GtkWidget *vertBtn = gtk_check_button_new_with_mnemonic("Show _vertical sequence labels");
+  gtk_widget_set_tooltip_text(hozBtn, "Show labels for each breakline between multiple sequences on the vertical axis");
   gtk_container_add(GTK_CONTAINER(vbox), vertBtn);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(vertBtn), dotplotProperties->vertLabelsOn);
   widgetSetCallbackData(vertBtn, onSetVertLabelsOn, dotterWindow);
