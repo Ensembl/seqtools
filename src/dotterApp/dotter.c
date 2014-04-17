@@ -448,6 +448,8 @@ static void createDotterColors(DotterContext *dc)
 
   /* misc */
   createBlxColor(dc->defaultColors, DOTCOLOR_BREAKLINE, "Breakline color", "Color of the separator lines between sequences, if there were multiple sequences in the input file", BLX_GREEN, BLX_GREEN, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_CANONICAL, "Canonical", "Canonical splice sites", BLX_GREEN, BLX_GREEN, NULL, NULL);
+  createBlxColor(dc->defaultColors, DOTCOLOR_NON_CANONICAL, "Non-canonical", "Non-canonical splice sites", BLX_RED, BLX_RED, NULL, NULL);
 }
 
 
@@ -2389,6 +2391,18 @@ static gboolean onSlidingWinSizeChanged(GtkWidget *widget, const gint responseId
 }
 
 
+/* Callback called when the user has changed the 'splice sites on' option */
+static gboolean onSetSpliceSitesOn(GtkWidget *button, const gint responseId, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+  
+  const gboolean spliceSitesOn = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  alignmentToolSetSpliceSitesOn(properties->alignmentTool, spliceSitesOn);
+  
+  return TRUE;
+}
+
 /* Callback called when the user has changed the 'breaklines on' option */
 static gboolean onSetBreaklinesOn(GtkWidget *button, const gint responseId, gpointer data)
 {
@@ -2496,14 +2510,17 @@ static void settingsDialogParamControls(GtkWidget *dialog, GtkWidget *dotterWind
   const int sStart = getDisplayCoord(getStartCoord(dwc, FALSE), dc, FALSE);
   const int sEnd = getDisplayCoord(getEndCoord(dwc, FALSE), dc, FALSE);
   
-  createTextEntryFromDouble(dotterWindow, table, 1, 2, xpad, ypad, "_Zoom: ", dwc->zoomFactor, onZoomFactorChanged);
+  GtkWidget *zoomEntry = createTextEntryFromDouble(dotterWindow, table, 1, 2, xpad, ypad, "_Zoom: ", dwc->zoomFactor, onZoomFactorChanged);
+  gtk_widget_set_tooltip_text(zoomEntry, "Zoom out by this factor, e.g. a zoom factor of 3 will shrink the window to 1/3 of its full size");
+
+  GtkWidget *windowEntry = NULL;
   
   /* Create the boxes for the sequence ranges. If it's a self comparison, we only really have one range. */
   if (dwc->selfComp)
     {
       createTextEntryFromInt(dotterWindow, table, 2, 2, xpad, ypad, "Range: ", qStart, onQStartChanged);
       createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
-      createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+      windowEntry = createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
     }
   else
     {
@@ -2511,9 +2528,11 @@ static void settingsDialogParamControls(GtkWidget *dialog, GtkWidget *dotterWind
       createTextEntryFromInt(dotterWindow, table, 2, 3, xpad, ypad, NULL, qEnd, onQEndChanged);
       createTextEntryFromInt(dotterWindow, table, 3, 2, xpad, ypad, "_Vertical range: ", sStart, onSStartChanged);
       createTextEntryFromInt(dotterWindow, table, 3, 3, xpad, ypad, NULL, sEnd, onSEndChanged);
-      createTextEntryFromInt(dotterWindow, table, 4, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
+      windowEntry = createTextEntryFromInt(dotterWindow, table, 4, 2, xpad, ypad, "Sliding _window size: ", dotplotGetSlidingWinSize(properties->dotplot), onSlidingWinSizeChanged);
     }
-  
+
+  if (windowEntry)
+    gtk_widget_set_tooltip_text(windowEntry, "The size of the sliding window used to average pairwise scores. Note that this causes the matrix to be recalculated, which may time a long time for a large plot.");
 }
 
 
@@ -2521,6 +2540,7 @@ static void settingsDialogParamControls(GtkWidget *dialog, GtkWidget *dotterWind
 static void settingsDialogDisplayControls(GtkWidget *dialog, GtkWidget *dotterWindow, const int border)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
+  DotplotProperties *dotplotProperties = dotplotGetProperties(properties->dotplot);
   
   /* Put everything in a vbox inside a frame */
   GtkWidget *frame = gtk_frame_new("Display");
@@ -2529,11 +2549,18 @@ static void settingsDialogDisplayControls(GtkWidget *dialog, GtkWidget *dotterWi
   
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(frame), vbox);
+
+  /* Create a check box for toggling splice sites on and off */
+  GtkWidget *splicesBtn = gtk_check_button_new_with_mnemonic("Highlight _splice sites");
+  gtk_widget_set_tooltip_text(splicesBtn, "For known high-scoring pairs, highlight splice-sites in the alignment tool");
+  gtk_container_add(GTK_CONTAINER(vbox), splicesBtn);
+  gboolean spliceSitesOn = alignmentToolGetSpliceSitesOn(properties->alignmentTool);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(splicesBtn), spliceSitesOn);
+  widgetSetCallbackData(splicesBtn, onSetSpliceSitesOn, dotterWindow);
   
   /* Create a check box for toggling breaklines on and off. If breaklines are
    * off at startup then it means that there are not multiple sequences, so
    * the option is not applicable. */
-  DotplotProperties *dotplotProperties = dotplotGetProperties(properties->dotplot);
   static int disableBreaklines = -1; /* -1 for unset; 0 for false; 1 for true */
 
   if (disableBreaklines == -1)
@@ -2541,6 +2568,7 @@ static void settingsDialogDisplayControls(GtkWidget *dialog, GtkWidget *dotterWi
   
   GtkWidget *breaklinesBtn = gtk_check_button_new_with_mnemonic("Show _breaklines");
   gtk_container_add(GTK_CONTAINER(vbox), breaklinesBtn);
+  gtk_widget_set_tooltip_text(breaklinesBtn, "Show breaklines between sequences when dottering multiple sequences that have been concatenated");
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(breaklinesBtn), dotplotProperties->breaklinesOn);
   
   if (disableBreaklines)
@@ -2550,11 +2578,13 @@ static void settingsDialogDisplayControls(GtkWidget *dialog, GtkWidget *dotterWi
   
   /* Add buttons to allow the user to turn off hoz/vert annotation labels */
   GtkWidget *hozBtn = gtk_check_button_new_with_mnemonic("Show _horizontal sequence labels");
+  gtk_widget_set_tooltip_text(hozBtn, "Show labels for each breakline between multiple sequences on the horizontal axis");
   gtk_container_add(GTK_CONTAINER(vbox), hozBtn);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hozBtn), dotplotProperties->hozLabelsOn);
   widgetSetCallbackData(hozBtn, onSetHozLabelsOn, dotterWindow);
 
   GtkWidget *vertBtn = gtk_check_button_new_with_mnemonic("Show _vertical sequence labels");
+  gtk_widget_set_tooltip_text(vertBtn, "Show labels for each breakline between multiple sequences on the vertical axis");
   gtk_container_add(GTK_CONTAINER(vbox), vertBtn);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(vertBtn), dotplotProperties->vertLabelsOn);
   widgetSetCallbackData(vertBtn, onSetVertLabelsOn, dotterWindow);

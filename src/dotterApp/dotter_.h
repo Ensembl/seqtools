@@ -127,6 +127,8 @@ typedef enum
   DOTCOLOR_MARKER_LINE,                     /* line color of the position markers on the greyramp */
   DOTCOLOR_THRESHOLD_MARKER,                /* line color of the threshold marker on the greyramp */
   DOTCOLOR_BREAKLINE,                       /* the color of break-lines between sequences */
+  DOTCOLOR_CANONICAL,
+  DOTCOLOR_NON_CANONICAL,
   
   DOTCOLOR_NUM_COLORS
 } DotterColorId;
@@ -323,6 +325,8 @@ void                updateGreyMap(GtkWidget *greyramp);
 /* alignmenttool.c */
 GtkWidget*          createAlignmentTool(DotterWindowContext *dotterWinCtx);
 void                updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc);
+void                alignmentToolSetSpliceSitesOn(GtkWidget *alignmentTool, const gboolean spliceSitesOn);
+gboolean            alignmentToolGetSpliceSitesOn(GtkWidget *alignmentTool);
 
 
 /* dotplot.c */
