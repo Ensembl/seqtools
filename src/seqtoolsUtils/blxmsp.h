@@ -61,7 +61,7 @@
 #define SEQTOOLS_USER_FETCH          "user-fetch"               /* method(s) for interactively fetching sequences by the user */
 #define SEQTOOLS_OPTIONAL_FETCH      "optional-fetch"           /* method(s) for batch-fetching additional data on user request */
 #define SEQTOOLS_GFF_FILENAME_KEY    "file"
-#define SEQTOOLS_WINDOW_COLOR        "session_colour"            /* color for the main window background */
+#define SEQTOOLS_WINDOW_COLOR        "session-colour"           /* color for the main window background */
 
 /* Main Blixem error domain */
 #define BLX_ERROR g_quark_from_string("Blixem")
