@@ -149,7 +149,7 @@ static void DNAmatrix(int mtx[24][24]);
 
 static void                   showGreyrampTool(GtkWidget *dotterWindow);
 static void                   showAlignmentTool(GtkWidget *dotterWindow);
-static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot, const char *exportFileName, GtkUIManager **uiManager);
+static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot, const char *exportFileName, GtkUIManager **uiManager, char *windowColor);
 static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
@@ -173,7 +173,8 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        const int zoomFacIn,
                                        const int qcenter,
                                        const int scenter,
-                                       const gboolean greyramSwap);
+                                       const gboolean greyramSwap,
+                                       char *windowColor);
 
 static void                       onQuitMenu(GtkAction *action, gpointer data);
 static void                       onCloseMenu(GtkAction *action, gpointer data);
@@ -408,7 +409,7 @@ static void createDotterColors(DotterContext *dc)
   
   for ( ; i < DOTCOLOR_NUM_COLORS; ++i)
     {
-      BlxColor *blxColor = g_malloc(sizeof(BlxColor));
+      BlxColor *blxColor = (BlxColor*)g_malloc(sizeof(BlxColor));
       blxColor->name = NULL;
       blxColor->desc = NULL;
       g_array_append_val(dc->defaultColors, *blxColor);
@@ -486,7 +487,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
 {
   DEBUG_ENTER("createDotterContext");
 
-  DotterContext *result = g_malloc(sizeof *result);
+  DotterContext *result = (DotterContext*)g_malloc(sizeof *result);
   
   result->blastMode = blastMode;
   result->displaySeqType = (blastMode == BLXMODE_BLASTN) ? BLXSEQ_DNA : BLXSEQ_PEPTIDE;
@@ -525,7 +526,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
   /* for dna ref sequences, reverse-complement the ref seq */
   if (result->refSeqType == BLXSEQ_DNA && result->refSeq)
     {
-      result->refSeqRev = g_malloc(strlen(result->refSeq) + 1);
+      result->refSeqRev = (char*)g_malloc(strlen(result->refSeq) + 1);
       revComplement(result->refSeqRev, result->refSeq);
     }
   else if (result->refSeq)
@@ -562,7 +563,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
   /* Reverse/comp match seq if applicable */
   if (result->matchSeqType == BLXSEQ_DNA && result->matchSeqStrand == BLXSTRAND_REVERSE && result->matchSeq)
     {
-      result->matchSeqRev = g_malloc(strlen(result->matchSeq) + 1);
+      result->matchSeqRev = (char*)g_malloc(strlen(result->matchSeq) + 1);
       revComplement(result->matchSeqRev, result->matchSeq);
     }
   else if (result->matchSeqStrand == BLXSTRAND_REVERSE && result->matchSeq)
@@ -889,14 +890,14 @@ int convertToDnaIdx(const int displayIdx,
 
 
 static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
-                                                      const IntRange const *refSeqRange,
-                                                      const IntRange const *matchSeqRange,
+                                                      const IntRange* const refSeqRange,
+                                                      const IntRange* const matchSeqRange,
                                                       const gdouble zoomFacIn,
 						      const gboolean showWindow)
 {
   DEBUG_ENTER("createDotterWindowContext");
 
-  DotterWindowContext *result = g_malloc(sizeof *result);
+  DotterWindowContext *result = (DotterWindowContext*)g_malloc(sizeof *result);
   
   result->dotterCtx = dotterCtx;
   
@@ -957,7 +958,7 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
 
   if (dotterWindow)
     {
-      DotterProperties *properties = g_malloc(sizeof *properties);
+      DotterProperties *properties = (DotterProperties*)g_malloc(sizeof *properties);
 
       properties->greyrampTool = greyrampTool;
       properties->alignmentTool = alignmentTool;
@@ -1039,7 +1040,7 @@ void dotter (const BlxBlastMode blastMode,
               int   scenter,
               MSP  *mspList,
               GList *seqList,
-              int   MSPoff)
+             int   MSPoff)
 {
   DEBUG_ENTER("dotter(mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d)",
               blastMode, options->qname, options->qoffset, refSeqStrand, options->sname, options->soffset, matchSeqStrand);
@@ -1060,7 +1061,7 @@ void dotter (const BlxBlastMode blastMode,
     }
 
   /* Get score matrix */
-  char *matrixName = g_malloc((MAX_MATRIX_NAME_LENGTH + 1) * sizeof(char));
+  char *matrixName = (char*)g_malloc((MAX_MATRIX_NAME_LENGTH + 1) * sizeof(char));
   
   if (options->mtxfile) 
     {
@@ -1113,7 +1114,8 @@ void dotter (const BlxBlastMode blastMode,
                        options->dotterZoom,
                        qcenter,
                        scenter,
-                       options->swapGreyramp);
+                       options->swapGreyramp,
+                       options->windowColor);
 
   DEBUG_EXIT("dotter returning");
   return ;
@@ -1135,7 +1137,8 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        const int zoomFacIn,
                                        const int qcenter,
                                        const int scenter,
-                                       const gboolean greyrampSwap)
+                                       const gboolean greyrampSwap,
+                                       char *windowColor)
 {
   DEBUG_ENTER("createDotterInstance");
 
@@ -1160,12 +1163,14 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
     {
       GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, 40, 100, greyrampSwap);
       registerGreyrampCallback(greyrampTool, dotplot, dotplotUpdateGreymap);
-      
+      blxSetWidgetColor(greyrampTool, windowColor);
+
       GtkWidget *alignmentTool = createAlignmentTool(dotterWinCtx);
+      blxSetWidgetColor(alignmentTool, windowColor);
   
       const DotterHspMode hspMode = dotplotGetHspMode(dotplot);
       GtkUIManager *uiManager = NULL;
-      dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, greyrampTool, dotplotWidget, dotplot, exportFileName, &uiManager);
+      dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, greyrampTool, dotplotWidget, dotplot, exportFileName, &uiManager, windowColor);
 
       /* Set the handlers for the alignment and greyramp tools. Connect them here so we can pass
        * the main window as data. */
@@ -1194,13 +1199,13 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
 /* Open another dotter window, internal to the existing process (i.e. using the same sequences
  * etc. but just displaying a different range). */
 void callDotterInternal(DotterContext *dc, 
-                        const IntRange const *refSeqRange,
-                        const IntRange const *matchSeqRange,
+                        const IntRange* const refSeqRange,
+                        const IntRange* const matchSeqRange,
                         const gdouble zoomFactor,
                         const gboolean breaklinesOn)
 {
   DotterWindowContext *dwc = createDotterWindowContext(dc, refSeqRange, matchSeqRange, zoomFactor, TRUE);
-  createDotterInstance(dc, dwc, NULL, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, FALSE);
+  createDotterInstance(dc, dwc, NULL, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, FALSE, NULL);
 }
 
 
@@ -2632,7 +2637,7 @@ static void redrawAll(GtkWidget *dotterWindow, gpointer data)
  * pixmaps but does not recalculate borders etc. */
 static void refreshAll(GtkWidget *dotterWindow, gpointer data)
 {
-  callFuncOnAllChildWidgets(dotterWindow, widgetClearCachedDrawable);
+  callFuncOnAllChildWidgets(dotterWindow, (gpointer)widgetClearCachedDrawable);
   gtk_widget_queue_draw(dotterWindow);
 
   DotterProperties *properties = dotterGetProperties(dotterWindow);
@@ -2640,8 +2645,8 @@ static void refreshAll(GtkWidget *dotterWindow, gpointer data)
   if (properties)
     {
       gtk_widget_queue_draw(properties->greyrampTool);
-      callFuncOnAllChildWidgets(properties->alignmentTool, widgetClearCachedDrawable);
-      callFuncOnAllChildWidgets(properties->dotplot, widgetClearCachedDrawable);
+      callFuncOnAllChildWidgets(properties->alignmentTool, (gpointer)widgetClearCachedDrawable);
+      callFuncOnAllChildWidgets(properties->dotplot, (gpointer)widgetClearCachedDrawable);
     }
 }
 
@@ -3010,7 +3015,7 @@ static void onToggleHspMode(GtkRadioAction *action, GtkRadioAction *current, gpo
   GtkWidget *dotterWindow = GTK_WIDGET(data);
   DotterProperties *properties = dotterGetProperties(dotterWindow);
   
-  const DotterHspMode hspMode = gtk_radio_action_get_current_value(current);
+  const DotterHspMode hspMode = (const DotterHspMode)gtk_radio_action_get_current_value(current);
   setHspMode(properties->dotplot, hspMode);
 }
 
@@ -3423,6 +3428,21 @@ gboolean onKeyPressDotterCoords(GtkWidget *widget, GdkEventKey *event, gpointer 
  *                      Initialisation                     *
  ***********************************************************/
 
+/* This creates BlxColumnInfo entries for each "column" of data (a misnomer in dotter
+ * because we don't currently display this data in columns! The format comes from blixem which does
+ * display the data in columns, and we use the same parser, and the same data structures, for dotter). */
+GList* dotterCreateColumns()
+{
+  GList *columnList = NULL;
+  
+  /* Create the columns' data structs. The columns appear in the order
+   * that they are added here. */
+  blxColumnCreate(BLXCOL_SEQNAME, FALSE, "Name", G_TYPE_STRING, NULL, 0, TRUE, TRUE, FALSE, FALSE, FALSE, "Name", NULL, NULL, &columnList);
+
+  return columnList;
+}
+
+
 /* Create the UI manager for the menus */
 static GtkUIManager* createUiManager(GtkWidget *window, const DotterHspMode hspMode)
 {
@@ -3474,7 +3494,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
                                      GtkWidget *dotplotContainer, 
                                      GtkWidget *dotplot,
                                      const char *exportFileName,
-                                     GtkUIManager **uiManager)
+                                     GtkUIManager **uiManager,
+                                     char *windowColor)
 { 
   DEBUG_ENTER("createDotterWindow");
 
@@ -3493,6 +3514,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   GtkWidget *menuBar = createDotterMenu(dotterWindow, mainMenuDescription, "/MenuBar", *uiManager);
   GtkWidget *contextMenu = createDotterMenu(dotterWindow, mainMenuDescription, "/ContextMenu", *uiManager);
   
+  blxSetWidgetColor(menuBar, windowColor);
+
   /* We'll put everything in a vbox */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(dotterWindow), GTK_WIDGET(vbox));
@@ -3534,43 +3557,43 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
 
 
 /* Returns a string which is the name of the Dotter application. */
-char *dotterGetAppName(void)
+const char *dotterGetAppName(void)
 {
   return DOTTER_TITLE ;
 }
 
 /* Returns a string which is the prefix to window titles. */
-char *dotterGetTitlePrefix(DotterContext *dc)
+const char *dotterGetTitlePrefix(DotterContext *dc)
 {
   return dc->abbrevTitle ? DOTTER_PREFIX_ABBREV : DOTTER_PREFIX ;
 }
 
 /* Returns a copyright string for the Dotter application. */
-char *dotterGetCopyrightString(void)
+const char *dotterGetCopyrightString(void)
 {
   return DOTTER_COPYRIGHT_STRING ;
 }
 
 /* Returns the Dotter website URL. */
-char *dotterGetWebSiteString(void)
+const char *dotterGetWebSiteString(void)
 {
   return DOTTER_WEBSITE_STRING ;
 }
 
 /* Returns a comments string for the Dotter application. */
-char *dotterGetCommentsString(void)
+const char *dotterGetCommentsString(void)
 {
   return DOTTER_COMMENTS_STRING() ;
 }
 
 /* Returns a license string for the dotter application. */
-char *dotterGetLicenseString(void)
+const char *dotterGetLicenseString(void)
 {
   return DOTTER_LICENSE_STRING ;
 }
 
 /* Returns a string representing the Version/Release/Update of the Dotter code. */
-char *dotterGetVersionString(void)
+const char *dotterGetVersionString(void)
 {
   return DOTTER_VERSION_STRING ;
 }

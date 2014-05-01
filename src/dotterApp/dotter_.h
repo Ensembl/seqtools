@@ -287,18 +287,18 @@ typedef struct _DotplotProperties
 
 
 
-char*               dotterGetAppName(void);
-char*               dotterGetTitlePrefix(DotterContext *dc);
-char*               dotterGetCopyrightString(void);
-char*               dotterGetWebSiteString(void);
-char*               dotterGetCommentsString(void);
-char*               dotterGetLicenseString(void);
-char*               dotterGetVersionString(void);
+const char*         dotterGetAppName(void);
+const char*         dotterGetTitlePrefix(DotterContext *dc);
+const char*         dotterGetCopyrightString(void);
+const char*         dotterGetWebSiteString(void);
+const char*         dotterGetCommentsString(void);
+const char*         dotterGetLicenseString(void);
+const char*         dotterGetVersionString(void);
 
 int                 winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq, 
                                        double *exp_res_score, double *Lambda);
 
-void                argvAdd(int *argc, char ***argv, char *s);
+void                argvAdd(int *argc, char ***argv, const char *s);
 
 
 /* dotter.c */
@@ -310,8 +310,8 @@ int                 getEndCoord(DotterWindowContext *dwc, const gboolean horizon
 int                 getSelectedCoord(DotterWindowContext *dwc, const gboolean horizontal);
 
 void                callDotterInternal(DotterContext *dc, 
-                                       const IntRange const *refSeqRange,
-                                       const IntRange const *matchSeqRange,
+                                       const IntRange* const refSeqRange,
+                                       const IntRange* const matchSeqRange,
                                        const gdouble zoomFactor,
                                        const gboolean breaklinesOn);
 
@@ -372,5 +372,6 @@ void                savePlot(GtkWidget *dotplot, DotplotProperties *properties, 
 void                exportPlot(GtkWidget *dotplot, GtkWindow *window, const char *exportFileName, GError **error);
 void                loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error);
 
+GList*              dotterCreateColumns();
 
 #endif /* _dotter_p_h_included_ */

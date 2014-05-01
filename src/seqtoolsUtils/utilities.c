@@ -104,7 +104,7 @@ static gboolean        getUseScrolledMessages();
 static void            setUseScrolledMessages(const gboolean newValue);
 static gboolean        onSetUseScrolledMessages(GtkWidget *button, const gint responseId, gpointer data);
 static gboolean        onSetUsePopupMessages(GtkWidget *button, const gint responseId, gpointer data);
-static char*           getDialogIcon(GLogLevelFlags log_level);
+static const char*     getDialogIcon(GLogLevelFlags log_level);
 static void            printMessageToStatusbar(const gchar *message, gpointer data);
 
 
@@ -352,6 +352,20 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
 }
 
 
+/* Set the given widget's background to the given color, if given (does nothing otherwise) */
+void blxSetWidgetColor(GtkWidget* widget, char *colorName)
+{
+  if (widget && colorName)
+    {
+      GdkColor color;
+
+      if (gdk_color_parse(colorName, &color))
+        gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &color);
+      else
+        g_warning("Could not parse colour '%s'\n", colorName);
+    }
+}
+
 /***********************************************************
  *                       Misc utils                        * 
  ***********************************************************/
@@ -437,13 +451,13 @@ GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GEr
  ***********************************************************/
 
 /* Utility to return the length of the given range */
-int getRangeLength(const IntRange const *range)
+int getRangeLength(const IntRange* const range)
 {
   return (range->max - range->min + 1);
 }
 
 /* Utility to return the centre value of the given range (rounded down if an odd number) */
-int getRangeCentre(const IntRange const *range)
+int getRangeCentre(const IntRange* const range)
 {
   return range->min + ((range->max - range->min) / 2);
 }
@@ -458,33 +472,33 @@ void centreRangeOnCoord(IntRange *range, const int coord, const int length)
 
 /* Simple utility to determine whether the given value is within the given range.
  * Returns false if the given value is an unset int or the given range is null */
-gboolean valueWithinRange(const int value, const IntRange const *range)
+gboolean valueWithinRange(const int value, const IntRange* const range)
 {
   return (range != NULL && value >= range->min && value <= range->max);
 }
 
 
 /* Return true if two IntRanges overlap */
-gboolean rangesOverlap(const IntRange const *range1, const IntRange const *range2)
+gboolean rangesOverlap(const IntRange* const range1, const IntRange* const range2)
 {
   return (range1->min <= range2->max && range1->max >= range2->min);
 }
 
 /* Return true if two IntRanges are adjacent */
-gboolean rangesAdjacent(const IntRange const *range1, const IntRange const *range2)
+gboolean rangesAdjacent(const IntRange* const range1, const IntRange* const range2)
 {
   return (range1->min == range2->max + 1 || range2->min == range1->max + 1);
 }
 
 /* Return true if two IntRanges are equal */
-gboolean rangesEqual(const IntRange const *range1, const IntRange const *range2)
+gboolean rangesEqual(const IntRange* const range1, const IntRange* const range2)
 {
   return (range1->min == range2->min && range1->max == range2->max);
 }
 
 
 /* Utility to bounds-limit the given value to within the given range */
-void boundsLimitValue(int *value, const IntRange const *range)
+void boundsLimitValue(int *value, const IntRange* const range)
 {
   if (*value < range->min)
     {
@@ -500,7 +514,7 @@ void boundsLimitValue(int *value, const IntRange const *range)
 
 /* Utility to bounds-limit the first range to within the second. If maintainLen is true, maintains
  * the length of the range if possible by shifting the range. */
-void boundsLimitRange(IntRange *range, const IntRange const *limit, const gboolean maintainLen)
+void boundsLimitRange(IntRange *range, const IntRange* const limit, const gboolean maintainLen)
 {
   const int len = getRangeLength(range);
   
@@ -533,7 +547,7 @@ void boundsLimitRange(IntRange *range, const IntRange const *limit, const gboole
 
 
 /* Return true if the given point is inside the given rect */
-gboolean pointInRect(const int x, const int y, const GdkRectangle const *rect)
+gboolean pointInRect(const int x, const int y, const GdkRectangle* const rect)
 {
   gboolean result = FALSE;
   
@@ -594,9 +608,9 @@ gboolean clickedInRect(GdkEventButton *event, GdkRectangle *rect, const int minW
 BlxSeqType determineSeqType(char *seq, GError **error)
 {
     const int lenToSearch = 300;
-    char *aminos      = "ABCDEFGHIKLMNPQRSTVWXYZ*";
-    char *primenuc    = "ACGTUN";
-    char *protonly    = "EFIPQZ";
+    const char *aminos      = "ABCDEFGHIKLMNPQRSTVWXYZ*";
+    const char *primenuc    = "ACGTUN";
+    const char *protonly    = "EFIPQZ";
 
     /* Simplified version of Sean Eddy's */
 
@@ -641,7 +655,7 @@ BlxSeqType determineSeqType(char *seq, GError **error)
 
 
 /* Use this routine to add -install in programs that use Dotter */
-void argvAdd(int *argc, char ***argv, char *s)
+void argvAdd(int *argc, char ***argv, const char *s)
 {
     char **v;
     int i;
@@ -758,7 +772,7 @@ gboolean getColorFromString(const char *colorStr, GdkColor *color, GError **erro
 
 
 /* Increase the brightness of a color by the given factor */
-static void increaseColorBrightness(const GdkColor const *origColor, const double factor, GdkColor *result)
+static void increaseColorBrightness(const GdkColor* const origColor, const double factor, GdkColor *result)
 {
   result->pixel = 0;
   const int maxRgb = 65535;
@@ -825,7 +839,7 @@ static void increaseColorBrightness(const GdkColor const *origColor, const doubl
 
 
 /* Reduce the brightness of a color by the given factor (e.g. 0.5 for half brightness) */
-static void reduceColorBrightness(const GdkColor const *origColor, const double factor, GdkColor *result)
+static void reduceColorBrightness(const GdkColor* const origColor, const double factor, GdkColor *result)
 {
   result->pixel = 0;
   result->red = origColor->red * factor;
@@ -847,7 +861,7 @@ static void reduceColorBrightness(const GdkColor const *origColor, const double 
 
 
 /* Increase/decrease color brightness by given factor */
-void adjustColorBrightness(const GdkColor const *origColor, const double factor, GdkColor *result)
+void adjustColorBrightness(const GdkColor* const origColor, const double factor, GdkColor *result)
 {
   if (factor > 1)
     increaseColorBrightness(origColor, factor, result);
@@ -858,7 +872,7 @@ void adjustColorBrightness(const GdkColor const *origColor, const double factor,
 
 /* Utility to take a gdk color and return a slightly darker shade of it, for higlighting
  * things of that color when they are selected. */
-void getSelectionColor(const GdkColor const *origColor, GdkColor *result)
+void getSelectionColor(const GdkColor* const origColor, GdkColor *result)
 {
   const double factor = 0.8;
   adjustColorBrightness(origColor, factor, result);
@@ -866,7 +880,7 @@ void getSelectionColor(const GdkColor const *origColor, GdkColor *result)
 
 
 /* Utility to take a gdk color and return a greyscale version of it */
-void convertToGrayscale(const GdkColor const *origColor, GdkColor *result)
+void convertToGrayscale(const GdkColor* const origColor, GdkColor *result)
 {
   result->red = result->green = result->blue =
    ((11 * origColor->red) + (16 * origColor->green) + (5 * origColor->blue)) / 32;
@@ -889,7 +903,7 @@ void convertToGrayscale(const GdkColor const *origColor, GdkColor *result)
 
 
 /* Utility to take a gdk color and return a much darker shade of it, for use as a drop-shadow */
-void getDropShadowColor(const GdkColor const *origColor, GdkColor *result)
+void getDropShadowColor(const GdkColor* const origColor, GdkColor *result)
 {
   const double factor = 0.3;
   adjustColorBrightness(origColor, factor, result);
@@ -951,7 +965,7 @@ char* convertColorToString(GdkColor *color)
   
   const int hexLen = 8; /* to fit a string of the format '#ffffff', plus the terminating character */
   
-  char *result = g_malloc(sizeof(char) * hexLen);
+  char *result = (char*)g_malloc(sizeof(char) * hexLen);
   sprintf(result, "#%x", color->pixel);
   
   return result;
@@ -1051,7 +1065,7 @@ void createBlxColor(GArray *defaultColors,
 
 
 /* Calculate how many pixels wide a base is */
-gdouble pixelsPerBase(const gint displayWidth, const IntRange const *displayRange)
+gdouble pixelsPerBase(const gint displayWidth, const IntRange* const displayRange)
 {
   gdouble displayLen = (gdouble)(displayRange->max - displayRange->min) + 1;
   return ((gdouble)displayWidth / displayLen);
@@ -1068,8 +1082,8 @@ gdouble pixelsPerBase(const gint displayWidth, const IntRange const *displayRang
  * 
  * The result is clipped to lie within the rectangle if 'clip' is true */
 gdouble convertBaseIdxToRectPos(const gint dnaIdx, 
-                                const GdkRectangle const *rect, 
-                                const IntRange const *dnaDispRange,
+                                const GdkRectangle* const rect, 
+                                const IntRange* const dnaDispRange,
                                 const gboolean horizontal,
                                 const gboolean displayRev,
                                 const gboolean clip)
@@ -1142,7 +1156,7 @@ char convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType
 char getSequenceIndex(char *seq,
                       const int qIdx, 
                       const gboolean complement, 
-                      const IntRange const *seqRange,
+                      const IntRange* const seqRange,
                       const BlxSeqType seqType)
 {
   char result = ' ';
@@ -1163,11 +1177,11 @@ char getSequenceIndex(char *seq,
 
 
 /* Convert the given range of display coords to dna coords */
-void convertDisplayRangeToDnaRange(const IntRange const * displayRange, 
+void convertDisplayRangeToDnaRange(const IntRange* const displayRange, 
                                    const BlxSeqType displaySeqType,
                                    const int numFrames,
                                    const gboolean displayRev,
-                                   const IntRange const *refSeqRange,
+                                   const IntRange* const refSeqRange,
                                    IntRange *result)
 {
   const int q1 = convertDisplayIdxToDnaIdx(displayRange->min, displaySeqType, 1, 1, numFrames, displayRev, refSeqRange); /* 1st base in 1st reading frame */
@@ -1195,7 +1209,7 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
                               const int baseNum, 
                               const int numFrames,
                               const gboolean displayRev,
-                              const IntRange const *refSeqRange)
+                              const IntRange* const refSeqRange)
 {
   int dnaIdx = displayIdx;
   int base = baseNum;
@@ -1228,7 +1242,7 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
                               const int frame, 
                               const int numFrames, 
                               const gboolean displayRev,
-                              const IntRange const *dnaIdxRange,
+                              const IntRange* const dnaIdxRange,
                               int *baseNum)
 {
   int displayIdx = dnaIdx;
@@ -1270,12 +1284,12 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
 /* Get the start coord in the given display range, reversed as necessary if 'reverse' is true.
  * Result is a coord in the DNA sequence - converts as necessary if the display range is in terms
  * of peptide coords */
-int getStartDnaCoord(const IntRange const *displayRange, 
+int getStartDnaCoord(const IntRange* const displayRange, 
                      const int frame,
                      const BlxSeqType displaySeqType, 
                      const gboolean displayRev, 
                      const int numFrames,
-                     const IntRange const *refSeqRange)
+                     const IntRange* const refSeqRange)
 {
   int result = displayRange->min;
   
@@ -1291,12 +1305,12 @@ int getStartDnaCoord(const IntRange const *displayRange,
 /* Get the end coord in the given display range, reversed as necessary if 'reverse' is true.
  * Result is a coord in the DNA sequence - converts as necessary if the display range is in terms
  * of peptide coords */
-int getEndDnaCoord(const IntRange const *displayRange, 
+int getEndDnaCoord(const IntRange* const displayRange, 
                    const int frame,
                    const BlxSeqType displaySeqType, 
                    const gboolean displayRev, 
                    const int numFrames,
-                   const IntRange const *refSeqRange)
+                   const IntRange* const refSeqRange)
 {
   int result = displayRange->max;
   
@@ -1615,7 +1629,7 @@ char *stringUnprotect(char **textp, char *target)
   if (!target)
     {
       /* Allocate the memory for the target and then re-do the loops to populate it. */
-      target = g_malloc0(count+1);
+      target = (char*)g_malloc0(count+1);
       goto redo;
     }
   
@@ -1712,7 +1726,7 @@ GtkWidget* createScrollableTextView(const char *messageText,
   
   if (wrapText)
     {
-      gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(textView), TRUE);
+      gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(textView), GTK_WRAP_WORD);
     }
   
   /* Put the text view in a scrollable window */
@@ -1785,7 +1799,7 @@ void widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback func, gpointer
       CallbackData *callbackData = widgetGetCallbackData(widget);
       
       if (!callbackData)
-        callbackData = g_malloc(sizeof *callbackData);
+        callbackData = (CallbackData*)g_malloc(sizeof *callbackData);
       
       callbackData->func = func;
       callbackData->data = data;
@@ -2156,7 +2170,7 @@ gboolean stringsEqual(const char *str1, const char *str2, const gboolean caseSen
     }
   else
     {
-      const int len1 = strlen(str1);
+      const size_t len1 = strlen(str1);
       result = (strlen(str2) == len1 && !g_ascii_strncasecmp(str1, str2, len1));
     }
   
@@ -2183,7 +2197,7 @@ int parseMatchLine(const char *inputText,
 {
   char sequence_name[1000] = {'\0'};
   int start = 0, end = 0, length = 0;
-  char *format_str = "\"%[^\"]\"%d%d (%d)";
+  const char *format_str = "\"%[^\"]\"%d%d (%d)";
 
   int fields = sscanf(inputText, format_str, &sequence_name[0], &start, &end, &length);
   
@@ -2247,7 +2261,7 @@ GList* parseMatchList(const char *inputText)
   if (inputText)
     {
       /* Split the input text into separate strings based on the following delimiters: */
-      char *delimiters = "\n\r,;";
+      const char *delimiters = "\n\r,;";
       char **tokens = g_strsplit_set(inputText, delimiters, -1);   /* -1 means do all tokens. */
       char **token = tokens;
       
@@ -2392,11 +2406,11 @@ GdkDrawable* createBlankSizedPixmap(GtkWidget *widget, GdkDrawable *window, cons
 /* Utility to pop up a simple confirmation dialog box with the given title and text, 
  * with just an "OK" and "Cancel" button. Blocks until the user responds, and returns
  * their response ID. */
-gint runConfirmationBox(GtkWidget *widget, char *title, char *messageText)
+gint runConfirmationBox(GtkWidget *widget, const char *title, const char *messageText)
 {
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(widget), 
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_CANCEL,
                                                   GTK_RESPONSE_REJECT,
                                                   GTK_STOCK_OK,
@@ -2426,7 +2440,7 @@ gint runConfirmationBox(GtkWidget *widget, char *title, char *messageText)
 
 /* If error is non-null, tag the given prefix string onto the start of the given 
  * error's message. If error is null, do nothing. */
-void prefixError(GError *error, char *formatStr, ...)
+void prefixError(GError *error, const char *formatStr, ...)
 {
 //  g_prefix_error(error, prefixStr);  /* Only from GLib v2.16 */
 
@@ -2455,7 +2469,7 @@ void prefixError(GError *error, char *formatStr, ...)
 
 
 /* Tag the given postfix string onto the end of the given error's message */
-void postfixError(GError *error, char *formatStr, ...)
+void postfixError(GError *error, const char *formatStr, ...)
 {
   if (error)
     {
@@ -2595,7 +2609,7 @@ void drawRect(GdkDrawable *drawable,
 /* Draw the highlight box (for highlighting the current detail-view display range on 
  * big-picture widgets such as the grids and exon views). */
 void drawHighlightBox(GdkDrawable *drawable,
-                      const GdkRectangle const *rect,
+                      const GdkRectangle* const rect,
                       const gint minWidth, 
                       GdkColor *color)
 {
@@ -2654,7 +2668,7 @@ void setStatusBarShadowStyle(GtkWidget *statusBar, const char *shadowStyle)
 
 /* Copy a segment of the given sequence into a new string. The result must be
  * free'd with g_free by the caller. The given indices must be 0-based. */
-static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const int idx2)
+static gchar *copySeqSegment(const char* const inputSeq, const int idx1, const int idx2)
 {
 
   const int minIdx = min(idx1, idx2);
@@ -2662,7 +2676,7 @@ static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const i
   
   const int segmentLen = maxIdx - minIdx + 1;
 
-  gchar *segment = g_malloc(sizeof(gchar) * segmentLen + 1);
+  gchar *segment = (gchar*)g_malloc(sizeof(gchar) * segmentLen + 1);
 
   
   strncpy(segment, inputSeq + minIdx, segmentLen);
@@ -2687,14 +2701,14 @@ static gchar *copySeqSegment(const char const *inputSeq, const int idx1, const i
  * opposite direction to that indicated by the strand, because the display may be
  * reversed, so we leave it up to the caller to decide).
  */
-gchar *getSequenceSegment(const char const *dnaSequence,
+gchar *getSequenceSegment(const char* const dnaSequence,
                           IntRange *qRangeIn,                  /* the range to extract, in nucleotide coords */
                           const BlxStrand strand,
                           const BlxSeqType srcSeqType,        /* whether input sequence is nucleotide or peptide */
                           const BlxSeqType destSeqType,       /* whether result sequence should be nucleotide or peptide */
                           const int frame,
                           const int numFrames, 
-                          const IntRange const *refSeqRange,
+                          const IntRange* const refSeqRange,
                           const BlxBlastMode blastMode,
                           char **geneticCode,
                           const gboolean displayRev,
@@ -2806,7 +2820,7 @@ gchar *getSequenceSegment(const char const *dnaSequence,
 
 /* Invert the given coord's position within the given range. Only invert if the bool is true; otherwise
  * returns the original coord */
-int invertCoord(const int coord, const IntRange const *range, const gboolean invert)
+int invertCoord(const int coord, const IntRange* const range, const gboolean invert)
 {
   int result = invert ? range->max - coord + range->min : coord;
   return result;
@@ -2898,23 +2912,24 @@ const char* findFixedWidthFont(GtkWidget *widget)
 {
   GList *fixed_font_list = NULL ;
 
-//  fixed_font_list = g_list_append(fixed_font_list, "inconsolata");
-//  fixed_font_list = g_list_append(fixed_font_list, "consolas");
-//  fixed_font_list = g_list_append(fixed_font_list, "droid sans mono");
-//  fixed_font_list = g_list_append(fixed_font_list, "proggy");
-//  fixed_font_list = g_list_append(fixed_font_list, "profont");
-  fixed_font_list = g_list_append(fixed_font_list, "Andale mono");
-  fixed_font_list = g_list_append(fixed_font_list, "Lucida sans typewriter");
-  fixed_font_list = g_list_append(fixed_font_list, "deja vu sans mono");
-  fixed_font_list = g_list_append(fixed_font_list, "DejaVu Sans Mono");
-  fixed_font_list = g_list_append(fixed_font_list, "Bitstream vera sans mono");
-  fixed_font_list = g_list_append(fixed_font_list, "monaco");
-  fixed_font_list = g_list_append(fixed_font_list, "Lucida console");
-  fixed_font_list = g_list_append(fixed_font_list, "Courier 10 pitch");
-  fixed_font_list = g_list_append(fixed_font_list, "Courier new");
-  fixed_font_list = g_list_append(fixed_font_list, "Courier");
-  fixed_font_list = g_list_append(fixed_font_list, "Monospace");
-  fixed_font_list = g_list_append(fixed_font_list, "fixed");
+  /* g++ compiler gives an error if we don't cast away const */
+//  fixed_font_list = g_list_append(fixed_font_list, (void*)"inconsolata");
+//  fixed_font_list = g_list_append(fixed_font_list, (void*)"consolas");
+//  fixed_font_list = g_list_append(fixed_font_list, (void*)"droid sans mono");
+//  fixed_font_list = g_list_append(fixed_font_list, (void*)"proggy");
+//  fixed_font_list = g_list_append(fixed_font_list, (void*)"profont");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"Andale mono");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"Lucida sans typewriter");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"deja vu sans mono");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"DejaVu Sans Mono");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"Bitstream vera sans mono");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"monaco");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"Lucida console");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"Courier 10 pitch");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"Courier new");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"Courier");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"Monospace");
+  fixed_font_list = g_list_append(fixed_font_list, (void*)"fixed");
   
   const char *fontFamily = findFixedWidthFontFamily(widget, fixed_font_list);
   g_list_free(fixed_font_list);
@@ -2951,7 +2966,7 @@ void getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble 
 /* Create a handle. A handle is just a GSList so should be initialised to NULL */
 BlxHandle handleCreate()
 {
-  BlxHandle handle = g_malloc(sizeof(BlxHandleStruct));
+  BlxHandle handle = (BlxHandle)g_malloc(sizeof(BlxHandleStruct));
   handle->memoryList = NULL;
   return handle;
 }
@@ -3303,7 +3318,7 @@ gtk_text_buffer_set_markup (GtkTextBuffer *buffer,
  * G_LOG_LEVEL_INFO flag, so this provides us one. In seqtools, this is usd
  * to provide task progress messages that will be sent to stderr (as opposed
  * to g_message, which is used for program output that is sent to stdout) */
-void g_message_info(char *formatStr, ...)
+void g_message_info(const char *formatStr, ...)
 {
   va_list argp;
   va_start(argp, formatStr);
@@ -3453,7 +3468,7 @@ static void displayMessageAsPopup(const gchar *message, GLogLevelFlags log_level
   
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   parent, 
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_OK,
                                                   GTK_RESPONSE_ACCEPT,
                                                   NULL);
@@ -3579,7 +3594,7 @@ static void displayMessageAsList(GSList *messageList, const char *titlePrefix, c
  * message with the current system time. */
 static BlxMessage* createBlxMessage(const char *text, const GLogLevelFlags logLevel)
 {
-  BlxMessage *blxMessage = g_malloc(sizeof(BlxMessage));
+  BlxMessage *blxMessage = (BlxMessage*)g_malloc(sizeof(BlxMessage));
   
   blxMessage->text = g_strdup(text);
   blxMessage->timestamp = time(NULL);
@@ -3646,7 +3661,7 @@ static char* blxMessageGetDisplayText(const BlxMessage *msg, const gboolean incT
   
   char separatorText[] = " - "; /* separates timestamp from message body */
   
-  char *result = g_malloc(strlen(msg->text) + strlen(separatorText) + strlen(timeText) + 1);
+  char *result = (char*)g_malloc(strlen(msg->text) + strlen(separatorText) + strlen(timeText) + 1);
   
   sprintf(result, "%s%s%s", timeText, separatorText, msg->text);
   
@@ -3722,9 +3737,9 @@ static gboolean onSetUsePopupMessages(GtkWidget *button, const gint responseId, 
 
 
 /* Utility to return the stock icon to use for a dialog for a given message severity */
-static char* getDialogIcon(GLogLevelFlags log_level)
+static const char* getDialogIcon(GLogLevelFlags log_level)
 {
-  char *result = NULL;
+  const char *result = NULL;
   
   if (log_level & G_LOG_LEVEL_ERROR)
         result = GTK_STOCK_DIALOG_ERROR;
@@ -3986,7 +4001,7 @@ void blxPrintWidget(GtkWidget *widget,
           *printSettings = NULL;
         }
       
-      *printSettings = g_object_ref(gtk_print_operation_get_print_settings(print));
+      *printSettings = (GtkPrintSettings*)g_object_ref(gtk_print_operation_get_print_settings(print));
     }
   
   g_object_unref(print);
@@ -4166,7 +4181,7 @@ char* getLoadFileName(GtkWidget *widget,
                       const char *title)
 {
   char *filename = NULL;
-  int defaultWidth = 60;
+  uint defaultWidth = 60;
   const int xpad = 2;
   const int ypad = 2;
 
@@ -4177,7 +4192,7 @@ char* getLoadFileName(GtkWidget *widget,
   
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   window,
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
                                                   GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
                                                   NULL);
@@ -4193,13 +4208,13 @@ char* getLoadFileName(GtkWidget *widget,
   gtk_entry_set_width_chars(GTK_ENTRY(entry), defaultWidth);
 
   gtk_table_attach(table, gtk_label_new("File name or URL: "), 0, 1, 0, 1, GTK_FILL, GTK_SHRINK, xpad, ypad); 
-  gtk_table_attach(table, entry, 1, 2, 0, 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, xpad, ypad); 
+  gtk_table_attach(table, entry, 1, 2, 0, 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), GTK_SHRINK, xpad, ypad); 
 
   GtkWidget *fileChooser = gtk_file_chooser_button_new(title, GTK_FILE_CHOOSER_ACTION_OPEN);
   gtk_file_chooser_button_set_width_chars(GTK_FILE_CHOOSER_BUTTON(fileChooser), defaultWidth);
 
   gtk_table_attach(table, gtk_label_new("Browse: "), 0, 1, 1, 2, GTK_FILL, GTK_SHRINK, xpad, ypad); 
-  gtk_table_attach(table, fileChooser, 1, 2, 1, 2, GTK_FILL | GTK_EXPAND, GTK_SHRINK, xpad, ypad); 
+  gtk_table_attach(table, fileChooser, 1, 2, 1, 2, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), GTK_SHRINK, xpad, ypad); 
   
   if (defaultPath)
     gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (fileChooser), defaultPath); 
@@ -4293,7 +4308,7 @@ void setRadioMenuStatus(GtkActionGroup *action_group, const char *actionName, co
  * 
  * If this proves to be a problem I expect there is a way to feed the text to the
  * text widget a line a time. */
-GtkWidget* externalCommand (char *command, char *progName, GtkWidget *widget, GError **error)
+GtkWidget* externalCommand (const char *command, const char *progName, GtkWidget *widget, GError **error)
 {
   GtkWidget *resultWindow = NULL;
 
@@ -4612,7 +4627,7 @@ GtkRadioButton* createRadioButton(GtkTable *table,
   GtkWidget *button = gtk_radio_button_new_with_mnemonic_from_widget(existingButton, mnemonic);
 
   GtkBox *box = GTK_BOX(gtk_vbox_new(FALSE, 0));
-  gtk_table_attach(table, GTK_WIDGET(box), col, col + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+  gtk_table_attach(table, GTK_WIDGET(box), col, col + 1, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
 
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
   gtk_box_pack_start(box, button, FALSE, FALSE, 0);
@@ -4729,8 +4744,8 @@ void widgetSetFontSizeAndCheck(GtkWidget *belvuAlignment, const int newSize)
  * minor tickmarks at larger intervals.) */
 void drawHScale(GtkWidget *widget, 
                 GdkDrawable *drawable,
-                const IntRange const *range, /* the range of values to draw */
-                const GdkRectangle const *rect, /* the drawing area */
+                const IntRange* const range, /* the range of values to draw */
+                const GdkRectangle* const rect, /* the drawing area */
                 const int widthPerVal,       /* the width between each value in the range */
                 const int majorTickInterval, /* how many values at which to draw major tickmarks */
                 const int labelInterval,     /* how many values at which to draw labels */

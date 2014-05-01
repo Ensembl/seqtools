@@ -137,6 +137,9 @@
   --abbrev-title-off\n\
     Do not abbreviate window title prefixes\n\
 \n\
+  --session_colour=<colour_str>\n\
+    Set the background colour of the dotter window\n\
+\n\
   --compiled\n\
     Show package compile date\n\
 \n\
@@ -188,7 +191,6 @@ static void setDefaultOptions(DotterOptions *options)
   options->mtxfile = NULL;
 
   options->winsize = NULL;
-  options->xOptions = NULL;
   options->qname = NULL;
   options->qseq = NULL;
   options->sname = NULL;
@@ -208,6 +210,8 @@ static void setDefaultOptions(DotterOptions *options)
   options->msgData.titlePrefix = g_strdup(DOTTER_PREFIX);
   options->msgData.parent = NULL;
   options->msgData.statusBar = NULL;
+
+  options->windowColor = NULL;
 }
 
 
@@ -258,7 +262,7 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const 
       msp = createEmptyMsp(&lastMsp, MSPlist);
     }
 
-  msp->qname = g_malloc(strlen(name)+1);
+  msp->qname = (char*)g_malloc(strlen(name)+1);
   strcpy(msp->qname, name);
 
   msp->desc = g_strdup(desc);
@@ -295,42 +299,6 @@ static void showVersionInfo()
 static void showCompiledInfo()
 {
   g_message("%s\n", UT_MAKE_COMPILE_DATE());  
-}
-
-
-/* Get the Xoptions as a string from the arguments in the argv list. idx should indicate which
- * index in argv the Xoptions start at. The returned string should be free'd with g_free. It may
- * be null if there were no options. */
-static char* getXOptions(char **argv, const int argc, const int idx)
-{
-  DEBUG_ENTER("getXOptions");
-
-  char *result = NULL;
-  
-  int len = 0;
-  int i = idx;
-
-  /* First calculate the length of the string that we need */
-  for ( ; i < argc; ++i)
-    {
-      len += strlen(argv[i])+1;
-    }
-
-  DEBUG_OUT("xOptions len = %d\n", len);
-  
-  if (len > 0)
-    {
-      result = g_malloc(len+1);
-      
-      for (i = idx; i < argc; ++i) 
-        {
-          strcat(result, argv[i]);
-          strcat(result, " ");
-        }
-    }
-  
-  DEBUG_EXIT("getXOptions returning %s", result);
-  return result;
 }
 
 
@@ -385,6 +353,8 @@ int main(int argc, char **argv)
    * always set to false, even if we have the reverse match seq strand (which is indicated with the -v option). */
   BlxStrand qStrand = BLXSTRAND_FORWARD;
   BlxStrand sStrand = BLXSTRAND_FORWARD;
+
+  gtk_parse_args(&argc, &argv);
   
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
@@ -419,10 +389,11 @@ int main(int argc, char **argv)
       {"horizontal-type",       required_argument,  0, 0},
       {"vertical-type",         required_argument,  0, 0},
       {"negate-coords",         no_argument,        0, 'N'},
+      {"session_colour",        required_argument,  0, 0},
       {0, 0, 0, 0}
     };
 
-  char        *optstring="b:cDe:f:F:hHil:M:m:Np:q:Rrs:SvW:wz:";
+  const char  *optstring="b:cDe:f:F:hHil:M:m:Np:q:Rrs:SvW:wz:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -455,6 +426,10 @@ int main(int argc, char **argv)
                 else
                   g_critical("Invalid value for vertical-type argument: expected 'p' or 'd'\n");
               }                
+            else if (stringsEqual(long_options[optionIndex].name, "session_colour", TRUE))
+              {
+                options.windowColor = g_strdup(optarg);
+              }
             break;
           
 	  case '?':
@@ -467,17 +442,17 @@ int main(int argc, char **argv)
           case 'f': options.FSfilename = g_strdup(optarg); break;
           case 'F': 
             options.seqInSFS = 1;        
-            options.FSfilename = g_malloc(strlen(optarg)+1);
+            options.FSfilename = (char*)g_malloc(strlen(optarg)+1);
             strcpy(options.FSfilename, optarg);            break;
 	  case 'h': 
             showHelp = TRUE;                               break;
           case 'H': options.hspsOnly = TRUE;               break;
           case 'i': options.install = 0;                   break;
           case 'l': 
-            options.loadfile = g_malloc(strlen(optarg)+1);
+            options.loadfile = (char*)g_malloc(strlen(optarg)+1);
             strcpy(options.loadfile, optarg);              break;
           case 'M': 
-            options.mtxfile = g_malloc(strlen(optarg)+1);
+            options.mtxfile = (char*)g_malloc(strlen(optarg)+1);
             strcpy(options.mtxfile, optarg);               break;
           case 'm': options.memoryLimit = atof(optarg);    break;
 	  case 'N': options.negateCoords = TRUE;           break;
@@ -490,7 +465,7 @@ int main(int argc, char **argv)
             options.selfcall = TRUE;                       break;
           case 'v': sStrand = BLXSTRAND_REVERSE;	   break;
           case 'W': 
-            options.winsize = g_malloc(strlen(optarg)+1);
+            options.winsize = (char*)g_malloc(strlen(optarg)+1);
             strcpy(options.winsize, optarg);               break;
           case 'w': options.watsonOnly = TRUE;             break;
           case 'z': options.dotterZoom = atoi(optarg);     break;
@@ -516,9 +491,9 @@ int main(int argc, char **argv)
   g_log_set_default_handler(defaultMessageHandler, &options.msgData);
 
   if (batchMode && !createWindow)
-    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, defaultMessageHandler, &options.msgData);
+    g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION), defaultMessageHandler, &options.msgData);
   else
-    g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, popupMessageHandler, &options.msgData);
+    g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION), popupMessageHandler, &options.msgData);
 
   if (showHelp)
     {
@@ -562,9 +537,8 @@ int main(int argc, char **argv)
     {
       DEBUG_OUT("Dotter was called internally.\n");
       
-      /* The input arguments (following the options) are: qname, qlen, sname, slen, dotterBinary, Xoptions.
-       * Xoptions are optional, so we should have 5 or 6 arguments */
-      if (argc - optind < 5 || argc - optind > 6)
+      /* The input arguments (following the options) are: qname, qlen, sname, slen, dotterBinary. */
+      if (argc - optind < 5 || argc - optind > 5)
         {
           g_error("Incorrect number of arguments passed to dotter from internal program call\n"); 
         }
@@ -574,11 +548,10 @@ int main(int argc, char **argv)
       options.sname = g_strdup(argv[optind + 2]);
       options.slen = atoi(argv[optind + 3]);
       dotterBinary = g_strdup(argv[optind + 4]);
-      options.xOptions = getXOptions(argv, argc, optind + 5);
       
       /* Allocate memory for the sequences, now we know their lengths */
-      options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
-      options.sseq = g_malloc(sizeof(char) * (options.slen+1));
+      options.qseq = (char*)g_malloc(sizeof(char) * (options.qlen+1));
+      options.sseq = (char*)g_malloc(sizeof(char) * (options.slen+1));
 
       /* Read in the sequences from the piped input */
       DEBUG_OUT("Reading sequences from pipe...\n");
@@ -645,28 +618,23 @@ int main(int argc, char **argv)
   else if (options.seqInSFS)
     {
       /* The -F option has been used, which replaces the input sequence files. We should therefore
-       * only have, at most, one input argument: the Xoptions*/
-      if (argc - optind > 1)
+       * only have 0 input arguments*/
+      if (argc - optind > 0)
         {
           showUsageText(EXIT_FAILURE);
           exit(EXIT_FAILURE);
         }
-      
-      options.xOptions = getXOptions(argv, argc, optind);
     }
   else
     {
 
-      /* The input arguments (following the options) are: qfile, sfile, Xoptions. Xoptions are
-       * optional, so we should have 2 or 3 arguments */
-      if (argc - optind < 2 || argc - optind > 3) 
+      /* The input arguments (following the options) are: qfile, sfile, so we should have 2 arguments */
+      if (argc - optind < 2 || argc - optind > 2) 
         {
           showUsageText(EXIT_FAILURE);
           exit(EXIT_FAILURE);
         }
 
-      options.xOptions = getXOptions(argv, argc, optind + 2);
-      
       if(!(qfile = fopen(argv[optind], "r"))) 
         {
           g_error("Cannot open %s\n", argv[optind]); 
@@ -706,8 +674,8 @@ int main(int argc, char **argv)
         }
 
       /* Allocate memory for the sequences, now we know their lengths */
-      options.qseq = g_malloc(sizeof(char) * (options.qlen+1));
-      options.sseq = g_malloc(sizeof(char) * (options.slen+1));
+      options.qseq = (char*)g_malloc(sizeof(char) * (options.qlen+1));
+      options.sseq = (char*)g_malloc(sizeof(char) * (options.slen+1));
 
       /* Read in the sequences */
       int l = 0, count = 0;
@@ -734,7 +702,7 @@ int main(int argc, char **argv)
               if (++l == 1) 
                 {
 
-                  options.qname = g_malloc(strlen(cq)+1); strNamecpy(options.qname, cq);
+                  options.qname = (char*)g_malloc(strlen(cq)+1); strNamecpy(options.qname, cq);
                   firstdesc = g_strdup(cq);
                 }
               else
@@ -750,7 +718,7 @@ int main(int argc, char **argv)
                       addBreakline (&MSPlist, qfilename, firstdesc, options.qoffset, 1);
                       
                       /* change sequence name to filename */
-                      options.qname = g_malloc(strlen(qfilename)+1); strcpy(options.qname, qfilename);
+                      options.qname = (char*)g_malloc(strlen(qfilename)+1); strcpy(options.qname, qfilename);
                     }
                   
                   addBreakline (&MSPlist, qfilename, cq, count + options.qoffset, 1);
@@ -793,7 +761,7 @@ int main(int argc, char **argv)
           if ((cq = (char *)strchr(line, '>'))) {
       	cq++;
       	if (++l == 1) {
-      	    options.sname = g_malloc(strlen(cq)+1); strNamecpy(options.sname, cq);
+          options.sname = (char*)g_malloc(strlen(cq)+1); strNamecpy(options.sname, cq);
       	    firstdesc = g_strdup(cq);
       	}
       	else {
@@ -806,7 +774,7 @@ int main(int argc, char **argv)
       	        addBreakline (&MSPlist, sfilename, firstdesc, options.soffset, 2);
       		
       		/* change sequence name to filename */
-      		options.sname = g_malloc(strlen(sfilename)+1); strcpy(options.sname, sfilename);
+      		options.sname = (char*)g_malloc(strlen(sfilename)+1); strcpy(options.sname, sfilename);
       	    }
       	    addBreakline (&MSPlist, sfilename, cq, count + options.soffset, 2);
       	}
@@ -850,7 +818,7 @@ int main(int argc, char **argv)
         }
       
       GSList *supportedTypes = blxCreateSupportedGffTypeList();
-      GList *columnList = NULL;
+      GList *columnList = dotterCreateColumns();
       GError *error = NULL;
 
       parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, columnList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL, &error);

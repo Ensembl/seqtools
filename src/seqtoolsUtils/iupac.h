@@ -177,7 +177,7 @@ struct iupactype iupac[IUPACSYMNUM] =
   };
 
 
-char *stdcode1[65] = {
+const char *stdcode1[65] = {
   "K",				/* AAA */
   "N",				/* AAC */
   "K",				/* AAG */
@@ -248,7 +248,7 @@ char *stdcode1[65] = {
 
 
 
-char *stdcode3[65] = {
+const char *stdcode3[65] = {
   "Lys",			/* AAA */
   "Asn",			/* AAC */
   "Lys",			/* AAG */

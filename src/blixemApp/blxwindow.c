@@ -56,7 +56,7 @@
 #define DEFAULT_WINDOW_WIDTH_FRACTION    0.9  /* what fraction of the screen size the blixem window width defaults to */
 #define DEFAULT_WINDOW_HEIGHT_FRACTION   0.6  /* what fraction of the screen size the blixem window height defaults to */
 #define MATCH_SET_GROUP_NAME             "Match set"
-#define LOAD_DATA_TEXT                   "Load optional data"
+#define LOAD_DATA_TEXT                   "Load optional\ndata"
 #define DEFAULT_TABLE_XPAD               2    /* default x-padding to use in tables */
 #define DEFAULT_TABLE_YPAD               2    /* default y-padding to use in tables */
 #define MAX_RECOMMENDED_COPY_LENGTH      100000 /* warn if about to copy text longer than this to the clipboard */
@@ -285,7 +285,7 @@ static const char developerMenuDescription[] =
 /* Return true if the current user is in our list of developers. */
 static gboolean userIsDeveloper()
 {
-  gchar* developers[] = {"edgrif", "gb10"};
+  const gchar* developers[] = {"edgrif", "gb10"};
 
   gboolean result = FALSE;
   const gchar *user = g_get_user_name();
@@ -383,7 +383,7 @@ static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, con
   else
     {
       const BlxSeqType seqType = blxWindowGetSeqType(blxWindow);
-      const IntRange const *fullRange = blxWindowGetFullRange(blxWindow);
+      const IntRange* const fullRange = blxWindowGetFullRange(blxWindow);
 
       if (moveLeft)
         setDetailViewStartIdx(detailView, fullRange->min, seqType);
@@ -602,7 +602,7 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(window),
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_CANCEL,
                                                   GTK_RESPONSE_REJECT,
                                                   GTK_STOCK_OK,
@@ -629,12 +629,12 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
 
   gtk_table_attach(table, label, 0, 2, 0, 1, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   gtk_table_attach(table, gtk_label_new("Source"), 0, 1, 1, 2, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
-  gtk_table_attach(table, sourceEntry, 1, 2, 1, 2, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, sourceEntry, 1, 2, 1, 2, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   gtk_table_attach(table, label2, 0, 2, 2, 3, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   gtk_table_attach(table, gtk_label_new("Start"), 0, 1, 3, 4, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
-  gtk_table_attach(table, startEntry, 1, 2, 3, 4, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, startEntry, 1, 2, 3, 4, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   gtk_table_attach(table, gtk_label_new("End"), 0, 1, 4, 5, GTK_SHRINK, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
-  gtk_table_attach(table, endEntry, 1, 2, 4, 5, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, endEntry, 1, 2, 4, 5, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
 
   gtk_widget_show_all(dialog);
   gint response = gtk_dialog_run(GTK_DIALOG(dialog));
@@ -1527,7 +1527,7 @@ static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginni
       else
         {
           /* The start display coord is the min coord if we're searching left and the max if searching right. */
-          const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+          const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
           result = searchLeft ? displayRange->max : displayRange->min;
         }
 
@@ -1602,7 +1602,7 @@ static gboolean onFindDnaString(GtkWidget *button, const gint responseId, gpoint
 static void createSearchColumnCombo(GtkTable *table, const int col, const int row, GtkWidget *blxWindow)
 {
   GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
-  gtk_table_attach(table, hbox, col, col + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
+  gtk_table_attach(table, hbox, col, col + 1, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, DEFAULT_TABLE_XPAD, DEFAULT_TABLE_YPAD);
   
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
@@ -1906,7 +1906,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Create the new group */
-  SequenceGroup *group = g_malloc(sizeof(SequenceGroup));
+  SequenceGroup *group = (SequenceGroup*)g_malloc(sizeof(SequenceGroup));
   
   group->seqList = seqList;
   group->ownsSeqNames = ownSeqNames;
@@ -1934,7 +1934,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
       /* Create a default name based on the unique ID */
       char formatStr[] = "Group%d";
       const int nameLen = strlen(formatStr) + numDigitsInInt(group->groupId);
-      group->groupName = g_malloc(nameLen * sizeof(*group->groupName));
+      group->groupName = (char*)g_malloc(nameLen * sizeof(*group->groupName));
       sprintf(group->groupName, formatStr, group->groupId);
     }
   
@@ -2122,7 +2122,7 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
       g_signal_connect(G_OBJECT(deleteButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroup), group);
       
       /* Put everything in the table */
-      gtk_table_attach(table, nameWidget,               1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, nameWidget,               1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
       gtk_table_attach(table, isHiddenWidget,   2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
       gtk_table_attach(table, isHighlightedWidget,      3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
       gtk_table_attach(table, orderWidget,              4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
@@ -2134,7 +2134,7 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
 
 /* Like blxSequenceGetColumn but also supports the group column (which
  * needs the context for its data) */
-static const char* blxSequenceGetColumnData(const BlxSequence const *blxSeq, 
+static const char* blxSequenceGetColumnData(const BlxSequence* const blxSeq, 
                                             const BlxColumnId columnId,
                                             const BlxViewContext *bc)
 {
@@ -2693,7 +2693,7 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWi
   ++row;
   
   /* Add labels for each column in the table */
-  gtk_table_attach(table, gtk_label_new("Group name"),    1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Group name"),    1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, gtk_label_new("Hide"),          2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, gtk_label_new("Highlight"),     3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   gtk_table_attach(table, gtk_label_new("Order"),         4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
@@ -2713,7 +2713,7 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWi
   gtk_button_set_image(GTK_BUTTON(deleteGroupsButton), gtk_image_new_from_stock(GTK_STOCK_DELETE, GTK_ICON_SIZE_BUTTON));
   gtk_widget_set_size_request(deleteGroupsButton, -1, 30);
   g_signal_connect(G_OBJECT(deleteGroupsButton), "clicked", G_CALLBACK(onButtonClickedDeleteAllGroups), NULL);
-  gtk_table_attach(table, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, deleteGroupsButton, numCols - 1, numCols + 1, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
 }
 
 
@@ -2819,10 +2819,11 @@ static gboolean setFlagFromButton(GtkWidget *button, gpointer data)
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  BlxFlag flag = GPOINTER_TO_INT(data);
+  BlxFlag flag = (BlxFlag)GPOINTER_TO_INT(data);
   const gboolean newValue = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-  
-  bc->flags[flag] = newValue;
+
+  if (flag > BLXFLAG_MIN && flag < BLXFLAG_NUM_FLAGS)
+    bc->flags[flag] = newValue;
   
   return newValue;
 }
@@ -2937,6 +2938,25 @@ static gboolean onColumnVisibilityChanged(GtkWidget *button, const gint response
 }
 
 
+/* Callback to be called when the user has toggled which columns are included in summary info */
+static gboolean onSummaryColumnsChanged(GtkWidget *button, const gint responseId, gpointer data)
+{
+  gboolean result = TRUE;
+  
+  BlxColumnInfo *columnInfo = (BlxColumnInfo*)data;
+  columnInfo->showSummary = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  
+  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+
+  /* Just clear the moused-over feedback area to make sure it's not showing invalid data. The
+   * user can mouse-over again to see the new data. */
+  clearFeedbackArea(detailView);
+  
+  return result;
+}
+
+
 /* Just calls gtk_widget_set_sensitive, but so that we can use it as a callback */
 static void widgetSetSensitive(GtkWidget *widget, gpointer data)
 {
@@ -3016,12 +3036,18 @@ static GtkWidget* createColumnLoadDataButton(GtkTable *table,
 {
   BlxViewContext *bc = blxWindowGetContext(detailViewGetBlxWindow(detailView));
   const gboolean dataLoaded = bc->flags[BLXFLAG_OPTIONAL_COLUMNS];
-  
+
+  /* Create the button */
   GtkWidget *button = gtk_button_new_with_label(LOAD_DATA_TEXT);
   gtk_widget_set_sensitive(button, !dataLoaded); /* only enable if data not yet loaded */
 
-  /* Add the hbox to the table, spanning all of the columns */
-  gtk_table_attach(table, button, 1, cols + 1, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  /* Add the button to the table, spanning all of the remaining columns */
+  gtk_table_attach(table, button, 0, 1, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  
+  /* Create an explanatory label spanning the rest of the columns */
+  GtkWidget *label = gtk_label_new("Fetches additional information e.g. from an\nEMBL file (as determined by the config).");
+  gtk_table_attach(table, label, 1, cols, *row, *row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+
   *row += 1;
 
   return button;
@@ -3031,13 +3057,19 @@ static GtkWidget* createColumnLoadDataButton(GtkTable *table,
 /* Create the settings buttons for a single column */
 static void createColumnButton(BlxColumnInfo *columnInfo, GtkTable *table, int *row)
 {
-  /* Create a label, checkbox and a text entry box */
+  /* Create a label showing the column name */
   GtkWidget *label = gtk_label_new(columnInfo->title);
   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
   
-  GtkWidget *button = gtk_check_button_new();
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), columnInfo->showColumn);
-  widgetSetCallbackData(button, onColumnVisibilityChanged, (gpointer)columnInfo);
+  /* Tick-box controlling whether column is displayed */
+  GtkWidget *showColButton = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(showColButton), columnInfo->showColumn);
+  widgetSetCallbackData(showColButton, onColumnVisibilityChanged, (gpointer)columnInfo);
+
+  /* Tick-box controlling whether column is included in summary info */
+  GtkWidget *showSummaryButton = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(showSummaryButton), columnInfo->showSummary);
+  widgetSetCallbackData(showSummaryButton, onSummaryColumnsChanged, (gpointer)columnInfo);
   
   GtkWidget *entry = gtk_entry_new();
   
@@ -3047,17 +3079,24 @@ static void createColumnButton(BlxColumnInfo *columnInfo, GtkTable *table, int *
       char displayText[] = "<dynamic>";
       gtk_entry_set_text(GTK_ENTRY(entry), displayText);
       gtk_widget_set_sensitive(entry, FALSE);
-      gtk_widget_set_sensitive(button, FALSE);
+      gtk_widget_set_sensitive(showSummaryButton, FALSE);
+      gtk_widget_set_sensitive(showSummaryButton, FALSE);
       gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(displayText) + 2); /* fudge up width a bit in case user enters longer text */
     }
   else
     {
+      /* Grey out all the options if the column hasn't been loaded */
       if (!columnInfo->dataLoaded)
         {
-          gtk_widget_set_sensitive(button, FALSE);
+          gtk_widget_set_sensitive(showColButton, FALSE);
+          gtk_widget_set_sensitive(showSummaryButton, FALSE);
           gtk_widget_set_sensitive(entry, FALSE);
         }
-      
+      else if (!columnInfo->canShowSummary)
+        {
+          gtk_widget_set_sensitive(showSummaryButton, FALSE);          
+        }
+
       char *displayText = convertIntToString(columnInfo->width);
       gtk_entry_set_text(GTK_ENTRY(entry), displayText);
       
@@ -3069,12 +3108,31 @@ static void createColumnButton(BlxColumnInfo *columnInfo, GtkTable *table, int *
       g_free(displayText);
     }
   
-  gtk_table_attach(table, label,  1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
-  gtk_table_attach(table, button, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
-  gtk_table_attach(table, entry,  3, 4, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, label,             0, 1, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, showColButton,     1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, showSummaryButton, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_table_attach(table, entry,             3, 4, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
   *row += 1;
 }
 
+
+/* Create labels for the column properties widgets created by createColumnButton */
+static void createColumnButtonHeaders(GtkTable *table, int *row)
+{
+  GtkWidget *label = gtk_label_new("Show\ncolumn");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 1.0);
+  gtk_table_attach(table, label, 1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+
+  label = gtk_label_new("Show mouse-\nover details");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 1.0);
+  gtk_table_attach(table, label, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+
+  label = gtk_label_new("Column width");
+  gtk_misc_set_alignment(GTK_MISC(label), 0.0, 1.0);
+  gtk_table_attach(table, label, 3, 4, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+
+  *row += 1;
+}
 
 /* Create a set of widgets that allow columns settings to be adjusted */
 static void createColumnButtons(GtkWidget *parent, GtkWidget *detailView, const int border)
@@ -3086,7 +3144,7 @@ static void createColumnButtons(GtkWidget *parent, GtkWidget *detailView, const 
   
   GList *columnList = detailViewGetColumnList(detailView);
   const int rows = g_list_length(columnList) + 1;
-  const int cols = 3;
+  const int cols = 4;
   int row = 1;
 
   GtkTable *table = GTK_TABLE(gtk_table_new(rows, cols, FALSE));  
@@ -3097,11 +3155,10 @@ static void createColumnButtons(GtkWidget *parent, GtkWidget *detailView, const 
   /* Create a button to allow the user to load the full EMBL data, if not already loaded */
   GtkWidget *button = createColumnLoadDataButton(table, detailView, &row, cols, border, border);
   
-  /* Loop through each column in the detail view and create a text box showing the
-   * current width. Compile a list of widgets that are disabled, so that we can enable
-   * them if/when the user clicks the button to load their data. */
-  GList *listItem = columnList;
+  /* Loop through each column and create widgets to control the properties */
+  createColumnButtonHeaders(table, &row);
 
+  GList *listItem = columnList;
   for ( ; listItem; listItem = listItem->next)
     {
       BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
@@ -3220,7 +3277,7 @@ static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
 
   /* Arrange the widgets horizontally */
   GtkWidget *hbox = createHBoxWithBorder(frame, 12, FALSE, NULL);
-  const DoubleRange const *percentIdRange = bigPictureGetPercentIdRange(bigPicture);
+  const DoubleRange* const percentIdRange = bigPictureGetPercentIdRange(bigPicture);
   
   createTextEntry(hbox, "%ID per cell", bigPictureGetIdPerCell(bigPicture), onIdPerCellChanged, bigPicture);
   createTextEntry(hbox, "Max %ID", percentIdRange->max, onMaxPercentIdChanged, bigPicture);
@@ -3327,7 +3384,7 @@ static void createColorButtons(GtkWidget *parent, GtkWidget *blxWindow, const in
     
       BlxColor *blxCol = getBlxColor(bc->defaultColors, colorId);
       GtkWidget *label = gtk_label_new(blxCol->name);
-      gtk_table_attach(table, label, 1, 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+      gtk_table_attach(table, label, 1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
 
       /* Special callback for the background color */
       BlxResponseCallback callbackFunc = (colorId == BLXCOLOR_BACKGROUND) ? onChangeBackgroundColor : onChangeBlxColor;
@@ -3489,7 +3546,9 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
 
   /* Connect the toggleFlag callback first so that the flag is set correctly before the callbackFunc is called */
   g_signal_connect(G_OBJECT(btn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(flag));
-  g_signal_connect(G_OBJECT(btn), "toggled", callbackFunc, subContainer);
+  
+  if (callbackFunc)
+    g_signal_connect(G_OBJECT(btn), "toggled", callbackFunc, subContainer);
 
   if (buttonOut)
     *buttonOut = btn;
@@ -3755,6 +3814,10 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   createLimitUnalignedBasesButton(unalignContainer, detailView, bc);
   createCheckButton(GTK_BOX(unalignContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED], G_CALLBACK(onToggleShowUnalignedSelected), detailView);
 
+  /* show-colinearity-lines option and its sub-options */
+  GtkContainer *colinearityContainer = createParentCheckButton(optionsBox, detailView, bc, "Show _colinearity lines", BLXFLAG_SHOW_COLINEARITY, NULL, G_CALLBACK(onParentBtnToggled));
+  createCheckButton(GTK_BOX(colinearityContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_COLINEARITY_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_COLINEARITY_SELECTED));
+
   createCheckButton(GTK_BOX(optionsBox), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
 
   createCheckButton(GTK_BOX(optionsBox), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
@@ -3857,7 +3920,7 @@ static BlxColumnId getColumnFromComboBox(GtkComboBox *combo)
           GValue val = {0};
           gtk_tree_model_get_value(model, &iter, SORT_TYPE_COL, &val);
           
-          result = g_value_get_int(&val);
+          result = (BlxColumnId)g_value_get_int(&val);
         }
     }
   
@@ -4985,7 +5048,7 @@ static void destroyBlxContext(BlxViewContext **bcPtr)
       /* Free the color array */
       if (bc->defaultColors)
         {
-          BlxColorId i = BLXCOLOR_MIN + 1;
+          int i = BLXCOLOR_MIN + 1;
           for (; i < BLXCOL_NUM_COLORS; ++i)
             {
               BlxColor *blxColor = &g_array_index(bc->defaultColors, BlxColor, i);
@@ -5035,6 +5098,8 @@ static const char* getFlagName(const BlxFlag flag)
       names[BLXFLAG_SHOW_POLYA_SIG] = SETTING_NAME_SHOW_POLYA_SIG;
       names[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = SETTING_NAME_SHOW_POLYA_SIG_SELECTED;
       names[BLXFLAG_SHOW_SPLICE_SITES] = SETTING_NAME_SHOW_SPLICE_SITES;
+      names[BLXFLAG_SHOW_COLINEARITY] = SETTING_NAME_SHOW_COLINEARITY;
+      names[BLXFLAG_SHOW_COLINEARITY_SELECTED] = SETTING_NAME_SHOW_COLINEARITY_SELECTED;
     }
 
   if (flag <= BLXFLAG_MIN || flag >= BLXFLAG_NUM_FLAGS)
@@ -5048,11 +5113,11 @@ static const char* getFlagName(const BlxFlag flag)
 static void saveBlixemSettingsFlags(BlxViewContext *bc, GKeyFile *key_file)
 {
   /* loop through each (save-able) setting */
-  BlxFlag flag = BLXFLAG_MIN + 1;
+  int flag = BLXFLAG_MIN + 1;
   
   for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
     {
-      const char *flagName = getFlagName(flag);
+      const char *flagName = getFlagName((BlxFlag)flag);
 
       if (flagName)
         g_key_file_set_integer(key_file, SETTINGS_GROUP, flagName, bc->flags[flag]);
@@ -5136,7 +5201,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   
   for ( ; i < BLXCOL_NUM_COLORS; ++i)
     {
-      BlxColor *blxColor = g_malloc(sizeof(BlxColor));
+      BlxColor *blxColor = (BlxColor*)g_malloc(sizeof(BlxColor));
       blxColor->name = NULL;
       blxColor->desc = NULL;
       g_array_append_val(bc->defaultColors, *blxColor);
@@ -5186,12 +5251,22 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   /* groups */
   createBlxColor(bc->defaultColors, BLXCOLOR_GROUP, "Default group color", "Default highlight color for a new group", BLX_ORANGE_RED, BLX_VERY_LIGHT_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_VERY_LIGHT_GREY, NULL, NULL);
-  
+
+  /* colinearity */
+  createBlxColor(bc->defaultColors, BLXCOLOR_COLINEAR_PERFECT, "Perfect colinearity", "Color of lines joining alignment blocks with perfect colinearity", BLX_DARK_GREEN, BLX_LIGHT_GREY, BLX_DARK_GREEN, BLX_LIGHT_GREY);
+  createBlxColor(bc->defaultColors, BLXCOLOR_COLINEAR_IMPERFECT, "Imperfect colinearity", "Color of lines joining alignment blocks with imperfect colinearity", BLX_ORANGE, BLX_GREY, BLX_ORANGE, BLX_GREY);
+  createBlxColor(bc->defaultColors, BLXCOLOR_COLINEAR_NOT, "Not colinear", "Color of lines joining alignment blocks that are not colinear", BLX_RED, BLX_DARK_GREY, BLX_RED, BLX_DARK_GREY);
+
+  /* polyA features */
+  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_SIGNAL, "polyA signal", "polyA signal", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_SIGNAL_ANN, "Annotated polyA signal", "Annotated polyA signal", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_SITE_ANN, "Annotated polyA site", "Annotated polyA site", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+
   /* misc */
   createBlxColor(bc->defaultColors, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", "#FFC432", BLX_WHITE, "#FFE8AD", NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_DARK_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_TREE_GRID_LINES, "Tree grid lines", "Tree grid lines", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY);
   createBlxColor(bc->defaultColors, BLXCOLOR_CLIP_MARKER, "Clipped-match indicator", "Marker to indicate a match has been clipped to the display range", BLX_RED, BLX_DARK_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_COVERAGE_PLOT, "Coverage plot", "Coverage plot", BLX_ROYAL_BLUE, BLX_DARK_GREY, NULL, NULL);
@@ -5219,7 +5294,7 @@ static void calculateDepth(BlxViewContext *bc)
   if (displayLen < 1)
     return; 
   
-  bc->depthArray = g_malloc(sizeof(int) * displayLen);
+  bc->depthArray = (int*)g_malloc(sizeof(int) * displayLen);
   
   /* Initialise each entry to zero */  
   int i = 0;
@@ -5234,7 +5309,7 @@ static void calculateDepth(BlxViewContext *bc)
   for ( ; mspType < BLXMSP_NUM_TYPES; ++mspType)
     {
       /* Only include MSPs of relevant types */
-      if (!includeTypeInCoverage(mspType))
+      if (!includeTypeInCoverage((BlxMspType)mspType))
         continue;
       
       /* Loop through all MSPs in this list */
@@ -5325,11 +5400,11 @@ static void loadBlixemSettings(BlxViewContext *blxContext)
     }
 
   /* loop through all the flags and see if any of them are given */
-  BlxFlag flag = BLXFLAG_MIN + 1;
+  int flag = BLXFLAG_MIN + 1;
   
   for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
     {
-      const char *flagName = getFlagName(flag);
+      const char *flagName = getFlagName((BlxFlag)flag);
       
       if (flagName)
         {
@@ -5351,8 +5426,8 @@ static void loadBlixemSettings(BlxViewContext *blxContext)
 
 
 static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
-                                              const IntRange const *refSeqRange,
-                                              const IntRange const *fullDisplayRange,
+                                              const IntRange* const refSeqRange,
+                                              const IntRange* const fullDisplayRange,
                                               const char *paddingSeq,
                                               GArray* featureLists[],
                                               GList *seqList,
@@ -5361,7 +5436,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
                                               GtkWidget *statusBar,
                                               const gboolean External)
 {
-  BlxViewContext *blxContext = g_malloc(sizeof *blxContext);
+  BlxViewContext *blxContext = (BlxViewContext*)g_malloc(sizeof *blxContext);
   
   blxContext->statusBar = statusBar;
   
@@ -5412,6 +5487,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   blxContext->defaultColors = NULL;
   blxContext->usePrintColors = FALSE;
+  blxContext->windowColor = options->windowColor;
   
   createBlxColors(blxContext, widget);
   
@@ -5447,13 +5523,13 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
                                       GtkWidget *detailView,
                                       GtkWidget *mainmenu,
                                       GtkActionGroup *actionGroup,
-                                      const IntRange const *refSeqRange,
-                                      const IntRange const *fullDisplayRange,
+                                      const IntRange* const refSeqRange,
+                                      const IntRange* const fullDisplayRange,
                                       const char *paddingSeq)
 {
   if (widget)
     {
-      BlxWindowProperties *properties = g_malloc(sizeof *properties);
+      BlxWindowProperties *properties = (BlxWindowProperties*)g_malloc(sizeof *properties);
       
       properties->blxContext = blxContext;
 
@@ -5508,7 +5584,7 @@ GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
 BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->blastMode : 0;
+  return blxContext ? blxContext->blastMode : (BlxBlastMode)0;
 }
 
 char * blxWindowGetRefSeq(GtkWidget *blxWindow)
@@ -5544,7 +5620,7 @@ GList* blxWindowGetAllMatchSeqs(GtkWidget *blxWindow)
 BlxSeqType blxWindowGetSeqType(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->seqType : FALSE;
+  return blxContext ? blxContext->seqType : BLXSEQ_INVALID;
 }
 
 IntRange* blxWindowGetFullRange(GtkWidget *blxWindow)
@@ -5926,7 +6002,7 @@ void blxWindowDeselectAllSeqs(GtkWidget *blxWindow)
 }
 
 
-gboolean blxContextIsSeqSelected(const BlxViewContext const *bc, const BlxSequence *seq)
+gboolean blxContextIsSeqSelected(const BlxViewContext* const bc, const BlxSequence *seq)
 {
   GList *foundItem = NULL;
   
@@ -5983,7 +6059,7 @@ BlxSequence* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
  ***********************************************************/
 
 /* Set various properties for the blixem window */
-static void setStyleProperties(GtkWidget *widget)
+static void setStyleProperties(GtkWidget *widget, char *windowColor)
 {
   /* Set the initial window size based on some fraction of the screen size */
   GdkScreen *screen = gtk_widget_get_screen(widget);
@@ -6341,7 +6417,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   
   /* Create the main blixem window */
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  setStyleProperties(window);
+  setStyleProperties(window, options->windowColor);
 
   /* Create a status bar */
   GtkWidget *statusBar = gtk_statusbar_new();
@@ -6417,7 +6493,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 					   startCoord,
 					   options->sortInverted,
 					   options->initSortColumn,
-                                           options->optionalColumns);
+                                           options->optionalColumns,
+                                           options->windowColor);
 
   
   /* Add the coverage view underneath the main panes */

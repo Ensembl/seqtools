@@ -138,6 +138,8 @@ void			      calculateNumVCells(GtkWidget *bigPicture);
 void			      bigPictureRedrawAll(GtkWidget *bigPicture);
 void                          bigPicturePrepareForPrinting(GtkWidget *bigPicture);
 
+void                          scrollBigPictureLeftStep(GtkWidget *bigPicture);
+void                          scrollBigPictureRightStep(GtkWidget *bigPicture);
 void                          drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkRectangle *displayRect, GdkRectangle *highlightRect);
 void                          showPreviewBox(GtkWidget *bigPicture, const int x, const gboolean bOffset, const int offset);
 void                          acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect);
@@ -175,8 +177,8 @@ GtkWidget*		      createBigPicture(GtkWidget *blxWindow,
 					       GtkWidget *coverageView,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid,
-                                               const IntRange const *initRange,
-                                               const IntRange const *fullRange,
+                                               const IntRange* const initRange,
+                                               const IntRange* const fullRange,
 					       const int bigPictZoom,
 					       const gdouble lowestId);
 

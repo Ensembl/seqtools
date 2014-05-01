@@ -76,8 +76,8 @@ typedef struct _DrawData
     GtkWidget *blxWindow;
     BlxViewContext *bc;
     const BlxStrand strand;
-    const IntRange const *displayRange;
-    const IntRange const *refSeqRange;
+    const IntRange* const displayRange;
+    const IntRange* const refSeqRange;
     const gboolean displayRev;
     const int numFrames;
     const BlxSeqType seqType;
@@ -118,9 +118,9 @@ void callFuncOnAllBigPictureExonViews(GtkWidget *widget, gpointer data)
 }
 
 
-static gboolean calculateExonIntronDimensions(const MSP const *msp, 
+static gboolean calculateExonIntronDimensions(const MSP* const msp, 
                                               BlxViewContext *bc,
-                                              const IntRange const *displayRange,
+                                              const IntRange* const displayRange,
                                               GdkRectangle *exonViewRect,
                                               int *x, 
                                               int *width)
@@ -129,7 +129,7 @@ static gboolean calculateExonIntronDimensions(const MSP const *msp,
   
   /* Find the coordinates of the start and end base in this msp, converting to display coords. Note
    * that display coords always increase from left-to-right, even if the actual coords are inverted. */
-  const IntRange const *mspDisplayRange = mspGetDisplayRange(msp);
+  const IntRange* const mspDisplayRange = mspGetDisplayRange(msp);
 
   if (rangesOverlap(mspDisplayRange, displayRange))
     {
@@ -179,7 +179,7 @@ static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand)
 static gboolean selectExonIfContainsCoords(GtkWidget *exonView, 
                                            ExonViewProperties *properties,
                                            BlxViewContext *bc,
-                                           const IntRange const *displayRange,
+                                           const IntRange* const displayRange,
                                            const MSP *msp,
                                            const int x,
                                            const int y,
@@ -245,13 +245,13 @@ static gboolean selectClickedExon(GtkWidget *exonView,
   
   for ( ; seqItem && !found; seqItem = seqItem->next)
     {
-      const BlxSequence const *seq = (const BlxSequence const*)(seqItem->data);
+      const BlxSequence* const seq = (const BlxSequence*)(seqItem->data);
       GList *mspItem = seq->mspList;
       gboolean drawn = FALSE;
             
       for ( ; mspItem && !found; mspItem = mspItem->next)
         {
-          const MSP const *msp = (const MSP const *)(mspItem->data);
+          const MSP* const msp = (const MSP*)(mspItem->data);
           found = selectExonIfContainsCoords(exonView, properties, bc, 
                                              bigPictureGetDisplayRange(properties->bigPicture),
                                              msp, event->x, event->y, deselectOthers, y, &drawn);
@@ -272,7 +272,7 @@ void calculateExonViewHeight(GtkWidget *exonView)
   ExonViewProperties *properties = exonViewGetProperties(exonView);
 
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
-  const IntRange const *displayRange = &bpProperties->displayRange;
+  const IntRange* const displayRange = &bpProperties->displayRange;
   
   BlxViewContext *bc = blxWindowGetContext(bpProperties->blxWindow);
 
@@ -295,7 +295,7 @@ void calculateExonViewHeight(GtkWidget *exonView)
 	  
 	  if ((mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == properties->currentStrand)
 	    {
-	      const IntRange const *mspDisplayRange = mspGetDisplayRange(msp);
+	      const IntRange* const mspDisplayRange = mspGetDisplayRange(msp);
               
               if (rangesOverlap(mspDisplayRange, displayRange))
 		{
@@ -378,7 +378,7 @@ static void calculateExonViewBorders(GtkWidget *exonView)
  ***********************************************************/
 
 /* Draw an exon */
-static void drawExon(const MSP const *msp, 
+static void drawExon(const MSP* const msp, 
                      DrawData *data, 
                      const BlxSequence *blxSeq, 
                      const gboolean isSelected, 
@@ -468,7 +468,7 @@ static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const g
 
 
 /* Draw an intron */
-static void drawIntron(const MSP const *msp, 
+static void drawIntron(const MSP* const msp, 
                        DrawData *data, 
                        const BlxSequence *blxSeq, 
                        const gboolean isSelected, 
@@ -564,7 +564,7 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   ExonViewProperties *properties = exonViewGetProperties(exonView);
-  const IntRange const *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
+  const IntRange* const displayRange = bigPictureGetDisplayRange(properties->bigPicture);
 
   /* First, highlight any assembly gaps */
   /* Get the display range in dna coords */
@@ -677,7 +677,7 @@ static void exonViewCreateProperties(GtkWidget *exonView,
 {
   if (exonView)
     {
-      ExonViewProperties *properties = g_malloc(sizeof *properties);
+      ExonViewProperties *properties = (ExonViewProperties*)g_malloc(sizeof *properties);
       
       properties->bigPicture	      = bigPicture;
       properties->currentStrand	      = currentStrand;
@@ -868,16 +868,14 @@ static gboolean onScrollExonView(GtkWidget *exonView, GdkEventScroll *event, gpo
     {
       case GDK_SCROLL_LEFT:
 	{
-          GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
-	  scrollDetailViewLeftStep(blxWindowGetDetailView(blxWindow));
+          scrollBigPictureLeftStep(exonViewGetBigPicture(exonView));
 	  handled = TRUE;
 	  break;
 	}
 	
       case GDK_SCROLL_RIGHT:
 	{
-          GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
-	  scrollDetailViewRightStep(blxWindowGetDetailView(blxWindow));
+          scrollBigPictureRightStep(exonViewGetBigPicture(exonView));
 	  handled = TRUE;
 	  break;
 	}

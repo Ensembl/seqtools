@@ -99,7 +99,7 @@ static void coverageViewCreateProperties(GtkWidget *widget,
 {
   if (widget)
     { 
-      CoverageViewProperties *properties = g_malloc(sizeof *properties);
+      CoverageViewProperties *properties = (CoverageViewProperties*)g_malloc(sizeof *properties);
       
       properties->blxWindow = blxWindow;
       properties->viewYPadding = DEFAULT_COVERAGE_VIEW_Y_PADDING;
@@ -174,12 +174,6 @@ static GtkWidget *coverageViewGetBigPicture(GtkWidget *coverageView)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
   return (properties ? blxWindowGetBigPicture(properties->blxWindow) : NULL);
-}
-
-static GtkWidget *coverageViewGetDetailView(GtkWidget *coverageView)
-{
-  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
-  return (properties ? blxWindowGetDetailView(properties->blxWindow) : NULL);
 }
 
 double coverageViewGetDepthPerCell(GtkWidget *coverageView)
@@ -285,7 +279,7 @@ static void drawCoveragePlot(GtkWidget *coverageView, GdkDrawable *drawable)
   const int bottomBorder = properties->viewRect.y + properties->viewRect.height;
   
   /* Loop through each coord in the display range */
-  const IntRange const *displayRange = bigPictureGetDisplayRange(bigPicture);
+  const IntRange* const displayRange = bigPictureGetDisplayRange(bigPicture);
   
   double startX = -1.0;
   double prevX = -1.0;
@@ -525,14 +519,14 @@ static gboolean onScrollCoverageView(GtkWidget *coverageView, GdkEventScroll *ev
   {
     case GDK_SCROLL_LEFT:
     {
-      scrollDetailViewLeftStep(coverageViewGetDetailView(coverageView));
+      scrollBigPictureLeftStep(coverageViewGetBigPicture(coverageView));
       handled = TRUE;
       break;
     }
       
     case GDK_SCROLL_RIGHT:
     {
-      scrollDetailViewRightStep(coverageViewGetDetailView(coverageView));
+      scrollBigPictureRightStep(coverageViewGetBigPicture(coverageView));
       handled = TRUE;
       break;
     }

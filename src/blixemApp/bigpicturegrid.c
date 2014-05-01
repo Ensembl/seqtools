@@ -58,6 +58,7 @@ typedef struct _DrawGridData
   GdkGC *gc;
   GdkColor *color;
   GdkColor *shadowColor;
+  gboolean drawColinearityLines;
 } DrawGridData;
 
   
@@ -66,7 +67,6 @@ typedef struct _DrawGridData
 static BlxViewContext*	    gridGetContext(GtkWidget *grid);
 static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineColor(GtkWidget *grid, const gboolean selected);
-static GtkWidget*	    gridGetDetailView(GtkWidget *grid);
 static GtkWidget*	    gridGetBlxWindow(GtkWidget *grid);
 static void                 drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable);
 
@@ -116,12 +116,13 @@ gint convertValueToGridPos(GtkWidget *grid, const gdouble value)
 
 /* Calculates the size and position of an MSP line in the given grid. Return
  * args can be null if not required. */
-void calculateMspLineDimensions(GtkWidget *grid, 
-				const MSP const *msp, 
-				int *x, 
-				int *y, 
-				int *width, 
-				int *height)
+static void calculateMspLineDimensions(GtkWidget *grid, 
+                                       const MSP* const msp, 
+                                       gboolean clip,
+                                       int *x, 
+                                       int *y, 
+                                       int *width, 
+                                       int *height)
 {
   BlxViewContext *bc = gridGetContext(grid);
   GridProperties *gridProperties = gridGetProperties(grid);
@@ -160,18 +161,26 @@ void calculateMspLineDimensions(GtkWidget *grid,
 }
 
 
-/* Returns true if the given msp is displayed in the given grid, i.e. is the 
- * correct strand, is not an intron or exon, and is not out of range */
-static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
+/* Returns true if the given msp is displayed in the given grid, i.e. is the correct
+ * strand, is not an intron or exon, and (if checkVisible is true) is not out of range */
+static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean checkVisible)
 {
   gboolean result = FALSE;
   
   if (mspIsBlastMatch(msp) && mspGetRefStrand(msp) == gridGetStrand(grid))
     {
-      /* See if the msp lies within the grid's display range */
-      const IntRange const *displayRange = gridGetDisplayRange(grid);
-      const IntRange const *mspRange = mspGetDisplayRange(msp);
-      result = rangesOverlap(mspRange, displayRange);
+      if (checkVisible)
+        {
+          /* See if the msp lies within the grid's display range */
+          const IntRange* const displayRange = gridGetDisplayRange(grid);
+          const IntRange* const mspRange = mspGetDisplayRange(msp);
+          result = rangesOverlap(mspRange, displayRange);
+        }
+      else
+        {
+          /* We're just checking the correct type and strand, so return true */
+          result = TRUE;
+        }
     }
   
   return result;
@@ -179,17 +188,17 @@ static gboolean mspShownInGrid(const MSP const *msp, GtkWidget *grid)
 
 
 /* Draw a line on the given grid to represent the given match */
-static void drawMspLine(const MSP const *msp, DrawGridData *drawData)
+static void drawMspLine(const MSP* const msp, DrawGridData *drawData)
 {
   /* Ignore introns. */
-  if (mspShownInGrid(msp, drawData->grid))
+  if (mspShownInGrid(msp, drawData->grid, TRUE))
     {
       gdk_gc_set_subwindow(drawData->gc, GDK_INCLUDE_INFERIORS);
       gdk_gc_set_foreground(drawData->gc, drawData->color);
       
       /* Calculate where it should go */
       int x, y, width, height;
-      calculateMspLineDimensions(drawData->grid, msp, &x, &y, &width, &height);
+      calculateMspLineDimensions(drawData->grid, msp, TRUE, &x, &y, &width, &height);
       
       /* Draw a block rectangle */
       gdk_draw_rectangle(drawData->drawable, drawData->gc, TRUE, x, y, width, height);
@@ -212,6 +221,70 @@ static void drawMspLine(const MSP const *msp, DrawGridData *drawData)
 }
 
 
+/* Draw colinearity lines between the given MSP list item and the next one (if there is one) */
+static void drawColinearityLines(GList *mspListItem, DrawGridData *drawData)
+{
+  g_return_if_fail(drawData);
+
+  BlxViewContext *bc = gridGetContext(drawData->grid);
+  
+  if (drawData->drawColinearityLines && mspListItem && mspListItem->next && bc->flags[BLXFLAG_SHOW_COLINEARITY])
+    {
+      const IntRange* const displayRange = gridGetDisplayRange(drawData->grid);
+
+      const MSP* msp1 = (const MSP*)mspListItem->data;
+      const MSP* msp2 = (const MSP*)mspListItem->next->data;
+
+      /* If the display is reversed we need to swap the order of the msps */
+      if (bc->displayRev)
+        {
+          msp1 = (const MSP*)mspListItem->next->data;
+          msp2 = (const MSP*)mspListItem->data;
+        }
+
+      /* Check that the line will lie within the visible range */
+      if ((msp1->displayRange.max < displayRange->max && msp2->displayRange.min > displayRange->min) ||
+          (msp1->displayRange.max > displayRange->max && msp2->displayRange.min < displayRange->min))
+        {
+          ColinearityType colinearityType = COLINEAR_INVALID;
+
+          if ((bc->displayRev && msp1->qStrand == BLXSTRAND_FORWARD) || (!bc->displayRev && msp1->qStrand != BLXSTRAND_FORWARD))
+            colinearityType = mspIsColinear(msp2, msp1);
+          else
+            colinearityType = mspIsColinear(msp1, msp2);
+
+          if (colinearityType != COLINEAR_INVALID)
+            {
+              /* get the line color */
+              GdkColor *color = NULL;
+
+              if (colinearityType == COLINEAR_PERFECT)
+                color = getGdkColor(BLXCOLOR_COLINEAR_PERFECT, bc->defaultColors, FALSE, bc->usePrintColors);
+              else if (colinearityType == COLINEAR_IMPERFECT)
+                color = getGdkColor(BLXCOLOR_COLINEAR_IMPERFECT, bc->defaultColors, FALSE, bc->usePrintColors);
+              else
+                color = getGdkColor(BLXCOLOR_COLINEAR_NOT, bc->defaultColors, FALSE, bc->usePrintColors);
+
+              gdk_gc_set_foreground(drawData->gc, color);
+
+              /* get coords of the msp lines */
+              int x1, y1, width1, height1;
+              int x2, y2, width2, height2;
+              calculateMspLineDimensions(drawData->grid, msp1, FALSE, &x1, &y1, &width1, &height1);
+              calculateMspLineDimensions(drawData->grid, msp2, FALSE, &x2, &y2, &width2, &height2);
+
+              /* get coords of line to draw */
+              IntRange lineXRange = {x1 + width1, x2};
+              IntRange lineYRange = {y1 + height1 / 2, y2 + height2 / 2};
+
+              gdk_draw_line(drawData->drawable, drawData->gc, 
+                            lineXRange.min, lineYRange.min, lineXRange.max, lineYRange.max);
+            }
+        }
+    }
+}
+
+
 /* Draw the MSPs for the given sequence in the given color. */
 static void drawSequenceMspLines(gpointer listItemData, gpointer data)
 {
@@ -228,10 +301,14 @@ static void drawSequenceMspLines(gpointer listItemData, gpointer data)
     {
       MSP *msp = (MSP*)(mspListItem->data);
 
-      if (mspShownInGrid(msp, drawData->grid))
-	{
-	  drawMspLine(msp, drawData);
-	}
+      /* Draw the msp (if it's on this grid and is in the visible range) */
+      if (mspShownInGrid(msp, drawData->grid, TRUE))
+        drawMspLine(msp, drawData);
+
+      /* Draw colinearity lines between this and the next msp. Note that we need to call this
+       * even if this msp is out of range, in case the next msp is in range. */
+      if (mspShownInGrid(msp, drawData->grid, FALSE))
+        drawColinearityLines(mspListItem, drawData);
     }
 }
 
@@ -278,7 +355,8 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable)
     drawable, 
     gc, 
     gridGetMspLineColor(grid, FALSE), 
-    gridGetMspLineColor(grid, FALSE)
+    gridGetMspLineColor(grid, FALSE),
+    FALSE
   };
   
   /* Draw all MSPs for this grid */ 
@@ -288,11 +366,14 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable)
    * Sort Order, so that those ordered first get drawn last and therefore appear on top) */
   g_list_foreach(bc->sequenceGroups, drawGroupedMspLines, &drawData);
   
-  /* Finally, draw selected sequences. These will appear on top of everything else. */
+  /* Finally, draw selected sequences. These will appear on top of everything else and will have
+   * colinearity lines displayed (we only ever display colinearity lines for selected sequences
+   * in the grid because it would be too cluttered otherwise). */
   drawData.color = gridGetMspLineColor(grid, TRUE);
   GdkColor shadowColor;
   getDropShadowColor(drawData.color, &shadowColor);
   drawData.shadowColor = &shadowColor;
+  drawData.drawColinearityLines = TRUE;
   g_list_foreach(bc->selectedSeqs, drawSequenceMspLines, &drawData);
   
   g_object_unref(gc);
@@ -482,10 +563,10 @@ static gboolean selectMspIfContainsCoords(GtkWidget *grid,
 {
   gboolean wasSelected = FALSE;
   
-  if (mspShownInGrid(msp, grid))
+  if (mspShownInGrid(msp, grid, TRUE))
     {
       int mspX, mspY, mspWidth, mspHeight;
-      calculateMspLineDimensions(grid, msp, &mspX, &mspY, &mspWidth, &mspHeight);
+      calculateMspLineDimensions(grid, msp, TRUE, &mspX, &mspY, &mspWidth, &mspHeight);
       
       if (x >= mspX && x <= mspX + mspWidth && y >= mspY && y <= mspY + mspHeight)
 	{
@@ -598,14 +679,14 @@ static gboolean onScrollGrid(GtkWidget *grid, GdkEventScroll *event, gpointer da
     {
       case GDK_SCROLL_LEFT:
 	{
-	  scrollDetailViewLeftStep(gridGetDetailView(grid));
+          scrollBigPictureLeftStep(gridGetBigPicture(grid));
 	  handled = TRUE;
 	  break;
 	}
 	
       case GDK_SCROLL_RIGHT:
 	{
-	  scrollDetailViewRightStep(gridGetDetailView(grid));
+          scrollBigPictureRightStep(gridGetBigPicture(grid));
 	  handled = TRUE;
 	  break;
 	}
@@ -674,7 +755,7 @@ static void gridCreateProperties(GtkWidget *widget,
        * largest label value plus one (for a '%' character)
        * Add a fudge factor to give more space to allow for the fact that 
        * the calculated char width is approximate and may not give enough space */
-      GridProperties *properties = g_malloc(sizeof *properties);
+      GridProperties *properties = (GridProperties*)g_malloc(sizeof *properties);
       
       properties->bigPicture = bigPicture;
       properties->strand = strand;
@@ -714,12 +795,6 @@ static IntRange* gridGetDisplayRange(GtkWidget *grid)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
   return bigPictureGetDisplayRange(bigPicture);
-}
-
-static GtkWidget* gridGetDetailView(GtkWidget *grid)
-{
-  GtkWidget *blxWindow = gridGetBlxWindow(grid);
-  return blxWindowGetDetailView(blxWindow);
 }
 
 static GdkColor *gridGetMspLineColor(GtkWidget *grid, const gboolean selected)

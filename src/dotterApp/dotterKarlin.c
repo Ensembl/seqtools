@@ -209,7 +209,7 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
 
     int		i, j;
     long	range, lo, hi, first, last;
-    double	up, new, sum, Sum, av, beta, oldsum, oldsum2;
+    double	up, new_val, sum, Sum, av, beta, oldsum, oldsum2;
     double	*p = NULL, *P = NULL, *ptrP, *ptr1, *ptr2;
     double	ratio;
 
@@ -256,14 +256,14 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
     
     /* Root solving by the bisection method */
     for (*lambda=0., j=0; j<25; ++j) {
-	new = (*lambda+up)/2.0;
+	new_val = (*lambda+up)/2.0;
 	ptr1 = p;
 	for (sum=0., i=low; i <= high; ++i)
-	    sum += *ptr1++ * exp(new*i);
+	    sum += *ptr1++ * exp(new_val*i);
 	if (sum > 1.0)
-	    up = new;
+	    up = new_val;
 	else
-	    *lambda = new;
+	    *lambda = new_val;
     }
     beta = exp(*lambda);
 
@@ -296,9 +296,9 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
 	    if (ptrP-P <= range)
 		--last;
 	}
-	new = fct_powi(beta, lo-1);
+	new_val = fct_powi(beta, lo-1);
 	for (sum=0, i=lo; i != 0; ++i)
-	    sum += *++ptrP * (new *= beta);
+	    sum += *++ptrP * (new_val *= beta);
 	for (; i <= hi; ++i)
 	    sum += *++ptrP;
 	oldsum2 = oldsum;

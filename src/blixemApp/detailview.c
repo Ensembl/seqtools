@@ -58,9 +58,12 @@
 #define NO_SUBJECT_SELECTED_TEXT        "<no subject selected>"
 #define MULTIPLE_SUBJECTS_SELECTED_TEXT "<multiple subjects selected>"
 #define MULTIPLE_VARIATIONS_TEXT        "<multiple variations>"
+#define MULTIPLE_POLYA_SIGNALS_TEXT     "<multiple polyA signals>"
+#define MULTIPLE_POLYA_SITES_TEXT       "<multiple polyA sites>"
 #define DEFAULT_SNP_CONNECTOR_HEIGHT    0
 #define DEFAULT_NUM_UNALIGNED_BASES     5     /* the default number of additional bases to show if displaying unaligned parts of the match sequence */
 #define POLYA_SIG_BASES_UPSTREAM        50    /* the number of bases upstream from a polyA tail to search for polyA signals */
+#define POLYA_SIGNAL                    "aataaa"
 
 #define SETTING_NAME_NUM_UNALIGNED_BASES "num-unaligned-bases"
 
@@ -73,7 +76,7 @@ typedef struct
     const gboolean displayRev;          /* true if the display is reversed */
     const BlxSeqType seqType;           /* whether viewing DNA or peptide seqs */
     const int numFrames;                /* number of reading frames */
-    const IntRange const *refSeqRange;  /* the full range of the reference sequence */
+    const IntRange* const refSeqRange;  /* the full range of the reference sequence */
     GList *seqList;                     /* only search matches in these sequences */
 
     int offset;                         /* the offset of the found MSP */
@@ -101,7 +104,7 @@ static void                   refreshDetailViewHeaders(GtkWidget *detailView);
 
 static void                   snpTrackSetStrand(GtkWidget *snpTrack, const BlxStrand strand);
 static BlxStrand              snpTrackGetStrand(GtkWidget *snpTrack, GtkWidget *detailView);
-static void                   getVariationDisplayRange(const MSP *msp, const gboolean expand, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange const *refSeqRange, IntRange *displayRange, IntRange *expandedRange);
+static void                   getVariationDisplayRange(const MSP *msp, const gboolean expand, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange* const refSeqRange, IntRange *displayRange, IntRange *expandedRange);
 static void                   recalculateSnpTrackBorders(GtkWidget *snpTrack, gpointer data);
 
 static void                   detailViewCacheFontSize(GtkWidget *detailView, gdouble charWidth, gdouble charHeight);
@@ -111,8 +114,30 @@ static void                   updateCellRendererFont(GtkWidget *detailView, Pang
 static void                   setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
 static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse);
 static int                    getNumSnpTrackRows(const BlxViewContext *bc, DetailViewProperties *properties, const BlxStrand strand, const int frame);
-static int                    getVariationRowNumber(const IntRange const *rangeIn, const int numRows, GSList **rows);
+static int                    getVariationRowNumber(const IntRange* const rangeIn, const int numRows, GSList **rows);
 static void                   freeRowsList(GSList *rows);
+
+static gboolean               coordAffectedByVariation(const int dnaIdx,
+                                                       const BlxStrand strand, 
+                                                       BlxViewContext *bc,
+                                                       const MSP **msp,
+                                                       gboolean *drawStartBoundary, 
+                                                       gboolean *drawEndBoundary, 
+                                                       gboolean *drawJoiningLines, 
+                                                       gboolean *drawBackground,
+                                                       gboolean *multipleVariations);
+
+static gboolean               coordAffectedByPolyASignal(const int dnaIdx,
+                                                         const BlxStrand strand, 
+                                                         BlxViewContext *bc,
+                                                         const MSP **mspOut,
+                                                         gboolean *multipleVariations);
+
+static gboolean                coordAffectedByPolyASite(const int dnaIdx,
+                                                        const BlxStrand strand, 
+                                                        BlxViewContext *bc,
+                                                        const MSP **mspOut,
+                                                        gboolean *multipleVariations);
 
 
 /***********************************************************
@@ -168,6 +193,7 @@ void detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file)
   
   g_key_file_set_integer(key_file, SETTINGS_GROUP, SETTING_NAME_NUM_UNALIGNED_BASES, properties->numUnalignedBases);
   saveColumnWidths(detailViewGetColumnList(detailView), key_file);
+  saveSummaryColumns(detailViewGetColumnList(detailView), key_file);
 }
 
 
@@ -185,7 +211,7 @@ void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType co
 void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)
 {
   /* Get the new start coord */
-  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
   const int displayLen = getRangeLength(displayRange);
   int newStart = coord - displayLen + 1;
 
@@ -849,6 +875,24 @@ void updateFeedbackBox(GtkWidget *detailView)
 }
 
 
+/* Clear the feedback area */
+void clearFeedbackArea(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
+  if (properties)
+    {
+      GtkStatusbar *statusBar = GTK_STATUSBAR(properties->statusBar);
+      
+      if (statusBar)
+        {
+          guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
+          gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, "");
+        }
+    }
+}
+
+
 /* This updates the detail-view feedback area with info about a given nucleotide in the reference sequence */
 void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const BlxStrand strand)
 {
@@ -866,9 +910,9 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
       /* See if there's a variation at the given coord */
       const MSP *msp = NULL;
       
-      gboolean multipleVariations = FALSE;
+      gboolean multiple = FALSE;
       
-      if (coordAffectedByVariation(dnaIdx, strand, bc, &msp, NULL, NULL, NULL, NULL, &multipleVariations))
+      if (coordAffectedByVariation(dnaIdx, strand, bc, &msp, NULL, NULL, NULL, NULL, &multiple))
         {
           if (msp && mspGetSName(msp))
             {
@@ -880,7 +924,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
               /* If there are multiple variations on this coord, display some summary text.
                * Otherwise, check we've got the sequence info to display. We should have, but 
                * if not just display the name. */
-              if (multipleVariations)
+              if (multiple)
                 displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_VARIATIONS_TEXT);
               else if (mspGetMatchSeq(msp))
                 displayText = g_strdup_printf("%d  %s : %s", coord, mspGetSName(msp), mspGetMatchSeq(msp));
@@ -892,6 +936,75 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
               g_free(displayText);
             }
         }
+      else if (coordAffectedByPolyASignal(dnaIdx, strand, bc, &msp, &multiple) && msp)
+        {
+          char *displayText = NULL;
+
+          /* If we're displaying coords negated, negate it now */
+          const int negate = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 : 1);
+          int coord = negate * dnaIdx;
+
+          /* If there are multiple signals on this coord, display some summary text.
+           * Otherwise, check we've got the sequence info to display. If not just display the name. */
+          if (multiple)
+            {
+              displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_POLYA_SIGNALS_TEXT);
+            }
+          else
+            {
+              if (bc->displayRev) /* swap coords and negage if applicable */
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", negate * msp->qRange.max, negate * msp->qRange.min);
+              else
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", msp->qRange.min, msp->qRange.max);
+            }
+              
+          /* Send the message to the status bar */
+          gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+          g_free(displayText);
+        }
+      else if (coordAffectedByPolyASite(dnaIdx, strand, bc, &msp, &multiple) && msp)
+        {
+          char *displayText = NULL;
+
+          /* If we're displaying coords negated, negate it now */
+          const int negate = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 : 1);
+          int coord = negate * dnaIdx;
+
+          /* If there are multiple sites on this coord, display some summary text.
+           * Otherwise, check we've got the sequence info to display. If not just display the name. */
+          if (multiple)
+            {
+              displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_POLYA_SITES_TEXT);
+            }
+          else
+            {
+              if (bc->displayRev) /* swap coords and negate if applicable */
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", negate * msp->qRange.max, negate * msp->qRange.min);
+              else
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", msp->qRange.min, msp->qRange.max);
+            }
+              
+          /* Send the message to the status bar */
+          gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
+          g_free(displayText);
+        }
+    }
+}
+
+
+/* Scroll the detail-view if necessary to keep it within the given range */
+void detailViewScrollToKeepInRange(GtkWidget *detailView, const IntRange* const range)
+{
+  IntRange *displayRange = detailViewGetDisplayRange(detailView);
+  const BlxSeqType seqType = detailViewGetSeqType(detailView);
+      
+  if (displayRange->min < range->min)
+    {
+      setDetailViewStartIdx(detailView, range->min, seqType);
+    }
+  else if (displayRange->max > range->max)
+    {
+      setDetailViewEndIdx(detailView, range->max, seqType);
     }
 }
 
@@ -903,7 +1016,7 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
 {
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
-  
+
   if (selectedBaseIdx != UNSET_INT && !valueWithinRange(selectedBaseIdx, displayRange))
     {
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
@@ -1101,7 +1214,7 @@ static GtkSortType getColumnSortOrder(BlxViewContext *bc, const BlxColumnId colu
 
 
   /* We're only interested in sorting exons and matches */
-static gboolean mspIsSortable(const MSP const *msp)
+static gboolean mspIsSortable(const MSP* const msp)
 {
   return (msp && (typeIsMatch(msp->type) || mspIsExon(msp)));
 }
@@ -1295,7 +1408,7 @@ void detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases)
 }
 
 
-int getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange const *displayRange)
+int getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange* const displayRange)
 {
   int result = UNSET_INT;
   
@@ -1512,7 +1625,7 @@ void drawColumnSeparatorLine(GtkWidget *widget,
 /* Populates the 'bases' string with the two bases from the ref seq adjacent to the start/end
  * of the given MSP (if it is an exon/match). 'Start' here means at the lower value coord end
  * of the MSP. 'revStrand' is true if this MSP is on the reverse strand of the ref seq */
-static void mspGetAdjacentBases(const MSP const *msp, char *bases, const gboolean start, const gboolean revStrand, const BlxViewContext *bc)
+static void mspGetAdjacentBases(const MSP* const msp, char *bases, const gboolean start, const gboolean revStrand, const BlxViewContext *bc)
 {
   if (start)
     {
@@ -1534,7 +1647,7 @@ static void mspGetAdjacentBases(const MSP const *msp, char *bases, const gboolea
  * otherwise returns the previous one. The return value will be NULL if there is no next/prev MSP.
  * The error will be set if there was any problem (e.g. if the given MSP does not exist the the sequence).
  * Only considers exons and matches. */
-static const MSP* sequenceGetNextMsp(const MSP const *msp, 
+static const MSP* sequenceGetNextMsp(const MSP* const msp, 
                                      const BlxSequence *blxSeq, 
                                      const gboolean getNext, 
                                      GError **error)
@@ -1548,7 +1661,7 @@ static const MSP* sequenceGetNextMsp(const MSP const *msp,
   /* Loop through all MSPs and look for the given one. */
   for ( ; mspItem; mspItem = mspItem->next)
     {
-      const MSP const *curMsp = (const MSP*)(mspItem->data);
+      const MSP* const curMsp = (const MSP*)(mspItem->data);
       
       if (curMsp == msp)
         {
@@ -1597,7 +1710,7 @@ static const MSP* sequenceGetNextMsp(const MSP const *msp,
 /* Determine whether the bases at the other end of the intron for the start/end of 
  * the given MSP are canonical. 'canonicalStart' and 'canonicalEnd' contain the two bases to look
  * for at the start/end of the next/previous MSP to determine if the result is canonical. */
-static gboolean mspIsSpliceSiteCanonicalOtherEnd(const MSP const *msp,
+static gboolean mspIsSpliceSiteCanonicalOtherEnd(const MSP* const msp,
                                                  const BlxSequence *blxSeq,
                                                  const gboolean isMinCoord, 
                                                  const gboolean revStrand,
@@ -1631,9 +1744,9 @@ static gboolean mspIsSpliceSiteCanonicalOtherEnd(const MSP const *msp,
 
 
 /* Create a BlxSpliceSite and add it to the given list */
-static void addBlxSpliceSite(GSList **spliceSites, char *donorSite, char *acceptorSite, const gboolean bothReqd)
+static void addBlxSpliceSite(GSList **spliceSites, const char *donorSite, const char *acceptorSite, const gboolean bothReqd)
 {
-  BlxSpliceSite *spliceSite = g_malloc(sizeof(BlxSpliceSite));
+  BlxSpliceSite *spliceSite = (BlxSpliceSite*)g_malloc(sizeof(BlxSpliceSite));
 
   if (strlen(donorSite) < 2 || strlen(acceptorSite) < 2)
     {
@@ -1697,7 +1810,7 @@ static const char* spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gbo
 /* Determines whether the intron splice sites for the given MSP are canonical or not.
  * We look for GC-AG or AT-AC introns. The latter must have both ends of the intron matching
  * to be canonical. GC is the donor site and AG is the acceptor site. */
-static gboolean isMspSpliceSiteCanonical(const MSP const *msp, 
+static gboolean isMspSpliceSiteCanonical(const MSP* const msp, 
                                          const BlxSequence *blxSeq, 
                                          const gboolean isMinCoord, 
                                          const gboolean revStrand,
@@ -1742,9 +1855,9 @@ static gboolean isMspSpliceSiteCanonical(const MSP const *msp,
  * splice sites of the adjacent introns. Inserts the results into the given hash table with
  * an enum indicating whether the nucleotides are canonical/non-canonical. Only considers
  * MSPs that are within the given ref seq range. */
-static void mspGetSpliceSiteCoords(const MSP const *msp, 
+static void mspGetSpliceSiteCoords(const MSP* const msp, 
                                    const BlxSequence *blxSeq, 
-                                   const IntRange const *qRange, 
+                                   const IntRange* const qRange, 
                                    const BlxViewContext *bc, 
                                    GSList *spliceSites,
                                    GHashTable *result)
@@ -1786,14 +1899,17 @@ static void mspGetSpliceSiteCoords(const MSP const *msp,
  * selected sequences only' option is enabled, then any selected sequence MSPs that have polyA tails
  * should be passed in the given GSList. Any coords within a relevant polyA signal range are added to
  * the given hash table with the BlxColorId that they should be drawn with. */
-static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *polyATailMsps, const BlxStrand qStrand, const IntRange const *qRange, GHashTable *result)
+static void getAnnotatedPolyASignalBasesToHighlight(const BlxViewContext *bc,
+                                                    GSList *polyATailMsps,
+                                                    const BlxStrand qStrand,
+                                                    const IntRange* const qRange,
+                                                    GHashTable *result)
 {
   /* We've more work to do if showing polyA signals (unless we're only showing them for selected
    * sequences and there were no relevant selected sequences) */
   if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && (!bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] || g_slist_length(polyATailMsps) > 0))
     {
-      BlxColorId colorId = BLXCOLOR_POLYA_TAIL;
-      const int direction = (qStrand == BLXSTRAND_REVERSE ? -1 : 1);
+      BlxColorId colorId = BLXCOLOR_POLYA_SIGNAL_ANN;
 
       /* Loop through all polyA signals */
       int i = 0;
@@ -1813,9 +1929,9 @@ static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *pol
                   
                   for ( ; item && !addSignal; item = item->next)
                     {
-                      const MSP const *tailMsp = (const MSP const*)(item->data);
-                      const int qEnd = mspGetQEnd(tailMsp);
-                      const int qStart = qEnd - direction * POLYA_SIG_BASES_UPSTREAM;
+                      const MSP* const tailMsp = (const MSP*)(item->data);
+                      const int qEnd = tailMsp->qRange.max;
+                      const int qStart = qEnd - POLYA_SIG_BASES_UPSTREAM;
                       
                       IntRange upstreamRange;
                       intrangeSetValues(&upstreamRange, qStart, qEnd); /* sorts out which is min and which is max */
@@ -1845,11 +1961,85 @@ static void getPolyASignalBasesToHighlight(const BlxViewContext *bc, GSList *pol
 }
 
 
+/* Scan upstream from any polyA tails to see if there are any polyA signals in the reference
+ * sequence. Actually, because the visible range in the detail-view is generally quite small and
+ * we don't want to re-scan lots of times, lets just scan through the whole visible range once
+ * and show all signals - but only if there is at least one visible polyA tail in the range. */
+static void getPolyASignalBasesToHighlight(GtkWidget *detailView,
+                                           const BlxViewContext *bc,
+                                           GSList *polyATailMsps,
+                                           const IntRange* const qRange,
+                                           GHashTable *result)
+{
+  /* If only showing polyAs for selected sequences, check that there's a (selected) msp with a
+     polyA tail in range (i.e. in the input list). Otherwise show all polyA signals. */
+  if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && (!bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] || g_slist_length(polyATailMsps) > 0))
+    {
+      BlxColorId colorId = BLXCOLOR_POLYA_SIGNAL;
+                                        
+      /* Loop through each base in the visible range */
+      const char *seq = bc->refSeq;
+      int idx = qRange->min - bc->refSeqRange.min; /* convert to 0-based */
+      const int max_idx = qRange->max - bc->refSeqRange.min; /* convert to 0-based */
+      const char *cp = seq + idx;
+      const char *comparison = POLYA_SIGNAL;
+      const int comparison_len = strlen(comparison);
+
+      for ( ; idx < max_idx && cp && *cp; ++idx, ++cp)
+        {
+          if (!strncasecmp(cp, comparison, comparison_len))
+            {
+              /* Add each base in the polyA signal range to the hash table. This may overwrite
+               * splice site bases that we previously found, which is fine (something has to take priority). */
+              int i = idx + bc->refSeqRange.min; /* convert back to coords */
+              const int max = i + comparison_len;
+
+              for ( ; i < max; ++i)
+                {
+                  g_hash_table_insert(result, GINT_TO_POINTER(i), GINT_TO_POINTER(colorId));
+                }
+            }
+        }
+    }
+}
+
+
+/* This looks through all of the polyA sites and sees if any of them are in the given display
+ * range (in nucleotide coords) and whether we want to display them. */
+static void getAnnotatedPolyASiteBasesToHighlight(const BlxViewContext *bc,
+                                                  const BlxStrand qStrand,
+                                                  const IntRange* const qRange,
+                                                  GHashTable *result)
+{
+  /* We've more work to do if showing polyA signals (unless we're only showing them for selected
+   * sequences and there were no relevant selected sequences) */
+  if (bc->flags[BLXFLAG_SHOW_POLYA_SIG])
+    {
+      BlxColorId colorId = BLXCOLOR_POLYA_SITE_ANN;
+
+      /* Loop through all polyA signals */
+      int i = 0;
+      const MSP *siteMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], i);
+      
+      for ( ; siteMsp; siteMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], ++i))
+        {
+          /* Only interested the polyA site has the correct strand and is within the display range. */
+          if (siteMsp->qStrand == qStrand && rangesOverlap(&siteMsp->qRange, qRange))
+            {
+              /* Add just the first base in the polyA signal range to the hash table (because the
+               * site is between the two bases in the range and we only want to draw it once). */
+              g_hash_table_insert(result, GINT_TO_POINTER(siteMsp->qRange.min), GINT_TO_POINTER(colorId));
+            }
+        }
+    }
+}
+
+
 /* This function looks for special bases in the reference sequence header to highlight and stores their
  * coords in the returned hash table with the BlxColorId (converted to a gpointer with GINT_TO_POINTER)
  * of the fill color they should be drawn with. These special coords include splice sites and polyA signals. */
 GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView, 
-                                      const IntRange const *qRange, 
+                                      const IntRange* const qRange, 
                                       const BlxSeqType seqType,
                                       const BlxStrand qStrand)
 {
@@ -1886,24 +2076,19 @@ GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
           if ((mspIsBlastMatch(msp) || msp->type == BLXMSP_EXON) && mspGetRefStrand(msp) == qStrand)
             {
               if (bc->flags[BLXFLAG_SHOW_SPLICE_SITES])
-                {
-                  mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
-                }
+                mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
               
-              if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED])
-                {
-                   if (mspHasPolyATail(msp, bc->featureLists[BLXMSP_POLYA_SITE]))
-                     {
-                       polyATailMsps = g_slist_append(polyATailMsps, msp);
-                     }
-                }
+              if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && mspHasPolyATail(msp))
+                polyATailMsps = g_slist_append(polyATailMsps, msp);
             }
         }
     }
   
-  /* Now check the polyA signals and see if any of them are in range. */
-  getPolyASignalBasesToHighlight(bc, polyATailMsps, qStrand, qRange, result);
-  
+  /* Now check the polyA signals and sites and see if any of them are in range. */
+  getPolyASignalBasesToHighlight(detailView, bc, polyATailMsps, qRange, result);
+  getAnnotatedPolyASignalBasesToHighlight(bc, polyATailMsps, qStrand, qRange, result);
+  getAnnotatedPolyASiteBasesToHighlight(bc, qStrand, qRange, result);
+
   return result;
 }
 
@@ -1976,19 +2161,21 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   int qIdx = bc->displayRev ? qRange.max : qRange.min;
   int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, activeFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   const int y = 0;
+  DrawBaseData baseData = {qIdx, 0, strand, UNSET_INT, BLXSEQ_DNA, TRUE, FALSE, FALSE, FALSE, highlightSnps, TRUE, BLXCOLOR_BACKGROUND, NULL, NULL, FALSE, FALSE, FALSE, FALSE};
   
   while (qIdx >= qRange.min && qIdx <= qRange.max)
     {
-      /* Get the character to display at this index */
+      /* Get the character to display at this index, and its position */
       displayText[displayTextPos] = getSequenceIndex(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
-      
-      /* Color the base depending on whether it is selected or affected by a SNP */
-      const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
-      const gboolean dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
       const int x = (int)((gdouble)displayTextPos * properties->charWidth);
-      const char base = displayText[displayTextPos];
+      
+      baseData.dnaIdx = qIdx;
+      baseData.baseChar = displayText[displayTextPos];
+      baseData.displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
+      baseData.dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
 
-      drawHeaderChar(bc, properties, qIdx, base, strand, UNSET_INT, BLXSEQ_DNA, TRUE, displayIdxSelected, dnaIdxSelected, FALSE, highlightSnps, TRUE, BLXCOLOR_BACKGROUND, drawable, gc, x, y, basesToHighlight);
+      /* Color the base depending on whether it is selected or affected by a SNP */
+      drawHeaderChar(bc, properties, drawable, gc, x, y, basesToHighlight, &baseData);
       
       /* Increment indices */
       ++displayTextPos;
@@ -2028,13 +2215,13 @@ static void getVariationDisplayRange(const MSP *msp,
                                      const int numFrames,
                                      const gboolean displayRev, 
                                      const int activeFrame,
-                                     const IntRange const *refSeqRange,
+                                     const IntRange* const refSeqRange,
                                      IntRange *displayRange,
                                      IntRange *expandedRange)
 {
   /* Convert the MSP coords to display coords. We want to display the variation
    * in the same position regardless of reading frame, so always use frame 1. */
-  const IntRange const *mspRange = mspGetDisplayRange(msp);
+  const IntRange* const mspRange = mspGetDisplayRange(msp);
 
   if (displayRange)
     intrangeSetValues(displayRange, mspRange->min, mspRange->max);
@@ -2068,7 +2255,7 @@ static void getVariationDisplayRange(const MSP *msp,
 
 /* Utility that returns true if the given bool is either true or not 
  * requested (i.e. the pointer is null) */
-static gboolean trueOrNotRequested(const gboolean const *ptr)
+static gboolean trueOrNotRequested(const gboolean* const ptr)
 {
   return (ptr == NULL || *ptr == TRUE);
 }
@@ -2080,15 +2267,15 @@ static gboolean trueOrNotRequested(const gboolean const *ptr)
  * if the background of the base should be highlighted in the variation color (i.e. if the base
  * is part of a selected variation). Sets multipleVariations to true if there is more than
  * one variation at this coord */
-gboolean coordAffectedByVariation(const int dnaIdx,
-                                  const BlxStrand strand, 
-                                  BlxViewContext *bc,
-                                  const MSP **mspOut, /* the variation we found */
-                                  gboolean *drawStartBoundary, 
-                                  gboolean *drawEndBoundary, 
-                                  gboolean *drawJoiningLines, 
-                                  gboolean *drawBackground,
-                                  gboolean *multipleVariations)
+static gboolean coordAffectedByVariation(const int dnaIdx,
+                                         const BlxStrand strand, 
+                                         BlxViewContext *bc,
+                                         const MSP **mspOut, /* the variation we found */
+                                         gboolean *drawStartBoundary, 
+                                         gboolean *drawEndBoundary, 
+                                         gboolean *drawJoiningLines, 
+                                         gboolean *drawBackground,
+                                         gboolean *multipleVariations)
 {
   gboolean result = FALSE;
   
@@ -2146,6 +2333,86 @@ gboolean coordAffectedByVariation(const int dnaIdx,
               trueOrNotRequested(drawJoiningLines) && 
               trueOrNotRequested(drawBackground) &&
               trueOrNotRequested(multipleVariations))
+            break;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Determine whether the given coord in the given frame/strand is affected by
+ * a polyA signal */
+static gboolean coordAffectedByPolyASignal(const int dnaIdx,
+                                           const BlxStrand strand, 
+                                           BlxViewContext *bc,
+                                           const MSP **mspOut, /* the variation we found */
+                                           gboolean *multiple)
+{
+  gboolean result = FALSE;
+  
+  /* Loop through all variations */
+  int i = 0;
+  const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], i);
+  
+  for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], ++i))
+    {
+      if (mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
+        {
+          /* If result has already been set, then there are multiple signals on this coord */
+          if (result && multiple)
+            *multiple = TRUE;
+
+          result = TRUE;
+          
+          if (mspOut)
+            *mspOut = msp;
+          
+          /* If we only want to know if this coord is affected by a polyA signal, we can return now.
+           *
+           * If we need to return whether there are multiple sites at this coord, we can return
+           * after we've found the second on (i.e. after multiple is set to TRUE). */
+          if (trueOrNotRequested(multiple))
+            break;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Determine whether the given coord in the given frame/strand is affected by
+ * a polyA site */
+static gboolean coordAffectedByPolyASite(const int dnaIdx,
+                                         const BlxStrand strand, 
+                                         BlxViewContext *bc,
+                                         const MSP **mspOut, /* the variation we found */
+                                         gboolean *multiple)
+{
+  gboolean result = FALSE;
+  
+  /* Loop through all variations */
+  int i = 0;
+  const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], i);
+  
+  for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], ++i))
+    {
+      if (mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
+        {
+          /* If result has already been set, then there are multiple sites on this coord */
+          if (result && multiple)
+            *multiple = TRUE;
+
+          result = TRUE;
+          
+          if (mspOut)
+            *mspOut = msp;
+          
+          /* If we only want to know if this coord is affected by a polyA signal, we can return now.
+           *
+           * If we need to return whether there are multiple sites at this coord, we can return
+           * after we've found the second on (i.e. after multiple is set to TRUE). */
+          if (trueOrNotRequested(multiple))
             break;
         }
     }
@@ -2218,12 +2485,12 @@ static gboolean isCoordInSelectedMspRange(const BlxViewContext *bc,
   for ( ; seqItem && !inSelectedMspRange; seqItem = seqItem->next)
     {
       /* Loop through all the MSPs in this sequence */
-      const BlxSequence const *blxSeq = (const BlxSequence const *)(seqItem->data);
+      const BlxSequence* const blxSeq = (const BlxSequence*)(seqItem->data);
       GList *mspItem = blxSeq->mspList;
       
       for ( ; mspItem && !inSelectedMspRange; mspItem = mspItem->next)
         {
-          const MSP const *msp = (const MSP const *)(mspItem->data);
+          const MSP* const msp = (const MSP*)(mspItem->data);
           const int mspFrame = mspGetRefFrame(msp, seqType);
           
           if ((mspIsBlastMatch(msp) || mspIsExon(msp)) && 
@@ -2252,116 +2519,140 @@ static gboolean isCoordInSelectedMspRange(const BlxViewContext *bc,
   return inSelectedMspRange;
 }
 
+
+/* Determine whether any highlighting needs to be done for snps in the ref seq */
+static void getSnpHighlighting(DrawBaseData *data,
+                               BlxViewContext *bc)
+{     
+  gboolean drawBackground = FALSE;
+  
+  if (coordAffectedByVariation(data->dnaIdx, data->strand, bc, NULL,
+                               &data->drawStart, &data->drawEnd, &data->drawJoiningLines, &drawBackground, NULL))
+    {
+      /* The coord is affected by a SNP. Outline it in the "selected" SNP color
+       * (which is darker than the normal color) */
+      data->outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
+      
+      /* If the SNP is selected, also fill it with the SNP color (using the
+       * "unselected" SNP color, which is lighter than the outline). */
+      if (drawBackground)
+        {
+          data->fillColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
+        }
+    }
+}
+
+
 /* Draw a given nucleotide or peptide. Determines the color depending on various
  * parameters */
 void drawHeaderChar(BlxViewContext *bc,
                     DetailViewProperties *properties,
-                    const int dnaIdx,
-                    const char baseChar,
-                    const BlxStrand strand,
-                    const int frame,
-                    const BlxSeqType seqType,
-                    const gboolean topToBottom,       /* true if we're displaying bases top-to-bottom instead of left-to-right */
-                    const gboolean displayIdxSelected,
-                    const gboolean dnaIdxSelected,
-                    const gboolean showBackground,    /* whether to use default background color or leave blank */
-                    const gboolean highlightSnps,     /* whether to highlight variations */
-                    const gboolean showCodons,        /* whether to highlight DNA bases within the selected codon, for protein matches */
-                    const BlxColorId defaultBgColor,  /* the default background color for the header */
                     GdkDrawable *drawable,
                     GdkGC *gc,
                     const int x,
                     const int y,
-                    GHashTable *basesToHighlight)
+                    GHashTable *basesToHighlight,
+                    DrawBaseData *data)
 {
-  GdkColor *fillColor = NULL;
-  GdkColor *outlineColor = NULL;
-  
-  /* If drawing an outline, these need to be set to true to draw the specific parts of the outline */
-  gboolean drawStart = FALSE, drawEnd = FALSE, drawJoiningLines = FALSE;
-
   /* Shade the background if the base is selected XOR if the base is within the range of a 
    * selected sequence. (If both conditions are true we don't shade, to give the effect of an
    * inverted selection color.) */
-  gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, dnaIdx, strand, frame, seqType);
-  const gboolean shadeBackground = (displayIdxSelected != inSelectedMspRange);
-  
+  gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, data->dnaIdx, data->strand, data->frame, data->seqType);
+  data->shadeBackground = (data->displayIdxSelected != inSelectedMspRange);
+
+  /* Reset background color and outlines to defaults */
+  data->outlineColor = NULL;
+  data->fillColor = NULL;
+  data->drawStart = FALSE;
+  data->drawEnd = FALSE;
+  data->drawJoiningLines = FALSE;
+ 
   /* Check if this coord already has a special color stored for it */
-  gpointer hashValue = g_hash_table_lookup(basesToHighlight, GINT_TO_POINTER(dnaIdx));
-  
+  gpointer hashValue = g_hash_table_lookup(basesToHighlight, GINT_TO_POINTER(data->dnaIdx));
+
   if (hashValue)
     {
-      BlxColorId colorId = GPOINTER_TO_INT(hashValue);
-      fillColor = getGdkColor(colorId, bc->defaultColors, shadeBackground, bc->usePrintColors);
+      BlxColorId colorId = (BlxColorId)GPOINTER_TO_INT(hashValue);
+      GdkColor *color = getGdkColor(colorId, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
+
+      if (colorId == BLXCOLOR_POLYA_SITE_ANN)
+        {
+          /* For polyA sites we don't shade the background; instead we want to draw a bar after the
+           * coord (or before if the display is reversed), so set the outline. 
+           * (NB Bit of a hack to use the colorId to identify polyA sites here but it works fine.) */ 
+          data->outlineColor = color;
+          
+          if (bc->displayRev)
+            data->drawStart = TRUE;
+          else
+            data->drawEnd = TRUE;
+        }
+      else
+        {
+          /* Normal highlighting: just fill in the background with the specified color */
+          data->fillColor = color;
+        }
     }
-  
-  if (seqType == BLXSEQ_DNA && showCodons && (dnaIdxSelected || displayIdxSelected || shadeBackground))
+
+  /* Check if this base is in the currently-selected codon and needs highlighting */
+  if (data->seqType == BLXSEQ_DNA && data->showCodons && (data->dnaIdxSelected || data->displayIdxSelected || data->shadeBackground))
     {
-      if (dnaIdxSelected || displayIdxSelected)
+      if (data->dnaIdxSelected || data->displayIdxSelected)
         {
           /* The coord is a nucleotide in the currently-selected codon. The color depends
            * on whether the actual nucleotide itself is selected, or just the codon that it 
            * belongs to. */
-          fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, dnaIdxSelected, bc->usePrintColors);
+          data->fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, data->dnaIdxSelected, bc->usePrintColors);
+          
         }
-      else if (!fillColor)
+      else if (!data->fillColor)
         {
           /* The coord is not selected but this coord is within the range of a selected MSP, so 
            * shade the background. */
-          fillColor = getGdkColor(defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
     }
 
-  if (highlightSnps)
+  /* Check if this base is a SNP (or other variation) and needs highlighting */
+  if (data->highlightSnps)
     {
-      gboolean drawBackground = FALSE;
-    
-      if (coordAffectedByVariation(dnaIdx, strand, bc, NULL,
-                                   &drawStart, &drawEnd, &drawJoiningLines, &drawBackground, NULL))
-        {
-          /* The coord is affected by a SNP. Outline it in the "selected" SNP color
-           * (which is darker than the normal color) */
-          outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
-          
-          /* If the SNP is selected, also fill it with the SNP color (using the
-           * "unselected" SNP color, which is lighter than the outline). */
-          if (drawBackground)
-            {
-              fillColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, shadeBackground, bc->usePrintColors);
-            }
-        }
+      getSnpHighlighting(data, bc);
     }
   
-  if (!fillColor)
+  /* If the base is not already assigned some special highlighting, then
+   * check whether it should be highlighted as a stop or MET. Otherwise,
+   * give it the default background colour. */
+  if (!data->fillColor)
     {
-      if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_MET)
+      if (data->seqType == BLXSEQ_PEPTIDE && data->baseChar == SEQUENCE_CHAR_MET)
         {
           /* The coord is a MET codon */
-          fillColor = getGdkColor(BLXCOLOR_MET, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(BLXCOLOR_MET, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
-      else if (seqType == BLXSEQ_PEPTIDE && baseChar == SEQUENCE_CHAR_STOP)
+      else if (data->seqType == BLXSEQ_PEPTIDE && data->baseChar == SEQUENCE_CHAR_STOP)
         {
           /* The coord is a STOP codon */
-          fillColor = getGdkColor(BLXCOLOR_STOP, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(BLXCOLOR_STOP, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
-      else if (showBackground)
+      else if (data->showBackground)
         {
           /* Use the default background color for the reference sequence */
-          fillColor = getGdkColor(defaultBgColor, bc->defaultColors, shadeBackground, bc->usePrintColors);
+          data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
     }
   
-  if (topToBottom)
+  /* Ok, now we know all the colours and outlines, draw the background for the base */
+  if (data->topToBottom)
     {
       /* We're drawing nucleotides from top-to-bottom instead of left-to-right, so the start border is
        * the top border and the bottom border is the end border. */
-      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
-                    drawJoiningLines, drawJoiningLines, drawStart, drawEnd);
+      drawRectangle(drawable, gc, data->fillColor, data->outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
+                    data->drawJoiningLines, data->drawJoiningLines, data->drawStart, data->drawEnd);
     }
   else
     {
-      drawRectangle(drawable, gc, fillColor, outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
-                    drawStart, drawEnd, drawJoiningLines, drawJoiningLines);
+      drawRectangle(drawable, gc, data->fillColor, data->outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
+                    data->drawStart, data->drawEnd, data->drawJoiningLines, data->drawJoiningLines);
     }
 }
 
@@ -2373,7 +2664,7 @@ void drawHeaderChar(BlxViewContext *bc,
  * If numRows is given, then the result is inverted (i.e. if there are three rows, rows
  * 1 is translated to 3, 2->2 and 3->1. This is so that we can draw the first row at the
  * bottom). */
-static int getVariationRowNumber(const IntRange const *rangeIn, const int numRows, GSList **rows)
+static int getVariationRowNumber(const IntRange* const rangeIn, const int numRows, GSList **rows)
 {
   /* Loop through each row and add it to the first row where it will not overlap any other */
   GSList *row = *rows;
@@ -2396,7 +2687,7 @@ static int getVariationRowNumber(const IntRange const *rangeIn, const int numRow
       if (!overlaps)
         {
           /* Doesn't overlap anything in this row; add it to the row and exit */
-          IntRange *range = g_malloc(sizeof *range);
+          IntRange *range = (IntRange*)g_malloc(sizeof *range);
           range->min = rangeIn->min;
           range->max = rangeIn->max;
           ranges = g_slist_append(ranges, range);
@@ -2412,7 +2703,7 @@ static int getVariationRowNumber(const IntRange const *rangeIn, const int numRow
 
   /* If we get here, we didn't find a row that we don't overlap, so add a new row */
   GSList *ranges = NULL;
-  IntRange *range = g_malloc(sizeof *range);
+  IntRange *range = (IntRange*)g_malloc(sizeof *range);
   range->min = rangeIn->min;
   range->max = rangeIn->max;
   ranges = g_slist_append(ranges, range);
@@ -2455,7 +2746,7 @@ static int getNumSnpTrackRows(const BlxViewContext *bc,
   int numRows = 1; /* Always show one row, even if it is empty */
 
   int i = 0;
-  const MSP const *msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
+  const MSP* msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
   GSList *rows = NULL;
 
   for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], ++i))
@@ -2610,7 +2901,7 @@ static void detailViewCentreOnSelection(GtkWidget *detailView)
     {
       /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
-      const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+      const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
       
       int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
       setDetailViewStartIdx(detailView, newStart, seqType);
@@ -2803,8 +3094,8 @@ static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxViewContext *bc)
 /* Utility to see if the start value of the first range is within the second
  * range. If 'rev' is true, the 'start' of range1 is the max value rather than
  * the min value of this range. */
-static gboolean startValueWithinRange(const IntRange const *range1,
-                                      const IntRange const *range2,
+static gboolean startValueWithinRange(const IntRange* const range1,
+                                      const IntRange* const range2,
                                       const gboolean rev)
 {
   gboolean result = FALSE;
@@ -2822,7 +3113,7 @@ static gboolean startValueWithinRange(const IntRange const *range1,
  * lies within the given range. Sets the found array index in 'idx' or returns 
  * FALSE if no MSP was found in this range. */
 static gboolean getAnyMspInRange(GArray *mspArray, 
-                                 const IntRange const *range, 
+                                 const IntRange* const range, 
                                  const gboolean displayRev, 
                                  int *idx)
 {
@@ -2877,7 +3168,7 @@ static gboolean getAnyMspInRange(GArray *mspArray,
  * within range). */
 static void refilterMspList(const int startIdx, 
                             GArray *array,
-                            const IntRange const *range, 
+                            const IntRange* const range, 
                             GtkWidget *detailView, 
                             BlxViewContext *bc)
 {
@@ -2917,7 +3208,7 @@ static void refilterMspList(const int startIdx,
  * the rows of MSPs that lie within the given display range. */
 static void refilterMspArrayByRange(BlxMspType mspType, 
                                    BlxViewContext *bc, 
-                                   const IntRange const *displayRange, 
+                                   const IntRange* const displayRange, 
                                    GtkWidget *detailView)
 {
   DEBUG_ENTER("refilterMspArrayByRange(mspType=%d)", mspType);
@@ -2971,7 +3262,7 @@ static void refilterMspArrayByRange(BlxMspType mspType,
 
 /* Refilter the rows in the detail-view trees. Only updates the rows in the
  * current display range and (if given) the old display range. */
-void refilterDetailView(GtkWidget *detailView, const IntRange const *oldRange)
+void refilterDetailView(GtkWidget *detailView, const IntRange* const oldRange)
 {
   DEBUG_ENTER("refilterDetailView(oldRange=[%d,%d])", oldRange ? oldRange->min : 0, oldRange ? oldRange->max : 0);
   
@@ -2991,16 +3282,16 @@ void refilterDetailView(GtkWidget *detailView, const IntRange const *oldRange)
   /* We only want to update MSPs that are in the old detail-view range
    * and the new detail-view range. (Because updating every row in all
    * trees can be very slow if there are a lot of MSPs.) */
-  const IntRange const *newRange = detailViewGetDisplayRange(detailView);
+  const IntRange* const newRange = detailViewGetDisplayRange(detailView);
 
   /* Only consider MSPs that are shwon in the detail-view */
-  BlxMspType mspType = 0;
+  int mspType = 0;
   for ( ; mspType < BLXMSP_NUM_TYPES; ++mspType)
     {
-      if (typeShownInDetailView(mspType))
+      if (typeShownInDetailView((BlxMspType)mspType))
         {
-          refilterMspArrayByRange(mspType, bc, oldRange, detailView);
-          refilterMspArrayByRange(mspType, bc, newRange, detailView);
+          refilterMspArrayByRange((BlxMspType)mspType, bc, oldRange, detailView);
+          refilterMspArrayByRange((BlxMspType)mspType, bc, newRange, detailView);
         }
     }
   
@@ -3066,7 +3357,7 @@ GType* columnListGetTypes(GList *columnList)
 
   if (len > 0)
     {
-      result = g_malloc(len * sizeof(GType));
+      result = (GType*)g_malloc(len * sizeof(GType));
 
       GList *item = columnList;
       int i = 0;
@@ -3136,7 +3427,7 @@ GtkWidget* detailViewGetTreeContainer(GtkWidget *detailView, const BlxStrand act
 
   /* The list should be sorted in order of frame number, and we should not be requesting a frame number
    * greater than the number of items in the list */
-  if (frame <= g_list_length(list))
+  if (frame <= (int)g_list_length(list))
     {
       GList *listItem = list;
       int count = 1;
@@ -3493,7 +3784,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 {
   if (detailView)
     { 
-      DetailViewProperties *properties = g_malloc(sizeof *properties);
+      DetailViewProperties *properties = (DetailViewProperties*)g_malloc(sizeof *properties);
 
       /* Find a fixed-width font */
       const char *fontFamily = findFixedWidthFont(detailView);
@@ -3570,7 +3861,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       
       /* Allocate sortColumns array to be same length as columnList */
       const int numColumns = g_list_length(columnList);
-      properties->sortColumns = g_malloc(numColumns * sizeof(BlxColumnId));
+      properties->sortColumns = (BlxColumnId*)g_malloc(numColumns * sizeof(BlxColumnId));
       
       int i = 0;
       for ( ; i < numColumns; ++i)
@@ -3634,7 +3925,7 @@ static BlxStrand snpTrackGetStrand(GtkWidget *snpTrack, GtkWidget *detailView)
   
   if (snpTrack)
     {
-      strand = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(snpTrack), "snpTrackStrand"));
+      strand = (BlxStrand)GPOINTER_TO_INT(g_object_get_data(G_OBJECT(snpTrack), "snpTrackStrand"));
     }
   
   if (strand == BLXSTRAND_NONE)
@@ -3895,7 +4186,7 @@ static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton 
             {
               /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
               const BlxSeqType seqType = detailViewGetSeqType(detailView);
-              const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+              const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
               
               int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
               setDetailViewStartIdx(detailView, newStart, seqType);
@@ -4117,7 +4408,7 @@ void toggleStrand(GtkWidget *detailView)
   
   /* Invert the display range for both detail view and big picture */
   IntRange *bpRange = bigPictureGetDisplayRange(bigPicture);
-  const IntRange const *fullRange = &blxContext->fullDisplayRange;
+  const IntRange* const fullRange = &blxContext->fullDisplayRange;
   const int bpStart = fullRange->max - bpRange->min + fullRange->min;
   const int bpEnd = fullRange->max - bpRange->max + fullRange->min;
   intrangeSetValues(bpRange, bpStart, bpEnd);
@@ -4168,6 +4459,8 @@ void toggleStrand(GtkWidget *detailView)
 void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 {
   static gchar defaultInput[32] = "";
+  static gboolean toplevelCoords = FALSE;
+
   BlxViewContext *bc = detailViewGetContext(detailView);
   
   /* Pop up a dialog to request a coord from the user */
@@ -4175,28 +4468,42 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title,
                                                   NULL, 
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_NO_SEPARATOR,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_NO_SEPARATOR),
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
 
   g_free(title);
   
+  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
+  const int padding = 4;
+
+  /* Create a text-entry widget for the user to enter the coord */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(contentArea), hbox, FALSE, FALSE, padding);
+
+  GtkWidget *label = gtk_label_new("Enter coord: ");
+  gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, padding);
 
   GtkWidget *entry = gtk_entry_new();
-  gtk_box_pack_start(GTK_BOX(contentArea), entry, TRUE, TRUE, 0);
-
   gtk_entry_set_text(GTK_ENTRY(entry), defaultInput);
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-  gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  gtk_widget_show(entry);
-  
+  gtk_box_pack_start(GTK_BOX(hbox), entry, TRUE, TRUE, padding);
+
+  /* Create a tick-box to toggle to top-level coords (default is local coords) */
+  GtkWidget *checkBox = gtk_check_button_new_with_mnemonic("Use _top-level coords");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkBox), toplevelCoords);
+  gtk_box_pack_start(GTK_BOX(contentArea), checkBox, FALSE, FALSE, padding);
+
+  /* Show the dialog and wait for a response */
+  gtk_widget_show_all(dialog);
 
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
       const gchar *inputText = gtk_entry_get_text(GTK_ENTRY(entry));
-      
+      toplevelCoords = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(checkBox));
+
       /* Convert the input string to an int */
       int requestedCoord = atoi(inputText);
       
@@ -4214,6 +4521,12 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
           if (negate)
             {
               coord *= -1;
+            }
+
+          /* If the user entered a top-level coord, apply the offset to convert to local coords */
+          if (toplevelCoords)
+            {
+              coord += bc->refSeqOffset;
             }
 
           /* Check if it's in range. If not, try negating it in case the user
@@ -4391,7 +4704,7 @@ MSP* prevMatch(GtkWidget *detailView, GList *seqList)
    * one and if it is currently visible. Otherwise use the current display centre. */
   int startDnaIdx = detailViewGetSelectedDnaBaseIdx(detailView);
   int startCoord = detailViewGetSelectedBaseIdx(detailView);
-  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
   
   if (!valueWithinRange(startCoord, displayRange))
     {
@@ -4414,7 +4727,7 @@ MSP* nextMatch(GtkWidget *detailView, GList *seqList)
    * one and if it is currently visible. Otherwise use the current display centre. */
   int startDnaIdx = detailViewGetSelectedDnaBaseIdx(detailView);
   int startCoord = detailViewGetSelectedBaseIdx(detailView);
-  const IntRange const *displayRange = detailViewGetDisplayRange(detailView);
+  const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
   
   if (!valueWithinRange(startCoord, displayRange))
     {
@@ -4434,7 +4747,7 @@ MSP* nextMatch(GtkWidget *detailView, GList *seqList)
 MSP* firstMatch(GtkWidget *detailView, GList *seqList)
 {
   /* Jump to the nearest match to the start of the ref seq */
-  const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
+  const IntRange* const refSeqRange = detailViewGetRefSeqRange(detailView);
   const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->max : refSeqRange->min;
   
   return goToNextMatch(detailView, startIdx, TRUE, seqList);
@@ -4445,7 +4758,7 @@ MSP* firstMatch(GtkWidget *detailView, GList *seqList)
 MSP* lastMatch(GtkWidget *detailView, GList *seqList)
 {
   /* Jump to the nearest match to the end of the reference sequence */
-  const IntRange const *refSeqRange = detailViewGetRefSeqRange(detailView);
+  const IntRange* const refSeqRange = detailViewGetRefSeqRange(detailView);
   const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->min : refSeqRange->max;
 
   return goToNextMatch(detailView, startIdx, FALSE, seqList);
@@ -4584,9 +4897,11 @@ static void createSeqColHeader(GtkWidget *detailView,
 
 /* Create the feedback box. (This feeds back info to the user about the currently-
  * selected base/sequence.) */
-static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
+static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
 {
   GtkWidget *feedbackBox = gtk_entry_new() ;
+
+  blxSetWidgetColor(feedbackBox, windowColor);
 
   /* User can copy text out but not edit contents */
   gtk_editable_set_editable(GTK_EDITABLE(feedbackBox), FALSE);
@@ -4610,10 +4925,11 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
 
 /* Create the status bar for the detail-view toolbar. (This feeds back info to the user 
  * about the currently-moused-over sequence.) */
-static GtkWidget* createStatusBar(GtkToolbar *toolbar)
+static GtkWidget* createStatusBar(GtkToolbar *toolbar, char *windowColor)
 {
   GtkWidget *statusBar = gtk_statusbar_new() ;
   gtk_statusbar_set_has_resize_grip(GTK_STATUSBAR(statusBar), FALSE);
+  blxSetWidgetColor(statusBar, windowColor);
 
   /* Make it expandable so we use all available space. Set minimum size to be 0
    * because it's better to show it small than not at all. */
@@ -4633,16 +4949,19 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
                                             BlxBlastMode mode,
                                             const BlxColumnId sortColumn,
                                             GList *columnList,
+                                            char *windowColor,
                                             GtkWidget **feedbackBox,
                                             GtkWidget **statusBar)
 {
   GtkToolbar *toolbar = GTK_TOOLBAR(toolbarIn);
+
+  blxSetWidgetColor(GTK_WIDGET(toolbar), windowColor);
   
   gtk_toolbar_set_style(toolbar, GTK_TOOLBAR_ICONS);
   gtk_toolbar_set_icon_size(toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
 
-  *feedbackBox = createFeedbackBox(toolbar);
-  *statusBar = createStatusBar(toolbar);
+  *feedbackBox = createFeedbackBox(toolbar, windowColor);
+  *statusBar = createStatusBar(toolbar, windowColor);
 
   /* Create a parent hbox which will hold the main toolbar
    * and the detail-view tools. (We do this rather than putting
@@ -4659,6 +4978,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   /* Put the toolbar in a handle box so that it can be torn off */
   GtkWidget *toolbarContainer = createToolbarHandle();
   gtk_container_add(GTK_CONTAINER(toolbarContainer), GTK_WIDGET(hbox));
+  blxSetWidgetColor(toolbarContainer, windowColor);
 
   return toolbarContainer;
 }
@@ -4676,7 +4996,7 @@ static void createTwoPanedTrees(GtkWidget *detailView,
                                 GList **list2,
                                 BlxSeqType seqType,
                                 GList *columnList,
-                                const char const *refSeqName,
+                                const char* const refSeqName,
                                 const int frame1,
                                 const int frame2,
                                 const gboolean includeSnpTrack)
@@ -4703,7 +5023,7 @@ static void createThreePanedTrees(GtkWidget *detailView,
                                   BlxSeqType seqType,
                                   const gboolean addToDetailView,
                                   GList *columnList,
-                                  const char const *refSeqName,
+                                  const char* const refSeqName,
                                   const gboolean includeSnpTrack)
 {
   const int frame1 = 1, frame2 = 2, frame3 = 3;
@@ -4740,7 +5060,7 @@ static void createDetailViewPanes(GtkWidget *detailView,
                                   GList **revStrandTrees,
                                   BlxSeqType seqType,
                                   GList *columnList,
-                                  const char const *refSeqName,
+                                  const char* const refSeqName,
                                   const gboolean includeSnpTrack)
 {
   if (numFrames == 1)
@@ -4836,11 +5156,12 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
                             BlxBlastMode mode,
                             BlxSeqType seqType,
                             int numFrames,
-                            const char const *refSeqName,
+                            const char* const refSeqName,
                             const int startCoord,
                             const gboolean sortInverted,
                             const BlxColumnId sortColumn,
-                            const gboolean optionalDataLoaded)
+                            const gboolean optionalDataLoaded,
+                            char *windowColor)
 {
   /* We'll group the trees in their own container so that we can pass them all around
    * together (so that operations like zooming and scrolling can act on the group). The
@@ -4865,7 +5186,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   /* Create the toolbar. We need to remember the feedback box and status bar so we can set them in the properties. */
   GtkWidget *feedbackBox = NULL;
   GtkWidget *statusBar = NULL;
-  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, toolbar, mode, sortColumn, columnList, &feedbackBox, &statusBar);
+  GtkWidget *buttonBar = createDetailViewButtonBar(detailView, toolbar, mode, sortColumn, columnList, windowColor, &feedbackBox, &statusBar);
 
   /* Create a custom cell renderer to render the sequences in the detail view */
   GtkCellRenderer *renderer = sequence_cell_renderer_new();

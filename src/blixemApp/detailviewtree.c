@@ -246,7 +246,7 @@ static void addSequenceMspsToSingleRow(BlxSequence *blxSeq, GtkWidget *tree, Gtk
       MSP *msp  = (MSP*)(mspItem->data);
       if (typeShownInDetailView(msp->type) && msp->qStrand == treeStrand && msp->qFrame == treeGetFrame(tree))
         {
-          mspsToAdd = g_list_prepend(mspsToAdd, msp);
+          mspsToAdd = g_list_append(mspsToAdd, msp);
         }
     }
 
@@ -358,8 +358,8 @@ static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
 {
   double result = 0;
   
-  const MSP const *msp1 = *((const MSP const**)a);
-  const MSP const *msp2 = *((const MSP const**)b);
+  const MSP* const msp1 = *((const MSP**)a);
+  const MSP* const msp2 = *((const MSP**)b);
 
   const char *sequence1 = mspGetMatchSeq(msp1);
   const char *sequence2 = mspGetMatchSeq(msp2);
@@ -413,7 +413,7 @@ static void addFeaturesToCompactTree(GtkWidget *tree, GtkListStore *store, GtkWi
   GArray *array = g_array_sized_new(FALSE, FALSE, sizeof(MSP*), matchArray->len);
 
   int i = 0;
-  for ( ; i < matchArray->len; ++i)
+  for ( ; i < (int)matchArray->len; ++i)
     {
       MSP *val = g_array_index(matchArray, MSP*, i);
 
@@ -823,7 +823,7 @@ void refilterTree(GtkWidget *tree, gpointer data)
  * after the paths have changed, e.g. after a sort. */
 static gboolean updateMspPaths(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data)
 {
-  BlxModelId modelId = GPOINTER_TO_INT(data);
+  BlxModelId modelId = (BlxModelId)GPOINTER_TO_INT(data);
   GList *mspItem = treeGetMsps(model, iter);
   
   for ( ; mspItem; mspItem = mspItem->next)
@@ -883,10 +883,10 @@ void resortTree(GtkWidget *tree, gpointer data)
 
 /* Utility that returns true if the given MSP is currently shown in the tree with the given
  * strand/frame */
-static gboolean isMspVisible(const MSP const *msp, 
+static gboolean isMspVisible(const MSP* const msp, 
 			     const BlxViewContext *bc, 
 			     const int frame, 
-			     const IntRange const *displayRange,
+			     const IntRange* const displayRange,
 			     const int numUnalignedBases,
                              const gboolean seqSelected)
 {
@@ -902,7 +902,7 @@ static gboolean isMspVisible(const MSP const *msp,
 /* Returns true if sequences in the given group should be shown. If sequences
  * are not in a group (i.e. the group is null) then by default the result is
  * true, unless the 'hide ungrouped sequences' option is on. */
-static gboolean isGroupVisible(const SequenceGroup const *group, const BlxViewContext const *bc)
+static gboolean isGroupVisible(const SequenceGroup* const group, const BlxViewContext* const bc)
 {
   gboolean result = TRUE;
   
@@ -943,7 +943,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
           DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
 
 	  const int frame = properties->readingFrame;
-	  const IntRange const *displayRange = &dvProperties->displayRange;
+	  const IntRange* const displayRange = &dvProperties->displayRange;
           const gboolean seqSelected = blxContextIsSeqSelected(bc, firstMsp->sSequence);
 
 	  /* Show the row if any MSP in the list is an exon or blast match in the correct frame/strand
@@ -1010,7 +1010,7 @@ static void treeCreateProperties(GtkWidget *widget,
 {
   if (widget)
     { 
-      TreeProperties *properties = g_malloc(sizeof *properties);
+      TreeProperties *properties = (TreeProperties*)g_malloc(sizeof *properties);
       
       properties->grid = grid;
       properties->detailView = detailView;
@@ -1170,20 +1170,21 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 
   const int incrementValue = bc->displayRev ? -1 * bc->numFrames : bc->numFrames;
   int displayIdx = properties->displayRange.min;
-  int dnaIdx = qIdx1;
-  
+  DrawBaseData baseData = {qIdx1, 0, strand, frame, bc->seqType, FALSE, FALSE, FALSE, TRUE, highlightSnps, FALSE, BLXCOLOR_REF_SEQ, NULL, NULL, FALSE, FALSE, FALSE, FALSE};
+
   while (displayIdx >= properties->displayRange.min && displayIdx <= properties->displayRange.max)
     {
-      /* Set the background color depending on whether this base is selected or
-       * is affected by a SNP */
-      const gboolean displayIdxSelected = (displayIdx == properties->selectedBaseIdx - offset);
-      const char baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
+      baseData.displayIdxSelected = (displayIdx == properties->selectedBaseIdx - offset);
+      baseData.dnaIdxSelected = baseData.displayIdxSelected;
+      baseData.baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
       
       const int x = (int)((gdouble)xStart + (gdouble)(displayIdx - properties->displayRange.min) * properties->charWidth);
 
-      drawHeaderChar(bc, properties, dnaIdx, baseChar, strand, frame, bc->seqType, FALSE, displayIdxSelected, displayIdxSelected, TRUE, highlightSnps, FALSE, BLXCOLOR_REF_SEQ, drawable, gc, x, yStart, basesToHighlight);
-      
-      dnaIdx += incrementValue;
+      /* Draw the character, seting the background color and outline depending on whether this base is selected or
+       * is affected by a SNP or polyA signal etc. */
+      drawHeaderChar(bc, properties, drawable, gc, x, yStart, basesToHighlight, &baseData);
+     
+      baseData.dnaIdx += incrementValue;
       ++displayIdx;
     }
   
@@ -1805,7 +1806,7 @@ static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer
               
               if (g_list_length(mspList) > 0)
                 {
-                  const MSP const *msp = (const MSP const*)(mspList->data);
+                  const MSP* const msp = (const MSP*)(mspList->data);
                   
                   /* Note: this assumes that all MSPs in this row are in the same BlxSequence.
                    * If there are more, it will just show data for the first BlxSequence found. */
@@ -2114,7 +2115,7 @@ static void cellDataFunctionStartCol(GtkTreeViewColumn *column,
       /* We want to display the min coord if we're in the same direction as the q strand,
        * or the max coord if we're in the opposite direction (unless the display is reversed,
        * in which case it's vice versa). */
-      const MSP const *msp = (const MSP const *)(mspGList->data);
+      const MSP* const msp = (const MSP*)(mspGList->data);
       
       if (mspIsBlastMatch(msp))
         {
@@ -2157,7 +2158,7 @@ static void cellDataFunctionEndCol(GtkTreeViewColumn *column,
       /* We want to display the max coord if we're in the same direction as the q strand,
        * or the min coord if we're in the opposite direction (unless the display is reversed,
        * in which case it's vice versa). */
-      const MSP const *msp = (const MSP const *)(mspGList->data);
+      const MSP* const msp = (const MSP*)(mspGList->data);
       
       if (mspIsBlastMatch(msp))
         {
@@ -2200,7 +2201,7 @@ static void cellDataFunctionScoreCol(GtkTreeViewColumn *column,
     }
   else
     {
-      const MSP const *msp = (const MSP const *)(mspGList->data);
+      const MSP* const msp = (const MSP*)(mspGList->data);
     
       /* If the score is negative it means do not show */
       if (msp->score >= 0.0 && (g_list_length(mspGList) == 1 || mspGetFlag(msp, MSPFLAG_SQUASH_IDENTICAL_FEATURES)))
@@ -2238,7 +2239,7 @@ static void cellDataFunctionIdCol(GtkTreeViewColumn *column,
     }
   else
     {
-      const MSP const *msp = (const MSP const *)(mspGList->data);
+      const MSP* const msp = (const MSP*)(mspGList->data);
 
       /* If the score is negative it means do not show. Also only display the
        * ID if we only have one msp in the row (unless they are short reads, in 
@@ -2274,7 +2275,7 @@ static void cellDataFunctionGroupCol(GtkTreeViewColumn *column,
   
   if (g_list_length(mspGList) > 0)
     {
-      const MSP const *msp = (const MSP const*)(mspGList->data);
+      const MSP* const msp = (const MSP*)(mspGList->data);
 
       GtkWidget *tree = GTK_WIDGET(data);
       GtkWidget *blxWindow = treeGetBlxWindow(tree);
@@ -2295,7 +2296,7 @@ static void cellDataFunctionOrganismCol(GtkTreeViewColumn *column, GtkCellRender
   GList	*mspGList = treeGetMsps(model, iter);
   if (g_list_length(mspGList) > 0)
     {
-      const MSP const *msp = (const MSP const*)(mspGList->data);
+      const MSP* const msp = (const MSP*)(mspGList->data);
 
       /* Use the abbreviation if available. */
       const char *text = mspGetOrganismAbbrev(msp);
@@ -2316,12 +2317,12 @@ static void cellDataFunctionOrganismCol(GtkTreeViewColumn *column, GtkCellRender
 /* Cell data function for generic text columns. */
 static void cellDataFunctionGenericCol(GtkTreeViewColumn *column, GtkCellRenderer *renderer, GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
-  int columnId = GPOINTER_TO_INT(data);
+  BlxColumnId columnId = (BlxColumnId)GPOINTER_TO_INT(data);
   GList	*mspGList = treeGetMsps(model, iter);
 
   if (g_list_length(mspGList) > 0)
     {
-      const MSP const *msp = (const MSP const*)(mspGList->data);
+      const MSP* const msp = (const MSP*)(mspGList->data);
       const char *text = mspGetColumn(msp, columnId);
       
       if (text)
@@ -2623,7 +2624,7 @@ static int calculateColumnWidth(TreeColumnHeaderInfo *headerInfo, GtkWidget *tre
   
   for ( ; listItem; listItem = listItem->next)
     {
-      int columnId = GPOINTER_TO_INT(listItem->data);
+      BlxColumnId columnId = (BlxColumnId)GPOINTER_TO_INT(listItem->data);
       
       BlxColumnInfo *columnInfo = getColumnInfo(columnList, columnId);
       
@@ -2643,7 +2644,7 @@ static TreeColumnHeaderInfo* createTreeColumnHeaderInfo(GtkWidget *headerWidget,
 							GList *columnIds, 
 							GtkCallback refreshFunc)
 {
-  TreeColumnHeaderInfo *headerInfo = g_malloc(sizeof(TreeColumnHeaderInfo));
+  TreeColumnHeaderInfo *headerInfo = (TreeColumnHeaderInfo*)g_malloc(sizeof(TreeColumnHeaderInfo));
   
   headerInfo->headerWidget = headerWidget;
   headerInfo->tree = tree;
@@ -2664,7 +2665,7 @@ static TreeColumnHeaderInfo* createTreeColHeader(GList **columnHeaders,
                                                  GtkWidget *headerBar,
                                                  GtkWidget *tree,
                                                  GtkWidget *detailView,
-                                                 const char const *refSeqName,
+                                                 const char* const refSeqName,
                                                  const int frame,
                                                  const BlxStrand strand)
 {
@@ -2785,7 +2786,7 @@ static GList* createTreeColumns(GtkWidget *tree,
                                 const BlxSeqType seqType,
                                 GList *columnList,
                                 GtkWidget *columnHeaderBar,
-                                const char const *refSeqName,
+                                const char* const refSeqName,
                                 const int frame,
                                 const BlxStrand strand)
 {
@@ -3041,7 +3042,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
 				GList **treeList,
 				GList *columnList,
 				BlxSeqType seqType,
-				const char const *refSeqName,
+				const char* const refSeqName,
 				const int frame,
 				const gboolean includeSnpTrack)
 {

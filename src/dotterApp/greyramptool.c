@@ -151,7 +151,7 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
 {
   if (greyramp)
     {
-      GreyrampProperties *properties = g_malloc(sizeof *properties);
+      GreyrampProperties *properties =(GreyrampProperties*) g_malloc(sizeof *properties);
 
       properties->dwc = dwc;
       properties->gradientRect.x = gradientRect->x;
@@ -221,7 +221,7 @@ void registerGreyrampCallback(GtkWidget *greyramp, GtkWidget *widget, GtkCallbac
 
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
   
-  CallbackItem *callbackItem = g_malloc(sizeof *callbackItem);
+  CallbackItem *callbackItem = (CallbackItem*)g_malloc(sizeof *callbackItem);
   callbackItem->widget = widget;
   callbackItem->func = func;
   
@@ -256,7 +256,7 @@ void updateGreyMap(GtkWidget *greyramp)
 {
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
   
-  unsigned char *ramp = g_malloc(256 * sizeof(unsigned char));
+  unsigned char *ramp = (unsigned char*)g_malloc(256 * sizeof(unsigned char));
   
   int whitePoint = properties->whitePoint;
   int blackPoint = properties->blackPoint;

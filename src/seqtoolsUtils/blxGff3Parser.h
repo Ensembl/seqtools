@@ -81,6 +81,7 @@ typedef enum
     
     FASTA_SEQ_HEADER,              /* FASTA sequence header */
     FASTA_SEQ_BODY,                /* Sequence data in FASTA format */
+    FASTA_SEQ_IGNORE,              /* A FASTA sequence we're not interested in */
     
     EXBLX_BODY,                    /* Old style sequence entries. */
     SEQBL_BODY,                    /* Old style sequence entries. */
@@ -127,7 +128,7 @@ void parseGff3Body(const int lineNum,
                    GSList *styles,
                    const int resFactor,
                    GKeyFile *keyFile,
-                   const IntRange const *refSeqRange);
+                   const IntRange* const refSeqRange);
 
 void parseFastaSeqHeader(char *line, const int lineNum,
                          char **refSeq, char *refSeqName, IntRange *refSeqRange,

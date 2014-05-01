@@ -453,13 +453,13 @@ typedef struct BelvuContextStruct
 
 
 /* Functions */
-char*                                     belvuGetAppName(void);
+const char*                               belvuGetAppName(void);
 const char*                               belvuGetTitlePrefix(BelvuContext *bc);
-char*                                     belvuGetCopyrightString(void);
-char*                                     belvuGetWebSiteString(void);
-char*                                     belvuGetCommentsString(void);
-char*                                     belvuGetLicenseString(void);
-char*                                     belvuGetVersionString(void);       
+const char*                               belvuGetCopyrightString(void);
+const char*                               belvuGetWebSiteString(void);
+const char*                               belvuGetCommentsString(void);
+const char*                               belvuGetLicenseString(void);
+const char*                               belvuGetVersionString(void);       
 
 BelvuContext*                             createBelvuContext();
 void                                      destroyBelvuContext(BelvuContext **bc);

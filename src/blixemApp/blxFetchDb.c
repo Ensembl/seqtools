@@ -109,7 +109,7 @@ static BlxSequence* findBlxSequence(const char *seqName, GList *seqList)
 //}
 
 
-/* Callback to displau the results of an sql query in a pop-up dialog.
+/* Callback to display the results of an sql query in a pop-up dialog.
  * The parent window is passed in the user data. */
 static int displayResultsCB(void *data, int argc, char **argv, char **azColName)
 {
@@ -178,6 +178,7 @@ static int populateResultsListCB(void *data, int argc, char **argv, char **azCol
 }
 
 
+/* Execute the given sql query and call the callback on the results. */
 static void sqliteRequest(const char *database, const char *query, SqliteFunc callbackFunc, void *callbackData, GError **error)
 {
   DEBUG_ENTER("sqliteRequest");

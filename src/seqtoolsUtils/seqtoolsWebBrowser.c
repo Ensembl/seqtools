@@ -47,16 +47,16 @@
 /* Describes various browsers, crude at the moment, we will probably need more options later. */
 typedef struct
   {
-    char *system ;					    /* system name as in "uname -s" */
-    char *executable ;					    /* executable name or full path. */
-    char *open_command ;					    /* alternative command to start browser. */
+    const char *system ;					    /* system name as in "uname -s" */
+    const char *executable ;					    /* executable name or full path. */
+    const char *open_command ;					    /* alternative command to start browser. */
   } BrowserConfigStruct, *BrowserConfig ;
 
 
 static char *findBrowser(BrowserConfig browsers, BrowserConfig *browser_out, GError **error) ;
 static void makeBrowserCmd(GString *cmd, BrowserConfig best_browser, char *url) ;
 static char *translateURLChars(const char *orig_link) ;
-static gboolean seqtools_g_string_replace(GString *string, char *target, char *source);
+static gboolean seqtools_g_string_replace(GString *string, const char *target, char *source);
 
 
 /* Records information for running a specific browser. The intent here is to add enough
@@ -95,7 +95,7 @@ static BrowserConfigStruct browsers_G[] =
 
 
 /* Error handling stuff. */
-static char *domain_G = "SEQTOOLS_WEB" ;
+static const char *domain_G = "SEQTOOLS_WEB" ;
 enum {BROWSER_NOT_FOUND, BROWSER_COMMAND_FAILED, BROWSER_UNAME_FAILED, BROWSER_NOT_REGISTERED} ;
 static GQuark err_domain_G = 0 ;
 
@@ -362,7 +362,7 @@ static char *translateURLChars(const char *orig_link)
  * @param source                 The string to be inserted.
  * @return                       TRUE if a string was replaced, FALSE otherwise.
  *  */
-static gboolean seqtools_g_string_replace(GString *string, char *target, char *source)
+static gboolean seqtools_g_string_replace(GString *string, const char *target, char *source)
 {
   gboolean result = FALSE ;
   int source_len ;

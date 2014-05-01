@@ -81,7 +81,6 @@ typedef struct _DotterOptions
     char *mtxfile;            /* caller-supplied matrix file */
     
     char *winsize;            /* caller-supplied sliding-window size */
-    char *xOptions;           /* x-options */
     
     char *qname;              /* reference (horizontal) sequence name */
     char *qseq;               /* reference (horizontal) sequence data */
@@ -100,6 +99,8 @@ typedef struct _DotterOptions
     gboolean abbrevTitle;     /* abbrev window title prefix to save space */
     
     BlxMessageData msgData;   /* data to be passed to the message handlers */
+
+    char *windowColor;        /* if not null, background color for the window */
   } DotterOptions;
 
 

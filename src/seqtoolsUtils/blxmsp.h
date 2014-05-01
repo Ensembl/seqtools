@@ -61,6 +61,7 @@
 #define SEQTOOLS_USER_FETCH          "user-fetch"               /* method(s) for interactively fetching sequences by the user */
 #define SEQTOOLS_OPTIONAL_FETCH      "optional-fetch"           /* method(s) for batch-fetching additional data on user request */
 #define SEQTOOLS_GFF_FILENAME_KEY    "file"
+#define SEQTOOLS_WINDOW_COLOR        "session-colour"           /* color for the main window background */
 
 /* Main Blixem error domain */
 #define BLX_ERROR g_quark_from_string("Blixem")
@@ -165,17 +166,17 @@ typedef struct _BlxDataType
 
 
 /* COLUMNS: To add a new column you must do the following:
- *    - create the column in createColumns(...)
+ *    - create the column in blxCreateColumns or dotterCreateColumns
  * and optionally:
  *    - add a BlxColumnId enum, if you need a convenient way of referring specifically to the column in the code;
  *    - add a custom data function in createTreeColumn;
  *    - add a custom header widget and/or header refresh function in createTreeColHeader;
  *    - specify specific sort behaviour in sortColumnCompareFunc. */
 
-/* This enum declares identifiers for known columns in the 
- * detail-view trees. It is NOT A COMPREHENSIVE LIST of columns 
- * because further columns can be added dynamically to the column 
- * list in createColumns(...). This enum is just used as a convenient
+/* This enum declares identifiers for known data columns. It is
+ * NOT A COMPREHENSIVE LIST of columns because further columns
+ * can be added dynamically to the column list in BlxCreateColumns
+ * or dotterCreateColumns. This enum is just used as a convenient
  * way of referring to the main set of known columns. */
 typedef enum
   {
@@ -212,9 +213,9 @@ typedef struct _BlxColumnInfo
     GType type;                 /* the type of data, e.g. G_TYPE_STRING */
     GtkWidget *headerWidget;    /* the header widget for this column (in the detail-view header) */
     GtkCallback refreshFunc;    /* the function that will be called on the header widget when columns are refreshed */
-    char *title;                /* the default column title */
-    char *propertyName;         /* the property name (used to set the data for the SequenceCellRenderer) */
-    char *sortName;             /* the name to display in the sort-by drop-down box (NULL if the view is not sortable on this column) */
+    const char *title;          /* the default column title */
+    const char *propertyName;   /* the property name (used to set the data for the SequenceCellRenderer) */
+    const char *sortName;       /* the name to display in the sort-by drop-down box (NULL if the view is not sortable on this column) */
 
     GQuark emblId;              /* 2-char embl line ID, e.g. 'SQ' for sequence or 'OS' for organism */
     GQuark emblTag;             /* tag name within an embl line, e.g. the 'tissue_type' tag within the 'FT' section. 
@@ -225,6 +226,7 @@ typedef struct _BlxColumnInfo
     gboolean dataLoaded;        /* whether the data for this column has been loaded from the EMBL file (or tried to be loaded, if it doesn't exist) */
     gboolean showColumn;        /* whether the column should be shown in the detail view */
     gboolean showSummary;       /* whether the column should be shown in the summary info (i.e. the mouse-over feedback bar) */
+    gboolean canShowSummary;    /* whether it's possible to show summary info for this column */
     gboolean searchable;        /* whether searching sequences by data in this column is supported */
   } BlxColumnInfo;
 
@@ -326,24 +328,24 @@ gboolean              typeShownInDetailView(const BlxMspType mspType);
 gboolean              blxSequenceShownInDetailView(const BlxSequence *blxSeq);
 gboolean              blxSequenceShownInGrid(const BlxSequence *blxSeq);
 
-const char*           mspGetRefName(const MSP const *msp);
-int                   mspGetRefFrame(const MSP const *msp, const BlxSeqType seqType);
-BlxStrand             mspGetRefStrand(const MSP const *msp);
-BlxStrand             mspGetMatchStrand(const MSP const *msp);
-const char*           mspGetMatchSeq(const MSP const *msp);
-const char*           mspGetSource(const MSP const *msp);
+const char*           mspGetRefName(const MSP* const msp);
+int                   mspGetRefFrame(const MSP* const msp, const BlxSeqType seqType);
+BlxStrand             mspGetRefStrand(const MSP* const msp);
+BlxStrand             mspGetMatchStrand(const MSP* const msp);
+const char*           mspGetMatchSeq(const MSP* const msp);
+const char*           mspGetSource(const MSP* const msp);
 const char*           mspGetSName(const MSP *msp);
-const IntRange const* mspGetRefCoords(const MSP const *msp);
-const IntRange const* mspGetMatchCoords(const MSP const *msp);
-int                   mspGetQStart(const MSP const *msp);
-int                   mspGetQEnd(const MSP const *msp);
-int                   mspGetSStart(const MSP const *msp);
-int                   mspGetSEnd(const MSP const *msp);
-int                   mspGetQRangeLen(const MSP const *msp);
-int                   mspGetSRangeLen(const MSP const *msp);
-int                   mspGetMatchSeqLen(const MSP const *msp);
+const IntRange*       mspGetRefCoords(const MSP* const msp);
+const IntRange*       mspGetMatchCoords(const MSP* const msp);
+int                   mspGetQStart(const MSP* const msp);
+int                   mspGetQEnd(const MSP* const msp);
+int                   mspGetSStart(const MSP* const msp);
+int                   mspGetSEnd(const MSP* const msp);
+int                   mspGetQRangeLen(const MSP* const msp);
+int                   mspGetSRangeLen(const MSP* const msp);
+int                   mspGetMatchSeqLen(const MSP* const msp);
 
-const GdkColor*       mspGetColor(const MSP const *msp, 
+const GdkColor*       mspGetColor(const MSP* const msp, 
                                   GArray *defaultColors,
                                   const int defaultColorId,
                                   const BlxSequence *blxSeq, 
@@ -357,45 +359,47 @@ const GdkColor*       mspGetColor(const MSP const *msp,
                                   const int utrFillColorId,
                                   const int utrLineColorId);
 
-const char*           mspGetColumn(const MSP const *msp, const BlxColumnId columnId);
-const char*           mspGetOrganism(const MSP const *msp);
-const char*           mspGetOrganismAbbrev(const MSP const *msp);
-const char*           mspGetGeneName(const MSP const *msp);
-const char*           mspGetTissueType(const MSP const *msp);
-const char*           mspGetStrain(const MSP const *msp);
-char*                 mspGetCoordsAsString(const MSP const *msp);
-gchar*                mspGetTreePath(const MSP const *msp, BlxModelId modelId);
+const char*           mspGetColumn(const MSP* const msp, const BlxColumnId columnId);
+const char*           mspGetOrganism(const MSP* const msp);
+const char*           mspGetOrganismAbbrev(const MSP* const msp);
+const char*           mspGetGeneName(const MSP* const msp);
+const char*           mspGetTissueType(const MSP* const msp);
+const char*           mspGetStrain(const MSP* const msp);
+char*                 mspGetCoordsAsString(const MSP* const msp);
+gchar*                mspGetTreePath(const MSP* const msp, BlxModelId modelId);
 
-MSP*                  mspArrayIdx(const GArray const *array, const int idx);
+MSP*                  mspArrayIdx(const GArray* const array, const int idx);
 gint                  compareFuncMspPos(gconstpointer a, gconstpointer b);
 gint                  compareFuncMspArray(gconstpointer a, gconstpointer b);
 
-gboolean              mspLayerIsVisible(const MSP const *msp);
-gboolean              mspIsExon(const MSP const *msp);
-gboolean              mspIsIntron(const MSP const *msp);
-gboolean              mspIsSnp(const MSP const *msp);
-gboolean              mspIsBlastMatch(const MSP const *msp);
-gboolean              mspIsPolyASite(const MSP const *msp);
-gboolean              mspIsVariation(const MSP const *msp);
-gboolean              mspIsZeroLenVariation(const MSP const *msp);
+gboolean              mspLayerIsVisible(const MSP* const msp);
+gboolean              mspIsExon(const MSP* const msp);
+gboolean              mspIsIntron(const MSP* const msp);
+gboolean              mspIsSnp(const MSP* const msp);
+gboolean              mspIsBlastMatch(const MSP* const msp);
+gboolean              mspIsPolyASite(const MSP* const msp);
+gboolean              mspIsVariation(const MSP* const msp);
+gboolean              mspIsZeroLenVariation(const MSP* const msp);
 
-gboolean              mspHasSName(const MSP const *msp);
-gboolean              mspHasSSeq(const MSP  const *msp);
-gboolean              mspHasSCoords(const MSP const *msp);
-gboolean              mspHasSStrand(const MSP const *msp);
-gboolean              mspHasPolyATail(const MSP const *msp, const GArray const *polyASiteList);
-gboolean              mspCoordInPolyATail(const int coord, const MSP const *msp, const GArray const *polyASiteList);
+gboolean              mspHasSName(const MSP* const msp);
+gboolean              mspHasSSeq(const MSP * const msp);
+gboolean              mspHasSCoords(const MSP* const msp);
+gboolean              mspHasSStrand(const MSP* const msp);
+gboolean              mspHasPolyATail(const MSP* const msp);
+gboolean              mspCoordInPolyATail(const int coord, const MSP* const msp);
 gboolean              mspGetFlag(const MSP* const msp, const MspFlag flag);
 const char*           mspFlagGetConfigKey(const MspFlag flag);
 gboolean              mspFlagGetDefault(const MspFlag flag);
 void                  mspFlagSetDefault(const MspFlag flag, const gboolean value);
+
+ColinearityType       mspIsColinear(const MSP* const msp1, const MSP* const msp2);
 
 int                   getMaxMspLen();
 void                  setMaxMspLen(const int len);
 
 void                  writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *range1, IntRange *range2);
 BlxSequence*          readBlxSequenceFromText(char *text, int *numMsps);
-void                  writeMspToOutput(FILE *pipe, const MSP const *msp);
+void                  writeMspToOutput(FILE *pipe, const MSP* const msp);
 void                  readMspFromText(MSP *msp, char *text);
 
 void                  destroyMspList(MSP **mspList);
@@ -407,11 +411,11 @@ MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **
                                    const char *idTag, const char *qName, const int qStart, const int qEnd, 
                                    const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
                                    const BlxStrand sStrand, char *sequence, const GQuark filename, GError **error);  
-MSP*                  copyMsp(const MSP const *src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
+MSP*                  copyMsp(const MSP* const src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
 
 //void                  insertFS(MSP *msp, char *series);
 
-void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, GList *columnList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange const *refSeqRange, const gboolean calcFrame);
+void                  finaliseBlxSequences(GArray* featureLists[], MSP **mspList, GList **seqList, GList *columnList, const int offset, const BlxSeqType seqType, const int numFrames, const IntRange* const refSeqRange, const gboolean calcFrame);
 int                   findMspListSExtent(GList *mspList, const gboolean findMin);
 int                   findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand strand);
 
@@ -423,7 +427,7 @@ gint                  fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpoint
 gint                  columnIdxCompareFunc(gconstpointer a, gconstpointer b);
 
 /* BlxSequence */
-char*                 blxSequenceGetSummaryInfo(const BlxSequence const *blxSeq, GList *columnList);
+char*                 blxSequenceGetSummaryInfo(const BlxSequence* const blxSeq, GList *columnList);
 BlxDataType*          createBlxDataType();
 void                  destroyBlxDataType(BlxDataType **blxDataType);
 const char*           getDataTypeName(BlxDataType *blxDataType);
@@ -450,7 +454,7 @@ gboolean              blxSequenceGetLinkFeatures(const BlxSequence *seq, const g
 GValue*               blxSequenceGetValue(const BlxSequence *seq, const int columnId);
 
 const char*           blxSequenceGetValueAsString(const BlxSequence *seq, const int columnId);
-const char*           blxSequenceGetColumn(const BlxSequence const *blxSeq, const BlxColumnId columnId);
+const char*           blxSequenceGetColumn(const BlxSequence* const blxSeq, const BlxColumnId columnId);
 const char*           blxSequenceGetOrganism(const BlxSequence *seq);
 const char*           blxSequenceGetOrganismAbbrev(const BlxSequence *seq);
 const char*           blxSequenceGetGeneName(const BlxSequence *seq);
@@ -460,6 +464,13 @@ char*                 blxSequenceGetFasta(const BlxSequence *seq);
 gboolean              blxSequenceGetFlag(const BlxSequence* const blxSeq, const MspFlag flag);
 
 void                  destroyBlxSequence(BlxSequence *seq);
+
+void                  blxColumnCreate(BlxColumnId columnId, const gboolean createHeader, const char *title,
+                                      GType type, const char *propertyName, const int defaultWidth,
+                                      const gboolean dataLoaded, const gboolean showColumn,
+                                      const gboolean showSummary, const gboolean canShowSummary, const gboolean searchable,
+                                      const char *sortName, const char *emblId, const char *emblTag,
+                                      GList **columnList);
 
 /* BlxDataType */
 gboolean              dataTypeGetFlag(const BlxDataType* const dataType, const MspFlag flag);

@@ -125,7 +125,7 @@ GtkWidget*	  createDetailViewTree(GtkWidget *grid,
 				       GList **treeList,
 				       GList *columnList,
 				       BlxSeqType seqType,
-				       const char const *refSeqName,
+				       const char* const refSeqName,
 				       const int frame,
 				       const gboolean includeSnpTrack);
 

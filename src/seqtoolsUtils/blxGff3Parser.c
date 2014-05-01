@@ -118,7 +118,7 @@ typedef struct _GapStringData
 } GapStringData;
 
 
-static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, const IntRange const *refSeqRange, BlxGffData *gffData, GError **error);
+static void           parseGffColumns(GString *line_string, const int lineNum, GList **seqList, GSList *supportedTypes, const IntRange* const refSeqRange, BlxGffData *gffData, GError **error);
 static void           parseAttributes(char *attributes, GList **seqList, const int lineNum, BlxGffData *gffData, GError **error);
 static void           parseTagDataPair(char *text, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseNameTag(char *data, char **sName, const int lineNum, GError **error);
@@ -131,7 +131,7 @@ static BlxStrand      readStrand(char *token, GError **error);
 static const char*           parseCigarStringSection(const char *text, GapStringData *data);
 static int            validateNumTokens(char **tokens, const int minReqd, const int maxReqd, GError **error);
 //static void           validateMsp(const MSP *msp, GError **error);
-static void           addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType);
+static void           addGffType(GSList **supportedTypes, const char *name, const char *soId, BlxMspType blxType);
 static void           destroyGffType(BlxGffType **gffType);
 
 
@@ -414,10 +414,10 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
               
               /* Get the flags. Again, they're all optional. These calls update the
                * flag in place if it is found, or leave it at the pre-set default otherwise. */
-              MspFlag flag = MSPFLAG_MIN + 1;
+              int flag = MSPFLAG_MIN + 1;
               for ( ; flag < MSPFLAG_NUM_FLAGS; ++flag)
                 {
-                  getMspFlag(keyFile, typeName, flag, result);
+                  getMspFlag(keyFile, typeName, (MspFlag)flag, result);
                 }              
               
               /* Insert it into the table of data types */
@@ -591,7 +591,7 @@ void parseGff3Body(const int lineNum,
                    GSList *styles,
                    const int resFactor, 
                    GKeyFile *keyFile,
-                   const IntRange const *refSeqRange)
+                   const IntRange* const refSeqRange)
 {
   DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
@@ -632,50 +632,69 @@ void parseFastaSeqHeader(char *line, const int lineNum,
                          char ***readSeq, int *readSeqLen, int *readSeqMaxLen,
                          BlxParserState *parserState)
 {
+  gboolean status = TRUE;
   char seqName[MAXLINE + 1];
   
   /* Read the ref seq name (and optionally the coords) from the header line */
   int startCoord = UNSET_INT, endCoord = UNSET_INT;
   const int numFound = sscanf(line, ">%s %d %d", seqName, &startCoord, &endCoord);
   
-  if (numFound < 1)
+  if (numFound < 1 || !seqName || !seqName[0])
     {
       /* Didn't find name - this is required */
+      status = FALSE;
       g_error("Error parsing data file: FASTA_SEQ_HEADER line \"%s\" is the wrong format; expected '>seq_name [start_coord end_coord].\n", line);
     }
-  else if (numFound == 3 && refSeqRange)
+
+  /* Trim out the name. The text can have additional info separated by '|' characters that we're not
+   * interested in (at the moment) so just trim everything off after the first '|' char. */
+  char *cp = strchr(seqName, '|');
+  if (cp)
+    *cp = 0;
+
+  /* Set the name, if not already set. (gb10: we shouldn't really get here so should probably add
+   * some error checking to make sure refSeqName is set so we can check we have the right
+   * sequence. However for now we're flexible and if there's only one fasta sequence in the GFF
+   * then we take that to be the reference sequence. If there are multiple in the GFF and no
+   * reference sequence name is specified then we'll get in trouble here because we have no way of
+   * telling which is the correct one.) */
+  if (status && *refSeqName == 0)
     {
-      /* We found the coords too. These override anything that was set from the
-       * ##sequence_header line, which is fine; however, we don't currently 
-       * handle the case where there might be more than one fasta sequence in 
-       * the GFF file (we will end up overwriting the coords each time...). */
+      strcpy(refSeqName, seqName);
+    }
+  else if (status && !stringsEqual(refSeqName, seqName, FALSE))
+    {
+      /* Not the sequence we're looking for so quit */
+      status = FALSE;
+    }
+
+  /* Check if we also found coordinates in the header line. (There should be exactly three text
+   * items if so) */
+  if (status && numFound == 3 && refSeqRange)
+    {
       intrangeSetValues(refSeqRange, startCoord, endCoord);
     }
 
-  /* Set the name. Again, this will overwrite anything already set. */
-  if (*refSeqName == '\0')
-    {
-      strcpy(refSeqName, seqName);
-    }
-  else if (!stringsEqual(refSeqName, seqName, FALSE))
-    {
-      g_warning("Reference sequence name was previously set to '%s' but the name in the FASTA data is '%s'; the name will overwritten with the new value.\n", refSeqName, seqName);
-      strcpy(refSeqName, seqName);
-    }
-
   /* Now allocate memory for the sequence data (if the sequence is not already populated) */
-  if (*refSeq == NULL)
+  if (status && *refSeq == NULL)
     {
       *readSeq = refSeq;
       *readSeqMaxLen = MAXLINE;
-      **readSeq = g_malloc(*readSeqMaxLen + 1);
+      **readSeq = (char*)g_malloc(*readSeqMaxLen + 1);
       *readSeqLen = 0;
     }
-      
-  /* Update the parser state so that we proceed to parse the sequence data next. (Even if
-   * we're not populating the ref seq, we still need to loop over these lines. Leaving the
-   * readSeqLen as unset will mean that the fasta sequence parser will ignore the input.) */
-  *parserState = FASTA_SEQ_BODY;
+
+  if (status)
+    {
+      /* Update the parser state so that we proceed to parse the sequence data next. (Even if
+       * we're not populating the ref seq, we still need to loop over these lines. Leaving the
+       * readSeqLen as unset will mean that the fasta sequence parser will ignore the input.) */
+      *parserState = FASTA_SEQ_BODY;
+    }
+  else
+    {
+      *parserState = FASTA_SEQ_IGNORE;
+    }
 }
 
 
@@ -716,7 +735,7 @@ static void parseGffColumns(GString *line_string,
                             const int lineNum, 
                             GList **seqList,
                             GSList *supportedTypes,
-                            const IntRange const *refSeqRange,
+                            const IntRange* const refSeqRange,
 			    BlxGffData *gffData,
                             GError **error)
 {
@@ -1149,7 +1168,7 @@ static void parseCigarStringMatch(GapStringData *data, const int numNucleotides,
   int newQ = *data->q + (data->qDirection * (numNucleotides - 1));
   int newS = *data->s + (data->sDirection * (numPeptides - 1));
   
-  CoordRange *newRange = g_malloc(sizeof(CoordRange));
+  CoordRange *newRange = (CoordRange*)g_malloc(sizeof(CoordRange));
   msp->gaps = g_slist_append(msp->gaps, newRange);
   
   newRange->qStart = *data->q;
@@ -1209,11 +1228,11 @@ static void parseCigarStringInsertion(GapStringData *data, const int numNucleoti
 
 /* Return TRUE if the given char is a valid operator for the
  * given gap string format. */
-static gboolean validateCigarOperator(char operator, BlxGapFormat gapFormat)
+static gboolean validateCigarOperator(char op, BlxGapFormat gapFormat)
 {
   gboolean result = FALSE;
   
-  switch (operator)
+  switch (op)
     {
     case 'M':    case 'm':
     case 'N':    case 'n':
@@ -1273,16 +1292,16 @@ static const char* parseCigarStringSection(const char *text,
   int numNucleotides = numPeptides * data->resFactor;
 
   const char *cp = text;
-  char operator = getCigarStringSectionOperator(text, data->gapFormat, &cp);
+  char op = getCigarStringSectionOperator(text, data->gapFormat, &cp);
   
   /*! \todo If the operator is not valid for this type of cigar string
    * then we should set the error and return. However, for historic 
    * reasons we have allowed invalid operators in the GFF Gap string,
    * so continue allowing this for now and just give a warning. */
-  if (!validateCigarOperator(operator, data->gapFormat))
-    g_warning("Invalid operator '%c' for gap string format '%d'", operator, data->gapFormat);
+  if (!validateCigarOperator(op, data->gapFormat))
+    g_warning("Invalid operator '%c' for gap string format '%d'", op, data->gapFormat);
 
-  switch (operator)
+  switch (op)
     {
     case 'M':
     case 'm':
@@ -1349,7 +1368,7 @@ static const char* parseCigarStringSection(const char *text,
       break;
       
     default:
-      g_set_error(&data->error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Invalid operator '%c' in cigar string.\n", operator);
+      g_set_error(&data->error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT, "Invalid operator '%c' in cigar string.\n", op);
       break;
     };
 
@@ -1380,9 +1399,9 @@ static int validateNumTokens(char **tokens, const int minReqd, const int maxReqd
 
 
 /* Create a gff type with the given info and add it to the given list */
-static void addGffType(GSList **supportedTypes, char *name, char *soId, BlxMspType blxType)
+static void addGffType(GSList **supportedTypes, const char *name, const char *soId, BlxMspType blxType)
 {
-  BlxGffType *gffType = g_malloc(sizeof *gffType);
+  BlxGffType *gffType = (BlxGffType*)g_malloc(sizeof *gffType);
   
   gffType->name = g_strdup(name);
   gffType->soId = g_strdup(soId);

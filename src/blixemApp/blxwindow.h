@@ -89,7 +89,7 @@ void                      blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSeque
 void                      blxWindowSelectionChanged(GtkWidget *blxWindow);
 BlxSequence*              blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
-gboolean                  blxContextIsSeqSelected(const BlxViewContext const *bc, const BlxSequence *seq);
+gboolean                  blxContextIsSeqSelected(const BlxViewContext* const bc, const BlxSequence *seq);
 SequenceGroup*            blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSequence *seqToFind);
 
 int                       sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);

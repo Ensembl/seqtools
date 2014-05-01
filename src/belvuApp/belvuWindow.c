@@ -1065,7 +1065,7 @@ static void onunhideMenu(GtkAction *action, gpointer data)
 
   /* Reset the 'hide' flag to false in all sequences */
   int i = 0;
-  for (i = 0; i < properties->bc->alignArr->len; ++i)
+  for (i = 0; i < (int)properties->bc->alignArr->len; ++i)
     {
       g_array_index(properties->bc->alignArr, ALN*, i)->hide = FALSE;
     }
@@ -1087,7 +1087,7 @@ static gboolean saveAlignmentPrompt(GtkWidget *widget, BelvuContext *bc)
   
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title,
                                                   GTK_WINDOW(widget), 
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_YES, GTK_RESPONSE_YES,        /* yes, save the alignment and exit */
                                                   GTK_STOCK_NO, GTK_RESPONSE_NO,          /* no, don't save (but still exit) */
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,  /* don't save and don't exit */
@@ -1213,7 +1213,7 @@ static void onToggleSchemeType(GtkRadioAction *action, GtkRadioAction *current, 
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
 
-  BelvuSchemeType newScheme = gtk_radio_action_get_current_value(current);
+  BelvuSchemeType newScheme = (BelvuSchemeType)gtk_radio_action_get_current_value(current);
   
   if (newScheme != properties->bc->schemeType)
     {
@@ -1237,7 +1237,7 @@ static void onToggleColorScheme(GtkRadioAction *action, GtkRadioAction *current,
   BelvuContext *bc = properties->bc;
 
   /* Get the new color scheme */
-  BelvuColorScheme newScheme = gtk_radio_action_get_current_value(current);
+  BelvuColorScheme newScheme = (BelvuColorScheme)gtk_radio_action_get_current_value(current);
 
   /* Determine what scheme type this puts us in */
   if (newScheme > NUM_RESIDUE_SCHEMES)
@@ -1269,7 +1269,7 @@ static void onToggleSortOrder(GtkRadioAction *action, GtkRadioAction *current, g
   GtkWidget *belvuWindow = GTK_WIDGET(data);
   BelvuWindowProperties *properties = belvuWindowGetProperties(belvuWindow);
   
-  properties->bc->sortType = gtk_radio_action_get_current_value(current);
+  properties->bc->sortType = (BelvuSortType)gtk_radio_action_get_current_value(current);
   doSort(properties->bc, properties->bc->sortType, TRUE);
 
   /* To do: This is a hack to overcome a bug where the sort order gets messed
@@ -1580,7 +1580,7 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow,
 {
   if (belvuWindow)
     {
-      BelvuWindowProperties *properties = g_malloc(sizeof *properties);
+      BelvuWindowProperties *properties = (BelvuWindowProperties*)g_malloc(sizeof *properties);
       
       properties->bc = bc;
       properties->statusBar = statusBar;
@@ -1630,7 +1630,7 @@ static void genericWindowCreateProperties(GtkWidget *wrapWindow,
 {
   if (wrapWindow)
     {
-      GenericWindowProperties *properties = g_malloc(sizeof *properties);
+      GenericWindowProperties *properties = (GenericWindowProperties*)g_malloc(sizeof *properties);
       
       properties->bc = bc;
       properties->actionGroup = actionGroup;
@@ -1905,7 +1905,7 @@ static void showSaveAsDialog(BelvuContext *bc, GtkWidget *window)
 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(window), 
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
@@ -1960,7 +1960,7 @@ static void showSaveAsDialog(BelvuContext *bc, GtkWidget *window)
   
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
-      bc->saveFormat = gtk_combo_box_get_active(combo);
+      bc->saveFormat = (BelvuFileFormat)gtk_combo_box_get_active(combo);
       bc->saveCoordsOn = gtk_toggle_button_get_active(checkButton);
     
       if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button1)))
@@ -2000,7 +2000,7 @@ static void findSeqs(BelvuContext *bc, const char *searchStr, const gboolean fin
   int i = startIdx;
   gboolean found = FALSE;
 
-  for ( ; i >= 0 && i < bc->alignArr->len; i += increment)
+  for ( ; i >= 0 && i < (int)bc->alignArr->len; i += increment)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
 
@@ -2018,12 +2018,12 @@ static void findSeqs(BelvuContext *bc, const char *searchStr, const gboolean fin
   /* If it's a find-again search and we failed to find a result, try
    * again starting from the beginning */
   if (findAgain && !found &&
-      ((searchBackwards && startIdx != bc->alignArr->len - 1) || (!searchBackwards && startIdx != 0)) )
+      ((searchBackwards && startIdx != (int)bc->alignArr->len - 1) || (!searchBackwards && startIdx != 0)) )
     {
       startIdx = (searchBackwards ? bc->alignArr->len - 1 : 0);
       i = startIdx;
 
-      for ( ; i >= 0 && i < bc->alignArr->len; i += increment)
+      for ( ; i >= 0 && i < (int)bc->alignArr->len; i += increment)
         {
           ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
 
@@ -2155,7 +2155,7 @@ static GtkWidget* createPromptDialog(GtkWidget *window,
 { 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(window),
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
@@ -2325,7 +2325,7 @@ static void showRemoveColumnsDialog(GtkWidget *belvuWindow)
 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(belvuWindow), 
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
@@ -2400,7 +2400,7 @@ static void showRemoveColumnsCutoffDialog(GtkWidget *belvuWindow)
 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(belvuWindow), 
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
@@ -2504,7 +2504,7 @@ static void showSelectGapCharDialog(GtkWidget *belvuWindow)
 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title,
                                                   GTK_WINDOW(belvuWindow), 
-                                                  GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+                                                  (GtkDialogFlags)(GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL),
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   NULL);
@@ -2553,7 +2553,7 @@ static void showSelectGapCharDialog(GtkWidget *belvuWindow)
           
           /* Change all the gaps in the sequences to use the new gap char */
           int i,j;
-          for (i = 0; i < bc->alignArr->len; ++i) 
+          for (i = 0; i < (int)bc->alignArr->len; ++i) 
             {
               ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
               char *alnpSeq = alnGetSeq(alnp);
@@ -2903,7 +2903,7 @@ static void showEditResidueColorsDialog(GtkWidget *belvuWindow, const gboolean b
 
       dialog = gtk_dialog_new_with_buttons(title,
                                            GTK_WINDOW(belvuWindow), 
-                                           GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+                                           (GtkDialogFlags)(GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL),
                                            GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                            GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                            NULL);
@@ -3212,7 +3212,7 @@ static void showEditConsColorsDialog(GtkWidget *belvuWindow, const gboolean brin
 
       dialog = gtk_dialog_new_with_buttons(title, 
                                            GTK_WINDOW(belvuWindow), 
-                                           GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+                                           (GtkDialogFlags)(GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL),
                                            GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                            GTK_STOCK_ADD, GTK_RESPONSE_APPLY,
                                            GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
@@ -3273,7 +3273,7 @@ static GtkWidget* createTextEntryWithLabel(const char *labelText,
   GtkWidget *entry = gtk_entry_new();
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
 
-  gtk_table_attach(table, entry, col + 1, col + 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, entry, col + 1, col + 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
   
   if (defaultInput)
     {
@@ -3294,7 +3294,7 @@ static void showWrapDialog(BelvuContext *bc, GtkWidget *belvuWindow)
 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
                                                   GTK_WINDOW(belvuWindow), 
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                  (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
@@ -3458,7 +3458,7 @@ static void drawOrganisms(GtkWidget *widget, GdkDrawable *drawable, BelvuContext
   const int x = ORGS_WINDOW_XPAD;
   int i = 0;
 
-  for ( ; i < bc->organismArr->len; ++i) 
+  for ( ; i < (int)bc->organismArr->len; ++i) 
     {
       ALN *alnp = g_array_index(bc->organismArr, ALN*, i);
     
@@ -3581,7 +3581,7 @@ void showAnnotationWindow(BelvuContext *bc)
       /* Calculate the max line length */
       const char *cp = (const char*)(annItem->data);
       
-      if (strlen(cp) > maxLen) 
+      if ((int)strlen(cp) > maxLen) 
         maxLen = strlen(cp);
       
       /* Append this text to the string */
@@ -3745,7 +3745,7 @@ void onRowSelectionChanged(BelvuContext *bc)
   bc->highlightedAlns = NULL;
 
   int i = 0;
-  for (i = 0; i < bc->alignArr->len; ++i)
+  for (i = 0; i < (int)bc->alignArr->len; ++i)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
 
@@ -3781,7 +3781,7 @@ void onColSelectionChanged(BelvuContext *bc)
 void onTreeOrderChanged(BelvuContext *bc)
 {
   /* If sorting by tree order, we need to refresh the sort order */
-  if (bc->sortType == BELVU_SORT_TREE);
+  if (bc->sortType == BELVU_SORT_TREE)
     doSort(bc, bc->sortType, FALSE);
 
   /* Recenter on the highlighted alignment */

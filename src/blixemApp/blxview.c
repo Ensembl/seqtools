@@ -389,7 +389,7 @@ void finaliseFetch(GList *seqList, GList *columnList)
 
 
 /* Find any gaps in the reference sequence */
-static void findAssemblyGaps(const char *refSeq, GArray *featureLists[], MSP **mspList, const IntRange const *refSeqRange)
+static void findAssemblyGaps(const char *refSeq, GArray *featureLists[], MSP **mspList, const IntRange* const refSeqRange)
 {
   /* Find the last msp in the list so we can append new ones to the end */
   MSP *lastMsp = *mspList;
@@ -493,7 +493,7 @@ static char* findAlignTypes(GArray* featureLists[], const char *separatorStr)
   GString *resultStr = g_string_new(NULL);
   
   /* Loop through all MSPs of type 'match' */
-  const GArray const *mspList = featureLists[BLXMSP_MATCH];
+  const GArray* const mspList = featureLists[BLXMSP_MATCH];
   
   int i = 0;
   const MSP *msp = mspArrayIdx(mspList, i);
@@ -629,7 +629,7 @@ static void processGeneName(BlxSequence *blxSeq)
           char *endPtr = strchr(startPtr, ';');
           const int numChars = endPtr ? endPtr - startPtr : strlen(startPtr);
           
-          char *result = g_malloc((numChars + 1) * sizeof(char));
+          char *result = (char*)g_malloc((numChars + 1) * sizeof(char));
           
           g_utf8_strncpy(result, startPtr, numChars);
           result[numChars] = 0;
@@ -703,7 +703,7 @@ gboolean mspHasFs(const MSP *msp)
 
 
 /* Return the (cached) full extent of the match that we're showing in match seq coords */
-const IntRange* mspGetFullSRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc)
+const IntRange* mspGetFullSRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc)
 {
   const IntRange *result = NULL;
   
@@ -718,21 +718,30 @@ const IntRange* mspGetFullSRange(const MSP const *msp, const gboolean seqSelecte
 /* Return the (cached) full extent of the match on the ref sequence in display coords
  * (including any portions of unaligned sequence that we're showing). Depending on the
  * options, the range may depend on whether the sequence is selected or not. */
-const IntRange* mspGetFullDisplayRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc)
+const IntRange* mspGetFullDisplayRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc)
 {
   const IntRange *result = NULL;
   
-  if (seqSelected || !bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED] || !bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED])
-    result = &msp->fullRange;
+  /* Check if showing unaligned sequence or polya tails for all sequences, or just the selected
+     sequence */
+  if ((bc->flags[BLXFLAG_SHOW_UNALIGNED] || bc->flags[BLXFLAG_SHOW_POLYA_SITE]) && 
+      (seqSelected || 
+       (bc->flags[BLXFLAG_SHOW_UNALIGNED] && !bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED]) || 
+       (bc->flags[BLXFLAG_SHOW_POLYA_SITE] && !bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED])))
+    {
+      result = &msp->fullRange;
+    }
   else
-    result = &msp->displayRange;
+    {
+      result = &msp->displayRange;
+    }
   
   return result;
 }
 
 /* Return the (cached) extent of the alignment that we're showing in display coords
  * (excluding unaligned sequence) */
-const IntRange* mspGetDisplayRange(const MSP const *msp)
+const IntRange* mspGetDisplayRange(const MSP* const msp)
 {
   return &msp->displayRange;
 }
@@ -741,10 +750,10 @@ const IntRange* mspGetDisplayRange(const MSP const *msp)
 /* Get the full range of the given MSP that we want to display, in s coords. This will generally 
  * be the coords of the alignment but could extend outside this range we are displaying unaligned 
  * portions of the match sequence or polyA tails etc. */
-static void mspCalcFullSRange(const MSP const *msp, 
+static void mspCalcFullSRange(const MSP* const msp, 
 			      const gboolean *flags,
 			      const int numUnalignedBases, 
-			      const GArray const *polyASiteList,
+			      const GArray* const polyASiteList,
 			      IntRange *result)
 {
   /* Normally we just display the part of the sequence in the alignment */
@@ -769,7 +778,7 @@ static void mspCalcFullSRange(const MSP const *msp,
 	    }
 	}
       
-      if (flags[BLXFLAG_SHOW_POLYA_SITE] && mspHasPolyATail(msp, polyASiteList))
+      if (flags[BLXFLAG_SHOW_POLYA_SITE] && mspHasPolyATail(msp))
 	{
 	  /* We're displaying polyA tails, so override the 3' end coord with the full extent of
 	   * the s sequence if there is a polyA site here. The 3' end is the min q coord if the
@@ -792,12 +801,12 @@ static void mspCalcFullSRange(const MSP const *msp,
 /* Get the full range of the given MSP that we want to display, in q coords. This will generally 
  * be the coords of the alignment but could extend outside this range we are displaying unaligned 
  * portions of the match sequence or polyA tails etc. */
-static void mspCalcFullQRange(const MSP const *msp, 
+static void mspCalcFullQRange(const MSP* const msp, 
 			      const gboolean *flags,
 			      const int numUnalignedBases, 
-			      const GArray const *polyASiteList,
+			      const GArray* const polyASiteList,
 			      const int numFrames,
-			      const IntRange const *fullSRange,
+			      const IntRange* const fullSRange,
 			      IntRange *result)
 {
   /* Default to the alignment range so we can exit quickly if there are no special cases */
@@ -822,7 +831,7 @@ static void mspCalcFullQRange(const MSP const *msp,
 /* Calculate the full extent of the match sequence to display, in display coords,
  * and cache the result in the msp. Includes any portions of unaligned sequence that we're
  * displaying */
-void mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int numUnalignedBases)
+void mspCalculateFullExtents(MSP *msp, const BlxViewContext* const bc, const int numUnalignedBases)
 {
   mspCalcFullSRange(msp, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], &msp->fullSRange);
   mspCalcFullQRange(msp, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], bc->numFrames, &msp->fullSRange, &msp->fullRange);
@@ -842,7 +851,7 @@ void mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int
 
 
 /* Convert the ref-seq range of the given msp in display coords and cache it in the msp */
-static void mspCalculateDisplayRange(MSP *msp, const BlxViewContext const *bc)
+static void mspCalculateDisplayRange(MSP *msp, const BlxViewContext* const bc)
 {
   const int frame = mspGetRefFrame(msp, bc->seqType);
   const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
@@ -853,7 +862,7 @@ static void mspCalculateDisplayRange(MSP *msp, const BlxViewContext const *bc)
 
 /* This caches the display range (in display coords rather than dna coords,
  * and inverted if the display is inverted) for each MSP */
-void cacheMspDisplayRanges(const BlxViewContext const *bc, const int numUnalignedBases)
+void cacheMspDisplayRanges(const BlxViewContext* const bc, const int numUnalignedBases)
 {
   /* This also calculates the max msp len */
   setMaxMspLen(0);
@@ -946,7 +955,7 @@ static int mspGetUnalignedCoord(const MSP *msp, const int qIdx, const gboolean s
   /* First convert to display coords */
   const int frame = mspGetRefFrame(msp, bc->seqType);
   const int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  const IntRange const *mspRange = mspGetDisplayRange(msp);
+  const IntRange* const mspRange = mspGetDisplayRange(msp);
 
   /* Note that because we have converted to display coords the ref seq coords are
    * now in the direction of the display, regardless of the ref seq strand. */
@@ -1096,7 +1105,7 @@ BlxStyle* createBlxStyle(const char *styleName,
 			 const char *lineColorUtrSelected, 
 			 GError **error)
 {
-  BlxStyle *style = g_malloc(sizeof(BlxStyle));
+  BlxStyle *style = (BlxStyle*)g_malloc(sizeof(BlxStyle));
   GError *tmpError = NULL;
 
   if (!styleName)
@@ -1168,7 +1177,7 @@ void drawAssemblyGaps(GtkWidget *widget,
                       GdkColor *color,
                       const gboolean displayRev,
                       GdkRectangle *rect, 
-                      const IntRange const *dnaRange,
+                      const IntRange* const dnaRange,
                       const GArray *mspArray)
 {
   /* See if any gaps lie within the display range. */
@@ -1495,7 +1504,7 @@ GSList* blxReadStylesFile(const char *keyFileName_in, GError **error)
       int i;
       GError *tmpError = NULL;
       
-      for (i = 0, group = groups ; i < num_groups ; i++, group++)
+      for (i = 0, group = groups ; i < (int)num_groups ; i++, group++)
 	{
           gboolean found = readStylesFileColors(keyFile, *group, &result, &tmpError);
 
@@ -1545,7 +1554,7 @@ GSList* blxReadStylesFile(const char *keyFileName_in, GError **error)
  ***********************************************************/
 
 /* Returns a string which is the name of the Blixem application. */
-char *blxGetAppName()
+const char *blxGetAppName()
 {
   return BLIXEM_TITLE ;
 }
@@ -1558,31 +1567,31 @@ const char *blxGetTitlePrefix(const BlxViewContext * const bc)
 }
 
 /* Returns a copyright string for the Blixem application. */
-char *blxGetCopyrightString()
+const char *blxGetCopyrightString()
 {
   return BLIXEM_COPYRIGHT_STRING ;
 }
 
 /* Returns the Blixem website URL. */
-char *blxGetWebSiteString()
+const char *blxGetWebSiteString()
 {
   return BLIXEM_WEBSITE_STRING ;
 }
 
 /* Returns a comments string for the Blixem application. */
-char *blxGetCommentsString()
+const char *blxGetCommentsString()
 {
   return BLIXEM_COMMENTS_STRING() ;
 }
 
 /* Returns a license string for the blx application. */
-char *blxGetLicenseString()
+const char *blxGetLicenseString()
 {
   return BLIXEM_LICENSE_STRING ;
 }
 
 /* Returns a string representing the Version/Release/Update of the Blixem code. */
-char *blxGetVersionString()
+const char *blxGetVersionString()
 {
   return BLIXEM_VERSION_STRING ;
 }
@@ -1592,10 +1601,8 @@ char *blxGetVersionString()
  *                      Columns
  ***********************************************************/
 
-/* This checks if the column has any properties specified for it in the config
- * file and, if so, overrides the default values in the given column with 
- * the config file values. */
-static void getColumnConfig(BlxColumnInfo *columnInfo)
+/* Check if the column has a column-width set in the config and if so override the default value */
+static void getColumnWidthsConfig(BlxColumnInfo *columnInfo)
 {
   /* Do nothing for the sequence column, because it has dynamic width */
   if (columnInfo->columnId == BLXCOL_SEQUENCE)
@@ -1628,6 +1635,35 @@ static void getColumnConfig(BlxColumnInfo *columnInfo)
 }
 
 
+/* Check if the column has a column-summary flag set in the config and if so 
+ * override the default value */
+static void getColumnSummaryConfig(BlxColumnInfo *columnInfo)
+{
+  /* Do nothing if we can't show the summary for this column */
+  if (!columnInfo->canShowSummary)
+    return;
+    
+  GKeyFile *key_file = blxGetConfig();
+
+  if (key_file && g_key_file_has_group(key_file, COLUMN_SUMMARY_GROUP))
+    {
+      /* The value is true if we should include the column in summary info, false if we should
+       * not. If the group exists but the column is not listed then that also indicates we should not
+       * show it (this call will correctly return false in that case). */
+      columnInfo->showSummary = g_key_file_get_boolean(key_file, COLUMN_SUMMARY_GROUP, columnInfo->title, NULL);
+    }
+}
+
+
+/* This checks if the column has any properties specified for it in the config
+ * file and, if so, overrides the default values in the given column with 
+ * the config file values. */
+static void getColumnConfig(BlxColumnInfo *columnInfo)
+{
+  getColumnWidthsConfig(columnInfo);
+  getColumnSummaryConfig(columnInfo);
+}
+
 //static void destroyColumnList(GList **columnList)
 //{
 //  GList *column = *columnList;
@@ -1642,87 +1678,41 @@ static void getColumnConfig(BlxColumnInfo *columnInfo)
 //}
 
 
-/* Creates a detail-view column from the given info and adds it to the columnList. */
-static void createColumn(BlxColumnId columnId, 
-                         const gboolean createHeader,
-                         char *title,
-                         GType type,
-                         char *propertyName,
-                         const int defaultWidth,
-                         const gboolean dataLoaded,
-                         const gboolean showColumn,
-                         const gboolean showSummary,
-                         const gboolean searchable,
-                         char *sortName,
-                         const char *emblId,
-                         const char *emblTag,
-                         GList **columnList)
-{
-  /* Create a simple label for the header (unless told not to) */
-  GtkWidget *headerWidget = NULL;
-  
-  if (createHeader)
-    {
-      headerWidget = createLabel(title, 0.0, 1.0, TRUE, TRUE, TRUE);
-      gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
-    }
-  
-  /* Create the column info */
-  BlxColumnInfo *columnInfo = g_malloc(sizeof(BlxColumnInfo));
-
-  static int columnIdx = 0;  
-  columnInfo->columnIdx = columnIdx;
-  ++columnIdx;
-
-  columnInfo->columnId = columnId;
-  columnInfo->headerWidget = headerWidget;
-  columnInfo->refreshFunc = NULL;
-  columnInfo->title = title;
-  columnInfo->propertyName = propertyName;
-  columnInfo->width = defaultWidth;
-  columnInfo->sortName = sortName;
-  columnInfo->emblId = g_quark_from_string(emblId);
-  columnInfo->emblTag = g_quark_from_string(emblTag);
-  columnInfo->dataLoaded = TRUE;
-  columnInfo->showColumn = showColumn;
-  columnInfo->showSummary = showSummary;
-  columnInfo->searchable = searchable;
-  columnInfo->type = type;
-
-  getColumnConfig(columnInfo);
-  
-  /* Place it in the list. List must be sorted in the same order
-   * as the GtkListStore or gtk_list_store_set fails */
-  *columnList = g_list_insert_sorted(*columnList, columnInfo, columnIdxCompareFunc);
-}
-
-
 /* This creates BlxColumnInfo entries for each column required in the detail view. It
  * returns a list of the columns created. */
-GList* createColumns(const BlxSeqType seqType, const gboolean optionalColumns, const gboolean customSeqHeader)
+GList* blxCreateColumns(const gboolean optionalColumns, const gboolean customSeqHeader)
 {
   GList *columnList = NULL;
   
   /* Create the columns' data structs. The columns appear in the order
    * that they are added here. */
-  createColumn(BLXCOL_SEQNAME,     TRUE,             "Name",       G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,            TRUE,  TRUE,  TRUE,   "Name",        NULL, NULL, &columnList);
-  createColumn(BLXCOL_SOURCE,      TRUE,             "Source",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,            TRUE,  TRUE,  TRUE,   "Source",      NULL, NULL, &columnList);
-                                                                                                                                                                                                       
-  createColumn(BLXCOL_ORGANISM,    TRUE,             "Organism",   G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       optionalColumns, TRUE,  TRUE,  TRUE,   "Organism",    "OS", NULL, &columnList);
-  createColumn(BLXCOL_GENE_NAME,   TRUE,             "Gene Name",  G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      optionalColumns, FALSE, TRUE,  TRUE,   "Gene name",   "GN", NULL, &columnList);
-  createColumn(BLXCOL_TISSUE_TYPE, TRUE,             "Tissue Type",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    optionalColumns, FALSE, TRUE,  TRUE,   "Tissue type", "FT", "tissue_type", &columnList);
-  createColumn(BLXCOL_STRAIN,      TRUE,             "Strain",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         optionalColumns, FALSE, TRUE,  TRUE,   "Strain",      "FT", "strain", &columnList);
+  blxColumnCreate(BLXCOL_SEQNAME,     TRUE,             "Name",       G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SEQNAME_WIDTH,        TRUE,            TRUE,  TRUE,  TRUE,  TRUE,   "Name",        NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_SOURCE,      TRUE,             "Source",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_SOURCE_WIDTH,         TRUE,            TRUE,  TRUE,  TRUE,  TRUE,   "Source",      NULL, NULL, &columnList);
+                                                                                                                                                                                                              
+  blxColumnCreate(BLXCOL_ORGANISM,    TRUE,             "Organism",   G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_ORGANISM_WIDTH,       optionalColumns, TRUE,  TRUE,  TRUE,  TRUE,   "Organism",    "OS", NULL, &columnList);
+  blxColumnCreate(BLXCOL_GENE_NAME,   TRUE,             "Gene Name",  G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GENE_NAME_WIDTH,      optionalColumns, FALSE, TRUE,  TRUE,  TRUE,   "Gene name",   "GN", NULL, &columnList);
+  blxColumnCreate(BLXCOL_TISSUE_TYPE, TRUE,             "Tissue Type",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_TISSUE_TYPE_WIDTH,    optionalColumns, FALSE, TRUE,  TRUE,  TRUE,   "Tissue type", "FT", "tissue_type", &columnList);
+  blxColumnCreate(BLXCOL_STRAIN,      TRUE,             "Strain",     G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_STRAIN_WIDTH,         optionalColumns, FALSE, TRUE,  TRUE,  TRUE,   "Strain",      "FT", "strain", &columnList);
+                                                                                                                                                                             
+  /* Insert optional columns here, with a dynamically-created IDs that are >= BLXCOL_NUM_COLS */                                                                             
+  int columnId = BLXCOL_NUM_COLUMNS;                                                                                                                                         
+  blxColumnCreate((BlxColumnId)columnId++, TRUE,        "Description",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_DEFAULT_WIDTH,        optionalColumns, FALSE, TRUE,  TRUE,  TRUE,   "Description", "DE", NULL, &columnList);
+                                                                                                                                                                                                             
+  blxColumnCreate(BLXCOL_GROUP,       TRUE,             "Group",      G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GROUP_WIDTH,          TRUE,            FALSE, FALSE, FALSE, TRUE,   "Group",       NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_SCORE,       TRUE,             "Score",      G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_SCORE_WIDTH,          TRUE,            TRUE,  FALSE, FALSE, FALSE,  "Score",       NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_ID,          TRUE,             "%Id",        G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_ID_WIDTH,             TRUE,            TRUE,  FALSE, FALSE, FALSE,  "Identity",    NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_START,       TRUE,             "Start",      G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,            TRUE,  FALSE, FALSE, FALSE,  "Position",    NULL, NULL, &columnList);
+  blxColumnCreate(BLXCOL_SEQUENCE,    !customSeqHeader, "Sequence",   G_TYPE_POINTER,RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,            TRUE,  FALSE, FALSE, FALSE,  NULL,          "SQ", NULL, &columnList);
+  blxColumnCreate(BLXCOL_END,         TRUE,             "End",        G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,            TRUE,  FALSE, FALSE, FALSE,  NULL,          NULL, NULL, &columnList);
 
-  /* Insert optional columns here, with a dynamically-created ID */
-  int columnId = BLXCOL_NUM_COLUMNS;
-  createColumn(columnId++,         TRUE,             "Description",G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_DEFAULT_WIDTH,        optionalColumns, FALSE, TRUE,  TRUE,   "Description", "DE", NULL, &columnList);
-                                                                                                                                                                                                      
-  createColumn(BLXCOL_GROUP,       TRUE,             "Group",      G_TYPE_STRING, RENDERER_TEXT_PROPERTY,     BLXCOL_GROUP_WIDTH,          TRUE,            FALSE, FALSE, TRUE,   "Group",       NULL, NULL, &columnList);
-  createColumn(BLXCOL_SCORE,       TRUE,             "Score",      G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_SCORE_WIDTH,          TRUE,            TRUE,  FALSE, FALSE,  "Score",       NULL, NULL, &columnList);
-  createColumn(BLXCOL_ID,          TRUE,             "%Id",        G_TYPE_DOUBLE, RENDERER_TEXT_PROPERTY,     BLXCOL_ID_WIDTH,             TRUE,            TRUE,  FALSE, FALSE,  "Identity",    NULL, NULL, &columnList);
-  createColumn(BLXCOL_START,       TRUE,             "Start",      G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_START_WIDTH,          TRUE,            TRUE,  FALSE, FALSE,  "Position",    NULL, NULL, &columnList);
-  createColumn(BLXCOL_SEQUENCE,    !customSeqHeader, "Sequence",   G_TYPE_POINTER,RENDERER_SEQUENCE_PROPERTY, BLXCOL_SEQUENCE_WIDTH,       TRUE,            TRUE,  FALSE, FALSE,  NULL,          "SQ", NULL, &columnList);
-  createColumn(BLXCOL_END,         TRUE,             "End",        G_TYPE_INT,    RENDERER_TEXT_PROPERTY,     BLXCOL_END_WIDTH,            TRUE,            TRUE,  FALSE, FALSE,  NULL,          NULL, NULL, &columnList);
+  /* For each column, check if it is configured in the config file and if so update accordingly */
+  GList *columnItem  = columnList;
+
+  for ( ; columnItem; columnItem = columnItem->next)
+    {
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(columnItem->data);
+      getColumnConfig(columnInfo);
+    }
 
   return columnList;
 }
@@ -1823,6 +1813,23 @@ void saveColumnWidths(GList *columnList, GKeyFile *key_file)
 }
 
 
+/* Save the summary columns to the given config file. */
+void saveSummaryColumns(GList *columnList, GKeyFile *key_file)
+{
+  /* Loop through each column */
+  GList *listItem = columnList;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
+
+      if (columnInfo && columnInfo->canShowSummary)
+        {
+          g_key_file_set_boolean(key_file, COLUMN_SUMMARY_GROUP, columnInfo->title, columnInfo->showSummary);
+        }
+    }
+}
+
 
 /* Reset column widths to default values */
 void resetColumnWidths(GList *columnList)
@@ -1830,7 +1837,7 @@ void resetColumnWidths(GList *columnList)
   /* Quick and dirty: just set the width and visibility manually. This should be
    * done differently so we can just loop through and find the correct values somehow;
    * currently we run the risk of getting out of sync with the initial values set in
-   * createColumns */
+   * blxCreateColumns */
   getColumnInfo(columnList, BLXCOL_SEQNAME)->width = BLXCOL_SEQNAME_WIDTH;
   getColumnInfo(columnList, BLXCOL_SEQNAME)->showColumn = TRUE;
 

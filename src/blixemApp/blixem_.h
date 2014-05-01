@@ -69,7 +69,9 @@ AUTHOR_TEXT "\n"
 
 
 
-#define COLUMN_WIDTHS_GROUP             "column-widths"  /* group name in the config file */
+#define COLUMN_WIDTHS_GROUP             "column-widths"   /* group name in the config file */
+#define COLUMN_SUMMARY_GROUP            "summary-columns" /* group name in the config file for
+                                                             columns to include in the summary info */
 
 /* Define the columns' default widths and titles. */
 #define BLXCOL_DEFAULT_WIDTH            50    /* default width for generic columns */
@@ -173,6 +175,8 @@ typedef enum
 #define SETTING_NAME_SHOW_POLYA_SIG_SELECTED "show-polya-sig-selected-seq"
 #define SETTING_NAME_SHOW_SPLICE_SITES "show-splice-sites"
 #define SETTING_NAME_SQUASH_MATCHES "squash-matches"
+#define SETTING_NAME_SHOW_COLINEARITY "show-colinearity"
+#define SETTING_NAME_SHOW_COLINEARITY_SELECTED "show-colinearity-selected"
 
 
 /* would be good to get rid of this.... */
@@ -293,12 +297,18 @@ typedef enum
     BLXCOLOR_CANONICAL,     /* background highlight color for canonical intron bases */
     BLXCOLOR_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
     BLXCOLOR_POLYA_TAIL,    /* background color for polyA tails in the detail view */
+    BLXCOLOR_POLYA_SIGNAL,  /* background color for non-annotated polyA signals in the detail view */
+    BLXCOLOR_POLYA_SIGNAL_ANN,/* background color for annotated polyA signals in the detail view */
+    BLXCOLOR_POLYA_SITE_ANN,/* background color for annotated polyA sites in the detail view */
     BLXCOLOR_TREE_GRID_LINES,/* color of the tree grid lines (i.e. column separator lines) */
     BLXCOLOR_CLIP_MARKER,   /* color of the marker line used to indicate a match has been clipped */
     BLXCOLOR_COVERAGE_PLOT, /* color of the coverage plot */
     BLXCOLOR_ASSEMBLY_GAP,  /* highlight color for assembly gaps */
     BLXCOLOR_SELECTION,     /* highlight color for selections */
     BLXCOLOR_PARTIAL_EXON_CROSSHATCH, /* color of cross-hatch lines for partial exons */
+    BLXCOLOR_COLINEAR_PERFECT, /* color of lines joining alignment blocks that are perfectly colinear */
+    BLXCOLOR_COLINEAR_IMPERFECT, /* color of lines joining alignment blocks that are imperfectly colinear */
+    BLXCOLOR_COLINEAR_NOT,  /* color of lines joining alignment blocks that are not colinear */
 
     BLXCOL_NUM_COLORS
   } BlxColorId;
@@ -343,7 +353,9 @@ typedef enum
     BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
     BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
     BLXFLAG_ABBREV_TITLE,           /* whether to abbreviate the window titles to save space */
-    BLXFLAG_LINK_FEATURES,          /* whether featuers with the same name should be linked */
+    BLXFLAG_LINK_FEATURES,          /* whether features with the same name should be linked */
+    BLXFLAG_SHOW_COLINEARITY,       /* whether to show colinearity lines between alignment blocks */
+    BLXFLAG_SHOW_COLINEARITY_SELECTED, /* whether to show colinearity lines for selected sequence only */
     
     BLXFLAG_NUM_FLAGS               /* Total number of flags e.g. for creating arrays and loops etc */
   } BlxFlag;
@@ -447,6 +459,7 @@ typedef struct _CommandLineOptions
   gboolean mapCoords;             /* whether the map-coords command-line argument was specified */
   int mapCoordsFrom;              /* the coord to map from */
   int mapCoordsTo;                /* the coord to map to */
+  char *windowColor;              /* if not null, set the main window background color to this */
 } CommandLineOptions;
 
 
@@ -500,6 +513,7 @@ typedef struct _BlxViewContext
     
     GArray *defaultColors;                  /* Default colors used by Blixem */
     gboolean usePrintColors;                /* Whether to use print colors (i.e. black and white) */
+    char *windowColor;                      /* If not null, background color for the window */
 
     GList *columnList;                      /* A list of details about all the columns in the detail view (might have been better to use an array here but it's a short list so not important) */
     
@@ -552,16 +566,17 @@ int                                getColumnWidth(GList *columnList, const BlxCo
 const char*                        getColumnTitle(GList *columnList, const BlxColumnId columnId);
 void                               getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *xRange);
 void                               saveColumnWidths(GList *columnList, GKeyFile *key_file);
+void                               saveSummaryColumns(GList *columnList, GKeyFile *key_file);
 gboolean                           showColumn(BlxColumnInfo *columnInfo);
 void                               resetColumnWidths(GList *columnList);
 
 void                               blviewRedraw(void);
 GtkWidget*                         getBlixemWindow(void);
-const IntRange*                    mspGetFullSRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
-const IntRange*                    mspGetDisplayRange(const MSP const *msp);
-const IntRange*                    mspGetFullDisplayRange(const MSP const *msp, const gboolean seqSelected, const BlxViewContext const *bc);
-void                               mspCalculateFullExtents(MSP *msp, const BlxViewContext const *bc, const int numUnalignedBases);
-void                               cacheMspDisplayRanges(const BlxViewContext const *bc, const int numUnalignedBases);
+const IntRange*                    mspGetFullSRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc);
+const IntRange*                    mspGetDisplayRange(const MSP* const msp);
+const IntRange*                    mspGetFullDisplayRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc);
+void                               mspCalculateFullExtents(MSP *msp, const BlxViewContext* const bc, const int numUnalignedBases);
+void                               cacheMspDisplayRanges(const BlxViewContext* const bc, const int numUnalignedBases);
 
 int                                mspGetMatchCoord(const MSP *msp, 
                                                     const int qIdx, 
@@ -575,20 +590,20 @@ void                               drawAssemblyGaps(GtkWidget *widget,
                                                     GdkColor *color,
                                                     const gboolean displayRev,
                                                     GdkRectangle *rect, 
-                                                    const IntRange const *dnaRange,
+                                                    const IntRange* const dnaRange,
                                                     const GArray *mspArray);
 
-GList*                             createColumns(const BlxSeqType seqType, const gboolean optionalColumns, const gboolean customSeqHeader);
+GList*                             blxCreateColumns(const gboolean optionalColumns, const gboolean customSeqHeader);
 
 GSList*                            blxReadStylesFile(const char *keyFileName_in, GError **error);
 
-char*                              blxGetAppName();
+const char*                        blxGetAppName();
 const char*                        blxGetTitlePrefix(const BlxViewContext* const bc);
-char*                              blxGetCopyrightString();
-char*                              blxGetWebSiteString();
-char*                              blxGetCommentsString();
-char*                              blxGetLicenseString();
-char*                              blxGetVersionString();        
+const char*                        blxGetCopyrightString();
+const char*                        blxGetWebSiteString();
+const char*                        blxGetCommentsString();
+const char*                        blxGetLicenseString();
+const char*                        blxGetVersionString();        
 
 /* dotter.c */
 //void                               selectFeatures(void);
@@ -641,7 +656,7 @@ gboolean                           bulkFetchSequences(const int attempt,
                                                       GSList *supportedTypes, 
                                                       GSList *styles,
                                                       const int refSeqOffset,
-                                                      const IntRange const *refSeqRange,
+                                                      const IntRange* const refSeqRange,
                                                       const char *dataset,
                                                       const gboolean optionalColumns
                                                       );

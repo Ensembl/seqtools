@@ -63,6 +63,8 @@
 #define BIG_PICTURE_GRID_HEADER_NAME	"BigPictureGridHeader"
 #define BIG_PICTURE_WIDGET_NAME		"BigPictureWidget" /* name of the direct parent of the grids etc. */
 #define MAX_BIG_PICTURE_HEIGHT_RATIO	0.4	  /* max height of the big picture wrt the whole window size */
+#define BLX_SCROLL_INCREMENT_RATIO      20        /* determines speed of scrolling of big picture
+                                                   * (we use 1/nth of the display range as the scroll step) */
 
 /* Local function declarations */
 static GridHeaderProperties*	    gridHeaderGetProperties(GtkWidget *gridHeader);
@@ -191,8 +193,8 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 					GtkWidget *bigPicture, 
                                         GdkDrawable *drawable,
 					GdkGC *gc, 
-					const GdkColor const *textColor, 
-					const GdkColor const *lineColor,
+					const GdkColor* const textColor, 
+					const GdkColor* const lineColor,
                                         const gboolean abbrev)
 {
   BlxViewContext *bc = bigPictureGetContext(bigPicture);
@@ -404,7 +406,7 @@ static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, G
   
   /* First, highlight any assembly gaps */
   /* Get the display range in dna coords */
-  const IntRange const *displayRange = bigPictureGetDisplayRange(properties->bigPicture);
+  const IntRange* const displayRange = bigPictureGetDisplayRange(properties->bigPicture);
   IntRange bpRange;
   convertDisplayRangeToDnaRange(displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
   
@@ -553,9 +555,26 @@ void refreshGridOrder(GtkWidget *bigPicture)
  * widgets of the big picture */
 static void updateHighlightBox(GtkWidget *bigPicture, BigPictureProperties *properties)
 {
-  callFuncOnAllBigPictureGrids(bigPicture, calculateGridHighlightBoxBorders);
-  callFuncOnAllBigPictureExonViews(bigPicture, calculateExonViewHighlightBoxBorders);
+  callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridHighlightBoxBorders);
+  callFuncOnAllBigPictureExonViews(bigPicture, (gpointer)calculateExonViewHighlightBoxBorders);
   calculateCoverageViewHighlightBoxBorders(properties->coverageView);
+}
+
+
+/* This should be called to do the required updates after the big picture range has changed */
+static void onBigPictureRangeChanged(GtkWidget *bigPicture, BigPictureProperties *properties)
+{
+  /* Recalculate the exon view height, because it may have changed with more/less
+   * exons being scrolled into view */
+  calculateExonViewHeight(properties->fwdExonView);
+  calculateExonViewHeight(properties->revExonView);
+
+  /* We must force a resize, because the size-allocate signal does not
+   * get emitted if the exon views have shrunk, only if they have expanded. */
+  forceResize(bigPicture);
+      
+  /* Do a complete redraw */
+  bigPictureRedrawAll(bigPicture);
 }
 
 
@@ -647,23 +666,12 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
   if (changedRange)
     {
       boundsLimitRange(displayRange, fullRange, TRUE);
-  
-      /* Recalculate the exon view height, because it may have changed with more/less
-       * exons being scrolled into view */
-      calculateExonViewHeight(properties->fwdExonView);
-      calculateExonViewHeight(properties->revExonView);
-
-      /* We must force a resize, because the size-allocate signal does not
-       * get emitted if the exon views have shrunk, only if they have expanded. */
-      forceResize(bigPicture);
-      
-      /* Do a complete redraw */
-      bigPictureRedrawAll(bigPicture);
+      onBigPictureRangeChanged(bigPicture, properties);
     }
   
   updateHighlightBox(bigPicture, properties);
   bigPictureRefreshAll(bigPicture);
-  
+
   DEBUG_EXIT("setBigPictureDisplayRange returning");
 }
 
@@ -820,8 +828,8 @@ static void updateOnPercentIdChanged(GtkWidget *bigPicture)
   
   calculateNumVCells(bigPicture);
   
-  callFuncOnAllBigPictureGrids(bigPicture, calculateGridBorders);
-  callFuncOnAllBigPictureGrids(bigPicture, calculateGridHighlightBoxBorders);
+  callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridBorders);
+  callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridHighlightBoxBorders);
   calculateCoverageViewBorders(properties->coverageView);
   
   bigPictureRedrawAll(bigPicture);
@@ -836,8 +844,8 @@ void bigPicturePrepareForPrinting(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
-  callFuncOnAllBigPictureGrids(bigPicture, gridPrepareForPrinting);
-  callFuncOnAllBigPictureExonViews(bigPicture, exonViewPrepareForPrinting);
+  callFuncOnAllBigPictureGrids(bigPicture, (gpointer)gridPrepareForPrinting);
+  callFuncOnAllBigPictureExonViews(bigPicture, (gpointer)exonViewPrepareForPrinting);
   coverageViewPrepareForPrinting(properties->coverageView);
 }
 
@@ -895,11 +903,74 @@ static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpo
 }
 
 
+/* Scroll the big picture left by one increment */
+void scrollBigPictureLeftStep(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  
+  IntRange *displayRange = &properties->displayRange;
+  
+  if (displayRange->min > bc->fullDisplayRange.min)
+    {
+      /* Check we can scroll the full increment amount. If not, scroll to the end of the full range */
+      int diff = getRangeLength(displayRange) / BLX_SCROLL_INCREMENT_RATIO;
+
+      if (displayRange->min - diff < bc->fullDisplayRange.min)
+        diff = displayRange->min - bc->fullDisplayRange.min;
+
+      /* Update the range */
+      displayRange->min -= diff;
+      displayRange->max -= diff;
+
+      /* Update */
+      onBigPictureRangeChanged(bigPicture, properties);
+      updateHighlightBox(bigPicture, properties);
+      bigPictureRefreshAll(bigPicture);
+
+      /* Scroll the detail view too if necessary to keep it visible */
+      detailViewScrollToKeepInRange(bigPictureGetDetailView(bigPicture), displayRange);
+    }
+}
+
+
+/* Scroll the big picture right by one increment */
+void scrollBigPictureRightStep(GtkWidget *bigPicture)
+{
+  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  
+  IntRange *displayRange = &properties->displayRange;
+  
+  /* Check we're not already at the max of the full range. */
+  if (displayRange->max < bc->fullDisplayRange.max)
+    {
+      /* Check we can scroll the full increment amount. If not, scroll to the end of the full range */
+      int diff = getRangeLength(displayRange) / BLX_SCROLL_INCREMENT_RATIO;
+
+      if (displayRange->max + diff > bc->fullDisplayRange.max)
+        diff = bc->fullDisplayRange.max - displayRange->max;
+
+      /* Adjust the range */
+      displayRange->min += diff;
+      displayRange->max += diff;
+
+      /* Update */
+      onBigPictureRangeChanged(bigPicture, properties);
+      updateHighlightBox(bigPicture, properties);
+      bigPictureRefreshAll(bigPicture);
+
+      /* Scroll the detail view too if necessary to keep it visible */
+      detailViewScrollToKeepInRange(bigPictureGetDetailView(bigPicture), displayRange);
+    }
+}
+
+
 /* Convert an x coord in the given rectangle to a base index (in nucleotide coords) */
 static gint convertRectPosToBaseIdx(const gint x, 
-                                      const GdkRectangle const *displayRect,  
-                                      const IntRange const *dnaDispRange,
-                                      const gboolean displayRev)
+                                    const GdkRectangle* const displayRect,  
+                                    const IntRange* const dnaDispRange,
+                                    const gboolean displayRev)
 {
   gint result = UNSET_INT;
   
@@ -1174,14 +1245,14 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
 				       GtkWidget *fwdExonView,
 				       GtkWidget *revExonView,
 				       int previewBoxCentre,
-                                       const IntRange const *initRange,
-                                       const IntRange const *fullRange,
+                                       const IntRange* const initRange,
+                                       const IntRange* const fullRange,
 				       const int initialZoom,
 				       const gdouble lowestId)
 {
   if (bigPicture)
     { 
-      BigPictureProperties *properties = g_malloc(sizeof *properties);
+      BigPictureProperties *properties = (BigPictureProperties*)g_malloc(sizeof *properties);
       
       properties->blxWindow = blxWindow;
       properties->header = header;
@@ -1257,7 +1328,7 @@ static void gridHeaderCreateProperties(GtkWidget *gridHeader, GtkWidget *bigPict
 {
   if (gridHeader)
     {
-      GridHeaderProperties *properties = g_malloc(sizeof *properties);
+      GridHeaderProperties *properties =(GridHeaderProperties*)g_malloc(sizeof *properties);
       
       properties->bigPicture = bigPicture;
       properties->refButton = refButton;
@@ -1473,7 +1544,7 @@ gboolean bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue
  ***********************************************************/
 
 /* Create a tool button for the big picture header */
-static GtkWidget* createButton(GtkWidget *container, char *label, char *tooltip, GtkSignalFunc callback_func, gpointer data)
+static GtkWidget* createButton(GtkWidget *container, const char *label, const char *tooltip, GtkSignalFunc callback_func, gpointer data)
 {
   GtkWidget *eventBox = gtk_event_box_new();
   gtk_box_pack_start(GTK_BOX(container), eventBox, FALSE, FALSE, 0);
@@ -1523,8 +1594,8 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
                             GtkWidget *coverageView,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid,
-                            const IntRange const *initRange,
-                            const IntRange const *fullRange,
+                            const IntRange* const initRange,
+                            const IntRange* const fullRange,
 			    const int initialZoom,
 			    const gdouble lowestId)
 {

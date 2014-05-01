@@ -127,6 +127,30 @@ typedef struct _DetailViewProperties
   } DetailViewProperties;
 
 
+typedef struct _DrawBaseData
+{
+  int dnaIdx;
+  char baseChar;
+  BlxStrand strand;
+  int frame;
+  BlxSeqType seqType;
+  gboolean topToBottom;         /* true if we're displaying bases top-to-bottom instead of left-to-right */
+  gboolean displayIdxSelected;  /* whether to use default background color or leave blank */
+  gboolean dnaIdxSelected;      /* true if this base is the currently-selected dna index */
+  gboolean showBackground;      /* true if we should draw the background colour */
+  gboolean highlightSnps;       /* whether to highlight variations */
+  gboolean showCodons;          /* whether to highlight DNA bases within the selected codon, for protein matches */
+  BlxColorId defaultBgColor;    /* the default background color for the header */
+  GdkColor *fillColor;
+  GdkColor *outlineColor;
+  gboolean drawStart;
+  gboolean drawEnd;
+  gboolean drawJoiningLines;
+  gboolean shadeBackground;
+} DrawBaseData;
+
+
+
 /* Public function declarations */
 int                     detailViewGetNumFrames(GtkWidget *detailView);
 IntRange*               detailViewGetDisplayRange(GtkWidget *detailView);
@@ -165,7 +189,7 @@ gboolean                detailViewShowColumn(BlxColumnInfo *columnInfo);
 void                    detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file);
 void                    detailViewResetColumnWidths(GtkWidget *detailView);
 
-int                     getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange const *displayRange);
+int                     getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange* const displayRange);
 
 MSP*                    prevMatch(GtkWidget *detailView, GList *seqList);
 MSP*                    nextMatch(GtkWidget *detailView, GList *seqList);
@@ -186,7 +210,7 @@ void                    detailViewSetSortColumn(GtkWidget *detailView, const Blx
 void                    zoomDetailView(GtkWidget *detailView, const gboolean zoomIn);
 
 void                    updateDynamicColumnWidths(GtkWidget *detailView);
-void                    refilterDetailView(GtkWidget *detailView, const IntRange const *oldRange);
+void                    refilterDetailView(GtkWidget *detailView, const IntRange* const oldRange);
 
 void                    detailViewSetSelectedBaseIdx(GtkWidget *detailView, 
                                                      const int selectedBaseIdx, 
@@ -201,11 +225,14 @@ void                    detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
                                                         const gboolean allowScroll,
                                                         const gboolean scrollMinimum);
 
+void                    detailViewScrollToKeepInRange(GtkWidget *detailView, const IntRange* const range);
+
 void                    detailViewUnsetSelectedBaseIdx(GtkWidget *detailView);
 void                    detailViewSetActiveFrame(GtkWidget *detailView, const int frame);
 void                    detailViewResortTrees(GtkWidget *detailView);
 
 void                    updateFeedbackBox(GtkWidget *detailView);
+void                    clearFeedbackArea(GtkWidget *detailView);
 void                    updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const BlxStrand strand);
 void                    toggleStrand(GtkWidget *detailView);
 
@@ -241,7 +268,7 @@ void                    seqColHeaderSetRow(GtkWidget *header, const int frame);
 int                     seqColHeaderGetRow(GtkWidget *header);
 int                     seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames);
 
-GHashTable*             getRefSeqBasesToHighlight(GtkWidget *detailView, const IntRange const *displayRange, const BlxSeqType seqType, const BlxStrand strand);
+GHashTable*             getRefSeqBasesToHighlight(GtkWidget *detailView, const IntRange* const displayRange, const BlxSeqType seqType, const BlxStrand strand);
 
 void                    drawColumnSeparatorLine(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const BlxViewContext *bc);
 gboolean                onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
@@ -251,35 +278,14 @@ gint                    sortByColumnCompareFunc(GList *mspGList1,
                                                 GtkWidget *detailView, 
                                                 const BlxColumnId sortColumn);
 
-gboolean                coordAffectedByVariation(const int dnaIdx,
-                                                 const BlxStrand strand, 
-                                                 BlxViewContext *bc,
-                                                 const MSP **msp,
-                                                 gboolean *drawStartBoundary, 
-                                                 gboolean *drawEndBoundary, 
-                                                 gboolean *drawJoiningLines, 
-                                                 gboolean *drawBackground,
-                                                 gboolean *multipleVariations);
-
 void                    drawHeaderChar(BlxViewContext *bc,
                                        DetailViewProperties *properties,
-                                       const int dnaIdx,
-                                       const char baseChar,
-                                       const BlxStrand strand, 
-                                       const int frame,
-                                       const BlxSeqType seqType,
-                                       const gboolean topToBottom, 
-                                       const gboolean displayIdxSelected, 
-                                       const gboolean dnaIdxSelected, 
-                                       const gboolean showBackground,
-                                       const gboolean showSnps,
-                                       const gboolean showCodons,
-                                       const BlxColorId defaultBgColor,
                                        GdkDrawable *drawable,
                                        GdkGC *gc,
                                        const int x,
                                        const int y,
-                                       GHashTable *intronBases);
+                                       GHashTable *intronBases,
+                                       DrawBaseData *baseData);
 
 GtkWidget*              createDetailView(GtkWidget *blxWindow,
                                          GtkContainer *parent,
@@ -292,11 +298,12 @@ GtkWidget*              createDetailView(GtkWidget *blxWindow,
                                          BlxBlastMode mode,
                                          BlxSeqType seqType,
                                          int numFrames,
-                                         const char const *refSeqName,
+                                         const char* const refSeqName,
                                          const int startCoord,
                                          const gboolean sortInverted,
                                          const BlxColumnId sortColumn,
-                                         const gboolean optionalDataLoaded);
+                                         const gboolean optionalDataLoaded,
+                                         char *windowColor);
 
 GtkWidget*              createDetailViewScrollBar(GtkAdjustment *adjustment, 
                                                   GtkWidget *blxWindow);

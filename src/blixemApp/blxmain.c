@@ -480,11 +480,13 @@ int main(int argc, char **argv)
    * g_warning, g_debug etc. Note that g_error is always fatal.
    */
   g_log_set_default_handler(defaultMessageHandler, &options.msgData);
-  g_log_set_handler(NULL, G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, 
+  g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION), 
                     popupMessageHandler, &options.msgData);
 
   /* Get the list of supported GFF types, in case we need to print them out in the usage text */
   GSList* supportedTypes = blxCreateSupportedGffTypeList();
+
+  gtk_parse_args(&argc, &argv);
 
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
@@ -525,7 +527,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
    };
 
-  char        *optstring="a:c:him:no:rs:t:x:y:z:";
+  const char  *optstring="a:c:him:no:rs:t:x:y:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -542,7 +544,7 @@ int main(int argc, char **argv)
               }
             else if (stringsEqual(long_options[optionIndex].name, "fetch-server", TRUE))
               {
-                pfetch = g_malloc(sizeof(PfetchParams)) ;
+                pfetch = (PfetchParams*)g_malloc(sizeof(PfetchParams)) ;
                 pfetch->net_id = strtok(optarg, ":") ;
                 pfetch->port = atoi(strtok(NULL, ":")) ;
               }                
@@ -726,7 +728,7 @@ int main(int argc, char **argv)
   char dummyseqname[FULLNAMESIZE+1] = "";
 
   /* Create the columns */
-  options.columnList = createColumns(options.seqType, options.optionalColumns, (options.seqType == BLXSEQ_PEPTIDE));
+  options.columnList = blxCreateColumns(options.optionalColumns, (options.seqType == BLXSEQ_PEPTIDE));
 
   /* Pass the config file to parseFS */
   GKeyFile *inputConfigFile = blxGetConfig();
@@ -830,9 +832,8 @@ int main(int argc, char **argv)
     }
 
   
-  /* Now display the alignments, this call does not return. (Note that
-   * TRUE signals blxview() that it is being called from this standalone
-   * blixem program instead of as part of acedb. */
+  /* Now display the alignments. (Note that TRUE signals blxview() that it is being called from
+   * this standalone blixem program instead of as part of acedb. */
   if (blxview(&options, featureLists, seqList, supportedTypes, pfetch, align_types, TRUE))
     {
       gtk_main();

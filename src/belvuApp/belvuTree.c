@@ -227,7 +227,7 @@ static void belvuTreeCreateProperties(GtkWidget *belvuTree,
 {
   if (belvuTree)
     {
-      BelvuTreeProperties *properties = g_malloc(sizeof *properties);
+      BelvuTreeProperties *properties = (BelvuTreeProperties*)g_malloc(sizeof *properties);
       
       properties->bc = bc;
       
@@ -328,7 +328,7 @@ static int BSptrorder(gconstpointer xIn, gconstpointer yIn)
 
 static BootstrapGroup* createEmptyBootstrapGroup()
 {
-  BootstrapGroup *result = g_malloc(sizeof *result);
+  BootstrapGroup *result = (BootstrapGroup*)g_malloc(sizeof *result);
   
   result->node = NULL;
   result->s = NULL;
@@ -357,7 +357,7 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, Tree *tree, TreeNode *node,
         {      
           /* Combine left and right groups */
           int i = 0;
-          for (i = 0 ; i < left->len; ++i) 
+          for (i = 0 ; i < (int)left->len; ++i) 
             {
               char *s = g_array_index(left, char*, i);
               g_array_append_val(right, s);
@@ -368,13 +368,13 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, Tree *tree, TreeNode *node,
           
           /* Create string with group members */
           int ssize = 1;
-          for (i = 0 ; i < right->len ; ++i) 
+          for (i = 0 ; i < (int)right->len ; ++i) 
             ssize += (strlen(g_array_index(right, char*, i)) + 1);
           
-          BS->s = g_malloc(ssize+1);
+          BS->s = (char*)g_malloc(ssize+1);
           BS->s[0] = 0;
           
-          for (i = 0 ; i < right->len ; ++i) 
+          for (i = 0 ; i < (int)right->len ; ++i) 
             {
               char *ch = g_array_index(right, char*, i);
               strcat(BS->s, ch);
@@ -397,7 +397,7 @@ static GArray* fillBootstrapGroups(BelvuContext *bc, Tree *tree, TreeNode *node,
               BootstrapGroup *BS2;
               
               int ip = 0;
-              if (bsArrayFind(bc->bootstrapGroups, BS, &ip, (void *)BSptrorder)) 
+              if (bsArrayFind(bc->bootstrapGroups, BS, &ip, BSptrorder)) 
                 {
                   BS2 = g_array_index(bc->bootstrapGroups, BootstrapGroup*, ip);
                   BS2->node->boot++;
@@ -528,7 +528,7 @@ void treeBootstrap(BelvuContext *bc)
   
   /* Restore alignment */
   int i = 0;
-  for (i = 0; i < bc->alignArr->len; ++i)
+  for (i = 0; i < (int)bc->alignArr->len; ++i)
     {
       ALN *srcAln = g_array_index(alignArrTmp, ALN*, i);
       ALN *destAln = g_array_index(bc->alignArr, ALN*, i);
@@ -582,13 +582,13 @@ static void treeReadDistances(BelvuContext *bc, double **pairmtx)
 	  j++;
 	}
       
-      if (j != bc->alignArr->len)
+      if (j != (int)bc->alignArr->len)
 	g_error("nseq = %d, but read %d distances in row %d\n", bc->alignArr->len, j, i);
       
       i++;
     }
   
-  if (j != bc->alignArr->len)
+  if (j != (int)bc->alignArr->len)
     g_error("nseq = %d, but read %d distance rows\n", bc->alignArr->len, i);
   
   return ;
@@ -972,7 +972,7 @@ static char *fillOrganism(TreeNode *node)
 /* Allocate memory for a new TreeNode and initialise its contents to empty values */
 static TreeNode* createEmptyTreeNode()
 {
-  TreeNode *result = g_malloc(sizeof *result);
+  TreeNode *result = (TreeNode*)g_malloc(sizeof *result);
   
   result->dist = 0.0;
   result->branchlen = 0.0;
@@ -1020,7 +1020,7 @@ static void treeSwapNode(TreeNode *node)
   
   tmp = node->left;
   node->left = node->right;
-  node->right = tmp;
+  node->right = (TreeNode*)tmp;
 }
 
 
@@ -1096,13 +1096,13 @@ static void calcPairwiseDistMatrix(BelvuContext *bc, double **pairmtx)
   arrayOrder(bc->alignArr);
   
   int i = 0;
-  for (i = 0; i < bc->alignArr->len - 1; ++i)
+  for (i = 0; i < (int)bc->alignArr->len - 1; ++i)
     {
       ALN *aln_i = g_array_index(bc->alignArr, ALN*, i);
       char *alniSeq = alnGetSeq(aln_i);
       
       int j = i+1;
-      for (j = i+1; j < bc->alignArr->len; ++j)
+      for (j = i+1; j < (int)bc->alignArr->len; ++j)
         {
           ALN *aln_j = g_array_index(bc->alignArr, ALN*, j);
           char *alnjSeq = alnGetSeq(aln_j);
@@ -1128,7 +1128,7 @@ static void printTreeDistances(BelvuContext *bc, double **pairmtx)
   double dist;
 
   int i = 0;
-  for (i = 0; i < bc->alignArr->len; i++) 
+  for (i = 0; i < (int)bc->alignArr->len; i++) 
     {
       if (!bc->treeCoordsOn) 
         {
@@ -1144,10 +1144,10 @@ static void printTreeDistances(BelvuContext *bc, double **pairmtx)
     }
   g_message ("\n");
   
-  for (i = 0; i < bc->alignArr->len; ++i) 
+  for (i = 0; i < (int)bc->alignArr->len; ++i) 
     {
       int j = 0;
-      for (j = 0; j < bc->alignArr->len; ++j) 
+      for (j = 0; j < (int)bc->alignArr->len; ++j) 
         {
           if (i == j) 
             dist = 0.0;
@@ -1209,7 +1209,7 @@ static void constructTreeNJ(BelvuContext *bc, double **pairmtx, double *avgdist,
   
   /* Calculate vector r (avgdist) */
   int i = 0;
-  for (i = 0; i < bc->alignArr->len; ++i)
+  for (i = 0; i < (int)bc->alignArr->len; ++i)
     {
       if (!node[i]) 
         continue;
@@ -1217,7 +1217,7 @@ static void constructTreeNJ(BelvuContext *bc, double **pairmtx, double *avgdist,
       avgdist[i] = 0.0;
       
       int j = 0;
-      for (count=0, j = 0; j < bc->alignArr->len; j++)
+      for (count=0, j = 0; j < (int)bc->alignArr->len; j++)
         {
           if (!node[j]) 
             continue;
@@ -1241,13 +1241,13 @@ static void constructTreeNJ(BelvuContext *bc, double **pairmtx, double *avgdist,
    * are uninitialised and should not be used. */
   if (1 /* gjm */)
     {
-      for (i = 0; i < bc->alignArr->len - 1; ++i)
+      for (i = 0; i < (int)bc->alignArr->len - 1; ++i)
         {
           if (!node[i])
             continue;
           
           int j = i+1;
-          for (j = i+1; j < bc->alignArr->len; ++j)
+          for (j = i+1; j < (int)bc->alignArr->len; ++j)
             {
               if (!node[j]) 
                 continue;
@@ -1260,13 +1260,13 @@ static void constructTreeNJ(BelvuContext *bc, double **pairmtx, double *avgdist,
     {		/* Felsenstein */
       double Q = 0.0;
       
-      for (i = 0; i < bc->alignArr->len - 1; ++i)
+      for (i = 0; i < (int)bc->alignArr->len - 1; ++i)
         {
           if (!node[i])
             continue;
           
           int j = i+1;
-          for (j = i+1; j < bc->alignArr->len; j++)
+          for (j = i+1; j < (int)bc->alignArr->len; j++)
             {
               if (!node[j]) 
                 continue;
@@ -1275,13 +1275,13 @@ static void constructTreeNJ(BelvuContext *bc, double **pairmtx, double *avgdist,
             }
         }
       
-      for (i = 0; i < bc->alignArr->len - 1; ++i)
+      for (i = 0; i < (int)bc->alignArr->len - 1; ++i)
         {
           if (!node[i])
             continue;
           
           int j = i+1;
-          for (j = i+1; j < bc->alignArr->len; j++)
+          for (j = i+1; j < (int)bc->alignArr->len; j++)
             {
               if (!node[j])
                 continue;
@@ -1304,13 +1304,13 @@ static double treeFindSmallestDist(BelvuContext *bc, double **pairmtx, double **
   double pmaxid = 1000000;
 
   int i = 0;
-  for (i = 0; i < bc->alignArr->len - 1; ++i) 
+  for (i = 0; i < (int)bc->alignArr->len - 1; ++i) 
     {
       if (!node[i]) 
         continue;
       
       int j = i+1;
-      for (j = i+1; j < bc->alignArr->len; ++j) 
+      for (j = i+1; j < (int)bc->alignArr->len; ++j) 
         {
           if (!node[j]) 
             continue;
@@ -1373,21 +1373,21 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
   /* Allocate memory */
   BlxHandle localHandle = handleCreate(); /* handles local memory that will be free'd before we return */
   
-  nodes = handleAlloc(&localHandle, bc->alignArr->len * sizeof(TreeNode *));
-  pairmtx = handleAlloc(&localHandle, bc->alignArr->len * sizeof(double *));
-  Dmtx = handleAlloc(&localHandle, bc->alignArr->len * sizeof(double *));
-  avgdist = handleAlloc(&localHandle, bc->alignArr->len * sizeof(double));
+  nodes = (TreeNode**)handleAlloc(&localHandle, bc->alignArr->len * sizeof(TreeNode *));
+  pairmtx = (double**)handleAlloc(&localHandle, bc->alignArr->len * sizeof(double *));
+  Dmtx = (double**)handleAlloc(&localHandle, bc->alignArr->len * sizeof(double *));
+  avgdist = (double*)handleAlloc(&localHandle, bc->alignArr->len * sizeof(double));
 
   int i = 0;
-  for (i = 0; i < bc->alignArr->len; ++i)
+  for (i = 0; i < (int)bc->alignArr->len; ++i)
     {
       ALN *aln_i = g_array_index(bc->alignArr, ALN*, i);
 
-      pairmtx[i] = handleAlloc(&localHandle, bc->alignArr->len*sizeof(double));
-      Dmtx[i] = handleAlloc(&localHandle, bc->alignArr->len*sizeof(double));
+      pairmtx[i] = (double*)handleAlloc(&localHandle, bc->alignArr->len*sizeof(double));
+      Dmtx[i] = (double*)handleAlloc(&localHandle, bc->alignArr->len*sizeof(double));
 
       nodes[i] = createEmptyTreeNode();
-      nodes[i]->name =  g_malloc(strlen(aln_i->name) + 50);
+      nodes[i]->name =  (char*)g_malloc(strlen(aln_i->name) + 50);
       
       if (!bc->treeCoordsOn) 
         sprintf(nodes[i]->name, "%s", aln_i->name);
@@ -1417,7 +1417,7 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
   
   /* Construct the tree */
   int iter = 0;
-  for (iter = 0; iter < bc->alignArr->len - 1; ++iter)
+  for (iter = 0; iter < (int)bc->alignArr->len - 1; ++iter)
     {
       if (bc->treeMethod == NJ)
         {
@@ -1438,7 +1438,7 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
 
       /* Merge rows & columns of maxi and maxj into maxi
        Recalculate distances to other nodes */
-      for (i = 0; i < bc->alignArr->len; ++i)
+      for (i = 0; i < (int)bc->alignArr->len; ++i)
         {
           if (!nodes[i])
             continue;
@@ -1483,7 +1483,7 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
           llen = (maxid + avgdist[maxi] - avgdist[maxj]) / 2.0;
           rlen = maxid - llen;
           
-          if (iter == bc->alignArr->len - 2)
+          if (iter == (int)bc->alignArr->len - 2)
             { /* Root node */
               
               /* Not necessary anymore, the tree is re-balanced at the end which calls this too
@@ -1786,7 +1786,7 @@ static double treeDrawNode(BelvuContext *bc,
           aln.organism = node->organism;
           
           int ip = 0;
-          if (alnArrayFind(bc->organismArr, &aln, &ip, (void*)organism_order)) 
+          if (alnArrayFind(bc->organismArr, &aln, &ip, organism_order)) 
             {
               GdkColor color;
               int colorNum = g_array_index(bc->organismArr, ALN*, ip)->color;
@@ -1919,7 +1919,7 @@ void destroyTree(Tree **tree)
 /* Create a tree struct, initialised with sensible empty values */
 static Tree* createEmptyTree()
 {
-  Tree *result = g_malloc(sizeof *result);
+  Tree *result = (Tree*)g_malloc(sizeof *result);
   
   result->head = NULL;
   
@@ -2082,7 +2082,7 @@ static void onLeftClickTree(GtkWidget *belvuTree, const int x, const int y)
   ClickableRect *foundRect = NULL;
 
   int i = 0;
-  for ( ; i < properties->clickableRects->len; ++i)
+  for ( ; i < (int)properties->clickableRects->len; ++i)
     {
       ClickableRect *clickRect = &g_array_index(properties->clickableRects, ClickableRect, i);
       
@@ -2255,7 +2255,7 @@ static GtkWidget* createDoubleTextEntry(const char *labelText, double *value, Gt
   
   /* Create the text entry */
   GtkWidget *entry = gtk_entry_new();
-  gtk_table_attach(table, entry, col + 1, col + 2, row, row + 1, GTK_EXPAND | GTK_FILL, GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+  gtk_table_attach(table, entry, col + 1, col + 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
   widgetSetCallbackData(entry, onDoubleChangedCallback, value);
   gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
 
@@ -2395,12 +2395,12 @@ static void updateTreeScaleEntry(GtkComboBox *combo, gpointer data)
   onComboChanged(userData->buildMethodCombo, 0, &newBuildMethod);
   onComboChanged(userData->distCorrCombo, 0, &newDistCorr);
   
-  if (correctingDistances(origBuildMethod, origDistCorr) == correctingDistances(newBuildMethod, newDistCorr))
+  if (correctingDistances(origBuildMethod, origDistCorr) == correctingDistances((BelvuBuildMethod)newBuildMethod, (BelvuDistCorr)newDistCorr))
     return;
 
   /* If we're now distance-correcting and weren't previously (or vice versa)
    * then reset the tree scale to the appropriate default value */
-  if (correctingDistances(newBuildMethod, newDistCorr))
+  if (correctingDistances((BelvuBuildMethod)newBuildMethod, (BelvuDistCorr)newDistCorr))
     {
       char *tmpStr = g_strdup_printf("%.2f", DEFAULT_TREE_SCALE_CORR);
       gtk_entry_set_text(GTK_ENTRY(*userData->treeScaleEntry), tmpStr);
@@ -2413,8 +2413,8 @@ static void updateTreeScaleEntry(GtkComboBox *combo, gpointer data)
       g_free(tmpStr);
     }    
   
-  origBuildMethod = newBuildMethod;
-  origDistCorr = newDistCorr;
+  origBuildMethod = (BelvuBuildMethod)newBuildMethod;
+  origDistCorr = (BelvuDistCorr)newDistCorr;
 }
 
 
@@ -2567,7 +2567,7 @@ void showTreeSettingsDialog(GtkWidget *window, BelvuContext *bc)
   
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title,
                                        GTK_WINDOW(window), 
-                                       GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+                                       (GtkDialogFlags)(GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL),
                                        GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                        GTK_STOCK_APPLY, GTK_RESPONSE_APPLY,
                                        GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
