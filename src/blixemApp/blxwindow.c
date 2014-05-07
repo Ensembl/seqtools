@@ -63,6 +63,7 @@
 
 
 typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
+typedef enum {TARGET_STRING, TARGET_URL} DragDropTargetType;
 
 
 /* Utility struct used when comparing sequences to a search string */
@@ -2294,7 +2295,7 @@ static gboolean onAddGroupFromText(GtkWidget *button, const gint responseId, gpo
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
       GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-      createSequenceGroup(blxWindow, seqList, FALSE, NULL);
+      createSequenceGroup(blxWindow, seqList, FALSE, inputText);
     }
   
   return result;
@@ -6079,6 +6080,40 @@ BlxSequence* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
  *                      Initialisation                     *
  ***********************************************************/
 
+static void onDragDataReceived(GtkWidget *widget, 
+                               GdkDragContext *context, 
+                               int x, 
+                               int y,
+                               GtkSelectionData *selectionData, 
+                               guint info, 
+                               guint time,
+                               gpointer userdata)
+{
+  g_return_if_fail(selectionData);
+
+  if ((info == TARGET_STRING || info == TARGET_URL) && selectionData->data)
+    {
+      g_message("Received drag and drop text '%s'\n", selectionData->data);
+    }
+}
+
+
+static void setDragDropProperties(GtkWidget *widget)
+{
+  static GtkTargetEntry targetentries[] =
+    {
+      { "STRING",        0, TARGET_STRING },
+      { "text/plain",    0, TARGET_STRING },
+      { "text/uri-list", 0, TARGET_URL },
+    };
+  
+  gtk_drag_dest_set(widget, GTK_DEST_DEFAULT_ALL, targetentries, 3,
+                    GDK_ACTION_COPY|GDK_ACTION_MOVE|GDK_ACTION_LINK);
+ 
+  g_signal_connect(widget, "drag_data_received",
+                   G_CALLBACK(onDragDataReceived), NULL);
+}
+
 /* Set various properties for the blixem window */
 static void setStyleProperties(GtkWidget *widget, char *windowColor)
 {
@@ -6439,6 +6474,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Create the main blixem window */
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   setStyleProperties(window, options->windowColor);
+  setDragDropProperties(window);
 
   /* Create a status bar */
   GtkWidget *statusBar = gtk_statusbar_new();

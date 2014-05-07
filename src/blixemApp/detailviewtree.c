@@ -1933,6 +1933,19 @@ static gboolean onDragMotionTree(GtkWidget *widget, GdkDragContext *event, gint 
   return FALSE;
 }
 
+/* Returns false => not in a drop zone */
+static gboolean onDragDropTree(GtkWidget *widget,
+                               GdkDragContext *drag_context,
+                               gint            x,
+                               gint            y,
+                               guint           time,
+                               gpointer        user_data)
+{
+  /* This call is required to stop a warning from gtk about drag-and-drop not
+   * being supported for tree views */
+  g_signal_stop_emission_by_name(widget, "drag-drop");
+  return FALSE;
+}
 
 static gboolean onEnterTree(GtkWidget *tree, GdkEventCrossing *event, gpointer data)
 {
@@ -3107,6 +3120,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   g_signal_connect(G_OBJECT(tree), "drag-begin",	    G_CALLBACK(onDragBeginTree),	NULL);
   g_signal_connect(G_OBJECT(tree), "drag-end",		    G_CALLBACK(onDragEndTree),		NULL);
   g_signal_connect(G_OBJECT(tree), "drag-motion",	    G_CALLBACK(onDragMotionTree),	NULL);
+  g_signal_connect(G_OBJECT(tree), "drag-drop",		    G_CALLBACK(onDragDropTree),		NULL);
   g_signal_connect(G_OBJECT(tree), "expose-event",	    G_CALLBACK(onExposeDetailViewTree), NULL);
 
   GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
