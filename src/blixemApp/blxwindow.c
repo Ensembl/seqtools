@@ -2672,7 +2672,8 @@ static void createCreateGroupTab(GtkNotebook *notebook, BlxViewContext *bc, GtkW
 /* Create the 'edit groups' tab of the groups dialog. Appends it to the given notebook. */
 static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWidget *blxWindow)
 {
-  const int numRows = g_list_length(bc->sequenceGroups) + 3; /* +3 for: header; delete-all button; only show groups button */
+  const int numRows = g_list_length(bc->sequenceGroups) + 4; /* +4 for: header; delete-all button;
+                                                                hide-all-seqs; hide-all-features */
   const int numCols = 6;
   const int xpad = DEFAULT_TABLE_XPAD;
   const int ypad = DEFAULT_TABLE_YPAD;
@@ -2684,12 +2685,17 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWi
   /* Append the table as a new tab to the notebook */
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table), gtk_label_new("Edit groups"));
   
-  /* Add a check button to turn on the 'hide ungrouped sequences' option */
-  GtkWidget *hideButton = gtk_check_button_new_with_mnemonic("_Hide all sequences not in a group");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton), bc->flags[BLXFLAG_HIDE_UNGROUPED]);
-  widgetSetCallbackData(hideButton, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED));
+  /* Add check buttons to turn on the 'hide ungrouped sequences/features' options */
+  GtkWidget *hideButton1 = gtk_check_button_new_with_mnemonic("_Hide all sequences not in a group");
+  GtkWidget *hideButton2 = gtk_check_button_new_with_mnemonic("_Hide all features not in a group");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton1), bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS]);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton1), bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES]);
+  widgetSetCallbackData(hideButton1, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_SEQS));
+  widgetSetCallbackData(hideButton2, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_FEATURES));
 
-  gtk_table_attach(table, hideButton, 1, 2, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, hideButton1, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  ++row;
+  gtk_table_attach(table, hideButton2, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
   
   /* Add labels for each column in the table */

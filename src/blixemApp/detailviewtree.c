@@ -888,28 +888,40 @@ static gboolean isMspVisible(const MSP* const msp,
 			     const int frame, 
 			     const IntRange* const displayRange,
 			     const int numUnalignedBases,
-                             const gboolean seqSelected)
+                             const gboolean seqSelected,
+                             const SequenceGroup *group)
 {
-  /* Check the MSP in the current display range. Get the full MSP display range including
-   * any portions outside the actual alignment. */
-  const IntRange *mspDisplayRange = mspGetFullDisplayRange(msp, seqSelected, bc);
-  gboolean result = rangesOverlap(mspDisplayRange, displayRange);
-    
+  g_return_val_if_fail(msp && msp->sSequence, FALSE) ;
+
+  gboolean result = TRUE ;
+
+  /* If hiding ungrouped sequences and this is a sequence (i.e. match) without a group, hide it */
+  if (!group && bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS] && msp->sSequence->type == BLXSEQUENCE_MATCH)
+    result = FALSE ;
+
+  /* If hiding ungrouped features and this is feature (i.e. anything except a sequence) without
+   * a group, hide it */
+  if (!group && bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] && msp->sSequence->type != BLXSEQUENCE_MATCH)
+    result = FALSE ;
+
+  if (result)
+    {
+      /* Check the MSP in the current display range. Get the full MSP display range including
+       * any portions outside the actual alignment. */
+      const IntRange *mspDisplayRange = mspGetFullDisplayRange(msp, seqSelected, bc);
+      result = rangesOverlap(mspDisplayRange, displayRange);
+    }
+
   return result;
 }
 
 
-/* Returns true if sequences in the given group should be shown. If sequences
- * are not in a group (i.e. the group is null) then by default the result is
- * true, unless the 'hide ungrouped sequences' option is on. */
+/* Returns true if sequences in the given group should be shown. */
 static gboolean isGroupVisible(const SequenceGroup* const group, const BlxViewContext* const bc)
 {
   gboolean result = TRUE;
   
-  if (bc->flags[BLXFLAG_HIDE_UNGROUPED])
-    result = (group && !group->hidden);
-  else
-    result = (!group || !group->hidden);
+  result = (!group || !group->hidden);
   
   return result;
 }
@@ -954,7 +966,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 	    {
 	      const MSP* msp = (const MSP*)(mspListItem->data);
 	      
-	      if (isMspVisible(msp, bc, frame, displayRange, dvProperties->numUnalignedBases, seqSelected))
+              if (isMspVisible(msp, bc, frame, displayRange, dvProperties->numUnalignedBases, seqSelected, group))
 		{
 		  bDisplay = TRUE;
 		  break;
