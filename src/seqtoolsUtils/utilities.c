@@ -4627,7 +4627,12 @@ GtkRadioButton* createRadioButton(GtkTable *table,
   GtkWidget *button = gtk_radio_button_new_with_mnemonic_from_widget(existingButton, mnemonic);
 
   GtkBox *box = GTK_BOX(gtk_vbox_new(FALSE, 0));
-  gtk_table_attach(table, GTK_WIDGET(box), col, col + 1, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+
+  gtk_table_attach(table, GTK_WIDGET(box), 
+                   col, col + 1, row, row + 1, 
+                   (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), 
+                   (GtkAttachOptions)((multiline ? GTK_EXPAND | GTK_FILL : GTK_SHRINK)), 
+                   TABLE_XPAD, TABLE_YPAD);
 
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
   gtk_box_pack_start(box, button, FALSE, FALSE, 0);
@@ -4660,7 +4665,7 @@ GtkRadioButton* createRadioButton(GtkTable *table,
       /* Single line text buffer */
       entry = gtk_entry_new();
       gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-      gtk_box_pack_start(box, entry, TRUE, TRUE, 0);
+      gtk_box_pack_start(box, entry, FALSE, FALSE, 0);
     }
 
   if (entry)
