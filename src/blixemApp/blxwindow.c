@@ -1867,6 +1867,9 @@ static void blxContextDeleteAllSequenceGroups(BlxViewContext *bc)
   g_list_free(bc->sequenceGroups);
   bc->sequenceGroups = NULL;
   
+  /* Reset the hide-not-in-group flags otherwise we'll hide everything! */
+  bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS] = FALSE ;
+  bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] = FALSE ;
 }
 
 
@@ -1883,12 +1886,18 @@ static void blxWindowDeleteAllSequenceGroups(GtkWidget *blxWindow)
 static void blxWindowGroupsChanged(GtkWidget *blxWindow)
 {
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   
   /* Re-sort all trees, because grouping affects sort order */
   detailViewResortTrees(detailView);
   
   /* Refilter the trees (because groups affect whether sequences are visible) */
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+
+  /* Resize exon view because transcripts may have been hidden/unhidden */
+  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
+  forceResize(bigPicture);
 
   /* Redraw all (because highlighting affects both big picture and detail view) */
   blxWindowRedrawAll(blxWindow);
@@ -2638,8 +2647,14 @@ static gboolean onHideUngroupedChanged(GtkWidget *button, const gint responseId,
   
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   
   refilterDetailView(detailView, NULL);
+
+  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
+  forceResize(bigPicture);
+
   blxWindowRedrawAll(blxWindow);
   
   return TRUE;
@@ -2689,7 +2704,7 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWi
   GtkWidget *hideButton1 = gtk_check_button_new_with_mnemonic("_Hide all sequences not in a group");
   GtkWidget *hideButton2 = gtk_check_button_new_with_mnemonic("_Hide all features not in a group");
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton1), bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS]);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton1), bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES]);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton2), bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES]);
   widgetSetCallbackData(hideButton1, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_SEQS));
   widgetSetCallbackData(hideButton2, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_FEATURES));
 

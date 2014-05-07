@@ -917,7 +917,7 @@ static gboolean isMspVisible(const MSP* const msp,
 
 
 /* Returns true if sequences in the given group should be shown. */
-static gboolean isGroupVisible(const SequenceGroup* const group, const BlxViewContext* const bc)
+static gboolean isGroupVisible(const SequenceGroup* const group)
 {
   gboolean result = TRUE;
   
@@ -948,7 +948,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
       const MSP *firstMsp = (const MSP*)(mspList->data);
       SequenceGroup *group = blxContextGetSequenceGroup(bc, firstMsp->sSequence);
       
-      if (isGroupVisible(group, bc))
+      if (isGroupVisible(group))
 	{
 	  BlxViewContext *bc = treeGetContext(tree);
           GtkWidget *detailView = treeGetDetailView(tree);
