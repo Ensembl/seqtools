@@ -306,6 +306,10 @@ typedef enum
   } ColinearityType ;
 
 
+/* Supported drag-and-drop target types */
+typedef enum {TARGET_STRING, TARGET_URL} DragDropTargetType;
+
+
 GdkDrawable*          widgetGetDrawable(GtkWidget *widget);
 void                  widgetSetDrawable(GtkWidget *widget, GdkDrawable *drawable);
 gboolean              widgetGetHidden(GtkWidget *widget);
