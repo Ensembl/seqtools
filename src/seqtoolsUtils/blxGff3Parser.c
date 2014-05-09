@@ -254,7 +254,7 @@ void parseGff3Header(const int lineNum,
                      char *refSeqName,
                      IntRange *refSeqRange)
 {
-  DEBUG_ENTER("parseGff3Header [line=%d]", lineNum);
+  //DEBUG_ENTER("parseGff3Header [line=%d]", lineNum);
   
   /* Look for the "sequence-region" comment line, which tells us info about the reference
    * sequence. The format is as follows: ##sequence-region    qname qstart qend */
@@ -269,7 +269,7 @@ void parseGff3Header(const int lineNum,
           g_error("Error parsing data file, type GFF_3_HEADER: \"%s\"\n", line_string->str);
         }
       
-      DEBUG_OUT("Found reference sequence name=%s [start=%d, end=%d]\n", qName, qStart, qEnd);
+      //DEBUG_OUT("Found reference sequence name=%s [start=%d, end=%d]\n", qName, qStart, qEnd);
 
       /* If the ref seq name is already populated, check it's the same as the one we've just read */
       if (*refSeqName != '\0')
@@ -288,7 +288,7 @@ void parseGff3Header(const int lineNum,
 	intrangeSetValues(refSeqRange, qStart, qEnd);
     }
   
-  DEBUG_EXIT("parseGff3Header");
+  //DEBUG_EXIT("parseGff3Header");
 }
 
 
@@ -593,7 +593,7 @@ void parseGff3Body(const int lineNum,
                    GKeyFile *keyFile,
                    const IntRange* const refSeqRange)
 {
-  DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
+  //DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
   
   /* Parse the data into a temporary struct */
   BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
@@ -614,7 +614,7 @@ void parseGff3Body(const int lineNum,
       reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
     }
   
-  DEBUG_EXIT("parseGff3Body");
+  //DEBUG_EXIT("parseGff3Body");
 }
 
 
@@ -875,7 +875,7 @@ static void parseTagDataPair(char *text,
 			     BlxGffData *gffData, 
                              GError **error)
 {
-  DEBUG_ENTER("parseTagDataPair(text='%s')", text);
+  //DEBUG_ENTER("parseTagDataPair(text='%s')", text);
               
   /* Split on the "=" and check that we get 3 tokens */
   char **tokens = g_strsplit_set(text, "=", -1);
@@ -961,7 +961,7 @@ static void parseTagDataPair(char *text,
   
   g_strfreev(tokens);
   
-  DEBUG_EXIT("parseTagDataPair");
+  //DEBUG_EXIT("parseTagDataPair");
 }
 
 

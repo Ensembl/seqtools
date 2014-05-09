@@ -1430,7 +1430,7 @@ Tree* treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean disp
         }
       
 #ifdef DEBUG
-      printTreeStats(bc, pairmtx, avgdist, Dmtx, node);
+      printTreeStats(bc, pairmtx, avgdist, Dmtx, nodes);
 #endif
       
       /* Find smallest distance pair in pairmtx */

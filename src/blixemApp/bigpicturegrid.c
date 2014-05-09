@@ -504,7 +504,7 @@ void calculateGridBorders(GtkWidget *grid)
   
   if (newHeight != properties->displayRect.height)
     {
-      DEBUG_OUT("Setting new grid height = %d\n");
+      DEBUG_OUT("Setting new grid height = %d\n", newHeight);
       properties->displayRect.height = newHeight;
       gtk_layout_set_size(GTK_LAYOUT(grid), properties->displayRect.width, properties->displayRect.height);
   

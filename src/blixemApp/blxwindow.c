@@ -63,7 +63,6 @@
 
 
 typedef enum {SORT_TYPE_COL, SORT_TEXT_COL, N_SORT_COLUMNS} SortColumns;
-typedef enum {TARGET_STRING, TARGET_URL} DragDropTargetType;
 
 
 /* Utility struct used when comparing sequences to a search string */
@@ -6089,17 +6088,23 @@ static void onDragDataReceived(GtkWidget *widget,
                                guint time,
                                gpointer userdata)
 {
+  DEBUG_ENTER("onDragDataReceived()");
+
   g_return_if_fail(selectionData);
 
   if ((info == TARGET_STRING || info == TARGET_URL) && selectionData->data)
     {
       g_message("Received drag and drop text '%s'\n", selectionData->data);
     }
+
+  DEBUG_EXIT("onDragDataReceived returning ");
 }
 
 
 static void setDragDropProperties(GtkWidget *widget)
 {
+  DEBUG_ENTER("setDragDropProperties()");
+
   static GtkTargetEntry targetentries[] =
     {
       { "STRING",        0, TARGET_STRING },
@@ -6112,11 +6117,15 @@ static void setDragDropProperties(GtkWidget *widget)
  
   g_signal_connect(widget, "drag_data_received",
                    G_CALLBACK(onDragDataReceived), NULL);
+
+  DEBUG_EXIT("setDragDropProperties returning ")
 }
 
 /* Set various properties for the blixem window */
 static void setStyleProperties(GtkWidget *widget, char *windowColor)
 {
+  DEBUG_ENTER("setStyleProperties()");
+
   /* Set the initial window size based on some fraction of the screen size */
   GdkScreen *screen = gtk_widget_get_screen(widget);
   const int width = gdk_screen_get_width(screen) * DEFAULT_WINDOW_WIDTH_FRACTION;
@@ -6134,6 +6143,8 @@ static void setStyleProperties(GtkWidget *widget, char *windowColor)
   char parseString[500];
   sprintf(parseString, "gtk-font-name = \"%s %d\"", origFamily, origSize + DEFAULT_FONT_SIZE_ADJUSTMENT);
   gtk_rc_parse_string(parseString);
+
+  DEBUG_EXIT("setStyleProperties returning ");
 }
 
 
