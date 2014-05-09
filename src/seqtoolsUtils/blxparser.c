@@ -194,7 +194,7 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 	     char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
              GKeyFile *keyFile, GError **error)
 {
-  DEBUG_ENTER("parseFS");
+  //DEBUG_ENTER("parseFS");
 
 //  if (!fsArr) 
 //    fsArr = g_array_sized_new(TRUE, FALSE, sizeof(FeatureSeries), 50);
@@ -300,7 +300,7 @@ void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
 	}
     }
   
-  DEBUG_EXIT("parseFS");
+  //DEBUG_EXIT("parseFS");
   return ;
 }
 
@@ -1253,7 +1253,7 @@ static char* parseSequence(char **text, MSP *msp, const BlxBlastMode blastMode)
  * line was completely processed, false if further processing on the same line is still required */
 static gboolean parseHeaderLine(char *line, BlxBlastMode *blastMode, MSP *msp, IntRange *seq1Range, BlxParserState *parserState)
 {
-  DEBUG_ENTER("parseHeaderLine(parserState=%d)", *parserState);
+  //DEBUG_ENTER("parseHeaderLine(parserState=%d)", *parserState);
   
   gboolean processed = FALSE;
   
@@ -1417,7 +1417,7 @@ static gboolean parseHeaderLine(char *line, BlxBlastMode *blastMode, MSP *msp, I
       processed = FALSE; /* more info exists on the header line that we need to parse out */      
     }
 
-  DEBUG_EXIT("parseHeaderLine returning processed = %d, (parserState = %d)", processed, *parserState);
+  //DEBUG_EXIT("parseHeaderLine returning processed = %d, (parserState = %d)", processed, *parserState);
   return processed ;
 }
 
@@ -1790,7 +1790,7 @@ static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, con
                       BlxParserState *parserState, GArray *featureLists[], MSP **mspList, GList **seqList, GList *columnList, GSList *supportedTypes,
                       GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, GKeyFile *keyFile)
 {
-  DEBUG_ENTER("parseBody(parserState=%d, line=%d)", *parserState, lineNum);
+  //DEBUG_ENTER("parseBody(parserState=%d, line=%d)", *parserState, lineNum);
   
   /* Call the relevant function for the current type of data being parsed */
   switch (*parserState)
@@ -1868,7 +1868,7 @@ static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, con
       break;
   };
   
-  DEBUG_EXIT("parseBody");
+  //DEBUG_EXIT("parseBody");
 }
 
 
