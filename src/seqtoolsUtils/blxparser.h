@@ -41,3 +41,6 @@
 
 void           parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode, GArray* featureLists[], GList **seqList, GList *columnList, GSList *supportedTypes, GSList *styles,
 		       char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, GKeyFile *keyFile, GError **error) ;
+
+void           parseBuffer(MSP **MSPlist, const char *buffer_in, BlxBlastMode *blastMode, GArray* featureLists[], GList **seqList, GList *columnList, GSList *supportedTypes, GSList *styles,
+                           char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, GKeyFile *keyFile, GError **error) ;

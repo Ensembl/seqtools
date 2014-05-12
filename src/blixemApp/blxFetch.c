@@ -3100,9 +3100,9 @@ void sendFetchOutputToFile(GString *command,
           /* Parse the results */
           g_message_info("... ok.\n");
           g_message_info("Parsing fetch results...");
-          
-          loadNativeFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, newMsps, newSeqs, columnList, &tmpError);
-          
+
+          loadNativeFile(fileName, NULL, keyFile, blastMode, featureLists, supportedTypes, styles, newMsps, newSeqs, columnList, &tmpError);
+
           if (!tmpError)
             {
               g_message_info("... ok.\n");

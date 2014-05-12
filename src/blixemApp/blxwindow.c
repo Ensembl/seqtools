@@ -743,9 +743,10 @@ static void loadNonNativeFile(const char *filename,
 /* Dynamically load in additional features from a file. (should be called after
  * blixem's GUI has already started up, rather than during start-up where normal
  * feature-loading happens) */
-static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
+static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, const char *buffer)
 {
-  if (!filename)
+  /* Must be passed either a filename or buffer */
+  if (!filename && !buffer)
     return;
 
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -758,13 +759,15 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
 
   /* Assume it's a natively-supported file and attempt to parse it. The first thing this
    * does is check that it's a native file and if not it sets the error */
-  loadNativeFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, &error);
+  loadNativeFile(filename, buffer, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, &error);
 
-  if (error)
+  if (error && filename)
     {
       /* Input file is not natively supported. We can still load it if
        * there is a fetch method associated with it: ask the user what
-       * the Source is so that we can find the fetch method. */
+       * the Source is so that we can find the fetch method. Probably 
+       * should only get here if the input is an actual file so don't
+       * support this for buffers for now. */
       g_error_free(error);
       error = NULL;
       
@@ -4579,7 +4582,7 @@ static void onLoadMenu(GtkAction *action, gpointer data)
   GtkWidget *blxWindow = GTK_WIDGET(data);
 
   char *filename = getLoadFileName(blxWindow, NULL, "Load file");
-  dynamicLoadFeaturesFile(blxWindow, filename);
+  dynamicLoadFeaturesFile(blxWindow, filename, NULL);
   
   g_free(filename);
 }
@@ -5455,7 +5458,8 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
                                               GSList *supportedTypes,
                                               GtkWidget *widget,
                                               GtkWidget *statusBar,
-                                              const gboolean External)
+                                              const gboolean External,
+                                              GSList *styles)
 {
   BlxViewContext *blxContext = (BlxViewContext*)g_malloc(sizeof *blxContext);
   
@@ -5472,6 +5476,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 
   blxContext->mspList = options->mspList;
   blxContext->columnList = options->columnList;
+  blxContext->styles = styles;
   
   int typeId = 0;
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
@@ -6079,6 +6084,26 @@ BlxSequence* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
  *                      Initialisation                     *
  ***********************************************************/
 
+/* Called when the user drops something onto the window. Returns true if
+ * we want to accept the drop, false otherwise */
+static gboolean onDragDrop(GtkWidget *widget,
+                           GdkDragContext *drag_context,
+                           gint x,
+                           gint y,
+                           guint time,
+                           gpointer user_data)
+{
+  gboolean result = TRUE;
+  
+  /* gtk_drag_get_data initiates a callback to the source of the drag to set the
+   * selection data, which then gets sent to our onDragDataReceived callback */
+  GdkAtom target = gtk_drag_dest_find_target(widget, drag_context, NULL);
+  gtk_drag_get_data(widget, drag_context, target, time);
+
+  return result;
+}
+
+
 static void onDragDataReceived(GtkWidget *widget, 
                                GdkDragContext *context, 
                                int x, 
@@ -6094,7 +6119,12 @@ static void onDragDataReceived(GtkWidget *widget,
 
   if ((info == TARGET_STRING || info == TARGET_URL) && selectionData->data)
     {
-      g_message("Received drag and drop text '%s'\n", selectionData->data);
+      g_message("Received drag and drop text:\n%s\n", selectionData->data);
+      
+      /* For now just assume the text contains supported file contents. The file parsing
+       * will fail if it's not a supported format. */
+      char *text = (char*)(gtk_selection_data_get_text(selectionData));
+      dynamicLoadFeaturesFile(widget, NULL, text);
     }
 
   DEBUG_EXIT("onDragDataReceived returning ");
@@ -6115,8 +6145,8 @@ static void setDragDropProperties(GtkWidget *widget)
   gtk_drag_dest_set(widget, GTK_DEST_DEFAULT_ALL, targetentries, 3,
                     GDK_ACTION_COPY|GDK_ACTION_MOVE|GDK_ACTION_LINK);
  
-  g_signal_connect(widget, "drag_data_received",
-                   G_CALLBACK(onDragDataReceived), NULL);
+  //g_signal_connect(widget, "drag-drop", G_CALLBACK(onDragDrop), NULL);
+  g_signal_connect(widget, "drag-data-received", G_CALLBACK(onDragDataReceived), NULL);
 
   DEBUG_EXIT("setDragDropProperties returning ")
 }
@@ -6448,7 +6478,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                            GArray* featureLists[],
                            GList *seqList, 
                            GSList *supportedTypes,
-                           const gboolean External)
+                           const gboolean External,
+                           GSList *styles)
 {
   IntRange refSeqRange;
   IntRange fullDisplayRange;
@@ -6518,7 +6549,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                                       supportedTypes,
                                                       window, 
                                                       statusBar,
-                                                      External);
+                                                      External,
+                                                      styles);
 
   /* Create the main menu */
   GtkWidget *mainmenu = NULL;

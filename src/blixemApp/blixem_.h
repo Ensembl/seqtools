@@ -517,6 +517,7 @@ typedef struct _BlxViewContext
     char *windowColor;                      /* If not null, background color for the window */
 
     GList *columnList;                      /* A list of details about all the columns in the detail view (might have been better to use an array here but it's a short list so not important) */
+    GSList *styles;
     
     gboolean flags[BLXFLAG_NUM_FLAGS];              /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
     GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
@@ -560,7 +561,8 @@ gboolean                            blxview(CommandLineOptions *options,
                                             GSList *supportedTypes,
                                             PfetchParams *pfetch, 
                                             char *align_types, 
-                                            gboolean External) ;
+                                            gboolean External,
+                                            GSList *styles) ;
 
 BlxColumnInfo*                     getColumnInfo(GList *columnList, const BlxColumnId columnId);
 int                                getColumnWidth(GList *columnList, const BlxColumnId columnId);
@@ -632,7 +634,7 @@ gboolean                           populateFullDataPfetch(GList *seqsToFetch, Bl
 void                               blxInitConfig(const char *config_file, CommandLineOptions *options, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 
-void                               loadNativeFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GList *columnList, GError **error);
+void                               loadNativeFile(const char *filename, const char *buffer, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GList *columnList, GError **error);
 void                               appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
 
 /* Create/destroy sequences and MSPs */

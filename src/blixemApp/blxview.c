@@ -78,7 +78,7 @@ MSP score codes (for obsolete exblx file format):
 #define MIN_GAP_HIGHLIGHT_WIDTH		      5			  /* minimum width of assembly gaps markers */
 
 
-static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const gboolean External) ;
+static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const gboolean External, GSList *styles) ;
 static void            processGeneName(BlxSequence *blxSeq);
 static void            processOrganism(BlxSequence *blxSeq);
 
@@ -330,7 +330,8 @@ void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seq
  * sequence and MSP lists.
  * A non-local or non-native file can be passed to check if it is loadable
  * and, if not, this function returns early and sets the error. */
-void loadNativeFile(const char *fileName,
+void loadNativeFile(const char *filename,
+                    const char *buffer,
                     GKeyFile *keyFile,
                     BlxBlastMode *blastMode,
                     GArray* featureLists[],
@@ -341,26 +342,38 @@ void loadNativeFile(const char *fileName,
                     GList *columnList,
                     GError **error)
 {
-  if (!fileName)
-    return;
-  
-  FILE *inputFile = fopen(fileName, "r");
-
-  if (!inputFile)
+  if (!filename && !buffer)
     {
-      g_set_error(error, BLX_ERROR, 1, "File '%s' is not a local file.\n", fileName);
+      g_set_error(error, BLX_ERROR, 1, "No file or buffer provided.");
+      return;
     }
-  else
+
+  char *dummyseq1 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+  char dummyseqname1[FULLNAMESIZE+1] = "";
+  char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+  char dummyseqname2[FULLNAMESIZE+1] = "";
+  
+  if (filename)
     {
-      char *dummyseq1 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
-      char dummyseqname1[FULLNAMESIZE+1] = "";
-      char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
-      char dummyseqname2[FULLNAMESIZE+1] = "";
-      
-      parseFS(newMsps, inputFile, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
-              &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, error) ;
-      
-      fclose(inputFile);
+      /* Open the file for reading */
+      FILE *file = fopen(filename, "r");
+
+      if (!file)
+        {
+          g_set_error(error, BLX_ERROR, 1, "Error opening file '%s' for reading.\n", filename);
+        }
+      else
+        {
+          parseFS(newMsps, file, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
+                  &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, error) ;      
+          
+          fclose(file);
+        }
+    }
+  else if (buffer)
+    {
+      parseBuffer(newMsps, buffer, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
+                  &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, error) ;      
     }
 }
 
@@ -438,7 +451,8 @@ gboolean blxview(CommandLineOptions *options,
                  GSList *supportedTypes,
                  PfetchParams *pfetch, 
                  char *align_types, 
-                 gboolean External)
+                 gboolean External,
+                 GSList *styles)
 {
   if (blixemWindow)
     gtk_widget_destroy(blixemWindow) ;
@@ -478,7 +492,7 @@ gboolean blxview(CommandLineOptions *options,
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
     {
-      blviewCreate(align_types, padseq, featureLists, seqList, supportedTypes, options, External) ;
+      blviewCreate(align_types, padseq, featureLists, seqList, supportedTypes, options, External, styles) ;
     }
 
   return status;
@@ -534,12 +548,13 @@ static void blviewCreate(char *align_types,
                          GList *seqList,
                          GSList *supportedTypes,
 			 CommandLineOptions *options,
-                         const gboolean External)
+                         const gboolean External,
+                         GSList *styles)
 {
   if (!blixemWindow)
     {
       /* Create the window */
-      blixemWindow = createBlxWindow(options, paddingSeq, featureLists, seqList, supportedTypes, External);
+      blixemWindow = createBlxWindow(options, paddingSeq, featureLists, seqList, supportedTypes, External, styles);
 
       /* Set the window title. Get a description of all the alignment types 
        * (unless already supplied) */

@@ -1918,20 +1918,18 @@ static gboolean onMouseMoveTreeHeader(GtkWidget *header, GdkEventMotion *event, 
 }
 
 
-static void onDragBeginTree(GtkWidget *widget, GdkDragContext *event, gpointer data)
-{
-}
-
-
-static void onDragEndTree(GtkWidget *widget, GdkDragContext *event, gpointer data)
-{
-}
-
-
-static gboolean onDragMotionTree(GtkWidget *widget, GdkDragContext *event, gint x, gint y, guint time, gpointer data)
-{
-  return FALSE;
-}
+//static void onDragBeginTree(GtkWidget *widget, GdkDragContext *event, gpointer data)
+//{
+//}
+//
+//static void onDragEndTree(GtkWidget *widget, GdkDragContext *event, gpointer data)
+//{
+//}
+//
+//static gboolean onDragMotionTree(GtkWidget *widget, GdkDragContext *event, gint x, gint y, guint time, gpointer data)
+//{
+//  return FALSE;
+//}
 
 /* Returns false => not in a drop zone */
 static gboolean onDragDropTree(GtkWidget *widget,
@@ -3117,9 +3115,9 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   g_signal_connect(G_OBJECT(tree), "scroll-event",	    G_CALLBACK(onScrollTree),		detailView);
   g_signal_connect(G_OBJECT(tree), "enter-notify-event",    G_CALLBACK(onEnterTree),		NULL);
   g_signal_connect(G_OBJECT(tree), "leave-notify-event",    G_CALLBACK(onLeaveTree),		NULL);
-  g_signal_connect(G_OBJECT(tree), "drag-begin",	    G_CALLBACK(onDragBeginTree),	NULL);
-  g_signal_connect(G_OBJECT(tree), "drag-end",		    G_CALLBACK(onDragEndTree),		NULL);
-  g_signal_connect(G_OBJECT(tree), "drag-motion",	    G_CALLBACK(onDragMotionTree),	NULL);
+  //g_signal_connect(G_OBJECT(tree), "drag-begin",	    G_CALLBACK(onDragBeginTree),	NULL);
+  //g_signal_connect(G_OBJECT(tree), "drag-end",		    G_CALLBACK(onDragEndTree),		NULL);
+  //g_signal_connect(G_OBJECT(tree), "drag-motion",	    G_CALLBACK(onDragMotionTree),	NULL);
   g_signal_connect(G_OBJECT(tree), "drag-drop",		    G_CALLBACK(onDragDropTree),		NULL);
   g_signal_connect(G_OBJECT(tree), "expose-event",	    G_CALLBACK(onExposeDetailViewTree), NULL);
 

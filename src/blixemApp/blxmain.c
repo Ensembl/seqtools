@@ -834,7 +834,7 @@ int main(int argc, char **argv)
   
   /* Now display the alignments. (Note that TRUE signals blxview() that it is being called from
    * this standalone blixem program instead of as part of acedb. */
-  if (blxview(&options, featureLists, seqList, supportedTypes, pfetch, align_types, TRUE))
+  if (blxview(&options, featureLists, seqList, supportedTypes, pfetch, align_types, TRUE, styles))
     {
       gtk_main();
     }
