@@ -1000,6 +1000,10 @@ static void drawSequenceSpliceSites(GdkDrawable *drawable,
   DotterWindowContext *dwc = atProperties->dotterWinCtx;
   DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
 
+  /* Only do highlighting if both seqs are DNA */
+  if (dc->matchSeqType != BLXSEQ_DNA || dc->refSeqType != BLXSEQ_DNA)
+    return;
+
   /* Only do the highlighting in the reference sequence */
   if (!seq1 || !seq1->seqName || !dc->refSeqName || strcmp(seq1->seqName, dc->refSeqName) != 0)
     return;
