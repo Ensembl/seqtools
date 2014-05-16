@@ -3276,27 +3276,28 @@ void refilterDetailView(GtkWidget *detailView, const IntRange* const oldRange)
        * on whether the sequence is selected or not. For now, play safe and
        * refilter everything. */
       callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-      return;
     }
-  
-  /* We only want to update MSPs that are in the old detail-view range
-   * and the new detail-view range. (Because updating every row in all
-   * trees can be very slow if there are a lot of MSPs.) */
-  const IntRange* const newRange = detailViewGetDisplayRange(detailView);
-
-  /* Only consider MSPs that are shwon in the detail-view */
-  int mspType = 0;
-  for ( ; mspType < BLXMSP_NUM_TYPES; ++mspType)
+  else
     {
-      if (typeShownInDetailView((BlxMspType)mspType))
+      /* We only want to update MSPs that are in the old detail-view range
+       * and the new detail-view range. (Because updating every row in all
+       * trees can be very slow if there are a lot of MSPs.) */
+      const IntRange* const newRange = detailViewGetDisplayRange(detailView);
+
+      /* Only consider MSPs that are shwon in the detail-view */
+      int mspType = 0;
+      for ( ; mspType < BLXMSP_NUM_TYPES; ++mspType)
         {
-          refilterMspArrayByRange((BlxMspType)mspType, bc, oldRange, detailView);
-          refilterMspArrayByRange((BlxMspType)mspType, bc, newRange, detailView);
+          if (typeShownInDetailView((BlxMspType)mspType))
+            {
+              refilterMspArrayByRange((BlxMspType)mspType, bc, oldRange, detailView);
+              refilterMspArrayByRange((BlxMspType)mspType, bc, newRange, detailView);
+            }
         }
+      
+      detailViewRedrawAll(detailView);
     }
-  
-  detailViewRedrawAll(detailView);
-  
+
   DEBUG_EXIT("refilterDetailView returning ");
 }
 

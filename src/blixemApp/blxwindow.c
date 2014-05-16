@@ -670,7 +670,8 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
 static void loadNonNativeFile(const char *filename,
                               GtkWidget *blxWindow,
                               MSP **newMsps,
-                              GList **newSeqs)
+                              GList **newSeqs,
+                              GError **error)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   GKeyFile *keyFile = blxGetConfig();
@@ -681,24 +682,24 @@ static void loadNonNativeFile(const char *filename,
   if (!showNonNativeFileDialog(blxWindow, filename, &source, &start, &end))
     return;
 
-  GError *error = NULL;
+  GError *tmp_error = NULL;
   BlxDataType *dataType = NULL;
   const BlxFetchMethod *fetchMethod = NULL;
 
   if (!source || !source->str)
     {
-      g_set_error(&error, BLX_ERROR, 1, "No Source specified; cannot look up fetch method.\n");
+      g_set_error(&tmp_error, BLX_ERROR, 1, "No Source specified; cannot look up fetch method.\n");
     }
 
-  if (!error)
+  if (!tmp_error)
     {
-      dataType = getBlxDataType(0, source->str, keyFile, &error);
+      dataType = getBlxDataType(0, source->str, keyFile, &tmp_error);
 
-      if (!dataType)
-        g_set_error(&error, BLX_ERROR, 1, "No data-type found for source '%s'\n", source->str);
+      if (!dataType && !tmp_error)
+        g_set_error(&tmp_error, BLX_ERROR, 1, "No data-type found for source '%s'\n", source->str);
     }
 
-  if (!error)
+  if (!tmp_error)
     {
       if (dataType->bulkFetch)
         {
@@ -708,22 +709,22 @@ static void loadNonNativeFile(const char *filename,
 
       if (!fetchMethod)
         {
-          g_set_error(&error, BLX_ERROR, 1, "No fetch method specified for data-type '%s'\n", g_quark_to_string(dataType->name));
+          g_set_error(&tmp_error, BLX_ERROR, 1, "No fetch method specified for data-type '%s'\n", g_quark_to_string(dataType->name));
         }
 
       /* The output of the fetch must be a natively supported file format (i.e. GFF) */
-      if (!error && fetchMethod->outputType != BLXFETCH_OUTPUT_GFF)
+      if (!tmp_error && fetchMethod->outputType != BLXFETCH_OUTPUT_GFF)
         {
-          g_set_error(&error, BLX_ERROR, 1, "Expected fetch method output type to be '%s' but got '%s'\n", outputTypeStr(BLXFETCH_OUTPUT_GFF), outputTypeStr(fetchMethod->outputType));
+          g_set_error(&tmp_error, BLX_ERROR, 1, "Expected fetch method output type to be '%s' but got '%s'\n", outputTypeStr(BLXFETCH_OUTPUT_GFF), outputTypeStr(fetchMethod->outputType));
         }
     }
      
-  if (!error)
+  if (!tmp_error)
     {
       MatchSequenceData match_data = {NULL, bc->refSeqName, start, end, bc->dataset, source->str, filename};
-      GString *command = doGetFetchCommand(fetchMethod, &match_data, &error);
+      GString *command = doGetFetchCommand(fetchMethod, &match_data, &tmp_error);
 
-      if (!error && command && command->str)
+      if (!tmp_error && command && command->str)
         {
           const char *fetchName = g_quark_to_string(fetchMethod->name);
           GSList *styles = blxReadStylesFile(NULL, NULL);
@@ -732,18 +733,19 @@ static void loadNonNativeFile(const char *filename,
                                 bc->featureLists, bc->supportedTypes, styles,
                                 &bc->matchSeqs, &bc->mspList, 
                                 fetchName, bc->saveTempFiles, newMsps, newSeqs,
-                                bc->columnList, &error);
+                                bc->columnList, &tmp_error);
         }
     }          
 
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  if (tmp_error)
+    g_propagate_error(error, tmp_error);
 }
 
 
 /* Dynamically load in additional features from a file. (should be called after
  * blixem's GUI has already started up, rather than during start-up where normal
  * feature-loading happens) */
-static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, const char *buffer)
+static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, const char *buffer, GError **error)
 {
   /* Must be passed either a filename or buffer */
   if (!filename && !buffer)
@@ -755,62 +757,66 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
   /* We'll load the features from the file into some temporary lists */
   MSP *newMsps = NULL;
   GList *newSeqs = NULL;
-  GError *error = NULL;
+  GError *tmp_error = NULL;
 
   /* Assume it's a natively-supported file and attempt to parse it. The first thing this
    * does is check that it's a native file and if not it sets the error */
-  loadNativeFile(filename, buffer, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, &error);
+  loadNativeFile(filename, buffer, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, &tmp_error);
 
-  if (error && filename)
+  if (tmp_error && filename)
     {
       /* Input file is not natively supported. We can still load it if
        * there is a fetch method associated with it: ask the user what
        * the Source is so that we can find the fetch method. Probably 
        * should only get here if the input is an actual file so don't
        * support this for buffers for now. */
-      g_error_free(error);
-      error = NULL;
+      g_error_free(tmp_error);
+      tmp_error = NULL;
       
-      loadNonNativeFile(filename, blxWindow, &newMsps, &newSeqs);
+      loadNonNativeFile(filename, blxWindow, &newMsps, &newSeqs, &tmp_error);
     }
 
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  if (!tmp_error)
+    {
+      /* Fetch any missing sequence data and finalise the new sequences */
+      bulkFetchSequences(0, FALSE, bc->saveTempFiles, bc->seqType, &newSeqs, bc->columnList,
+                         bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
+                         bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
+                         &bc->refSeqRange, bc->dataset, FALSE);
+
+      finaliseFetch(newSeqs, bc->columnList);
+
+      finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->columnList, bc->refSeqOffset, bc->seqType, 
+                           bc->numFrames, &bc->refSeqRange, TRUE);
+
+      /* Add the msps/sequences to the tree data models (must be done after finalise because
+       * finalise populates the child msp lists for parent features) */
+      detailViewAddMspData(blxWindowGetDetailView(blxWindow), newMsps, newSeqs);
+
+      /* Merge the temporary lists into the main lists */
+      appendNewSequences(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
+
+      /* Cache the new msp display ranges and sort and filter the trees. */
+      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+      cacheMspDisplayRanges(bc, detailViewGetNumUnalignedBases(detailView));
+      detailViewResortTrees(detailView);
+      callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+
+      /* Recalculate the coverage */
+      calculateDepth(bc);
+      updateCoverageDepth(blxWindowGetCoverageView(blxWindow), bc);
   
-  /* Fetch any missing sequence data and finalise the new sequences */
-  bulkFetchSequences(0, FALSE, bc->saveTempFiles, bc->seqType, &newSeqs, bc->columnList,
-                     bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
-                     bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
-                     &bc->refSeqRange, bc->dataset, FALSE);
-
-  finaliseFetch(newSeqs, bc->columnList);
-
-  finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->columnList, bc->refSeqOffset, bc->seqType, 
-                       bc->numFrames, &bc->refSeqRange, TRUE);
-
-  /* Add the msps/sequences to the tree data models (must be done after finalise because
-   * finalise populates the child msp lists for parent features) */
-  detailViewAddMspData(blxWindowGetDetailView(blxWindow), newMsps, newSeqs);
-
-  /* Merge the temporary lists into the main lists */
-  appendNewSequences(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
-
-  /* Cache the new msp display ranges and sort and filter the trees. */
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  cacheMspDisplayRanges(bc, detailViewGetNumUnalignedBases(detailView));
-  detailViewResortTrees(detailView);
-  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-
-  /* Recalculate the coverage */
-  calculateDepth(bc);
-  updateCoverageDepth(blxWindowGetCoverageView(blxWindow), bc);
+      /* Re-calculate the height of the exon views */
+      GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
+      calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+      calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
+      forceResize(bigPicture);
   
-  /* Re-calculate the height of the exon views */
-  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
-  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
-  forceResize(bigPicture);
-  
-  blxWindowRedrawAll(blxWindow);
+      blxWindowRedrawAll(blxWindow);
+    }
+
+  if (tmp_error)
+    g_propagate_error(error, tmp_error);
 }
 
 
@@ -4580,11 +4586,14 @@ static void onSettingsMenu(GtkAction *action, gpointer data)
 static void onLoadMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
+  GError *tmp_error = NULL;
 
   char *filename = getLoadFileName(blxWindow, NULL, "Load file");
-  dynamicLoadFeaturesFile(blxWindow, filename, NULL);
+  dynamicLoadFeaturesFile(blxWindow, filename, NULL, &tmp_error);
   
   g_free(filename);
+
+  reportAndClearIfError(&tmp_error, G_LOG_LEVEL_CRITICAL);
 }
 
 static void onCopySeqsMenu(GtkAction *action, gpointer data)
@@ -6084,26 +6093,6 @@ BlxSequence* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
  *                      Initialisation                     *
  ***********************************************************/
 
-/* Called when the user drops something onto the window. Returns true if
- * we want to accept the drop, false otherwise */
-static gboolean onDragDrop(GtkWidget *widget,
-                           GdkDragContext *drag_context,
-                           gint x,
-                           gint y,
-                           guint time,
-                           gpointer user_data)
-{
-  gboolean result = TRUE;
-  
-  /* gtk_drag_get_data initiates a callback to the source of the drag to set the
-   * selection data, which then gets sent to our onDragDataReceived callback */
-  GdkAtom target = gtk_drag_dest_find_target(widget, drag_context, NULL);
-  gtk_drag_get_data(widget, drag_context, target, time);
-
-  return result;
-}
-
-
 static void onDragDataReceived(GtkWidget *widget, 
                                GdkDragContext *context, 
                                int x, 
@@ -6120,11 +6109,18 @@ static void onDragDataReceived(GtkWidget *widget,
   if ((info == TARGET_STRING || info == TARGET_URL) && selectionData->data)
     {
       g_message("Received drag and drop text:\n%s\n", selectionData->data);
+      GError *tmp_error = NULL;
       
       /* For now just assume the text contains supported file contents. The file parsing
        * will fail if it's not a supported format. */
       char *text = (char*)(gtk_selection_data_get_text(selectionData));
-      dynamicLoadFeaturesFile(widget, NULL, text);
+      dynamicLoadFeaturesFile(widget, NULL, text, &tmp_error);
+
+      if (tmp_error)
+        {
+          prefixError(tmp_error, "Error processing text from drag-and-drop: ");
+          reportAndClearIfError(&tmp_error, G_LOG_LEVEL_CRITICAL);
+        }
     }
 
   DEBUG_EXIT("onDragDataReceived returning ");
@@ -6145,7 +6141,6 @@ static void setDragDropProperties(GtkWidget *widget)
   gtk_drag_dest_set(widget, GTK_DEST_DEFAULT_ALL, targetentries, 3,
                     GDK_ACTION_COPY|GDK_ACTION_MOVE|GDK_ACTION_LINK);
  
-  //g_signal_connect(widget, "drag-drop", G_CALLBACK(onDragDrop), NULL);
   g_signal_connect(widget, "drag-data-received", G_CALLBACK(onDragDataReceived), NULL);
 
   DEBUG_EXIT("setDragDropProperties returning ")
