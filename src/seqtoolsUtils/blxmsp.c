@@ -1607,7 +1607,7 @@ void writeMspToOutput(FILE *pipe, const MSP* const msp)
 /* Read in an msp from the given text. the text is in the format as written by writeMspToFile  */
 void readMspFromText(MSP *msp, char *text)
 {
-  DEBUG_ENTER("readMspFromText(text=%s)", text);
+  //DEBUG_ENTER("readMspFromText(text=%s)", text);
 
   char *curChar = text;
 
@@ -1651,7 +1651,7 @@ void readMspFromText(MSP *msp, char *text)
   msp->sname = stringUnprotect(&curChar, NULL);
   msp->desc = stringUnprotect(&curChar, NULL);
 
-  DEBUG_EXIT("readMspFromText returning");
+  //DEBUG_EXIT("readMspFromText returning");
 }
 
 
