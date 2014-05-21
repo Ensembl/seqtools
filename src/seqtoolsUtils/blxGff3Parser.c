@@ -594,6 +594,10 @@ void parseGff3Body(const int lineNum,
                    const IntRange* const refSeqRange)
 {
   //DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
+
+  static int num_errors = 0 ;
+  const int max_errors = 20 ; /* Limit the number of errors we report in case there are, say, thousands
+                               * of lines we can't read */
   
   /* Parse the data into a temporary struct */
   BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
@@ -610,8 +614,21 @@ void parseGff3Body(const int lineNum,
   
   if (error)
     {
-      prefixError(error, "[line %d] Error parsing GFF data. ", lineNum);
-      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+      ++num_errors ;
+
+      if (num_errors <= max_errors)
+        {
+          prefixError(error, "[line %d] Error parsing GFF data. ", lineNum);
+          reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+        }
+      else if (num_errors == max_errors + 1)
+        {
+          g_warning("Truncating error report (more than %d errors in reading GFF file)\n", max_errors);
+        }
+      else
+        {
+          g_error_free(error);
+        }
     }
   
   //DEBUG_EXIT("parseGff3Body");
