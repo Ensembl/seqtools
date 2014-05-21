@@ -36,6 +36,7 @@
  */
 
 #include <seqtoolsUtils/blxGff3Parser.h>
+#include <seqtoolsUtils/blxparser.h>
 #include <seqtoolsUtils/utilities.h>
 #include <seqtoolsUtils/blxmsp.h>
 #include <string.h>
@@ -67,7 +68,8 @@ typedef enum {
 typedef enum {
   BLX_GAP_STRING_INVALID,
   BLX_GAP_STRING_GFF3,                        /* The Gap string used in GFF3 e.g. M23 D3 M10 I1 M20 */
-  BLX_GAP_STRING_BAM_CIGAR                    /* The cigar format used by SAM/BAM, e.g. 23M3D10M1I20M */
+  BLX_GAP_STRING_BAM_CIGAR,                   /* The cigar format used by SAM/BAM, e.g. 23M3D10M1I20M */
+  BLX_GAP_STRING_ACEDB,                       /* Legacy acedb-style gaps string */
 } BlxGapFormat;
 
 
@@ -918,7 +920,7 @@ static void parseTagDataPair(char *text,
       else if (!strcmp(tokens[0], "Gap"))
         {
           /* This might have already been set if we have more than one type of gap string */
-          if (!gffData->gapString)
+          if (gffData->gapString)
             {
               /*! \todo For now, override the cigar_bam string because we are experiencing
                * bugs with it. Longer term it shouldn't really matter which we use, although 
@@ -938,6 +940,15 @@ static void parseTagDataPair(char *text,
             {
               gffData->gapString = g_strdup(tokens[1]);
               gffData->gapFormat = BLX_GAP_STRING_BAM_CIGAR; 
+            }
+        }
+      else if (!strcmp(tokens[0], "gaps"))
+        {
+          /* This might have already been set if we have more than one type of gap string */
+          if (!gffData->gapString)
+            {
+              gffData->gapString = g_strdup(tokens[1]);
+              gffData->gapFormat = BLX_GAP_STRING_ACEDB; 
             }
         }
       else if (!strcmp(tokens[0], "ID"))
@@ -1054,7 +1065,7 @@ static void parseSequenceTag(const char *text, const int lineNum, BlxGffData *gf
 }
 
 
-/* Parse the data from the "gaps" string, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
+/* Parse the data from the "Gap" string, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
  * Populates the Gaps array in the given MSP.*/
 static void parseGapString(char *text,
                            BlxGapFormat gapFormat,
@@ -1070,7 +1081,12 @@ static void parseGapString(char *text,
     {
       return;
     }
-  
+  else if (gapFormat == BLX_GAP_STRING_ACEDB)
+    {
+      blxParseGaps(&text, msp, FALSE); /* use legacy code for lecacy acedb-style gap string */
+      return;
+    }
+
   /* If we have the forward strand of either sequence, start at the min coord
    * and increase values as we progress through the cigar string; if we have the
    * reverse strand, start at the max coord and decrease. */

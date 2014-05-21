@@ -98,7 +98,6 @@ static void	    parseFsXyData(char *line, MSP *msp);
 static void         parseFsSeqHeader(char *line, char **seq1, char *seq1name, char **seq2, char *seq2name, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, BlxParserState *parserState);
 static void         parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, const BlxSeqType seqType);
 
-static gboolean	    parseGaps(char **text, MSP *msp, const gboolean hasGapsTag) ;
 static gboolean	    parseDescription(char **text, MSP *msp_unused) ;
 static char*	    parseSequence(char **text, MSP *msp, const BlxBlastMode blastMode) ;
 static void	    parseLook(MSP *msp, char *s) ;
@@ -821,7 +820,7 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
   /* Parse gaps data */
   if (seq_pos)
     {
-      if (!parseGaps(&seq_pos, msp, FALSE))
+      if (!blxParseGaps(&seq_pos, msp, FALSE))
         {
           g_error("Incomplete MSP gap data for MSP '%s' [%d - %d]\n", msp->sname, msp->sRange.min, msp->sRange.max) ;
         }
@@ -1010,7 +1009,7 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
 	      /* Get first word and then parse.... */
 	      if ((strstr(seq_pos, BLX_GAPS_TAG)))
 		{
-		  if (!(result = parseGaps(&seq_pos, msp, TRUE)))
+		  if (!(result = blxParseGaps(&seq_pos, msp, TRUE)))
 		    g_error("Incomplete MSP gap data\n") ;
 		}
 	      else if (parserState == EXBLX_BODY && (strstr(seq_pos, BLX_DESCRIPTION_TAG)))
@@ -1158,7 +1157,7 @@ static char *nextLineOfFile(FILE *file, GString *line_string)
  * exblx file format that does not have a "Gaps" tag on the front of the gaps data. (In this case
  * we need to do something slightly different with strtok to start reading in the correct place
  * in the string.) */
-static gboolean parseGaps(char **text, MSP *msp, const gboolean hasGapsTag)
+gboolean blxParseGaps(char **text, MSP *msp, const gboolean hasGapsTag)
 {
   gboolean result = TRUE;
 
@@ -1190,7 +1189,7 @@ static gboolean parseGaps(char **text, MSP *msp, const gboolean hasGapsTag)
 	    case 0:
 	    {
 	      /* First value is start of subject sequence range. Create the range struct */
-              currentGap = (CoordRange*)g_malloc(sizeof(CoordRange));
+              currentGap = (CoordRange*)g_malloc0(sizeof(CoordRange));
               msp->gaps = g_slist_append(msp->gaps, currentGap);
 	      currentGap->sStart = convertStringToInt(currentGapStr);
 	      break;
