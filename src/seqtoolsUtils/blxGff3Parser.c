@@ -243,7 +243,7 @@ static BlxMspType getBlxType(GSList *supportedTypes, const char *typeStr, GError
   /* Check if it was found... */
   if (result == BLXMSP_INVALID)
   {
-    g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_TYPE, "Unsupported type '%s' in input file.\n", typeStr);
+    g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_TYPE, "Unsupported type '%s' will be ignored.\n", typeStr);
   }
   
   return result;
@@ -1065,6 +1065,28 @@ static void parseSequenceTag(const char *text, const int lineNum, BlxGffData *gf
 }
 
 
+/* Required after reading in legacy acedb-style gaps array; new code assumes
+ * the gaps are in the forward-strand order */
+static void sortGapsArray(MSP *msp)
+{
+  if (msp && msp->gaps)
+    {
+      /* They should be ordered but may be in reverse order, so if the last one is before the
+       * first one then just swap the order */
+      CoordRange *first_range = (CoordRange*)(msp->gaps->data);
+      CoordRange *last_range = (CoordRange*)g_slist_nth_data(msp->gaps, g_slist_length(msp->gaps) - 1);
+
+      const gboolean qRev = last_range->qStart < first_range->qStart;
+      const gboolean sRev = last_range->sStart < first_range->sStart;
+
+      if (qRev != sRev)
+        {
+          msp->gaps = g_slist_reverse(msp->gaps);
+        }
+    }
+}
+
+
 /* Parse the data from the "Gap" string, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
  * Populates the Gaps array in the given MSP.*/
 static void parseGapString(char *text,
@@ -1083,7 +1105,8 @@ static void parseGapString(char *text,
     }
   else if (gapFormat == BLX_GAP_STRING_ACEDB)
     {
-      blxParseGaps(&text, msp, FALSE); /* use legacy code for lecacy acedb-style gap string */
+      blxParseGaps(&text, msp, FALSE); /* legacy code for lecacy acedb-style gap string */
+      sortGapsArray(msp);
       return;
     }
 

@@ -1220,7 +1220,7 @@ gboolean blxParseGaps(char **text, MSP *msp, const gboolean hasGapsTag)
 	    }
 	  }
 
-	  currentGapStr = strtok(NULL, "\t ") ; 
+	  currentGapStr = strtok(NULL, "\t ,") ; 
 	}  
     }
 

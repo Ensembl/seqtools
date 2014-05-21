@@ -6343,7 +6343,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                     {
                       CoordRange *range = (CoordRange*)(rangeItem->data);
                       
-                      int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
+                      int qRangeMin = 0, qRangeMax = 0, sRangeMin = 0, sRangeMax = 0;
                       getCoordRangeExtents(range, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
                       
                       totalNumChars += sRangeMax - sRangeMin + 1;
