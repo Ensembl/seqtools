@@ -136,7 +136,7 @@ void parseFastaSeqHeader(char *line, const int lineNum,
                          BlxParserState *parserState);
                          
                          
-GSList*                            blxCreateSupportedGffTypeList();
+GSList*                            blxCreateSupportedGffTypeList(const BlxSeqType seqType);
 void                               blxDestroyGffTypeList(GSList **supportedTypes);
 BlxDataType*                       getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFile, GError **error);
 

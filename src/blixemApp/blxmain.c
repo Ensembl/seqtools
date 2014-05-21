@@ -484,7 +484,7 @@ int main(int argc, char **argv)
                     popupMessageHandler, &options.msgData);
 
   /* Get the list of supported GFF types, in case we need to print them out in the usage text */
-  GSList* supportedTypes = blxCreateSupportedGffTypeList();
+  GSList* supportedTypes = blxCreateSupportedGffTypeList(BLXSEQ_INVALID);
 
   gtk_parse_args(&argc, &argv);
 
@@ -655,6 +655,11 @@ int main(int argc, char **argv)
     }
 
   validateOptions(&options);
+
+  /* Update the list of supported GFF types, filtering matches by the sequence type.
+   * (It's quick and dirty to destroy recreate this but it's a small list and only done once.) */
+  blxDestroyGffTypeList(&supportedTypes);
+  supportedTypes = blxCreateSupportedGffTypeList(options.seqType);
   
   /* We expect one or two input files */
   const int numFiles = argc - optind;

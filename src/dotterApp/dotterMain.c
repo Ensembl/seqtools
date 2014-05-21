@@ -817,7 +817,7 @@ int main(int argc, char **argv)
           g_error("Cannot open %s\n", options.FSfilename);
         }
       
-      GSList *supportedTypes = blxCreateSupportedGffTypeList();
+      GSList *supportedTypes = blxCreateSupportedGffTypeList(BLXSEQ_INVALID);
       GList *columnList = dotterCreateColumns();
       GError *error = NULL;
 

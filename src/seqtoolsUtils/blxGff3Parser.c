@@ -170,16 +170,20 @@ void blxDestroyGffTypeList(GSList **supportedTypes)
 }
 
 
-/* Create the list of supported types */
-GSList* blxCreateSupportedGffTypeList()
+/* Create the list of supported types. Filter match types by the given seqType
+ * (or pass BLXSEQ_INVALID to include all supported types) */
+GSList* blxCreateSupportedGffTypeList(const BlxSeqType seqType)
 {
   GSList *supportedTypes = NULL;
   
-  addGffType(&supportedTypes, "match", "SO:0000343", BLXMSP_MATCH);
-  addGffType(&supportedTypes, "nucleotide_match", "SO:0000347", BLXMSP_MATCH);
-  addGffType(&supportedTypes, "protein_match", "SO:0000349", BLXMSP_MATCH);
-  addGffType(&supportedTypes, "match_part", "SO:0000039", BLXMSP_MATCH);
+  if (seqType == BLXSEQ_DNA || seqType == BLXSEQ_INVALID)
+    addGffType(&supportedTypes, "nucleotide_match", "SO:0000347", BLXMSP_MATCH);
+
+  if (seqType == BLXSEQ_PEPTIDE || seqType == BLXSEQ_INVALID)
+    addGffType(&supportedTypes, "protein_match", "SO:0000349", BLXMSP_MATCH);
   
+  addGffType(&supportedTypes, "match", "SO:0000343", BLXMSP_MATCH);
+  addGffType(&supportedTypes, "match_part", "SO:0000039", BLXMSP_MATCH);
   addGffType(&supportedTypes, "match_set", "SO:0000038", BLXMSP_MATCH_SET);
   
   addGffType(&supportedTypes, "transcript", "SO:0000673", BLXMSP_TRANSCRIPT);
