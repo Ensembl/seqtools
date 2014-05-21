@@ -5655,7 +5655,7 @@ GList* blxWindowGetAllMatchSeqs(GtkWidget *blxWindow)
 BlxSeqType blxWindowGetSeqType(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->seqType : BLXSEQ_INVALID;
+  return blxContext ? blxContext->seqType : BLXSEQ_NONE;
 }
 
 IntRange* blxWindowGetFullRange(GtkWidget *blxWindow)

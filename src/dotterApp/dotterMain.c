@@ -339,8 +339,8 @@ int main(int argc, char **argv)
   static gboolean showCompiled = FALSE;
   static gboolean hozScaleRev = FALSE;
   static gboolean vertScaleRev = FALSE;
-  static BlxSeqType qSeqType = BLXSEQ_INVALID;
-  static BlxSeqType sSeqType = BLXSEQ_INVALID;
+  static BlxSeqType qSeqType = BLXSEQ_NONE;
+  static BlxSeqType sSeqType = BLXSEQ_NONE;
   
   /* The strand stuff is a bit hacky, because dotter was originally never designed to deal with
    * reverse match seq strands, so match and ref seq strands work in different ways. If the ref seq
@@ -817,7 +817,7 @@ int main(int argc, char **argv)
           g_error("Cannot open %s\n", options.FSfilename);
         }
       
-      GSList *supportedTypes = blxCreateSupportedGffTypeList(BLXSEQ_INVALID);
+      GSList *supportedTypes = blxCreateSupportedGffTypeList(BLXSEQ_NONE);
       GList *columnList = dotterCreateColumns();
       GError *error = NULL;
 
@@ -825,13 +825,13 @@ int main(int argc, char **argv)
 
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       
-      finaliseBlxSequences(featureLists, &MSPlist, &seqList, columnList, 0, BLXSEQ_INVALID, -1, NULL, FALSE);
+      finaliseBlxSequences(featureLists, &MSPlist, &seqList, columnList, 0, BLXSEQ_NONE, -1, NULL, FALSE);
       
       blxDestroyGffTypeList(&supportedTypes);
     }
 
   /* Determine sequence types */
-  if (qSeqType == BLXSEQ_INVALID)
+  if (qSeqType == BLXSEQ_NONE)
     {
       GError *error = NULL;
       qSeqType = determineSeqType(options.qseq, &error);
@@ -839,7 +839,7 @@ int main(int argc, char **argv)
       reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
     }
   
-  if (sSeqType == BLXSEQ_INVALID)
+  if (sSeqType == BLXSEQ_NONE)
     {
       GError *error = NULL;
       sSeqType = determineSeqType(options.sseq, &error);

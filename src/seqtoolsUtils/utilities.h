@@ -246,7 +246,7 @@ typedef enum
 /* Fundamental type of sequence (DNA really means nucleotide, because it could be RNA as well). */
 typedef enum
   {
-    BLXSEQ_INVALID, 
+    BLXSEQ_NONE, 
     BLXSEQ_DNA, 
     BLXSEQ_PEPTIDE
   } BlxSeqType ;

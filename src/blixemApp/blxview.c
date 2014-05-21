@@ -213,7 +213,7 @@ static void validateInput(CommandLineOptions *options)
     }
   
   /* if we were given the blast mode instead of seq type, determine the display sequence type */
-  if (options->seqType == BLXSEQ_INVALID && options->blastMode != BLXMODE_UNSET)
+  if (options->seqType == BLXSEQ_NONE && options->blastMode != BLXMODE_UNSET)
     {
       if (options->blastMode == BLXMODE_BLASTN)
         options->seqType = BLXSEQ_DNA;
@@ -222,7 +222,7 @@ static void validateInput(CommandLineOptions *options)
     }
   
   /* Check we have a valid seq type */
-  if (options->seqType == BLXSEQ_INVALID)
+  if (options->seqType == BLXSEQ_NONE)
     {
       g_message("\nNo sequence type specified. Detected ");
       

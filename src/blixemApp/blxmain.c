@@ -293,7 +293,7 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->abbrevTitle = FALSE;
   
   options->blastMode = BLXMODE_UNSET;
-  options->seqType = BLXSEQ_INVALID;
+  options->seqType = BLXSEQ_NONE;
   options->numFrames = 1;
   options->mapCoords = FALSE;
   options->mapCoordsFrom = UNSET_INT;
@@ -319,7 +319,7 @@ static void validateOptions(CommandLineOptions *options)
 /* Determine the sequence type (nucleotide or peptide) from the given char */
 static BlxSeqType getSeqTypeFromChar(char seqChar)
 {
-  BlxSeqType result = BLXSEQ_INVALID;
+  BlxSeqType result = BLXSEQ_NONE;
   
   if (seqChar == 'n' || seqChar == 'N')
     result = BLXSEQ_DNA;
@@ -484,7 +484,7 @@ int main(int argc, char **argv)
                     popupMessageHandler, &options.msgData);
 
   /* Get the list of supported GFF types, in case we need to print them out in the usage text */
-  GSList* supportedTypes = blxCreateSupportedGffTypeList(BLXSEQ_INVALID);
+  GSList* supportedTypes = blxCreateSupportedGffTypeList(BLXSEQ_NONE);
 
   gtk_parse_args(&argc, &argv);
 
@@ -747,7 +747,7 @@ int main(int argc, char **argv)
   /* Set the blast mode from the sequence type, if given. If not, blast mode might
    * get set by parseFS (nasty for backwards compatibility; ideally we'll get rid
    * of blastmode at some point). */
-  if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_INVALID)
+  if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_NONE)
     options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
   
   parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
@@ -756,7 +756,7 @@ int main(int argc, char **argv)
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);  
 
   /* Now see if blast mode was set and set seqtype from it if not already set... */
-  if (options.seqType == BLXSEQ_INVALID && options.blastMode != BLXMODE_UNSET)
+  if (options.seqType == BLXSEQ_NONE && options.blastMode != BLXMODE_UNSET)
     options.seqType = (options.blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
 
   /* Parse the reference sequence, if we have a separate sequence file (and it was

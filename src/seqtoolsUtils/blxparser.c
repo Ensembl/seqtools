@@ -1253,7 +1253,7 @@ static gboolean parseDescription(char **text, MSP *msp)
 /* Find out the sequence type to display (nucleotide or peptide) based on the blast mode */
 static BlxSeqType getSeqTypeFromBlastMode(const BlxBlastMode blastMode, GError **error)
 {
-  BlxSeqType result = BLXSEQ_INVALID;
+  BlxSeqType result = BLXSEQ_NONE;
   
   switch (blastMode)
     {
