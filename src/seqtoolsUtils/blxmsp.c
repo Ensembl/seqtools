@@ -64,6 +64,12 @@ static const char* g_MspFlagConfigKeys[] =
     "dummy" /* dummy value for MSPFLAG_NUM_FLAGS */
   };
 
+
+static void addBlxSequences(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType,
+                            const char *source, GList **seqList, GList *columnList, char *sequence, 
+                            MSP *msp, GError **error);
+
+
 /* Get/set the max MSP length */
 int getMaxMspLen()
 {
@@ -153,18 +159,18 @@ gboolean mspLayerIsVisible(const MSP* const msp)
  * adjacent exons to determine whether to show them as CDS or UTR - only show it as
  * CDS if there is a CDS exon on both sides of the intron. */
 static const GdkColor* mspGetIntronColor(const MSP* const msp, 
-					 GArray *defaultColors,
+                                         GArray *defaultColors,
                                          const int defaultColorId,
-					 const BlxSequence *blxSeq,
-					 const gboolean selected,
-					 const gboolean usePrintColors,
-					 const gboolean fill,
-					 const int exonFillColorId,
-					 const int exonLineColorId,
-					 const int cdsFillColorId,
-					 const int cdsLineColorId,
-					 const int utrFillColorId,
-					 const int utrLineColorId)
+                                         const BlxSequence *blxSeq,
+                                         const gboolean selected,
+                                         const gboolean usePrintColors,
+                                         const gboolean fill,
+                                         const int exonFillColorId,
+                                         const int exonLineColorId,
+                                         const int cdsFillColorId,
+                                         const int cdsLineColorId,
+                                         const int utrFillColorId,
+                                         const int utrLineColorId)
 {
   const GdkColor *result = NULL;
   
@@ -1863,7 +1869,7 @@ MSP* createNewMsp(GArray* featureLists[],
       typeIsMatch(mspType) || 
       typeIsVariation(mspType) || typeIsRegion(mspType))
     {
-      addBlxSequence(msp->sname, idTag, sStrand, dataType, source, seqList, columnList, sequence, msp, error);
+      addBlxSequences(msp->sname, idTag, sStrand, dataType, source, seqList, columnList, sequence, msp, error);
     }
 
   /* Add it to the relevant feature list. */
@@ -2818,6 +2824,44 @@ static BlxSequence* createBlxSequence(const char *name,
   return seq;
 }
 
+
+/* Wrapper for addBlxSequence to add multiple sequences. The idTag might be a comma-separated
+ * list of parent IDs, in which case we need to add the msp to multiple BlxSequences (creating
+ * those BlxSequences if they don't exist. */
+static void addBlxSequences(const char *name, 
+                            const char *idTag, 
+                            BlxStrand strand,
+                            BlxDataType *dataType,
+                            const char *source,
+                            GList **seqList, 
+                            GList *columnList,
+                            char *sequence, 
+                            MSP *msp, 
+                            GError **error)
+{
+  GError *tmpError = NULL;
+
+  if (idTag)
+    {
+      char **tokens = g_strsplit_set(idTag, ",", -1);   /* -1 means do all tokens. */
+      char **token = tokens;
+      
+      while (token && *token && **token && !tmpError)
+        {
+          addBlxSequence(msp->sname, *token, strand, dataType, source, seqList, columnList, sequence, msp, &tmpError);
+          ++token;
+        }
+
+      g_strfreev(tokens);
+    }
+  else
+    {
+      addBlxSequence(msp->sname, idTag, strand, dataType, source, seqList, columnList, sequence, msp, &tmpError);
+    }
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
+}
 
 /* Add or create a BlxSequence struct, creating the BlxSequence if one does not
  * already exist for the MSP's sequence name. Seperate BlxSequence structs are created
