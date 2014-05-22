@@ -2160,7 +2160,12 @@ static void constructTranscriptData(BlxSequence *blxSeq,
            * and there's a gap to the end of the transcript. */
           gboolean foundGap = FALSE;
 
-          if (msp && prevMsp)
+          if (msp && mspIsIntron(msp))
+            {
+              /* An intron IS a gap! */
+              foundGap = TRUE;
+            }
+          else if (msp && prevMsp)
             {
               /* We have a previous msp; there's a gap if the previous msp is an exon
                * and if there is a gap between it and the current exon */
