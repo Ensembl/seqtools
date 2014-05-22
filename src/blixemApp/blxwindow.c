@@ -156,6 +156,7 @@ static GList*                     findSeqsFromColumn(GtkWidget *blxWindow, const
 static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
 static void                       killAllSpawned(BlxViewContext *bc);
 static void                       calculateDepth(BlxViewContext *bc);
+static gdouble                    calculateMspData(MSP *mspList, BlxViewContext *bc);
 
 static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
 static void                       copySelectedSeqDataToClipboard(GtkWidget *blxWindow);
@@ -788,6 +789,9 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
 
       finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->columnList, bc->refSeqOffset, bc->seqType, 
                            bc->numFrames, &bc->refSeqRange, TRUE);
+
+      double lowestId = calculateMspData(newMsps, bc);
+      bigPictureSetMinPercentId(blxWindowGetBigPicture(blxWindow), lowestId);
 
       /* Add the msps/sequences to the tree data models (must be done after finalise because
        * finalise populates the child msp lists for parent features) */
