@@ -618,6 +618,7 @@ static void blviewCreate(char *align_types,
 }
 
 /***********************************************************
+ *               Sequences and MSPs
  ***********************************************************/
 
 /* The parsed gene name generally contains extra info that we're not interested in. This function
@@ -1042,6 +1043,11 @@ int mspGetMatchCoord(const MSP *msp,
 }
 
 
+
+/***********************************************************
+ *               General
+ ***********************************************************/
+
 /* Redraw the entire blixem window. (Call blxWindowRedrawAll directly where possible,
  * rather than this function, which relies on the global variable 'blixemWindow'). */
 void blviewRedraw(void)
@@ -1065,6 +1071,9 @@ void blviewResetGlobals()
   destroyMessageList();
 }
 
+/***********************************************************
+ *               Styles and colours
+ ***********************************************************/
 
 /* Set the given BlxColor elements from the given color string(s). Works out some good defaults
  * for blxColor.selected blxcolor.print etc if these colors are not given */
