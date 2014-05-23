@@ -65,8 +65,10 @@ static const char* g_MspFlagConfigKeys[] =
   };
 
 
-static void addBlxSequences(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType,
-                            const char *source, GList **seqList, GList *columnList, char *sequence, 
+static void addBlxSequences(const char *name, const char *idTag, 
+                            BlxStrand strand, BlxDataType *dataType, const char *source, 
+                            GArray *featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
+                            GList *columnList, char *sequence, 
                             MSP *msp, GError **error);
 
 
@@ -1864,16 +1866,18 @@ MSP* createNewMsp(GArray* featureLists[],
       sStrand = qStrand;
     }
   
+  /* Add it to the relevant feature list. */
+  featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
+
   /* For matches, exons and introns, add a new (or add to an existing) BlxSequence */
   if (typeIsExon(mspType) || typeIsIntron(mspType) || 
       typeIsMatch(mspType) || 
       typeIsVariation(mspType) || typeIsRegion(mspType))
     {
-      addBlxSequences(msp->sname, idTag, sStrand, dataType, source, seqList, columnList, sequence, msp, error);
+      addBlxSequences(msp->sname, idTag, sStrand, dataType, source, 
+                      featureLists, lastMsp, mspList, seqList,
+                      columnList, sequence, msp, error);
     }
-
-  /* Add it to the relevant feature list. */
-  featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
 
   if (error && *error)
     {
@@ -2833,22 +2837,39 @@ static void addBlxSequences(const char *name,
                             BlxStrand strand,
                             BlxDataType *dataType,
                             const char *source,
+                            GArray *featureLists[],
+                            MSP **lastMsp,
+                            MSP **mspList,
                             GList **seqList, 
                             GList *columnList,
                             char *sequence, 
-                            MSP *msp, 
+                            MSP *msp_in, 
                             GError **error)
 {
   GError *tmpError = NULL;
+  MSP *msp = msp_in;
 
   if (idTag)
     {
+      /* For exons and introns, the ID tag we receive is the parent tag, and it may contain
+       * multiple parent transcripts. In this case we need to add the msp to multiple parent
+       * BlxSequences */
       char **tokens = g_strsplit_set(idTag, ",", -1);   /* -1 means do all tokens. */
       char **token = tokens;
+      gboolean usedMsp = FALSE;
       
       while (token && *token && **token && !tmpError)
         {
-          addBlxSequence(msp->sname, *token, strand, dataType, source, seqList, columnList, sequence, msp, &tmpError);
+          /* If we've already used the passed-in msp, then we need to make a copy of it to 
+           * add to the next BlxSequence (because the msp points to its BlxSequence so can't
+           * be added to multiple BlxSequences, at least at the moment) */
+          if (usedMsp)
+            msp = copyMsp(msp, featureLists, lastMsp, mspList, seqList, &tmpError);
+
+          if (!tmpError)
+            addBlxSequence(msp->sname, *token, strand, dataType, source, seqList, columnList, sequence, msp, &tmpError);
+
+          usedMsp = TRUE;
           ++token;
         }
 
