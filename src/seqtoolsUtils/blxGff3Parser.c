@@ -326,7 +326,7 @@ static GQuark getBlxDataTypeFromSource(const char *source, GKeyFile *keyFile)
 {
   GQuark dataType = 0;
 
-  if (keyFile && g_key_file_has_group(keyFile, source))
+  if (keyFile && source && g_key_file_has_group(keyFile, source))
     {
       char *dataTypeName = g_key_file_get_string(keyFile, source, DATA_TYPE_TAG, NULL);
       
