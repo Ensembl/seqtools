@@ -128,7 +128,8 @@ void parseGff3Body(const int lineNum,
                    GSList *styles,
                    const int resFactor,
                    GKeyFile *keyFile,
-                   const IntRange* const refSeqRange);
+                   const IntRange* const refSeqRange,
+                   GHashTable *lookupTable);
 
 void parseFastaSeqHeader(char *line, const int lineNum,
                          char **refSeq, char *refSeqName, IntRange *refSeqRange,
@@ -136,7 +137,7 @@ void parseFastaSeqHeader(char *line, const int lineNum,
                          BlxParserState *parserState);
                          
                          
-GSList*                            blxCreateSupportedGffTypeList();
+GSList*                            blxCreateSupportedGffTypeList(const BlxSeqType seqType);
 void                               blxDestroyGffTypeList(GSList **supportedTypes);
 BlxDataType*                       getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFile, GError **error);
 

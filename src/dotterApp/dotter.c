@@ -795,7 +795,7 @@ static void closeWindow(GtkWidget *widget)
  * we have the horizontal (reference) sequence, otherwise the vertical (match) sequence. */
 int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterContext *dc, const int frameIn, int *baseNum)
 {
-  DEBUG_ENTER("convertToDisplayIdx(dnaIdx=%d, hoz=%d, frameIn=%d)", dnaIdx, horizontal, frameIn);
+  //DEBUG_ENTER("convertToDisplayIdx(dnaIdx=%d, hoz=%d, frameIn=%d)", dnaIdx, horizontal, frameIn);
 
   int result = dnaIdx;
   
@@ -856,7 +856,7 @@ int convertToDisplayIdx(const int dnaIdx, const gboolean horizontal, DotterConte
         }
     }
   
-  DEBUG_EXIT("convertToDisplayIdx returning %d", result);
+  //DEBUG_EXIT("convertToDisplayIdx returning %d", result);
   return result;
 }
 

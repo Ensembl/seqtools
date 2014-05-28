@@ -40,4 +40,8 @@
  */
 
 void           parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode, GArray* featureLists[], GList **seqList, GList *columnList, GSList *supportedTypes, GSList *styles,
-		       char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, GKeyFile *keyFile, GError **error) ;
+		       char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, GKeyFile *keyFile, GHashTable *lookupTable, GError **error) ;
+
+void           parseBuffer(MSP **MSPlist, const char *buffer_in, BlxBlastMode *blastMode, GArray* featureLists[], GList **seqList, GList *columnList, GSList *supportedTypes, GSList *styles,
+                           char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, GKeyFile *keyFile, GHashTable *lookupTable, GError **error) ;
+gboolean       blxParseGaps(char **text, MSP *msp, const gboolean hasGapsTag);

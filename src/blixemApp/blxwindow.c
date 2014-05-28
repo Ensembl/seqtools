@@ -156,6 +156,7 @@ static GList*                     findSeqsFromColumn(GtkWidget *blxWindow, const
 static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
 static void                       killAllSpawned(BlxViewContext *bc);
 static void                       calculateDepth(BlxViewContext *bc);
+static gdouble                    calculateMspData(MSP *mspList, BlxViewContext *bc);
 
 static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
 static void                       copySelectedSeqDataToClipboard(GtkWidget *blxWindow);
@@ -670,7 +671,9 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
 static void loadNonNativeFile(const char *filename,
                               GtkWidget *blxWindow,
                               MSP **newMsps,
-                              GList **newSeqs)
+                              GList **newSeqs,
+                              GHashTable *lookupTable,
+                              GError **error)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   GKeyFile *keyFile = blxGetConfig();
@@ -681,24 +684,24 @@ static void loadNonNativeFile(const char *filename,
   if (!showNonNativeFileDialog(blxWindow, filename, &source, &start, &end))
     return;
 
-  GError *error = NULL;
+  GError *tmp_error = NULL;
   BlxDataType *dataType = NULL;
   const BlxFetchMethod *fetchMethod = NULL;
 
   if (!source || !source->str)
     {
-      g_set_error(&error, BLX_ERROR, 1, "No Source specified; cannot look up fetch method.\n");
+      g_set_error(&tmp_error, BLX_ERROR, 1, "No Source specified; cannot look up fetch method.\n");
     }
 
-  if (!error)
+  if (!tmp_error)
     {
-      dataType = getBlxDataType(0, source->str, keyFile, &error);
+      dataType = getBlxDataType(0, source->str, keyFile, &tmp_error);
 
-      if (!dataType)
-        g_set_error(&error, BLX_ERROR, 1, "No data-type found for source '%s'\n", source->str);
+      if (!dataType && !tmp_error)
+        g_set_error(&tmp_error, BLX_ERROR, 1, "No data-type found for source '%s'\n", source->str);
     }
 
-  if (!error)
+  if (!tmp_error)
     {
       if (dataType->bulkFetch)
         {
@@ -708,22 +711,22 @@ static void loadNonNativeFile(const char *filename,
 
       if (!fetchMethod)
         {
-          g_set_error(&error, BLX_ERROR, 1, "No fetch method specified for data-type '%s'\n", g_quark_to_string(dataType->name));
+          g_set_error(&tmp_error, BLX_ERROR, 1, "No fetch method specified for data-type '%s'\n", g_quark_to_string(dataType->name));
         }
 
       /* The output of the fetch must be a natively supported file format (i.e. GFF) */
-      if (!error && fetchMethod->outputType != BLXFETCH_OUTPUT_GFF)
+      if (!tmp_error && fetchMethod->outputType != BLXFETCH_OUTPUT_GFF)
         {
-          g_set_error(&error, BLX_ERROR, 1, "Expected fetch method output type to be '%s' but got '%s'\n", outputTypeStr(BLXFETCH_OUTPUT_GFF), outputTypeStr(fetchMethod->outputType));
+          g_set_error(&tmp_error, BLX_ERROR, 1, "Expected fetch method output type to be '%s' but got '%s'\n", outputTypeStr(BLXFETCH_OUTPUT_GFF), outputTypeStr(fetchMethod->outputType));
         }
     }
      
-  if (!error)
+  if (!tmp_error)
     {
       MatchSequenceData match_data = {NULL, bc->refSeqName, start, end, bc->dataset, source->str, filename};
-      GString *command = doGetFetchCommand(fetchMethod, &match_data, &error);
+      GString *command = doGetFetchCommand(fetchMethod, &match_data, &tmp_error);
 
-      if (!error && command && command->str)
+      if (!tmp_error && command && command->str)
         {
           const char *fetchName = g_quark_to_string(fetchMethod->name);
           GSList *styles = blxReadStylesFile(NULL, NULL);
@@ -732,20 +735,22 @@ static void loadNonNativeFile(const char *filename,
                                 bc->featureLists, bc->supportedTypes, styles,
                                 &bc->matchSeqs, &bc->mspList, 
                                 fetchName, bc->saveTempFiles, newMsps, newSeqs,
-                                bc->columnList, &error);
+                                bc->columnList, lookupTable, &tmp_error);
         }
     }          
 
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  if (tmp_error)
+    g_propagate_error(error, tmp_error);
 }
 
 
 /* Dynamically load in additional features from a file. (should be called after
  * blixem's GUI has already started up, rather than during start-up where normal
  * feature-loading happens) */
-static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
+static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, const char *buffer, GError **error)
 {
-  if (!filename)
+  /* Must be passed either a filename or buffer */
+  if (!filename && !buffer)
     return;
 
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -754,60 +759,85 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename)
   /* We'll load the features from the file into some temporary lists */
   MSP *newMsps = NULL;
   GList *newSeqs = NULL;
-  GError *error = NULL;
+  GError *tmp_error = NULL;
+
+  /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
+  GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
 
   /* Assume it's a natively-supported file and attempt to parse it. The first thing this
    * does is check that it's a native file and if not it sets the error */
-  loadNativeFile(filename, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, &error);
+  loadNativeFile(filename, buffer, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, lookupTable, &tmp_error);
 
-  if (error)
+  if (tmp_error && filename)
     {
       /* Input file is not natively supported. We can still load it if
        * there is a fetch method associated with it: ask the user what
-       * the Source is so that we can find the fetch method. */
-      g_error_free(error);
-      error = NULL;
+       * the Source is so that we can find the fetch method. Probably 
+       * should only get here if the input is an actual file so don't
+       * support this for buffers for now. */
+      g_error_free(tmp_error);
+      tmp_error = NULL;
       
-      loadNonNativeFile(filename, blxWindow, &newMsps, &newSeqs);
+      loadNonNativeFile(filename, blxWindow, &newMsps, &newSeqs, lookupTable, &tmp_error);
     }
 
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+  if (!tmp_error)
+    {
+      /* Count how many features were added. (Need to do this before appendNewSequences because
+       * once this list gets merged the count will no longer be correct.) */
+      const int numAdded = g_list_length(newSeqs);
+
+      /* Fetch any missing sequence data and finalise the new sequences */
+      bulkFetchSequences(0, FALSE, bc->saveTempFiles, bc->seqType, &newSeqs, bc->columnList,
+                         bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
+                         bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
+                         &bc->refSeqRange, bc->dataset, FALSE, lookupTable);
+
+      finaliseFetch(newSeqs, bc->columnList);
+
+      finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->columnList, bc->refSeqOffset, bc->seqType, 
+                           bc->numFrames, &bc->refSeqRange, TRUE, lookupTable);
+
+      double lowestId = calculateMspData(newMsps, bc);
+      bigPictureSetMinPercentId(blxWindowGetBigPicture(blxWindow), lowestId);
+
+      /* Add the msps/sequences to the tree data models (must be done after finalise because
+       * finalise populates the child msp lists for parent features) */
+      detailViewAddMspData(blxWindowGetDetailView(blxWindow), newMsps, newSeqs);
+
+      /* Merge the temporary lists into the main lists (takes ownership of the temp lists) */
+      appendNewSequences(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
+
+      /* Cache the new msp display ranges and sort and filter the trees. */
+      GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+      cacheMspDisplayRanges(bc, detailViewGetNumUnalignedBases(detailView));
+      detailViewResortTrees(detailView);
+      callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+
+      /* Recalculate the coverage */
+      calculateDepth(bc);
+      updateCoverageDepth(blxWindowGetCoverageView(blxWindow), bc);
   
-  /* Fetch any missing sequence data and finalise the new sequences */
-  bulkFetchSequences(0, FALSE, bc->saveTempFiles, bc->seqType, &newSeqs, bc->columnList,
-                     bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
-                     bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
-                     &bc->refSeqRange, bc->dataset, FALSE);
-
-  finaliseFetch(newSeqs, bc->columnList);
-
-  finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->columnList, bc->refSeqOffset, bc->seqType, 
-                       bc->numFrames, &bc->refSeqRange, TRUE);
-
-  /* Add the msps/sequences to the tree data models (must be done after finalise because
-   * finalise populates the child msp lists for parent features) */
-  detailViewAddMspData(blxWindowGetDetailView(blxWindow), newMsps, newSeqs);
-
-  /* Merge the temporary lists into the main lists */
-  appendNewSequences(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
-
-  /* Cache the new msp display ranges and sort and filter the trees. */
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  cacheMspDisplayRanges(bc, detailViewGetNumUnalignedBases(detailView));
-  detailViewResortTrees(detailView);
-  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-
-  /* Recalculate the coverage */
-  calculateDepth(bc);
-  updateCoverageDepth(blxWindowGetCoverageView(blxWindow), bc);
+      /* Re-calculate the height of the exon views */
+      GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
+      calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+      calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
+      forceResize(bigPicture);
   
-  /* Re-calculate the height of the exon views */
-  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
-  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
-  forceResize(bigPicture);
-  
-  blxWindowRedrawAll(blxWindow);
+      blxWindowRedrawAll(blxWindow);
+      
+      if (numAdded == 0)
+        g_critical("Failed to load new features: check program output for errors\n");
+      else if (numAdded == 1)
+        g_message("Loaded %d new feature\n", numAdded);
+      else
+        g_message("Loaded %d new features\n", numAdded);
+    }
+
+  g_hash_table_unref(lookupTable);
+
+  if (tmp_error)
+    g_propagate_error(error, tmp_error);
 }
 
 
@@ -1867,6 +1897,9 @@ static void blxContextDeleteAllSequenceGroups(BlxViewContext *bc)
   g_list_free(bc->sequenceGroups);
   bc->sequenceGroups = NULL;
   
+  /* Reset the hide-not-in-group flags otherwise we'll hide everything! */
+  bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS] = FALSE ;
+  bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] = FALSE ;
 }
 
 
@@ -1883,12 +1916,18 @@ static void blxWindowDeleteAllSequenceGroups(GtkWidget *blxWindow)
 static void blxWindowGroupsChanged(GtkWidget *blxWindow)
 {
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   
   /* Re-sort all trees, because grouping affects sort order */
   detailViewResortTrees(detailView);
   
   /* Refilter the trees (because groups affect whether sequences are visible) */
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+
+  /* Resize exon view because transcripts may have been hidden/unhidden */
+  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
+  forceResize(bigPicture);
 
   /* Redraw all (because highlighting affects both big picture and detail view) */
   blxWindowRedrawAll(blxWindow);
@@ -2285,7 +2324,7 @@ static gboolean onAddGroupFromText(GtkWidget *button, const gint responseId, gpo
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
       GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-      createSequenceGroup(blxWindow, seqList, FALSE, NULL);
+      createSequenceGroup(blxWindow, seqList, FALSE, inputText);
     }
   
   return result;
@@ -2638,8 +2677,14 @@ static gboolean onHideUngroupedChanged(GtkWidget *button, const gint responseId,
   
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
   
   refilterDetailView(detailView, NULL);
+
+  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
+  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
+  forceResize(bigPicture);
+
   blxWindowRedrawAll(blxWindow);
   
   return TRUE;
@@ -2672,7 +2717,8 @@ static void createCreateGroupTab(GtkNotebook *notebook, BlxViewContext *bc, GtkW
 /* Create the 'edit groups' tab of the groups dialog. Appends it to the given notebook. */
 static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWidget *blxWindow)
 {
-  const int numRows = g_list_length(bc->sequenceGroups) + 3; /* +3 for: header; delete-all button; only show groups button */
+  const int numRows = g_list_length(bc->sequenceGroups) + 4; /* +4 for: header; delete-all button;
+                                                                hide-all-seqs; hide-all-features */
   const int numCols = 6;
   const int xpad = DEFAULT_TABLE_XPAD;
   const int ypad = DEFAULT_TABLE_YPAD;
@@ -2684,12 +2730,17 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWi
   /* Append the table as a new tab to the notebook */
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table), gtk_label_new("Edit groups"));
   
-  /* Add a check button to turn on the 'hide ungrouped sequences' option */
-  GtkWidget *hideButton = gtk_check_button_new_with_mnemonic("_Hide all sequences not in a group");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton), bc->flags[BLXFLAG_HIDE_UNGROUPED]);
-  widgetSetCallbackData(hideButton, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED));
+  /* Add check buttons to turn on the 'hide ungrouped sequences/features' options */
+  GtkWidget *hideButton1 = gtk_check_button_new_with_mnemonic("_Hide all sequences not in a group");
+  GtkWidget *hideButton2 = gtk_check_button_new_with_mnemonic("_Hide all features not in a group");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton1), bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS]);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton2), bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES]);
+  widgetSetCallbackData(hideButton1, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_SEQS));
+  widgetSetCallbackData(hideButton2, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_FEATURES));
 
-  gtk_table_attach(table, hideButton, 1, 2, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, hideButton1, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  ++row;
+  gtk_table_attach(table, hideButton2, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
   
   /* Add labels for each column in the table */
@@ -2970,13 +3021,16 @@ static void onButtonClickedLoadOptional(GtkWidget *button, gpointer data)
 {
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
+  /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
+  GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
   
   GError *error = NULL;
   gboolean success = bulkFetchSequences(
     0, bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
     bc->seqType, &bc->matchSeqs, bc->columnList, bc->optionalFetchDefault, bc->fetchMethods, &bc->mspList,
     &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
-    &bc->refSeqRange, bc->dataset, TRUE);
+    &bc->refSeqRange, bc->dataset, TRUE, lookupTable);
   
   finaliseFetch(bc->matchSeqs, bc->columnList);
 
@@ -3023,6 +3077,8 @@ static void onButtonClickedLoadOptional(GtkWidget *button, gpointer data)
       
       detailViewRedrawAll(detailView);
     }
+
+  g_hash_table_unref(lookupTable);
 }
 
 
@@ -4556,11 +4612,14 @@ static void onSettingsMenu(GtkAction *action, gpointer data)
 static void onLoadMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
+  GError *tmp_error = NULL;
 
   char *filename = getLoadFileName(blxWindow, NULL, "Load file");
-  dynamicLoadFeaturesFile(blxWindow, filename);
+  dynamicLoadFeaturesFile(blxWindow, filename, NULL, &tmp_error);
   
   g_free(filename);
+
+  reportAndClearIfError(&tmp_error, G_LOG_LEVEL_CRITICAL);
 }
 
 static void onCopySeqsMenu(GtkAction *action, gpointer data)
@@ -5434,7 +5493,8 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
                                               GSList *supportedTypes,
                                               GtkWidget *widget,
                                               GtkWidget *statusBar,
-                                              const gboolean External)
+                                              const gboolean External,
+                                              GSList *styles)
 {
   BlxViewContext *blxContext = (BlxViewContext*)g_malloc(sizeof *blxContext);
   
@@ -5451,6 +5511,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 
   blxContext->mspList = options->mspList;
   blxContext->columnList = options->columnList;
+  blxContext->styles = styles;
   
   int typeId = 0;
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
@@ -5620,7 +5681,7 @@ GList* blxWindowGetAllMatchSeqs(GtkWidget *blxWindow)
 BlxSeqType blxWindowGetSeqType(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->seqType : BLXSEQ_INVALID;
+  return blxContext ? blxContext->seqType : BLXSEQ_NONE;
 }
 
 IntRange* blxWindowGetFullRange(GtkWidget *blxWindow)
@@ -6058,9 +6119,64 @@ BlxSequence* blxWindowGetLastSelectedSeq(GtkWidget *blxWindow)
  *                      Initialisation                     *
  ***********************************************************/
 
+static void onDragDataReceived(GtkWidget *widget, 
+                               GdkDragContext *context, 
+                               int x, 
+                               int y,
+                               GtkSelectionData *selectionData, 
+                               guint info, 
+                               guint time,
+                               gpointer userdata)
+{
+  DEBUG_ENTER("onDragDataReceived()");
+
+  g_return_if_fail(selectionData);
+
+  if ((info == TARGET_STRING || info == TARGET_URL) && selectionData->data)
+    {
+      g_message("Received drag and drop text:\n%s\n", selectionData->data);
+      GError *tmp_error = NULL;
+      
+      /* For now just assume the text contains supported file contents. The file parsing
+       * will fail if it's not a supported format. */
+      char *text = (char*)(gtk_selection_data_get_text(selectionData));
+      dynamicLoadFeaturesFile(widget, NULL, text, &tmp_error);
+
+      if (tmp_error)
+        {
+          prefixError(tmp_error, "Error processing text from drag-and-drop: ");
+          reportAndClearIfError(&tmp_error, G_LOG_LEVEL_CRITICAL);
+        }
+    }
+
+  DEBUG_EXIT("onDragDataReceived returning ");
+}
+
+
+static void setDragDropProperties(GtkWidget *widget)
+{
+  DEBUG_ENTER("setDragDropProperties()");
+
+  static GtkTargetEntry targetentries[] =
+    {
+      { "STRING",        0, TARGET_STRING },
+      { "text/plain",    0, TARGET_STRING },
+      { "text/uri-list", 0, TARGET_URL },
+    };
+  
+  gtk_drag_dest_set(widget, GTK_DEST_DEFAULT_ALL, targetentries, 3,
+                    GDK_ACTION_COPY|GDK_ACTION_MOVE|GDK_ACTION_LINK);
+ 
+  g_signal_connect(widget, "drag-data-received", G_CALLBACK(onDragDataReceived), NULL);
+
+  DEBUG_EXIT("setDragDropProperties returning ")
+}
+
 /* Set various properties for the blixem window */
 static void setStyleProperties(GtkWidget *widget, char *windowColor)
 {
+  DEBUG_ENTER("setStyleProperties()");
+
   /* Set the initial window size based on some fraction of the screen size */
   GdkScreen *screen = gtk_widget_get_screen(widget);
   const int width = gdk_screen_get_width(screen) * DEFAULT_WINDOW_WIDTH_FRACTION;
@@ -6078,6 +6194,8 @@ static void setStyleProperties(GtkWidget *widget, char *windowColor)
   char parseString[500];
   sprintf(parseString, "gtk-font-name = \"%s %d\"", origFamily, origSize + DEFAULT_FONT_SIZE_ADJUSTMENT);
   gtk_rc_parse_string(parseString);
+
+  DEBUG_EXIT("setStyleProperties returning ");
 }
 
 
@@ -6251,7 +6369,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                     {
                       CoordRange *range = (CoordRange*)(rangeItem->data);
                       
-                      int qRangeMin, qRangeMax, sRangeMin, sRangeMax;
+                      int qRangeMin = 0, qRangeMax = 0, sRangeMin = 0, sRangeMax = 0;
                       getCoordRangeExtents(range, &qRangeMin, &qRangeMax, &sRangeMin, &sRangeMax);
                       
                       totalNumChars += sRangeMax - sRangeMin + 1;
@@ -6381,7 +6499,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                            GArray* featureLists[],
                            GList *seqList, 
                            GSList *supportedTypes,
-                           const gboolean External)
+                           const gboolean External,
+                           GSList *styles)
 {
   IntRange refSeqRange;
   IntRange fullDisplayRange;
@@ -6418,6 +6537,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Create the main blixem window */
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   setStyleProperties(window, options->windowColor);
+  setDragDropProperties(window);
 
   /* Create a status bar */
   GtkWidget *statusBar = gtk_statusbar_new();
@@ -6450,7 +6570,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                                       supportedTypes,
                                                       window, 
                                                       statusBar,
-                                                      External);
+                                                      External,
+                                                      styles);
 
   /* Create the main menu */
   GtkWidget *mainmenu = NULL;

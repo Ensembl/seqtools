@@ -888,28 +888,40 @@ static gboolean isMspVisible(const MSP* const msp,
 			     const int frame, 
 			     const IntRange* const displayRange,
 			     const int numUnalignedBases,
-                             const gboolean seqSelected)
+                             const gboolean seqSelected,
+                             const SequenceGroup *group)
 {
-  /* Check the MSP in the current display range. Get the full MSP display range including
-   * any portions outside the actual alignment. */
-  const IntRange *mspDisplayRange = mspGetFullDisplayRange(msp, seqSelected, bc);
-  gboolean result = rangesOverlap(mspDisplayRange, displayRange);
-    
+  g_return_val_if_fail(msp && msp->sSequence, FALSE) ;
+
+  gboolean result = TRUE ;
+
+  /* If hiding ungrouped sequences and this is a sequence (i.e. match) without a group, hide it */
+  if (!group && bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS] && msp->sSequence->type == BLXSEQUENCE_MATCH)
+    result = FALSE ;
+
+  /* If hiding ungrouped features and this is feature (i.e. anything except a sequence) without
+   * a group, hide it */
+  if (!group && bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] && msp->sSequence->type != BLXSEQUENCE_MATCH)
+    result = FALSE ;
+
+  if (result)
+    {
+      /* Check the MSP in the current display range. Get the full MSP display range including
+       * any portions outside the actual alignment. */
+      const IntRange *mspDisplayRange = mspGetFullDisplayRange(msp, seqSelected, bc);
+      result = rangesOverlap(mspDisplayRange, displayRange);
+    }
+
   return result;
 }
 
 
-/* Returns true if sequences in the given group should be shown. If sequences
- * are not in a group (i.e. the group is null) then by default the result is
- * true, unless the 'hide ungrouped sequences' option is on. */
-static gboolean isGroupVisible(const SequenceGroup* const group, const BlxViewContext* const bc)
+/* Returns true if sequences in the given group should be shown. */
+static gboolean isGroupVisible(const SequenceGroup* const group)
 {
   gboolean result = TRUE;
   
-  if (bc->flags[BLXFLAG_HIDE_UNGROUPED])
-    result = (group && !group->hidden);
-  else
-    result = (!group || !group->hidden);
+  result = (!group || !group->hidden);
   
   return result;
 }
@@ -936,7 +948,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
       const MSP *firstMsp = (const MSP*)(mspList->data);
       SequenceGroup *group = blxContextGetSequenceGroup(bc, firstMsp->sSequence);
       
-      if (isGroupVisible(group, bc))
+      if (isGroupVisible(group))
 	{
 	  BlxViewContext *bc = treeGetContext(tree);
           GtkWidget *detailView = treeGetDetailView(tree);
@@ -954,7 +966,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 	    {
 	      const MSP* msp = (const MSP*)(mspListItem->data);
 	      
-	      if (isMspVisible(msp, bc, frame, displayRange, dvProperties->numUnalignedBases, seqSelected))
+              if (isMspVisible(msp, bc, frame, displayRange, dvProperties->numUnalignedBases, seqSelected, group))
 		{
 		  bDisplay = TRUE;
 		  break;
@@ -1906,21 +1918,32 @@ static gboolean onMouseMoveTreeHeader(GtkWidget *header, GdkEventMotion *event, 
 }
 
 
-static void onDragBeginTree(GtkWidget *widget, GdkDragContext *event, gpointer data)
+//static void onDragBeginTree(GtkWidget *widget, GdkDragContext *event, gpointer data)
+//{
+//}
+//
+//static void onDragEndTree(GtkWidget *widget, GdkDragContext *event, gpointer data)
+//{
+//}
+//
+//static gboolean onDragMotionTree(GtkWidget *widget, GdkDragContext *event, gint x, gint y, guint time, gpointer data)
+//{
+//  return FALSE;
+//}
+
+/* Returns false => not in a drop zone */
+static gboolean onDragDropTree(GtkWidget *widget,
+                               GdkDragContext *drag_context,
+                               gint            x,
+                               gint            y,
+                               guint           time,
+                               gpointer        user_data)
 {
-}
-
-
-static void onDragEndTree(GtkWidget *widget, GdkDragContext *event, gpointer data)
-{
-}
-
-
-static gboolean onDragMotionTree(GtkWidget *widget, GdkDragContext *event, gint x, gint y, guint time, gpointer data)
-{
+  /* This call is required to stop a warning from gtk about drag-and-drop not
+   * being supported for tree views */
+  g_signal_stop_emission_by_name(widget, "drag-drop");
   return FALSE;
 }
-
 
 static gboolean onEnterTree(GtkWidget *tree, GdkEventCrossing *event, gpointer data)
 {
@@ -3092,9 +3115,10 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   g_signal_connect(G_OBJECT(tree), "scroll-event",	    G_CALLBACK(onScrollTree),		detailView);
   g_signal_connect(G_OBJECT(tree), "enter-notify-event",    G_CALLBACK(onEnterTree),		NULL);
   g_signal_connect(G_OBJECT(tree), "leave-notify-event",    G_CALLBACK(onLeaveTree),		NULL);
-  g_signal_connect(G_OBJECT(tree), "drag-begin",	    G_CALLBACK(onDragBeginTree),	NULL);
-  g_signal_connect(G_OBJECT(tree), "drag-end",		    G_CALLBACK(onDragEndTree),		NULL);
-  g_signal_connect(G_OBJECT(tree), "drag-motion",	    G_CALLBACK(onDragMotionTree),	NULL);
+  //g_signal_connect(G_OBJECT(tree), "drag-begin",	    G_CALLBACK(onDragBeginTree),	NULL);
+  //g_signal_connect(G_OBJECT(tree), "drag-end",		    G_CALLBACK(onDragEndTree),		NULL);
+  //g_signal_connect(G_OBJECT(tree), "drag-motion",	    G_CALLBACK(onDragMotionTree),	NULL);
+  g_signal_connect(G_OBJECT(tree), "drag-drop",		    G_CALLBACK(onDragDropTree),		NULL);
   g_signal_connect(G_OBJECT(tree), "expose-event",	    G_CALLBACK(onExposeDetailViewTree), NULL);
 
   GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));

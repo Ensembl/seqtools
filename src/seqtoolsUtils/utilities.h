@@ -246,7 +246,7 @@ typedef enum
 /* Fundamental type of sequence (DNA really means nucleotide, because it could be RNA as well). */
 typedef enum
   {
-    BLXSEQ_INVALID, 
+    BLXSEQ_NONE, 
     BLXSEQ_DNA, 
     BLXSEQ_PEPTIDE
   } BlxSeqType ;
@@ -304,6 +304,10 @@ typedef enum
     COLINEAR_PERFECT,                                      /* blocks colinear and contiguous. */
     COLINEARITY_N_TYPE
   } ColinearityType ;
+
+
+/* Supported drag-and-drop target types */
+typedef enum {TARGET_STRING, TARGET_URL} DragDropTargetType;
 
 
 GdkDrawable*          widgetGetDrawable(GtkWidget *widget);

@@ -36,6 +36,7 @@
  */
 
 #include <seqtoolsUtils/blxGff3Parser.h>
+#include <seqtoolsUtils/blxparser.h>
 #include <seqtoolsUtils/utilities.h>
 #include <seqtoolsUtils/blxmsp.h>
 #include <string.h>
@@ -67,7 +68,8 @@ typedef enum {
 typedef enum {
   BLX_GAP_STRING_INVALID,
   BLX_GAP_STRING_GFF3,                        /* The Gap string used in GFF3 e.g. M23 D3 M10 I1 M20 */
-  BLX_GAP_STRING_BAM_CIGAR                    /* The cigar format used by SAM/BAM, e.g. 23M3D10M1I20M */
+  BLX_GAP_STRING_BAM_CIGAR,                   /* The cigar format used by SAM/BAM, e.g. 23M3D10M1I20M */
+  BLX_GAP_STRING_ACEDB,                       /* Legacy acedb-style gaps string */
 } BlxGapFormat;
 
 
@@ -170,16 +172,33 @@ void blxDestroyGffTypeList(GSList **supportedTypes)
 }
 
 
-/* Create the list of supported types */
-GSList* blxCreateSupportedGffTypeList()
+/* Create the list of supported types. Filter match types by the given seqType
+ * (or pass BLXSEQ_NONE to include all supported types) */
+GSList* blxCreateSupportedGffTypeList(const BlxSeqType seqType)
 {
   GSList *supportedTypes = NULL;
   
-  addGffType(&supportedTypes, "match", "SO:0000343", BLXMSP_MATCH);
-  addGffType(&supportedTypes, "nucleotide_match", "SO:0000347", BLXMSP_MATCH);
-  addGffType(&supportedTypes, "protein_match", "SO:0000349", BLXMSP_MATCH);
-  addGffType(&supportedTypes, "match_part", "SO:0000039", BLXMSP_MATCH);
+  if (seqType == BLXSEQ_DNA || seqType == BLXSEQ_NONE)
+    {
+      addGffType(&supportedTypes, "nucleotide_match", "SO:0000347", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "primer_match", "SO:0001472", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "cross_genome_match", "SO:0000177", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "translated_nucleotide_match", "SO:0000181", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "expressed_sequence_match", "SO:0000102", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "cDNA_match", "SO:0000689", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "EST_match", "SO:0000668", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "UST_match", "SO:0001470", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "RST_match", "SO:0001471", BLXMSP_MATCH);
+    }
+
+  if (seqType == BLXSEQ_PEPTIDE || seqType == BLXSEQ_NONE)
+    {
+      addGffType(&supportedTypes, "protein_match", "SO:0000349", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "protein_hmm_match", "SO:0001831", BLXMSP_MATCH);
+    }
   
+  addGffType(&supportedTypes, "match", "SO:0000343", BLXMSP_MATCH);
+  addGffType(&supportedTypes, "match_part", "SO:0000039", BLXMSP_MATCH);
   addGffType(&supportedTypes, "match_set", "SO:0000038", BLXMSP_MATCH_SET);
   
   addGffType(&supportedTypes, "transcript", "SO:0000673", BLXMSP_TRANSCRIPT);
@@ -193,6 +212,7 @@ GSList* blxCreateSupportedGffTypeList()
   addGffType(&supportedTypes, "intron", "SO:0000188", BLXMSP_INTRON);
   
   addGffType(&supportedTypes, "SNP", "SO:0000694", BLXMSP_VARIATION);
+  addGffType(&supportedTypes, "SNV", "SO:0001483", BLXMSP_VARIATION);
   addGffType(&supportedTypes, "copy_number_variation", "SO:0001019", BLXMSP_VARIATION);
   addGffType(&supportedTypes, "substitution", "SO:1000002", BLXMSP_VARIATION);
   addGffType(&supportedTypes, "insertion", "SO:0000694", BLXMSP_VARIATION);
@@ -237,7 +257,7 @@ static BlxMspType getBlxType(GSList *supportedTypes, const char *typeStr, GError
   /* Check if it was found... */
   if (result == BLXMSP_INVALID)
   {
-    g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_TYPE, "Unsupported type '%s' in input file.\n", typeStr);
+    g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_TYPE, "Unsupported type '%s' will be ignored.\n", typeStr);
   }
   
   return result;
@@ -254,7 +274,7 @@ void parseGff3Header(const int lineNum,
                      char *refSeqName,
                      IntRange *refSeqRange)
 {
-  DEBUG_ENTER("parseGff3Header [line=%d]", lineNum);
+  //DEBUG_ENTER("parseGff3Header [line=%d]", lineNum);
   
   /* Look for the "sequence-region" comment line, which tells us info about the reference
    * sequence. The format is as follows: ##sequence-region    qname qstart qend */
@@ -269,7 +289,7 @@ void parseGff3Header(const int lineNum,
           g_error("Error parsing data file, type GFF_3_HEADER: \"%s\"\n", line_string->str);
         }
       
-      DEBUG_OUT("Found reference sequence name=%s [start=%d, end=%d]\n", qName, qStart, qEnd);
+      //DEBUG_OUT("Found reference sequence name=%s [start=%d, end=%d]\n", qName, qStart, qEnd);
 
       /* If the ref seq name is already populated, check it's the same as the one we've just read */
       if (*refSeqName != '\0')
@@ -288,7 +308,7 @@ void parseGff3Header(const int lineNum,
 	intrangeSetValues(refSeqRange, qStart, qEnd);
     }
   
-  DEBUG_EXIT("parseGff3Header");
+  //DEBUG_EXIT("parseGff3Header");
 }
 
 
@@ -319,7 +339,7 @@ static GQuark getBlxDataTypeFromSource(const char *source, GKeyFile *keyFile)
 {
   GQuark dataType = 0;
 
-  if (keyFile && g_key_file_has_group(keyFile, source))
+  if (keyFile && source && g_key_file_has_group(keyFile, source))
     {
       char *dataTypeName = g_key_file_get_string(keyFile, source, DATA_TYPE_TAG, NULL);
       
@@ -470,6 +490,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			       GSList *styles,
                                const int resFactor,
                                GKeyFile *keyFile,
+                               GHashTable *lookupTable, 
 			       GError **error)
 {
   if (!gffData)
@@ -494,7 +515,7 @@ static void createBlixemObject(BlxGffData *gffData,
           /* For transcripts, although we don't create an MSP we do create a sequence */
           addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand,
                          dataType, gffData->source, seqList, columnList, gffData->sequence, NULL, 
-                         &tmpError);
+                         lookupTable, &tmpError);
         }
     }
   else
@@ -549,6 +570,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->sStrand, 
 			      gffData->sequence, 
                               filename,
+                              lookupTable,
 			      &tmpError);
 
     if (!tmpError)
@@ -591,9 +613,14 @@ void parseGff3Body(const int lineNum,
                    GSList *styles,
                    const int resFactor, 
                    GKeyFile *keyFile,
-                   const IntRange* const refSeqRange)
+                   const IntRange* const refSeqRange,
+                   GHashTable *lookupTable)
 {
-  DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
+  //DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
+
+  static int num_errors = 0 ;
+  const int max_errors = 20 ; /* Limit the number of errors we report in case there are, say, thousands
+                               * of lines we can't read */
   
   /* Parse the data into a temporary struct */
   BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
@@ -605,16 +632,29 @@ void parseGff3Body(const int lineNum,
   /* Create a blixem object based on the parsed data */
   if (!error)
     {
-      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, columnList, styles, resFactor, keyFile, &error);
+      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, columnList, styles, resFactor, keyFile, lookupTable, &error);
     }
   
   if (error)
     {
-      prefixError(error, "[line %d] Error parsing GFF data. ", lineNum);
-      reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+      ++num_errors ;
+
+      if (num_errors <= max_errors)
+        {
+          prefixError(error, "[line %d] Error parsing GFF data. ", lineNum);
+          reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+        }
+      else if (num_errors == max_errors + 1)
+        {
+          g_warning("Truncating error report (more than %d errors in reading GFF file)\n", max_errors);
+        }
+      else
+        {
+          g_error_free(error);
+        }
     }
   
-  DEBUG_EXIT("parseGff3Body");
+  //DEBUG_EXIT("parseGff3Body");
 }
 
 
@@ -875,7 +915,7 @@ static void parseTagDataPair(char *text,
 			     BlxGffData *gffData, 
                              GError **error)
 {
-  DEBUG_ENTER("parseTagDataPair(text='%s')", text);
+  //DEBUG_ENTER("parseTagDataPair(text='%s')", text);
               
   /* Split on the "=" and check that we get 3 tokens */
   char **tokens = g_strsplit_set(text, "=", -1);
@@ -897,7 +937,7 @@ static void parseTagDataPair(char *text,
       else if (!strcmp(tokens[0], "Gap"))
         {
           /* This might have already been set if we have more than one type of gap string */
-          if (!gffData->gapString)
+          if (gffData->gapString)
             {
               /*! \todo For now, override the cigar_bam string because we are experiencing
                * bugs with it. Longer term it shouldn't really matter which we use, although 
@@ -917,6 +957,15 @@ static void parseTagDataPair(char *text,
             {
               gffData->gapString = g_strdup(tokens[1]);
               gffData->gapFormat = BLX_GAP_STRING_BAM_CIGAR; 
+            }
+        }
+      else if (!strcmp(tokens[0], "gaps"))
+        {
+          /* This might have already been set if we have more than one type of gap string */
+          if (!gffData->gapString)
+            {
+              gffData->gapString = g_strdup(tokens[1]);
+              gffData->gapFormat = BLX_GAP_STRING_ACEDB; 
             }
         }
       else if (!strcmp(tokens[0], "ID"))
@@ -961,7 +1010,7 @@ static void parseTagDataPair(char *text,
   
   g_strfreev(tokens);
   
-  DEBUG_EXIT("parseTagDataPair");
+  //DEBUG_EXIT("parseTagDataPair");
 }
 
 
@@ -1033,7 +1082,29 @@ static void parseSequenceTag(const char *text, const int lineNum, BlxGffData *gf
 }
 
 
-/* Parse the data from the "gaps" string, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
+/* Required after reading in legacy acedb-style gaps array; new code assumes
+ * the gaps are in the forward-strand order */
+static void sortGapsArray(MSP *msp)
+{
+  if (msp && msp->gaps)
+    {
+      /* They should be ordered but may be in reverse order, so if the last one is before the
+       * first one then just swap the order */
+      CoordRange *first_range = (CoordRange*)(msp->gaps->data);
+      CoordRange *last_range = (CoordRange*)g_slist_nth_data(msp->gaps, g_slist_length(msp->gaps) - 1);
+
+      const gboolean qRev = last_range->qStart < first_range->qStart;
+      const gboolean sRev = last_range->sStart < first_range->sStart;
+
+      if (qRev != sRev)
+        {
+          msp->gaps = g_slist_reverse(msp->gaps);
+        }
+    }
+}
+
+
+/* Parse the data from the "Gap" string, which uses the CIGAR format, e.g. "M8 D3 M6 I1 M6".
  * Populates the Gaps array in the given MSP.*/
 static void parseGapString(char *text,
                            BlxGapFormat gapFormat,
@@ -1049,7 +1120,13 @@ static void parseGapString(char *text,
     {
       return;
     }
-  
+  else if (gapFormat == BLX_GAP_STRING_ACEDB)
+    {
+      blxParseGaps(&text, msp, FALSE); /* legacy code for lecacy acedb-style gap string */
+      sortGapsArray(msp);
+      return;
+    }
+
   /* If we have the forward strand of either sequence, start at the min coord
    * and increase values as we progress through the cigar string; if we have the
    * reverse strand, start at the max coord and decrease. */
@@ -1184,7 +1261,7 @@ static void parseCigarStringIntron(GapStringData *data, const int numNucleotides
 {
   /* Intron. Create a separate msp under the same sequence. */
   MSP *msp = *data->msp;
-  MSP *newMsp = copyMsp(msp, data->featureLists, data->lastMsp, data->mspList, data->seqList, &data->error);
+  MSP *newMsp = copyMsp(msp, data->featureLists, data->lastMsp, data->mspList, TRUE);
   
   /* end current msp at the current coords */
   if (data->qDirection > 0)

@@ -3058,6 +3058,7 @@ void sendFetchOutputToFile(GString *command,
                            MSP **newMsps,
                            GList **newSeqs,
                            GList *columnList,
+                           GHashTable *lookupTable,
                            GError **error)
 {
   /* Create a temp file for the results */
@@ -3100,9 +3101,11 @@ void sendFetchOutputToFile(GString *command,
           /* Parse the results */
           g_message_info("... ok.\n");
           g_message_info("Parsing fetch results...");
-          
-          loadNativeFile(fileName, keyFile, blastMode, featureLists, supportedTypes, styles, newMsps, newSeqs, columnList, &tmpError);
-          
+
+          loadNativeFile(fileName, NULL, keyFile, blastMode, featureLists, 
+                         supportedTypes, styles, newMsps, newSeqs, columnList, 
+                         lookupTable, &tmpError);
+
           if (!tmpError)
             {
               g_message_info("... ok.\n");
@@ -3153,6 +3156,7 @@ static void regionFetchFeature(const MSP* const msp,
                                GSList *styles,
                                const gboolean saveTempFiles,
                                const IntRange* const refSeqRange,
+                               GHashTable *lookupTable,
                                GError **error)
 {
   GKeyFile *keyFile = blxGetConfig();
@@ -3176,7 +3180,7 @@ static void regionFetchFeature(const MSP* const msp,
       sendFetchOutputToFile(command, keyFile, blastMode, 
                             featureLists, supportedTypes, styles, 
                             seqList, mspListIn, fetchName, saveTempFiles, 
-                            &newMsps, &newSeqs, columnList, &tmpError);
+                            &newMsps, &newSeqs, columnList, lookupTable, &tmpError);
 
       appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
     }
@@ -3211,6 +3215,7 @@ static void regionFetchList(GList *regionsToFetch,
                             const int refSeqOffset,
                             const char *dataset,
                             const IntRange* const refSeqRange,
+                            GHashTable *lookupTable,
                             GError **error)
 {
   /* Get the command to run */
@@ -3243,7 +3248,7 @@ static void regionFetchList(GList *regionsToFetch,
           
           regionFetchFeature(msp, blxSeq, fetchMethod, script, dataset, tmpDir, refSeqOffset,
                              blastMode, seqList, columnList, mspListIn, featureLists, supportedTypes,
-                             styles, saveTempFiles, refSeqRange, &tmpError);
+                             styles, saveTempFiles, refSeqRange, lookupTable, &tmpError);
         }
     }
 
@@ -3268,6 +3273,7 @@ static void commandFetchList(GList *regionsToFetch,
                              const int refSeqOffset,
                              const char *dataset,
                              const IntRange* const refSeqRange,
+                             GHashTable *lookupTable,
                              GError **error)
 {
   /* Currently we only support an output type of gff */
@@ -3276,7 +3282,7 @@ static void commandFetchList(GList *regionsToFetch,
       regionFetchList(regionsToFetch, seqList, columnList, fetchMethod, mspListIn,
                       blastMode, featureLists, supportedTypes, styles, 
                       External, saveTempFiles, seqType, refSeqOffset,
-                      dataset, refSeqRange, error);
+                      dataset, refSeqRange, lookupTable, error);
     }
   else
     {
@@ -3304,6 +3310,7 @@ static gboolean fetchList(GList *seqsToFetch,
                           const int refSeqOffset,
                           const IntRange* const refSeqRange,
                           const char *dataset,
+                          GHashTable *lookupTable,
                           GError **error)
 {
   gboolean success = TRUE;
@@ -3354,6 +3361,7 @@ static gboolean fetchList(GList *seqsToFetch,
                                refSeqOffset,
                                dataset,
                                refSeqRange,
+                               lookupTable,
                                error);
             }
           else if (fetchMethod->mode == BLXFETCH_MODE_NONE)
@@ -3398,7 +3406,8 @@ gboolean bulkFetchSequences(const int attempt,
                             const int refSeqOffset,
                             const IntRange* const refSeqRange,
                             const char *dataset,
-                            const gboolean optionalColumns)
+                            const gboolean optionalColumns,
+                            GHashTable *lookupTable)
 {
   gboolean success = FALSE; /* will get set to true if any of the fetch methods succeed */
   
@@ -3442,7 +3451,7 @@ gboolean bulkFetchSequences(const int attempt,
           
           GError *tmpError = NULL;
           
-          if (fetchList(seqsToFetch, seqList, columnList, fetchMethod, seqType, saveTempFiles, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, refSeqRange, dataset, &tmpError))
+          if (fetchList(seqsToFetch, seqList, columnList, fetchMethod, seqType, saveTempFiles, External, mspList, blastMode, featureLists, supportedTypes, styles, refSeqOffset, refSeqRange, dataset, lookupTable, &tmpError))
             {
               success = TRUE;
               
@@ -3483,7 +3492,7 @@ gboolean bulkFetchSequences(const int attempt,
       success = bulkFetchSequences(attempt + 1, External, saveTempFiles, seqType, seqList, columnList,
                                    defaultFetchMethods, fetchMethods, mspList,
                                    blastMode, featureLists, supportedTypes, 
-                                   styles, refSeqOffset, refSeqRange, dataset, optionalColumns);
+                                   styles, refSeqOffset, refSeqRange, dataset, optionalColumns, lookupTable);
     }
 
   /* Clean up */

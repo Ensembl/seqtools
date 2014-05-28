@@ -158,8 +158,19 @@ static gboolean calculateExonIntronDimensions(const MSP* const msp,
 }
 
 
+/* Returns true if sequences in the given group should be shown. */
+static gboolean isGroupVisible(const SequenceGroup* const group)
+{
+  gboolean result = TRUE;
+  
+  result = (!group || !group->hidden);
+  
+  return result;
+}
+
+
 /* Returns true if the given MSP should be shown in this exon view */
-static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand)
+static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand, BlxViewContext *bc)
 {
   /* Check it's an exon or intron */
   gboolean showMsp = mspIsExon(msp) || mspIsIntron(msp);
@@ -169,7 +180,18 @@ static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand)
   
   /* Check it's the correct strand */
   showMsp &= (mspGetRefStrand(msp) == strand);
-  
+
+  /* Check if its in a group that's hidden */
+  if (showMsp)
+    {
+      SequenceGroup *group = blxContextGetSequenceGroup(bc, msp->sSequence) ;
+      showMsp &= isGroupVisible(group) ;
+
+      /* If hiding ungrouped features and this is a feature (i.e. not a match) without a group, hide it */
+      if (!group && bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] && msp->sSequence->type != BLXSEQUENCE_MATCH)
+        showMsp = FALSE ;
+    }
+
   return showMsp;
 }
 
@@ -189,7 +211,7 @@ static gboolean selectExonIfContainsCoords(GtkWidget *exonView,
 {
   gboolean wasSelected = FALSE;
   
-  if (showMspInExonView(msp, properties->currentStrand) && 
+  if (showMspInExonView(msp, properties->currentStrand, bc) && 
       rangesOverlap(displayRange, mspGetDisplayRange(msp)))
     {
       *drawn = TRUE;
@@ -292,8 +314,8 @@ void calculateExonViewHeight(GtkWidget *exonView)
       for ( ; mspItem; mspItem = mspItem->next)
 	{
 	  const MSP *msp = (const MSP*)(mspItem->data);
-	  
-	  if ((mspIsExon(msp) || mspIsIntron(msp)) && mspGetRefStrand(msp) == properties->currentStrand)
+          
+          if (showMspInExonView(msp, properties->currentStrand, bc))
 	    {
 	      const IntRange* const mspDisplayRange = mspGetDisplayRange(msp);
               
@@ -530,7 +552,7 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
   DrawData *drawData = (DrawData*)data;
 
   const gboolean isSelected = blxWindowIsSeqSelected(drawData->blxWindow, seq);
-  SequenceGroup *group = blxWindowGetSequenceGroup(drawData->blxWindow, seq);
+  SequenceGroup *group = blxContextGetSequenceGroup(drawData->bc, seq);
   gboolean seqDrawn = FALSE;
   
   if (!drawData->normalOnly || (!isSelected && !group))
@@ -542,7 +564,7 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
 	{
 	  MSP *msp = (MSP*)(mspListItem->data);
       
-	  if (showMspInExonView(msp, drawData->strand))
+          if (showMspInExonView(msp, drawData->strand, drawData->bc))
 	    {
 	      seqDrawn |= drawExonIntron(msp, drawData, isSelected, seq);
 	    }
