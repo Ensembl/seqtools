@@ -779,6 +779,10 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
 
   if (!tmp_error)
     {
+      /* Count how many features were added. (Need to do this before appendNewSequences because
+       * once this list gets merged the count will no longer be correct.) */
+      const int numAdded = g_list_length(newSeqs);
+
       /* Fetch any missing sequence data and finalise the new sequences */
       bulkFetchSequences(0, FALSE, bc->saveTempFiles, bc->seqType, &newSeqs, bc->columnList,
                          bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
@@ -797,7 +801,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
        * finalise populates the child msp lists for parent features) */
       detailViewAddMspData(blxWindowGetDetailView(blxWindow), newMsps, newSeqs);
 
-      /* Merge the temporary lists into the main lists */
+      /* Merge the temporary lists into the main lists (takes ownership of the temp lists) */
       appendNewSequences(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
 
       /* Cache the new msp display ranges and sort and filter the trees. */
@@ -817,6 +821,13 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
       forceResize(bigPicture);
   
       blxWindowRedrawAll(blxWindow);
+      
+      if (numAdded == 0)
+        g_critical("Failed to load new features: check program output for errors\n");
+      else if (numAdded == 1)
+        g_message("Loaded %d new feature\n", numAdded);
+      else
+        g_message("Loaded %d new features\n", numAdded);
     }
 
   if (tmp_error)

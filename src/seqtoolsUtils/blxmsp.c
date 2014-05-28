@@ -3067,7 +3067,7 @@ BlxSequence* addBlxSequence(const char *name,
 			    GError **error)
 {
   BlxSequence *blxSeq = NULL;
-  
+
   /* Put all blxseqs in a hash table indexed on a quark of the name
    * so that we can quickly check if the same one already exists */
   static GHashTable *lookupTable =  NULL;

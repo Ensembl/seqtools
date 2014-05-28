@@ -305,6 +305,8 @@ static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList, G
 }
 
 
+/* Append the newMsps list to the mspList and the newSeqs list to the seqList. Takes ownership of
+ * the contents of newMsps and newSeqs. */
 void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList)
 {
   /* Append new MSPs to MSP list */
@@ -316,12 +318,7 @@ void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seq
   lastMsp->next = newMsps;
   
   /* Append new sequences to sequence list */
-  GList *seqItem = newSeqs;
-  
-  for ( ; seqItem; seqItem = seqItem->next)
-    {
-      *seqList = g_list_prepend(*seqList, seqItem->data);
-    }
+  *seqList = g_list_concat(*seqList, newSeqs);
 }
 
 
