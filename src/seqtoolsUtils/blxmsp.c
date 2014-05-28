@@ -70,7 +70,7 @@ static void addBlxSequences(const char *name, const char *idTag,
                             GArray *featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
                             GList *columnList, char *sequence, 
                             MSP *msp, GError **error);
-
+static void findSequenceExtents(BlxSequence *blxSeq);
 
 /* Get/set the max MSP length */
 int getMaxMspLen()
@@ -1345,6 +1345,60 @@ void destroyBlxSequence(BlxSequence *seq)
 }
 
 
+/* destroy a blxsequence and it's msps, and remove them from the feature lists */
+static void destroyBlxSequenceFull(BlxSequence *seq, GArray *featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
+{
+  /* destroy each msp */
+  GList *mspItem = seq->mspList;
+  
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      MSP *msp = (MSP*)(mspItem->data);
+
+      /* Remove from the feature list */
+      GArray *array = featureLists[msp->type];
+      int i = 0;
+      for ( ; i < array->len; ++i)
+        {
+          MSP *curMsp = g_array_index(array, MSP*, i);
+          
+          if (curMsp == msp)
+            {
+              array = g_array_remove_index(array, i);
+              break;
+            }
+        }
+      featureLists[msp->type] = array;
+
+      /* Remove from mspList */
+      MSP *curMsp = *mspList;
+      MSP *prevMsp = NULL;
+      for ( ; curMsp; curMsp = curMsp->next)
+        {
+          if (msp == curMsp)
+            {
+              if (!prevMsp)
+                *mspList = curMsp->next; /* Remove msp from start of list */
+              else 
+                prevMsp->next = curMsp->next; /* Remove link to msp */
+              
+              if (*lastMsp == msp)
+                *lastMsp = prevMsp;  /* Update pointer to last msp */
+            }
+        }
+      
+      destroyMspData(msp);
+    }
+
+  g_list_free(seq->mspList);
+
+  /* Remove BlxSequence from seqList */
+  *seqList = g_list_remove(*seqList, seq);
+
+  destroyBlxSequence(seq);
+}
+
+
 /* Set the value for a particular column (by column name) */
 void blxSequenceSetColumn(BlxSequence *seq, const char *colName, const char *value, GList *columnList)
 {
@@ -1385,6 +1439,51 @@ BlxSequence* createEmptyBlxSequence()
   seq->organismAbbrev = NULL;
 
   return seq;
+}
+
+
+/* Copies all fields in a sequence. Copies all MSPs apart from CDSs whose name does not match the
+ * given quark */
+static void copyBlxSequenceNamedCds(const BlxSequence *src, 
+                                    const GQuark cdsQuark,
+                                    GArray *featureLists[], 
+                                    MSP **lastMsp, 
+                                    MSP **mspList,
+                                    GList **seqList,
+                                    GList *columnList,
+                                    GError **error)
+{
+  GError *tmpError = NULL;
+  
+  /* We must give the new BlxSequence a unique id - use the cds name */
+  const char *idTag = g_quark_to_string(cdsQuark);
+
+  /* We'll copy these values directly from the source */
+  const char *source = blxSequenceGetSource(src);
+  const BlxStrand sStrand = src->strand;
+  BlxDataType *dataType = src->dataType;
+  
+  /* Copy all MSPs except CDSs whose name does not match cdsQuark */
+  GList *mspItem = src->mspList;
+  
+  for ( ; mspItem && !tmpError; mspItem = mspItem->next)
+    {
+      const MSP* msp = (const MSP*)(mspItem->data);
+      
+      if (msp->type != BLXMSP_CDS || g_quark_from_string(msp->sname) == cdsQuark)
+        {
+          MSP *newMsp = copyMsp(msp, featureLists, lastMsp, mspList, FALSE);
+
+          /* Add the new msp to the new blx sequence (this creates it if it does not exist
+           * i.e. the first time we get here for this idTag) */
+          addBlxSequence(newMsp->sname, idTag, sStrand, dataType, 
+                         source, seqList, columnList, 
+                         NULL, newMsp, &tmpError);
+        }
+    }
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
 }
 
 
@@ -1889,13 +1988,13 @@ MSP* createNewMsp(GArray* featureLists[],
 }
 
 
-/* Make a copy of an MSP */
+/* Make a copy of an MSP. If addToParent is true it also copies the pointer to the parent
+ * BlxSequence and adds the new msp to that BlxSequence's mspList. Otherwise it's parent is null. */
 MSP* copyMsp(const MSP* const src,
              GArray* featureLists[],             
              MSP **lastMsp, 
              MSP **mspList,
-             GList **seqList,
-             GError **error)
+             const gboolean addToParent)
 {
   MSP *msp = createEmptyMsp(lastMsp, mspList);
   
@@ -1915,7 +2014,7 @@ MSP* copyMsp(const MSP* const src,
   intrangeSetValues(&msp->sRange, src->sRange.min, src->sRange.max);
   
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
-  if (src->sSequence)
+  if (addToParent && src->sSequence)
     {
       src->sSequence->mspList = g_list_insert_sorted(src->sSequence->mspList, msp, compareFuncMspPos);
       msp->sSequence = src->sSequence;
@@ -1923,12 +2022,6 @@ MSP* copyMsp(const MSP* const src,
 
   /* Add it to the relevant feature list. */
   featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
-
-  if (error && *error)
-    {
-      prefixError(*error, "Error creating MSP (ref seq='%s' [%d - %d], match seq = '%s' [%d - %d]). ",
-                  src->qname, src->qRange.min, src->qRange.max, src->sname, src->sRange.min, src->sRange.max);
-    }
   
   return msp;
 }
@@ -2100,7 +2193,7 @@ static MSP* createMissingExon(GList *childList,
 }
 
 
-/* Utility used by constructTranscriptData to create a missing exon/cds/utr given 
+/* Utility used by constructExonData to create a missing exon/cds/utr given 
  * two others out of the three - i.e. if we have an overlapping exon and cds we can
  * construct the corresponding utr. If created, the new msp is added to the given 
  * BlxSequence and the  MSP list. If a CDS is given and no UTR exists, assume the exon
@@ -2134,15 +2227,15 @@ static void createMissingExonCdsUtr(MSP **exon,
 }
 
 
-/* Construct any missing transcript data, i.e.
+/* Construct any missing exon data, i.e.
  *   - if we have a transcript and exons we can construct the introns;
  *   - if we have exons and CDSs we can construct the UTRs */
-static void constructTranscriptData(BlxSequence *blxSeq, 
-                                    GArray* featureLists[], 
-                                    MSP **lastMsp,
-                                    MSP **mspList,
-                                    GList **seqList,
-                                    GList *columnList)
+static void constructExonData(BlxSequence *blxSeq, 
+                              GArray* featureLists[], 
+                              MSP **lastMsp,
+                              MSP **mspList,
+                              GList **seqList,
+                              GList *columnList)
 {
   GError *tmpError = NULL;
   
@@ -2258,6 +2351,74 @@ static void constructTranscriptData(BlxSequence *blxSeq,
           finished = TRUE;
         }
     }
+}
+
+
+/* Construct any missing transcript data, i.e.
+ *   - if we have multiple CDSs, copy the transcript so we can show each variant;
+ *   - if we have a transcript and exons we can construct the introns;
+ *   - if we have exons and CDSs we can construct the UTRs */
+static void constructTranscriptData(GArray* featureLists[], 
+                                    MSP **lastMsp,
+                                    MSP **mspList,
+                                    GList **seqList,
+                                    GList *columnList,
+                                    GError **error)
+{
+  GError *tmpError = NULL;
+
+  /* Loop through all transcripts  */
+  GList *seqItem = *seqList;
+
+  while (seqItem)
+    {
+      BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+
+      if (blxSeq->type != BLXSEQUENCE_TRANSCRIPT)
+        {
+          seqItem = seqItem->next;
+          continue;
+        }
+
+      /* Get a list of all CDS names in the transcript */
+      GList *cdsList = blxSequenceConstructCdsList(blxSeq);
+
+      const int numVariants = g_list_length(cdsList);
+
+      if (numVariants <= 1)
+        {
+          /* Only one variant so process it as it is */
+          findSequenceExtents(blxSeq);
+          constructExonData(blxSeq, featureLists, lastMsp, mspList, seqList, columnList);
+
+          seqItem = seqItem->next;
+        }
+      else
+        {
+          /* More than one variant: create copies of the transcript for each variant */
+          GList *cdsItem = cdsList;
+  
+          for ( ; cdsItem && !tmpError; cdsItem = cdsItem->next)
+            {
+              GQuark cdsQuark = GPOINTER_TO_INT(cdsItem->data);
+
+              /* The copy is added to the end of seqList so it will be processed later as we continue
+               * to loop through the list */
+              copyBlxSequenceNamedCds(blxSeq, cdsQuark, featureLists, lastMsp, mspList, seqList, columnList, &tmpError);
+            }
+
+          /* We have made copies for each CDS but we don't need the original transcript so delete
+           * it. This removes the current seqItem from seqList so we have to increment the pointer
+           * before we delete it. */
+          seqItem = seqItem->next;
+          destroyBlxSequenceFull(blxSeq, featureLists, lastMsp, mspList, seqList);
+        }
+
+      g_list_free(cdsList);
+    }
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
 }
 
 
@@ -2421,6 +2582,8 @@ void finaliseBlxSequences(GArray* featureLists[],
 			  const IntRange* const refSeqRange,
 			  const gboolean calcFrame)
 {
+  GError *tmpError = NULL;
+
   /* Loop through all MSPs and adjust their coords by the offest, then calculate their reading
    * frame. Also find the last MSP in the list. */
   MSP *msp = *mspList;
@@ -2457,10 +2620,12 @@ void finaliseBlxSequences(GArray* featureLists[],
           blxComplement(sequence);
           blxSequenceSetValueFromString(blxSeq, BLXCOL_SEQUENCE, sequence);
         }
-      
-      findSequenceExtents(blxSeq);
-      constructTranscriptData(blxSeq, featureLists, &lastMsp, mspList, seqList, columnList);
     }
+
+  /* We need to construct any missing transcript data */
+  constructTranscriptData(featureLists, &lastMsp, mspList, seqList, columnList, &tmpError);
+  prefixError(tmpError, "Error constructing transcript data: ");
+  reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
 
   /* Sort msp arrays by start coord (only applicable to msp types that
    * appear in the detail-view because the order is only applicable when
@@ -2864,7 +3029,7 @@ static void addBlxSequences(const char *name,
            * add to the next BlxSequence (because the msp points to its BlxSequence so can't
            * be added to multiple BlxSequences, at least at the moment) */
           if (usedMsp)
-            msp = copyMsp(msp, featureLists, lastMsp, mspList, seqList, &tmpError);
+            msp = copyMsp(msp, featureLists, lastMsp, mspList, FALSE);
 
           if (!tmpError)
             addBlxSequence(msp->sname, *token, strand, dataType, source, seqList, columnList, sequence, msp, &tmpError);
@@ -2883,6 +3048,7 @@ static void addBlxSequences(const char *name,
   if (tmpError)
     g_propagate_error(error, tmpError);
 }
+
 
 /* Add or create a BlxSequence struct, creating the BlxSequence if one does not
  * already exist for the MSP's sequence name. Seperate BlxSequence structs are created
@@ -2928,8 +3094,9 @@ BlxSequence* addBlxSequence(const char *name,
           /* Create a new BlxSequence, and take ownership of the passed in sequence (if any) */
           blxSeq = createBlxSequence(name, idTag, strand, dataType, source, columnList);
           
-          /* Add it to the return sequence list */
-          *seqList = g_list_prepend(*seqList, blxSeq);
+          /* Add it to the return sequence list (must append it because this function can be
+           * called from within a loop which relies on new sequences being appended) */
+          *seqList = g_list_append(*seqList, blxSeq);
 
           /* Add an entry to the lookup table (add an entry for both id and name, if given,
            * because the next feature may have only one or the other set.) */
@@ -3091,4 +3258,38 @@ void blxColumnCreate(BlxColumnId columnId,
   /* Place it in the list. List must be sorted in the same order
    * as the GtkListStore or gtk_list_store_set fails */
   *columnList = g_list_insert_sorted(*columnList, columnInfo, columnIdxCompareFunc);
+}
+
+
+/* Create a list of CDS names in a transcript. If there are multiple names it means we have
+ * e.g. different start codons and we need to create multiple versions of the transcript */
+GList* blxSequenceConstructCdsList(BlxSequence *seq)
+{
+  GList *result = NULL;
+
+  /* If none of the CDSs have names, that's fine - we just assume they're all the same. It's
+   * ambiguous what we should do if some have names and others don't, though. I guess we just have
+   * to lump all the nameless ones together. */
+  if (seq && seq->type == BLXSEQUENCE_TRANSCRIPT && seq->mspList && g_list_length(seq->mspList) > 0)
+    {
+      GList *mspItem = seq->mspList;
+
+      for ( ; mspItem; mspItem = mspItem->next)
+        {
+          const MSP *msp = (const MSP*)(mspItem->data);
+          
+          if (msp->type == BLXMSP_CDS)
+            {
+              GQuark name = 0;
+
+              if (msp->sname)
+                name = g_quark_from_string(msp->sname);
+
+              if (!g_list_find(result, GINT_TO_POINTER(name)))
+                result = g_list_append(result, GINT_TO_POINTER(name));
+            }
+        }
+    }
+
+  return result;
 }

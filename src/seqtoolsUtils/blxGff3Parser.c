@@ -179,10 +179,23 @@ GSList* blxCreateSupportedGffTypeList(const BlxSeqType seqType)
   GSList *supportedTypes = NULL;
   
   if (seqType == BLXSEQ_DNA || seqType == BLXSEQ_NONE)
-    addGffType(&supportedTypes, "nucleotide_match", "SO:0000347", BLXMSP_MATCH);
+    {
+      addGffType(&supportedTypes, "nucleotide_match", "SO:0000347", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "primer_match", "SO:0001472", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "cross_genome_match", "SO:0000177", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "translated_nucleotide_match", "SO:0000181", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "expressed_sequence_match", "SO:0000102", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "cDNA_match", "SO:0000689", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "EST_match", "SO:0000668", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "UST_match", "SO:0001470", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "RST_match", "SO:0001471", BLXMSP_MATCH);
+    }
 
   if (seqType == BLXSEQ_PEPTIDE || seqType == BLXSEQ_NONE)
-    addGffType(&supportedTypes, "protein_match", "SO:0000349", BLXMSP_MATCH);
+    {
+      addGffType(&supportedTypes, "protein_match", "SO:0000349", BLXMSP_MATCH);
+      addGffType(&supportedTypes, "protein_hmm_match", "SO:0001831", BLXMSP_MATCH);
+    }
   
   addGffType(&supportedTypes, "match", "SO:0000343", BLXMSP_MATCH);
   addGffType(&supportedTypes, "match_part", "SO:0000039", BLXMSP_MATCH);
@@ -1245,7 +1258,7 @@ static void parseCigarStringIntron(GapStringData *data, const int numNucleotides
 {
   /* Intron. Create a separate msp under the same sequence. */
   MSP *msp = *data->msp;
-  MSP *newMsp = copyMsp(msp, data->featureLists, data->lastMsp, data->mspList, data->seqList, &data->error);
+  MSP *newMsp = copyMsp(msp, data->featureLists, data->lastMsp, data->mspList, TRUE);
   
   /* end current msp at the current coords */
   if (data->qDirection > 0)
