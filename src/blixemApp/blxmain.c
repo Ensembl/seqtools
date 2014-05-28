@@ -738,6 +738,9 @@ int main(int argc, char **argv)
   /* Pass the config file to parseFS */
   GKeyFile *inputConfigFile = blxGetConfig();
   
+  /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
+  GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
+
   /* Pass the reference sequence range to parseFS to be populated ONLY if it
    * has not already been set. */
   IntRange *qRange = NULL;
@@ -751,7 +754,7 @@ int main(int argc, char **argv)
     options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
   
   parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
-          &options.refSeq, options.refSeqName, qRange, &dummyseq, dummyseqname, inputConfigFile, &error) ;
+          &options.refSeq, options.refSeqName, qRange, &dummyseq, dummyseqname, inputConfigFile, lookupTable, &error) ;
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);  
 
@@ -805,7 +808,7 @@ int main(int argc, char **argv)
 	}
       
       parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
-              &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig(), &error) ;
+              &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig(), lookupTable, &error) ;
 
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       fclose(xtra_file) ;
@@ -839,14 +842,14 @@ int main(int argc, char **argv)
   
   /* Now display the alignments. (Note that TRUE signals blxview() that it is being called from
    * this standalone blixem program instead of as part of acedb. */
-  if (blxview(&options, featureLists, seqList, supportedTypes, pfetch, align_types, TRUE, styles))
+  if (blxview(&options, featureLists, seqList, supportedTypes, pfetch, align_types, TRUE, styles, lookupTable))
     {
       gtk_main();
     }
  
   g_free(key_file);
   g_free(config_file);
-  
+  g_hash_table_unref(lookupTable);
    
   return (EXIT_SUCCESS) ;
 }

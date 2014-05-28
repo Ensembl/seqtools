@@ -490,6 +490,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			       GSList *styles,
                                const int resFactor,
                                GKeyFile *keyFile,
+                               GHashTable *lookupTable, 
 			       GError **error)
 {
   if (!gffData)
@@ -514,7 +515,7 @@ static void createBlixemObject(BlxGffData *gffData,
           /* For transcripts, although we don't create an MSP we do create a sequence */
           addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand,
                          dataType, gffData->source, seqList, columnList, gffData->sequence, NULL, 
-                         &tmpError);
+                         lookupTable, &tmpError);
         }
     }
   else
@@ -569,6 +570,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->sStrand, 
 			      gffData->sequence, 
                               filename,
+                              lookupTable,
 			      &tmpError);
 
     if (!tmpError)
@@ -611,7 +613,8 @@ void parseGff3Body(const int lineNum,
                    GSList *styles,
                    const int resFactor, 
                    GKeyFile *keyFile,
-                   const IntRange* const refSeqRange)
+                   const IntRange* const refSeqRange,
+                   GHashTable *lookupTable)
 {
   //DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
 
@@ -629,7 +632,7 @@ void parseGff3Body(const int lineNum,
   /* Create a blixem object based on the parsed data */
   if (!error)
     {
-      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, columnList, styles, resFactor, keyFile, &error);
+      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, columnList, styles, resFactor, keyFile, lookupTable, &error);
     }
   
   if (error)

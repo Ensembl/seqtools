@@ -337,6 +337,7 @@ void loadNativeFile(const char *filename,
                     MSP **newMsps,
                     GList **newSeqs,
                     GList *columnList,
+                    GHashTable *lookupTable,
                     GError **error)
 {
   if (!filename && !buffer)
@@ -362,7 +363,7 @@ void loadNativeFile(const char *filename,
       else
         {
           parseFS(newMsps, file, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
-                  &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, error) ;      
+                  &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, lookupTable, error) ;      
           
           fclose(file);
         }
@@ -370,7 +371,7 @@ void loadNativeFile(const char *filename,
   else if (buffer)
     {
       parseBuffer(newMsps, buffer, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
-                  &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, error) ;      
+                  &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, lookupTable, error) ;      
     }
 }
 
@@ -449,7 +450,8 @@ gboolean blxview(CommandLineOptions *options,
                  PfetchParams *pfetch, 
                  char *align_types, 
                  gboolean External,
-                 GSList *styles)
+                 GSList *styles,
+                 GHashTable *lookupTable)
 {
   if (blixemWindow)
     gtk_widget_destroy(blixemWindow) ;
@@ -472,7 +474,7 @@ gboolean blxview(CommandLineOptions *options,
     0, External, options->saveTempFiles, options->seqType, &seqList, options->columnList,
     options->bulkFetchDefault, options->fetchMethods, &options->mspList, &options->blastMode, 
     featureLists, supportedTypes, NULL, 0, &options->refSeqRange, 
-    options->dataset, FALSE); /* offset has not been applied yet, so pass offset=0 */
+    options->dataset, FALSE, lookupTable); /* offset has not been applied yet, so pass offset=0 */
 
   if (status)
     {
@@ -481,7 +483,7 @@ gboolean blxview(CommandLineOptions *options,
       /* Construct missing data and do any other required processing now we have all the sequence data */
       finaliseBlxSequences(featureLists, &options->mspList, &seqList, options->columnList, 
                            options->refSeqOffset, options->seqType, 
-                           options->numFrames, &options->refSeqRange, TRUE);
+                           options->numFrames, &options->refSeqRange, TRUE, lookupTable);
 
     }
 

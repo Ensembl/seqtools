@@ -820,12 +820,15 @@ int main(int argc, char **argv)
       GSList *supportedTypes = blxCreateSupportedGffTypeList(BLXSEQ_NONE);
       GList *columnList = dotterCreateColumns();
       GError *error = NULL;
+  
+      /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
+      GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
 
-      parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, columnList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL, &error);
+      parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, columnList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL, lookupTable, &error);
 
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       
-      finaliseBlxSequences(featureLists, &MSPlist, &seqList, columnList, 0, BLXSEQ_NONE, -1, NULL, FALSE);
+      finaliseBlxSequences(featureLists, &MSPlist, &seqList, columnList, 0, BLXSEQ_NONE, -1, NULL, FALSE, lookupTable);
       
       blxDestroyGffTypeList(&supportedTypes);
     }

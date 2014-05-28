@@ -672,6 +672,7 @@ static void loadNonNativeFile(const char *filename,
                               GtkWidget *blxWindow,
                               MSP **newMsps,
                               GList **newSeqs,
+                              GHashTable *lookupTable,
                               GError **error)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -734,7 +735,7 @@ static void loadNonNativeFile(const char *filename,
                                 bc->featureLists, bc->supportedTypes, styles,
                                 &bc->matchSeqs, &bc->mspList, 
                                 fetchName, bc->saveTempFiles, newMsps, newSeqs,
-                                bc->columnList, &tmp_error);
+                                bc->columnList, lookupTable, &tmp_error);
         }
     }          
 
@@ -760,9 +761,12 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
   GList *newSeqs = NULL;
   GError *tmp_error = NULL;
 
+  /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
+  GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
+
   /* Assume it's a natively-supported file and attempt to parse it. The first thing this
    * does is check that it's a native file and if not it sets the error */
-  loadNativeFile(filename, buffer, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, &tmp_error);
+  loadNativeFile(filename, buffer, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, lookupTable, &tmp_error);
 
   if (tmp_error && filename)
     {
@@ -774,7 +778,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
       g_error_free(tmp_error);
       tmp_error = NULL;
       
-      loadNonNativeFile(filename, blxWindow, &newMsps, &newSeqs, &tmp_error);
+      loadNonNativeFile(filename, blxWindow, &newMsps, &newSeqs, lookupTable, &tmp_error);
     }
 
   if (!tmp_error)
@@ -787,12 +791,12 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
       bulkFetchSequences(0, FALSE, bc->saveTempFiles, bc->seqType, &newSeqs, bc->columnList,
                          bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
                          bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
-                         &bc->refSeqRange, bc->dataset, FALSE);
+                         &bc->refSeqRange, bc->dataset, FALSE, lookupTable);
 
       finaliseFetch(newSeqs, bc->columnList);
 
       finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->columnList, bc->refSeqOffset, bc->seqType, 
-                           bc->numFrames, &bc->refSeqRange, TRUE);
+                           bc->numFrames, &bc->refSeqRange, TRUE, lookupTable);
 
       double lowestId = calculateMspData(newMsps, bc);
       bigPictureSetMinPercentId(blxWindowGetBigPicture(blxWindow), lowestId);
@@ -829,6 +833,8 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
       else
         g_message("Loaded %d new features\n", numAdded);
     }
+
+  g_hash_table_unref(lookupTable);
 
   if (tmp_error)
     g_propagate_error(error, tmp_error);
@@ -3015,13 +3021,16 @@ static void onButtonClickedLoadOptional(GtkWidget *button, gpointer data)
 {
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
+  /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
+  GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
   
   GError *error = NULL;
   gboolean success = bulkFetchSequences(
     0, bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
     bc->seqType, &bc->matchSeqs, bc->columnList, bc->optionalFetchDefault, bc->fetchMethods, &bc->mspList,
     &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
-    &bc->refSeqRange, bc->dataset, TRUE);
+    &bc->refSeqRange, bc->dataset, TRUE, lookupTable);
   
   finaliseFetch(bc->matchSeqs, bc->columnList);
 
@@ -3068,6 +3077,8 @@ static void onButtonClickedLoadOptional(GtkWidget *button, gpointer data)
       
       detailViewRedrawAll(detailView);
     }
+
+  g_hash_table_unref(lookupTable);
 }
 
 
