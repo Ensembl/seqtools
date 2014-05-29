@@ -673,6 +673,8 @@ static void loadNonNativeFile(const char *filename,
                               MSP **newMsps,
                               GList **newSeqs,
                               GHashTable *lookupTable,
+                              const int refSeqOffset,
+                              IntRange *refSeqRange,
                               GError **error)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -735,7 +737,7 @@ static void loadNonNativeFile(const char *filename,
                                 bc->featureLists, bc->supportedTypes, styles,
                                 &bc->matchSeqs, &bc->mspList, 
                                 fetchName, bc->saveTempFiles, newMsps, newSeqs,
-                                bc->columnList, lookupTable, &tmp_error);
+                                bc->columnList, lookupTable, refSeqOffset, refSeqRange, &tmp_error);
         }
     }          
 
@@ -766,7 +768,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
 
   /* Assume it's a natively-supported file and attempt to parse it. The first thing this
    * does is check that it's a native file and if not it sets the error */
-  loadNativeFile(filename, buffer, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, lookupTable, &tmp_error);
+  loadNativeFile(filename, buffer, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, lookupTable, bc->refSeqOffset, &bc->refSeqRange, &tmp_error);
 
   if (tmp_error && filename)
     {
@@ -778,7 +780,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
       g_error_free(tmp_error);
       tmp_error = NULL;
       
-      loadNonNativeFile(filename, blxWindow, &newMsps, &newSeqs, lookupTable, &tmp_error);
+      loadNonNativeFile(filename, blxWindow, &newMsps, &newSeqs, lookupTable, bc->refSeqOffset, &bc->refSeqRange, &tmp_error);
     }
 
   if (!tmp_error)
@@ -827,7 +829,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
       blxWindowRedrawAll(blxWindow);
       
       if (numAdded == 0)
-        g_critical("Failed to load new features: check program output for errors\n");
+        g_warning("Failed to load features\n");
       else if (numAdded == 1)
         g_message("Loaded %d new feature\n", numAdded);
       else
