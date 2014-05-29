@@ -785,7 +785,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
 
   if (!tmp_error)
     {
-      /* Count how many features were added. (Need to do this before appendNewSequences because
+      /* Count how many features were added. (Need to do this before blxMergeFeatures because
        * once this list gets merged the count will no longer be correct.) */
       const int numAdded = g_list_length(newSeqs);
 
@@ -808,7 +808,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
       detailViewAddMspData(blxWindowGetDetailView(blxWindow), newMsps, newSeqs);
 
       /* Merge the temporary lists into the main lists (takes ownership of the temp lists) */
-      appendNewSequences(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
+      blxMergeFeatures(newMsps, newSeqs, &bc->mspList, &bc->matchSeqs);
 
       /* Cache the new msp display ranges and sort and filter the trees. */
       GtkWidget *detailView = blxWindowGetDetailView(blxWindow);

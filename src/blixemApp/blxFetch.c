@@ -3184,7 +3184,7 @@ static void regionFetchFeature(const MSP* const msp,
                             seqList, mspListIn, fetchName, saveTempFiles, 
                             &newMsps, &newSeqs, columnList, lookupTable, refSeqOffset, refSeqRange, &tmpError);
 
-      appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
+      blxMergeFeatures(newMsps, newSeqs, mspListIn, seqList);
     }
   
   if (command)

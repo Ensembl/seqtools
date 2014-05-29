@@ -305,9 +305,9 @@ static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList, G
 }
 
 
-/* Append the newMsps list to the mspList and the newSeqs list to the seqList. Takes ownership of
- * the contents of newMsps and newSeqs. */
-void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList)
+/* Merge new features into our existing context: merges the newMsps list into mspList and newSeqs
+ * list into seqList. Takes ownership of the contents of both newMsps and newSeqs. */
+void blxMergeFeatures(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList)
 {
   /* Append new MSPs to MSP list */
   MSP *lastMsp = *mspList;
