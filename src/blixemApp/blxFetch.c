@@ -3059,6 +3059,8 @@ void sendFetchOutputToFile(GString *command,
                            GList **newSeqs,
                            GList *columnList,
                            GHashTable *lookupTable,
+                           const int refSeqOffset,
+                           const IntRange* const refSeqRange,
                            GError **error)
 {
   /* Create a temp file for the results */
@@ -3104,7 +3106,7 @@ void sendFetchOutputToFile(GString *command,
 
           loadNativeFile(fileName, NULL, keyFile, blastMode, featureLists, 
                          supportedTypes, styles, newMsps, newSeqs, columnList, 
-                         lookupTable, &tmpError);
+                         lookupTable, refSeqOffset, refSeqRange, &tmpError);
 
           if (!tmpError)
             {
@@ -3180,9 +3182,9 @@ static void regionFetchFeature(const MSP* const msp,
       sendFetchOutputToFile(command, keyFile, blastMode, 
                             featureLists, supportedTypes, styles, 
                             seqList, mspListIn, fetchName, saveTempFiles, 
-                            &newMsps, &newSeqs, columnList, lookupTable, &tmpError);
+                            &newMsps, &newSeqs, columnList, lookupTable, refSeqOffset, refSeqRange, &tmpError);
 
-      appendNewSequences(newMsps, newSeqs, mspListIn, seqList);
+      blxMergeFeatures(newMsps, newSeqs, mspListIn, seqList);
     }
   
   if (command)

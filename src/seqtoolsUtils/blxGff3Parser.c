@@ -56,11 +56,13 @@ typedef enum {
   BLX_GFF3_ERROR_INVALID_NUM_TOKENS,          /* invalid number of columns from a line of the input file */
   BLX_GFF3_ERROR_INVALID_TAG,                 /* invalid format for a tag/data pair */
   BLX_GFF3_ERROR_INVALID_SEQ,                 /* invalid sequence data */
+  BLX_GFF3_ERROR_INVALID_SEQ_NAME,            /* invalid sequence name */
   BLX_GFF3_ERROR_INVALID_CIGAR_FORMAT,        /* invalid CIGAR format */
   BLX_GFF3_ERROR_INVALID_MSP,                 /* MSP has invalid/missing data */
+  BLX_GFF3_ERROR_INVALID_HEADER,              /* invalid header line */
   BLX_GFF3_ERROR_UNKNOWN_MODE,                /* unknown blast mode */
   BLX_GFF3_ERROR_BAD_COLOR,                   /* Bad color string found when parsing color */
-  BLX_GFF3_ERROR_OUT_OF_RANGE,                /* Feature is not in the reference sequence range */
+  BLX_GFF3_ERROR_OUT_OF_RANGE,                /* Feature/file is not in the reference sequence range */
   BLX_GFF3_ERROR_DATA_TYPE                   /* Error finding data type */
 } BlxGff3Error;
 
@@ -272,9 +274,12 @@ void parseGff3Header(const int lineNum,
 		     GString *line_string, 
 		     GList **seqList,
                      char *refSeqName,
-                     IntRange *refSeqRange)
+                     IntRange *refSeqRange,
+                     GError **error)
 {
   //DEBUG_ENTER("parseGff3Header [line=%d]", lineNum);
+
+  GError *tmpError = NULL;
   
   /* Look for the "sequence-region" comment line, which tells us info about the reference
    * sequence. The format is as follows: ##sequence-region    qname qstart qend */
@@ -286,27 +291,46 @@ void parseGff3Header(const int lineNum,
     {
       if (sscanf(line_string->str, "##sequence-region%s%d%d", qName, &qStart, &qEnd) < 3)
         {
-          g_error("Error parsing data file, type GFF_3_HEADER: \"%s\"\n", line_string->str);
+          g_set_error(&tmpError, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_HEADER,
+                      "Invalid format in sequence-region line '%s'\n", line_string->str);
         }
       
       //DEBUG_OUT("Found reference sequence name=%s [start=%d, end=%d]\n", qName, qStart, qEnd);
 
       /* If the ref seq name is already populated, check it's the same as the one we've just read */
-      if (*refSeqName != '\0')
+      if (!tmpError && *refSeqName != '\0')
         {
           if (!stringsEqual(refSeqName, qName, FALSE))
             {
-              g_critical("Reference sequence name differs between files: GFF file name is '%s' but FASTA file name was '%s'. Ignoring GFF file name.\n", qName, refSeqName);
+              g_set_error(&tmpError, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_SEQ,
+                          "The sequence name '%s' in the GFF file does not match the reference sequence '%s'.\n", 
+                          qName, refSeqName);
             }
         }
-      else
+      else if (!tmpError)
         {
           strcpy(refSeqName, qName);
         }
       
-      if (refSeqRange)
-	intrangeSetValues(refSeqRange, qStart, qEnd);
+      if (!tmpError && refSeqRange)
+        {
+          if (refSeqRange->min == UNSET_INT && refSeqRange->max == UNSET_INT)
+            {
+              /* Range is currently unset, so set it */
+              intrangeSetValues(refSeqRange, qStart, qEnd);
+            }
+          else if (qStart > refSeqRange->max || qEnd < refSeqRange->min)
+            {
+              /* GFF file range does not overlap the existing range, so we can't load this file */
+              g_set_error(&tmpError, BLX_GFF3_ERROR, BLX_GFF3_ERROR_OUT_OF_RANGE, 
+                          "GFF file range [%d,%d] does not overlap the reference sequence range [%d,%d]",
+                          qStart, qEnd, refSeqRange->min, refSeqRange->max);
+            }
+        }
     }
+  
+  if (tmpError)
+    g_propagate_error(error, tmpError);
   
   //DEBUG_EXIT("parseGff3Header");
 }

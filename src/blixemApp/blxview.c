@@ -305,9 +305,9 @@ static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList, G
 }
 
 
-/* Append the newMsps list to the mspList and the newSeqs list to the seqList. Takes ownership of
- * the contents of newMsps and newSeqs. */
-void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList)
+/* Merge new features into our existing context: merges the newMsps list into mspList and newSeqs
+ * list into seqList. Takes ownership of the contents of both newMsps and newSeqs. */
+void blxMergeFeatures(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList)
 {
   /* Append new MSPs to MSP list */
   MSP *lastMsp = *mspList;
@@ -338,6 +338,8 @@ void loadNativeFile(const char *filename,
                     GList **newSeqs,
                     GList *columnList,
                     GHashTable *lookupTable,
+                    const int refSeqOffset,
+                    const IntRange* const refSeqRange,
                     GError **error)
 {
   if (!filename && !buffer)
@@ -350,6 +352,17 @@ void loadNativeFile(const char *filename,
   char dummyseqname1[FULLNAMESIZE+1] = "";
   char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
   char dummyseqname2[FULLNAMESIZE+1] = "";
+
+  /* The range passed to the parser must be in the original parsed coords, so subtract the
+   * offset. (It is used to validate that the range in the GFF file we're reading in is within 
+   * blixem's known range.)  */
+  IntRange toplevelRange = {UNSET_INT, UNSET_INT};
+  
+  if (refSeqRange)
+    {
+      toplevelRange.min = refSeqRange->min - refSeqOffset;
+      toplevelRange.max = refSeqRange->max - refSeqOffset;
+    }
   
   if (filename)
     {
@@ -363,7 +376,7 @@ void loadNativeFile(const char *filename,
       else
         {
           parseFS(newMsps, file, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
-                  &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, lookupTable, error) ;      
+                  &dummyseq1, dummyseqname1, &toplevelRange, &dummyseq2, dummyseqname2, keyFile, lookupTable, error) ;      
           
           fclose(file);
         }
@@ -371,7 +384,7 @@ void loadNativeFile(const char *filename,
   else if (buffer)
     {
       parseBuffer(newMsps, buffer, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
-                  &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, lookupTable, error) ;      
+                  &dummyseq1, dummyseqname1, &toplevelRange, &dummyseq2, dummyseqname2, keyFile, lookupTable, error) ;      
     }
 }
 

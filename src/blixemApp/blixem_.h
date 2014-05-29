@@ -624,7 +624,7 @@ GString*                           getFetchArgs(const BlxFetchMethod* const fetc
 GString*                           getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, GError **error);
 void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer) ;
 void                               finaliseFetch(GList *seqList, GList *columnList);
-void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GList *columnList, GHashTable *lookupTable, GError **error);
+void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GList *columnList, GHashTable *lookupTable, const int refSeqOffset, const IntRange* const refSeqRange, GError **error);
 const char*                        outputTypeStr(const BlxFetchOutputType outputType);
 
 void                               fetchSeqsIndividually(GList *seqsToFetch, GtkWidget *blxWindow);
@@ -635,8 +635,8 @@ gboolean                           populateFullDataPfetch(GList *seqsToFetch, Bl
 void                               blxInitConfig(const char *config_file, CommandLineOptions *options, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 
-void                               loadNativeFile(const char *filename, const char *buffer, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GList *columnList, GHashTable *lookupTable, GError **error);
-void                               appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
+void                               loadNativeFile(const char *filename, const char *buffer, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GList *columnList, GHashTable *lookupTable, const int refSeqOffset, const IntRange* const refSeqRange, GError **error);
+void                               blxMergeFeatures(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
 
 /* Create/destroy sequences and MSPs */
 void                               blviewResetGlobals();

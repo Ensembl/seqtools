@@ -1872,12 +1872,14 @@ static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, con
                       GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, GKeyFile *keyFile, GHashTable *lookupTable)
 {
   //DEBUG_ENTER("parseBody(parserState=%d, line=%d)", *parserState, lineNum);
+
+  GError *tmpError = NULL;
   
   /* Call the relevant function for the current type of data being parsed */
   switch (*parserState)
   {
     case GFF_3_HEADER:
-      parseGff3Header(lineNum, lastMsp, mspList, parserState, line_string, seqList, seq1name, seq1Range);
+      parseGff3Header(lineNum, lastMsp, mspList, parserState, line_string, seqList, seq1name, seq1Range, &tmpError);
       break;
       
     case GFF_3_BODY:
@@ -1949,6 +1951,12 @@ static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, con
       break;
   };
   
+  if (tmpError)
+    {
+      reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+      *parserState = PARSER_ERROR;
+    }
+
   //DEBUG_EXIT("parseBody");
 }
 

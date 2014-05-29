@@ -741,12 +741,6 @@ int main(int argc, char **argv)
   /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
   GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
 
-  /* Pass the reference sequence range to parseFS to be populated ONLY if it
-   * has not already been set. */
-  IntRange *qRange = NULL;
-  if (options.refSeqRange.min == UNSET_INT && options.refSeqRange.max == UNSET_INT)
-    qRange = &options.refSeqRange;
-
   /* Set the blast mode from the sequence type, if given. If not, blast mode might
    * get set by parseFS (nasty for backwards compatibility; ideally we'll get rid
    * of blastmode at some point). */
@@ -754,7 +748,7 @@ int main(int argc, char **argv)
     options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
   
   parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
-          &options.refSeq, options.refSeqName, qRange, &dummyseq, dummyseqname, inputConfigFile, lookupTable, &error) ;
+          &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, inputConfigFile, lookupTable, &error) ;
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);  
 
