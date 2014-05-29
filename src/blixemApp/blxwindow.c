@@ -674,7 +674,7 @@ static void loadNonNativeFile(const char *filename,
                               GList **newSeqs,
                               GHashTable *lookupTable,
                               const int refSeqOffset,
-                              IntRange *refSeqRange,
+                              const IntRange* const refSeqRange,
                               GError **error)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);

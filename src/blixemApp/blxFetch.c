@@ -3060,7 +3060,7 @@ void sendFetchOutputToFile(GString *command,
                            GList *columnList,
                            GHashTable *lookupTable,
                            const int refSeqOffset,
-                           IntRange* refSeqRange,
+                           const IntRange* const refSeqRange,
                            GError **error)
 {
   /* Create a temp file for the results */
@@ -3157,7 +3157,7 @@ static void regionFetchFeature(const MSP* const msp,
                                GSList *supportedTypes, 
                                GSList *styles,
                                const gboolean saveTempFiles,
-                               IntRange* refSeqRange,
+                               const IntRange* const refSeqRange,
                                GHashTable *lookupTable,
                                GError **error)
 {
@@ -3216,7 +3216,7 @@ static void regionFetchList(GList *regionsToFetch,
                             const BlxSeqType seqType,
                             const int refSeqOffset,
                             const char *dataset,
-                            IntRange* refSeqRange,
+                            const IntRange* const refSeqRange,
                             GHashTable *lookupTable,
                             GError **error)
 {
@@ -3274,7 +3274,7 @@ static void commandFetchList(GList *regionsToFetch,
                              const BlxSeqType seqType,
                              const int refSeqOffset,
                              const char *dataset,
-                             IntRange* refSeqRange,
+                             const IntRange* const refSeqRange,
                              GHashTable *lookupTable,
                              GError **error)
 {
@@ -3310,7 +3310,7 @@ static gboolean fetchList(GList *seqsToFetch,
                           GSList *supportedTypes, 
                           GSList *styles,
                           const int refSeqOffset,
-                          IntRange* refSeqRange,
+                          const IntRange* const refSeqRange,
                           const char *dataset,
                           GHashTable *lookupTable,
                           GError **error)
@@ -3406,7 +3406,7 @@ gboolean bulkFetchSequences(const int attempt,
                             GSList *supportedTypes, 
                             GSList *styles,
                             const int refSeqOffset,
-                            IntRange* refSeqRange,
+                            const IntRange* const refSeqRange,
                             const char *dataset,
                             const gboolean optionalColumns,
                             GHashTable *lookupTable)
