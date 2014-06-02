@@ -829,7 +829,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
       blxWindowRedrawAll(blxWindow);
       
       if (numAdded == 0)
-        g_warning("Failed to load features\n");
+        g_warning("No features loaded\n");
       else if (numAdded == 1)
         g_message("Loaded %d new feature\n", numAdded);
       else
@@ -6136,7 +6136,7 @@ static void onDragDataReceived(GtkWidget *widget,
 
   if ((info == TARGET_STRING || info == TARGET_URL) && selectionData->data)
     {
-      g_message("Received drag and drop text:\n%s\n", selectionData->data);
+      DEBUG_OUT("Received drag and drop text:\n%s\n", selectionData->data);
       GError *tmp_error = NULL;
       
       /* For now just assume the text contains supported file contents. The file parsing
