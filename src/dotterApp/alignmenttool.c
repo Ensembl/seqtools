@@ -121,7 +121,6 @@ typedef struct _AlignmentToolProperties
 /* Local function declarations */
 static void                        onCloseMenu(GtkAction *action, gpointer data);
 static void                        onPrintMenu(GtkAction *action, gpointer data);
-static void                        onSetLengthMenu(GtkAction *action, gpointer data);
 static void                        onCopyHCoordMenu(GtkAction *action, gpointer data);
 static void                        onCopyVCoordMenu(GtkAction *action, gpointer data);
 static void                        onCopySelnMenu(GtkAction *action, gpointer data);
@@ -155,7 +154,6 @@ static void highlightSpliceSite(SequenceProperties *seq1,
 static const GtkActionEntry alignmentToolMenuEntries[] = {
 { "Close",          NULL, "_Close tool",              "<control>W", "Close the alignment tool",             G_CALLBACK(onCloseMenu)},
 { "Print",          NULL, "_Print...",                "<control>P", "Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
-{ "SetLength",      NULL, "_Set alignment length",    "<control>L", "Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)},
 { "CopyHCoord",     NULL, "Copy _horizontal coord",   NULL,         "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
 { "CopyVCoord",     NULL, "Copy _vertical coord",     NULL,         "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)},
 { "CopySeln",       NULL, "Copy selectio_n",          "<control>C", "Copy the current selection to the clipboard", G_CALLBACK(onCopySelnMenu)},
@@ -547,29 +545,6 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
 }
 
 
-/* Set the alignment length */
-static void setAlignmentLength(GtkWidget *alignmentTool, const int length, GError **error)
-{
-  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-
-  if (length > MIN_ALIGNMENT_LENGTH && length <= MAX_ALIGNMENT_LENGTH)
-    {
-      /* The display code assumes we always have an odd length; if we
-       * are given an even length, round it up */
-      if (length % 2 == 0)
-        properties->alignmentLen = length + 1;
-      else
-        properties->alignmentLen = length;
-    }
-  else
-    {
-      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_INVALID_LENGTH, "Length %d is not in valid range %d -> %d.\n",
-                  length, MIN_ALIGNMENT_LENGTH, MAX_ALIGNMENT_LENGTH);
-    }
-
-  updateAlignmentRange(alignmentTool, properties->dotterWinCtx);
-}
-
 /***********************************************************
  *                          Menus                          *
  ***********************************************************/
@@ -607,73 +582,6 @@ static void onPrintMenu(GtkAction *action, gpointer data)
   defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, dwc->usePrintColors);
   setWidgetBackgroundColor(alignmentTool, defaultBgColor);
   alignmentToolRedrawAll(alignmentTool);
-}
-
-
-/* Callback from the SetLength menu */
-static gboolean onAlignmentLenChanged(GtkWidget *entry, const gint responseId, gpointer data)
-{
-  gboolean result = TRUE;
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  
-  const gchar *text = gtk_entry_get_text(GTK_ENTRY(entry));
-  const int newVal = convertStringToInt(text);
-  
-  GError *error = NULL;
-  setAlignmentLength(alignmentTool, newVal, &error);
-  
-  if (error)
-    {
-      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-      result = FALSE;
-    }
-  
-  return result;
-}
-
-
-/* Set-length menu item: pops up a dialog asking the user to enter the alignment length */
-static void onSetLengthMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  
-  if (alignmentTool)
-    {
-      GtkWidget *parent = gtk_widget_get_toplevel(alignmentTool);
-      AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-      
-      char *title = g_strdup_printf("%sSet alignment length", dotterGetTitlePrefix(properties->dotterWinCtx->dotterCtx));
-      
-      GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
-                                                      GTK_WINDOW(parent), 
-                                                      GTK_DIALOG_DESTROY_WITH_PARENT,
-                                                      GTK_STOCK_CANCEL,
-                                                      GTK_RESPONSE_REJECT,
-                                                      GTK_STOCK_OK,
-                                                      GTK_RESPONSE_ACCEPT,
-                                                      NULL);
-
-      g_free(title);
-      
-      gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-      
-      GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
-      
-      GtkWidget *entry = gtk_entry_new();
-      gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-
-      char *displayText = convertIntToString(properties->alignmentLen);
-      gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-      g_free(displayText);
-      
-      widgetSetCallbackData(entry, onAlignmentLenChanged, alignmentTool);
-      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
-      
-      gtk_box_pack_start(GTK_BOX(contentArea), gtk_label_new("Enter the new length:"), FALSE, FALSE, 0);
-      gtk_box_pack_start(GTK_BOX(contentArea), entry, TRUE, TRUE, 0);
-
-      gtk_widget_show_all(dialog);
-    }
 }
 
 
