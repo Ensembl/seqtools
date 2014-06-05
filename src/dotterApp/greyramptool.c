@@ -789,14 +789,14 @@ static GtkWidget* createGreyrampToolbar(GtkWidget *greyramp,
   g_signal_connect(G_OBJECT(swapButton), "pressed", G_CALLBACK(onPressSwapButton), greyramp);
 
   /* Pack them vertically into the 'toolbar' (which is just a vbox for now) */
-  GtkWidget *vbox = gtk_vbox_new(TRUE, 0);
+  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_border_width(GTK_CONTAINER(vbox), 5);
   
-  gtk_box_pack_start(GTK_BOX(vbox), whiteSpinButton, TRUE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), quitButton, TRUE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), swapButton, TRUE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), undoButton, TRUE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), blackSpinButton, TRUE, FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(vbox), whiteSpinButton, FALSE, FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(vbox), quitButton, FALSE, FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(vbox), swapButton, FALSE, FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(vbox), undoButton, FALSE, FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(vbox), blackSpinButton, FALSE, FALSE, 5);
 
   /* Make sure neither spin button is focused at the start because if it is
    * then its text will be selected and we will inadvertently overwrite the
@@ -857,8 +857,6 @@ static GtkWidget *createGreyrampToolWindow(DotterWindowContext *dwc)
   GtkWidget *menu = createGreyrampToolMenu(greyrampWindow);
   g_signal_connect(G_OBJECT(greyrampWindow), "button-press-event", G_CALLBACK(onButtonPressGreyrampTool), menu);
 
-  gtk_widget_show_all(greyrampWindow);
-
   return greyrampWindow;
 }
 
@@ -918,10 +916,7 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc,
   updateGreyMap(greyrampTool);
 
   if (greyrampWindow)
-    {
-      *greyrampWindow = createGreyrampToolWindow(dwc);
-      gtk_container_add(GTK_CONTAINER(*greyrampWindow), greyrampTool);
-    }
+    *greyrampWindow = createGreyrampToolWindow(dwc);
                    
   DEBUG_EXIT("createGreyrampTool returning ");
   return greyrampTool;

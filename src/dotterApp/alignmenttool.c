@@ -939,13 +939,12 @@ static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, AlignmentT
   GtkWidget *menu = createAlignmentToolMenu(alignmentWindow, &properties->actionGroup);
   g_signal_connect(G_OBJECT(alignmentWindow), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
 
-  gtk_widget_show_all(alignmentWindow);
-
   return alignmentWindow;
 }
 
 
-/* Return the alignment tool widget and set the return widget to be the window that contains it. */
+/* Return the alignment tool widget and set the return widget to be a window that it can be
+ * undocked into. */
 GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **alignmentWindow)
 {
   DEBUG_ENTER("createAlignmentTool");
@@ -989,10 +988,7 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **al
   onAlignmentToolRangeChanged(alignmentTool);
   
   if (alignmentWindow)
-    {
-      *alignmentWindow = createAlignmentToolWindow(dotterWinCtx, properties);
-      gtk_container_add(GTK_CONTAINER(*alignmentWindow), alignmentTool);
-    }
+    *alignmentWindow = createAlignmentToolWindow(dotterWinCtx, properties);
   
   DEBUG_EXIT("createAlignmentTool returning ");
   return alignmentTool;

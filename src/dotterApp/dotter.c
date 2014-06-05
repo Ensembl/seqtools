@@ -96,9 +96,11 @@
 //static int tints[8] = { LIGHTRED, MIDBLUE, RED, LIGHTGRAY, 
 //                      MAGENTA, CYAN, LIGHTGREEN, YELLOW } ;
 
-#define MAX_WINDOW_WIDTH_FRACTION             0.7 /* max init width of dotter window as fraction of screen size */
-#define MAX_WINDOW_HEIGHT_FRACTION            0.7 /* max init height of dotter window as fraction of screen size */
+#define MAX_WINDOW_WIDTH_FRACTION             0.8 /* max init width of dotter window as fraction of screen size */
+#define MAX_WINDOW_HEIGHT_FRACTION            0.8 /* max init height of dotter window as fraction of screen size */
 #define MAIN_WINDOW_NAME                      "DotterMainWindow"
+
+#define DOCK_WINDOWS_DEFAULT TRUE
 
 //typedef struct
 //{
@@ -123,10 +125,13 @@ typedef struct _DotterProperties
 {
   GtkWidget *greyrampTool;                  /* the greyramp tool */
   GtkWidget *greyrampWindow;                /* the window containing the greyramp too when undocked */
+  GtkWidget *greyrampContainer;             /* the container containing the greyramp tool when docked */
   GtkWidget *alignmentTool;                 /* the alignment tool */
   GtkWidget *alignmentWindow;               /* the window containing the alignment tool when undocked */
+  GtkWidget *alignmentContainer;            /* the container containing the alignment tool when docked */
   GtkWidget *dotplot;                       /* the dotplot drawing area */
   
+  gboolean windowsDocked;                   /* if true, all tools are docked into a single window */
   DotterWindowContext *dotterWinCtx;
   const char *exportFileName;
   GtkUIManager *uiManager;                  /* the ui manager for this dotter window */
@@ -151,7 +156,7 @@ static void DNAmatrix(int mtx[24][24]);
 
 static void                   showGreyrampTool(GtkWidget *dotterWindow);
 static void                   showAlignmentTool(GtkWidget *dotterWindow);
-static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *greyrampTool, GtkWidget *dotplotContainer, GtkWidget *dotplot, const char *exportFileName, GtkUIManager **uiManager, char *windowColor);
+static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *dotplot, GtkWidget *dotplotContainer, GtkWidget *greyrampContainer, GtkWidget *alignmentContainer, const char *exportFileName, GtkUIManager **uiManager, char *windowColor);
 static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
@@ -197,6 +202,7 @@ static void                       onCopyHCoordMenu(GtkAction *action, gpointer d
 static void                       onCopyVCoordMenu(GtkAction *action, gpointer data);
 static void                       onToggleUsePrintColorsMenu(GtkAction *action, gpointer data);
 static void                       onToggleBumpExonsMenu(GtkAction *action, gpointer data);
+static void                       onToggleDockWindowsMenu(GtkAction *action, gpointer data);
 static void                       onPrintColorsChanged(GtkWidget *dotterWindow);
 
 
@@ -229,7 +235,8 @@ static GtkToggleActionEntry toggleMenuEntries[] = {
 { "ToggleCoords",     NULL, "Crosshair label",       NULL,  "Show the crosshair label",       G_CALLBACK(onToggleCoordsMenu),          TRUE},
 { "ToggleFullscreen", NULL, "Crosshair fullscreen",  NULL,  "Show the crosshair full screen", G_CALLBACK(onToggleFullscreenMenu),      TRUE},
 { "TogglePrintColors",NULL, "Use print colors",      NULL,  "Use print _colors",              G_CALLBACK(onToggleUsePrintColorsMenu),  FALSE},
-{ "ToggleBumpExons",  NULL, "Bump exons",            "B",   "_Bump exons",                    G_CALLBACK(onToggleBumpExonsMenu),       FALSE}
+{ "ToggleBumpExons",  NULL, "Bump exons",            "B",   "_Bump exons",                    G_CALLBACK(onToggleBumpExonsMenu),       FALSE},
+{ "DockWindows",      NULL, "Dock windows",          "<control>K",  "_Dock windows",          G_CALLBACK(onToggleDockWindowsMenu),     DOCK_WINDOWS_DEFAULT}
 };
 
 /* Radio-button menu entries are listed here: */
@@ -265,6 +272,7 @@ static const char mainMenuDescription[] =
 "    <menu action='ViewMenuAction'>"
 "      <menuitem action='ShowGreyramp'/>"
 "      <menuitem action='ShowAlignment'/>"
+"      <menuitem action='DockWindows'/>"
 "      <separator/>"
 "      <menuitem action='ToggleCrosshair'/>"
 "      <menuitem action='ToggleCoords'/>"
@@ -953,8 +961,10 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
 static void dotterCreateProperties(GtkWidget *dotterWindow, 
                                    GtkWidget *greyrampTool, 
                                    GtkWidget *greyrampWindow,
+                                   GtkWidget *greyrampContainer,
                                    GtkWidget *alignmentTool,
                                    GtkWidget *alignmentWindow,
+                                   GtkWidget *alignmentContainer,
                                    GtkWidget *dotplot,
                                    DotterWindowContext *dotterWinCtx,
                                    const char *exportFileName,
@@ -968,9 +978,12 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
 
       properties->greyrampTool = greyrampTool;
       properties->greyrampWindow = greyrampWindow;
+      properties->greyrampContainer = greyrampContainer;
       properties->alignmentTool = alignmentTool;
       properties->alignmentWindow = alignmentWindow;
+      properties->alignmentContainer = alignmentContainer;
       properties->dotplot = dotplot;
+      properties->windowsDocked = DOCK_WINDOWS_DEFAULT;
       properties->dotterWinCtx = dotterWinCtx;
       properties->exportFileName = exportFileName;
       properties->uiManager = uiManager;
@@ -1169,18 +1182,35 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
   /* Only create the graphical elements if there is a graphical dotplot widget */
   if (dotplotWidget)
     {
-      GtkWidget *greyrampWindow = NULL;
+      GtkWidget *greyrampContainer = gtk_frame_new(NULL); /* container for when docked */
+      GtkWidget *greyrampWindow = NULL; /* container for when undocked */
       GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, 40, 100, greyrampSwap, &greyrampWindow);
       registerGreyrampCallback(greyrampTool, dotplot, dotplotUpdateGreymap);
       blxSetWidgetColor(greyrampTool, windowColor);
 
-      GtkWidget *alignmentWindow = NULL;
+      GtkWidget *alignmentContainer = gtk_frame_new(NULL); /* container for when docked */
+      GtkWidget *alignmentWindow = NULL; /* container for when undocked */
       GtkWidget *alignmentTool = createAlignmentTool(dotterWinCtx, &alignmentWindow);
       blxSetWidgetColor(alignmentTool, windowColor);
+
+      if (DOCK_WINDOWS_DEFAULT)
+        {
+          /* Dock into containers that will go into the main window */
+          gtk_container_add(GTK_CONTAINER(alignmentContainer), alignmentTool);
+          gtk_container_add(GTK_CONTAINER(greyrampContainer), greyrampTool);
+        }
+      else
+        {
+          /* Add to the separate toplevel windows */
+          gtk_container_add(GTK_CONTAINER(alignmentWindow), alignmentTool);
+          gtk_container_add(GTK_CONTAINER(greyrampWindow), greyrampTool);
+        }
   
       const DotterHspMode hspMode = dotplotGetHspMode(dotplot);
       GtkUIManager *uiManager = NULL;
-      dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, greyrampTool, dotplotWidget, dotplot, exportFileName, &uiManager, windowColor);
+      dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, 
+                                        dotplot, dotplotWidget, greyrampContainer, alignmentContainer, 
+                                        exportFileName, &uiManager, windowColor);
 
       /* Set the handlers for the alignment and greyramp tools. Connect them here so we can pass
        * the main window as data. */
@@ -1193,7 +1223,9 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
        * the last one is closed */
       dotterCtx->windowList = g_slist_append(dotterCtx->windowList, dotterWindow);
       
-      dotterCreateProperties(dotterWindow, greyrampTool, greyrampWindow, alignmentTool, alignmentWindow,
+      dotterCreateProperties(dotterWindow, 
+                             greyrampTool, greyrampWindow, greyrampContainer,
+                             alignmentTool, alignmentWindow, alignmentContainer,
                              dotplot, dotterWinCtx, exportFileName, uiManager);
       DotterProperties *properties = dotterGetProperties(dotterWindow);
       
@@ -2778,18 +2810,18 @@ static void showGreyrampTool(GtkWidget *dotterWindow)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
   
+  if (!properties->greyrampTool)
+    properties->greyrampTool = createGreyrampTool(properties->dotterWinCtx, 40, 100, FALSE, &properties->greyrampWindow);
+
   if (properties->greyrampWindow && GTK_IS_WIDGET(properties->greyrampWindow))
     {
-      gtk_widget_show_all(properties->greyrampWindow);
-      
-      if (GTK_IS_WINDOW(properties->greyrampWindow))
+      if (!properties->windowsDocked)
         {
-          gtk_window_present(GTK_WINDOW(properties->greyrampWindow));
+          gtk_widget_show_all(properties->greyrampWindow);
+      
+          if (GTK_IS_WINDOW(properties->greyrampWindow))
+            gtk_window_present(GTK_WINDOW(properties->greyrampWindow));
         }
-    }
-  else
-    {
-      properties->greyrampTool = createGreyrampTool(properties->dotterWinCtx, 40, 100, FALSE, &properties->greyrampWindow);
     }
 }
 
@@ -2797,19 +2829,19 @@ static void showGreyrampTool(GtkWidget *dotterWindow)
 static void showAlignmentTool(GtkWidget *dotterWindow)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
-  
+
+  if (!properties->alignmentTool)
+    properties->alignmentTool = createAlignmentTool(properties->dotterWinCtx, &properties->alignmentWindow);
+
   if (properties->alignmentWindow && GTK_IS_WIDGET(properties->alignmentWindow))
     {
-      gtk_widget_show_all(properties->alignmentWindow);
-      
-      if (GTK_IS_WINDOW(properties->alignmentWindow))
+      if (!properties->windowsDocked)
         {
-          gtk_window_present(GTK_WINDOW(properties->alignmentWindow));
+          gtk_widget_show_all(properties->alignmentWindow);
+      
+          if (GTK_IS_WINDOW(properties->alignmentWindow))
+            gtk_window_present(GTK_WINDOW(properties->alignmentWindow));
         }
-    }
-  else
-    {
-      properties->alignmentTool = createAlignmentTool(properties->dotterWinCtx, &properties->alignmentWindow);
     }
 }
 
@@ -2820,6 +2852,47 @@ static void showDotterWindow(GtkWidget *dotterWindow)
   gtk_window_present(GTK_WINDOW(dotterWindow));
 }
 
+
+/* Move the given widget from source to dest */
+static void reparentWidget(GtkWidget *widget, GtkContainer *source, GtkContainer *dest)
+{
+  g_return_if_fail(widget && source && dest);
+
+  /* If the container ref to the widget is removed it might be destroyed, so make sure there is a
+   * ref to it. */
+  g_object_ref(widget);
+  gtk_container_remove(source, widget);
+  gtk_container_add(dest, widget);
+  g_object_unref(widget);
+
+  /* Hide the old and show the new */
+  gtk_widget_hide(GTK_WIDGET(source));
+  gtk_widget_show_all(GTK_WIDGET(dest));
+
+  if (GTK_IS_WINDOW(dest))
+    gtk_window_present(GTK_WINDOW(dest));
+}
+
+
+static void dotterToggleDockWindows(GtkWidget *dotterWindow)
+{
+  g_return_if_fail(dotterWindow);
+
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+
+  if (properties->windowsDocked)
+    {
+      reparentWidget(properties->alignmentTool, GTK_CONTAINER(properties->alignmentContainer), GTK_CONTAINER(properties->alignmentWindow));
+      reparentWidget(properties->greyrampTool, GTK_CONTAINER(properties->greyrampContainer), GTK_CONTAINER(properties->greyrampWindow));
+    }
+  else
+    {
+      reparentWidget(properties->alignmentTool, GTK_CONTAINER(properties->alignmentWindow), GTK_CONTAINER(properties->alignmentContainer));
+      reparentWidget(properties->greyrampTool, GTK_CONTAINER(properties->greyrampWindow), GTK_CONTAINER(properties->greyrampContainer));
+    }
+
+  properties->windowsDocked = !properties->windowsDocked;
+}
 
 /***********************************************************
  *                       Help Dialog                       *
@@ -3089,6 +3162,12 @@ static void onToggleBumpExonsMenu(GtkAction *action, gpointer data)
   GtkWidget *dotterWindow = GTK_WIDGET(data);
   DotterProperties *properties = dotterGetProperties(dotterWindow);
   dotplotToggleBumpExons(properties->dotplot);
+}
+
+static void onToggleDockWindowsMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  dotterToggleDockWindows(dotterWindow);
 }
 
 
@@ -3529,9 +3608,10 @@ static GtkWidget* createDotterMenu(GtkWidget *window,
 static GtkWidget* createDotterWindow(DotterContext *dc, 
                                      DotterWindowContext *dwc,
                                      const DotterHspMode hspMode, 
-                                     GtkWidget *greyrampTool, 
-                                     GtkWidget *dotplotContainer, 
                                      GtkWidget *dotplot,
+                                     GtkWidget *dotplotContainer, 
+                                     GtkWidget *greyrampContainer,
+                                     GtkWidget *alignmentContainer,
                                      const char *exportFileName,
                                      GtkUIManager **uiManager,
                                      char *windowColor)
@@ -3561,10 +3641,6 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
 
   gtk_box_pack_start(GTK_BOX(vbox), menuBar, FALSE, FALSE, 0);
 
-  /* Create container frames for greyramp and alignment tools for when docked */
-  GtkWidget *greyrampContainer = gtk_frame_new(NULL);
-  GtkWidget *alignmentContainer = gtk_frame_new(NULL);
-
   /* dotplot and greyramp tool (if docked) go in an hbox */
   GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
@@ -3586,8 +3662,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   
   const int exonViewHeight = 2 * (DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
   DotplotProperties *dotplotProperties = dotplotGetProperties(dotplot);
-  int width = getDotplotWidth(dotplot, dotplotProperties) + exonViewHeight + 100;
-  int height = getDotplotHeight(dotplot, dotplotProperties) + exonViewHeight + 100;
+  int width = getDotplotWidth(dotplot, dotplotProperties) + exonViewHeight + 100 + 300;
+  int height = getDotplotHeight(dotplot, dotplotProperties) + exonViewHeight + 100 + 200;
   
   width = min(width, maxWidth);
   height = min(height, maxHeight);
