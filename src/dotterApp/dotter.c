@@ -135,6 +135,7 @@ typedef struct _DotterProperties
   DotterWindowContext *dotterWinCtx;
   const char *exportFileName;
   GtkUIManager *uiManager;                  /* the ui manager for this dotter window */
+  GtkActionGroup *actionGroup;              /* the menu actions for this window */
 } DotterProperties;
 
 
@@ -156,7 +157,7 @@ static void DNAmatrix(int mtx[24][24]);
 
 static void                   showGreyrampTool(GtkWidget *dotterWindow);
 static void                   showAlignmentTool(GtkWidget *dotterWindow);
-static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *dotplot, GtkWidget *dotplotContainer, GtkWidget *greyrampContainer, GtkWidget *alignmentContainer, const char *exportFileName, GtkUIManager **uiManager, char *windowColor);
+static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *dotplot, GtkWidget *dotplotContainer, GtkWidget *greyrampContainer, GtkWidget *alignmentContainer, const char *exportFileName, GtkUIManager **uiManager, GtkActionGroup **actionGroup_out, char *windowColor);
 static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
@@ -968,7 +969,8 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
                                    GtkWidget *dotplot,
                                    DotterWindowContext *dotterWinCtx,
                                    const char *exportFileName,
-                                   GtkUIManager *uiManager)
+                                   GtkUIManager *uiManager,
+                                   GtkActionGroup *actionGroup)
 {
   DEBUG_ENTER("dotterCreateProperties");
 
@@ -987,6 +989,7 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
       properties->dotterWinCtx = dotterWinCtx;
       properties->exportFileName = exportFileName;
       properties->uiManager = uiManager;
+      properties->actionGroup = actionGroup;
       
       g_object_set_data(G_OBJECT(dotterWindow), "DotterProperties", properties);
       g_signal_connect(G_OBJECT(dotterWindow), "destroy", G_CALLBACK(onDestroyDotterWindow), NULL); 
@@ -1209,9 +1212,10 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
   
       const DotterHspMode hspMode = dotplotGetHspMode(dotplot);
       GtkUIManager *uiManager = NULL;
+      GtkActionGroup *actionGroup = NULL;
       dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, 
                                         dotplot, dotplotWidget, greyrampContainer, alignmentContainer, 
-                                        exportFileName, &uiManager, windowColor);
+                                        exportFileName, &uiManager, &actionGroup, windowColor);
 
       /* Set the handlers for the alignment and greyramp tools. Connect them here so we can pass
        * the main window as data. */
@@ -1227,7 +1231,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
       dotterCreateProperties(dotterWindow, 
                              greyrampTool, greyrampWindow, greyrampContainer,
                              alignmentTool, alignmentWindow, alignmentContainer,
-                             dotplot, dotterWinCtx, exportFileName, uiManager);
+                             dotplot, dotterWinCtx, exportFileName, uiManager, actionGroup);
       DotterProperties *properties = dotterGetProperties(dotterWindow);
       
       setInitSelectedCoords(dotterWindow, qcenter, scenter);
@@ -3418,7 +3422,10 @@ static gboolean onKeyPressD(GtkWidget *dotterWindow, const gboolean ctrlModifier
 static gboolean onKeyPressK(GtkWidget *dotterWindow, const gboolean ctrlModifier)
 {
   if (ctrlModifier)
-    dotterToggleDockWindows(dotterWindow);
+    {
+      DotterProperties *properties = dotterGetProperties(dotterWindow);
+      setToggleMenuStatus(properties->actionGroup, "DockWindows", !properties->windowsDocked);
+    }
   
   return ctrlModifier;
 }
@@ -3575,7 +3582,7 @@ GList* dotterCreateColumns()
 
 
 /* Create the UI manager for the menus */
-static GtkUIManager* createUiManager(GtkWidget *window, const DotterHspMode hspMode)
+static GtkUIManager* createUiManager(GtkWidget *window, const DotterHspMode hspMode, GtkActionGroup **actionGroup_out)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
   
@@ -3594,6 +3601,9 @@ static GtkUIManager* createUiManager(GtkWidget *window, const DotterHspMode hspM
   
   GtkAccelGroup *accel_group = gtk_ui_manager_get_accel_group (ui_manager);
   gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
+
+  if (actionGroup_out)
+    *actionGroup_out = action_group;
 
   return ui_manager;
 }
@@ -3627,6 +3637,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
                                      GtkWidget *alignmentContainer,
                                      const char *exportFileName,
                                      GtkUIManager **uiManager,
+                                     GtkActionGroup **actionGroup_out,
                                      char *windowColor)
 { 
   DEBUG_ENTER("createDotterWindow");
@@ -3642,7 +3653,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   dc->msgData->parent = GTK_WINDOW(dotterWindow);
   
   /* Create the menu bar, and a right-click context menu */
-  *uiManager = createUiManager(dotterWindow, hspMode);
+  *uiManager = createUiManager(dotterWindow, hspMode, actionGroup_out);
   GtkWidget *menuBar = createDotterMenu(dotterWindow, mainMenuDescription, "/MenuBar", *uiManager);
   GtkWidget *contextMenu = createDotterMenu(dotterWindow, mainMenuDescription, "/ContextMenu", *uiManager);
   

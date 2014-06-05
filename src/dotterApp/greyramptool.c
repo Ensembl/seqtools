@@ -845,7 +845,7 @@ static GtkWidget* createGradientRect(GtkWidget *greyramp, GdkRectangle *rect)
 
 
 /* Create a window to hold the greyramp tool when it is un-docked */
-static GtkWidget *createGreyrampToolWindow(DotterWindowContext *dwc)
+static GtkWidget *createGreyrampToolWindow(DotterWindowContext *dwc, GtkWidget *greyrampTool)
 {
   GtkWidget *greyrampWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
@@ -855,7 +855,7 @@ static GtkWidget *createGreyrampToolWindow(DotterWindowContext *dwc)
 
   /* Create the right-click menu */
   GtkWidget *menu = createGreyrampToolMenu(greyrampWindow);
-  g_signal_connect(G_OBJECT(greyrampWindow), "button-press-event", G_CALLBACK(onButtonPressGreyrampTool), menu);
+  g_signal_connect(G_OBJECT(greyrampTool), "button-press-event", G_CALLBACK(onButtonPressGreyrampTool), menu);
 
   return greyrampWindow;
 }
@@ -916,7 +916,7 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc,
   updateGreyMap(greyrampTool);
 
   if (greyrampWindow)
-    *greyrampWindow = createGreyrampToolWindow(dwc);
+    *greyrampWindow = createGreyrampToolWindow(dwc, greyrampTool);
                    
   DEBUG_EXIT("createGreyrampTool returning ");
   return greyrampTool;

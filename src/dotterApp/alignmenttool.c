@@ -924,7 +924,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
 
 
 /* Create a window to hold the alignment tool when it is un-docked */
-static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, AlignmentToolProperties *properties)
+static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, AlignmentToolProperties *properties, GtkWidget *alignmentTool)
 {
   GtkWidget *alignmentWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size(GTK_WINDOW(alignmentWindow), 1160, -1);
@@ -935,7 +935,7 @@ static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, AlignmentT
 
   /* Create the right-click menu */
   GtkWidget *menu = createAlignmentToolMenu(alignmentWindow, &properties->actionGroup);
-  g_signal_connect(G_OBJECT(alignmentWindow), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
+  g_signal_connect(G_OBJECT(alignmentTool), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
 
   return alignmentWindow;
 }
@@ -986,7 +986,7 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **al
   onAlignmentToolRangeChanged(alignmentTool);
   
   if (alignmentWindow)
-    *alignmentWindow = createAlignmentToolWindow(dotterWinCtx, properties);
+    *alignmentWindow = createAlignmentToolWindow(dotterWinCtx, properties, alignmentTool);
   
   DEBUG_EXIT("createAlignmentTool returning ");
   return alignmentTool;
