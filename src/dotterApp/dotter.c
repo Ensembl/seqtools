@@ -3413,6 +3413,15 @@ static gboolean onKeyPressD(GtkWidget *dotterWindow, const gboolean ctrlModifier
   return ctrlModifier;
 }
 
+/* Handle K key press (Ctrl-K => dock/undock windows) */
+static gboolean onKeyPressK(GtkWidget *dotterWindow, const gboolean ctrlModifier)
+{
+  if (ctrlModifier)
+    dotterToggleDockWindows(dotterWindow);
+  
+  return ctrlModifier;
+}
+
 /* Handle up/down key presses */
 static gboolean onKeyPressUpDown(GtkWidget *dotterWindow, const gboolean isUp, const gboolean modifier)
 {
@@ -3495,6 +3504,9 @@ gboolean onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
       case GDK_D:   /* fall through */
       case GDK_d:   handled = onKeyPressD(dotterWindow, ctrlModifier);              break;
+
+      case GDK_K:   /* fall through */
+      case GDK_k:   handled = onKeyPressK(dotterWindow, ctrlModifier);              break;
 
       default: break;
   }
