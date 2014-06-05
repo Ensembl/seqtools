@@ -292,7 +292,7 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
  *                       Events                            *
  ***********************************************************/
 
-static void redrawAll(GtkWidget *alignmentTool)
+void alignmentToolRedrawAll(GtkWidget *alignmentTool)
 {
   callFuncOnAllChildWidgets(alignmentTool, (gpointer)widgetClearCachedDrawable);
   gtk_widget_queue_draw(alignmentTool);
@@ -302,7 +302,7 @@ static void redrawAll(GtkWidget *alignmentTool)
 /* Called when the alignment tool window changes size */
 static void onSizeAllocateAlignmentTool(GtkWidget *alignmentTool, GtkAllocation *allocation, gpointer data)
 {
-  redrawAll(alignmentTool);
+  alignmentToolRedrawAll(alignmentTool);
 }
 
 
@@ -379,7 +379,7 @@ static gboolean onExposeMatchSequenceHeader(GtkWidget *widget, GdkEventExpose *e
 /* This should be called when the range displayed by the alignment tool has changed */
 static void onAlignmentToolRangeChanged(GtkWidget *alignmentTool)
 {
-  redrawAll(alignmentTool);
+  alignmentToolRedrawAll(alignmentTool);
 }
 
 
@@ -500,7 +500,7 @@ void alignmentToolSetSpliceSitesOn(GtkWidget *alignmentTool, const gboolean spli
       if (properties)
         {
           properties->spliceSitesOn = spliceSitesOn;
-          redrawAll(alignmentTool);
+          alignmentToolRedrawAll(alignmentTool);
         }
     }
 }
@@ -544,8 +544,6 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
   offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, FALSE);
   properties->matchDisplayRange.min = dwc->matchCoord - offset;
   properties->matchDisplayRange.max = properties->matchDisplayRange.min + len;
-  
-  onAlignmentToolRangeChanged(alignmentTool);
 }
 
 
@@ -597,7 +595,7 @@ static void onPrintMenu(GtkAction *action, gpointer data)
   /* Set the background colour to something sensible for printing */
   GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, TRUE);
   setWidgetBackgroundColor(alignmentTool, defaultBgColor);
-  redrawAll(alignmentTool);
+  alignmentToolRedrawAll(alignmentTool);
 
   /* Make sure cached drawables are re-drawn before we print them. */
   gdk_window_process_all_updates();
@@ -608,7 +606,7 @@ static void onPrintMenu(GtkAction *action, gpointer data)
   /* Revert the background colour */
   defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, dwc->usePrintColors);
   setWidgetBackgroundColor(alignmentTool, defaultBgColor);
-  redrawAll(alignmentTool);
+  alignmentToolRedrawAll(alignmentTool);
 }
 
 
@@ -1071,6 +1069,10 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
 
   GdkGC *gc = gdk_gc_new(drawable);
+
+  /* Get the length of the sequence we can display i.e. number of chars wide the widget is */
+  atProperties->alignmentLen = widget->allocation.width / dc->charWidth;
+  updateAlignmentRange(alignmentTool, dwc);
 
   /* Get the sequence info for this widget */
   SequenceProperties *seq1 = sequenceGetProperties(widget);

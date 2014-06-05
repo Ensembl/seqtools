@@ -327,6 +327,7 @@ GtkWidget*          createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWi
 void                updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc);
 void                alignmentToolSetSpliceSitesOn(GtkWidget *alignmentTool, const gboolean spliceSitesOn);
 gboolean            alignmentToolGetSpliceSitesOn(GtkWidget *alignmentTool);
+void                alignmentToolRedrawAll(GtkWidget *alignmentTool);
 
 
 /* dotplot.c */

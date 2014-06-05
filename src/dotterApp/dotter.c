@@ -1015,6 +1015,7 @@ static void updateOnSelectedCoordsChanged(GtkWidget *dotterWindow)
   
   /* Update the alignment view and dotplot */
   updateAlignmentRange(properties->alignmentTool, properties->dotterWinCtx);
+  alignmentToolRedrawAll(properties->alignmentTool);
   
   /* Need to clear cached drawables for the alignment tool but can just refresh the dotplot */
   widgetClearCachedDrawable(properties->alignmentTool, NULL);
