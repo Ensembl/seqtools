@@ -122,7 +122,9 @@
 typedef struct _DotterProperties
 {
   GtkWidget *greyrampTool;                  /* the greyramp tool */
+  GtkWidget *greyrampWindow;                /* the window containing the greyramp too when undocked */
   GtkWidget *alignmentTool;                 /* the alignment tool */
+  GtkWidget *alignmentWindow;               /* the window containing the alignment tool when undocked */
   GtkWidget *dotplot;                       /* the dotplot drawing area */
   
   DotterWindowContext *dotterWinCtx;
@@ -950,7 +952,9 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
 /* properties specific to a particular dotter window */
 static void dotterCreateProperties(GtkWidget *dotterWindow, 
                                    GtkWidget *greyrampTool, 
+                                   GtkWidget *greyrampWindow,
                                    GtkWidget *alignmentTool,
+                                   GtkWidget *alignmentWindow,
                                    GtkWidget *dotplot,
                                    DotterWindowContext *dotterWinCtx,
                                    const char *exportFileName,
@@ -963,7 +967,9 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
       DotterProperties *properties = (DotterProperties*)g_malloc(sizeof *properties);
 
       properties->greyrampTool = greyrampTool;
+      properties->greyrampWindow = greyrampWindow;
       properties->alignmentTool = alignmentTool;
+      properties->alignmentWindow = alignmentWindow;
       properties->dotplot = dotplot;
       properties->dotterWinCtx = dotterWinCtx;
       properties->exportFileName = exportFileName;
@@ -1163,11 +1169,13 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
   /* Only create the graphical elements if there is a graphical dotplot widget */
   if (dotplotWidget)
     {
-      GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, 40, 100, greyrampSwap);
+      GtkWidget *greyrampWindow = NULL;
+      GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, 40, 100, greyrampSwap, &greyrampWindow);
       registerGreyrampCallback(greyrampTool, dotplot, dotplotUpdateGreymap);
       blxSetWidgetColor(greyrampTool, windowColor);
 
-      GtkWidget *alignmentTool = createAlignmentTool(dotterWinCtx);
+      GtkWidget *alignmentWindow = NULL;
+      GtkWidget *alignmentTool = createAlignmentTool(dotterWinCtx, &alignmentWindow);
       blxSetWidgetColor(alignmentTool, windowColor);
   
       const DotterHspMode hspMode = dotplotGetHspMode(dotplot);
@@ -1176,16 +1184,17 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
 
       /* Set the handlers for the alignment and greyramp tools. Connect them here so we can pass
        * the main window as data. */
-      gtk_widget_add_events(alignmentTool, GDK_KEY_PRESS_MASK);
-      gtk_widget_add_events(greyrampTool, GDK_KEY_PRESS_MASK);
-      g_signal_connect(G_OBJECT(alignmentTool), "key-press-event", G_CALLBACK(onKeyPressDotterCoords), dotterWindow);
-      g_signal_connect(G_OBJECT(greyrampTool), "key-press-event", G_CALLBACK(onKeyPressDotter), dotterWindow);
+      gtk_widget_add_events(alignmentWindow, GDK_KEY_PRESS_MASK);
+      gtk_widget_add_events(greyrampWindow, GDK_KEY_PRESS_MASK);
+      g_signal_connect(G_OBJECT(alignmentWindow), "key-press-event", G_CALLBACK(onKeyPressDotterCoords), dotterWindow);
+      g_signal_connect(G_OBJECT(greyrampWindow), "key-press-event", G_CALLBACK(onKeyPressDotter), dotterWindow);
 
       /* Keep track of all the windows we create, so that we can destroy the DotterContext when
        * the last one is closed */
       dotterCtx->windowList = g_slist_append(dotterCtx->windowList, dotterWindow);
       
-      dotterCreateProperties(dotterWindow, greyrampTool, alignmentTool, dotplot, dotterWinCtx, exportFileName, uiManager);
+      dotterCreateProperties(dotterWindow, greyrampTool, greyrampWindow, alignmentTool, alignmentWindow,
+                             dotplot, dotterWinCtx, exportFileName, uiManager);
       DotterProperties *properties = dotterGetProperties(dotterWindow);
       
       setInitSelectedCoords(dotterWindow, qcenter, scenter);
@@ -2769,18 +2778,18 @@ static void showGreyrampTool(GtkWidget *dotterWindow)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
   
-  if (properties->greyrampTool && GTK_IS_WIDGET(properties->greyrampTool))
+  if (properties->greyrampWindow && GTK_IS_WIDGET(properties->greyrampWindow))
     {
-      gtk_widget_show_all(properties->greyrampTool);
+      gtk_widget_show_all(properties->greyrampWindow);
       
-      if (GTK_IS_WINDOW(properties->greyrampTool))
+      if (GTK_IS_WINDOW(properties->greyrampWindow))
         {
-          gtk_window_present(GTK_WINDOW(properties->greyrampTool));
+          gtk_window_present(GTK_WINDOW(properties->greyrampWindow));
         }
     }
   else
     {
-      properties->greyrampTool = createGreyrampTool(properties->dotterWinCtx, 40, 100, FALSE);
+      properties->greyrampTool = createGreyrampTool(properties->dotterWinCtx, 40, 100, FALSE, &properties->greyrampWindow);
     }
 }
 
@@ -2789,18 +2798,18 @@ static void showAlignmentTool(GtkWidget *dotterWindow)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
   
-  if (properties->alignmentTool && GTK_IS_WIDGET(properties->alignmentTool))
+  if (properties->alignmentWindow && GTK_IS_WIDGET(properties->alignmentWindow))
     {
-      gtk_widget_show_all(properties->alignmentTool);
+      gtk_widget_show_all(properties->alignmentWindow);
       
-      if (GTK_IS_WINDOW(properties->alignmentTool))
+      if (GTK_IS_WINDOW(properties->alignmentWindow))
         {
-          gtk_window_present(GTK_WINDOW(properties->alignmentTool));
+          gtk_window_present(GTK_WINDOW(properties->alignmentWindow));
         }
     }
   else
     {
-      properties->alignmentTool = createAlignmentTool(properties->dotterWinCtx);
+      properties->alignmentTool = createAlignmentTool(properties->dotterWinCtx, &properties->alignmentWindow);
     }
 }
 
@@ -3551,8 +3560,18 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   gtk_container_add(GTK_CONTAINER(dotterWindow), GTK_WIDGET(vbox));
 
   gtk_box_pack_start(GTK_BOX(vbox), menuBar, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), dotplotContainer, TRUE, TRUE, 0);
 
+  /* Create container frames for greyramp and alignment tools for when docked */
+  GtkWidget *greyrampContainer = gtk_frame_new(NULL);
+  GtkWidget *alignmentContainer = gtk_frame_new(NULL);
+
+  /* dotplot and greyramp tool (if docked) go in an hbox */
+  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), dotplotContainer, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), greyrampContainer, FALSE, FALSE, 0);
+
+  gtk_box_pack_start(GTK_BOX(vbox), alignmentContainer, FALSE, FALSE, 0);
   
   gtk_widget_add_events(dotterWindow, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(dotterWindow, GDK_POINTER_MOTION_MASK);

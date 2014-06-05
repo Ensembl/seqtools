@@ -844,18 +844,37 @@ static GtkWidget* createGradientRect(GtkWidget *greyramp, GdkRectangle *rect)
 }
 
 
+/* Create a window to hold the greyramp tool when it is un-docked */
+static GtkWidget *createGreyrampToolWindow(DotterWindowContext *dwc)
+{
+  GtkWidget *greyrampWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+
+  char *title = g_strdup_printf("%sGreyramp Tool", dotterGetTitlePrefix(dwc->dotterCtx));
+  gtk_window_set_title(GTK_WINDOW(greyrampWindow), title);
+  g_free(title);
+
+  /* Create the right-click menu */
+  GtkWidget *menu = createGreyrampToolMenu(greyrampWindow);
+  g_signal_connect(G_OBJECT(greyrampWindow), "button-press-event", G_CALLBACK(onButtonPressGreyrampTool), menu);
+
+  gtk_widget_show_all(greyrampWindow);
+
+  return greyrampWindow;
+}
+
+
 /* Create the greyramp widget. Pass the initial value for the top and bottom spin buttons. If
  * 'swapValues' is true these will be swapped. */
-GtkWidget* createGreyrampTool(DotterWindowContext *dwc, const int whitePointIn, const int blackPointIn, const gboolean swapValues)
+GtkWidget* createGreyrampTool(DotterWindowContext *dwc,
+                              const int whitePointIn,
+                              const int blackPointIn,
+                              const gboolean swapValues,
+                              GtkWidget **greyrampWindow)
 {
   DEBUG_ENTER("createGreyrampTool");
 
   /* Create the window */
-  GtkWidget *greyrampTool = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-
-  char *title = g_strdup_printf("%sGreyramp Tool", dotterGetTitlePrefix(dwc->dotterCtx));
-  gtk_window_set_title(GTK_WINDOW(greyrampTool), title);
-  g_free(title);
+  GtkWidget *greyrampTool = gtk_frame_new(NULL);
 
   /* Outer container is an hbox */
   GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
@@ -890,17 +909,19 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc, const int whitePointIn, 
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(whiteSpinButton), (float)whitePoint);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(blackSpinButton), (float)blackPoint);
   
-  /* Create the right-click menu */
-  GtkWidget *menu = createGreyrampToolMenu(greyrampTool);
-
   /* Set event handlers */
   gtk_widget_add_events(greyrampTool, GDK_BUTTON_PRESS_MASK);
-  g_signal_connect(G_OBJECT(greyrampTool), "button-press-event", G_CALLBACK(onButtonPressGreyrampTool), menu);
   g_signal_connect(G_OBJECT(greyrampTool), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 
   gtk_widget_show_all(greyrampTool);
   
   updateGreyMap(greyrampTool);
+
+  if (greyrampWindow)
+    {
+      *greyrampWindow = createGreyrampToolWindow(dwc);
+      gtk_container_add(GTK_CONTAINER(*greyrampWindow), greyrampTool);
+    }
                    
   DEBUG_EXIT("createGreyrampTool returning ");
   return greyrampTool;

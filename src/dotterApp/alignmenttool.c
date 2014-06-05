@@ -602,7 +602,8 @@ static void onPrintMenu(GtkAction *action, gpointer data)
   /* Make sure cached drawables are re-drawn before we print them. */
   gdk_window_process_all_updates();
   
-  blxPrintWidget(alignmentTool, NULL, GTK_WINDOW(alignmentTool), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
+  GtkWidget *window = gtk_widget_get_toplevel(alignmentTool);
+  blxPrintWidget(alignmentTool, NULL, GTK_WINDOW(window), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
 
   /* Revert the background colour */
   defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, dwc->usePrintColors);
@@ -924,17 +925,32 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
 }
 
 
-GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
+/* Create a window to hold the alignment tool when it is un-docked */
+static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, AlignmentToolProperties *properties)
+{
+  GtkWidget *alignmentWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_default_size(GTK_WINDOW(alignmentWindow), 1160, -1);
+
+  char *title = g_strdup_printf("%sAlignment tool", dotterGetTitlePrefix(dwc->dotterCtx));
+  gtk_window_set_title(GTK_WINDOW(alignmentWindow), title);
+  g_free(title);
+
+  /* Create the right-click menu */
+  GtkWidget *menu = createAlignmentToolMenu(alignmentWindow, &properties->actionGroup);
+  g_signal_connect(G_OBJECT(alignmentWindow), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
+
+  gtk_widget_show_all(alignmentWindow);
+
+  return alignmentWindow;
+}
+
+
+/* Return the alignment tool widget and set the return widget to be the window that contains it. */
+GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **alignmentWindow)
 {
   DEBUG_ENTER("createAlignmentTool");
 
-  GtkWidget *alignmentTool = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-
-  char *title = g_strdup_printf("%sAlignment tool", dotterGetTitlePrefix(dotterWinCtx->dotterCtx));
-  gtk_window_set_title(GTK_WINDOW(alignmentTool), title);
-  g_free(title);
-  
-  gtk_window_set_default_size(GTK_WINDOW(alignmentTool), 1160, -1);
+  GtkWidget *alignmentTool = gtk_frame_new(NULL);
   
   /* We'll put everything in a vbox, inside a scrolled window, inside a frame */  
   GtkWidget *frame = gtk_frame_new(NULL);
@@ -962,19 +978,21 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
       GtkWidget *section2 = createAlignmentToolSection(qStrand, alignmentTool, properties);
       gtk_box_pack_start(GTK_BOX(vbox), section2, FALSE, FALSE, 0);
     }
-
-  /* Create the right-click menu */
-  GtkWidget *menu = createAlignmentToolMenu(alignmentTool, &properties->actionGroup);
   
   gtk_widget_add_events(alignmentTool, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(alignmentTool, GDK_KEY_PRESS_MASK);
 
-  g_signal_connect(G_OBJECT(alignmentTool), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
   g_signal_connect(G_OBJECT(alignmentTool), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
   g_signal_connect(G_OBJECT(alignmentTool), "size-allocate", G_CALLBACK(onSizeAllocateAlignmentTool), NULL);
   gtk_widget_show_all(alignmentTool);
   
   onAlignmentToolRangeChanged(alignmentTool);
+  
+  if (alignmentWindow)
+    {
+      *alignmentWindow = createAlignmentToolWindow(dotterWinCtx, properties);
+      gtk_container_add(GTK_CONTAINER(*alignmentWindow), alignmentTool);
+    }
   
   DEBUG_EXIT("createAlignmentTool returning ");
   return alignmentTool;
