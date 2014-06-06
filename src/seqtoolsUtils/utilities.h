@@ -556,6 +556,7 @@ char*                              getLoadFileName(GtkWidget *widget, const char
 
 void                               enableMenuAction(GtkActionGroup *action_group, const char *actionName, const gboolean enable);
 void                               setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active);
+gboolean                           getToggleMenuStatus(GtkActionGroup *action_group, const char *actionName);
 void                               setRadioMenuStatus(GtkActionGroup *action_group, const char *actionName, const gint value);
 
 GtkWidget*                         externalCommand(const char *command, const char *progName, GtkWidget *widget, GError **error);

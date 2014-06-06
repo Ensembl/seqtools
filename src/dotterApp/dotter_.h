@@ -222,6 +222,9 @@ typedef struct _DotterWindowContext
     GtkPrintSettings *printSettings;          /* print settings */
     GtkPageSetup *pageSetup;                  /* page setup for printing */
     gboolean usePrintColors;                  /* whether to use print colours */
+
+    GtkUIManager *uiManager;                  /* the ui manager for this dotter window */
+    GtkActionGroup *actionGroup;              /* the menu actions for this window */
   } DotterWindowContext;
 
 
@@ -318,15 +321,16 @@ void                callDotterInternal(DotterContext *dc,
                                        const gboolean breaklinesOn);
 
 /* greyramptool.c */
-GtkWidget*          createGreyrampTool(DotterWindowContext *dwc, const int bottomVal, const int topVal, const gboolean swapValues);
+GtkWidget*          createGreyrampTool(DotterWindowContext *dwc, const int bottomVal, const int topVal, const gboolean swapValues, GtkWidget **greyrampWindow_out);
 void                registerGreyrampCallback(GtkWidget *greyramp, GtkWidget *widget, GtkCallback func);
 void                updateGreyMap(GtkWidget *greyramp);
 
 /* alignmenttool.c */
-GtkWidget*          createAlignmentTool(DotterWindowContext *dotterWinCtx);
+GtkWidget*          createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **alignmentWindow_out);
 void                updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc);
 void                alignmentToolSetSpliceSitesOn(GtkWidget *alignmentTool, const gboolean spliceSitesOn);
 gboolean            alignmentToolGetSpliceSitesOn(GtkWidget *alignmentTool);
+void                alignmentToolRedrawAll(GtkWidget *alignmentTool);
 
 
 /* dotplot.c */
