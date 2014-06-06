@@ -142,6 +142,7 @@ static char*                       getSequenceBetweenCoords(GtkWidget *sequenceW
 static void                        clearSequenceSelection(GtkWidget *alignmentTool);
 static int                         getSequenceStart(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords);
 static int                         getSequenceEnd(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords);
+static gboolean                    onDeleteAlignmentTool(GtkWidget *widget, GdkEvent *event, gpointer data);
 
 static void highlightSpliceSite(SequenceProperties *seq1,
                                 AlignmentToolProperties *atProperties,
@@ -531,21 +532,25 @@ gboolean alignmentToolGetSpliceSitesOn(GtkWidget *alignmentTool)
 void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
 {
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-  DotterContext *dc = dwc->dotterCtx;
 
-  /* Re-create the range, centred on the set coordinate and with the alignment tool's alignment 
-   * length. Note that the length is the number of display chars but the reference sequence is
-   * in nucleotide coords so needs converting. (The match sequence is always in display coords so
-   * will be correct whether we're displaying nucleotides or peptides.) */
-  int len = properties->alignmentLen * getResFactor(dc, TRUE);
-  int offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, TRUE);
-  properties->refDisplayRange.min = dwc->refCoord - offset;
-  properties->refDisplayRange.max = properties->refDisplayRange.min + len;
+  if (properties)
+    {
+      DotterContext *dc = dwc->dotterCtx;
 
-  len = properties->alignmentLen * getResFactor(dc, FALSE);
-  offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, FALSE);
-  properties->matchDisplayRange.min = dwc->matchCoord - offset;
-  properties->matchDisplayRange.max = properties->matchDisplayRange.min + len;
+      /* Re-create the range, centred on the set coordinate and with the alignment tool's alignment 
+       * length. Note that the length is the number of display chars but the reference sequence is
+       * in nucleotide coords so needs converting. (The match sequence is always in display coords so
+       * will be correct whether we're displaying nucleotides or peptides.) */
+      int len = properties->alignmentLen * getResFactor(dc, TRUE);
+      int offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, TRUE);
+      properties->refDisplayRange.min = dwc->refCoord - offset;
+      properties->refDisplayRange.max = properties->refDisplayRange.min + len;
+
+      len = properties->alignmentLen * getResFactor(dc, FALSE);
+      offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, FALSE);
+      properties->matchDisplayRange.min = dwc->matchCoord - offset;
+      properties->matchDisplayRange.max = properties->matchDisplayRange.min + len;
+    }
 }
 
 
@@ -848,6 +853,8 @@ static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, GtkWidget 
   GtkWidget *menu = createAlignmentToolMenu(alignmentWindow, alignmentTool, actionGroup_out);
   g_signal_connect(G_OBJECT(alignmentTool), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
 
+  g_signal_connect(G_OBJECT(alignmentWindow), "delete-event", G_CALLBACK(onDeleteAlignmentTool), alignmentTool);
+
   return alignmentWindow;
 }
 
@@ -859,6 +866,7 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **al
   DEBUG_ENTER("createAlignmentTool");
 
   GtkWidget *alignmentTool = gtk_frame_new(NULL);
+  gtk_frame_set_shadow_type(GTK_FRAME(alignmentTool), GTK_SHADOW_NONE);
   
   /* We'll put everything in a vbox, inside a scrolled window, inside a frame */  
   GtkWidget *frame = gtk_frame_new(NULL);
@@ -893,7 +901,6 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **al
   gtk_widget_add_events(alignmentTool, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(alignmentTool, GDK_KEY_PRESS_MASK);
 
-  g_signal_connect(G_OBJECT(alignmentTool), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
   g_signal_connect(G_OBJECT(alignmentTool), "size-allocate", G_CALLBACK(onSizeAllocateAlignmentTool), NULL);
   gtk_widget_show_all(alignmentTool);
   
@@ -1121,6 +1128,17 @@ static void drawSequenceHeader(GtkWidget *widget,
 /***********************************************************
  *                      Utility functions                  *
  ***********************************************************/
+
+static gboolean onDeleteAlignmentTool(GtkWidget *widget, GdkEvent *event, gpointer data)
+{
+  GtkWidget *alignmentTool = GTK_WIDGET(data);
+  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+
+  if (properties && properties->dotterWinCtx)
+    setToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleAlignment", FALSE);
+
+  return TRUE;
+}
 
 /* Return the coord that the alignment tool display starts at (adjusted for strand direction
  * and converted from dna to peptide coords if applicable). */
