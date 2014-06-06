@@ -318,12 +318,12 @@ void                callDotterInternal(DotterContext *dc,
                                        const gboolean breaklinesOn);
 
 /* greyramptool.c */
-GtkWidget*          createGreyrampTool(DotterWindowContext *dwc, const int bottomVal, const int topVal, const gboolean swapValues, GtkWidget **greyrampWindow);
+GtkWidget*          createGreyrampTool(DotterWindowContext *dwc, const int bottomVal, const int topVal, const gboolean swapValues, GtkWidget **greyrampWindow_out);
 void                registerGreyrampCallback(GtkWidget *greyramp, GtkWidget *widget, GtkCallback func);
 void                updateGreyMap(GtkWidget *greyramp);
 
 /* alignmenttool.c */
-GtkWidget*          createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **alignmentWindow);
+GtkWidget*          createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **alignmentWindow_out);
 void                updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc);
 void                alignmentToolSetSpliceSitesOn(GtkWidget *alignmentTool, const gboolean spliceSitesOn);
 gboolean            alignmentToolGetSpliceSitesOn(GtkWidget *alignmentTool);

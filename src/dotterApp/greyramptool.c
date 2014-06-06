@@ -83,6 +83,8 @@ typedef struct _CallbackItem
 
 typedef struct _GreyrampProperties
   {
+    GtkWidget *greyrampWindow;          /* the toplevel window the greyrampTool will be in IF
+                                         * undocked from the main window */
     DotterWindowContext *dwc;
     GdkRectangle gradientRect;          /* the area where the gradient ectangle is drawn */
     
@@ -139,6 +141,7 @@ static void onDestroyGreyramp(GtkWidget *greyramp)
 }
 
 static void greyrampCreateProperties(GtkWidget *greyramp, 
+                                     GtkWidget *greyrampWindow,
 				     DotterWindowContext *dwc,
                                      GdkRectangle *gradientRect,
                                      GtkWidget *whiteSpinButton,
@@ -153,6 +156,7 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
     {
       GreyrampProperties *properties =(GreyrampProperties*) g_malloc(sizeof *properties);
 
+      properties->greyrampWindow = greyrampWindow;
       properties->dwc = dwc;
       properties->gradientRect.x = gradientRect->x;
       properties->gradientRect.y = gradientRect->y;
@@ -174,6 +178,19 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
       g_object_set_data(G_OBJECT(greyramp), "GreyrampProperties", properties);
       g_signal_connect(G_OBJECT(greyramp), "destroy", G_CALLBACK(onDestroyGreyramp), NULL); 
     }
+}
+
+
+static GtkWidget *greyrampGetWindow(GtkWidget *alignmentTool)
+{
+  GtkWidget *result = NULL;
+
+  GreyrampProperties *properties = greyrampGetProperties(alignmentTool);
+
+  if (properties)
+    result = properties->greyrampWindow;
+
+  return result;
 }
 
 
@@ -237,11 +254,12 @@ void registerGreyrampCallback(GtkWidget *greyramp, GtkWidget *widget, GtkCallbac
 
 static void onCloseMenu(GtkAction *action, gpointer data)
 {
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
+  GtkWidget *greyrampTool = GTK_WIDGET(data);
+  GtkWidget *greyrampWindow = greyrampGetWindow(greyrampTool);
   
-  if (alignmentTool)
+  if (greyrampWindow)
     {
-      gtk_widget_hide(alignmentTool);
+      gtk_widget_hide(greyrampWindow);
     }
 }
 
@@ -710,10 +728,10 @@ static gint onPressSwapButton(GtkWidget *button, gpointer data)
 }
 
 /* Create the menu */
-static GtkWidget* createGreyrampToolMenu(GtkWidget *window)
+static GtkWidget* createGreyrampToolMenu(GtkWidget *window, GtkWidget *greyrampTool)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
-  gtk_action_group_add_actions (action_group, greyrampToolMenuEntries, G_N_ELEMENTS (greyrampToolMenuEntries), window);
+  gtk_action_group_add_actions (action_group, greyrampToolMenuEntries, G_N_ELEMENTS (greyrampToolMenuEntries), greyrampTool);
   
   GtkUIManager *ui_manager = gtk_ui_manager_new ();
   gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
@@ -854,7 +872,7 @@ static GtkWidget *createGreyrampToolWindow(DotterWindowContext *dwc, GtkWidget *
   g_free(title);
 
   /* Create the right-click menu */
-  GtkWidget *menu = createGreyrampToolMenu(greyrampWindow);
+  GtkWidget *menu = createGreyrampToolMenu(greyrampWindow, greyrampTool);
   g_signal_connect(G_OBJECT(greyrampTool), "button-press-event", G_CALLBACK(onButtonPressGreyrampTool), menu);
 
   return greyrampWindow;
@@ -867,7 +885,7 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc,
                               const int whitePointIn,
                               const int blackPointIn,
                               const gboolean swapValues,
-                              GtkWidget **greyrampWindow)
+                              GtkWidget **greyrampWindow_out)
 {
   DEBUG_ENTER("createGreyrampTool");
 
@@ -892,8 +910,11 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc,
 
   GtkWidget *toolbar = createGreyrampToolbar(greyrampTool, whiteSpinButton, blackSpinButton, blackPoint, whitePoint);
   gtk_box_pack_start(hbox, toolbar, FALSE, FALSE, 0);
+
+  GtkWidget *greyrampWindow = createGreyrampToolWindow(dwc, greyrampTool);
   
   greyrampCreateProperties(greyrampTool, 
+                           greyrampWindow,
 			   dwc,
                            &gradientRect,
                            whiteSpinButton, 
@@ -915,8 +936,8 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc,
   
   updateGreyMap(greyrampTool);
 
-  if (greyrampWindow)
-    *greyrampWindow = createGreyrampToolWindow(dwc, greyrampTool);
+  if (greyrampWindow_out)
+    *greyrampWindow_out = greyrampWindow;
                    
   DEBUG_EXIT("createGreyrampTool returning ");
   return greyrampTool;
