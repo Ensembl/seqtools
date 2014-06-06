@@ -222,6 +222,9 @@ typedef struct _DotterWindowContext
     GtkPrintSettings *printSettings;          /* print settings */
     GtkPageSetup *pageSetup;                  /* page setup for printing */
     gboolean usePrintColors;                  /* whether to use print colours */
+
+    GtkUIManager *uiManager;                  /* the ui manager for this dotter window */
+    GtkActionGroup *actionGroup;              /* the menu actions for this window */
   } DotterWindowContext;
 
 

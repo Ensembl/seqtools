@@ -290,19 +290,6 @@ static void alignmentToolCreateProperties(GtkWidget *widget,
 }
 
 
-static GtkWidget *alignmentToolGetWindow(GtkWidget *alignmentTool)
-{
-  GtkWidget *result = NULL;
-
-  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-
-  if (properties)
-    result = properties->alignmentWindow;
-
-  return result;
-}
-
-
 /***********************************************************
  *                       Events                            *
  ***********************************************************/
@@ -569,12 +556,10 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
 static void onCloseMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *alignmentTool = GTK_WIDGET(data);
-  GtkWidget *alignmentWindow = alignmentToolGetWindow(alignmentTool);
+  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
 
-  if (alignmentWindow)
-    {
-      gtk_widget_hide(alignmentWindow);
-    }
+  if (properties && properties->dotterWinCtx)
+    setToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleAlignment", FALSE);
 }
 
 

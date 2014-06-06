@@ -134,8 +134,6 @@ typedef struct _DotterProperties
   gboolean windowsDocked;                   /* if true, all tools are docked into a single window */
   DotterWindowContext *dotterWinCtx;
   const char *exportFileName;
-  GtkUIManager *uiManager;                  /* the ui manager for this dotter window */
-  GtkActionGroup *actionGroup;              /* the menu actions for this window */
 } DotterProperties;
 
 
@@ -157,7 +155,7 @@ static void DNAmatrix(int mtx[24][24]);
 
 static void                   showHideGreyrampTool(GtkWidget *dotterWindow, const gboolean show);
 static void                   showHideAlignmentTool(GtkWidget *dotterWindow, const gboolean show);
-static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *dotplot, GtkWidget *dotplotContainer, GtkWidget *greyrampContainer, GtkWidget *alignmentContainer, const char *exportFileName, GtkUIManager **uiManager, GtkActionGroup **actionGroup_out, char *windowColor);
+static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *dotplot, GtkWidget *dotplotContainer, GtkWidget *greyrampContainer, GtkWidget *alignmentContainer, const char *exportFileName, char *windowColor);
 static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
@@ -305,6 +303,7 @@ static const char mainMenuDescription[] =
 "    <separator/>"
 "    <menuitem action='ToggleGreyramp'/>"
 "    <menuitem action='ToggleAlignment'/>"
+"    <menuitem action='DockWindows'/>"
 "    <separator/>"
 "    <menu action='ViewMenuAction'>"
 "      <separator/>"
@@ -729,15 +728,12 @@ static void onDestroyDotterWindow(GtkWidget *dotterWindow)
           properties->alignmentTool = NULL;
         }
     
-      if (properties->uiManager)
-        {
-          g_object_unref(properties->uiManager);
-          properties->uiManager = NULL;
-        }
-
       if (properties->dotterWinCtx)
         {
           DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+
+          g_object_unref(properties->dotterWinCtx->uiManager);
+          properties->dotterWinCtx->uiManager = NULL;
 
           /* free the context for this window */
           destroyDotterWindowContext(&properties->dotterWinCtx);
@@ -785,20 +781,19 @@ static void dotterContextCloseAllWindows(DotterContext *dc)
 }
 
 /* "Close" the given window. Only really closes it if it's the main window;
- * for other windows, just hide them (they will be destroyed when their main
- * window is destroyed) */
-static void closeWindow(GtkWidget *widget)
+ * for other windows, return false to indicate we haven't handled it. */
+static gboolean closeWindow(GtkWidget *widget)
 {
+  gboolean handled = FALSE;
   const char *name = gtk_widget_get_name(widget);
   
   if (name && strcmp(name, MAIN_WINDOW_NAME) == 0)
     {
+      handled = TRUE;
       gtk_widget_destroy(widget);
     }
-  else
-    {
-      gtk_widget_hide_all(widget);
-    }
+
+  return handled;
 }
 
 
@@ -968,9 +963,7 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
                                    GtkWidget *alignmentContainer,
                                    GtkWidget *dotplot,
                                    DotterWindowContext *dotterWinCtx,
-                                   const char *exportFileName,
-                                   GtkUIManager *uiManager,
-                                   GtkActionGroup *actionGroup)
+                                   const char *exportFileName)
 {
   DEBUG_ENTER("dotterCreateProperties");
 
@@ -988,8 +981,6 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
       properties->windowsDocked = DOCK_WINDOWS_DEFAULT;
       properties->dotterWinCtx = dotterWinCtx;
       properties->exportFileName = exportFileName;
-      properties->uiManager = uiManager;
-      properties->actionGroup = actionGroup;
       
       g_object_set_data(G_OBJECT(dotterWindow), "DotterProperties", properties);
       g_signal_connect(G_OBJECT(dotterWindow), "destroy", G_CALLBACK(onDestroyDotterWindow), NULL); 
@@ -1211,11 +1202,9 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
         }
   
       const DotterHspMode hspMode = dotplotGetHspMode(dotplot);
-      GtkUIManager *uiManager = NULL;
-      GtkActionGroup *actionGroup = NULL;
       dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, 
                                         dotplot, dotplotWidget, greyrampContainer, alignmentContainer, 
-                                        exportFileName, &uiManager, &actionGroup, windowColor);
+                                        exportFileName, windowColor);
 
       /* Set the handlers for the alignment and greyramp tools. Connect them here so we can pass
        * the main window as data. */
@@ -1231,7 +1220,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
       dotterCreateProperties(dotterWindow, 
                              greyrampTool, greyrampWindow, greyrampContainer,
                              alignmentTool, alignmentWindow, alignmentContainer,
-                             dotplot, dotterWinCtx, exportFileName, uiManager, actionGroup);
+                             dotplot, dotterWinCtx, exportFileName);
       DotterProperties *properties = dotterGetProperties(dotterWindow);
       
       setInitSelectedCoords(dotterWindow, qcenter, scenter);
@@ -2899,8 +2888,8 @@ static void dotterToggleDockWindows(GtkWidget *dotterWindow)
   g_return_if_fail(dotterWindow);
 
   DotterProperties *properties = dotterGetProperties(dotterWindow);
-  gboolean greyrampVisible = getToggleMenuStatus(properties->actionGroup, "ToggleGreyramp");
-  gboolean alignmentVisible = getToggleMenuStatus(properties->actionGroup, "ToggleAlignment");
+  gboolean greyrampVisible = getToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleGreyramp");
+  gboolean alignmentVisible = getToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleAlignment");
 
   if (properties->windowsDocked)
     {
@@ -3387,12 +3376,14 @@ static gboolean onKeyPressQ(GtkWidget *dotterWindow, const gboolean ctrlModifier
 /* Handle W key press (Ctrl-W => close window) */
 static gboolean onKeyPressW(GtkWidget *widget, const gboolean ctrlModifier)
 {
+  gboolean handled = FALSE;
+
   if (ctrlModifier)
     {
-      closeWindow(widget);
+      handled = closeWindow(widget);
     }
   
-  return ctrlModifier;
+  return handled;
 }
 
 /* Handle H key press (Ctrl-H => show help dialog) */
@@ -3420,10 +3411,10 @@ static gboolean onKeyPressG(GtkWidget *dotterWindow, const gboolean ctrlModifier
   if (ctrlModifier)
     {
       DotterProperties *properties = dotterGetProperties(dotterWindow);
-      gboolean active = getToggleMenuStatus(properties->actionGroup, "ToggleGreyramp");
+      gboolean active = getToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleGreyramp");
 
       /* Toggle the visiblity */
-      setToggleMenuStatus(properties->actionGroup, "ToggleGreyramp", !active);
+      setToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleGreyramp", !active);
     }
   
   return ctrlModifier;
@@ -3435,10 +3426,10 @@ static gboolean onKeyPressA(GtkWidget *dotterWindow, const gboolean ctrlModifier
   if (ctrlModifier)
     {
       DotterProperties *properties = dotterGetProperties(dotterWindow);
-      gboolean active = getToggleMenuStatus(properties->actionGroup, "ToggleAlignment");
+      gboolean active = getToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleAlignment");
 
       /* Toggle the visiblity */
-      setToggleMenuStatus(properties->actionGroup, "ToggleAlignment", !active);
+      setToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleAlignment", !active);
     }
   
   return ctrlModifier;
@@ -3459,7 +3450,7 @@ static gboolean onKeyPressK(GtkWidget *dotterWindow, const gboolean ctrlModifier
   if (ctrlModifier)
     {
       DotterProperties *properties = dotterGetProperties(dotterWindow);
-      setToggleMenuStatus(properties->actionGroup, "DockWindows", !properties->windowsDocked);
+      setToggleMenuStatus(properties->dotterWinCtx->actionGroup, "DockWindows", !properties->windowsDocked);
     }
   
   return ctrlModifier;
@@ -3671,8 +3662,6 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
                                      GtkWidget *greyrampContainer,
                                      GtkWidget *alignmentContainer,
                                      const char *exportFileName,
-                                     GtkUIManager **uiManager,
-                                     GtkActionGroup **actionGroup_out,
                                      char *windowColor)
 { 
   DEBUG_ENTER("createDotterWindow");
@@ -3688,9 +3677,9 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   dc->msgData->parent = GTK_WINDOW(dotterWindow);
   
   /* Create the menu bar, and a right-click context menu */
-  *uiManager = createUiManager(dotterWindow, hspMode, actionGroup_out);
-  GtkWidget *menuBar = createDotterMenu(dotterWindow, mainMenuDescription, "/MenuBar", *uiManager);
-  GtkWidget *contextMenu = createDotterMenu(dotterWindow, mainMenuDescription, "/ContextMenu", *uiManager);
+  dwc->uiManager = createUiManager(dotterWindow, hspMode, &dwc->actionGroup);
+  GtkWidget *menuBar = createDotterMenu(dotterWindow, mainMenuDescription, "/MenuBar", dwc->uiManager);
+  GtkWidget *contextMenu = createDotterMenu(dotterWindow, mainMenuDescription, "/ContextMenu", dwc->uiManager);
   
   blxSetWidgetColor(menuBar, windowColor);
 

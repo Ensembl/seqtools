@@ -181,19 +181,6 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
 }
 
 
-static GtkWidget *greyrampGetWindow(GtkWidget *alignmentTool)
-{
-  GtkWidget *result = NULL;
-
-  GreyrampProperties *properties = greyrampGetProperties(alignmentTool);
-
-  if (properties)
-    result = properties->greyrampWindow;
-
-  return result;
-}
-
-
 /* Functions to set the white/black points. Does bounds checking and updates. */
 static void greyrampSetWhitePoint(GreyrampProperties *properties, const int whitePoint)
 {
@@ -255,12 +242,10 @@ void registerGreyrampCallback(GtkWidget *greyramp, GtkWidget *widget, GtkCallbac
 static void onCloseMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *greyrampTool = GTK_WIDGET(data);
-  GtkWidget *greyrampWindow = greyrampGetWindow(greyrampTool);
-  
-  if (greyrampWindow)
-    {
-      gtk_widget_hide(greyrampWindow);
-    }
+  GreyrampProperties *properties = greyrampGetProperties(greyrampTool);
+
+  if (properties && properties->dwc)
+    setToggleMenuStatus(properties->dwc->actionGroup, "ToggleGreyramp", FALSE);
 }
 
 
