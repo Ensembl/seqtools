@@ -155,8 +155,8 @@ static void DNAmatrix(int mtx[24][24]);
 //static void drawMSPGene(MSP *msp, float y_offset) ;
 //static int gArrayGetLen(GArray *array);
 
-static void                   showGreyrampTool(GtkWidget *dotterWindow);
-static void                   showAlignmentTool(GtkWidget *dotterWindow);
+static void                   showHideGreyrampTool(GtkWidget *dotterWindow, const gboolean show);
+static void                   showHideAlignmentTool(GtkWidget *dotterWindow, const gboolean show);
 static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *dotplot, GtkWidget *dotplotContainer, GtkWidget *greyrampContainer, GtkWidget *alignmentContainer, const char *exportFileName, GtkUIManager **uiManager, GtkActionGroup **actionGroup_out, char *windowColor);
 static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
@@ -190,8 +190,8 @@ static void                       onSavePlotMenu(GtkAction *action, gpointer dat
 static void                       onExportPlotMenu(GtkAction *action, gpointer data);
 static void                       onPrintMenu(GtkAction *action, gpointer data);
 static void                       onSettingsMenu(GtkAction *action, gpointer data);
-static void                       onShowGreyrampMenu(GtkAction *action, gpointer data);
-static void                       onShowAlignmentMenu(GtkAction *action, gpointer data);
+static void                       onShowHideGreyrampMenu(GtkAction *action, gpointer data);
+static void                       onShowHideAlignmentMenu(GtkAction *action, gpointer data);
 static void                       onToggleCrosshairMenu(GtkAction *action, gpointer data);
 static void                       onToggleCoordsMenu(GtkAction *action, gpointer data);
 static void                       onToggleFullscreenMenu(GtkAction *action, gpointer data);
@@ -220,8 +220,6 @@ static const GtkActionEntry menuEntries[] = {
 { "ExportPlot",     NULL,                   "_Export plot",           NULL,         "Export plot",                G_CALLBACK(onExportPlotMenu)},
 { "Print",          GTK_STOCK_PRINT,        "_Print...",              "<control>P", "Print",                      G_CALLBACK(onPrintMenu)},
 { "Settings",       GTK_STOCK_PREFERENCES,  "Settings",               "<control>S", "Set dotter parameters",      G_CALLBACK(onSettingsMenu)},
-{ "ShowGreyramp",   NULL,                   "_Greyramp tool",         "<control>G", "Show the greyramp tool",     G_CALLBACK(onShowGreyrampMenu)},
-{ "ShowAlignment",  NULL,                   "_Alignment tool",        "<control>A", "Show the alignment tool",    G_CALLBACK(onShowAlignmentMenu)},
 { "Help",           GTK_STOCK_HELP,         "_Help",                  "<control>H", "Dotter Help",                G_CALLBACK(onHelpMenu)},
 { "About",          GTK_STOCK_ABOUT,        "_About",                 NULL,         "About Dotter",               G_CALLBACK(onAboutMenu)},
 { "CopyHCoord",     NULL,                   "Copy _horizontal coord", NULL,         "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
@@ -237,7 +235,9 @@ static GtkToggleActionEntry toggleMenuEntries[] = {
 { "ToggleFullscreen", NULL, "Crosshair fullscreen",  NULL,  "Show the crosshair full screen", G_CALLBACK(onToggleFullscreenMenu),      TRUE},
 { "TogglePrintColors",NULL, "Use print colors",      NULL,  "Use print _colors",              G_CALLBACK(onToggleUsePrintColorsMenu),  FALSE},
 { "ToggleBumpExons",  NULL, "Bump exons",            "B",   "_Bump exons",                    G_CALLBACK(onToggleBumpExonsMenu),       FALSE},
-{ "DockWindows",      NULL, "Dock windows",          "<control>K",  "_Dock windows",          G_CALLBACK(onToggleDockWindowsMenu),     DOCK_WINDOWS_DEFAULT}
+{ "ToggleGreyramp",   NULL, "_Greyramp tool",        "<control>G", "Show/hide the greyramp tool",G_CALLBACK(onShowHideGreyrampMenu),   TRUE},
+{ "ToggleAlignment",  NULL, "_Alignment tool",       "<control>A", "Show/hide the alignment tool",G_CALLBACK(onShowHideAlignmentMenu), TRUE},
+{ "DockWindows",      NULL, "Dock windows",          "<control>K", "_Dock windows",           G_CALLBACK(onToggleDockWindowsMenu),     DOCK_WINDOWS_DEFAULT}
 };
 
 /* Radio-button menu entries are listed here: */
@@ -271,8 +271,8 @@ static const char mainMenuDescription[] =
 "      <menuitem action='Settings'/>"
 "    </menu>"
 "    <menu action='ViewMenuAction'>"
-"      <menuitem action='ShowGreyramp'/>"
-"      <menuitem action='ShowAlignment'/>"
+"      <menuitem action='ToggleGreyramp'/>"
+"      <menuitem action='ToggleAlignment'/>"
 "      <menuitem action='DockWindows'/>"
 "      <separator/>"
 "      <menuitem action='ToggleCrosshair'/>"
@@ -303,8 +303,8 @@ static const char mainMenuDescription[] =
 "    <separator/>"
 "    <menuitem action='Settings'/>"
 "    <separator/>"
-"    <menuitem action='ShowGreyramp'/>"
-"    <menuitem action='ShowAlignment'/>"
+"    <menuitem action='ToggleGreyramp'/>"
+"    <menuitem action='ToggleAlignment'/>"
 "    <separator/>"
 "    <menu action='ViewMenuAction'>"
 "      <separator/>"
@@ -2810,43 +2810,58 @@ static void DNAmatrix(int mtx[24][24])
  *               Show/hide parts of the view               *
  ***********************************************************/
 
-/* Show the greyramp tool, bringing it to the front. Create it if it doesn't exist */
-static void showGreyrampTool(GtkWidget *dotterWindow)
+/* Show/hide the greyramp tool, bringing it to the front */
+static void showHideGreyrampTool(GtkWidget *dotterWindow, const gboolean show)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
-  
-  if (!properties->greyrampTool)
-    properties->greyrampTool = createGreyrampTool(properties->dotterWinCtx, 40, 100, FALSE, &properties->greyrampWindow);
 
-  if (properties->greyrampWindow && GTK_IS_WIDGET(properties->greyrampWindow))
+  if (properties && properties->greyrampWindow && GTK_IS_WIDGET(properties->greyrampWindow))
     {
-      if (!properties->windowsDocked)
+      /* Get the parent widget for the greyramp too. This is the container if docked or the
+       * window otherwise */
+      GtkWidget *parent = properties->windowsDocked ? properties->greyrampContainer : properties->greyrampWindow;
+
+      if (parent && show)
         {
-          gtk_widget_show_all(properties->greyrampWindow);
+          /* Show it, and bring it to the front if it's a toplevel window */
+          gtk_widget_show_all(parent);
       
-          if (GTK_IS_WINDOW(properties->greyrampWindow))
-            gtk_window_present(GTK_WINDOW(properties->greyrampWindow));
+          if (GTK_IS_WINDOW(parent))
+            gtk_window_present(GTK_WINDOW(parent));
+        }
+      else if (parent)
+        {
+          /* Hide it */
+          gtk_widget_hide(parent);
         }
     }
 }
 
-/* Show the alignment tool, bringing it to the front. Create it if it doesn't exist */
-static void showAlignmentTool(GtkWidget *dotterWindow)
+/* Show/hide the alignment tool, bringing it to the front */
+static void showHideAlignmentTool(GtkWidget *dotterWindow, const gboolean show)
 {
   DotterProperties *properties = dotterGetProperties(dotterWindow);
 
-  if (!properties->alignmentTool)
-    properties->alignmentTool = createAlignmentTool(properties->dotterWinCtx, &properties->alignmentWindow);
-
-  if (properties->alignmentWindow && GTK_IS_WIDGET(properties->alignmentWindow))
+  if (properties && properties->alignmentWindow && GTK_IS_WIDGET(properties->alignmentWindow))
     {
-      if (!properties->windowsDocked)
+      /* Get the parent widget for the alignment too. This is the container if docked or the
+       * window otherwise */
+      GtkWidget *parent = properties->windowsDocked ? properties->alignmentContainer : properties->alignmentWindow;
+
+      if (parent && show)
         {
-          gtk_widget_show_all(properties->alignmentWindow);
+          /* Show it, and bring it to the front if it's a toplevel window */
+          gtk_widget_show_all(parent);
       
-          if (GTK_IS_WINDOW(properties->alignmentWindow))
-            gtk_window_present(GTK_WINDOW(properties->alignmentWindow));
+          if (GTK_IS_WINDOW(parent))
+            gtk_window_present(GTK_WINDOW(parent));
         }
+      else if (parent)
+        {
+          /* Hide it */
+          gtk_widget_hide(parent);
+        }
+
     }
 }
 
@@ -2859,7 +2874,7 @@ static void showDotterWindow(GtkWidget *dotterWindow)
 
 
 /* Move the given widget from source to dest */
-static void reparentWidget(GtkWidget *widget, GtkContainer *source, GtkContainer *dest)
+static void reparentWidget(GtkWidget *widget, GtkContainer *source, GtkContainer *dest, const gboolean show)
 {
   g_return_if_fail(widget && source && dest);
 
@@ -2870,12 +2885,12 @@ static void reparentWidget(GtkWidget *widget, GtkContainer *source, GtkContainer
   gtk_container_add(dest, widget);
   g_object_unref(widget);
 
-  /* Hide the old and show the new */
+  /* Hide the old widget */
   gtk_widget_hide(GTK_WIDGET(source));
-  gtk_widget_show_all(GTK_WIDGET(dest));
 
-  if (GTK_IS_WINDOW(dest))
-    gtk_window_present(GTK_WINDOW(dest));
+  /* Show the new widget (only if it's toggled on) */
+  if (show)
+    gtk_widget_show_all(GTK_WIDGET(dest));
 }
 
 
@@ -2884,16 +2899,18 @@ static void dotterToggleDockWindows(GtkWidget *dotterWindow)
   g_return_if_fail(dotterWindow);
 
   DotterProperties *properties = dotterGetProperties(dotterWindow);
+  gboolean greyrampVisible = getToggleMenuStatus(properties->actionGroup, "ToggleGreyramp");
+  gboolean alignmentVisible = getToggleMenuStatus(properties->actionGroup, "ToggleAlignment");
 
   if (properties->windowsDocked)
     {
-      reparentWidget(properties->alignmentTool, GTK_CONTAINER(properties->alignmentContainer), GTK_CONTAINER(properties->alignmentWindow));
-      reparentWidget(properties->greyrampTool, GTK_CONTAINER(properties->greyrampContainer), GTK_CONTAINER(properties->greyrampWindow));
+      reparentWidget(properties->alignmentTool, GTK_CONTAINER(properties->alignmentContainer), GTK_CONTAINER(properties->alignmentWindow), alignmentVisible);
+      reparentWidget(properties->greyrampTool, GTK_CONTAINER(properties->greyrampContainer), GTK_CONTAINER(properties->greyrampWindow), greyrampVisible);
     }
   else
     {
-      reparentWidget(properties->alignmentTool, GTK_CONTAINER(properties->alignmentWindow), GTK_CONTAINER(properties->alignmentContainer));
-      reparentWidget(properties->greyrampTool, GTK_CONTAINER(properties->greyrampWindow), GTK_CONTAINER(properties->greyrampContainer));
+      reparentWidget(properties->alignmentTool, GTK_CONTAINER(properties->alignmentWindow), GTK_CONTAINER(properties->alignmentContainer), alignmentVisible);
+      reparentWidget(properties->greyrampTool, GTK_CONTAINER(properties->greyrampWindow), GTK_CONTAINER(properties->greyrampContainer), greyrampVisible);
     }
 
   properties->windowsDocked = !properties->windowsDocked;
@@ -3080,16 +3097,22 @@ static void onCopyVCoordMenu(GtkAction *action, gpointer data)
   copyIntToDefaultClipboard(properties->dotterWinCtx->matchCoord);
 }
 
-static void onShowGreyrampMenu(GtkAction *action, gpointer data)
+static void onShowHideGreyrampMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *dotterWindow = GTK_WIDGET(data);
-  showGreyrampTool(dotterWindow);
+
+  gboolean show = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
+
+  showHideGreyrampTool(dotterWindow, show);
 }
 
-static void onShowAlignmentMenu(GtkAction *action, gpointer data)
+static void onShowHideAlignmentMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *dotterWindow = GTK_WIDGET(data);
-  showAlignmentTool(dotterWindow);
+
+  gboolean show = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
+
+  showHideAlignmentTool(dotterWindow, show);
 }
 
 static void onToggleCrosshairMenu(GtkAction *action, gpointer data)
@@ -3391,20 +3414,32 @@ static gboolean onKeyPressS(GtkWidget *dotterWindow, const gboolean ctrlModifier
   return ctrlModifier;
 }
 
-/* Handle G key press (Ctrl-G => show greyramp tool) */
+/* Handle G key press (Ctrl-G => show/hide greyramp tool) */
 static gboolean onKeyPressG(GtkWidget *dotterWindow, const gboolean ctrlModifier)
 {
   if (ctrlModifier)
-    showGreyrampTool(dotterWindow);
+    {
+      DotterProperties *properties = dotterGetProperties(dotterWindow);
+      gboolean active = getToggleMenuStatus(properties->actionGroup, "ToggleGreyramp");
+
+      /* Toggle the visiblity */
+      setToggleMenuStatus(properties->actionGroup, "ToggleGreyramp", !active);
+    }
   
   return ctrlModifier;
 }
 
-/* Handle A key press (Ctrl-A => show alignment tool) */
+/* Handle A key press (Ctrl-A => show/hide alignment tool) */
 static gboolean onKeyPressA(GtkWidget *dotterWindow, const gboolean ctrlModifier)
 {
   if (ctrlModifier)
-    showAlignmentTool(dotterWindow);
+    {
+      DotterProperties *properties = dotterGetProperties(dotterWindow);
+      gboolean active = getToggleMenuStatus(properties->actionGroup, "ToggleAlignment");
+
+      /* Toggle the visiblity */
+      setToggleMenuStatus(properties->actionGroup, "ToggleAlignment", !active);
+    }
   
   return ctrlModifier;
 }
