@@ -788,7 +788,9 @@ static GtkWidget* createSpinButton(const gdouble initValue, GCallback callbackFu
 
 
 /* Create the toolbar for the greyramp window. */
-static GtkWidget* createGreyrampToolbar(GtkWidget *greyramp, 
+static GtkWidget* createGreyrampToolbar(GtkTable *table,
+                                        const int col,
+                                        GtkWidget *greyramp, 
                                         GtkWidget *whiteSpinButton, 
                                         GtkWidget *blackSpinButton,
                                         const int blackPoint,
@@ -805,12 +807,20 @@ static GtkWidget* createGreyrampToolbar(GtkWidget *greyramp,
   /* Pack them vertically into the 'toolbar' (which is just a vbox for now) */
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_border_width(GTK_CONTAINER(vbox), 5);
-  
-  gtk_box_pack_start(GTK_BOX(vbox), whiteSpinButton, FALSE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), quitButton, FALSE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), swapButton, FALSE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), undoButton, FALSE, FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), blackSpinButton, FALSE, FALSE, 5);
+
+  const int padding = 5;
+  int row = 0;
+
+  gtk_table_attach(table, whiteSpinButton, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, padding, padding);
+  ++row;
+  gtk_table_attach(table, quitButton, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, padding, padding);
+  ++row;
+  gtk_table_attach(table, swapButton, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, padding, padding);
+  ++row;
+  gtk_table_attach(table, undoButton, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, padding, padding);
+  ++row;
+  gtk_table_attach(table, blackSpinButton, col, col + 1, row, row + 1, GTK_SHRINK, GTK_SHRINK, padding, padding);
+  ++row;
 
   /* Make sure neither spin button is focused at the start because if it is
    * then its text will be selected and we will inadvertently overwrite the
@@ -891,16 +901,20 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc,
 
   /* Create the window */
   GtkWidget *greyrampTool = gtk_frame_new(NULL);
-  gtk_frame_set_shadow_type(GTK_FRAME(greyrampTool), GTK_SHADOW_NONE);
+  gtk_frame_set_shadow_type(GTK_FRAME(greyrampTool), GTK_SHADOW_ETCHED_IN);
 
-  /* Outer container is an hbox */
-  GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
-  gtk_container_add(GTK_CONTAINER(greyrampTool), GTK_WIDGET(hbox));
+  /* Outer container is a table */
+  const int numRows = 5;
+  const int numCols = 2;
+  const int padding = 0;
+  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  gtk_container_add(GTK_CONTAINER(greyrampTool), GTK_WIDGET(table));
   
-  /* Create a layout for drawing the greyramp gradient onto */
+  /* Create a layout for drawing the greyramp gradient onto. This will be in the first column,
+   * spanning all rows */
   GdkRectangle gradientRect;
   GtkWidget *gradientWidget = createGradientRect(greyrampTool, &gradientRect);
-  gtk_box_pack_start(hbox, gradientWidget, FALSE, FALSE, 0);
+  gtk_table_attach(table, gradientWidget, 0, 1, 0, numRows, GTK_SHRINK, GTK_SHRINK, padding, padding);
 
   /* Create the toolbar and pack it into the parent */
   const int whitePoint = swapValues ? blackPointIn : whitePointIn;
@@ -909,8 +923,7 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc,
   GtkWidget *whiteSpinButton = createSpinButton(whitePoint + 1, G_CALLBACK(onWhiteSpinButtonChanged), greyrampTool);
   GtkWidget *blackSpinButton = createSpinButton(blackPoint + 1, G_CALLBACK(onBlackSpinButtonChanged), greyrampTool);
 
-  GtkWidget *toolbar = createGreyrampToolbar(greyrampTool, whiteSpinButton, blackSpinButton, blackPoint, whitePoint);
-  gtk_box_pack_start(hbox, toolbar, FALSE, FALSE, 0);
+  createGreyrampToolbar(table, 1, greyrampTool, whiteSpinButton, blackSpinButton, blackPoint, whitePoint);
 
   GtkWidget *greyrampWindow = createGreyrampToolWindow(dwc, greyrampTool);
   

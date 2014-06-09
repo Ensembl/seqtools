@@ -864,16 +864,12 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **al
 {
   DEBUG_ENTER("createAlignmentTool");
 
+  /* We'll put everything in a vbox, inside a frame */  
   GtkWidget *alignmentTool = gtk_frame_new(NULL);
-  gtk_frame_set_shadow_type(GTK_FRAME(alignmentTool), GTK_SHADOW_NONE);
-  
-  /* We'll put everything in a vbox, inside a scrolled window, inside a frame */  
-  GtkWidget *frame = gtk_frame_new(NULL);
-  gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-  gtk_container_add(GTK_CONTAINER(alignmentTool), frame);
+  gtk_frame_set_shadow_type(GTK_FRAME(alignmentTool), GTK_SHADOW_ETCHED_IN);
   
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_container_add(GTK_CONTAINER(frame), vbox);
+  gtk_container_add(GTK_CONTAINER(alignmentTool), vbox);
 
   GtkActionGroup *actionGroup = NULL;
   GtkWidget *alignmentWindow = createAlignmentToolWindow(dotterWinCtx, alignmentTool, &actionGroup);

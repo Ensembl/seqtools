@@ -1178,15 +1178,17 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
   if (dotplotWidget)
     {
       GtkWidget *greyrampContainer = gtk_frame_new(NULL); /* container for when docked */
+      gtk_frame_set_shadow_type(GTK_FRAME(greyrampContainer), GTK_SHADOW_NONE);
       GtkWidget *greyrampWindow = NULL; /* container for when undocked */
       GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, 40, 100, greyrampSwap, &greyrampWindow);
       registerGreyrampCallback(greyrampTool, dotplot, dotplotUpdateGreymap);
-      blxSetWidgetColor(greyrampTool, windowColor);
+      blxSetWidgetColor(greyrampWindow, windowColor);
 
       GtkWidget *alignmentContainer = gtk_frame_new(NULL); /* container for when docked */
+      gtk_frame_set_shadow_type(GTK_FRAME(alignmentContainer), GTK_SHADOW_NONE);
       GtkWidget *alignmentWindow = NULL; /* container for when undocked */
       GtkWidget *alignmentTool = createAlignmentTool(dotterWinCtx, &alignmentWindow);
-      blxSetWidgetColor(alignmentTool, windowColor);
+      blxSetWidgetColor(alignmentWindow, windowColor);
 
       if (DOCK_WINDOWS_DEFAULT)
         {
@@ -3683,19 +3685,27 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   
   blxSetWidgetColor(menuBar, windowColor);
 
-  /* We'll put everything in a vbox */
-  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_container_add(GTK_CONTAINER(dotterWindow), GTK_WIDGET(vbox));
+  /* We'll put everything in a table */
+  const int numRows = 3;
+  const int numCols = 2;
+  const int padding = 0;
+  int row = 0;
 
-  gtk_box_pack_start(GTK_BOX(vbox), menuBar, FALSE, FALSE, 0);
+  GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  gtk_container_add(GTK_CONTAINER(dotterWindow), GTK_WIDGET(table));
 
-  /* dotplot and greyramp tool (if docked) go in an hbox */
-  GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(hbox), dotplotContainer, TRUE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(hbox), greyrampContainer, FALSE, FALSE, 0);
+  /* Add the menu bar at the top, spanning all columns */
+  gtk_table_attach(table, menuBar, 0, numCols, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, padding, padding);
+  ++row;
 
-  gtk_box_pack_start(GTK_BOX(vbox), alignmentContainer, FALSE, FALSE, 0);
+  /* dotplot and greyramp tool go into the same row */
+  gtk_table_attach(table, dotplotContainer, 0, 1, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, padding, padding);
+  gtk_table_attach(table, greyrampContainer, 1, 2, row, row + 1, GTK_SHRINK, GTK_FILL, padding, padding);
+  ++row;
+
+  /* Add the alignment tool at the bottom, spanning all columns */
+  gtk_table_attach(table, alignmentContainer, 0, numCols, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, padding, padding);
+  ++row;
   
   gtk_widget_add_events(dotterWindow, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(dotterWindow, GDK_POINTER_MOTION_MASK);
