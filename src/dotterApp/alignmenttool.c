@@ -73,7 +73,6 @@ NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
 
 
 #define DEFAULT_ALIGNMENT_LENGTH                    125   /* default number of sequence chars to display in the alignment tool */
-#define MAX_ALIGNMENT_LENGTH                        501   /* max number of sequence chars to display in the alignment tool */
 #define MIN_ALIGNMENT_LENGTH                        0     /* min number of sequence chars to display in the alignment tool */
 #define SELECTED_COORD_MARKER_HEIGHT                12    /* the height of the marker that indicates the currently-selected coord */
 
@@ -981,6 +980,26 @@ static void drawSequenceSpliceSites(GdkDrawable *drawable,
 }
 
 
+/* Set the alignment length based on the given widget's width */
+static void setAlignmentLength(GtkWidget *widget, GtkWidget *alignmentTool, AlignmentToolProperties *properties)
+{
+  g_return_if_fail(widget && properties && properties->dotterWinCtx && properties->dotterWinCtx->dotterCtx);
+
+  /* Get the length of the sequence we can display i.e. number of chars wide the widget is */
+  properties->alignmentLen = widget->allocation.width / properties->dotterWinCtx->dotterCtx->charWidth;
+
+  if (properties->alignmentLen < MIN_ALIGNMENT_LENGTH)
+    properties->alignmentLen = MIN_ALIGNMENT_LENGTH;
+
+  /* The display code assumes we always have an odd length; if we
+   * are given an even length, round it down */
+  if (properties->alignmentLen % 2 == 0)
+    --properties->alignmentLen;
+
+  updateAlignmentRange(alignmentTool, properties->dotterWinCtx);
+}
+
+
 /* Draw the sequence data for the given sequence-widget. Draws the text and highlights each base
  * according to how well it matches */
 static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool)
@@ -991,9 +1010,8 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
 
   GdkGC *gc = gdk_gc_new(drawable);
 
-  /* Get the length of the sequence we can display i.e. number of chars wide the widget is */
-  atProperties->alignmentLen = widget->allocation.width / dc->charWidth;
-  updateAlignmentRange(alignmentTool, dwc);
+  /* Set the alignment length from the widget width */
+  setAlignmentLength(widget, alignmentTool, atProperties);
 
   /* Get the sequence info for this widget */
   SequenceProperties *seq1 = sequenceGetProperties(widget);
