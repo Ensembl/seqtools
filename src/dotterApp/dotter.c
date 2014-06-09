@@ -3685,48 +3685,74 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   
   blxSetWidgetColor(menuBar, windowColor);
 
-  /* We'll put everything in a table */
+  /* We'll set the default window size based on the dotplot/exon widget size, up to a 
+   * max based on screen size. */
+  GdkScreen *screen = gtk_widget_get_screen(dotterWindow);
+  const int maxWidth = gdk_screen_get_width(screen) * MAX_WINDOW_WIDTH_FRACTION;
+  const int maxHeight = gdk_screen_get_height(screen) * MAX_WINDOW_HEIGHT_FRACTION;
+
+  const int exonViewHeight = 2 * (DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
+  DotplotProperties *dotplotProperties = dotplotGetProperties(dotplot);
+  const int dotplotWidth = getDotplotWidth(dotplot, dotplotProperties);
+  int greyrampWidth = 400; /* roughly */
+  const int alignmentToolHeight = 300; /* roughly */
+
+  /* We'll base the layout on the relative size of the dotplot to the window size - we'll place
+   * the greyramp tool on the same row as the dotplot if it'll fit and we can still display the
+   * entire dotplot (not worrying about exons for now). If it won't fit, we'll place the greyramp
+   * tool on the row below, adjacent to the alignment tool. */
+  /*! \todo Ideally we'd adjust the layout after the user changes the settings, i.e. the zoom or
+   * the range of sequence displayed */
+  gboolean maximise_dotplot = FALSE;
+
+  if (dotplotWidth > maxWidth - greyrampWidth)
+    {
+      maximise_dotplot = TRUE;
+      greyrampWidth = 0; /* on a different row so don't include it in the width calculation */
+    }
+
+  int width = dotplotWidth + exonViewHeight + greyrampWidth;
+  int height = getDotplotHeight(dotplot, dotplotProperties) + exonViewHeight + alignmentToolHeight;
+  width = min(width, maxWidth);
+  height = min(height, maxHeight);
+  
+  gtk_window_set_default_size(GTK_WINDOW(dotterWindow), width, height);
+
+  /* Put the widgets in a table */
   const int numRows = 3;
   const int numCols = 2;
-  const int padding = 0;
+  int padding = 0;
   int row = 0;
 
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
   gtk_container_add(GTK_CONTAINER(dotterWindow), GTK_WIDGET(table));
 
-  /* Add the menu bar at the top, spanning all columns */
   gtk_table_attach(table, menuBar, 0, numCols, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, padding, padding);
   ++row;
 
-  /* dotplot and greyramp tool go into the same row */
-  gtk_table_attach(table, dotplotContainer, 0, 1, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, padding, padding);
-  gtk_table_attach(table, greyrampContainer, 1, 2, row, row + 1, GTK_SHRINK, GTK_FILL, padding, padding);
-  ++row;
+  if (maximise_dotplot)
+    {
+      /* dotplot spans all columns; alignment tool + greyramp on same row. */
+      gtk_table_attach(table, dotplotContainer, 0, numCols, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, padding, padding);
+      ++row;
+      gtk_table_attach(table, alignmentContainer, 0, 1, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, padding, padding);
+      gtk_table_attach(table, greyrampContainer, 1, 2, row, row + 1, GTK_SHRINK, GTK_FILL, padding, padding);
+    }
+  else
+    {
+      /* dotplot and greyramp on same row; alignment tool spans all columns */
+      gtk_table_attach(table, dotplotContainer, 0, 1, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, padding, padding);
+      gtk_table_attach(table, greyrampContainer, 1, 2, row, row + 1, GTK_SHRINK, GTK_FILL, padding, padding);
+      ++row;
+      gtk_table_attach(table, alignmentContainer, 0, numCols, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, padding, padding);
+    }
 
-  /* Add the alignment tool at the bottom, spanning all columns */
-  gtk_table_attach(table, alignmentContainer, 0, numCols, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, padding, padding);
-  ++row;
-  
   gtk_widget_add_events(dotterWindow, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(dotterWindow, GDK_POINTER_MOTION_MASK);
   g_signal_connect(G_OBJECT(dotterWindow), "key-press-event", G_CALLBACK(onKeyPressDotterCoords), dotterWindow);
   g_signal_connect(G_OBJECT(dotterWindow), "button-press-event", G_CALLBACK(onButtonPressDotter), contextMenu);
   g_signal_connect(G_OBJECT(dotterWindow), "motion-notify-event", G_CALLBACK(onMouseMoveDotter), NULL);
   
-  /* Set the default window size based on the dotplot/exon widget size, up to a max based on screen size */
-  GdkScreen *screen = gtk_widget_get_screen(dotterWindow);
-  const int maxWidth = gdk_screen_get_width(screen) * MAX_WINDOW_WIDTH_FRACTION;
-  const int maxHeight = gdk_screen_get_height(screen) * MAX_WINDOW_HEIGHT_FRACTION;
-  
-  const int exonViewHeight = 2 * (DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
-  DotplotProperties *dotplotProperties = dotplotGetProperties(dotplot);
-  int width = getDotplotWidth(dotplot, dotplotProperties) + exonViewHeight + 100 + 300;
-  int height = getDotplotHeight(dotplot, dotplotProperties) + exonViewHeight + 100 + 200;
-  
-  width = min(width, maxWidth);
-  height = min(height, maxHeight);
-
-  gtk_window_set_default_size(GTK_WINDOW(dotterWindow), width, height);
   gtk_widget_show_all(dotterWindow);
   
   DEBUG_EXIT("createDotterWindow returning ");
