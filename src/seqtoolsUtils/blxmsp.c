@@ -71,6 +71,20 @@ static void addBlxSequences(const char *name, const char *idTag,
                             GList *columnList, char *sequence, 
                             MSP *msp, GHashTable *lookupTable, GError **error);
 static void findSequenceExtents(BlxSequence *blxSeq);
+static MSP* createMissingMsp(const BlxMspType newType,
+                             const int newStart,
+                             const int newEnd,
+                             const char *qname,
+                             const int newFrame,
+                             BlxStyle *newStyle,
+                             BlxSequence *blxSeq, 
+                             GArray* featureLists[], 
+                             MSP **lastMsp, 
+                             MSP **mspList, 
+                             GList **seqList,
+                             GList *columnList,
+                             GHashTable *lookupTable,
+                             GError **error);
 
 /* Get/set the max MSP length */
 int getMaxMspLen()
@@ -1370,6 +1384,65 @@ void destroyBlxSequence(BlxSequence *seq)
 }
 
 
+/* Destroy an msp and remove it from the BlxSequence and msp lists */
+static void destroyMspFull(MSP *msp, BlxSequence *seq, GArray *featureLists[], MSP **lastMsp, MSP **mspList)
+{
+  /* Remove from the feature list */
+  GArray *array = featureLists[msp->type];
+  int i = 0;
+  for ( ; i < array->len; ++i)
+    {
+      MSP *curMsp = g_array_index(array, MSP*, i);
+      
+      if (curMsp == msp)
+        {
+          array = g_array_remove_index(array, i);
+          break;
+        }
+    }
+  featureLists[msp->type] = array;
+  
+  /* Remove from mspList */
+  MSP *curMsp = *mspList;
+  MSP *prevMsp = NULL;
+  for ( ; curMsp; curMsp = curMsp->next)
+    {
+      if (msp == curMsp)
+        {
+          if (!prevMsp)
+            *mspList = curMsp->next; /* Remove msp from start of list */
+          else 
+            prevMsp->next = curMsp->next; /* Remove link to msp */
+          
+          if (*lastMsp == msp)
+            *lastMsp = prevMsp;  /* Update pointer to last msp */
+
+          break;
+        }
+      
+      prevMsp = curMsp;
+    }
+  
+  /* Remove from the BlxSequence, if given */
+  if (seq && seq->mspList)
+    {
+      GList *item = seq->mspList;
+
+      for ( ; item; item = item->next)
+        {
+          MSP *curMsp = (MSP*)(item->data);
+          if (curMsp == msp)
+            {
+              seq->mspList = g_list_remove_link(seq->mspList, item);
+              break;
+            }
+        }
+    }
+
+  destroyMspData(msp);
+}
+
+
 /* destroy a blxsequence and it's msps, and remove them from the feature lists */
 static void destroyBlxSequenceFull(BlxSequence *seq, GArray *featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList)
 {
@@ -1379,40 +1452,9 @@ static void destroyBlxSequenceFull(BlxSequence *seq, GArray *featureLists[], MSP
   for ( ; mspItem; mspItem = mspItem->next)
     {
       MSP *msp = (MSP*)(mspItem->data);
-
-      /* Remove from the feature list */
-      GArray *array = featureLists[msp->type];
-      int i = 0;
-      for ( ; i < array->len; ++i)
-        {
-          MSP *curMsp = g_array_index(array, MSP*, i);
-          
-          if (curMsp == msp)
-            {
-              array = g_array_remove_index(array, i);
-              break;
-            }
-        }
-      featureLists[msp->type] = array;
-
-      /* Remove from mspList */
-      MSP *curMsp = *mspList;
-      MSP *prevMsp = NULL;
-      for ( ; curMsp; curMsp = curMsp->next)
-        {
-          if (msp == curMsp)
-            {
-              if (!prevMsp)
-                *mspList = curMsp->next; /* Remove msp from start of list */
-              else 
-                prevMsp->next = curMsp->next; /* Remove link to msp */
-              
-              if (*lastMsp == msp)
-                *lastMsp = prevMsp;  /* Update pointer to last msp */
-            }
-        }
-      
-      destroyMspData(msp);
+      destroyMspFull(msp, NULL, featureLists, lastMsp, mspList); /* don't remove from
+                                                                    seq->mspList because we
+                                                                    destroy this anyway */
     }
 
   g_list_free(seq->mspList);
@@ -1552,15 +1594,10 @@ const char* getDataTypeName(BlxDataType *blxDataType)
 }
 
 
-/* Compare the start position in the ref seq of two MSPs. Returns a negative value if a < b; zero
- * if a = b; positive value if a > b. Secondarily sorts by type in the order that types appear in 
- * the BlxMspType enum. */
-gint compareFuncMspPos(gconstpointer a, gconstpointer b)
+/* does the work for compareFuncMspPos and compareFuncMspArray */
+static gint compareMsps(const MSP* const msp1, const MSP* const msp2)
 {
   gint result = 0;
-
-  const MSP* const msp1 = (const MSP*)a;
-  const MSP* const msp2 = (const MSP*)b;
 
   /* First, sort by strand (because it's meaningless comparing matches on different strands) */
   result = (int)msp1->qStrand - (int)msp2->qStrand;
@@ -1581,27 +1618,26 @@ gint compareFuncMspPos(gconstpointer a, gconstpointer b)
   return result;
 }
 
+/* Compare the start position in the ref seq of two MSPs. Returns a negative value if a < b; zero
+ * if a = b; positive value if a > b. Secondarily sorts by type in the order that types appear in 
+ * the BlxMspType enum. */
+gint compareFuncMspPos(gconstpointer a, gconstpointer b)
+{
+  const MSP* const msp1 = (const MSP*)a;
+  const MSP* const msp2 = (const MSP*)b;
+
+  return compareMsps(msp1, msp2);
+}
+
 
 /* Same as compareFuncMspPos but accepts pointers to MSP pointers (which is 
  * what the GArray of MSPs holds). */
 gint compareFuncMspArray(gconstpointer a, gconstpointer b)
 {
-  gint result = 0;
-  
   const MSP* const msp1 = *((const MSP**)a);
   const MSP* const msp2 = *((const MSP**)b);
-  
-  if (msp1->qRange.min == msp2->qRange.min)
-    {
-      /* Sort by type. Lower type numbers should appear first. */
-      result = msp2->type - msp1->type;
-    }
-  else 
-    {
-      result = msp1->qRange.min -  msp2->qRange.min;
-    }
-  
-  return result;
+
+  return compareMsps(msp1, msp2);
 }
 
 
@@ -2059,7 +2095,15 @@ MSP* copyMsp(const MSP* const src,
  * (and frees it if exon is null).
  * Exons and UTRs don't have phase, but we want to display them in the same reading frame
  * as the CDS in the same exon, if there is one; this function copies it to its siblings. */
-static void setExonChildList(MSP *exon, GList *childList)
+static void setExonChildList(MSP *exon, 
+                             GList *childList,
+                             GArray* featureLists[], 
+                             MSP **lastMsp,
+                             MSP **mspList,
+                             GList **seqList,
+                             GList *columnList,
+                             GHashTable *lookupTable,
+                             MSP **spanningCds)
 {
   if (!exon)
     {
@@ -2074,6 +2118,7 @@ static void setExonChildList(MSP *exon, GList *childList)
   exon->childMsps = childList;
   
   /* Loop through and see if there's a CDS */
+  GError *tmpError = NULL;
   int frame = UNSET_INT;
   int phase = UNSET_INT;
   gboolean found = FALSE;
@@ -2081,13 +2126,33 @@ static void setExonChildList(MSP *exon, GList *childList)
   GList *childItem = exon->childMsps;
   for ( ; childItem; childItem = childItem->next)
     {
-      MSP *msp = (MSP*)(childItem->data);
+      MSP *cds = (MSP*)(childItem->data);
       
-      if (msp->type == BLXMSP_CDS)
+      if (cds->type == BLXMSP_CDS)
         {
-          frame = msp->qFrame;
-          phase = msp->phase;
+          frame = cds->qFrame;
+          phase = cds->phase;
           found = TRUE;
+
+          /* Hack to support invalid gff from zmap where a single cds object spans the entire
+           * length rather than having separate cds objects for each exon. Trim the cds to the
+           * exon and "save" the cds to check against later exons. We should only have one cds in
+           * this case (we should verify this but don't at the moment). */
+          if (rangesOverlap(&cds->qRange, &exon->qRange) &&
+              (cds->qRange.min < exon->qRange.min || cds->qRange.max > exon->qRange.max))
+            {
+              /* Replace the original cds with a new one truncated to this exon */
+              int start = max(cds->qRange.min, exon->qRange.min);
+              int end = min(cds->qRange.max, exon->qRange.max);
+              MSP *newCds = createMissingMsp(BLXMSP_CDS, start, end, cds->qname, cds->qFrame, cds->style, cds->sSequence, 
+                                             featureLists, lastMsp, mspList, seqList, columnList, lookupTable, &tmpError);
+              reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
+
+              *spanningCds = cds;
+              exon->childMsps = g_list_remove(exon->childMsps, cds);
+              exon->childMsps = g_list_insert_sorted(exon->childMsps, newCds, compareFuncMspPos);
+            }
+
           break;
         }
     }
@@ -2098,7 +2163,8 @@ static void setExonChildList(MSP *exon, GList *childList)
       exon->qFrame = frame;
       exon->phase = phase;
       
-      /* Loop through and update the other msps */
+      /* Loop through and update the other msps (i.e. exon and UTR get the same frame/phase info
+         as the CDS) */
       for (childItem = exon->childMsps; childItem; childItem = childItem->next)
         {
           MSP *msp = (MSP*)(childItem->data);
@@ -2277,6 +2343,9 @@ static void constructExonData(BlxSequence *blxSeq,
   
   MSP *curExon = NULL;          /* the current exon we're looking at */
   GList *curChildMsps = NULL;   /* the child CDS/UTRs of the current exon */
+  MSP *spanningCds = NULL;      /* hack to support invalid GFF used by zmap where a single CDS
+                                 * spanning the entire range is given, rather than a separate CDS
+                                 * feature for each exon */
   
   /* Loop through all MSPs on this sequence (which must be sorted by position on the
    * ref seq - createNewMsp automatically sorts them for us) and create any missing 
@@ -2357,7 +2426,7 @@ static void constructExonData(BlxSequence *blxSeq,
               
               /* We're done with this exon, so set the exon's list of child msps
                * and reset the pointers */
-              setExonChildList(curExon, curChildMsps);
+              setExonChildList(curExon, curChildMsps, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, &spanningCds);
 
               prevExon = curExon;
               curExon = NULL;
@@ -2365,9 +2434,17 @@ static void constructExonData(BlxSequence *blxSeq,
             }
           
           if (msp && msp->type == BLXMSP_EXON)
-            curExon = msp;
+            {
+              curExon = msp;
+
+              /* If there's a spanning cds, add it to the child list for each exon */
+              if (spanningCds)
+                curChildMsps = g_list_append(curChildMsps, spanningCds);
+            }
           else if (msp && (msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR))
-            curChildMsps = g_list_append(curChildMsps, msp);
+            {
+              curChildMsps = g_list_append(curChildMsps, msp);
+            }
           
           /* Remember the last MSP we saw */
           prevMsp = msp;
@@ -2384,6 +2461,9 @@ static void constructExonData(BlxSequence *blxSeq,
           finished = TRUE;
         }
     }
+
+  if (spanningCds)
+    destroyMspFull(spanningCds, blxSeq, featureLists, lastMsp, mspList);
 }
 
 
