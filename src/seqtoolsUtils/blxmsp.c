@@ -906,7 +906,7 @@ const char *blxSequenceGetName(const BlxSequence *seq)
         result = seq->idTag;
 
       if (!result)
-        g_error("Sequence does not have a name specified.\n");
+        g_warning("Sequence does not have a name specified.\n");
     }
   
   return result;
