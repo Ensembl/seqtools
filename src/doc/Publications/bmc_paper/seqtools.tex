@@ -1,0 +1,441 @@
+%% BioMed_Central_Tex_Template_v1.05
+%%                                      %
+%  bmc_article.tex            ver: 1.05 %
+%                                       %
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                     %%
+%%  LaTeX template for BioMed Central  %%
+%%     journal article submissions     %%
+%%                                     %%
+%%         <27 January 2006>           %%
+%%                                     %%
+%%                                     %%
+%% Uses:                               %%
+%% cite.sty, url.sty, bmc_article.cls  %%
+%% ifthen.sty. multicol.sty		       %%
+%%									   %%
+%%                                     %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                                                 %%	
+%% For instructions on how to fill out this Tex template           %%
+%% document please refer to Readme.pdf and the instructions for    %%
+%% authors page on the biomed central website                      %%
+%% http://www.biomedcentral.com/info/authors/                      %%
+%%                                                                 %%
+%% Please do not use \input{...} to include other tex files.       %%
+%% Submit your LaTeX manuscript as one .tex document.              %%
+%%                                                                 %%
+%% All additional figures and files should be attached             %%
+%% separately and not embedded in the \TeX\ document itself.       %%
+%%                                                                 %%
+%% BioMed Central currently use the MikTex distribution of         %%
+%% TeX for Windows) of TeX and LaTeX.  This is available from      %%
+%% http://www.miktex.org                                           %%
+%%                                                                 %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\NeedsTeXFormat{LaTeX2e}[1995/12/01]
+\documentclass[10pt]{bmc_article}    
+
+
+
+% Load packages
+\usepackage{cite} % Make references as [1-4], not [1,2,3,4]
+\usepackage{url}  % Formatting web addresses  
+\usepackage{ifthen}  % Conditional 
+\usepackage{multicol}   %Columns
+\usepackage[utf8]{inputenc} %unicode support
+%\usepackage[applemac]{inputenc} %applemac support if unicode package fails
+%\usepackage[latin1]{inputenc} %UNIX support if unicode package fails
+\urlstyle{rm}
+ 
+ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
+%%                                             %%
+%%  If you wish to display your graphics for   %%
+%%  your own use using includegraphic or       %%
+%%  includegraphics, then comment out the      %%
+%%  following two lines of code.               %%   
+%%  NB: These line *must* be included when     %%
+%%  submitting to BMC.                         %% 
+%%  All figure files must be submitted as      %%
+%%  separate graphics through the BMC          %%
+%%  submission process, not included in the    %% 
+%%  submitted article.                         %% 
+%%                                             %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                     
+
+
+\def\includegraphic{}
+\def\includegraphics{}
+
+
+
+\setlength{\topmargin}{0.0cm}
+\setlength{\textheight}{21.5cm}
+\setlength{\oddsidemargin}{0cm} 
+\setlength{\textwidth}{16.5cm}
+\setlength{\columnsep}{0.6cm}
+
+\newboolean{publ}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                              %%
+%% You may change the following style settings  %%
+%% Should you wish to format your article       %%
+%% in a publication style for printing out and  %%
+%% sharing with colleagues, but ensure that     %%
+%% before submitting to BMC that the style is   %%
+%% returned to the Review style setting.        %%
+%%                                              %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ 
+
+%Review style settings
+\newenvironment{bmcformat}{\begin{raggedright}\baselineskip20pt\sloppy\setboolean{publ}{false}}{\end{raggedright}\baselineskip20pt\sloppy}
+
+%Publication style settings
+%\newenvironment{bmcformat}{\fussy\setboolean{publ}{true}}{\fussy}
+
+
+
+% Begin ...
+\begin{document}
+\begin{bmcformat}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% Enter the title of your article here     %%
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\title{SeqTools: visual tools for manual analysis of sequence alignments}
+ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% Enter the authors here                   %%
+%%                                          %%
+%% Ensure \and is entered between all but   %%
+%% the last two authors. This will be       %%
+%% replaced by a comma in the final article %%
+%%                                          %%
+%% Ensure there are no trailing spaces at   %% 
+%% the ends of the lines                    %%     	
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\author{Gemma Barson\correspondingauthor$^{1}$%
+       \email{Gemma Barson\correspondingauthor - gemma.barson@sanger.ac.uk}%
+      \and
+         Ed Griffiths$^1$%
+         \email{Ed Griffiths - edgrif@sanger.co.uk}
+      }
+      
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% Enter the authors' addresses here        %%
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\address{%
+    \iid(1)Wellcome Trust Sanger Institute, Wellcome Trust Genome Campus,%
+        Hinxton, Cambridge, UK
+}%
+
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% The Abstract begins here                 %%
+%%                                          %%
+%% The Section headings here are those for  %%
+%% a Research article submitted to a        %%
+%% BMC-Series journal.                      %%  
+%%                                          %%
+%% If your article is not of this type,     %%
+%% then refer to the Instructions for       %%
+%% authors on http://www.biomedcentral.com  %%
+%% and change the section headings          %%
+%% accordingly.                             %%   
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{abstract}
+        % Do not use inserted blank lines (ie \\) until main body of text.
+        \paragraph*{Background:} Manual annotation is essential to create high-quality reference alignments and annotation.  Annotators need to be able to view sequence alignments in detail.  The SeqTools package provides three tools for viewing different types of sequence alignment: Blixem is a many-to-one browser of pairwise alignments, displaying multiple match sequences aligned against a single reference sequence; Dotter provides a graphical dot-plot view of a single pairwise alignment; and Belvu is a Multiple Sequence Alignment viewer, editor, and phylogenetic tool. These tools were originally part of the AceDB genome database system but have been updated and repackaged as separate applications to make them more widely useful.
+
+        \paragraph*{Results:} Blixem is used by annotators to give a detailed view of the evidence for particular gene models.  Blixem displays the gene model positions and the match sequences aligned against the genomic reference sequence.  Annotators use this for many reasons, including to check the quality of an alignment, to find missing/misaligned sequence and to identify splice sites and polyA sites and signals.  Dotter is used to give a dot-plot representation of a particular pairwise alignment.  This is used to identify sequence that is not represented (or is misrepresented) and to quickly compare annotated gene models with transcriptional and protein evidence that putatively supports them.  Belvu is used to analyse conservation patterns in Multiple Sequence Alignments and to perform a combination of manual and automatic processing of the alignment.  High-quality reference alignments are essential if they are to be used as a starting point for further automatic alignment generation.
+
+        \paragraph*{Conclusions:} Many annotators have found Blixem, Dotter and Belvu to be essential for analysing sequence alignments as part of the manual annotation process.  The SeqTools package provides vastly improved and updated versions of these tools, with support for modern file formats and feature types.
+\end{abstract}
+
+
+
+\ifthenelse{\boolean{publ}}{\begin{multicols}{2}}{}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                          %%
+%% The Main Body begins here                %%
+%%                                          %%
+%% The Section headings here are those for  %%
+%% a Research article submitted to a        %%
+%% BMC-Series journal.                      %%  
+%%                                          %%
+%% If your article is not of this type,     %%
+%% then refer to the instructions for       %%
+%% authors on:                              %%
+%% http://www.biomedcentral.com/info/authors%%
+%% and change the section headings          %%
+%% accordingly.                             %% 
+%%                                          %%
+%% See the Results and Discussion section   %%
+%% for details on how to create sub-sections%%
+%%                                          %%
+%% use \cite{...} to cite references        %%
+%%  \cite{koon} and                         %%
+%%  \cite{oreg,khar,zvai,xjon,schn,pond}    %%
+%%  \nocite{smith,marg,hunn,advi,koha,mouse}%%
+%%                                          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+%%%%%%%%%%%%%%%%
+%% Background %%
+%%
+\section*{Background}
+Manual annotation is essential to create high-quality reference alignments and annotation.  Annotators need to be able to view sequence alignments in detail in order to verify them and to correct any errors.  The SeqTools package provides three interactive tools for viewing different types of sequence alignment: Blixem, Dotter and Belvu.
+
+The SeqTools programs were originally part of the AceDB\cite{Du94} genome database system and as such were used mostly by annotation groups at the Sanger Institute.  In version 4, the programs were re-written as the SeqTools package to make them available independently of AceDB.  They have been updated to support new feature types and file formats, making them more widely useful and compatible with other tools.  Significant enhancements have also been added, particularly to Blixem, since the programs were first published\cite{So94,So95,So05}.
+
+
+\section*{Implementation}
+The SeqTools programs are desktop applications written in C using GTK+.
+
+\subsection*{Blixem}
+Blixem is a many-to-one browser of pairwise alignments. It takes two files as input: a FASTA file containing the reference sequence, and a GFF version 3 file containing alignments as well as any gene models or other features of interest. Input files can be passed on the command line or piped in and additional feature files can be loaded from within the program. The move to GFF from legacy AceDB file formats is a major improvement in version 4 of Blixem.
+
+The display consists of two sections: a zoomable overview section showing the feature positions along the reference sequence; and a detail section showing the actual alignment of protein or nucleotide sequences to the reference DNA sequence. Multiple match sequences are stacked below the reference sequence and individual bases are colour-coded to indicated how well they match. Markers indicate where deletions and insertions occur.
+
+Blixem works in nucleotide or protein mode depending on the type of the sequences.  In nucleotide mode, both strands of the reference sequence are calculated and can be displayed simultaneously in the detail section.  In protein mode, the three-frame translation of the reference sequence is calculated and all three frames for the current strand can be shown (Figure 1).  In both modes, the user can easily toggle the display between the forward and reverse strand orientation.
+
+Blixem can display gene models and other feature types.  Gene models are shown in the overview section as well as the detail section, and CDS and UTR sections can be highlighted in different colours.  The colour scheme can be specified in an optional ``.ini''-like styles file.  In version 4, support for new feature types has been added. These include: short-reads, which are displayed aligned against the reference sequence; SNPs, insertions and deletions, which are highlighted in the reference sequence; annotated polyA sites and signals, which again are highlighted in the reference sequence; and polyA tails, which are shown in the detail-view.
+
+An improved user-interface makes it easy to quickly find and navigate around alignments. There are flexible methods to filter, highlight and sort sequences. Other new features allow users to display a coverage plot, to display colinearity lines between alignment blocks, to show unaligned portions of match sequences, and to highlight splice-sites for particular features in the reference sequence. 
+
+Dotter can be called from within Blixem to give a graphical representation of a particular alignment which often allows annotators to see matches they would otherwise have missed.
+
+\subsection*{Dotter}
+Dotter is a graphical dot-matrix program for detailed comparison of two sequences. Dotter can be called from the command-line or from other tools such as Blixem.  It takes two sequences as input, in FASTA file format.  Every residue in one sequence is compared to every residue in the other and a score is calculated.  The scores are plotted on a grid with one sequence on the x-axis and the other on the y-axis.  Dots are drawn in grey-scale, with darker shades indicating a higher score.
+
+Dotter can operate in nucleotide-nucleotide, nucleotide-protein or protein-protein mode.  In nucleotide-nucleotide mode, comparisons are made against both strands of the horizontal sequence; alignments appear as diagonal lines, with alignments on the reverse strand sloping in the opposite direction to those on the forward strand (Figure 2).  In nucleotide-protein mode, the three-frame translation of the horizontal sequence is computed and alignments against all three frames are shown.  In protein-protein mode Dotter just performs a direct comparison between the two sequences.
+
+To improve visualisation, scores are averaged over a sliding window.  Scores below a minimum cutoff are ignored and scores above a maximum cutoff are saturated.  The stringency cutoffs can be adjusted interactively using the grey-ramp tool, without having to recalculate the dot-matrix.  This is a major advantage because large matrices can take a long time to compute.  It is not easy to predict the correct thresholds programatically, so manual adjustment is often necessary.
+
+The dot-plot can be navigated with keyboard shortcuts or the mouse. The sequence data at a particular position can be inspected using the alignment tool, which scrolls in unison with the dot-plot.
+
+Features such as gene-models and high-scoring pairs (HSPs) can optionally be loaded from a GFF file. HSPs can be superimposed onto the dot-plot, and gene models are displayed along the axis of the relevant sequence, so they can be easily compared with the alignment. Internal repeats can be analysed by running Dotter on a sequence versus itself.  To find overlaps between several sequences, they can be concatenated and then Dotter run on the concatenated sequence versus itself.
+
+Dotter offers the option to save the plot to file, which is useful for large plots that take a long time to compute.  Dotter can also be run in batch mode, where the matrix is computed in the background and saved for viewing later.  Recreating a plot from a saved matrix is very fast, and has the advantage that it can still be dynamically adjusted and interacted with.
+
+\subsection*{Belvu}
+Belvu is a Multiple Sequence Alignment (MSA) viewer and editor used to create high-quality reference alignments. Belvu can load and save alignments in Stockholm, MSF, Selex and Fasta file formats.
+
+Opening an alignment brings up Belvu's graphical alignment window.  By default, residues are coloured by conservation (Figure 3).  Conservation can be calculated by average similarity by BLOSUM62, by percent identity (either including or ignoring gaps), or by a combination of percent identity and BLOSUM62.  Residues are then coloured according to user-configurable conservation thresholds.
+
+Residues can also be coloured by residue type (Figure 4).  There are several built-in modes for colouring residues by type, and colours can be edited to create custom colour schemes that can be saved to and loaded from file.  Colouring can be applied to all residues, or to only those residues with a percent identity above a specified threshold.  Again, gaps can be included or ignored in the identity calculation.
+
+Belvu can display a conservation profile for the alignment (Figure 5), which shows the maximum conservation for each column.  The plot can be smoothed by applying a sliding window of user-configurable size.
+
+Belvu has basic alignment editing capabilities, whereby sequences or columns can be removed.  Sequences can be removed by manual selection, or by automatically removing those that match certain criteria such as the percentage of gaps they contain, their score, or whether they are a redundant or partial sequence.  Similarly, columns can be removed by criteria such as the percentage of gaps or the maximum conservation in the column.
+
+Editing operations can be performed within the graphical viewer or on the command line. Command-line operation allows the combination of several operations in conjunction with one another. This means that complete processes can be performed in a single call, such as automatically removing sequences and converting to another file format.  This makes Belvu ideal for use in software pipelines.  Table 1 shows some examples of the type of operation that can be performed; many other combinations are also possible.
+
+Belvu can construct a distance-based phylogenetic tree from a multiple alignment, using either neighbour-joining or UPGMA tree construction methods (Figure 6).  Distance correction can be applied using Scoredist\cite{So05}, Storm \& Sonnhammer, Kimura or Jukes-Cantor methods.  Tree nodes can be swapped, and the tree can be re-rooted around a particular node. Trees can be saved in New Hampshire format.  The distance matrix can also be exported, and the tree can be reconstructed from a saved distance matrix.  Belvu can also perform bootstrap analysis.
+
+
+ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Results and Discussion %%
+%%
+\section*{Results and Discussion}
+Blixem and Dotter are used extensively by the HAVANA group at the Wellcome Trust Sanger Institute and are essential to the manual annotation process. Examples of work published by the HAVANA group that has involved the use of Blixem and Dotter includes\cite{Ha06,Ma10,20003482,16925837,Mudge06052011,18507838}.  Belvu is used in the curation of high-quality ``seed'' alignments for the Pfam database\cite{Fi10}. 
+
+\subsection*{Blixem}
+Blixem is the ``workhorse'' for manual gene annotation in the HAVANA group and is in continuous use. It represents the annotator's first point of contact at nucleotide-level for all sequence alignment data, including ESTs, mRNAs and proteins. Annotators use Blixem to check the quality of an alignment (including finding missing or misaligned sequence), to identify splice sites (using this information to construct gene models and confirm alternative splicing events), to identify polyA sites and signals, to investigate the functional effects of polymorphisms (including reference sequence disabling variants in polymorphic pseudogenes), to investigate potential genome sequence errors, to identify deleterious mutations in pseudogenes, and in rarer cases to identify selenocysteine residues and RNA editing events.
+
+\subsection*{Dotter}
+Dotter is essential to the HAVANA manual annotation process and is used for two main purposes:
+
+Firstly, to identify sequence that is not represented (or is misrepresented) in the EST2genome or BLAST alignments produced by the analysis pipeline and displayed in Blixem. Identification of missing sequences using Dotter frequently allows annotation of models with alternative 5' UTR and internal exons that are short in length, repeatmasked in the reference genome sequence, or contain transcript sequence errors/polymorphism that hinders their automated alignment. As the HAVANA group only annotate gene models to the extent they are supported by aligned evidence (i.e. they do not extend models by creating a tiling path of evidence or ``borrowing'' exons from other full-length models at the same locus), Dotter is useful to support the extension of gene models supported by evidence from paralogous and orthologous loci and locus-specific ESTs of inconsistent sequence quality.
+
+Secondly, to facilitate the rapid comparison of annotated gene models with transcriptional and protein evidence that putatively support them as breaks in alignment are more clearly identifiable than in a pairwise sequence alignment e.g. Clustal.
+
+
+\subsection*{Belvu}
+Belvu is used in the manual curation of high-quality ``seed'' alignments for the Pfam database\cite{Fi10}. Annotators might start with an alignment from MUSCLE or MAFFT, for example, and use Belvu to trim the ends of the alignment to the best conservation, and remove gappy and partial sequences. They use Belvu to analyse conservation patterns, sorting alphabetically to see readily repeated domains on a sequence, or sorting by tree order to see simple evolutionary relationships. They can also sort by similarity to a specific sequence, which is useful when trying to spot false positives. Redundant sequences are removed in order to see the variation across the whole. Once of a high enough quality, the seed alignment is then used to automatically generate a ``full'' alignment, which contains all detectable protein sequences belonging to the family. 
+    
+
+%%%%%%%%%%%%%%%%%%%%%%
+\section*{Conclusions}
+Blixem is a unique tool that displays multiple match sequences aligned against a single reference sequence. This allows annotators to compare evidence from a variety of sources in a very detailed nucleotide-level view. Support for new data types such as short-reads means that the annotator can see all relevant information in one place, and the move to GFF version 3 makes Blixem and Dotter more widely compatible with other tools.
+
+Dotter gives a graphical view of a particular pairwise alignment. Its dynamically-adjustable contrast allows annotators to quickly tweak the display to get the best view of the results, and the alignment can easily be compared to annotated gene models and HSPs. Dotter is extremely useful for identifying alignments that cannot be found using automated methods, and for validating putative evidence. 
+
+Belvu is one of several programs available for viewing and editing multiple alignments and generating phylogenetic trees. Belvu's advantages are its ability to calculate conservation on a per-residue basis, to colour residues by user-configurable thresholds, and to automate complete processes. Belvu is also the only tool to implement the Scoredist algorithm\cite{So05}.
+
+
+%%%%%%%%%%%%%%%%%%
+\section*{Availability and requirements}
+\paragraph{Project name:} SeqTools
+\paragraph{Project home page:} \url{http://www.sanger.ac.uk/resources/software/seqtools/}
+\paragraph{Operating system(s):} Linux, Mac OS X, FreeBSD, Cygwin
+\paragraph{Programming language:} C
+\paragraph{Other requirements:} GTK+ 2.12 or higher
+\paragraph{Licence:} GNU GPL version 3
+\paragraph{Any restrictions to use by non-academics:} none
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{List of abbreviations}
+\paragraph{MSA:} Multiple Sequence Alignment
+\paragraph{SNP:} Single Nucleotide Polymorphism
+\paragraph{GFF:} General Feature Format
+\paragraph{HSP}: High-Scoring Pair
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{Competing interests}
+The authors declare that they have no competing interests.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{Authors' contributions}
+GB carried out the requirements gathering, redesign and implementation for the new versions of the programs, packaged them into the SeqTools package and drafted the manuscript. EG maintained the original programs as part of AceDB, conceived the idea of the SeqTools package, offered guidance in the programs' redesign and helped to draft the manuscript. All authors read and approved the final manuscript.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{Acknowledgements}
+  \ifthenelse{\boolean{publ}}{\small}{}
+The authors would like to thank everyone who has contributed to Blixem, Dotter and Belvu, in particular their original author, Erik Sonnhammer, and the authors of AceDB, Richard Durbin, Jean Thierry-Mieg and Ed Griffiths.  We would also like to thank our users in the HAVANA and Pfam groups, especially Adam Frankish and Penny Coggill, who have offered a lot of guidance in the development of these tools. Adam and Penny also contributed to the descriptions of HAVANA and Pfam's annotation processes in the Results and Discussion section of this manuscript.
+
+This work was supported by the Wellcome Trust grant [098051]; and the National Human Genome Research Institute grant [5U54HG00455-04].
+
+ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                  The Bibliography                       %%
+%%                                                         %%              
+%%  Bmc_article.bst  will be used to                       %%
+%%  create a .BBL file for submission, which includes      %%
+%%  XML structured for BMC.                                %%
+%%                                                         %%
+%%                                                         %%
+%%  Note that the displayed Bibliography will not          %% 
+%%  necessarily be rendered by Latex exactly as specified  %%
+%%  in the online Instructions for Authors.                %% 
+%%                                                         %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+{\ifthenelse{\boolean{publ}}{\footnotesize}{\small}
+ \bibliographystyle{bmc_article}  % Style BST file
+  \bibliography{seqtools} }     % Bibliography file (usually '*.bib' ) 
+
+%%%%%%%%%%%
+
+\ifthenelse{\boolean{publ}}{\end{multicols}}{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                               %%
+%% Figures                       %%
+%%                               %%
+%% NB: this is for captions and  %%
+%% Titles. All graphics must be  %%
+%% submitted separately and NOT  %%
+%% included in the Tex document  %%
+%%                               %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%
+%% Do not use \listoffigures as most will included as separate files
+
+\section*{Figures}
+\subsection*{Figure 1 - Blixem in protein mode}
+Blixem in protein mode, showing SwissProt alignments for human chromosome 4. The three-frame translation of the reference sequence is shown in yellow. The match sequence residues are highlighted in cyan for an exact match, blue for a conserved match and grey for a mismatch. Insertions are indicated by a vertical purple bar and deletions by a dot.
+
+\subsection*{Figure 2 - Dotter in nucleotide-nucleotide mode}
+Dotter in nucleotide-nucleotide mode. Top left: the dot-plot. Top-right: the grey-ramp tool, used for dynamically adjusting the stringency cut-offs. Bottom: the alignment tool, showing the sequence data at the current cross-hair position; both strands of the horizontal sequence are displayed, and residues are coloured according to how well they match.
+
+\subsection*{Figure 3 - Belvu colour-by-conservation mode}
+Multiple sequence alignment in Belvu with residues coloured by average similarity by BLOSUM62. Cyan indicates conservation of 3.0 or greater; blue 1.5; and grey 0.5. Colours and thresholds are user-configurable.
+
+\subsection*{Figure 4 - Belvu in colour-by-residue mode}
+Multiple sequence alignment in Belvu with residues coloured by residue type. Colours are user-configureable and thresholds can be specified to only colour residues with a given percent identity or higher.
+
+\subsection*{Figure 5 - Belvu conservation profile}
+The maximum conservation for each column is plotted against the column number. The red line shows the average conservation, and a sliding-window of 5 has been applied for smoothing.
+
+\subsection*{Figure 6: Belvu phylogenetic tree}
+Neighbour-joining tree using Scoredist correction.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                               %%
+%% Tables                        %%
+%%                               %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Use of \listoftables is discouraged.
+%%
+\section*{Tables}
+\subsection*{Table 1 - Belvu command-line examples}
+    Examples of the type of processing that can be performed in a single command-line call to Belvu. \par \mbox{}
+    \par
+    \mbox{
+      \begin{tabular}{|l|p{0.5\textwidth}|l|}
+        \hline
+        {\bf Input}               & {\bf Processing} & {\bf Output}\\ \hline
+        Alignment       & Export to a different format & Alignment \\ \hline
+        Alignment       & Remove sequences more than 80\% identical and columns with conservation less than 0.9 & Alignment \\ \hline
+        Alignment       & Construct neighbour-joining tree using Kimura distance correction & Distance matrix\\ \hline
+        Distance matrix & Reconstruct tree & Tree\\ \hline
+        Alignment       & Apply bootstrap analysis & Bootstrap trees\\ \hline
+      \end{tabular}
+      }
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                               %%
+%% Additional Files              %%
+%%                               %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section*{Additional Files}
+  \subsection*{Additional file 1 --- seqtools-4.26.tar.gz}
+   A tarball of the current production release of the SeqTools source code at the time of publication.
+
+\end{bmcformat}
+\end{document}
+
+
+
+
+
+
+
