@@ -716,16 +716,16 @@ static void onDestroyDotterWindow(GtkWidget *dotterWindow)
   
   if (properties)
     {
-      if (properties->greyrampTool)
+      if (properties->greyrampWindow)
         {
-          gtk_widget_destroy(properties->greyrampTool);
-          properties->greyrampTool = NULL;
+          gtk_widget_destroy(properties->greyrampWindow);
+          properties->greyrampWindow = NULL;
         }
 
-      if (properties->alignmentTool)
+      if (properties->alignmentWindow)
         {
-          gtk_widget_destroy(properties->alignmentTool);
-          properties->alignmentTool = NULL;
+          gtk_widget_destroy(properties->alignmentWindow);
+          properties->alignmentWindow = NULL;
         }
     
       if (properties->dotterWinCtx)
