@@ -844,7 +844,8 @@ int main(int argc, char **argv)
   g_free(key_file);
   g_free(config_file);
   g_hash_table_unref(lookupTable);
-   
+
+  g_message("Exiting Blixem\n");
   return (EXIT_SUCCESS) ;
 }
 

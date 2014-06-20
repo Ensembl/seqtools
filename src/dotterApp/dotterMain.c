@@ -892,6 +892,7 @@ int main(int argc, char **argv)
     g_array_free(featureLists[typeId], FALSE);
 
   freeOptions(&options);
-  
+
+  g_message("Exiting Dotter\n");
   return (EXIT_SUCCESS) ;
 }
