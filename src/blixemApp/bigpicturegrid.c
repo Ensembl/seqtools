@@ -161,15 +161,47 @@ static void calculateMspLineDimensions(GtkWidget *grid,
 }
 
 
-/* Returns true if the given msp is displayed in the given grid, i.e. is the correct
- * strand, is not an intron or exon, and (if checkVisible is true) is not out of range */
-static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean checkVisible)
+/* Returns true if sequences in the given group should be shown. */
+static gboolean isGroupVisible(const SequenceGroup* const group)
 {
-  gboolean result = FALSE;
+  gboolean result = TRUE;
   
-  if (mspIsBlastMatch(msp) && mspGetRefStrand(msp) == gridGetStrand(grid))
+  result = (!group || !group->hidden);
+  
+  return result;
+}
+
+
+/* Returns true if the given msp is displayed in the given grid, i.e. is the correct
+ * strand, is not an intron or exon, and (if checkRange is true) is not out of range */
+static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean checkRange)
+{
+  gboolean result = FALSE ; 
+
+  SequenceGroup *group = NULL ;
+  BlxViewContext *bc = NULL ;
+
+  /* First check strand and type */
+  result = (grid && msp && mspIsBlastMatch(msp) && mspGetRefStrand(msp) == gridGetStrand(grid)) ;
+
+  /* If in a group, check that the group is visible */
+  if (result)
     {
-      if (checkVisible)
+      bc = gridGetContext(grid) ;
+      group = blxContextGetSequenceGroup(bc, msp->sSequence) ;
+      result = isGroupVisible(group) ;
+    }
+
+  if (result)
+    {
+      /* If hiding ungrouped sequences and this is a sequence (i.e. match) without a group, hide it */
+      if (!group && bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS] && msp->sSequence->type == BLXSEQUENCE_MATCH)
+        result = FALSE ;
+    }
+  
+  if (result)
+    {
+      if (checkRange)
         {
           /* See if the msp lies within the grid's display range */
           const IntRange* const displayRange = gridGetDisplayRange(grid);
@@ -472,7 +504,7 @@ void calculateGridBorders(GtkWidget *grid)
   
   if (newHeight != properties->displayRect.height)
     {
-      DEBUG_OUT("Setting new grid height = %d\n");
+      DEBUG_OUT("Setting new grid height = %d\n", newHeight);
       properties->displayRect.height = newHeight;
       gtk_layout_set_size(GTK_LAYOUT(grid), properties->displayRect.width, properties->displayRect.height);
   

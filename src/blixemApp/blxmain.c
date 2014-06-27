@@ -293,7 +293,7 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->abbrevTitle = FALSE;
   
   options->blastMode = BLXMODE_UNSET;
-  options->seqType = BLXSEQ_INVALID;
+  options->seqType = BLXSEQ_NONE;
   options->numFrames = 1;
   options->mapCoords = FALSE;
   options->mapCoordsFrom = UNSET_INT;
@@ -319,7 +319,7 @@ static void validateOptions(CommandLineOptions *options)
 /* Determine the sequence type (nucleotide or peptide) from the given char */
 static BlxSeqType getSeqTypeFromChar(char seqChar)
 {
-  BlxSeqType result = BLXSEQ_INVALID;
+  BlxSeqType result = BLXSEQ_NONE;
   
   if (seqChar == 'n' || seqChar == 'N')
     result = BLXSEQ_DNA;
@@ -484,7 +484,7 @@ int main(int argc, char **argv)
                     popupMessageHandler, &options.msgData);
 
   /* Get the list of supported GFF types, in case we need to print them out in the usage text */
-  GSList* supportedTypes = blxCreateSupportedGffTypeList();
+  GSList* supportedTypes = blxCreateSupportedGffTypeList(BLXSEQ_NONE);
 
   gtk_parse_args(&argc, &argv);
 
@@ -655,6 +655,11 @@ int main(int argc, char **argv)
     }
 
   validateOptions(&options);
+
+  /* Update the list of supported GFF types, filtering matches by the sequence type.
+   * (It's quick and dirty to destroy recreate this but it's a small list and only done once.) */
+  blxDestroyGffTypeList(&supportedTypes);
+  supportedTypes = blxCreateSupportedGffTypeList(options.seqType);
   
   /* We expect one or two input files */
   const int numFiles = argc - optind;
@@ -733,25 +738,22 @@ int main(int argc, char **argv)
   /* Pass the config file to parseFS */
   GKeyFile *inputConfigFile = blxGetConfig();
   
-  /* Pass the reference sequence range to parseFS to be populated ONLY if it
-   * has not already been set. */
-  IntRange *qRange = NULL;
-  if (options.refSeqRange.min == UNSET_INT && options.refSeqRange.max == UNSET_INT)
-    qRange = &options.refSeqRange;
+  /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
+  GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
 
   /* Set the blast mode from the sequence type, if given. If not, blast mode might
    * get set by parseFS (nasty for backwards compatibility; ideally we'll get rid
    * of blastmode at some point). */
-  if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_INVALID)
+  if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_NONE)
     options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
   
   parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
-          &options.refSeq, options.refSeqName, qRange, &dummyseq, dummyseqname, inputConfigFile, &error) ;
+          &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, inputConfigFile, lookupTable, &error) ;
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);  
 
   /* Now see if blast mode was set and set seqtype from it if not already set... */
-  if (options.seqType == BLXSEQ_INVALID && options.blastMode != BLXMODE_UNSET)
+  if (options.seqType == BLXSEQ_NONE && options.blastMode != BLXMODE_UNSET)
     options.seqType = (options.blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
 
   /* Parse the reference sequence, if we have a separate sequence file (and it was
@@ -800,7 +802,7 @@ int main(int argc, char **argv)
 	}
       
       parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
-              &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig(), &error) ;
+              &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig(), lookupTable, &error) ;
 
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       fclose(xtra_file) ;
@@ -834,15 +836,16 @@ int main(int argc, char **argv)
   
   /* Now display the alignments. (Note that TRUE signals blxview() that it is being called from
    * this standalone blixem program instead of as part of acedb. */
-  if (blxview(&options, featureLists, seqList, supportedTypes, pfetch, align_types, TRUE))
+  if (blxview(&options, featureLists, seqList, supportedTypes, pfetch, align_types, TRUE, styles, lookupTable))
     {
       gtk_main();
     }
  
   g_free(key_file);
   g_free(config_file);
-  
-   
+  g_hash_table_unref(lookupTable);
+
+  g_message("Exiting Blixem\n");
   return (EXIT_SUCCESS) ;
 }
 

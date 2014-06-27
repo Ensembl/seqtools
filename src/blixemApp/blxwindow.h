@@ -113,7 +113,8 @@ GtkWidget*                createBlxWindow(CommandLineOptions *options,
                                           GArray* featureLists[], 
                                           GList *seqList, 
                                           GSList *supportedTypes,
-                                          const gboolean External);
+                                          const gboolean External,
+                                          GSList *styles);
 
 
 #endif /* _blxwindow_included_ */

@@ -78,7 +78,7 @@ MSP score codes (for obsolete exblx file format):
 #define MIN_GAP_HIGHLIGHT_WIDTH		      5			  /* minimum width of assembly gaps markers */
 
 
-static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const gboolean External) ;
+static void            blviewCreate(char *align_types, const char *paddingSeq, GArray* featureLists[], GList *seqList, GSList *supportedTypes, CommandLineOptions *options, const gboolean External, GSList *styles) ;
 static void            processGeneName(BlxSequence *blxSeq);
 static void            processOrganism(BlxSequence *blxSeq);
 
@@ -213,7 +213,7 @@ static void validateInput(CommandLineOptions *options)
     }
   
   /* if we were given the blast mode instead of seq type, determine the display sequence type */
-  if (options->seqType == BLXSEQ_INVALID && options->blastMode != BLXMODE_UNSET)
+  if (options->seqType == BLXSEQ_NONE && options->blastMode != BLXMODE_UNSET)
     {
       if (options->blastMode == BLXMODE_BLASTN)
         options->seqType = BLXSEQ_DNA;
@@ -222,7 +222,7 @@ static void validateInput(CommandLineOptions *options)
     }
   
   /* Check we have a valid seq type */
-  if (options->seqType == BLXSEQ_INVALID)
+  if (options->seqType == BLXSEQ_NONE)
     {
       g_message("\nNo sequence type specified. Detected ");
       
@@ -305,7 +305,9 @@ static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList, G
 }
 
 
-void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList)
+/* Merge new features into our existing context: merges the newMsps list into mspList and newSeqs
+ * list into seqList. Takes ownership of the contents of both newMsps and newSeqs. */
+void blxMergeFeatures(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList)
 {
   /* Append new MSPs to MSP list */
   MSP *lastMsp = *mspList;
@@ -316,12 +318,7 @@ void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seq
   lastMsp->next = newMsps;
   
   /* Append new sequences to sequence list */
-  GList *seqItem = newSeqs;
-  
-  for ( ; seqItem; seqItem = seqItem->next)
-    {
-      *seqList = g_list_prepend(*seqList, seqItem->data);
-    }
+  *seqList = g_list_concat(*seqList, newSeqs);
 }
 
 
@@ -330,7 +327,8 @@ void appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seq
  * sequence and MSP lists.
  * A non-local or non-native file can be passed to check if it is loadable
  * and, if not, this function returns early and sets the error. */
-void loadNativeFile(const char *fileName,
+void loadNativeFile(const char *filename,
+                    const char *buffer,
                     GKeyFile *keyFile,
                     BlxBlastMode *blastMode,
                     GArray* featureLists[],
@@ -339,28 +337,54 @@ void loadNativeFile(const char *fileName,
                     MSP **newMsps,
                     GList **newSeqs,
                     GList *columnList,
+                    GHashTable *lookupTable,
+                    const int refSeqOffset,
+                    const IntRange* const refSeqRange,
                     GError **error)
 {
-  if (!fileName)
-    return;
-  
-  FILE *inputFile = fopen(fileName, "r");
-
-  if (!inputFile)
+  if (!filename && !buffer)
     {
-      g_set_error(error, BLX_ERROR, 1, "File '%s' is not a local file.\n", fileName);
+      g_set_error(error, BLX_ERROR, 1, "No file or buffer provided.");
+      return;
     }
-  else
+
+  char *dummyseq1 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+  char dummyseqname1[FULLNAMESIZE+1] = "";
+  char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
+  char dummyseqname2[FULLNAMESIZE+1] = "";
+
+  /* The range passed to the parser must be in the original parsed coords, so subtract the
+   * offset. (It is used to validate that the range in the GFF file we're reading in is within 
+   * blixem's known range.)  */
+  IntRange toplevelRange = {UNSET_INT, UNSET_INT};
+  
+  if (refSeqRange)
     {
-      char *dummyseq1 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
-      char dummyseqname1[FULLNAMESIZE+1] = "";
-      char *dummyseq2 = NULL;    /* Needed for blxparser to handle both dotter and blixem */
-      char dummyseqname2[FULLNAMESIZE+1] = "";
-      
-      parseFS(newMsps, inputFile, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
-              &dummyseq1, dummyseqname1, NULL, &dummyseq2, dummyseqname2, keyFile, error) ;
-      
-      fclose(inputFile);
+      toplevelRange.min = refSeqRange->min - refSeqOffset;
+      toplevelRange.max = refSeqRange->max - refSeqOffset;
+    }
+  
+  if (filename)
+    {
+      /* Open the file for reading */
+      FILE *file = fopen(filename, "r");
+
+      if (!file)
+        {
+          g_set_error(error, BLX_ERROR, 1, "Error opening file '%s' for reading.\n", filename);
+        }
+      else
+        {
+          parseFS(newMsps, file, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
+                  &dummyseq1, dummyseqname1, &toplevelRange, &dummyseq2, dummyseqname2, keyFile, lookupTable, error) ;      
+          
+          fclose(file);
+        }
+    }
+  else if (buffer)
+    {
+      parseBuffer(newMsps, buffer, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
+                  &dummyseq1, dummyseqname1, &toplevelRange, &dummyseq2, dummyseqname2, keyFile, lookupTable, error) ;      
     }
 }
 
@@ -438,7 +462,9 @@ gboolean blxview(CommandLineOptions *options,
                  GSList *supportedTypes,
                  PfetchParams *pfetch, 
                  char *align_types, 
-                 gboolean External)
+                 gboolean External,
+                 GSList *styles,
+                 GHashTable *lookupTable)
 {
   if (blixemWindow)
     gtk_widget_destroy(blixemWindow) ;
@@ -461,7 +487,7 @@ gboolean blxview(CommandLineOptions *options,
     0, External, options->saveTempFiles, options->seqType, &seqList, options->columnList,
     options->bulkFetchDefault, options->fetchMethods, &options->mspList, &options->blastMode, 
     featureLists, supportedTypes, NULL, 0, &options->refSeqRange, 
-    options->dataset, FALSE); /* offset has not been applied yet, so pass offset=0 */
+    options->dataset, FALSE, lookupTable); /* offset has not been applied yet, so pass offset=0 */
 
   if (status)
     {
@@ -470,7 +496,7 @@ gboolean blxview(CommandLineOptions *options,
       /* Construct missing data and do any other required processing now we have all the sequence data */
       finaliseBlxSequences(featureLists, &options->mspList, &seqList, options->columnList, 
                            options->refSeqOffset, options->seqType, 
-                           options->numFrames, &options->refSeqRange, TRUE);
+                           options->numFrames, &options->refSeqRange, TRUE, lookupTable);
 
     }
 
@@ -478,7 +504,7 @@ gboolean blxview(CommandLineOptions *options,
    * But only if it's an internal call.  If external & anything's wrong, we die. */
   if (status || !External)
     {
-      blviewCreate(align_types, padseq, featureLists, seqList, supportedTypes, options, External) ;
+      blviewCreate(align_types, padseq, featureLists, seqList, supportedTypes, options, External, styles) ;
     }
 
   return status;
@@ -534,12 +560,13 @@ static void blviewCreate(char *align_types,
                          GList *seqList,
                          GSList *supportedTypes,
 			 CommandLineOptions *options,
-                         const gboolean External)
+                         const gboolean External,
+                         GSList *styles)
 {
   if (!blixemWindow)
     {
       /* Create the window */
-      blixemWindow = createBlxWindow(options, paddingSeq, featureLists, seqList, supportedTypes, External);
+      blixemWindow = createBlxWindow(options, paddingSeq, featureLists, seqList, supportedTypes, External, styles);
 
       /* Set the window title. Get a description of all the alignment types 
        * (unless already supplied) */
@@ -603,6 +630,7 @@ static void blviewCreate(char *align_types,
 }
 
 /***********************************************************
+ *               Sequences and MSPs
  ***********************************************************/
 
 /* The parsed gene name generally contains extra info that we're not interested in. This function
@@ -1027,6 +1055,11 @@ int mspGetMatchCoord(const MSP *msp,
 }
 
 
+
+/***********************************************************
+ *               General
+ ***********************************************************/
+
 /* Redraw the entire blixem window. (Call blxWindowRedrawAll directly where possible,
  * rather than this function, which relies on the global variable 'blixemWindow'). */
 void blviewRedraw(void)
@@ -1050,6 +1083,9 @@ void blviewResetGlobals()
   destroyMessageList();
 }
 
+/***********************************************************
+ *               Styles and colours
+ ***********************************************************/
 
 /* Set the given BlxColor elements from the given color string(s). Works out some good defaults
  * for blxColor.selected blxcolor.print etc if these colors are not given */

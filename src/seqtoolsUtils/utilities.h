@@ -246,7 +246,7 @@ typedef enum
 /* Fundamental type of sequence (DNA really means nucleotide, because it could be RNA as well). */
 typedef enum
   {
-    BLXSEQ_INVALID, 
+    BLXSEQ_NONE, 
     BLXSEQ_DNA, 
     BLXSEQ_PEPTIDE
   } BlxSeqType ;
@@ -304,6 +304,10 @@ typedef enum
     COLINEAR_PERFECT,                                      /* blocks colinear and contiguous. */
     COLINEARITY_N_TYPE
   } ColinearityType ;
+
+
+/* Supported drag-and-drop target types */
+typedef enum {TARGET_STRING, TARGET_URL} DragDropTargetType;
 
 
 GdkDrawable*          widgetGetDrawable(GtkWidget *widget);
@@ -552,6 +556,7 @@ char*                              getLoadFileName(GtkWidget *widget, const char
 
 void                               enableMenuAction(GtkActionGroup *action_group, const char *actionName, const gboolean enable);
 void                               setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, const gboolean active);
+gboolean                           getToggleMenuStatus(GtkActionGroup *action_group, const char *actionName);
 void                               setRadioMenuStatus(GtkActionGroup *action_group, const char *actionName, const gint value);
 
 GtkWidget*                         externalCommand(const char *command, const char *progName, GtkWidget *widget, GError **error);

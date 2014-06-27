@@ -650,15 +650,21 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   
   GtkWidget *autoButton = gtk_radio_button_new_with_mnemonic(NULL, "_Auto");
   gtk_box_pack_start(vbox1, autoButton, FALSE, FALSE, spacing);
+  gtk_widget_set_tooltip_text(autoButton, "Always use the visible big picture range");
   widgetSetCallbackData(autoButton, onSaveDotterMode, blxWindow);
 		   
   GtkWidget *manualButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(autoButton), "_Manual");
+  gtk_widget_set_tooltip_text(manualButton, "Set the coords manually. Once saved, the same coords will be used until you change them manually again.");
   gtk_box_pack_start(vbox1, manualButton, FALSE, FALSE, spacing);
 
   /* Buttons that the user can click to populate the parameter boxes with certain values */
   GtkWidget *lastSavedButton = gtk_button_new_with_mnemonic("_Last saved ->");
   GtkWidget *fullRangeButton = gtk_button_new_with_mnemonic("_Full range ->");
   GtkWidget *bpRangeButton = gtk_button_new_with_mnemonic("_Big picture range ->");
+
+  gtk_widget_set_tooltip_text(lastSavedButton, "Put the last-saved coords in the manual coords boxes");
+  gtk_widget_set_tooltip_text(fullRangeButton, "Put the full range in the manual coords boxes");
+  gtk_widget_set_tooltip_text(bpRangeButton, "Put the big picture range in the manual coords boxes");
 
   gtk_box_pack_start(vbox1, lastSavedButton, FALSE, FALSE, spacing);
   gtk_box_pack_start(vbox1, fullRangeButton, FALSE, FALSE, spacing);
@@ -678,17 +684,20 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   GtkWidget *startEntry = createTextEntry(table, 1, 1, xpad, ypad, "<i>Start:</i>", onSaveDotterStart, blxWindow, getDisplayCoord(bc->dotterStart, bc));
   GtkWidget *endEntry = createTextEntry(table, 1, 2, xpad, ypad, "<i>End:</i>", onSaveDotterEnd, blxWindow, getDisplayCoord(bc->dotterEnd, bc));
   GtkWidget *zoomEntry = createTextEntry(table, 1, 3, xpad, ypad, "<i>Zoom:</i>", onSaveDotterZoom, blxWindow, bc->dotterZoom);
+  gtk_widget_set_tooltip_text(zoomEntry, "The level of zoom to open Dotter with (higher values zoom in)");
 
   /* Create check buttons for the various options */
   GtkBox *vbox3 = GTK_BOX(gtk_vbox_new(FALSE, 0));
   gtk_box_pack_start(hbox, GTK_WIDGET(vbox3), FALSE, FALSE, spacing);
   
   GtkWidget *selfButton = gtk_check_button_new_with_mnemonic("Call on _self");
+  gtk_widget_set_tooltip_text(selfButton, "Call dotter on the reference sequence versus itself (useful for finding internal repeats)");
   gtk_box_pack_start(vbox3, selfButton, FALSE, FALSE, 0);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(selfButton), bc->dotterSelf);
   widgetSetCallbackData(selfButton, onSaveDotterSelf, blxWindow);
   
   GtkWidget *hspsButton = gtk_check_button_new_with_mnemonic("_HSPs only");
+  gtk_widget_set_tooltip_text(hspsButton, "Start dotter showing high-scoring pairs only");
   gtk_box_pack_start(vbox3, hspsButton, FALSE, FALSE, 0);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hspsButton), bc->dotterHsps);
   widgetSetCallbackData(hspsButton, onSaveDotterHsps, blxWindow);
@@ -954,6 +963,47 @@ static gboolean smartDotterRangeSelf(GtkWidget *blxWindow,
 }
 
 
+/* Attempts to set the range of dotter in a sensible way, when calling dotter on the reference
+ * sequence versus itself. For now it just uses the big picture range. It's different to setting
+ * the big picture range using manual coords because it gets updated whenever the user scrolls,
+ * whereas manual coords don't change until the user hits the button again.
+ * gb10: this is a much simpler replacement for the ifdef'd out smartDotterRange. We could do
+ * something much smarter but at the moment it doesn't seem to be necessary. */
+static gboolean smartDotterRange(GtkWidget *blxWindow,
+                                 const char *dotterSSeq, 
+                                 int *dotter_start_out,
+                                 int *dotter_end_out,
+                                 GError **error)
+{
+  /* We'll just use a large-ish range centred on the current display range */
+  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const IntRange* const displayRange = bigPictureGetDisplayRange(bigPicture);
+  
+  /* Convert to DNA coords */
+  int start = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  int end = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  
+  if (dotter_start_out)
+    *dotter_start_out = start;
+  
+  if (dotter_end_out)
+    *dotter_end_out = end;
+
+  boundsLimitValue(dotter_start_out, &bc->refSeqRange);
+  boundsLimitValue(dotter_end_out, &bc->refSeqRange);
+  
+  return TRUE;
+}
+
+
+#ifdef USE_OLD_AUTO_DOTTER_COORDS
+/* gb10: Users never liked this way of calculating auto dotter coords because it can return a range
+ * that is nowhere near the visible range in the big picture. I've changed auto coords to just
+ * use the visible big picture range instead for now. I've left the old code here because it's _almost_
+ * good - it just needs to do something more sensible when clipping the range - so this might be
+ * useful in future if we can improve it.  */
+
 /* Attempts to set the range of dotter in some sort of sensible way. The problem is that
  * hits can occur over a much wider range than the user is looking at, so the function
  * attempts to find the range of hits that corresponds to what the user can see.
@@ -1097,6 +1147,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   
   return TRUE;
 }
+#endif
 
 
 /*******************************************************************

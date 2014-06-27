@@ -4275,6 +4275,31 @@ void setToggleMenuStatus(GtkActionGroup *action_group, const char *actionName, c
 }
 
 
+/* Utility to get the status of a toggle item in a menu. The action name must be the name 
+ * of a valid toggle action. */
+gboolean getToggleMenuStatus(GtkActionGroup *action_group, const char *actionName)
+{
+  gboolean result = FALSE;
+
+  GtkAction *action = gtk_action_group_get_action(action_group, actionName);
+  
+  if (!action)
+    {
+      g_warning("Error getting menu item: action '%s' not found.\n", actionName);
+    }
+  else if (!GTK_IS_TOGGLE_ACTION(action))
+    {
+      g_warning("Error getting toggle-menu item: action '%s' is not a valid toggle action.\n", actionName);
+    }
+  else
+    {
+      result = gtk_toggle_action_get_active(GTK_TOGGLE_ACTION(action));
+    }
+
+  return result;
+}
+
+
 /* Utility to set the status of a radio button item in a menu. The action name must be the name 
  * of a valid toggle action. */
 void setRadioMenuStatus(GtkActionGroup *action_group, const char *actionName, const gint value)
@@ -4627,7 +4652,12 @@ GtkRadioButton* createRadioButton(GtkTable *table,
   GtkWidget *button = gtk_radio_button_new_with_mnemonic_from_widget(existingButton, mnemonic);
 
   GtkBox *box = GTK_BOX(gtk_vbox_new(FALSE, 0));
-  gtk_table_attach(table, GTK_WIDGET(box), col, col + 1, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, TABLE_XPAD, TABLE_YPAD);
+
+  gtk_table_attach(table, GTK_WIDGET(box), 
+                   col, col + 1, row, row + 1, 
+                   (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), 
+                   (GtkAttachOptions)((multiline ? GTK_EXPAND | GTK_FILL : GTK_SHRINK)), 
+                   TABLE_XPAD, TABLE_YPAD);
 
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
   gtk_box_pack_start(box, button, FALSE, FALSE, 0);
@@ -4660,7 +4690,7 @@ GtkRadioButton* createRadioButton(GtkTable *table,
       /* Single line text buffer */
       entry = gtk_entry_new();
       gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-      gtk_box_pack_start(box, entry, TRUE, TRUE, 0);
+      gtk_box_pack_start(box, entry, FALSE, FALSE, 0);
     }
 
   if (entry)

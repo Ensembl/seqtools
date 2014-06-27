@@ -350,7 +350,8 @@ typedef enum
     BLXFLAG_OPTIONAL_COLUMNS,       /* Gets set to true if the optional columns have been loaded */
     BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
     BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */
-    BLXFLAG_HIDE_UNGROUPED,         /* Hide all sequences that are not in a group (unless their group is also hidden) */
+    BLXFLAG_HIDE_UNGROUPED_SEQS,    /* Hide all sequences that are not in a group (unless their group is also hidden) */
+    BLXFLAG_HIDE_UNGROUPED_FEATURES,/* Hide all features that are not in a group (unless their group is also hidden) */
     BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
     BLXFLAG_ABBREV_TITLE,           /* whether to abbreviate the window titles to save space */
     BLXFLAG_LINK_FEATURES,          /* whether features with the same name should be linked */
@@ -516,6 +517,7 @@ typedef struct _BlxViewContext
     char *windowColor;                      /* If not null, background color for the window */
 
     GList *columnList;                      /* A list of details about all the columns in the detail view (might have been better to use an array here but it's a short list so not important) */
+    GSList *styles;
     
     gboolean flags[BLXFLAG_NUM_FLAGS];              /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
     GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
@@ -559,7 +561,9 @@ gboolean                            blxview(CommandLineOptions *options,
                                             GSList *supportedTypes,
                                             PfetchParams *pfetch, 
                                             char *align_types, 
-                                            gboolean External) ;
+                                            gboolean External,
+                                            GSList *styles,
+                                            GHashTable *lookupTable) ;
 
 BlxColumnInfo*                     getColumnInfo(GList *columnList, const BlxColumnId columnId);
 int                                getColumnWidth(GList *columnList, const BlxColumnId columnId);
@@ -620,7 +624,7 @@ GString*                           getFetchArgs(const BlxFetchMethod* const fetc
 GString*                           getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, GError **error);
 void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer) ;
 void                               finaliseFetch(GList *seqList, GList *columnList);
-void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GList *columnList, GError **error);
+void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GList *columnList, GHashTable *lookupTable, const int refSeqOffset, const IntRange* const refSeqRange, GError **error);
 const char*                        outputTypeStr(const BlxFetchOutputType outputType);
 
 void                               fetchSeqsIndividually(GList *seqsToFetch, GtkWidget *blxWindow);
@@ -631,8 +635,8 @@ gboolean                           populateFullDataPfetch(GList *seqsToFetch, Bl
 void                               blxInitConfig(const char *config_file, CommandLineOptions *options, GError **error) ;
 GKeyFile*                          blxGetConfig(void) ;
 
-void                               loadNativeFile(const char *fileName, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GList *columnList, GError **error);
-void                               appendNewSequences(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
+void                               loadNativeFile(const char *filename, const char *buffer, GKeyFile *keyFile, BlxBlastMode *blastMode, GArray* featureLists[], GSList *supportedTypes, GSList *styles, MSP **newMsps, GList **newSeqs, GList *columnList, GHashTable *lookupTable, const int refSeqOffset, const IntRange* const refSeqRange, GError **error);
+void                               blxMergeFeatures(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList);
 
 /* Create/destroy sequences and MSPs */
 void                               blviewResetGlobals();
@@ -658,8 +662,8 @@ gboolean                           bulkFetchSequences(const int attempt,
                                                       const int refSeqOffset,
                                                       const IntRange* const refSeqRange,
                                                       const char *dataset,
-                                                      const gboolean optionalColumns
-                                                      );
+                                                      const gboolean optionalColumns,
+                                                      GHashTable *lookupTable);
 
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */

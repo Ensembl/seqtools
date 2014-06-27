@@ -73,7 +73,6 @@ NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
 
 
 #define DEFAULT_ALIGNMENT_LENGTH                    125   /* default number of sequence chars to display in the alignment tool */
-#define MAX_ALIGNMENT_LENGTH                        501   /* max number of sequence chars to display in the alignment tool */
 #define MIN_ALIGNMENT_LENGTH                        0     /* min number of sequence chars to display in the alignment tool */
 #define SELECTED_COORD_MARKER_HEIGHT                12    /* the height of the marker that indicates the currently-selected coord */
 
@@ -100,6 +99,8 @@ typedef struct _SequenceProperties
 
 typedef struct _AlignmentToolProperties
 {
+  GtkWidget *alignmentWindow;      /* the toplevel window the greyrampTool will be in IF
+                                    * undocked from the main window */
   int alignmentLen;                 /* the number of coords wide the alignment too displays */
   IntRange refDisplayRange;         /* the current ref seq range displayed in the tool */
   IntRange matchDisplayRange;       /* the current match seq range displayed in the tool */
@@ -112,6 +113,8 @@ typedef struct _AlignmentToolProperties
   
   DotterWindowContext *dotterWinCtx;
   GtkActionGroup *actionGroup;
+
+  gboolean spliceSitesOn;
 } AlignmentToolProperties;
 
 
@@ -119,7 +122,6 @@ typedef struct _AlignmentToolProperties
 /* Local function declarations */
 static void                        onCloseMenu(GtkAction *action, gpointer data);
 static void                        onPrintMenu(GtkAction *action, gpointer data);
-static void                        onSetLengthMenu(GtkAction *action, gpointer data);
 static void                        onCopyHCoordMenu(GtkAction *action, gpointer data);
 static void                        onCopyVCoordMenu(GtkAction *action, gpointer data);
 static void                        onCopySelnMenu(GtkAction *action, gpointer data);
@@ -139,13 +141,21 @@ static char*                       getSequenceBetweenCoords(GtkWidget *sequenceW
 static void                        clearSequenceSelection(GtkWidget *alignmentTool);
 static int                         getSequenceStart(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords);
 static int                         getSequenceEnd(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords);
+static gboolean                    onDeleteAlignmentTool(GtkWidget *widget, GdkEvent *event, gpointer data);
+
+static void highlightSpliceSite(SequenceProperties *seq1,
+                                AlignmentToolProperties *atProperties,
+                                DotterWindowContext *dwc,
+                                const int coord,
+                                const gboolean isStart,
+                                GdkGC *gc,
+                                GdkDrawable *drawable);
 
 
 /* Menu builders - standard menu entries */
 static const GtkActionEntry alignmentToolMenuEntries[] = {
 { "Close",          NULL, "_Close tool",              "<control>W", "Close the alignment tool",             G_CALLBACK(onCloseMenu)},
 { "Print",          NULL, "_Print...",                "<control>P", "Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
-{ "SetLength",      NULL, "_Set alignment length",    "<control>L", "Set the length of the alignment tool", G_CALLBACK(onSetLengthMenu)},
 { "CopyHCoord",     NULL, "Copy _horizontal coord",   NULL,         "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
 { "CopyVCoord",     NULL, "Copy _vertical coord",     NULL,         "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)},
 { "CopySeln",       NULL, "Copy selectio_n",          "<control>C", "Copy the current selection to the clipboard", G_CALLBACK(onCopySelnMenu)},
@@ -166,8 +176,6 @@ static const char alignmentToolMenuDescription[] =
 "      <separator/>"
 "      <menuitem action='Close'/>"
 "      <menuitem action='Print'/>"
-"      <separator/>"
-"      <menuitem action='SetLength'/>"
 "  </popup>"
 "</ui>";
 
@@ -250,14 +258,18 @@ static void onDestroyAlignmentTool(GtkWidget *widget)
     }
 }
 
-static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext *dotterWinCtx)
+static void alignmentToolCreateProperties(GtkWidget *widget,
+                                          GtkWidget *alignmentWindow, 
+                                          DotterWindowContext *dotterWinCtx,
+                                          GtkActionGroup *actionGroup)
 {
   if (widget)
     {
       AlignmentToolProperties *properties = (AlignmentToolProperties*)g_malloc(sizeof *properties);
     
+      properties->alignmentWindow = alignmentWindow;
       properties->dotterWinCtx = dotterWinCtx;
-      properties->actionGroup = NULL;
+      properties->actionGroup = actionGroup;
       properties->alignmentLen = DEFAULT_ALIGNMENT_LENGTH;
       properties->refDisplayRange.min = 0;
       properties->refDisplayRange.max = 20;
@@ -270,6 +282,8 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
       properties->selectionRange.min = UNSET_INT;
       properties->selectionRange.max = UNSET_INT;
       
+      properties->spliceSitesOn = TRUE;
+
       g_object_set_data(G_OBJECT(widget), "AlignmentToolProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyAlignmentTool), NULL); 
     }
@@ -280,7 +294,7 @@ static void alignmentToolCreateProperties(GtkWidget *widget, DotterWindowContext
  *                       Events                            *
  ***********************************************************/
 
-static void redrawAll(GtkWidget *alignmentTool)
+void alignmentToolRedrawAll(GtkWidget *alignmentTool)
 {
   callFuncOnAllChildWidgets(alignmentTool, (gpointer)widgetClearCachedDrawable);
   gtk_widget_queue_draw(alignmentTool);
@@ -290,7 +304,7 @@ static void redrawAll(GtkWidget *alignmentTool)
 /* Called when the alignment tool window changes size */
 static void onSizeAllocateAlignmentTool(GtkWidget *alignmentTool, GtkAllocation *allocation, gpointer data)
 {
-  redrawAll(alignmentTool);
+  alignmentToolRedrawAll(alignmentTool);
 }
 
 
@@ -367,15 +381,15 @@ static gboolean onExposeMatchSequenceHeader(GtkWidget *widget, GdkEventExpose *e
 /* This should be called when the range displayed by the alignment tool has changed */
 static void onAlignmentToolRangeChanged(GtkWidget *alignmentTool)
 {
-  redrawAll(alignmentTool);
+  alignmentToolRedrawAll(alignmentTool);
 }
 
 
 /* Create the menu */
-static GtkWidget* createAlignmentToolMenu(GtkWidget *window, GtkActionGroup **actionGroup_out)
+static GtkWidget* createAlignmentToolMenu(GtkWidget *window, GtkWidget *alignmentTool, GtkActionGroup **actionGroup_out)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
-  gtk_action_group_add_actions (action_group, alignmentToolMenuEntries, G_N_ELEMENTS (alignmentToolMenuEntries), window);
+  gtk_action_group_add_actions (action_group, alignmentToolMenuEntries, G_N_ELEMENTS (alignmentToolMenuEntries), alignmentTool);
   enableMenuAction(action_group, "CopySeln", FALSE);
   enableMenuAction(action_group, "CopySelnCoords", FALSE);
   enableMenuAction(action_group, "ClearSeln", FALSE);
@@ -479,6 +493,36 @@ static gboolean onMouseMoveSequence(GtkWidget *sequenceWidget, GdkEventMotion *e
 }
 
 
+void alignmentToolSetSpliceSitesOn(GtkWidget *alignmentTool, const gboolean spliceSitesOn)
+{
+  if (alignmentTool)
+    {
+      AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+      
+      if (properties)
+        {
+          properties->spliceSitesOn = spliceSitesOn;
+          alignmentToolRedrawAll(alignmentTool);
+        }
+    }
+}
+
+gboolean alignmentToolGetSpliceSitesOn(GtkWidget *alignmentTool)
+{
+  gboolean result = FALSE;
+
+  if (alignmentTool)
+    {
+      AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+
+      if (properties)
+        result = properties->spliceSitesOn;
+    }
+
+  return result;
+}
+
+
 /***********************************************************
  *                       Get/set functions                 *
  ***********************************************************/
@@ -487,48 +531,27 @@ static gboolean onMouseMoveSequence(GtkWidget *sequenceWidget, GdkEventMotion *e
 void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
 {
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-  DotterContext *dc = dwc->dotterCtx;
 
-  /* Re-create the range, centred on the set coordinate and with the alignment tool's alignment 
-   * length. Note that the length is the number of display chars but the reference sequence is
-   * in nucleotide coords so needs converting. (The match sequence is always in display coords so
-   * will be correct whether we're displaying nucleotides or peptides.) */
-  int len = properties->alignmentLen * getResFactor(dc, TRUE);
-  int offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, TRUE);
-  properties->refDisplayRange.min = dwc->refCoord - offset;
-  properties->refDisplayRange.max = properties->refDisplayRange.min + len;
+  if (properties)
+    {
+      DotterContext *dc = dwc->dotterCtx;
 
-  len = properties->alignmentLen * getResFactor(dc, FALSE);
-  offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, FALSE);
-  properties->matchDisplayRange.min = dwc->matchCoord - offset;
-  properties->matchDisplayRange.max = properties->matchDisplayRange.min + len;
-  
-  onAlignmentToolRangeChanged(alignmentTool);
+      /* Re-create the range, centred on the set coordinate and with the alignment tool's alignment 
+       * length. Note that the length is the number of display chars but the reference sequence is
+       * in nucleotide coords so needs converting. (The match sequence is always in display coords so
+       * will be correct whether we're displaying nucleotides or peptides.) */
+      int len = properties->alignmentLen * getResFactor(dc, TRUE);
+      int offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, TRUE);
+      properties->refDisplayRange.min = dwc->refCoord - offset;
+      properties->refDisplayRange.max = properties->refDisplayRange.min + len;
+
+      len = properties->alignmentLen * getResFactor(dc, FALSE);
+      offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, FALSE);
+      properties->matchDisplayRange.min = dwc->matchCoord - offset;
+      properties->matchDisplayRange.max = properties->matchDisplayRange.min + len;
+    }
 }
 
-
-/* Set the alignment length */
-static void setAlignmentLength(GtkWidget *alignmentTool, const int length, GError **error)
-{
-  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-
-  if (length > MIN_ALIGNMENT_LENGTH && length <= MAX_ALIGNMENT_LENGTH)
-    {
-      /* The display code assumes we always have an odd length; if we
-       * are given an even length, round it up */
-      if (length % 2 == 0)
-        properties->alignmentLen = length + 1;
-      else
-        properties->alignmentLen = length;
-    }
-  else
-    {
-      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_INVALID_LENGTH, "Length %d is not in valid range %d -> %d.\n",
-                  length, MIN_ALIGNMENT_LENGTH, MAX_ALIGNMENT_LENGTH);
-    }
-
-  updateAlignmentRange(alignmentTool, properties->dotterWinCtx);
-}
 
 /***********************************************************
  *                          Menus                          *
@@ -537,11 +560,10 @@ static void setAlignmentLength(GtkWidget *alignmentTool, const int length, GErro
 static void onCloseMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *alignmentTool = GTK_WIDGET(data);
-  
-  if (alignmentTool)
-    {
-      gtk_widget_hide(alignmentTool);
-    }
+  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+
+  if (properties && properties->dotterWinCtx)
+    setToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleAlignment", FALSE);
 }
 
 
@@ -555,84 +577,18 @@ static void onPrintMenu(GtkAction *action, gpointer data)
   /* Set the background colour to something sensible for printing */
   GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, TRUE);
   setWidgetBackgroundColor(alignmentTool, defaultBgColor);
-  redrawAll(alignmentTool);
+  alignmentToolRedrawAll(alignmentTool);
 
   /* Make sure cached drawables are re-drawn before we print them. */
   gdk_window_process_all_updates();
   
-  blxPrintWidget(alignmentTool, NULL, GTK_WINDOW(alignmentTool), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
+  GtkWidget *window = gtk_widget_get_toplevel(alignmentTool);
+  blxPrintWidget(alignmentTool, NULL, GTK_WINDOW(window), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
 
   /* Revert the background colour */
   defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, dwc->usePrintColors);
   setWidgetBackgroundColor(alignmentTool, defaultBgColor);
-  redrawAll(alignmentTool);
-}
-
-
-/* Callback from the SetLength menu */
-static gboolean onAlignmentLenChanged(GtkWidget *entry, const gint responseId, gpointer data)
-{
-  gboolean result = TRUE;
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  
-  const gchar *text = gtk_entry_get_text(GTK_ENTRY(entry));
-  const int newVal = convertStringToInt(text);
-  
-  GError *error = NULL;
-  setAlignmentLength(alignmentTool, newVal, &error);
-  
-  if (error)
-    {
-      reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
-      result = FALSE;
-    }
-  
-  return result;
-}
-
-
-/* Set-length menu item: pops up a dialog asking the user to enter the alignment length */
-static void onSetLengthMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  
-  if (alignmentTool)
-    {
-      GtkWidget *parent = gtk_widget_get_toplevel(alignmentTool);
-      AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-      
-      char *title = g_strdup_printf("%sSet alignment length", dotterGetTitlePrefix(properties->dotterWinCtx->dotterCtx));
-      
-      GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
-                                                      GTK_WINDOW(parent), 
-                                                      GTK_DIALOG_DESTROY_WITH_PARENT,
-                                                      GTK_STOCK_CANCEL,
-                                                      GTK_RESPONSE_REJECT,
-                                                      GTK_STOCK_OK,
-                                                      GTK_RESPONSE_ACCEPT,
-                                                      NULL);
-
-      g_free(title);
-      
-      gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-      
-      GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
-      
-      GtkWidget *entry = gtk_entry_new();
-      gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-
-      char *displayText = convertIntToString(properties->alignmentLen);
-      gtk_entry_set_text(GTK_ENTRY(entry), displayText);
-      g_free(displayText);
-      
-      widgetSetCallbackData(entry, onAlignmentLenChanged, alignmentTool);
-      g_signal_connect(dialog, "response", G_CALLBACK(onResponseDialog), NULL);
-      
-      gtk_box_pack_start(GTK_BOX(contentArea), gtk_label_new("Enter the new length:"), FALSE, FALSE, 0);
-      gtk_box_pack_start(GTK_BOX(contentArea), entry, TRUE, TRUE, 0);
-
-      gtk_widget_show_all(dialog);
-    }
+  alignmentToolRedrawAll(alignmentTool);
 }
 
 
@@ -882,29 +838,45 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
 }
 
 
-GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
+/* Create a window to hold the alignment tool when it is un-docked */
+static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, GtkWidget *alignmentTool, GtkActionGroup **actionGroup_out)
+{
+  GtkWidget *alignmentWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_default_size(GTK_WINDOW(alignmentWindow), 1160, -1);
+
+  char *title = g_strdup_printf("%sAlignment tool", dotterGetTitlePrefix(dwc->dotterCtx));
+  gtk_window_set_title(GTK_WINDOW(alignmentWindow), title);
+  g_free(title);
+
+  /* Create the right-click menu */
+  GtkWidget *menu = createAlignmentToolMenu(alignmentWindow, alignmentTool, actionGroup_out);
+  g_signal_connect(G_OBJECT(alignmentTool), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
+
+  g_signal_connect(G_OBJECT(alignmentWindow), "delete-event", G_CALLBACK(onDeleteAlignmentTool), alignmentTool);
+
+  return alignmentWindow;
+}
+
+
+/* Return the alignment tool widget and set the return widget to be a window that it can be
+ * undocked into. */
+GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **alignmentWindow_out)
 {
   DEBUG_ENTER("createAlignmentTool");
 
-  GtkWidget *alignmentTool = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-
-  char *title = g_strdup_printf("%sAlignment tool", dotterGetTitlePrefix(dotterWinCtx->dotterCtx));
-  gtk_window_set_title(GTK_WINDOW(alignmentTool), title);
-  g_free(title);
-  
-  gtk_window_set_default_size(GTK_WINDOW(alignmentTool), 1160, -1);
-  
-  /* We'll put everything in a vbox, inside a scrolled window, inside a frame */  
-  GtkWidget *frame = gtk_frame_new(NULL);
-  gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-  gtk_container_add(GTK_CONTAINER(alignmentTool), frame);
+  /* We'll put everything in a vbox, inside a frame */  
+  GtkWidget *alignmentTool = gtk_frame_new(NULL);
+  gtk_frame_set_shadow_type(GTK_FRAME(alignmentTool), GTK_SHADOW_ETCHED_IN);
   
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_container_add(GTK_CONTAINER(frame), vbox);
+  gtk_container_add(GTK_CONTAINER(alignmentTool), vbox);
+
+  GtkActionGroup *actionGroup = NULL;
+  GtkWidget *alignmentWindow = createAlignmentToolWindow(dotterWinCtx, alignmentTool, &actionGroup);
     
   /* Remember the headers so we can store them in the properties. We'll need to update them
    * when the range updates since they contain the centre coord of the current display range. */
-  alignmentToolCreateProperties(alignmentTool, dotterWinCtx);
+  alignmentToolCreateProperties(alignmentTool, alignmentWindow, dotterWinCtx, actionGroup);
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
 
@@ -920,20 +892,18 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
       GtkWidget *section2 = createAlignmentToolSection(qStrand, alignmentTool, properties);
       gtk_box_pack_start(GTK_BOX(vbox), section2, FALSE, FALSE, 0);
     }
-
-  /* Create the right-click menu */
-  GtkWidget *menu = createAlignmentToolMenu(alignmentTool, &properties->actionGroup);
   
   gtk_widget_add_events(alignmentTool, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(alignmentTool, GDK_KEY_PRESS_MASK);
 
-  g_signal_connect(G_OBJECT(alignmentTool), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
-  g_signal_connect(G_OBJECT(alignmentTool), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
   g_signal_connect(G_OBJECT(alignmentTool), "size-allocate", G_CALLBACK(onSizeAllocateAlignmentTool), NULL);
   gtk_widget_show_all(alignmentTool);
   
   onAlignmentToolRangeChanged(alignmentTool);
-  
+
+  if (alignmentWindow_out)
+    *alignmentWindow_out = alignmentWindow;
+    
   DEBUG_EXIT("createAlignmentTool returning ");
   return alignmentTool;
 }
@@ -943,7 +913,91 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx)
  *                           Drawing                       *
  ***********************************************************/
 
-/* Draw the sequence data for the given sequence-widget */
+/* Highlight splice site dinucleotides for known HSPs */
+static void drawSequenceSpliceSites(GdkDrawable *drawable,
+                                    GtkWidget *widget, 
+                                    GtkWidget *alignmentTool, 
+                                    SequenceProperties *seq1,
+                                    GdkGC *gc)
+{
+  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+  if (!atProperties || !atProperties->spliceSitesOn)
+    return;
+
+  DotterWindowContext *dwc = atProperties->dotterWinCtx;
+  DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
+
+  /* Only do highlighting if both seqs are DNA */
+  if (dc->matchSeqType != BLXSEQ_DNA || dc->refSeqType != BLXSEQ_DNA)
+    return;
+
+  /* Only do the highlighting in the reference sequence */
+  if (!seq1 || !seq1->seqName || !dc->refSeqName || strcmp(seq1->seqName, dc->refSeqName) != 0)
+    return;
+
+  /* Loop through each MSP looking for one that has the relevant sequence name, and has start/end
+   * within the current visible range */
+  MSP *msp = dc->mspList;
+  
+  for ( ; msp; msp = msp->next)
+    {
+      const char *mspName = msp->sname;
+
+      if (!mspName || 
+          msp->type != BLXMSP_MATCH || 
+          msp->qStrand != seq1->strand || 
+          strcmp(mspName, dc->matchSeqName))
+        {
+          /* Not an MSP from our match sequence */
+          continue;
+        }
+
+      /* If the splice site adjacent to the start coord is within range then highlight it */
+      if (valueWithinRange(msp->qRange.min - 1, seq1->displayRange) || 
+          valueWithinRange(msp->qRange.min - 2, seq1->displayRange))
+        {
+          /* Get the leftmost coord (for rev strand this is the max of the two coords) */
+          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.min - 1 : msp->qRange.min - 2;
+          gboolean isStart = (seq1->strand == BLXSTRAND_FORWARD);
+          highlightSpliceSite(seq1, atProperties, dwc, coord, isStart, gc, drawable);
+        }
+
+      /* If the splice site adjacent to the end coord is within range then highlight it */
+      if (valueWithinRange(msp->qRange.max + 1, seq1->displayRange) || 
+          valueWithinRange(msp->qRange.max + 2, seq1->displayRange))
+        {
+          /* Get the leftmost coord (for rev strand this is the max of the two coords) */
+          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.max + 2 : msp->qRange.max + 1;
+          gboolean isEnd = (seq1->strand == BLXSTRAND_FORWARD);
+          highlightSpliceSite(seq1, atProperties, dwc, coord, !isEnd, gc, drawable);
+        }
+    }
+}
+
+
+/* Set the alignment length based on the given widget's width */
+static void setAlignmentLength(GtkWidget *widget, GtkWidget *alignmentTool, AlignmentToolProperties *properties)
+{
+  g_return_if_fail(widget && properties && properties->dotterWinCtx && properties->dotterWinCtx->dotterCtx);
+
+  /* Get the length of the sequence we can display i.e. number of chars wide the widget is */
+  properties->alignmentLen = widget->allocation.width / properties->dotterWinCtx->dotterCtx->charWidth;
+
+  if (properties->alignmentLen < MIN_ALIGNMENT_LENGTH)
+    properties->alignmentLen = MIN_ALIGNMENT_LENGTH;
+
+  /* The display code assumes we always have an odd length; if we
+   * are given an even length, round it down */
+  if (properties->alignmentLen % 2 == 0)
+    --properties->alignmentLen;
+
+  updateAlignmentRange(alignmentTool, properties->dotterWinCtx);
+}
+
+
+/* Draw the sequence data for the given sequence-widget. Draws the text and highlights each base
+ * according to how well it matches */
 static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool)
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
@@ -951,6 +1005,9 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
 
   GdkGC *gc = gdk_gc_new(drawable);
+
+  /* Set the alignment length from the widget width */
+  setAlignmentLength(widget, alignmentTool, atProperties);
 
   /* Get the sequence info for this widget */
   SequenceProperties *seq1 = sequenceGetProperties(widget);
@@ -985,7 +1042,10 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
   /* terminate the display text string */
   seq1Text[displayIdx] = '\0';
   
-  /* Draw the sequence text. */
+  /* Highlight splice sites */
+  drawSequenceSpliceSites(drawable, widget, alignmentTool, seq1, gc);
+
+  /* Draw the sequence text over the top of any highlighting */
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, seq1Text);
   pango_layout_set_font_description(layout, dc->fontDesc);
   
@@ -1082,6 +1142,17 @@ static void drawSequenceHeader(GtkWidget *widget,
 /***********************************************************
  *                      Utility functions                  *
  ***********************************************************/
+
+static gboolean onDeleteAlignmentTool(GtkWidget *widget, GdkEvent *event, gpointer data)
+{
+  GtkWidget *alignmentTool = GTK_WIDGET(data);
+  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
+
+  if (properties && properties->dotterWinCtx)
+    setToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleAlignment", FALSE);
+
+  return TRUE;
+}
 
 /* Return the coord that the alignment tool display starts at (adjusted for strand direction
  * and converted from dna to peptide coords if applicable). */
@@ -1432,6 +1503,35 @@ static DotterColorId getBaseHighlightColor(SequenceProperties *seq1,
     }
 
   return colorId;
+}
+
+
+static void highlightSpliceSite(SequenceProperties *seq1,
+                                AlignmentToolProperties *atProperties,
+                                DotterWindowContext *dwc,
+                                const int coord,
+                                const gboolean isStart,
+                                GdkGC *gc,
+                                GdkDrawable *drawable)
+{
+  DotterContext *dc = dwc->dotterCtx;
+
+  /* check if it's canonical (green if yes, red if not) */
+  DotterColorId colorId = DOTCOLOR_NON_CANONICAL;
+
+  int seqIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->fullRange->max - coord : coord - seq1->fullRange->min);
+
+  if (isStart && strncasecmp(&seq1->sequence[seqIdx], "ag", 2) == 0)
+    colorId = DOTCOLOR_CANONICAL;
+  else if (!isStart && strncasecmp(&seq1->sequence[seqIdx], "gt", 2) == 0)
+    colorId = DOTCOLOR_CANONICAL;
+ 
+  GdkColor *color = getGdkColor(colorId, dc->defaultColors, FALSE, dwc->usePrintColors);
+  gdk_gc_set_foreground(gc, color);
+
+  int displayIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->displayRange->max - coord : coord - seq1->displayRange->min - 1);
+  const int x = (int)((gdouble)displayIdx * dc->charWidth);
+  gdk_draw_rectangle(drawable, gc, TRUE, x, 0, ceil(dc->charWidth * 2), roundNearest(dc->charHeight));
 }
 
 

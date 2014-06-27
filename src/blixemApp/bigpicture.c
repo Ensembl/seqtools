@@ -575,6 +575,9 @@ static void onBigPictureRangeChanged(GtkWidget *bigPicture, BigPictureProperties
       
   /* Do a complete redraw */
   bigPictureRedrawAll(bigPicture);
+
+  /* Refresh the dotter dialog, if it's open, because it may be tracking the big picture range */
+  refreshDialog(BLXDIALOG_DOTTER, properties->blxWindow);
 }
 
 
@@ -824,15 +827,21 @@ void calculateNumVCells(GtkWidget *bigPicture)
  * values have been changed */
 static void updateOnPercentIdChanged(GtkWidget *bigPicture)
 {
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  if (bigPicture)
+    {
+      BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
-  calculateNumVCells(bigPicture);
+      if (properties)
+        {
+          calculateNumVCells(bigPicture);
   
-  callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridBorders);
-  callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridHighlightBoxBorders);
-  calculateCoverageViewBorders(properties->coverageView);
+          callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridBorders);
+          callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridHighlightBoxBorders);
+          calculateCoverageViewBorders(properties->coverageView);
   
-  bigPictureRedrawAll(bigPicture);
+          bigPictureRedrawAll(bigPicture);
+        }
+    }
 }
 
 
@@ -1515,27 +1524,34 @@ gboolean bigPictureSetMaxPercentId(GtkWidget *bigPicture, const gdouble newValue
 gboolean bigPictureSetMinPercentId(GtkWidget *bigPicture, const gdouble newValue)
 {
   gboolean result = FALSE;
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   
-  if (newValue < GRID_SCALE_MIN)
+  if (bigPicture && newValue != -1) /* -1 means unset */
     {
-      g_critical("Cannot set grid scale less than %d.\n", GRID_SCALE_MIN);
+      BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+      
+      if (properties)
+        {
+          if (newValue < GRID_SCALE_MIN)
+            {
+              g_critical("Cannot set grid scale less than %d.\n", GRID_SCALE_MIN);
+            }
+          else if (newValue > GRID_SCALE_MAX)
+            {
+              g_critical("Cannot set grid scale greater than %d.\n", GRID_SCALE_MAX);
+            }
+          else if (newValue > properties->percentIdRange.max)
+            {
+              g_critical("Cannot set grid minimum to %1.1f because this is greater than the grid maximum of %1.1f.\n", (double)newValue, (double)properties->percentIdRange.max);
+            }
+          else
+            {    
+              properties->percentIdRange.min = newValue;
+              updateOnPercentIdChanged(bigPicture);
+              result = TRUE;
+            }
+        }
     }
-  else if (newValue > GRID_SCALE_MAX)
-    {
-      g_critical("Cannot set grid scale greater than %d.\n", GRID_SCALE_MAX);
-    }
-  else if (newValue > properties->percentIdRange.max)
-    {
-      g_critical("Cannot set grid minimum to %1.1f because this is greater than the grid maximum of %1.1f.\n", (double)newValue, (double)properties->percentIdRange.max);
-    }
-  else
-    {    
-      properties->percentIdRange.min = newValue;
-      updateOnPercentIdChanged(bigPicture);
-      result = TRUE;
-    }
-  
+
   return result;
 }
 
