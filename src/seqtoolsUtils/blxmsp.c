@@ -1598,9 +1598,6 @@ const char* getDataTypeName(BlxDataType *blxDataType)
 static gint compareMsps(const MSP* const msp1, const MSP* const msp2)
 {
   gint result = 0;
-
-  /* First, sort by strand (because it's meaningless comparing matches on different strands) */
-  result = (int)msp1->qStrand - (int)msp2->qStrand;
   
   if (result == 0)
     {
@@ -1620,18 +1617,28 @@ static gint compareMsps(const MSP* const msp1, const MSP* const msp2)
 
 /* Compare the start position in the ref seq of two MSPs. Returns a negative value if a < b; zero
  * if a = b; positive value if a > b. Secondarily sorts by type in the order that types appear in 
- * the BlxMspType enum. */
+ * the BlxMspType enum. Note that this sorts first by strand. */
 gint compareFuncMspPos(gconstpointer a, gconstpointer b)
 {
+  gint result = 0;
+
   const MSP* const msp1 = (const MSP*)a;
   const MSP* const msp2 = (const MSP*)b;
 
-  return compareMsps(msp1, msp2);
+  /* First, sort by strand */
+  result = (int)msp1->qStrand - (int)msp2->qStrand;
+  
+  if (!result)
+    result = compareMsps(msp1, msp2);
+
+  return result;
 }
 
 
 /* Same as compareFuncMspPos but accepts pointers to MSP pointers (which is 
- * what the GArray of MSPs holds). */
+ * what the GArray of MSPs holds). Note that this does NOT sort first by strand,
+ * unlike compareFuncMspPos. This is important for the detail-view filtering 
+ * functions. */
 gint compareFuncMspArray(gconstpointer a, gconstpointer b)
 {
   const MSP* const msp1 = *((const MSP**)a);
