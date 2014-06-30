@@ -6155,6 +6155,17 @@ static void onDragDataReceived(GtkWidget *widget,
 }
 
 
+/* Called when the user moves the cursor over the window during a drag */
+static gboolean onDragMotion(GtkWidget *widget, GdkDragContext *event, gint x, gint y, guint time, gpointer data)
+{
+  /* Bring the blixem window to the front so the user can see where they're going to drop */
+  gtk_window_present(GTK_WINDOW(widget));
+
+  /* Return true to indicate that the whole window is a drop zone */
+  return TRUE;
+}
+
+
 static void setDragDropProperties(GtkWidget *widget)
 {
   DEBUG_ENTER("setDragDropProperties()");
@@ -6170,7 +6181,8 @@ static void setDragDropProperties(GtkWidget *widget)
                     GDK_ACTION_COPY|GDK_ACTION_MOVE|GDK_ACTION_LINK);
  
   g_signal_connect(widget, "drag-data-received", G_CALLBACK(onDragDataReceived), NULL);
-
+  g_signal_connect(widget, "drag-motion", G_CALLBACK(onDragMotion),	NULL);
+  
   DEBUG_EXIT("setDragDropProperties returning ")
 }
 
