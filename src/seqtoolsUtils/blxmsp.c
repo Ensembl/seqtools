@@ -3111,7 +3111,7 @@ static BlxSequence* createBlxSequence(const char *name,
     }
 
   /* Set the given name and source */
-  blxSequenceSetValueFromString(seq, BLXCOL_SEQNAME, name);
+  blxSequenceSetValueFromString(seq, BLXCOL_SEQNAME, name ? name : idTag);
   blxSequenceSetValueFromString(seq, BLXCOL_SOURCE, source);
 
   /* Make sure we change back to the original sort order (sorted by index) */
