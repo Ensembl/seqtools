@@ -292,7 +292,9 @@ typedef struct _MSP
   int               qFrame;        /* which frame on the reference sequence the match is on */
   
   BlxSequence       *sSequence;    /* pointer to a struct holding info about the sequence/strand this match is from */
-  char              *sname;        /* sequence name (could be different to the sequence name in the blxSequence e.g. exons have a postfixed 'x') */
+  char              *sname;        /* sequence name (could be different to the sequence name in
+                                      the blxSequence e.g. exons have a postfixed 'x') */
+  char              *sname_orig;   /* sequence name, original case version of sname. */
   IntRange          sRange;        /* the range of coords on the match sequence where the alignment lies */
   
   /* The following ranges are all calculated from the above but are
@@ -335,6 +337,7 @@ BlxStrand             mspGetMatchStrand(const MSP* const msp);
 const char*           mspGetMatchSeq(const MSP* const msp);
 const char*           mspGetSource(const MSP* const msp);
 const char*           mspGetSName(const MSP *msp);
+const char*           mspGetSNameOrig(const MSP *msp);
 const IntRange*       mspGetRefCoords(const MSP* const msp);
 const IntRange*       mspGetMatchCoords(const MSP* const msp);
 int                   mspGetQStart(const MSP* const msp);
@@ -406,11 +409,15 @@ void                  destroyMspList(MSP **mspList);
 void                  destroyBlxSequenceList(GList **seqList);
 void                  destroyMspData(MSP *msp);
 MSP*                  createEmptyMsp(MSP **lastMsp, MSP **mspList);
-MSP*                  createNewMsp(GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GList *columnList, const BlxMspType mspType, 
-                                   BlxDataType *dataType, const char *source, const gdouble score, const gdouble percentId, const int phase,
-                                   const char *idTag, const char *qName, const int qStart, const int qEnd, 
-                                   const BlxStrand qStrand, const int qFrame, const char *sName, const int sStart, const int sEnd, 
-                                   const BlxStrand sStrand, char *sequence, const GQuark filename, GHashTable *lookupTable, GError **error);  
+MSP*                  createNewMsp(GArray* featureLists[],
+                                   MSP **lastMsp, MSP **mspList, GList **seqList, GList *columnList,
+                                   const BlxMspType mspType, BlxDataType *dataType, const char *source,
+                                   const gdouble score, const gdouble percentId, const int phase, const char *idTag,
+                                   const char *qName, const int qStart, const int qEnd,
+                                   const BlxStrand qStrand, const int qFrame,
+                                   const char *sName, const char *const sName_orig, int sStart, const int sEnd, 
+                                   const BlxStrand sStrand, char *sequence,
+                                   const GQuark filename, GHashTable *lookupTable, GError **error);  
 MSP*                  copyMsp(const MSP* const src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, const gboolean addToParent);
 
 //void                  insertFS(MSP *msp, char *series);
@@ -433,7 +440,10 @@ void                  destroyBlxDataType(BlxDataType **blxDataType);
 const char*           getDataTypeName(BlxDataType *blxDataType);
 BlxSequence*          createEmptyBlxSequence();
 void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error);
-BlxSequence*          addBlxSequence(const char *name, const char *idTag, BlxStrand strand, BlxDataType *dataType, const char *source, GList **seqList, GList *columnList, char *sequence, MSP *msp, GHashTable *lookupTable, GError **error);
+BlxSequence*          addBlxSequence(const char *name, const char *name_orig, const char *idTag,
+                                     BlxStrand strand, BlxDataType *dataType, const char *source,
+                                     GList **seqList, GList *columnList, char *sequence, MSP *msp,
+                                     GHashTable *lookupTable, GError **error);
 GList*                blxSequenceConstructCdsList(BlxSequence *seq);
 void                  blxSequenceSetValue(const BlxSequence *seq, const int columnId, GValue *value);
 void                  blxSequenceSetValueFromString(const BlxSequence *seq, const int columnId, const char *inputStr);

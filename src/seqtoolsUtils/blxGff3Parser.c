@@ -91,6 +91,7 @@ typedef struct _BlxGffData
     
     /* Attributes */
     char *sName;	/* target name */
+    char *sName_orig;   /* target name with original case. */
     BlxStrand sStrand;	/* target sequence strand */
     int sStart;		/* target start coord */
     int sEnd;		/* target end coord */
@@ -151,6 +152,7 @@ static void freeGffData(BlxGffData *gffData)
 {
   freeAndNullString(&gffData->qName);
   freeAndNullString(&gffData->sName);
+  freeAndNullString(&gffData->sName_orig);
   freeAndNullString(&gffData->source);
   freeAndNullString(&gffData->idTag);
   freeAndNullString(&gffData->parentIdTag);
@@ -537,7 +539,7 @@ static void createBlixemObject(BlxGffData *gffData,
       if (gffData->mspType == BLXMSP_TRANSCRIPT)
         {
           /* For transcripts, although we don't create an MSP we do create a sequence */
-          addBlxSequence(gffData->sName, gffData->idTag, gffData->qStrand,
+          addBlxSequence(gffData->sName, gffData->sName_orig, gffData->idTag, gffData->qStrand,
                          dataType, gffData->source, seqList, columnList, gffData->sequence, NULL, 
                          lookupTable, &tmpError);
         }
@@ -588,7 +590,8 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->qEnd, 
 			      gffData->qStrand, 
 			      UNSET_INT,
-			      gffData->sName, 
+			      gffData->sName,
+			      gffData->sName_orig,
 			      gffData->sStart, 
 			      gffData->sEnd, 
 			      gffData->sStrand, 
@@ -647,8 +650,10 @@ void parseGff3Body(const int lineNum,
                                * of lines we can't read */
   
   /* Parse the data into a temporary struct */
-  BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
-			NULL, BLXSTRAND_NONE, UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, BLX_GAP_STRING_INVALID, 0, 0};
+  BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID,
+                        UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
+			NULL, NULL, BLXSTRAND_NONE,
+                        UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, BLX_GAP_STRING_INVALID, 0, 0};
 		      
   GError *error = NULL;
   parseGffColumns(line_string, lineNum, seqList, supportedTypes, refSeqRange, &gffData, &error);
@@ -703,7 +708,7 @@ void parseFastaSeqHeader(char *line, const int lineNum,
   int startCoord = UNSET_INT, endCoord = UNSET_INT;
   const int numFound = sscanf(line, ">%s %d %d", seqName, &startCoord, &endCoord);
   
-  if (numFound < 1 || !seqName || !seqName[0])
+  if (numFound < 1 || !seqName[0])
     {
       /* Didn't find name - this is required */
       status = FALSE;
@@ -1068,7 +1073,8 @@ static void parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGf
     {
       if (gffData->sName == NULL)
         {
-          gffData->sName = tokens[0] ? g_ascii_strup(tokens[0], -1) : NULL;
+          gffData->sName = tokens[0] ? g_strdup(tokens[0]) : NULL;
+          gffData->sName_orig = tokens[0] ? g_ascii_strup(gffData->sName, -1) : NULL;
         }
       else if (!stringsEqual(gffData->sName, tokens[0], FALSE))
         {
