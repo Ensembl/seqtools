@@ -716,18 +716,6 @@ static void onDestroyDotterWindow(GtkWidget *dotterWindow)
   
   if (properties)
     {
-      if (properties->greyrampWindow)
-        {
-          gtk_widget_destroy(properties->greyrampWindow);
-          properties->greyrampWindow = NULL;
-        }
-
-      if (properties->alignmentWindow)
-        {
-          gtk_widget_destroy(properties->alignmentWindow);
-          properties->alignmentWindow = NULL;
-        }
-    
       if (properties->dotterWinCtx)
         {
           DotterContext *dc = properties->dotterWinCtx->dotterCtx;
@@ -766,18 +754,24 @@ static void onDestroyDotterWindow(GtkWidget *dotterWindow)
 /* Close all windows associated with the given dotter context */
 static void dotterContextCloseAllWindows(DotterContext *dc)
 {
-  /* Copy the list because pointers are removed from the original
-   * list when we destroy windows. */
-  GSList *winList = g_slist_copy(dc->windowList);
-  GSList *winItem = winList;
+  if (!dc || !dc->windowList)
+    return;
+
+  /* Can't loop through the list because pointers are removed from it when we destroy the
+   * windows. Also, when the last window is destroyed, dc will be destroyed. So: loop while we
+   * still have more than one entry in the list. We know we must quit after the last entry. */
+  int len = g_slist_length(dc->windowList);
   
-  for ( ; winItem; winItem = winItem->next)
+  while (len > 0)
     {
-      GtkWidget *window = GTK_WIDGET(winItem->data);
+      GtkWidget *window = GTK_WIDGET(dc->windowList->data);
       gtk_widget_destroy(window);
+      
+      if (len == 1) /* just processed the last one so break */
+        break;
+      else
+        len = g_slist_length(dc->windowList);
     }
-  
-  g_slist_free(winList);
 }
 
 /* "Close" the given window. Only really closes it if it's the main window;
@@ -1207,6 +1201,13 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
       dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, 
                                         dotplot, dotplotWidget, greyrampContainer, alignmentContainer, 
                                         exportFileName, windowColor);
+      
+      /* Set the tool windows as transient for the main window and clear them up when the
+       * main window is destroyed */
+      gtk_window_set_transient_for(GTK_WINDOW(greyrampWindow), GTK_WINDOW(dotterWindow));
+      gtk_window_set_transient_for(GTK_WINDOW(alignmentWindow), GTK_WINDOW(dotterWindow));
+      gtk_window_set_destroy_with_parent(GTK_WINDOW(greyrampWindow), TRUE);
+      gtk_window_set_destroy_with_parent(GTK_WINDOW(alignmentWindow), TRUE);
 
       /* Set the handlers for the alignment and greyramp tools. Connect them here so we can pass
        * the main window as data. */

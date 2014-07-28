@@ -976,7 +976,11 @@ static void drawSequenceSpliceSites(GdkDrawable *drawable,
 }
 
 
-/* Set the alignment length based on the given widget's width */
+/* Set the alignment length based on the given widget's width. Note that this is called multiple
+ * times redundantly (once for each sequence widget and once for each header widget). Ideally
+ * we'd call this once after any change in window size, but we need to know the width allocation
+ * for the sequence/header widgets to do that. At the moment it's not worth doing the code
+ * reorganisation to do that so this just gets called on each widget before it gets drawn. */
 static void setAlignmentLength(GtkWidget *widget, GtkWidget *alignmentTool, AlignmentToolProperties *properties)
 {
   g_return_if_fail(widget && properties && properties->dotterWinCtx && properties->dotterWinCtx->dotterCtx);
@@ -1110,7 +1114,10 @@ static void drawSequenceHeader(GtkWidget *widget,
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = dwc->dotterCtx;
-  
+
+  /* Make sure the alignment length is up to date */
+  setAlignmentLength(widget, alignmentTool, properties);
+
   /* Find the coord to display */
   const int coord = horizontal ? dwc->refCoord : dwc->matchCoord;
 

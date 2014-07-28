@@ -2077,6 +2077,9 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 	  /* Get the display name */
           const char *name = mspGetSName(msp);
           char *displayName = NULL;
+
+          if (!name)
+            name = "<no name>";
 	
 	  /* If the display is squashed and identical matches are on 
            * the same linke, we need to create a name that includes the

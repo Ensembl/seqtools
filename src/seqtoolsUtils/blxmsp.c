@@ -65,7 +65,7 @@ static const char* g_MspFlagConfigKeys[] =
   };
 
 
-static void addBlxSequences(const char *name, const char *idTag, 
+static void addBlxSequences(const char *name, const char *name_orig, const char *idTag, 
                             BlxStrand strand, BlxDataType *dataType, const char *source, 
                             GArray *featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
                             GList *columnList, char *sequence, 
@@ -385,6 +385,22 @@ const char *mspGetSName(const MSP* const msp)
       else if (msp->sSequence)
         {
           result = blxSequenceGetName(msp->sSequence);
+        }
+    }
+  
+  return result;
+}
+
+/* Return the match sequence name original name. */
+const char *mspGetSNameOrig(const MSP* const msp)
+{
+  const char *result = NULL;
+  
+  if (msp)
+    {
+      if (msp->sname_orig && *(msp->sname_orig))
+        {
+          result = msp->sname_orig;
         }
     }
   
@@ -906,7 +922,7 @@ const char *blxSequenceGetName(const BlxSequence *seq)
         result = seq->idTag;
 
       if (!result)
-        g_error("Sequence does not have a name specified.\n");
+        g_warning("Sequence does not have a name specified.\n");
     }
   
   return result;
@@ -1544,7 +1560,7 @@ static void copyBlxSequenceNamedCds(const BlxSequence *src,
 
           /* Add the new msp to the new blx sequence (this creates it if it does not exist
            * i.e. the first time we get here for this idTag) */
-          addBlxSequence(newMsp->sname, idTag, sStrand, dataType, 
+          addBlxSequence(newMsp->sname, newMsp->sname_orig, idTag, sStrand, dataType, 
                          source, seqList, columnList, 
                          NULL, newMsp, lookupTable, &tmpError);
         }
@@ -1883,7 +1899,7 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->fullRange.max = 0;
   
   msp->sSequence = NULL;
-  msp->sname = NULL;
+  msp->sname = msp->sname_orig = NULL;
   
   msp->sRange.min = 0;
   msp->sRange.max = 0;
@@ -1947,6 +1963,7 @@ void destroyMspData(MSP *msp)
 {
   freeStringPointer(&msp->qname);
   freeStringPointer(&msp->sname);
+  freeStringPointer(&msp->sname_orig);
   freeStringPointer(&msp->desc);
   
   if (msp->gaps)
@@ -2000,6 +2017,7 @@ MSP* createNewMsp(GArray* featureLists[],
                   const BlxStrand qStrand,
                   const int qFrame,
                   const char *sName,
+                  const char *sName_orig,
                   const int sStart,
                   const int sEnd,
                   BlxStrand sStrand,
@@ -2022,7 +2040,8 @@ MSP* createNewMsp(GArray* featureLists[],
   msp->qStrand = qStrand;
   
   msp->sname = sName ? g_strdup(sName) : NULL;
-  //g_ascii_strup(sName, -1)
+  msp->sname_orig = sName_orig ? g_strdup(sName_orig) : NULL;
+
   
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);
@@ -2043,7 +2062,7 @@ MSP* createNewMsp(GArray* featureLists[],
       typeIsMatch(mspType) || 
       typeIsVariation(mspType) || typeIsRegion(mspType))
     {
-      addBlxSequences(msp->sname, idTag, sStrand, dataType, source, 
+      addBlxSequences(msp->sname, msp->sname_orig, idTag, sStrand, dataType, source, 
                       featureLists, lastMsp, mspList, seqList,
                       columnList, sequence, msp, lookupTable, error);
     }
@@ -2079,6 +2098,7 @@ MSP* copyMsp(const MSP* const src,
   msp->qStrand = src->qStrand;
   
   msp->sname = src->sname ? g_strdup(src->sname) : NULL;
+  msp->sname_orig = src->sname_orig ? g_strdup(src->sname_orig) : NULL;
   
   intrangeSetValues(&msp->qRange, src->qRange.min, src->qRange.max);  
   intrangeSetValues(&msp->sRange, src->sRange.min, src->sRange.max);
@@ -2209,7 +2229,8 @@ static MSP* createMissingMsp(const BlxMspType newType,
       
       result = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, newType, NULL, blxSequenceGetSource(blxSeq),
                             UNSET_INT, UNSET_INT, UNSET_INT, blxSeq->idTag,
-                            qname, newStart, newEnd, blxSeq->strand, newFrame, blxSequenceGetName(blxSeq),
+                            qname, newStart, newEnd, blxSeq->strand, newFrame,
+                            blxSequenceGetName(blxSeq), blxSequenceGetName(blxSeq),
                             UNSET_INT, UNSET_INT, blxSeq->strand, NULL,
                             0, lookupTable, &tmpError);
       
@@ -2425,7 +2446,8 @@ static void constructExonData(BlxSequence *blxSeq,
                   createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_INTRON, NULL, blxSequenceGetSource(blxSeq), 
                                curExon->score, curExon->id, 0, blxSeq->idTag, 
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
-                               blxSequenceGetName(blxSeq), UNSET_INT, UNSET_INT, blxSeq->strand, NULL, 
+                               blxSequenceGetName(blxSeq), blxSequenceGetName(blxSeq),
+                               UNSET_INT, UNSET_INT, blxSeq->strand, NULL, 
                                0, lookupTable, &tmpError);
                   
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
@@ -3111,7 +3133,7 @@ static BlxSequence* createBlxSequence(const char *name,
     }
 
   /* Set the given name and source */
-  blxSequenceSetValueFromString(seq, BLXCOL_SEQNAME, name);
+  blxSequenceSetValueFromString(seq, BLXCOL_SEQNAME, name ? name : idTag);
   blxSequenceSetValueFromString(seq, BLXCOL_SOURCE, source);
 
   /* Make sure we change back to the original sort order (sorted by index) */
@@ -3125,6 +3147,7 @@ static BlxSequence* createBlxSequence(const char *name,
  * list of parent IDs, in which case we need to add the msp to multiple BlxSequences (creating
  * those BlxSequences if they don't exist. */
 static void addBlxSequences(const char *name, 
+                            const char *name_orig, 
                             const char *idTag, 
                             BlxStrand strand,
                             BlxDataType *dataType,
@@ -3160,7 +3183,8 @@ static void addBlxSequences(const char *name,
             msp = copyMsp(msp, featureLists, lastMsp, mspList, FALSE);
 
           if (!tmpError)
-            addBlxSequence(msp->sname, *token, strand, dataType, source, seqList, columnList, sequence, msp, lookupTable, &tmpError);
+            addBlxSequence(msp->sname, msp->sname_orig, *token, strand,
+                           dataType, source, seqList, columnList, sequence, msp, lookupTable, &tmpError);
 
           usedMsp = TRUE;
           ++token;
@@ -3170,7 +3194,7 @@ static void addBlxSequences(const char *name,
     }
   else
     {
-      addBlxSequence(msp->sname, idTag, strand, dataType, source, seqList, columnList, sequence, msp, lookupTable, &tmpError);
+      addBlxSequence(msp->sname, msp->sname_orig, idTag, strand, dataType, source, seqList, columnList, sequence, msp, lookupTable, &tmpError);
     }
 
   if (tmpError)
@@ -3184,6 +3208,7 @@ static void addBlxSequences(const char *name,
  * should always be forwards, and we reverse complement it here if we need the 
  * reverse strand. Returns the new BlxSequence */
 BlxSequence* addBlxSequence(const char *name, 
+                            const char *name_orig, 
 			    const char *idTag, 
 			    BlxStrand strand,
 			    BlxDataType *dataType,
