@@ -708,11 +708,11 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
     sName[len - 1] = '\0';
   else if (len && mspType == BLXMSP_INTRON && toupper(sName[len - 1]) == 'I')
     sName[len - 1] = '\0';
-  
+
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, mspType, NULL, NULL,
                           score, UNSET_INT, 0,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame,
-                          sName, sStart, sEnd, BLXSTRAND_FORWARD, NULL,
+                          sName, NULL, sStart, sEnd, BLXSTRAND_FORWARD, NULL,
                           0, lookupTable, &error);
 
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
@@ -936,7 +936,7 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, mspType, NULL, NULL,
                           score, UNSET_INT, 0,
                           NULL, NULL, qStart, qEnd, qStrand, qFrame, 
-                          sName, sStart, sEnd, sStrand, NULL,
+                          sName, NULL, sStart, sEnd, sStrand, NULL,
                           0, lookupTable, &error);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
@@ -1548,7 +1548,7 @@ static void parseFsHsp(char *line,
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_HSP, NULL,  NULL,
                           score, UNSET_INT, 0, 
                           NULL, qName, qStart, qEnd, qStrand, qFrame, 
-                          sName, sStart, sEnd, sStrand, sSeq, 0, lookupTable, &error);
+                          sName, NULL, sStart, sEnd, sStrand, sSeq, 0, lookupTable, &error);
 
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
   checkReversedSubjectAllowed(msp, blastMode);
@@ -1614,7 +1614,7 @@ static void parseFsSeg(char *line,
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_FS_SEG, NULL, NULL,
                           UNSET_INT, UNSET_INT, 0, 
                           NULL, qName, qStart, qEnd, BLXSTRAND_NONE, 1, 
-                          series, qStart, qEnd, BLXSTRAND_NONE, NULL, 0, lookupTable, &error);
+                          series, NULL, qStart, qEnd, BLXSTRAND_NONE, NULL, 0, lookupTable, &error);
 
   /* Parse in additional feature-series info */
   parseLook(msp, look);
@@ -1671,7 +1671,7 @@ static void parseFsGff(char *line,
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_FS_SEG, NULL, NULL,
                           score, UNSET_INT, 0, 
                           NULL, qName, qStart, qEnd, qStrand, qFrame, 
-                          series, qStart, qEnd, BLXSTRAND_FORWARD, NULL, 0, lookupTable, &error);
+                          series, NULL, qStart, qEnd, BLXSTRAND_FORWARD, NULL, 0, lookupTable, &error);
   
 
   /* Parse additional feature-series information */
@@ -1749,7 +1749,7 @@ static void parseFsXyHeader(char *line,
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_XY_PLOT, NULL, NULL,
                           UNSET_INT, UNSET_INT, 0, 
                           NULL, qName, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, 1,
-                          series, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, NULL, 0, lookupTable, &error);
+                          series, NULL, UNSET_INT, UNSET_INT, BLXSTRAND_FORWARD, NULL, 0, lookupTable, &error);
   
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 

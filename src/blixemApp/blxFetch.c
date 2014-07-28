@@ -734,9 +734,20 @@ GString* getFetchArgs(const BlxFetchMethod* const fetchMethod,
   g_assert(blxSeq || msp);
 
   /* Extract info about the sequence / feature */
+
+#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
   const char *name = blxSequenceGetName(blxSeq);
   if (!name) name = mspGetSName(msp);
   if (!name) name = "";
+#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
+  const char *name ;
+
+  if (!(name = mspGetSNameOrig(msp)))
+    {
+      name = blxSequenceGetName(blxSeq);
+      if (!name) name = mspGetSName(msp);
+      if (!name) name = "";
+    }
   
   const char *source = blxSeq ? blxSequenceGetSource(blxSeq) : NULL;
   const char *filename = msp && msp->filename ? g_quark_to_string(msp->filename) : NULL;

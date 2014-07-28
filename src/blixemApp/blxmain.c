@@ -527,11 +527,13 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
    };
 
-  const char  *optstring="a:c:him:no:rs:t:x:y:z:";
+  const char  *optstring="a:c:him:no:rs:t:wx:y:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
   int          optc;        /* the current option gets stored here */
+  gboolean wait = FALSE ;
+
 
   while ((optc = getopt_long(argc, argv, optstring, long_options, &optionIndex)) != EOF)
     {
@@ -604,6 +606,9 @@ int main(int argc, char **argv)
         case 't':
           options.seqType = getSeqTypeFromChar(*optarg);
           break;
+        case 'w':
+          wait = TRUE;
+          break ;
         case 'x': 
 	  xtra_data = TRUE ;
 	  strcpy(xtra_filename, optarg);
@@ -639,6 +644,9 @@ int main(int argc, char **argv)
 	default : g_error("Illegal option\n");
 	}
     }
+
+  if (wait)
+    sleep(20);
 
   if (showVersion)
     {
