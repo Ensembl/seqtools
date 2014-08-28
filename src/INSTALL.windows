@@ -15,6 +15,8 @@ Installing Cygwin
 5. Go through the installation wizard accepting all the default options up until the Choose Download Site page. Here I chose http://cygwin.mirror.constant.com.
 6. On the Select Packages page, select these packages (just click on 'Skip' to toggle it to the latest version):
       Devel/gcc-core
+      Devel/gcc-g++
+      Devel/libsqlite3-devel
       Devel/make
       Devel/pkg-config
       Libs/libcurl-devel
@@ -32,7 +34,7 @@ Installing SeqTools
 
 Open the Cygwin Terminal from the Desktop shortcut / Start Menu and type the following commands (replacing 'xx' with the version of seqtools that you want to download):
 
-  wget ftp://ftp.sanger.ac.uk/pub4/resources/software/seqtools/PRODUCTION/seqtools-xx.tar.gz
+  wget ftp://ftp.sanger.ac.uk/pub/resources/software/seqtools/PRODUCTION/seqtools-xx.tar.gz
   tar -xf seqtools-xx.tar.gz
   cd seqtools-xx
   ./configure
