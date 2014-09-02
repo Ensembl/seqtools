@@ -2321,8 +2321,8 @@ void reInsertMarkupLines(BelvuContext *bc)
 
 int strcmp_(gconstpointer xIn, gconstpointer yIn)
 {
-  const char *x = (const char*)xIn;
-  const char *y = (const char*)yIn;
+  const char *x = *((const char**)xIn);
+  const char *y = *((const char**)yIn);
   
   int retval = strcmp(x, y);
   return retval;
