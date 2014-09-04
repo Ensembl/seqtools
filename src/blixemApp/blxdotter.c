@@ -65,10 +65,10 @@ typedef struct _DotterDialogData
     gboolean hspsOnly;              /* whether to call dotter on HSPs only */
     
     GtkWidget *selectedButton;      /* the radio button for the use-selected-sequence option */
-    GtkWidget *pasteButton;        /* the radio button for the use-pasted-sequence option */
+    GtkWidget *pasteButton;         /* the radio button for the use-pasted-sequence option */
     GtkWidget *selfButton;          /* the radio button for the use-self option */
 
-    GtkWidget *pastedSeqEntry;      /* entry box for pasting sequence to dotter against into */
+    GtkWidget *pastedSeqText;       /* text entry buffer for pasting sequence to dotter against into */
   } DotterDialogData;
 
 
@@ -227,12 +227,12 @@ static gboolean boundsCheckDotterCoord(int *coordIn, BlxViewContext *bc, GError 
 static gboolean onSaveDotterStart(GtkWidget *entry, const gint responseId, gpointer data)
 {
   gboolean result = TRUE;
-  
-  GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
 
   /* Only save the parameter if we are using manual parameters */
-  if (!bc->autoDotter)
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->manualButton)))
     {
       int newVal = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
       GError *error = NULL;
@@ -258,11 +258,11 @@ static gboolean onSaveDotterEnd(GtkWidget *entry, const gint responseId, gpointe
 {
   gboolean result = TRUE;
   
-  GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
   /* Only save the parameter if we are using manual parameters */
-  if (!bc->autoDotter)
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->manualButton)))
     {
       int newVal = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
 
@@ -289,11 +289,11 @@ static gboolean onSaveDotterZoom(GtkWidget *entry, const gint responseId, gpoint
 {
   gboolean result = TRUE;
   
-  GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+  BlxViewContext *blxContext = blxWindowGetContext(dialogData->blxWindow);
   
   /* Only save the parameter if we are using manual parameters */
-  if (!blxContext->autoDotter)
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->manualButton)))
     {
       const int newVal = atoi(gtk_entry_get_text(GTK_ENTRY(entry)));
       
@@ -401,6 +401,17 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
 }
 
 
+/* Called when the user clicks in the paste-sequence text entry box. Sets the paste-sequence
+ * toggle button to be the active one. */
+static gboolean onPastedSeqClicked(GtkWidget *widget, GdkEvent *event, gpointer data)
+{
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->pasteButton), TRUE);
+
+  return FALSE; /* allow other handlers to continue */
+}
+
+
 /* Called when the user toggles what type of match sequence to dotter against */
 static void onMatchTypeToggled(GtkWidget *button, gpointer data)
 {
@@ -414,37 +425,38 @@ static void onMatchTypeToggled(GtkWidget *button, gpointer data)
   else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->pasteButton)))
     {
       dialogData->matchType = BLXDOTTER_MATCH_PASTED;
-      gtk_widget_grab_focus(dialogData->pastedSeqEntry);
+      gtk_widget_grab_focus(dialogData->pastedSeqText);
     }
   else
     {
       dialogData->matchType = BLXDOTTER_MATCH_SELECTED;
     }
-  
-  /* Recalculate auto start/end */
-  int autoStart = UNSET_INT, autoEnd = UNSET_INT;
-  const gboolean autoDotter = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton));
 
-  getDotterRange(dialogData->blxWindow, dialogData->matchType, autoDotter, &autoStart, &autoEnd, NULL, NULL);
+  /* If using auto coords, recalculate them */ 
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton)))
+    {
+      int autoStart = UNSET_INT, autoEnd = UNSET_INT;
+      getDotterRange(dialogData->blxWindow, dialogData->matchType, TRUE, &autoStart, &autoEnd, NULL, NULL);
 
-  if (autoStart == UNSET_INT)
-    autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
+      if (autoStart == UNSET_INT)
+        autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
   
-  if (autoEnd == UNSET_INT)
-    autoEnd = bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max;
+      if (autoEnd == UNSET_INT)
+        autoEnd = bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max;
   
-  char *startString = convertIntToString(getDisplayCoord(autoStart, bc));
-  char *endString = convertIntToString(getDisplayCoord(autoEnd, bc));
-  char *zoomString = convertIntToString(bc->dotterZoom);
+      char *startString = convertIntToString(getDisplayCoord(autoStart, bc));
+      char *endString = convertIntToString(getDisplayCoord(autoEnd, bc));
+      char *zoomString = convertIntToString(bc->dotterZoom);
 
-  /* Display the new values */
-  gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
-  gtk_entry_set_text(GTK_ENTRY(dialogData->endEntry), endString);
-  gtk_entry_set_text(GTK_ENTRY(dialogData->zoomEntry), zoomString);
+      /* Display the new values */
+      gtk_entry_set_text(GTK_ENTRY(dialogData->startEntry), startString);
+      gtk_entry_set_text(GTK_ENTRY(dialogData->endEntry), endString);
+      gtk_entry_set_text(GTK_ENTRY(dialogData->zoomEntry), zoomString);
   
-  g_free(startString);
-  g_free(endString);
-  g_free(zoomString);
+      g_free(startString);
+      g_free(endString);
+      g_free(zoomString);
+    }
 }
 
 
@@ -579,7 +591,7 @@ static GtkWidget* createTextEntry(GtkTable *table,
 				  const int ypad, 
 				  const char *title,
 				  BlxResponseCallback callbackFunc,
-				  GtkWidget *blxWindow,
+                                  gpointer callbackData,
 				  const int initValue)
 {
   /* Create a label in the given column */
@@ -599,7 +611,7 @@ static GtkWidget* createTextEntry(GtkTable *table,
   g_free(initText);
   
   /* Add the callback data. This specifies what callback to use when the user hits OK or Apply on the dialog. */
-  widgetSetCallbackData(entry, callbackFunc, blxWindow);
+  widgetSetCallbackData(entry, callbackFunc, callbackData);
   
   return entry;
 }
@@ -673,7 +685,7 @@ static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow,
       dialogData->endEntry = NULL;
       dialogData->zoomEntry = NULL;
       dialogData->matchType = BLXDOTTER_MATCH_SELECTED;
-      dialogData->pastedSeqEntry = NULL;
+      dialogData->pastedSeqText = NULL;
       dialogData->hspsOnly = FALSE;
 
       g_signal_connect(G_OBJECT(dialog), "destroy", G_CALLBACK(onDestroyDotterDialog), dialogData);
@@ -751,13 +763,13 @@ static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
   row = 0;
 
   dialogData->startEntry = createTextEntry(table, col, row, xpad, ypad, "<i>Start:</i>", onSaveDotterStart, 
-                                           dialogData->blxWindow, getDisplayCoord(bc->dotterStart, bc));
+                                           dialogData, getDisplayCoord(bc->dotterStart, bc));
   ++row;
   dialogData->endEntry = createTextEntry(table, col, row, xpad, ypad, "<i>End:</i>", onSaveDotterEnd, 
-                                         dialogData->blxWindow, getDisplayCoord(bc->dotterEnd, bc));
+                                         dialogData, getDisplayCoord(bc->dotterEnd, bc));
   ++row;
   dialogData->zoomEntry = createTextEntry(table, col, row, xpad, ypad, "<i>Zoom:</i>", onSaveDotterZoom, 
-                                          dialogData->blxWindow, bc->dotterZoom);
+                                          dialogData, bc->dotterZoom);
   ++row;
 
   gtk_widget_set_tooltip_text(dialogData->zoomEntry, "The level of zoom to open Dotter with (higher values zoom in)");
@@ -828,18 +840,27 @@ static void createSequenceTab(DotterDialogData *dialogData, const int spacing)
   gtk_table_attach(table, dialogData->pasteButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
 
-  dialogData->pastedSeqEntry = gtk_entry_new();
-  gtk_entry_set_activates_default(GTK_ENTRY(dialogData->pastedSeqEntry), TRUE);
-  gtk_table_attach(table, dialogData->pastedSeqEntry, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  GtkTextBuffer *textBuffer = gtk_text_buffer_new(gtk_text_tag_table_new());
+  dialogData->pastedSeqText = gtk_text_view_new_with_buffer(GTK_TEXT_BUFFER(textBuffer));
+  const int numLines = 4;
+  const int charHeight = getTextHeight(dialogData->pastedSeqText, "A");
+  gtk_widget_set_size_request(dialogData->pastedSeqText, -1, roundNearest(charHeight * numLines));
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  GtkWidget *frame = gtk_frame_new(NULL);
+  gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
+  gtk_container_add(GTK_CONTAINER(scrollWin), dialogData->pastedSeqText);
+  gtk_container_add(GTK_CONTAINER(frame), scrollWin);
+  gtk_table_attach(table, frame, col, col + 1, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, xpad, ypad);
   ++row;
-  
+
   /* Connect signals */
   g_signal_connect(G_OBJECT(dialogData->selectedButton),  "clicked", G_CALLBACK(onMatchTypeToggled), dialogData);
   g_signal_connect(G_OBJECT(dialogData->pasteButton),    "clicked", G_CALLBACK(onMatchTypeToggled), dialogData);
   g_signal_connect(G_OBJECT(dialogData->selfButton),      "clicked", G_CALLBACK(onMatchTypeToggled), dialogData);
 
-  /* Add a callback to activate the pastedButton button when the user enters some text... */
-  //g_signal_connect(G_OBJECT(dialogData->pastedSeqEntry), "clicked", G_CALLBACK(onPastedSeqClicked), dialogData);
+  /* Add a callback to activate the pasteButton toggle button when the user enters some text... */
+  g_signal_connect(G_OBJECT(dialogData->pastedSeqText), "focus-in-event", G_CALLBACK(onPastedSeqClicked), dialogData);
 
   /* Set the initial state of the toggle buttons (unset it and then set it to
    * force the callback to be called) */
@@ -1689,11 +1710,85 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, 
 }
 
 
+/* Extract the sequence DNA from the text in the given widget. Also sets the sequence name if 
+ * the text is in fasta format; otherwise just expects the raw sequence. This also removes any
+ * newlines or whitespace from the sequence */
+static char* textViewGetSeqDetails(GtkWidget *textView, char **sequenceName)
+{
+  char *result = NULL;
+  
+  GtkTextBuffer *textBuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
+
+  GtkTextIter start, end;
+  gtk_text_buffer_get_bounds(textBuffer, &start, &end);  
+  char *text = gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
+  
+  if (text && *text)
+    {
+      GString *sequenceStr = NULL;
+      GString *nameStr = NULL;
+      gboolean parsingHeader = FALSE;
+      gboolean parsingName = FALSE;
+      const char *cp = text;
+      
+      for ( ; cp && *cp; ++cp)
+        {
+          if (*cp == '>')
+            {
+              /* Start of FASTA header */
+              parsingName = TRUE;
+              parsingHeader = TRUE;
+            }
+          else if (isWhitespaceChar(*cp))
+            {
+              /* If we were parsing the name then stop because it ends at the first space. Ignore
+               * other whitespace chars. */
+              parsingName = FALSE;
+            }
+          else if (isNewlineChar(*cp))
+            {
+              /* If we were parsing the header then stop because it ends at the first newline.
+               * Ignore other newline chars. */
+              parsingHeader = FALSE;
+            }
+          else if (parsingHeader)
+            {
+              /* If parsing the name section of the header append it to the name. Ignore the rest
+               * of the header. */
+              if (parsingName)
+                {
+                  if (!nameStr)
+                    nameStr = g_string_new(NULL);
+
+                  g_string_append_c(nameStr, *cp);
+                }
+            }
+          else
+            {
+              /* Must now be parsing the sequence */
+              if (!sequenceStr)
+                sequenceStr = g_string_new(NULL);
+
+              g_string_append_c(sequenceStr, *cp);
+            }
+        }
+      
+      if (sequenceStr)
+        result = g_string_free(sequenceStr, FALSE);
+
+      if (nameStr)
+        *sequenceName = g_string_free(nameStr, FALSE);
+    }
+  
+  return result;
+}
+
+
 /* Call dotter on the manually-pasted sequence. Returns true if dotter was called; false if we quit trying. */
 gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
 {
-  g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must
-                                                            be NULL */
+  gboolean result = FALSE;
+  g_return_val_if_fail(!error || *error == NULL, result); /* if error is passed it must be NULL */
   
   GtkWidget *blxWindow = dialogData->blxWindow;
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -1701,17 +1796,20 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
   /* We will display the active strand as the main strand in dotter */
   const BlxStrand qStrand = blxWindowGetActiveStrand(blxWindow);
 
-  /* Get the sequence from the text entry (assume raw sequence for now but we could parse it to
-   * extract the sequence name if it's in fasta format) */
-  const char *dotterSName = "Unknown sequence";
-
-  /* Make a copy of the sequence text, because dotter takes ownership of this. */
-  char *dotterSSeq = g_strdup(gtk_entry_get_text(GTK_ENTRY(dialogData->pastedSeqEntry)));
+  /* Get the sequence DNA (and name, if in fasta format) from the text entry */
+  char *dotterSName = NULL;
+  char *dotterSSeq = textViewGetSeqDetails(dialogData->pastedSeqText, &dotterSName);
   
   if (!dotterSSeq || *dotterSSeq == 0)
     {
       g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_SEQS, "Please enter a sequence into the entry box.\n");
       return FALSE;
+    }
+
+  if (!dotterSName)
+    {
+      /* If we were given a raw sequence we won't have a name: just set a dummy name */
+      dotterSName = g_strdup("Unknown sequence");
     }
 
   /* Get the coords */
@@ -1790,10 +1888,14 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
   const gboolean revHozScale = (refSeqStrand == BLXSTRAND_REVERSE);
   const gboolean revVertScale = FALSE; /* don't rev match seq scale, because it would show in dotter with -ve coords, but blixem always shows +ve coords */
 
-  return callDotterExternal(blxWindow, bc, dotterZoom, FALSE, 
-                            bc->refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
-                            dotterSName, &sRange, dotterSSeq, qStrand, revVertScale,
-                            error);
+  result = callDotterExternal(blxWindow, bc, dotterZoom, FALSE, 
+                              bc->refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
+                              dotterSName, &sRange, dotterSSeq, qStrand, revVertScale,
+                              error);
+
+  g_free(dotterSName);
+  
+  return result;
 }
 
 
