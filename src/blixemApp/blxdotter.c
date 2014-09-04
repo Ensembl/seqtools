@@ -954,21 +954,22 @@ static void createSequenceTab(DotterDialogData *dialogData, const int spacing)
 
   /* Create radio buttons to choose whether to dotter against the selected match sequence, a
    * manually pasted sequence, or the reference sequence against itself. */
+  GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, spacing));
+  gtk_table_attach(table, GTK_WIDGET(vbox), col, col + 1, row, row + 2, GTK_FILL, GTK_FILL, xpad, ypad);
+
   dialogData->selectedButton = gtk_radio_button_new_with_mnemonic(NULL, "_Selected match");
   gtk_widget_set_tooltip_text(dialogData->selectedButton, "Dotter against the selected match sequence");
   widgetSetCallbackData(dialogData->selectedButton, onSaveDotterSelectedSeq, blxWindow);
-  gtk_table_attach(table, dialogData->selectedButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  ++row;
+  gtk_box_pack_start(vbox, dialogData->selectedButton, FALSE, FALSE, spacing);
 
-  dialogData->selfButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->selectedButton), "S_elf");
+  dialogData->selfButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->selectedButton), "Sel_f");
   gtk_widget_set_tooltip_text(dialogData->selfButton, "Dotter the reference sequence against itself");
   widgetSetCallbackData(dialogData->selfButton, onSaveDotterSelf, blxWindow);
-  gtk_table_attach(table, dialogData->selfButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  ++row;
+  gtk_box_pack_start(vbox, dialogData->selfButton, FALSE, FALSE, spacing);
 
   ++col;
   row = 0;
-  dialogData->pasteButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->selectedButton), "Manually enter sequence");
+  dialogData->pasteButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->selectedButton), "_Enter on-the-fly sequence");
   gtk_widget_set_tooltip_text(dialogData->pasteButton, "Dotter against a manually entered sequence. This can be in raw or FASTA format.");
   widgetSetCallbackData(dialogData->pasteButton, onSaveDotterPasted, blxWindow);
   gtk_table_attach(table, dialogData->pasteButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
