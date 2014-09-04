@@ -50,7 +50,7 @@
 typedef struct _DotterDialogData
   {
     GtkWidget *blxWindow;           /* pointer to the main blixem window */
-    
+    GtkWidget *dialog;
     GtkWidget *notebook;
 
     GtkWidget *autoButton;          /* the radio button on the dialog for automatic dotter parameters */
@@ -100,8 +100,9 @@ static gboolean	      smartDotterRangeSelf(GtkWidget *blxWindow, int *dotter_sta
 static gboolean	      callDotterOnSelf(GtkWidget *blxWindow, GError **error);
 static gboolean	      callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error);
 static char*          getSelectedSequenceDNA(GtkWidget *blxWindow, GError **error); 
-static char*          textGetSeqDetails(const char *text, char **sequenceName);
-
+static void           textGetSeqDetails(const char *text, char **sequence, char **sequenceName);
+static char*          getDotterTitle(const BlxViewContext *bc, const DotterMatchType matchType, const char *pastedSeq); 
+static char*          getDotterTitlePastedSeq(const BlxViewContext *bc, const char *pastedSeq);
 
 /*******************************************************************
  *                      Dotter settings dialog                     *
@@ -429,12 +430,40 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
 }
 
 
-/* Called when the user clicks in the paste-sequence text entry box. Sets the paste-sequence
- * toggle button to be the active one. */
-static gboolean onPastedSeqClicked(GtkWidget *widget, GdkEvent *event, gpointer data)
+/* Utility to return the texxt contents of a GtkTextView */
+static char *textViewGetText(GtkWidget *textView)
+{
+  char *result = NULL;
+  g_return_val_if_fail(textView && GTK_IS_TEXT_VIEW(textView), result);
+
+  GtkTextBuffer *textBuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
+  GtkTextIter start, end;
+  gtk_text_buffer_get_bounds(textBuffer, &start, &end);  
+
+  result = gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
+  return result;
+}
+
+/* Called when the user enters in the paste-sequence text entry box. Sets the paste-sequence
+ * toggle button to be the active one and updates the dialog title. */
+static gboolean onPastedSeqEntered(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
+  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->pasteButton), TRUE);
+
+  char *pastedSeq = textViewGetText(dialogData->pastedSeqText);
+  char *title = getDotterTitlePastedSeq(bc, pastedSeq);
+  gtk_window_set_title(GTK_WINDOW(dialogData->dialog), title);
+  g_free(title);
+
+  /* Need to force a redraw of the dialog to get the new title */
+  /* gb10: queue_draw doesn't work, not sure how we would do this */
+  //gtk_widget_queue_draw(dialogData->dialog);
+  //
+  //while (gtk_events_pending())
+  //  gtk_main_iteration();
 
   return FALSE; /* allow other handlers to continue */
 }
@@ -459,6 +488,12 @@ static void onMatchTypeToggled(GtkWidget *button, gpointer data)
     {
       dialogData->matchType = BLXDOTTER_MATCH_SELECTED;
     }
+
+  /* Update the title of the dialog box to reflect the sequence we're dottering */
+  char *pastedSeq = textViewGetText(dialogData->pastedSeqText);
+  char *title = getDotterTitle(bc, dialogData->matchType, pastedSeq);
+  gtk_window_set_title(GTK_WINDOW(dialogData->dialog), title);
+  g_free(title);
 
   /* If using auto coords, recalculate them */ 
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton)))
@@ -652,7 +687,7 @@ static char* getDotterTitleSelectedSeq(const BlxViewContext *bc)
 {
   char *result = NULL;
   GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
-  g_string_append(resultStr, "Dotter sequence: ");
+  g_string_append(resultStr, "Dotter selected sequence: ");
 
   const int numSeqs = g_list_length(bc->selectedSeqs);
   
@@ -677,19 +712,16 @@ static char* getDotterTitleSelectedSeq(const BlxViewContext *bc)
 
 
 /* Get the dotter title for the pasted sequence text */
-static char *getDotterTitlePastedSeq(const BlxViewContext *bc)
+static char *getDotterTitlePastedSeq(const BlxViewContext *bc, const char *pastedSeq)
 {
   char *result = NULL;
   GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
   g_string_append(resultStr, "Dotter on-the-fly: ");
 
-  if (bc->dotterPastedSeq)
+  if (pastedSeq)
     {
       char *seqName = NULL;
-      char *seq = textGetSeqDetails(bc->dotterPastedSeq, &seqName);
-
-      if (seq)
-        g_free(seq);
+      textGetSeqDetails(pastedSeq, NULL, &seqName);
 
       if (seqName)
         {
@@ -698,7 +730,7 @@ static char *getDotterTitlePastedSeq(const BlxViewContext *bc)
         }
       else
         {
-          g_string_append(resultStr, "Unknown sequence");
+          g_string_append(resultStr, "<no name>");
         }
     }
   else
@@ -724,11 +756,11 @@ static char *getDotterTitleSelf(const BlxViewContext *bc)
 
 
 /* Get the title for the dotter dialog. */
-static char *getDotterTitle(const BlxViewContext *bc)
+static char *getDotterTitle(const BlxViewContext *bc, const DotterMatchType matchType, const char *pastedSeq)
 {
   char *result = NULL;
 
-  switch (bc->dotterMatchType)
+  switch (matchType)
     {
       default:
       case BLXDOTTER_MATCH_SELECTED: 
@@ -736,7 +768,7 @@ static char *getDotterTitle(const BlxViewContext *bc)
         break;
 
       case BLXDOTTER_MATCH_PASTED: 
-        result = getDotterTitlePastedSeq(bc);
+        result = getDotterTitlePastedSeq(bc, pastedSeq);
         break;
 
       case BLXDOTTER_MATCH_SELF: 
@@ -755,7 +787,7 @@ static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow,
   const BlxDialogId dialogId = BLXDIALOG_DOTTER;
   GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
-  char *title = getDotterTitle(bc);
+  char *title = getDotterTitle(bc, bc->dotterMatchType, bc->dotterPastedSeq);
   
   if (!dialog)
     {
@@ -779,6 +811,7 @@ static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow,
       *dialogData_inout = (DotterDialogData*)g_malloc(sizeof(DotterDialogData));
       DotterDialogData *dialogData = *dialogData_inout;
       dialogData->blxWindow = NULL;
+      dialogData->dialog = NULL;
       dialogData->autoButton = NULL;
       dialogData->manualButton = NULL;
       dialogData->startEntry = NULL;
@@ -936,7 +969,7 @@ static void createSequenceTab(DotterDialogData *dialogData, const int spacing)
   ++col;
   row = 0;
   dialogData->pasteButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->selectedButton), "Manually enter sequence");
-  gtk_widget_set_tooltip_text(dialogData->pasteButton, "Dotter against a manually entered sequence");
+  gtk_widget_set_tooltip_text(dialogData->pasteButton, "Dotter against a manually entered sequence. This can be in raw or FASTA format.");
   widgetSetCallbackData(dialogData->pasteButton, onSaveDotterPasted, blxWindow);
   gtk_table_attach(table, dialogData->pasteButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
@@ -969,7 +1002,7 @@ static void createSequenceTab(DotterDialogData *dialogData, const int spacing)
   g_signal_connect(G_OBJECT(dialogData->selfButton),      "clicked", G_CALLBACK(onMatchTypeToggled), dialogData);
 
   /* Add a callback to activate the pasteButton toggle button when the user enters some text... */
-  g_signal_connect(G_OBJECT(dialogData->pastedSeqText), "focus-in-event", G_CALLBACK(onPastedSeqClicked), dialogData);
+  g_signal_connect(G_OBJECT(dialogData->pastedSeqText), "focus-in-event", G_CALLBACK(onPastedSeqEntered), dialogData);
 
   /* Set the initial state of the toggle buttons (unset it and then set it to
    * force the callback to be called) */
@@ -1027,6 +1060,7 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   /* Set the values in the data struct we need */
   dialogData->blxWindow = blxWindow;
+  dialogData->dialog = dialog;
   dialogData->matchType = bc->dotterMatchType;
   dialogData->hspsOnly = bc->dotterHsps;
 
@@ -1822,12 +1856,10 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, 
 /* Extract the sequence DNA from the text. Also sets the sequence name if 
  * the text is in fasta format; otherwise just expects the raw sequence. This also removes any
  * newlines or whitespace from the sequence */
-static char* textGetSeqDetails(const char *text, char **sequenceName)
+static void textGetSeqDetails(const char *text, char **sequence, char **sequenceName)
 {
-  char *result = NULL;
-
-  if (!text || !(*text))
-    return result;
+  if (!text || !(*text) || !(sequence || sequenceName))
+    return ;
 
   GString *sequenceStr = NULL;
   GString *nameStr = NULL;
@@ -1857,9 +1889,9 @@ static char* textGetSeqDetails(const char *text, char **sequenceName)
         }
       else if (parsingHeader)
         {
-          /* If parsing the name section of the header append it to the name. Ignore the rest
-           * of the header. */
-          if (parsingName)
+          /* If parsing the name section of the header append it to the name (if name was 
+           * requested). Ignore the rest of the header. */
+          if (parsingName && sequenceName)
             {
               if (!nameStr)
                 nameStr = g_string_new(NULL);
@@ -1869,7 +1901,10 @@ static char* textGetSeqDetails(const char *text, char **sequenceName)
         }
       else
         {
-          /* Must now be parsing the sequence */
+          /* Must now be parsing the sequence. If the sequence wasn't requested then quit. */
+          if (!sequence)
+            break;
+
           if (!sequenceStr)
             sequenceStr = g_string_new(NULL);
 
@@ -1877,32 +1912,25 @@ static char* textGetSeqDetails(const char *text, char **sequenceName)
         }
     }
       
-  if (sequenceStr)
-    result = g_string_free(sequenceStr, FALSE);
+  if (sequenceStr && sequence)
+    *sequence = g_string_free(sequenceStr, FALSE);
+  else if (sequenceStr)
+    g_string_free(sequenceStr, TRUE);
 
-  if (nameStr)
+  if (nameStr && sequenceName)
     *sequenceName = g_string_free(nameStr, FALSE);
-
-  return result;
+  else if (nameStr)
+    g_string_free(nameStr, TRUE);
 }
 
 
 /* Extract the sequence DNA from the text in the given widget. Also sets the sequence name if 
  * the text is in fasta format; otherwise just expects the raw sequence. This also removes any
  * newlines or whitespace from the sequence */
-static char* textViewGetSeqDetails(GtkWidget *textView, char **sequenceName)
+static void textViewGetSeqDetails(GtkWidget *textView, char **sequence, char **sequenceName)
 {
-  char *result = NULL;
-  
-  GtkTextBuffer *textBuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
-
-  GtkTextIter start, end;
-  gtk_text_buffer_get_bounds(textBuffer, &start, &end);  
-  char *text = gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
-
-  result = textGetSeqDetails(text, sequenceName);
-
-  return result;
+  char *text = textViewGetText(textView);
+  textGetSeqDetails(text, sequence, sequenceName);
 }
 
 
@@ -1920,7 +1948,8 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
 
   /* Get the sequence DNA (and name, if in fasta format) from the text entry */
   char *dotterSName = NULL;
-  char *dotterSSeq = textViewGetSeqDetails(dialogData->pastedSeqText, &dotterSName);
+  char *dotterSSeq = NULL;
+  textViewGetSeqDetails(dialogData->pastedSeqText, &dotterSSeq, &dotterSName);
   
   if (!dotterSSeq || *dotterSSeq == 0)
     {
