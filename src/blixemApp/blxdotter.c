@@ -100,6 +100,7 @@ static gboolean	      smartDotterRangeSelf(GtkWidget *blxWindow, int *dotter_sta
 static gboolean	      callDotterOnSelf(GtkWidget *blxWindow, GError **error);
 static gboolean	      callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error);
 static char*          getSelectedSequenceDNA(GtkWidget *blxWindow, GError **error); 
+static char*          textGetSeqDetails(const char *text, char **sequenceName);
 
 
 /*******************************************************************
@@ -647,7 +648,7 @@ static GtkWidget* createTextEntry(GtkTable *table,
 /* Utility to get the title for the dotter dialog. Uses the selected sequence name if a single
  * sequence is selected, or shows <no sequences> or <multiple sequences>. The result should be
  * free'd with g_free. */
-static char* getDotterTitle(const BlxViewContext *bc)
+static char* getDotterTitleSelectedSeq(const BlxViewContext *bc)
 {
   char *result = NULL;
   GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
@@ -671,6 +672,78 @@ static char* getDotterTitle(const BlxViewContext *bc)
   
   result = g_string_free(resultStr, FALSE);
   
+  return result;
+}
+
+
+/* Get the dotter title for the pasted sequence text */
+static char *getDotterTitlePastedSeq(const BlxViewContext *bc)
+{
+  char *result = NULL;
+  GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
+  g_string_append(resultStr, "Dotter on-the-fly: ");
+
+  if (bc->dotterPastedSeq)
+    {
+      char *seqName = NULL;
+      char *seq = textGetSeqDetails(bc->dotterPastedSeq, &seqName);
+
+      if (seq)
+        g_free(seq);
+
+      if (seqName)
+        {
+          g_string_append(resultStr, seqName);
+          g_free(seqName);
+        }
+      else
+        {
+          g_string_append(resultStr, "Unknown sequence");
+        }
+    }
+  else
+    {
+      g_string_append(resultStr, "<no text>");
+    }
+
+  result = g_string_free(resultStr, FALSE);
+  return result;
+}
+
+
+/* Get the dotter title for the ref sequence vs itself */
+static char *getDotterTitleSelf(const BlxViewContext *bc)
+{
+  char *result = NULL;
+  GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
+  g_string_append(resultStr, "Dotter reference sequence vs itself");
+
+  result = g_string_free(resultStr, FALSE);
+  return result;
+}
+
+
+/* Get the title for the dotter dialog. */
+static char *getDotterTitle(const BlxViewContext *bc)
+{
+  char *result = NULL;
+
+  switch (bc->dotterMatchType)
+    {
+      default:
+      case BLXDOTTER_MATCH_SELECTED: 
+        result = getDotterTitleSelectedSeq(bc);
+        break;
+
+      case BLXDOTTER_MATCH_PASTED: 
+        result = getDotterTitlePastedSeq(bc);
+        break;
+
+      case BLXDOTTER_MATCH_SELF: 
+        result = getDotterTitleSelf(bc);
+        break;
+    }
+
   return result;
 }
 
@@ -1746,6 +1819,74 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, 
 }
 
 
+/* Extract the sequence DNA from the text. Also sets the sequence name if 
+ * the text is in fasta format; otherwise just expects the raw sequence. This also removes any
+ * newlines or whitespace from the sequence */
+static char* textGetSeqDetails(const char *text, char **sequenceName)
+{
+  char *result = NULL;
+
+  if (!text || !(*text))
+    return result;
+
+  GString *sequenceStr = NULL;
+  GString *nameStr = NULL;
+  gboolean parsingHeader = FALSE;
+  gboolean parsingName = FALSE;
+  const char *cp = text;
+      
+  for ( ; cp && *cp; ++cp)
+    {
+      if (*cp == '>')
+        {
+          /* Start of FASTA header */
+          parsingName = TRUE;
+          parsingHeader = TRUE;
+        }
+      else if (isWhitespaceChar(*cp))
+        {
+          /* If we were parsing the name then stop because it ends at the first space. Ignore
+           * other whitespace chars. */
+          parsingName = FALSE;
+        }
+      else if (isNewlineChar(*cp))
+        {
+          /* If we were parsing the header then stop because it ends at the first newline.
+           * Ignore other newline chars. */
+          parsingHeader = FALSE;
+        }
+      else if (parsingHeader)
+        {
+          /* If parsing the name section of the header append it to the name. Ignore the rest
+           * of the header. */
+          if (parsingName)
+            {
+              if (!nameStr)
+                nameStr = g_string_new(NULL);
+
+              g_string_append_c(nameStr, *cp);
+            }
+        }
+      else
+        {
+          /* Must now be parsing the sequence */
+          if (!sequenceStr)
+            sequenceStr = g_string_new(NULL);
+
+          g_string_append_c(sequenceStr, *cp);
+        }
+    }
+      
+  if (sequenceStr)
+    result = g_string_free(sequenceStr, FALSE);
+
+  if (nameStr)
+    *sequenceName = g_string_free(nameStr, FALSE);
+
+  return result;
+}
+
+
 /* Extract the sequence DNA from the text in the given widget. Also sets the sequence name if 
  * the text is in fasta format; otherwise just expects the raw sequence. This also removes any
  * newlines or whitespace from the sequence */
@@ -1758,64 +1899,9 @@ static char* textViewGetSeqDetails(GtkWidget *textView, char **sequenceName)
   GtkTextIter start, end;
   gtk_text_buffer_get_bounds(textBuffer, &start, &end);  
   char *text = gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
-  
-  if (text && *text)
-    {
-      GString *sequenceStr = NULL;
-      GString *nameStr = NULL;
-      gboolean parsingHeader = FALSE;
-      gboolean parsingName = FALSE;
-      const char *cp = text;
-      
-      for ( ; cp && *cp; ++cp)
-        {
-          if (*cp == '>')
-            {
-              /* Start of FASTA header */
-              parsingName = TRUE;
-              parsingHeader = TRUE;
-            }
-          else if (isWhitespaceChar(*cp))
-            {
-              /* If we were parsing the name then stop because it ends at the first space. Ignore
-               * other whitespace chars. */
-              parsingName = FALSE;
-            }
-          else if (isNewlineChar(*cp))
-            {
-              /* If we were parsing the header then stop because it ends at the first newline.
-               * Ignore other newline chars. */
-              parsingHeader = FALSE;
-            }
-          else if (parsingHeader)
-            {
-              /* If parsing the name section of the header append it to the name. Ignore the rest
-               * of the header. */
-              if (parsingName)
-                {
-                  if (!nameStr)
-                    nameStr = g_string_new(NULL);
 
-                  g_string_append_c(nameStr, *cp);
-                }
-            }
-          else
-            {
-              /* Must now be parsing the sequence */
-              if (!sequenceStr)
-                sequenceStr = g_string_new(NULL);
+  result = textGetSeqDetails(text, sequenceName);
 
-              g_string_append_c(sequenceStr, *cp);
-            }
-        }
-      
-      if (sequenceStr)
-        result = g_string_free(sequenceStr, FALSE);
-
-      if (nameStr)
-        *sequenceName = g_string_free(nameStr, FALSE);
-    }
-  
   return result;
 }
 
@@ -1929,6 +2015,7 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
                               dotterSName, &sRange, dotterSSeq, qStrand, revVertScale,
                               error);
 
+  /* dotter takes ownership of dotterSSeq but not dotterSName, so free it */
   g_free(dotterSName);
   
   return result;
