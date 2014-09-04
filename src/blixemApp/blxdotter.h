@@ -56,8 +56,7 @@
 
 
 void			showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront);
-gboolean		callDotter(GtkWidget *blxWindow, const gboolean hspsOnly, char *dotterSSeq, GError **error);
-char*                   getDotterSSeq(GtkWidget *blxWindow, GError **error);
+gboolean		callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, GError **error);
 
 
 #endif /* _blx_dotter_h_included_ */

@@ -187,8 +187,6 @@ typedef enum
 #define MKSTEMP_REPLACEMENT_CHARS             "XXXXXX"            /* the required string that will be replaced by unique chars when creating a temp file name */
 
 
-
-
 /* Blixem config/fetch error domain */
 #define BLX_CONFIG_ERROR g_quark_from_string("Blixem config")
 #define BLX_FETCH_ERROR g_quark_from_string("Blixem config")
@@ -414,6 +412,14 @@ typedef enum
   } BlxDialogId;
 
 
+/* This enum determines the how to find the match to call dotter on */
+typedef enum
+  {
+    BLXDOTTER_MATCH_SELECTED,  /* call dotter on the currently-selected match sequence */
+    BLXDOTTER_MATCH_PASTED,    /* call dotter on a manually-pasted sequence */
+    BLXDOTTER_MATCH_SELF       /* call dotter on the reference sequence vs itself */
+  } DotterMatchType ;
+
 
 /* Struct to hold all the settings that come from the command line options */
 typedef struct _CommandLineOptions
@@ -506,7 +512,8 @@ typedef struct _BlxViewContext
     SequenceGroup *matchSetGroup;           /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
     
     gboolean autoDotter;                    /* Whether to use automatic dotter params */
-    gboolean dotterSelf;                    /* Whether the dotter "call on self" option is on by default */
+    DotterMatchType dotterMatchType;        /* Saved type of match to call dotter on */
+    char *dotterPastedSeq;                  /* Saves the sequence text the user pastes into the dotter dialog */
     gboolean dotterHsps;                    /* Whether the dotter "HSPs only" option is on by default */
     int dotterStart;                        /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
     int dotterEnd;                          /* End coord to call dotter on, or UNSET_INT to calculate automatically */
