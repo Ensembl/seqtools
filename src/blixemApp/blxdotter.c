@@ -1976,22 +1976,6 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
       g_propagate_error(error, rangeError);
       return FALSE;
     }
-  else if (ok && rangeError && error) /* if error is null, don't issue warnings */
-    {
-      /* There was a warning when calculating the range. Ask the user if they want to continue. */
-      prefixError(rangeError, "Warning: ");
-      postfixError(rangeError, "\nContinue?");
-
-      char *title = g_strdup_printf("%sWarning", blxGetTitlePrefix(bc));
-      ok = (runConfirmationBox(blxWindow, title, rangeError->message) == GTK_RESPONSE_ACCEPT);
-      
-      g_free(title);
-      g_error_free(rangeError);
-      rangeError = NULL;
-      
-      if (!ok)
-        return FALSE;
-    }
   
   /* Get the section of reference sequence that we're interested in */
   const int frame = 1;
