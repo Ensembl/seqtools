@@ -136,13 +136,40 @@ static gboolean onSaveDotterSelectedSeq(GtkWidget *button, const gint responseId
 /* Callback to be called when the user clicks OK or Apply on the dotter
  * dialog. It sets the sequence we should dotter against to be the pasted
  * sequence if the button is active. */
-static gboolean onSaveDotterPastedSeq(GtkWidget *button, const gint responseId, gpointer data)
+static gboolean onSaveDotterPasted(GtkWidget *button, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
 
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
-    blxContext->dotterMatchType = BLXDOTTER_MATCH_SELECTED;
+    blxContext->dotterMatchType = BLXDOTTER_MATCH_PASTED;
+
+  return TRUE;
+}
+
+
+/* Callback to be called when the user clicks OK or Apply on the dotter
+ * dialog. It saves the pasted sequence text. */
+static gboolean onSaveDotterPastedSeq(GtkWidget *textView, const gint responseId, gpointer data)
+{
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+  BlxViewContext *blxContext = blxWindowGetContext(dialogData->blxWindow);
+
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->pasteButton)))
+    {
+      if (blxContext->dotterPastedSeq)
+        {
+          g_free(blxContext->dotterPastedSeq);
+          blxContext->dotterPastedSeq = NULL;
+        }
+
+      GtkTextBuffer *textBuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
+
+      GtkTextIter start, end;
+      gtk_text_buffer_get_bounds(textBuffer, &start, &end);
+
+      blxContext->dotterPastedSeq = gtk_text_buffer_get_text(textBuffer, &start, &end, TRUE);
+    }
 
   return TRUE;
 }
@@ -804,6 +831,7 @@ static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
 static void createSequenceTab(DotterDialogData *dialogData, const int spacing)
 {
   GtkWidget *blxWindow = dialogData->blxWindow;
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
   /* Put everything in a table */
   int numRows = 5;
@@ -836,23 +864,31 @@ static void createSequenceTab(DotterDialogData *dialogData, const int spacing)
   row = 0;
   dialogData->pasteButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->selectedButton), "Manually enter sequence");
   gtk_widget_set_tooltip_text(dialogData->pasteButton, "Dotter against a manually entered sequence");
-  widgetSetCallbackData(dialogData->pasteButton, onSaveDotterPastedSeq, blxWindow);
+  widgetSetCallbackData(dialogData->pasteButton, onSaveDotterPasted, blxWindow);
   gtk_table_attach(table, dialogData->pasteButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
 
   GtkTextBuffer *textBuffer = gtk_text_buffer_new(gtk_text_tag_table_new());
+  if (bc->dotterPastedSeq)
+    gtk_text_buffer_set_text(textBuffer, bc->dotterPastedSeq, -1);
+
   dialogData->pastedSeqText = gtk_text_view_new_with_buffer(GTK_TEXT_BUFFER(textBuffer));
+  widgetSetCallbackData(dialogData->pastedSeqText, onSaveDotterPastedSeq, dialogData);
+
   const int numLines = 4;
   const int charHeight = getTextHeight(dialogData->pastedSeqText, "A");
   gtk_widget_set_size_request(dialogData->pastedSeqText, -1, roundNearest(charHeight * numLines));
+
   GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
   GtkWidget *frame = gtk_frame_new(NULL);
   gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
   gtk_container_add(GTK_CONTAINER(scrollWin), dialogData->pastedSeqText);
   gtk_container_add(GTK_CONTAINER(frame), scrollWin);
+
   gtk_table_attach(table, frame, col, col + 1, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, xpad, ypad);
   ++row;
+
 
   /* Connect signals */
   g_signal_connect(G_OBJECT(dialogData->selectedButton),  "clicked", G_CALLBACK(onMatchTypeToggled), dialogData);

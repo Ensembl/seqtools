@@ -5543,6 +5543,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   blxContext->autoDotter = TRUE;
   blxContext->dotterMatchType = BLXDOTTER_MATCH_SELECTED;
+  blxContext->dotterPastedSeq = NULL;
   blxContext->dotterHsps = FALSE;
   blxContext->dotterStart = UNSET_INT;
   blxContext->dotterEnd = UNSET_INT;

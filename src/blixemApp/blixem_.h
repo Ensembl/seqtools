@@ -513,6 +513,7 @@ typedef struct _BlxViewContext
     
     gboolean autoDotter;                    /* Whether to use automatic dotter params */
     DotterMatchType dotterMatchType;        /* Saved type of match to call dotter on */
+    char *dotterPastedSeq;                  /* Saves the sequence text the user pastes into the dotter dialog */
     gboolean dotterHsps;                    /* Whether the dotter "HSPs only" option is on by default */
     int dotterStart;                        /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
     int dotterEnd;                          /* End coord to call dotter on, or UNSET_INT to calculate automatically */
