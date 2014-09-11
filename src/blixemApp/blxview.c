@@ -610,7 +610,7 @@ static void blviewCreate(char *align_types,
           
           if (!error)
             {
-              callDotterOnSelectedSeq(blixemWindow, FALSE, NULL);
+              callDotterOnSelectedSeq(blixemWindow, FALSE, FALSE, NULL);
             }
             
           reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);

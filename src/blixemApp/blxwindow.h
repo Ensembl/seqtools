@@ -80,6 +80,8 @@ BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
 gboolean                  blxWindowGetNegateCoords(GtkWidget *blxWindow);
 
 GList*                    blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
+GList*                    blxWindowGetSelectedSeqsByType(GtkWidget *blxWindow, const BlxSequenceType type);
+BlxSequence*              blxWindowGetSelectedTranscript(GtkWidget *blxWindow);
 void                      blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq);
 void                      blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList);
 void                      blxWindowDeselectSeq(GtkWidget *blxWindow, BlxSequence *seq);

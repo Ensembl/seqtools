@@ -53,8 +53,10 @@ typedef struct _DotterDialogData
     GtkWidget *dialog;
     GtkWidget *notebook;
 
-    GtkWidget *autoButton;          /* the radio button on the dialog for automatic dotter parameters */
-    GtkWidget *manualButton;        /* the radio button on the dialog for manual dotter parameters */
+    GtkWidget *autoButton;          /* radio button for automatic dotter parameters */
+    GtkWidget *manualButton;        /* radio button for manual dotter parameters */
+    GtkWidget *transcriptButton;    /* radio button for dottering against transcript rather than
+                                     * reference sequence range */
 
     GtkWidget *startEntry;          /* the text entry box on the dialog for the start coord */
     GtkWidget *endEntry;            /* the text entry box on the dialog for the end coord */
@@ -89,7 +91,8 @@ typedef enum {
   BLX_DOTTER_ERROR_PIPE,	      /* error opening pipe */
   BLX_DOTTER_ERROR_FORK,	      /* error forking process */
   BLX_DOTTER_ERROR_NEGATED_COORD,     /* warning that an original coord was not in range so we negated it */
-  BLX_DOTTER_ERROR_OUT_OF_RANGE       /* dotter coord was out of range */
+  BLX_DOTTER_ERROR_OUT_OF_RANGE,      /* dotter coord was out of range */
+  BLX_DOTTER_ERROR_NO_TRANSCRIPT      /* tried to dotter vs a transcript but none (or multiple) selected */
 } BlxDotterError;
 
 
@@ -97,7 +100,7 @@ typedef enum {
 static gboolean	      getDotterRange(GtkWidget *blxWindow, DotterMatchType matchType, const gboolean autoDotter, int *dotterStart, int *dotterEnd, int *dotterZoom, GError **error);
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
 static gboolean	      smartDotterRangeSelf(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
-static gboolean	      callDotterOnSelf(GtkWidget *blxWindow, GError **error);
+static gboolean	      callDotterOnSelf(DotterDialogData *dialogData, GError **error);
 static gboolean	      callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error);
 static char*          getSelectedSequenceDNA(GtkWidget *blxWindow, GError **error); 
 static void           textGetSeqDetails(const char *text, char **sequence, char **sequenceName);
@@ -549,13 +552,18 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
               {
                 default: /* fall through */
                 case BLXDOTTER_MATCH_SELECTED:
-                  destroy = callDotterOnSelectedSeq(dialogData->blxWindow, dialogData->hspsOnly, &error);
-                  break;
+                  {
+                    /* The 'transcript' flag indicates that we're dottering vs the selected
+                     * transcript rather than the reference sequence*/
+                    gboolean transcript = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->transcriptButton));
+                    destroy = callDotterOnSelectedSeq(dialogData->blxWindow, dialogData->hspsOnly, transcript, &error);
+                    break;
+                  }
                 case BLXDOTTER_MATCH_PASTED:
                   destroy = callDotterOnPastedSeq(dialogData, &error);
                   break;
                 case BLXDOTTER_MATCH_SELF:
-                  destroy = callDotterOnSelf(dialogData->blxWindow, &error);
+                  destroy = callDotterOnSelf(dialogData, &error);
                   break;
               }
           }
@@ -601,8 +609,9 @@ static void onDestroyDotterDialog(GtkWidget *dialog, gpointer data)
 }
 
 
-/* Called when the auto/manual radio button is toggled. */
-static void onAutoManualToggled(GtkWidget *button, gpointer data)
+/* Called when the auto/manual/transcript radio button is toggled to select where to get the
+ * coords from. */
+static void onCoordsTypeToggled(GtkWidget *button, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
   BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
@@ -637,12 +646,16 @@ static void onAutoManualToggled(GtkWidget *button, gpointer data)
       gtk_widget_set_sensitive(dialogData->endEntry, FALSE);
       gtk_widget_set_sensitive(dialogData->zoomEntry, FALSE);
     }
-  else
+  else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->manualButton)))
     {
       /* Manual coords. Leave values as they are but unlock the boxes so they can be edited. */
       gtk_widget_set_sensitive(dialogData->startEntry, TRUE);
       gtk_widget_set_sensitive(dialogData->endEntry, TRUE);
       gtk_widget_set_sensitive(dialogData->zoomEntry, TRUE);
+    }
+  else
+    {
+      /* Transcript button. Don't set the coords because we get the sequence from the transcript */
     }
 }
 
@@ -814,6 +827,7 @@ static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow,
       dialogData->dialog = NULL;
       dialogData->autoButton = NULL;
       dialogData->manualButton = NULL;
+      dialogData->transcriptButton = NULL;
       dialogData->startEntry = NULL;
       dialogData->endEntry = NULL;
       dialogData->zoomEntry = NULL;
@@ -863,10 +877,15 @@ static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
 
   gtk_widget_set_tooltip_text(dialogData->autoButton, "Always use the visible big picture range");
   widgetSetCallbackData(dialogData->autoButton, onSaveDotterMode, dialogData->blxWindow);
-		   
+
   dialogData->manualButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->autoButton), "_Manual");
   gtk_widget_set_tooltip_text(dialogData->manualButton, "Set the coords manually. Once saved, the same coords will be used until you change them manually again.");
   gtk_table_attach(table, dialogData->manualButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
+  ++row;
+
+  dialogData->transcriptButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->autoButton), "_Transcript");
+  gtk_widget_set_tooltip_text(dialogData->transcriptButton, "Set the coords manually. Once saved, the same coords will be used until you change them manually again.");
+  gtk_table_attach(table, dialogData->transcriptButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
 
   /* Buttons that the user can click to populate the parameter boxes with certain values */
@@ -911,8 +930,9 @@ static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
    * is still open: the auto range does not update automatically for the new sequence. To 
    * mitigate this, connect the 'clicked' signal so that they can
    * click on the 'auto' toggle button and have it refresh, even if that button is already selected.*/
-  g_signal_connect(G_OBJECT(dialogData->autoButton),      "clicked", G_CALLBACK(onAutoManualToggled), dialogData);
-  g_signal_connect(G_OBJECT(dialogData->manualButton),    "clicked", G_CALLBACK(onAutoManualToggled), dialogData);
+  g_signal_connect(G_OBJECT(dialogData->autoButton),      "clicked", G_CALLBACK(onCoordsTypeToggled), dialogData);
+  g_signal_connect(G_OBJECT(dialogData->manualButton),    "clicked", G_CALLBACK(onCoordsTypeToggled), dialogData);
+  g_signal_connect(G_OBJECT(dialogData->transcriptButton),"clicked", G_CALLBACK(onCoordsTypeToggled), dialogData);
 
   g_signal_connect(G_OBJECT(lastSavedButton), "clicked", G_CALLBACK(onLastSavedButtonClicked), dialogData);
   g_signal_connect(G_OBJECT(fullRangeButton), "clicked", G_CALLBACK(onFullRangeButtonClicked), dialogData);
@@ -1213,15 +1233,16 @@ static char* getSelectedSequenceDNA(GtkWidget *blxWindow, GError **error)
   
   char *dotterSSeq = NULL;
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  GList *selectedSeqs = blxWindowGetSelectedSeqsByType(blxWindow, BLXSEQUENCE_MATCH);
   
   /* Get the selected sequence name */
-  if (g_list_length(bc->selectedSeqs) < 1)
+  if (g_list_length(selectedSeqs) < 1)
     {
       g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_SEQS, "There are no sequences selected.\n");
       return dotterSSeq;
     }
   
-  const BlxSequence *blxSeq = (const BlxSequence*)(bc->selectedSeqs->data);
+  const BlxSequence *blxSeq = (const BlxSequence*)(selectedSeqs->data);
 
   /* If we're in seqbl mode, only part of the sequence is stored
    * internally, so try to fetch the full sequence.
@@ -1611,11 +1632,13 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
                             char *seq2,
 			    const BlxStrand seq2Strand,
 			    const gboolean seq2DisplayRev,
+                            const gboolean clipRange,
                             GError **error)
 {
 #if !defined(NO_POPEN)
 
-  boundsLimitRange(seq1Range, &bc->refSeqRange, FALSE);
+  if (clipRange)
+    boundsLimitRange(seq1Range, &bc->refSeqRange, FALSE);
 
   static char *dotterBinary = NULL;
 
@@ -1701,12 +1724,71 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
 }
 
 
-/* Call dotter on the currently-selected sequence. Returns true if dotter was called; false if we quit trying. */
-gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, GError **error)
+/* Get the section of reference sequence to dotter against. Also sets the dotterRange if getting
+ * the sequence for a transcript. */
+static char* getDotterRefSeq(GtkWidget *blxWindow,
+                             IntRange *dotterRange, 
+                             const int frame, 
+                             const gboolean transcript,
+                             GError **error)
 {
-  g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
+  char *result = NULL;
+  g_return_val_if_fail(blxWindow && dotterRange, result);
+
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  const int numSeqsSelected = g_list_length(bc->selectedSeqs);
+  GError *tmpError = NULL;
+
+  if (transcript)
+    {
+      /* Get the sequence for a transcript */
+      BlxSequence *transcriptSeq = blxWindowGetSelectedTranscript(blxWindow);
+      
+      if (transcriptSeq)
+        result = blxSequenceGetSplicedSequence(transcriptSeq, bc->refSeq, &bc->refSeqRange, &tmpError);
+      else
+        g_set_error(&tmpError, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_TRANSCRIPT,
+                    "Please select one (and only one) transcript to dotter against. Use Ctrl to select multiple features i.e. the transcript and the sequence you want to dotter against it.");
+      
+      /* Set the range of coords of the result. */
+      if (result)
+        intrangeSetValues(dotterRange, 1, strlen(result));
+    }
+  else
+    {
+      /* Get the sequence for a range */
+      result = getSequenceSegment(bc->refSeq,
+                                  dotterRange,
+                                  BLXSTRAND_FORWARD,   /* always pass forward strand to dotter */
+                                  BLXSEQ_DNA,	  /* calculated dotter coords are always nucleotide coords */
+                                  BLXSEQ_DNA,          /* required sequence is in nucleotide coords */
+                                  frame,
+                                  bc->numFrames,
+                                  &bc->refSeqRange,
+                                  bc->blastMode,
+                                  bc->geneticCode,
+                                  FALSE,		  /* input coords are always left-to-right, even if display reversed */
+                                  FALSE,               /* always pass forward strand to dotter */
+                                  FALSE,               /* always pass forward strand to dotter */
+                                  &tmpError);
+    }
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
+
+  return result;
+}
+
+
+/* Call dotter on the currently-selected sequence. Returns true if dotter was called; 
+ * false if we quit trying. */
+gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, const gboolean transcript, GError **error)
+{
+  g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must
+                                                            be NULL */
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  GList *selectedSeqs = blxWindowGetSelectedSeqsByType(blxWindow, BLXSEQUENCE_MATCH);
+
+  const int numSeqsSelected = g_list_length(selectedSeqs);
   
   if (numSeqsSelected < 1)
     {
@@ -1721,7 +1803,7 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, 
   
   /* Check this sequence is a valid blast match (just check the first MSP;
    * they must all the same type if they have the same seq name) */
-  const BlxSequence *selectedSeq = (const BlxSequence*)(bc->selectedSeqs->data);
+  const BlxSequence *selectedSeq = (const BlxSequence*)(selectedSeqs->data);
   const MSP *firstMsp = (const MSP*)(selectedSeq->mspList->data);
 
   if (!mspIsBlastMatch(firstMsp))
@@ -1795,20 +1877,7 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, 
   intrangeSetValues(&dotterRange, dotterStart, dotterEnd);
   GError *seqError = NULL;
 
-  char *refSeqSegment = getSequenceSegment(bc->refSeq,
-                                           &dotterRange,
-                                           BLXSTRAND_FORWARD,   /* always pass forward strand to dotter */
-                                           BLXSEQ_DNA,	  /* calculated dotter coords are always nucleotide coords */
-                                           BLXSEQ_DNA,          /* required sequence is in nucleotide coords */
-                                           frame,
-                                           bc->numFrames,
-                                           &bc->refSeqRange,
-                                           bc->blastMode,
-                                           bc->geneticCode,
-                                           FALSE,		  /* input coords are always left-to-right, even if display reversed */
-                                           FALSE,               /* always pass forward strand to dotter */
-                                           FALSE,               /* always pass forward strand to dotter */
-                                           &seqError);
+  char *refSeqSegment = getDotterRefSeq(blxWindow, &dotterRange, frame, transcript, &seqError);
   
   if (!refSeqSegment)
     {
@@ -1846,11 +1915,12 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, 
   
   const gboolean revHozScale = (refSeqStrand == BLXSTRAND_REVERSE);
   const gboolean revVertScale = FALSE; /* don't rev match seq scale, because it would show in dotter with -ve coords, but blixem always shows +ve coords */
+  const gboolean clipRange = !transcript; /* don't clip the range if using a transcript range */
 
   return callDotterExternal(blxWindow, bc, dotterZoom, hspsOnly, 
                             bc->refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
                             dotterSName, &sRange, dotterSSeq, selectedSeq->strand, revVertScale,
-                            error);
+                            clipRange, error);
 }
 
 
@@ -1943,6 +2013,7 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
   
   GtkWidget *blxWindow = dialogData->blxWindow;
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const gboolean transcript = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->transcriptButton));
   
   /* We will display the active strand as the main strand in dotter */
   const BlxStrand qStrand = blxWindowGetActiveStrand(blxWindow);
@@ -1983,20 +2054,7 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
   intrangeSetValues(&dotterRange, dotterStart, dotterEnd);
   GError *seqError = NULL;
 
-  char *refSeqSegment = getSequenceSegment(bc->refSeq,
-                                           &dotterRange,
-                                           BLXSTRAND_FORWARD,   /* always pass forward strand to dotter */
-                                           BLXSEQ_DNA,	  /* calculated dotter coords are always nucleotide coords */
-                                           BLXSEQ_DNA,          /* required sequence is in nucleotide coords */
-                                           frame,
-                                           bc->numFrames,
-                                           &bc->refSeqRange,
-                                           bc->blastMode,
-                                           bc->geneticCode,
-                                           FALSE,		  /* input coords are always left-to-right, even if display reversed */
-                                           FALSE,               /* always pass forward strand to dotter */
-                                           FALSE,               /* always pass forward strand to dotter */
-                                           &seqError);
+  char *refSeqSegment = getDotterRefSeq(blxWindow, &dotterRange, frame, transcript, &seqError);
   
   if (!refSeqSegment)
     {
@@ -2023,11 +2081,12 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
   
   const gboolean revHozScale = (refSeqStrand == BLXSTRAND_REVERSE);
   const gboolean revVertScale = FALSE; /* don't rev match seq scale, because it would show in dotter with -ve coords, but blixem always shows +ve coords */
+  const gboolean clipRange = !transcript; /* don't clip the range if using a transcript range */
 
   result = callDotterExternal(blxWindow, bc, dotterZoom, FALSE, 
                               bc->refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
                               dotterSName, &sRange, dotterSSeq, qStrand, revVertScale,
-                              error);
+                              clipRange, error);
 
   /* dotter takes ownership of dotterSSeq but not dotterSName, so free it */
   g_free(dotterSName);
@@ -2049,8 +2108,9 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
  * printed. These lines can be turned on and off with the button "Draw lines a segment ends" in
  * the "Feature series selection tool", which is launched from the main menu. 
  */
-static gboolean callDotterOnSelf(GtkWidget *blxWindow, GError **error)
+static gboolean callDotterOnSelf(DotterDialogData *dialogData, GError **error)
 {
+  GtkWidget *blxWindow = dialogData->blxWindow;
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   /* Get the auto range, if requested */
@@ -2119,7 +2179,7 @@ static gboolean callDotterOnSelf(GtkWidget *blxWindow, GError **error)
   callDotterExternal(blxWindow, bc, dotterZoom, FALSE,
                      bc->refSeqName, &qRange, refSeqSegment, qStrand, revScale,
                      bc->refSeqName, &qRange, dotterSSeq, qStrand, revScale,
-                     error);
+                     TRUE, error);
 
   return TRUE;
 }
