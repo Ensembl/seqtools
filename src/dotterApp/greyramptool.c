@@ -45,13 +45,16 @@
 //#define MAXY                            20
 //#define MINY                            140
 //#define BORDER                          20
-#define GREYRAMP_MIN			0	/* min possible value to set the black/white point to */
+#define GREYRAMP_MIN                    0       /* min possible value to set the black/white point to */
 #define GREYRAMP_MAX			255	/* max possible value to set the black/white point to */
 #define GRADIENT_RECT_WIDTH             256     /* width of the gradient drawing area */
 #define GRADIENT_RECT_HEIGHT            100     /* height of the gradient drawing area */
+#define GRADIENT_RECT_HEIGHT_MIN        20      /* height of the gradient drawing area when "minimised" */
 #define GRADIENT_RECT_MARKER_HEIGHT     10      /* height of the triangular markers on the gradient area */
 #define GRADIENT_RECT_X_PADDING         10      /* x padding around the gradient area */
 #define GRADIENT_RECT_Y_PADDING         10      /* y padding around the gradient area */
+#define GRADIENT_RECT_X_PADDING_MIN     2       /* x padding around the gradient area when minimised */
+#define GRADIENT_RECT_Y_PADDING_MIN     2       /* y padding around the gradient area when minimised */
 #define GRADIENT_RECT_FRAME_PADDING     10      /* padding around the outside of the gradient widget */
 
 
@@ -104,6 +107,8 @@ typedef struct _GreyrampProperties
     gint dragXPos;                      /* x position of where the drag started */
     
     GSList *callbackItems;              /* a list of callbacks to be called when the greyramp is updated */
+
+    int greyrampMinDist;                /* minimum dist between black and white point */
   } GreyrampProperties;
 
 
@@ -150,7 +155,8 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
                                      const int whitePoint,
                                      const int lastBlackPoint,
                                      const int lastWhitePoint,
-                                     const gboolean swapValues)
+                                     const gboolean swapValues,
+                                     const int greyrampMinDist)
 {
   if (greyramp)
     {
@@ -174,6 +180,7 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
       properties->draggingThreshold = FALSE;
       properties->dragXPos = 0;
       properties->callbackItems = NULL;
+      properties->greyrampMinDist = greyrampMinDist;
       
       g_object_set_data(G_OBJECT(greyramp), "GreyrampProperties", properties);
       g_signal_connect(G_OBJECT(greyramp), "destroy", G_CALLBACK(onDestroyGreyramp), NULL); 
@@ -182,38 +189,70 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
 
 
 /* Functions to set the white/black points. Does bounds checking and updates. */
-static void greyrampSetWhitePoint(GreyrampProperties *properties, const int whitePoint)
+static void greyrampSetWhitePoint(GtkWidget *greyramp, GreyrampProperties *properties, const int whitePoint)
 {
   properties->whitePoint = whitePoint;
   
-  if (properties->whitePoint < GREYRAMP_MIN)
+  const int greyrampMin = GREYRAMP_MIN;
+  const int greyrampMax = GREYRAMP_MAX;
+
+  if (properties->whitePoint < greyrampMin)
     {
-      properties->whitePoint = GREYRAMP_MIN;
+      properties->whitePoint = greyrampMin;
     }
   
-  if (properties->whitePoint > GREYRAMP_MAX)
+  if (properties->whitePoint > greyrampMax)
     {
-      properties->whitePoint = GREYRAMP_MAX;
+      properties->whitePoint = greyrampMax;
+    }
+
+  if (properties->blackPoint - properties->whitePoint < properties->greyrampMinDist)
+    {
+      properties->whitePoint = properties->blackPoint - properties->greyrampMinDist;
     }
   
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), properties->whitePoint);
+  if (properties->whiteSpinButton)
+    {
+      gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), properties->whitePoint);
+    }
+  else
+    {
+      gtk_widget_queue_draw(greyramp);
+      updateGreyMap(greyramp);
+    }
 }
 
-static void greyrampSetBlackPoint(GreyrampProperties *properties, const int blackPoint)
+static void greyrampSetBlackPoint(GtkWidget *greyramp, GreyrampProperties *properties, const int blackPoint)
 {
   properties->blackPoint = blackPoint;
   
-  if (properties->blackPoint < GREYRAMP_MIN)
+  const int greyrampMin = GREYRAMP_MIN;
+  const int greyrampMax = GREYRAMP_MAX;
+
+  if (properties->blackPoint < greyrampMin)
     {
-      properties->blackPoint = GREYRAMP_MIN;
+      properties->blackPoint = greyrampMin;
     }
   
-  if (properties->blackPoint > GREYRAMP_MAX)
+  if (properties->blackPoint > greyrampMax)
     {
-      properties->blackPoint = GREYRAMP_MAX;
+      properties->blackPoint = greyrampMax;
     }
-  
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->blackSpinButton), properties->blackPoint);
+
+  if (properties->blackPoint - properties->whitePoint < properties->greyrampMinDist)
+    {
+      properties->blackPoint = properties->whitePoint + properties->greyrampMinDist;
+    }
+
+  if (properties->blackSpinButton)
+    {
+      gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->blackSpinButton), properties->blackPoint);
+    }
+  else
+    {
+      gtk_widget_queue_draw(greyramp);
+      updateGreyMap(greyramp);
+    }
 }
 
 
@@ -559,6 +598,22 @@ static gboolean onExposeGradient(GtkWidget *gradient, GdkEventExpose *event, gpo
 }
 
 
+/* Expose function for the minimised version of the gradient area */
+static gboolean onExposeGradientMinimised(GtkWidget *gradient, GdkEventExpose *event, gpointer data)
+{
+  GdkWindow *drawable = GTK_LAYOUT(gradient)->bin_window;
+  GtkWidget *greyramp = GTK_WIDGET(data);
+
+  if (drawable && greyramp)
+    {
+      drawGradient(drawable, greyramp);
+      drawThresholdMarker(drawable, greyramp);
+    }
+  
+  return TRUE;
+}
+
+
 /* Mouse-button press handler */
 static gboolean onButtonPressGradient(GtkWidget *gradient, GdkEventButton *event, gpointer data)
 {
@@ -633,22 +688,22 @@ static gboolean onMouseMoveGradient(GtkWidget *gradient, GdkEventMotion *event, 
           /* Move the white point by the amount offset since the last move/button-press */
           const int offset = event->x - properties->dragXPos;
           properties->dragXPos = event->x;
-          greyrampSetWhitePoint(properties, properties->whitePoint + offset);
+          greyrampSetWhitePoint(greyramp, properties, properties->whitePoint + offset);
         }
       else if (properties->draggingBlack)
         {
           /* Move the black point */
           const int offset = event->x - properties->dragXPos;
           properties->dragXPos = event->x;
-          greyrampSetBlackPoint(properties, properties->blackPoint + offset);
+          greyrampSetBlackPoint(greyramp, properties, properties->blackPoint + offset);
         }
       else if (properties->draggingThreshold)
         {
           /* Move both points together */
           const int offset = event->x - properties->dragXPos;
           properties->dragXPos = event->x;
-          greyrampSetWhitePoint(properties, properties->whitePoint + offset);
-          greyrampSetBlackPoint(properties, properties->blackPoint + offset);
+          greyrampSetWhitePoint(greyramp, properties, properties->whitePoint + offset);
+          greyrampSetBlackPoint(greyramp, properties, properties->blackPoint + offset);
         }
       
       handled = TRUE;
@@ -698,8 +753,11 @@ static gint onPressUndoButton(GtkWidget *button, gpointer data)
   properties->whitePoint = properties->lastWhitePoint; 
   properties->lastWhitePoint = temp;
   
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->blackSpinButton), (float)properties->blackPoint) ;
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), (float)properties->whitePoint); 
+  if (properties->blackSpinButton)
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->blackSpinButton), (float)properties->blackPoint) ;
+
+  if (properties->whiteSpinButton)
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), (float)properties->whitePoint); 
   
   return TRUE;
 }
@@ -717,8 +775,11 @@ static gint onPressSwapButton(GtkWidget *button, gpointer data)
   
   properties->swapValues = !properties->swapValues;
   
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->blackSpinButton), (float)properties->blackPoint) ;
-  gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), (float)properties->whitePoint);
+  if (properties->blackSpinButton)
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->blackSpinButton), (float)properties->blackPoint) ;
+
+  if (properties->whiteSpinButton)
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), (float)properties->whitePoint);
   
   return TRUE;
 }
@@ -868,6 +929,37 @@ static GtkWidget* createGradientRect(GtkWidget *greyramp, GdkRectangle *rect)
 }
 
 
+/* Create the minimised version of the rectangle area that displays the gradient */
+static GtkWidget* createGradientRectMinimised(GdkRectangle *rect)
+{
+  /* Get the total size of the gradient area, including markers and padding */
+  const int totalWidth = GRADIENT_RECT_WIDTH + (2 * GRADIENT_RECT_X_PADDING) ;
+  const int totalHeight = GRADIENT_RECT_HEIGHT_MIN + (2 * GRADIENT_RECT_Y_PADDING_MIN);
+
+  /* We'll draw the gradient and the child markers onto a layout */
+  GtkWidget *greyramp = gtk_layout_new(NULL, NULL);
+  gtk_layout_set_size(GTK_LAYOUT(greyramp), totalWidth, totalHeight);
+  gtk_widget_set_size_request(greyramp, totalWidth, totalHeight);
+
+  gtk_widget_add_events(greyramp, GDK_BUTTON_PRESS_MASK);
+  gtk_widget_add_events(greyramp, GDK_BUTTON_RELEASE_MASK);
+  gtk_widget_add_events(greyramp, GDK_POINTER_MOTION_MASK);
+  
+  g_signal_connect(G_OBJECT(greyramp), "expose-event", G_CALLBACK(onExposeGradientMinimised), greyramp);
+  g_signal_connect(G_OBJECT(greyramp), "button-press-event", G_CALLBACK(onButtonPressGradient), greyramp);
+  g_signal_connect(G_OBJECT(greyramp), "button-release-event", G_CALLBACK(onButtonReleaseGradient), greyramp);
+  g_signal_connect(G_OBJECT(greyramp), "motion-notify-event", G_CALLBACK(onMouseMoveGradient), greyramp);
+  
+  /* Set the size of the gradient rectangle to be drawn */
+  rect->x = GRADIENT_RECT_X_PADDING_MIN;
+  rect->y = GRADIENT_RECT_Y_PADDING_MIN;
+  rect->width = GRADIENT_RECT_WIDTH;
+  rect->height = GRADIENT_RECT_HEIGHT_MIN;
+  
+  return greyramp;
+}
+
+
 /* Create a window to hold the greyramp tool when it is un-docked */
 static GtkWidget *createGreyrampToolWindow(DotterWindowContext *dwc, GtkWidget *greyrampTool)
 {
@@ -886,6 +978,40 @@ static GtkWidget *createGreyrampToolWindow(DotterWindowContext *dwc, GtkWidget *
   g_signal_connect(G_OBJECT(greyrampWindow), "delete-event", G_CALLBACK(onDeleteGreyrampTool), greyrampTool);
 
   return greyrampWindow;
+}
+
+
+/* Create the minimised version of the greyramp widget. */
+GtkWidget* createGreyrampToolMinimised(DotterWindowContext *dwc,
+                                       const int whitePoint,
+                                       const int blackPoint)
+{
+  DEBUG_ENTER("createGreyrampToolMinimised");
+  
+  /* Create a layout for drawing the greyramp gradient onto. This will be in the first column,
+   * spanning all rows */
+  GdkRectangle gradientRect;
+  GtkWidget *greyrampTool = createGradientRectMinimised(&gradientRect);
+  
+  greyrampCreateProperties(greyrampTool, 
+                           NULL,
+			   dwc,
+                           &gradientRect,
+                           NULL, 
+                           NULL, 
+                           blackPoint, 
+                           whitePoint, 
+                           0,
+                           255, 
+                           FALSE,
+                           blackPoint - whitePoint);
+  
+  gtk_widget_show_all(greyrampTool);
+  
+  updateGreyMap(greyrampTool);
+                   
+  DEBUG_EXIT("createGreyrampToolMinimised returning ");
+  return greyrampTool;
 }
 
 
@@ -937,7 +1063,8 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc,
                            whitePoint, 
                            0,
                            255, 
-                           swapValues);
+                           swapValues,
+                           0);
 
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(whiteSpinButton), (float)whitePoint);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(blackSpinButton), (float)blackPoint);
