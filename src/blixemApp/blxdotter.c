@@ -54,6 +54,7 @@ typedef struct _DotterDialogData
     GtkWidget *blxWindow;           /* pointer to the main blixem window */
     GtkWidget *dialog;
     GtkWidget *notebook;
+    guint notebookPage;             /* current notebook page */
 
     GtkWidget *autoButton;          /* radio button for automatic dotter parameters */
     GtkWidget *manualButton;        /* radio button for manual dotter parameters */
@@ -115,6 +116,18 @@ static const char*    getDotterRefSeqName(const BlxViewContext *bc, const gboole
 /*******************************************************************
  *                      Dotter settings dialog                     *
  *******************************************************************/
+
+/* Called when the user changes the page on the notebook. Caches the page so we can reinstate it
+ * when we refresh the dialog */
+static gboolean onChangeCurrentPage(GtkNotebook *notebook, GtkWidget *page, gint pageNum, gpointer data)
+{
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+
+  dialogData->notebookPage = pageNum;
+
+  return TRUE;
+}
+
 
 /* Callback to be called when the user clicks OK or Apply on the dotter
  * dialog. It sets the dotter mode according to the toggle state of the 
@@ -906,6 +919,7 @@ static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow,
       *dialogData_inout = (DotterDialogData*)g_malloc(sizeof(DotterDialogData));
       DotterDialogData *dialogData = *dialogData_inout;
       dialogData->blxWindow = blxWindow;
+      dialogData->notebookPage = 0;
       dialogData->dialog = dialog;
       dialogData->matchType = bc->dotterMatchType;
       dialogData->refType = bc->dotterRefType;
@@ -930,6 +944,7 @@ static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow,
 
       if (resetValues && dialogData_inout && *dialogData_inout)
         {
+          /* Reset to last-saved values */
           DotterDialogData *dialogData = *dialogData_inout;
           dialogData->matchType = bc->dotterMatchType;
           dialogData->refType = bc->dotterRefType;
@@ -1183,6 +1198,9 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
    * such as the selected sequence, so don't reset any values. */
   GtkWidget *dialog = getOrCreateDotterDialog(blxWindow, bringToFront, &dialogData);
 
+  /* Temp cache the notebook page because it will change when we create the notebook */
+  guint notebookPage = dialogData ? dialogData->notebookPage : 0;
+
   GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   const int spacing = 4;
@@ -1190,12 +1208,18 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   /* Create the dialog content */
   dialogData->notebook = gtk_notebook_new();
   gtk_container_add(contentArea, dialogData->notebook);
-
+  g_signal_connect(G_OBJECT(dialogData->notebook), "switch-page", G_CALLBACK(onChangeCurrentPage), dialogData);
+  
   createCoordsTab(dialogData, spacing);
   createSequenceTab(dialogData, spacing);
   createOptionsTab(dialogData, spacing);
   
   gtk_widget_show_all(dialog);
+
+  /* If just refreshing the dialog, re-instate the last notbook page that was selected. Note that
+   * we have to do this after the notebook widget is shown */
+  if (!bringToFront && dialogData && dialogData->notebook)
+    gtk_notebook_set_current_page(GTK_NOTEBOOK(dialogData->notebook), notebookPage);
   
   if (bringToFront)
     {
