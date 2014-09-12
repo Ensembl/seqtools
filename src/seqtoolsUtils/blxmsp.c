@@ -1691,6 +1691,90 @@ static int countMspsToOutput(const BlxSequence* const blxSeq, IntRange *range1, 
 }
 
 
+/* write data for the given transcript to the given output pipe. */
+void writeTranscriptToOutput(FILE *pipe, 
+                             const BlxSequence* const blxSeq, 
+                             IntRange *range, 
+                             const IntRange* const refSeqRange)
+{
+  g_return_if_fail(blxSeq && blxSeq->type == BLXSEQUENCE_TRANSCRIPT);
+
+  /* Count how many exons are within range */
+  int numMsps = 0;
+  GList *mspItem = blxSeq->mspList;
+
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      const MSP* msp = (const MSP*)(mspItem->data);
+      
+      /* Only output exons. Also, if an exon has child msps then ignore it and only output the children */
+      if (mspIsExon(msp) && !msp->childMsps)
+        {
+          /* It's possible that some exons may be out of bounds: clip them, or if completely out
+           * of range ignore this exon. */
+          if (msp->qRange.min < refSeqRange->max && msp->qRange.max > refSeqRange->min)
+            {
+              ++numMsps;
+            }
+        }
+    }
+
+  if (numMsps < 1)
+    return;
+
+  fprintf(pipe, "%d %d %d",
+          blxSeq->type,
+          blxSeq->strand,
+          numMsps); /* output number of msps so we know how many to read in */
+
+  const char* transcriptName = blxSequenceGetName(blxSeq);
+  stringProtect(pipe, transcriptName);
+  stringProtect(pipe, blxSeq->idTag);
+      
+  fputc('\n', pipe);
+  
+  mspItem = blxSeq->mspList;
+  int i = 0; /* keeps track of current transcript coord */
+  
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      const MSP* msp = (const MSP*)(mspItem->data);
+      
+      /* Only output exons. Also, if an exon has child msps then ignore it: we will come across
+       * the child msps themselves in the list so we don't want to output both the parent and the
+       * child msps. */
+      if (mspIsExon(msp) && !msp->childMsps)
+        {
+          /* It's possible that some exons may be out of bounds: clip them, or if completely out
+           * of range ignore this exon. */
+          if (msp->qRange.min < refSeqRange->max && msp->qRange.max > refSeqRange->min)
+            {
+              const int start = i + 1;
+              const int end = start + getRangeLength(&msp->qRange) - 1;
+
+              fprintf(pipe, "%d %f %f %d %d %d %d %d %d %d", 
+                      msp->type,
+                      msp->score, 
+                      msp->id,
+                      msp->phase,
+                      //          msp->fsColor, 
+                      start,
+                      end,
+                      msp->sRange.min,
+                      msp->sRange.max,
+                      msp->qStrand,
+                      msp->qFrame);
+              stringProtect(pipe, transcriptName);
+              stringProtect(pipe, msp->sname);
+              stringProtect(pipe, msp->desc);
+              fputc('\n', pipe);
+
+              i = end;
+            }
+        }
+    }
+}
+
 /* write data from the given blxsequence to the given output pipe. if the ranges
  * are given, only outputs blxsequences that overlap either range */
 void writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *range1, IntRange *range2)
@@ -3465,16 +3549,22 @@ char *blxSequenceGetSplicedSequence(const BlxSequence* const blxSeq,
     {
       const MSP* msp = (const MSP*)(mspItem->data);
       
-      if (mspIsExon(msp))
+      /* Ignore msps that have child msps (we just want to export the child msps) */
+      if (mspIsExon(msp) && !msp->childMsps)
         {
           int i = msp->qRange.min - refSeqRange->min; /* convert to 0-based index into ref seq */
-          
-          /* It's possible that some exons may be out of bounds: just ignore them. */
-          if (i > 0 && i < refSeqLen)
-            {
-              const int iMax = msp->qRange.max - refSeqRange->min;
 
-              for ( ; i <= iMax; ++i)
+          /* It's possible that some exons may be out of bounds: clip them. */
+          if (i < 0)
+            i = 0;
+          
+          int iMax = msp->qRange.max - refSeqRange->min;
+          if (iMax >= refSeqLen)
+            iMax = refSeqLen - 1;
+
+          for ( ; i <= iMax; ++i)
+            {
+              if (i > 0 && i < refSeqLen)
                 g_string_append_c(resultStr, refSeq[i]);
             }
         }
