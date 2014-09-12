@@ -1721,14 +1721,17 @@ void writeTranscriptToOutput(FILE *pipe,
     {
       const MSP* msp = (const MSP*)(mspItem->data);
       
-      if (mspIsExon(msp))
+      /* Only output exons. Also, if an exon has child msps then ignore it: we will come across
+       * the child msps themselves in the list so we don't want to output both the parent and the
+       * child msps. */
+      if (mspIsExon(msp) && !msp->childMsps)
         {
           /* It's possible that some exons may be out of bounds: clip them, or if completely out
            * of range ignore this exon. */
           if (msp->qRange.min < refSeqRange->max && msp->qRange.max > refSeqRange->min)
             {
               const int start = i + 1;
-              const int end = i + getRangeLength(&msp->qRange);
+              const int end = start + getRangeLength(&msp->qRange) - 1;
 
               fprintf(pipe, "%d %f %f %d %d %d %d %d %d %d", 
                       msp->type,
@@ -3527,7 +3530,8 @@ char *blxSequenceGetSplicedSequence(const BlxSequence* const blxSeq,
     {
       const MSP* msp = (const MSP*)(mspItem->data);
       
-      if (mspIsExon(msp))
+      /* Ignore msps that have child msps (we just want to export the child msps) */
+      if (mspIsExon(msp) && !msp->childMsps)
         {
           int i = msp->qRange.min - refSeqRange->min; /* convert to 0-based index into ref seq */
 
