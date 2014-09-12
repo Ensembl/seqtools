@@ -1679,6 +1679,8 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
 			    const BlxStrand seq2Strand,
 			    const gboolean seq2DisplayRev,
                             const gboolean clipRange,
+                            const IntRange* const refSeqRange,
+                            const BlxSequence *transcriptSeq,
                             GError **error)
 {
 #if !defined(NO_POPEN)
@@ -1752,12 +1754,19 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
       
       /* Pass the features */
       DEBUG_OUT("Piping features to dotter...\n");
-      GList *seqItem = bc->matchSeqs;
-      for ( ; seqItem; seqItem = seqItem->next) 
-	{
-	  BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-	  writeBlxSequenceToOutput(pipe, blxSeq, seq1Range, seq2Range);
-	}
+      if (transcriptSeq)
+        {
+          writeTranscriptToOutput(pipe, transcriptSeq, seq1Range, refSeqRange);
+        }
+      else
+        {
+          GList *seqItem = bc->matchSeqs;
+          for ( ; seqItem; seqItem = seqItem->next) 
+            {
+              BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
+              writeBlxSequenceToOutput(pipe, blxSeq, seq1Range, seq2Range);
+            }
+        }
       
       fprintf(pipe, "%c\n", EOF);
       fflush(pipe);
@@ -2000,10 +2009,15 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, 
   const gboolean revVertScale = FALSE; /* don't rev match seq scale, because it would show in dotter with -ve coords, but blixem always shows +ve coords */
   const gboolean clipRange = !transcript; /* don't clip the range if using a transcript range */
 
+  /* If dottering vs a specific transcript, get it now */
+  const BlxSequence *transcriptSeq = NULL;
+  if (refType == BLXDOTTER_REF_TRANSCRIPT)
+    transcriptSeq = blxWindowGetSelectedTranscript(blxWindow);
+
   return callDotterExternal(blxWindow, bc, dotterZoom, hspsOnly, 
                             refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
                             dotterSName, &sRange, dotterSSeq, selectedSeq->strand, revVertScale,
-                            clipRange, error);
+                            clipRange, &bc->refSeqRange, transcriptSeq, error);
 }
 
 
@@ -2167,10 +2181,15 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
   const gboolean revVertScale = FALSE; /* don't rev match seq scale, because it would show in dotter with -ve coords, but blixem always shows +ve coords */
   const gboolean clipRange = !transcript; /* don't clip the range if using a transcript range */
 
+  /* If dottering vs a specific transcript, get it now */
+  const BlxSequence *transcriptSeq = NULL;
+  if (dialogData->refType == BLXDOTTER_REF_TRANSCRIPT)
+    transcriptSeq = blxWindowGetSelectedTranscript(blxWindow);
+
   result = callDotterExternal(blxWindow, bc, dotterZoom, FALSE, 
                               refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
                               dotterSName, &sRange, dotterSSeq, qStrand, revVertScale,
-                              clipRange, error);
+                              clipRange, &bc->refSeqRange, transcriptSeq, error);
 
   /* dotter takes ownership of dotterSSeq but not dotterSName, so free it */
   g_free(dotterSName);
@@ -2249,10 +2268,15 @@ static gboolean callDotterOnSelf(DotterDialogData *dialogData, GError **error)
   
   g_message("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
 
+  /* If dottering vs a specific transcript, get it now */
+  const BlxSequence *transcriptSeq = NULL;
+  if (dialogData->refType == BLXDOTTER_REF_TRANSCRIPT)
+    transcriptSeq = blxWindowGetSelectedTranscript(blxWindow);
+
   callDotterExternal(blxWindow, bc, dotterZoom, FALSE,
                      refSeqName, &qRange, refSeqSegment, qStrand, revScale,
                      refSeqName, &qRange, dotterSSeq, qStrand, revScale,
-                     FALSE, error);
+                     FALSE, &bc->refSeqRange, transcriptSeq, error);
 
   return TRUE;
 }
