@@ -390,6 +390,7 @@ int main(int argc, char **argv)
       {"vertical-type",         required_argument,  0, 0},
       {"negate-coords",         no_argument,        0, 'N'},
       {"session_colour",        required_argument,  0, 0},
+      {"sleep",                 required_argument,  0, 0},
       {0, 0, 0, 0}
     };
 
@@ -398,6 +399,7 @@ int main(int argc, char **argv)
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
   int          optc;        /* the current option gets stored here */
+  int sleepSecs = -1;
   
   while ((optc = getopt_long(argc, argv, optstring, long_options, &optionIndex)) != EOF)
     {
@@ -429,6 +431,10 @@ int main(int argc, char **argv)
             else if (stringsEqual(long_options[optionIndex].name, "session_colour", TRUE))
               {
                 options.windowColor = g_strdup(optarg);
+              }
+            else if (stringsEqual(long_options[optionIndex].name, "sleep", TRUE))
+              {
+                sleepSecs = convertStringToInt(optarg);
               }
             break;
           
@@ -472,6 +478,9 @@ int main(int argc, char **argv)
           default : g_error("Illegal option\n");
         }
     }
+
+  if (sleepSecs > 0)
+    sleep(sleepSecs);
 
   /* We're in batch mode if we've specified a save file or an export file */
   const gboolean batchMode = options.savefile || options.exportfile;
