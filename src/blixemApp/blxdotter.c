@@ -106,6 +106,7 @@ static char*          getSelectedSequenceDNA(GtkWidget *blxWindow, GError **erro
 static void           textGetSeqDetails(const char *text, char **sequence, char **sequenceName);
 static char*          getDotterTitle(const BlxViewContext *bc, const DotterMatchType matchType, const char *pastedSeq); 
 static char*          getDotterTitlePastedSeq(const BlxViewContext *bc, const char *pastedSeq);
+static const char*    getDotterRefSeqName(const BlxViewContext *bc, const gboolean transcript);
 
 /*******************************************************************
  *                      Dotter settings dialog                     *
@@ -624,6 +625,10 @@ static void onRefTypeToggled(GtkWidget *button, gpointer data)
   DotterDialogData *dialogData = (DotterDialogData*)data;
   BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
+  char *title = getDotterTitle(bc, dialogData->matchType, bc->dotterPastedSeq);
+  gtk_window_set_title(GTK_WINDOW(dialogData->dialog), title);
+  g_free(title);
+
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton)))
     {
       bc->dotterRefType = BLXDOTTER_REF_AUTO;
@@ -719,13 +724,19 @@ static char* getDotterTitleSelectedSeq(const BlxViewContext *bc)
 {
   char *result = NULL;
   GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
-  g_string_append(resultStr, "Dotter selected sequence: ");
 
-  const int numSeqs = g_list_length(bc->selectedSeqs);
+  /* Get ref seq name */
+  const gboolean transcript = (bc->dotterRefType == BLXDOTTER_REF_TRANSCRIPT);
+  const char *refSeqName = getDotterRefSeqName(bc, transcript);
+  g_string_append_printf(resultStr, "Dotter %s vs ", refSeqName);
+
+  /* Get selected match seq name */
+  GList *selectedSeqs = blxContextGetSelectedSeqsByType(bc, BLXSEQUENCE_MATCH);
+  const int numSeqs = g_list_length(selectedSeqs);
   
   if (numSeqs == 1)
     {
-      const BlxSequence *blxSeq = (const BlxSequence*)(bc->selectedSeqs->data);
+      const BlxSequence *blxSeq = (const BlxSequence*)(selectedSeqs->data);
       g_string_append(resultStr, blxSequenceGetName(blxSeq));
     }
   else if (numSeqs < 1)
@@ -748,7 +759,11 @@ static char *getDotterTitlePastedSeq(const BlxViewContext *bc, const char *paste
 {
   char *result = NULL;
   GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
-  g_string_append(resultStr, "Dotter on-the-fly: ");
+
+  /* Get ref seq name */
+  const gboolean transcript = (bc->dotterRefType == BLXDOTTER_REF_TRANSCRIPT);
+  const char *refSeqName = getDotterRefSeqName(bc, transcript);
+  g_string_append_printf(resultStr, "Dotter %s vs ", refSeqName);
 
   if (pastedSeq)
     {
@@ -762,12 +777,12 @@ static char *getDotterTitlePastedSeq(const BlxViewContext *bc, const char *paste
         }
       else
         {
-          g_string_append(resultStr, "<no name>");
+          g_string_append(resultStr, "<on-the-fly sequence>");
         }
     }
   else
     {
-      g_string_append(resultStr, "<no text>");
+      g_string_append(resultStr, "<on-the-fly sequence>");
     }
 
   result = g_string_free(resultStr, FALSE);
@@ -780,7 +795,11 @@ static char *getDotterTitleSelf(const BlxViewContext *bc)
 {
   char *result = NULL;
   GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
-  g_string_append(resultStr, "Dotter reference sequence vs itself");
+
+  /* Get ref seq name */
+  const gboolean transcript = (bc->dotterRefType == BLXDOTTER_REF_TRANSCRIPT);
+  const char *refSeqName = getDotterRefSeqName(bc, transcript);
+  g_string_append_printf(resultStr, "%s vs %s", refSeqName, refSeqName);
 
   result = g_string_free(resultStr, FALSE);
   return result;
@@ -788,7 +807,9 @@ static char *getDotterTitleSelf(const BlxViewContext *bc)
 
 
 /* Get the title for the dotter dialog. */
-static char *getDotterTitle(const BlxViewContext *bc, const DotterMatchType matchType, const char *pastedSeq)
+static char *getDotterTitle(const BlxViewContext *bc, 
+                            const DotterMatchType matchType, 
+                            const char *pastedSeq)
 {
   char *result = NULL;
 
@@ -961,6 +982,8 @@ static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
   switch (bc->dotterRefType)
     {
       case BLXDOTTER_REF_AUTO:
+        /* unset and then set to force callback to be called to set the auto coords */
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->transcriptButton), TRUE);
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->autoButton), TRUE);
         break;
       case BLXDOTTER_REF_MANUAL:
@@ -1210,7 +1233,9 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
       const int qMin = min(*dotterStart, *dotterEnd);
       const int qMax = max(*dotterStart, *dotterEnd);
 
-      GList *seqItem = bc->selectedSeqs;
+      GList *selectedSeqs = blxContextGetSelectedSeqsByType(bc, BLXSEQUENCE_MATCH);
+      GList *seqItem = selectedSeqs;
+      
       for ( ; seqItem; seqItem = seqItem->next)
         {
           const BlxSequence *seq = (const BlxSequence*)(seqItem->data);
@@ -1399,7 +1424,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
   /* Check that a sequence is selected */
-  GList *selectedSeqs = bc->selectedSeqs;
+  GList *selectedSeqs = blxContextGetSelectedSeqsByType(bc, BLXSEQUENCE_MATCH);
   if (g_list_length(selectedSeqs) < 1)
     {
       g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_SEQS, "There are no sequences selected.\n");
@@ -1747,6 +1772,27 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
 }
 
 
+static const char* getDotterRefSeqName(const BlxViewContext *bc, const gboolean transcript)
+{
+  const char *result = "<no transcript selected>";
+  g_return_val_if_fail(bc, result);
+
+  if (transcript)
+    {
+      /* Get the sequence for a transcript */
+      BlxSequence *transcriptSeq = blxContextGetSelectedTranscript(bc);
+      
+      if (transcriptSeq)
+        result = blxSequenceGetName(transcriptSeq);
+    }
+  else
+    {
+      result = bc->refSeqName;
+    }
+
+  return result;
+}
+
 /* Get the section of reference sequence to dotter against. Also sets the dotterRange if getting
  * the sequence for a transcript. */
 static char* getDotterRefSeq(GtkWidget *blxWindow,
@@ -1776,6 +1822,9 @@ static char* getDotterRefSeq(GtkWidget *blxWindow,
         }
       else
         {
+          if (refSeqName_out)
+            *refSeqName_out = "<no transcript selected>";
+
           g_set_error(&tmpError, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_TRANSCRIPT,
                       "Please select one (and only one) transcript to dotter against. Use Ctrl to select multiple features i.e. the transcript and the sequence you want to dotter against it.");
         }
@@ -2178,21 +2227,10 @@ static gboolean callDotterOnSelf(DotterDialogData *dialogData, GError **error)
   const int frame = 1;
   IntRange qRange;
   intrangeSetValues(&qRange, dotterStart, dotterEnd);
+  const char *refSeqName = NULL;
     
-  char *refSeqSegment = getSequenceSegment(bc->refSeq,
-                                           &qRange,
-                                           BLXSTRAND_FORWARD,
-                                           BLXSEQ_DNA,	  /* calculated dotter coords are always in nucleotide coords */
-                                           BLXSEQ_DNA,      /* required sequence is in nucleotide coords */
-                                           frame,
-                                           bc->numFrames,
-                                           &bc->refSeqRange,
-                                           bc->blastMode,
-                                           bc->geneticCode,
-                                           FALSE,		  /* input coords are always left-to-right, even if display reversed */
-                                           FALSE,  /* whether to reverse */
-                                           FALSE,  /* whether to allow rev strands to be complemented */
-                                           &tmpError);
+  const gboolean transcript = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->transcriptButton));
+  char *refSeqSegment = getDotterRefSeq(blxWindow, &qRange, frame, transcript, &refSeqName, &tmpError);
 
   if (!refSeqSegment)
     {
@@ -2213,9 +2251,9 @@ static gboolean callDotterOnSelf(DotterDialogData *dialogData, GError **error)
   g_message("Calling dotter with query sequence region: %d - %d\n", dotterStart, dotterEnd);
 
   callDotterExternal(blxWindow, bc, dotterZoom, FALSE,
-                     bc->refSeqName, &qRange, refSeqSegment, qStrand, revScale,
-                     bc->refSeqName, &qRange, dotterSSeq, qStrand, revScale,
-                     TRUE, error);
+                     refSeqName, &qRange, refSeqSegment, qStrand, revScale,
+                     refSeqName, &qRange, dotterSSeq, qStrand, revScale,
+                     FALSE, error);
 
   return TRUE;
 }

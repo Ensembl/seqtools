@@ -5806,6 +5806,59 @@ SequenceGroup *blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSeq
 }
 
 
+/* Return a list of all selected features of the given type. Result should be free'd by caller
+ * using g_list_free */
+GList *blxContextGetSelectedSeqsByType(const BlxViewContext *blxContext, const BlxSequenceType type)
+{
+  GList *result = NULL;
+
+  GList *list_item = blxContext->selectedSeqs;
+  
+  for ( ; list_item; list_item = list_item->next)
+    {
+      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
+      
+      if (curSeq->type == type)
+        {
+          result = g_list_append(result, curSeq);
+        }
+    }
+
+  return result;
+}
+
+
+/* If there is one (and only one) selected transcript then return it; otherwise return null */
+BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext)
+{
+  BlxSequence *result = NULL;
+
+  GList *list_item = blxContext->selectedSeqs;
+  
+  for ( ; list_item; list_item = list_item->next)
+    {
+      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
+      
+      if (curSeq->type == BLXSEQUENCE_TRANSCRIPT)
+        {
+          if (result)
+            {
+              /* Found more than one - don't know which to choose so return null */
+              result = NULL;
+              break;
+            }
+          else
+            {
+              /* First one found: set the result. Continue to make sure there aren't any more */
+              result = curSeq;
+            }
+        }
+    }
+
+  return result;
+}
+
+
 /* Returns the group that the given sequence belongs to, if any (assumes the sequence
  * is only in one group; otherwise it just returns the first group it finds). */
 SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind)
@@ -5862,21 +5915,10 @@ GList *blxWindowGetSelectedSeqsByType(GtkWidget *blxWindow, const BlxSequenceTyp
   GList *result = NULL;
 
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  GList *list_item = blxContext->selectedSeqs;
-  
-  for ( ; list_item; list_item = list_item->next)
-    {
-      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
-      
-      if (curSeq->type == type)
-        {
-          result = g_list_append(result, curSeq);
-        }
-    }
+  result = blxContextGetSelectedSeqsByType(blxContext, type);
 
   return result;
 }
-
 
 /* If there is one (and only one) selected transcript then return it; otherwise return null */
 BlxSequence* blxWindowGetSelectedTranscript(GtkWidget *blxWindow)
@@ -5884,27 +5926,7 @@ BlxSequence* blxWindowGetSelectedTranscript(GtkWidget *blxWindow)
   BlxSequence *result = NULL;
 
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  GList *list_item = blxContext->selectedSeqs;
-  
-  for ( ; list_item; list_item = list_item->next)
-    {
-      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
-      
-      if (curSeq->type == BLXSEQUENCE_TRANSCRIPT)
-        {
-          if (result)
-            {
-              /* Found more than one - don't know which to choose so return null */
-              result = NULL;
-              break;
-            }
-          else
-            {
-              /* First one found: set the result. Continue to make sure there aren't any more */
-              result = curSeq;
-            }
-        }
-    }
+  result = blxContextGetSelectedTranscript(blxContext);
 
   return result;
 }
