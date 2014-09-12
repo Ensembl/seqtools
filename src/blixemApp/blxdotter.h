@@ -53,10 +53,10 @@
 
 
 #include <gtk/gtk.h>
-
+#include <blixemApp/blixem_.h>
 
 void			showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront);
-gboolean		callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, GError **error);
+gboolean		callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, const DotterRefType refType, GError **error);
 
 
 #endif /* _blx_dotter_h_included_ */

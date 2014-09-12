@@ -474,6 +474,8 @@ const char*           blxSequenceGetStrain(const BlxSequence *seq);
 char*                 blxSequenceGetFasta(const BlxSequence *seq);
 gboolean              blxSequenceGetFlag(const BlxSequence* const blxSeq, const MspFlag flag);
 
+char*                 blxSequenceGetSplicedSequence(const BlxSequence* const blxSeq, const char *refSeq, const IntRange* const refSeqRange, GError **error);
+
 void                  destroyBlxSequence(BlxSequence *seq);
 
 void                  blxColumnCreate(BlxColumnId columnId, const gboolean createHeader, const char *title,

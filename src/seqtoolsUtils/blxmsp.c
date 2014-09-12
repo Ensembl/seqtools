@@ -3440,3 +3440,68 @@ GList* blxSequenceConstructCdsList(BlxSequence *seq)
 
   return result;
 }
+
+
+/***********************************************************
+ *              Sequence manipulation                      * 
+ ***********************************************************/
+
+/* Get the spliced sequence for a given transcript. The result should be free'd by the caller
+ * with g_free. Returns null and sets the error if there was a problem. */
+char *blxSequenceGetSplicedSequence(const BlxSequence* const blxSeq, 
+                                    const char *refSeq, 
+                                    const IntRange* const refSeqRange,
+                                    GError **error)
+{
+  char *result = NULL;
+  g_return_val_if_fail(blxSeq && blxSeq->type == BLXSEQUENCE_TRANSCRIPT, result);
+
+  GString *resultStr = g_string_new(NULL);
+  const int refSeqLen = strlen(refSeq);
+  
+  GList *mspItem = blxSeq->mspList;
+  
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      const MSP* msp = (const MSP*)(mspItem->data);
+      
+      if (mspIsExon(msp))
+        {
+          int i = msp->qRange.min - refSeqRange->min; /* convert to 0-based index into ref seq */
+          
+          /* It's possible that some exons may be out of bounds: just ignore them. */
+          if (i > 0 && i < refSeqLen)
+            {
+              const int iMax = msp->qRange.max - refSeqRange->min;
+
+              for ( ; i <= iMax; ++i)
+                g_string_append_c(resultStr, refSeq[i]);
+            }
+        }
+    }
+
+  if (resultStr->len > 0)
+    {
+      g_string_append_c(resultStr, '\0'); /* make sure it's null terminated */
+      result = g_string_free(resultStr, FALSE);
+
+      /* If the result is empty, set the error. */
+      if (!result || *result == 0)
+        {
+          g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_SEGMENT, "Failed to find sequence for transcript");
+
+          if (result)
+            {
+              g_free(result);
+              result = NULL;
+            }
+        }
+    }
+  else
+    {
+      g_string_free(resultStr, TRUE);
+    }
+
+  return result;
+}
+

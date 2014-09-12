@@ -69,7 +69,6 @@ int			  blxWindowGetNumFrames(GtkWidget *blxWindow);
 int			  blxWindowGetDotterStart(GtkWidget *blxWindow);
 int			  blxWindowGetDotterEnd(GtkWidget *blxWindow);
 int			  blxWindowGetDotterZoom(GtkWidget *blxWindow);
-int			  blxWindowGetAutoDotter(GtkWidget *blxWindow);
 MSP*			  blxWindowGetMspList(GtkWidget *blxWindow);
 GList*			  blxWindowGetAllMatchSeqs(GtkWidget *blxWindow);
 GList*			  blxWindowGetSequenceGroups(GtkWidget *blxWindow);
@@ -80,6 +79,8 @@ BlxStrand		  blxWindowGetActiveStrand(GtkWidget *blxWindow);
 gboolean                  blxWindowGetNegateCoords(GtkWidget *blxWindow);
 
 GList*                    blxWindowGetSelectedSeqs(GtkWidget *blxWindow);
+GList*                    blxWindowGetSelectedSeqsByType(GtkWidget *blxWindow, const BlxSequenceType type);
+BlxSequence*              blxWindowGetSelectedTranscript(GtkWidget *blxWindow);
 void                      blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq);
 void                      blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList);
 void                      blxWindowDeselectSeq(GtkWidget *blxWindow, BlxSequence *seq);
@@ -91,6 +92,8 @@ BlxSequence*              blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
 gboolean                  blxContextIsSeqSelected(const BlxViewContext* const bc, const BlxSequence *seq);
 SequenceGroup*            blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSequence *seqToFind);
+BlxSequence*              blxContextGetSelectedTranscript(const BlxViewContext *blxContext);
+GList*                    blxContextGetSelectedSeqsByType(const BlxViewContext *blxContext, const BlxSequenceType type);
 
 int                       sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
 void                      copySelectionToClipboard(GtkWidget *blxWindow);
