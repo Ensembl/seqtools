@@ -66,6 +66,7 @@ typedef struct _DotterDialogData
                                      * or the query seq versus itself */
     gboolean refType;               /* whether to use the ref seq or a transcript seq */
     gboolean hspsOnly;              /* whether to call dotter on HSPs only */
+    gboolean sleep;                 /* whether to sleep dotter on startup */
     
     GtkWidget *selectedButton;      /* the radio button for the use-selected-sequence option */
     GtkWidget *pasteButton;         /* the radio button for the use-pasted-sequence option */
@@ -207,6 +208,17 @@ static gboolean onSaveDotterHsps(GtkWidget *button, const gint responseId, gpoin
   GtkWidget *blxWindow = GTK_WIDGET(data);
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   blxContext->dotterHsps = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  return TRUE;
+}
+
+
+/* Callback to be called when the user clicks OK or Apply on the dotter
+ * dialog. It saves the state of the 'sleep' button. */
+static gboolean onSaveDotterSleep(GtkWidget *button, const gint responseId, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  blxContext->dotterSleep = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   return TRUE;
 }
 
@@ -539,6 +551,14 @@ static void onHspsButtonToggled(GtkWidget *button, gpointer data)
 }
 
 
+/* Called when the "sleep" button is toggled on the dotter dialog */
+static void onSleepButtonToggled(GtkWidget *button, gpointer data)
+{
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+  dialogData->sleep = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+}
+
+
 /* Called when the user has hit a response button on the dotter settings dialog */
 static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer data)
 {
@@ -560,7 +580,11 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
                   {
                     /* The 'transcript' flag indicates that we're dottering vs the selected
                      * transcript rather than the reference sequence*/
-                    destroy = callDotterOnSelectedSeq(dialogData->blxWindow, dialogData->hspsOnly, dialogData->refType, &error);
+                    destroy = callDotterOnSelectedSeq(dialogData->blxWindow, 
+                                                      dialogData->hspsOnly, 
+                                                      dialogData->sleep,
+                                                      dialogData->refType,
+                                                      &error);
                     break;
                   }
                 case BLXDOTTER_MATCH_PASTED:
@@ -871,6 +895,7 @@ static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow,
       dialogData->refType = BLXDOTTER_REF_AUTO;
       dialogData->pastedSeqText = NULL;
       dialogData->hspsOnly = FALSE;
+      dialogData->sleep = FALSE;
 
       g_signal_connect(G_OBJECT(dialog), "destroy", G_CALLBACK(onDestroyDotterDialog), dialogData);
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseDotterDialog), dialogData);
@@ -1105,8 +1130,16 @@ static void createOptionsTab(DotterDialogData *dialogData, const int spacing)
   gtk_box_pack_start(vbox, hspsButton, FALSE, FALSE, spacing);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hspsButton), bc->dotterHsps);
   widgetSetCallbackData(hspsButton, onSaveDotterHsps, dialogData->blxWindow);
+
+  /* Add a tick box to set dotter sleep on startup (for debugging) */
+  GtkWidget *sleepButton = gtk_check_button_new_with_mnemonic("_Sleep on startup");
+  gtk_widget_set_tooltip_text(hspsButton, "Sleep dotter for a short period on startup (for debugging)");
+  gtk_box_pack_start(vbox, sleepButton, FALSE, FALSE, spacing);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(sleepButton), bc->dotterSleep);
+  widgetSetCallbackData(sleepButton, onSaveDotterSleep, dialogData->blxWindow);
   
   g_signal_connect(G_OBJECT(hspsButton), "toggled", G_CALLBACK(onHspsButtonToggled), dialogData);
+  g_signal_connect(G_OBJECT(sleepButton), "toggled", G_CALLBACK(onSleepButtonToggled), dialogData);
 }
 
 
@@ -1124,6 +1157,7 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   dialogData->matchType = bc->dotterMatchType;
   dialogData->refType = bc->dotterRefType;
   dialogData->hspsOnly = bc->dotterHsps;
+  dialogData->sleep = bc->dotterSleep;
 
   GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
@@ -1561,6 +1595,7 @@ static void callDotterChildProcess(GtkWidget *blxWindow,
                                    const char *dotterBinary, 
 				   const int dotterZoom,
                                    const gboolean hspsOnly,
+                                   const gboolean sleep,
                                    const char *seq1Name,
                                    const IntRange* const seq1Range,
                                    const BlxStrand seq1Strand,
@@ -1610,6 +1645,7 @@ static void callDotterChildProcess(GtkWidget *blxWindow,
   if (seq1DisplayRev)			    argList = g_slist_append(argList, g_strdup("--reverse-h-display"));
   if (seq2DisplayRev)			    argList = g_slist_append(argList, g_strdup("--reverse-v-display"));
   if (hspsOnly)				    argList = g_slist_append(argList, g_strdup("-H"));
+  if (sleep)				    argList = g_slist_append(argList, g_strdup("--sleep=15"));
   if (bc->flags[BLXFLAG_NEGATE_COORDS])	    argList = g_slist_append(argList, g_strdup("-N"));
 
   /* now tell Dotter that we're calling it internally from another SeqTools
@@ -1668,6 +1704,7 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
                             BlxViewContext *bc,
                             int dotterZoom, 
                             const gboolean hspsOnly,
+                            const gboolean sleep,
                             const char *seq1Name,
                             IntRange *seq1Range,
                             char *seq1,
@@ -1730,7 +1767,7 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
       close(pipes[1]);
 
       DEBUG_OUT("Calling dotter child process\n");
-      callDotterChildProcess(blxWindow, dotterBinary, dotterZoom, hspsOnly, 
+      callDotterChildProcess(blxWindow, dotterBinary, dotterZoom, hspsOnly, sleep,
                              seq1Name, seq1Range, seq1Strand, seq1DisplayRev,
                              seq2Name, seq2Range, seq2Strand, seq2DisplayRev,
                              pipes, bc);
@@ -1871,7 +1908,11 @@ static char* getDotterRefSeq(GtkWidget *blxWindow,
 
 /* Call dotter on the currently-selected sequence. Returns true if dotter was called; 
  * false if we quit trying. */
-gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, const DotterRefType refType, GError **error)
+gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, 
+                                 const gboolean hspsOnly,
+                                 const gboolean sleep,
+                                 const DotterRefType refType,
+                                 GError **error)
 {
   g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must
                                                             be NULL */
@@ -2014,7 +2055,7 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, 
   if (refType == BLXDOTTER_REF_TRANSCRIPT)
     transcriptSeq = blxWindowGetSelectedTranscript(blxWindow);
 
-  return callDotterExternal(blxWindow, bc, dotterZoom, hspsOnly, 
+  return callDotterExternal(blxWindow, bc, dotterZoom, hspsOnly, sleep,
                             refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
                             dotterSName, &sRange, dotterSSeq, selectedSeq->strand, revVertScale,
                             clipRange, &bc->refSeqRange, transcriptSeq, error);
@@ -2186,7 +2227,7 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
   if (dialogData->refType == BLXDOTTER_REF_TRANSCRIPT)
     transcriptSeq = blxWindowGetSelectedTranscript(blxWindow);
 
-  result = callDotterExternal(blxWindow, bc, dotterZoom, FALSE, 
+  result = callDotterExternal(blxWindow, bc, dotterZoom, FALSE, dialogData->sleep,
                               refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
                               dotterSName, &sRange, dotterSSeq, qStrand, revVertScale,
                               clipRange, &bc->refSeqRange, transcriptSeq, error);
@@ -2273,7 +2314,7 @@ static gboolean callDotterOnSelf(DotterDialogData *dialogData, GError **error)
   if (dialogData->refType == BLXDOTTER_REF_TRANSCRIPT)
     transcriptSeq = blxWindowGetSelectedTranscript(blxWindow);
 
-  callDotterExternal(blxWindow, bc, dotterZoom, FALSE,
+  callDotterExternal(blxWindow, bc, dotterZoom, FALSE, dialogData->sleep,
                      refSeqName, &qRange, refSeqSegment, qStrand, revScale,
                      refSeqName, &qRange, dotterSSeq, qStrand, revScale,
                      FALSE, &bc->refSeqRange, transcriptSeq, error);
