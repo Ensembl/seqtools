@@ -46,12 +46,15 @@
 #include <unistd.h>
 
 #define DEFAULT_DOTTER_RANGE_SELF	2000
+#define DEFAULT_WINDOW_WIDTH            500
+#define MAX_WINDOW_WIDTH_FRACTION       0.3
 
 typedef struct _DotterDialogData
   {
     GtkWidget *blxWindow;           /* pointer to the main blixem window */
     GtkWidget *dialog;
     GtkWidget *notebook;
+    guint notebookPage;             /* current notebook page */
 
     GtkWidget *autoButton;          /* radio button for automatic dotter parameters */
     GtkWidget *manualButton;        /* radio button for manual dotter parameters */
@@ -113,6 +116,18 @@ static const char*    getDotterRefSeqName(const BlxViewContext *bc, const gboole
 /*******************************************************************
  *                      Dotter settings dialog                     *
  *******************************************************************/
+
+/* Called when the user changes the page on the notebook. Caches the page so we can reinstate it
+ * when we refresh the dialog */
+static gboolean onChangeCurrentPage(GtkNotebook *notebook, GtkWidget *page, gint pageNum, gpointer data)
+{
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+
+  dialogData->notebookPage = pageNum;
+
+  return TRUE;
+}
+
 
 /* Callback to be called when the user clicks OK or Apply on the dotter
  * dialog. It sets the dotter mode according to the toggle state of the 
@@ -853,7 +868,26 @@ static char *getDotterTitle(const BlxViewContext *bc,
 }
 
 
+/* Set the initial size of the dotter window. We add a bit of width if possible because the title
+ * can be quite long and it updates dynamically (and may get longer) with user-selected options. */
+static void dotterDialogSetDefaultSize(GtkWidget *dialog, GtkWidget *blxWindow)
+{
+  /* We'll set the default window width to a preferred default, but make it smaller
+   * if it exceeds a maximum percentage of the screen size. Just use the height 
+   * allocated for the widgets. */
+  GdkScreen *screen = gtk_widget_get_screen(blxWindow);
+  const int maxWidth = gdk_screen_get_width(screen) * MAX_WINDOW_WIDTH_FRACTION;
+
+  const int width = min(DEFAULT_WINDOW_WIDTH, maxWidth);
+
+  gtk_window_set_default_size(GTK_WINDOW(dialog), width, -1);
+}
+
+
+/* First time round, create the dotter dialog. Subsequent calls re-use the same dialog but clear
+ * the contents ready to re-populate it. If resetData is true, reset entries to last-saved values */
 static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow, 
+                                          const gboolean resetValues,
                                           DotterDialogData **dialogData_inout)
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -878,24 +912,26 @@ static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow,
       /* These calls are required to make the dialog persistent... */
       addPersistentDialog(bc->dialogList, dialogId, dialog);
       g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
-      
+      dotterDialogSetDefaultSize(dialog, blxWindow);
+
       /* Create the dialog data struct first time round, but re-populate it each time. Create 
        * a destructor function that will free the struct. */
       *dialogData_inout = (DotterDialogData*)g_malloc(sizeof(DotterDialogData));
       DotterDialogData *dialogData = *dialogData_inout;
-      dialogData->blxWindow = NULL;
-      dialogData->dialog = NULL;
+      dialogData->blxWindow = blxWindow;
+      dialogData->notebookPage = 0;
+      dialogData->dialog = dialog;
+      dialogData->matchType = bc->dotterMatchType;
+      dialogData->refType = bc->dotterRefType;
+      dialogData->hspsOnly = bc->dotterHsps;
+      dialogData->sleep = bc->dotterSleep;
       dialogData->autoButton = NULL;
       dialogData->manualButton = NULL;
       dialogData->transcriptButton = NULL;
       dialogData->startEntry = NULL;
       dialogData->endEntry = NULL;
       dialogData->zoomEntry = NULL;
-      dialogData->matchType = BLXDOTTER_MATCH_SELECTED;
-      dialogData->refType = BLXDOTTER_REF_AUTO;
       dialogData->pastedSeqText = NULL;
-      dialogData->hspsOnly = FALSE;
-      dialogData->sleep = FALSE;
 
       g_signal_connect(G_OBJECT(dialog), "destroy", G_CALLBACK(onDestroyDotterDialog), dialogData);
       g_signal_connect(dialog, "response", G_CALLBACK(onResponseDotterDialog), dialogData);
@@ -903,9 +939,18 @@ static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow,
   else
     {
       /* Refresh the dialog by clearing its contents an re-creating it */
-      dialogClearContentArea(GTK_DIALOG(dialog));
-      
+      dialogClearContentArea(GTK_DIALOG(dialog));      
       gtk_window_set_title(GTK_WINDOW(dialog), title);
+
+      if (resetValues && dialogData_inout && *dialogData_inout)
+        {
+          /* Reset to last-saved values */
+          DotterDialogData *dialogData = *dialogData_inout;
+          dialogData->matchType = bc->dotterMatchType;
+          dialogData->refType = bc->dotterRefType;
+          dialogData->hspsOnly = bc->dotterHsps;
+          dialogData->sleep = bc->dotterSleep;
+        }
     }
   
   g_free(title);
@@ -929,24 +974,24 @@ static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
 
   /* Append the table as a new tab to the notebook */
-  gtk_notebook_append_page(GTK_NOTEBOOK(dialogData->notebook), GTK_WIDGET(table), gtk_label_new("Range"));
+  gtk_notebook_append_page(GTK_NOTEBOOK(dialogData->notebook), GTK_WIDGET(table), gtk_label_new("Reference sequence"));
 
   /* Radio buttons for auto/manual params. */
   dialogData->autoButton = gtk_radio_button_new_with_mnemonic(NULL, "_Auto");
   widgetSetCallbackData(dialogData->autoButton, onSaveDotterMode, dialogData);
-  gtk_widget_set_tooltip_text(dialogData->autoButton, "Always use the visible big picture range");
+  gtk_widget_set_tooltip_text(dialogData->autoButton, "Dotter against the visible big picture range");
   gtk_table_attach(table, dialogData->autoButton, 0, 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
 
   dialogData->manualButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->autoButton), "_Manual");
   widgetSetCallbackData(dialogData->manualButton, onSaveDotterMode, dialogData);
-  gtk_widget_set_tooltip_text(dialogData->manualButton, "Set the coords manually. Once saved, the same coords will be used until you change them manually again.");
+  gtk_widget_set_tooltip_text(dialogData->manualButton, "Dotter against manually-entered coords. Once saved, the same coords will be used until you change them manually again.");
   gtk_table_attach(table, dialogData->manualButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
 
   dialogData->transcriptButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->autoButton), "_Transcript");
   widgetSetCallbackData(dialogData->transcriptButton, onSaveDotterMode, dialogData);
-  gtk_widget_set_tooltip_text(dialogData->transcriptButton, "Set the coords manually. Once saved, the same coords will be used until you change them manually again.");
+  gtk_widget_set_tooltip_text(dialogData->transcriptButton, "Dotter against the currently selected transcript Note that if you are dottering against a selected sequence then you need to select both the sequence and the transcript. Hold Ctrl while you left-click to select multiple features.");
   gtk_table_attach(table, dialogData->transcriptButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
 
@@ -1001,7 +1046,7 @@ static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
   g_signal_connect(G_OBJECT(bpRangeButton),   "clicked", G_CALLBACK(onBpRangeButtonClicked), dialogData);
 
   /* Set the initial state of the toggle buttons and entry widgets */
-  switch (bc->dotterRefType)
+  switch (dialogData->refType)
     {
       case BLXDOTTER_REF_AUTO:
         /* unset and then set to force callback to be called to set the auto coords */
@@ -1034,7 +1079,7 @@ static void createSequenceTab(DotterDialogData *dialogData, const int spacing)
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
 
   /* Append the box as a new tab to the notebook */
-  gtk_notebook_append_page(GTK_NOTEBOOK(dialogData->notebook), GTK_WIDGET(table), gtk_label_new("Sequence"));
+  gtk_notebook_append_page(GTK_NOTEBOOK(dialogData->notebook), GTK_WIDGET(table), gtk_label_new("Match sequence"));
 
   /* Create radio buttons to choose whether to dotter against the selected match sequence, a
    * manually pasted sequence, or the reference sequence against itself. */
@@ -1133,7 +1178,7 @@ static void createOptionsTab(DotterDialogData *dialogData, const int spacing)
 
   /* Add a tick box to set dotter sleep on startup (for debugging) */
   GtkWidget *sleepButton = gtk_check_button_new_with_mnemonic("_Sleep on startup");
-  gtk_widget_set_tooltip_text(hspsButton, "Sleep dotter for a short period on startup (for debugging)");
+  gtk_widget_set_tooltip_text(sleepButton, "Sleep dotter for a short period on startup (for debugging)");
   gtk_box_pack_start(vbox, sleepButton, FALSE, FALSE, spacing);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(sleepButton), bc->dotterSleep);
   widgetSetCallbackData(sleepButton, onSaveDotterSleep, dialogData->blxWindow);
@@ -1146,18 +1191,15 @@ static void createOptionsTab(DotterDialogData *dialogData, const int spacing)
 /* Pop up a dialog to allow the user to edit dotter parameters and launch dotter */
 void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   static DotterDialogData *dialogData = NULL;
 
-  GtkWidget *dialog = getOrCreateDotterDialog(blxWindow, &dialogData);
+  /* If we're being asked to bring the dialog to the front then it's because the user has
+   * re-shown the dialog, so reset the values; otherwise we're just refreshing to update data
+   * such as the selected sequence, so don't reset any values. */
+  GtkWidget *dialog = getOrCreateDotterDialog(blxWindow, bringToFront, &dialogData);
 
-  /* Set the values in the data struct we need */
-  dialogData->blxWindow = blxWindow;
-  dialogData->dialog = dialog;
-  dialogData->matchType = bc->dotterMatchType;
-  dialogData->refType = bc->dotterRefType;
-  dialogData->hspsOnly = bc->dotterHsps;
-  dialogData->sleep = bc->dotterSleep;
+  /* Temp cache the notebook page because it will change when we create the notebook */
+  guint notebookPage = dialogData ? dialogData->notebookPage : 0;
 
   GtkContainer *contentArea = GTK_CONTAINER(GTK_DIALOG(dialog)->vbox);
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
@@ -1166,12 +1208,18 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   /* Create the dialog content */
   dialogData->notebook = gtk_notebook_new();
   gtk_container_add(contentArea, dialogData->notebook);
-
+  g_signal_connect(G_OBJECT(dialogData->notebook), "switch-page", G_CALLBACK(onChangeCurrentPage), dialogData);
+  
   createCoordsTab(dialogData, spacing);
   createSequenceTab(dialogData, spacing);
   createOptionsTab(dialogData, spacing);
   
   gtk_widget_show_all(dialog);
+
+  /* If just refreshing the dialog, re-instate the last notbook page that was selected. Note that
+   * we have to do this after the notebook widget is shown */
+  if (!bringToFront && dialogData && dialogData->notebook)
+    gtk_notebook_set_current_page(GTK_NOTEBOOK(dialogData->notebook), notebookPage);
   
   if (bringToFront)
     {
