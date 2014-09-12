@@ -5541,7 +5541,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->sequenceGroups = NULL;
   blxContext->matchSetGroup = NULL;
   
-  blxContext->autoDotter = TRUE;
+  blxContext->dotterRefType = BLXDOTTER_REF_AUTO;
   blxContext->dotterMatchType = BLXDOTTER_MATCH_SELECTED;
   blxContext->dotterPastedSeq = NULL;
   blxContext->dotterHsps = FALSE;
@@ -5703,12 +5703,6 @@ int blxWindowGetNumFrames(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->numFrames : UNSET_INT;
-}
-
-int blxWindowGetAutoDotter(GtkWidget *blxWindow)
-{
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->autoDotter : TRUE;
 }
 
 int blxWindowGetDotterStart(GtkWidget *blxWindow)

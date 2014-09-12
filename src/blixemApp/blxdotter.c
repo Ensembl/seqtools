@@ -97,7 +97,7 @@ typedef enum {
 
 
 /* Local function declarations */
-static gboolean	      getDotterRange(GtkWidget *blxWindow, DotterMatchType matchType, const gboolean autoDotter, int *dotterStart, int *dotterEnd, int *dotterZoom, GError **error);
+static gboolean	      getDotterRange(GtkWidget *blxWindow, DotterMatchType matchType, const DotterRefType refType, int *dotterStart, int *dotterEnd, int *dotterZoom, GError **error);
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
 static gboolean	      smartDotterRangeSelf(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
 static gboolean	      callDotterOnSelf(DotterDialogData *dialogData, GError **error);
@@ -116,9 +116,17 @@ static char*          getDotterTitlePastedSeq(const BlxViewContext *bc, const ch
  * "auto" button. */
 static gboolean onSaveDotterMode(GtkWidget *button, const gint responseId, gpointer data)
 {
-  GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  blxContext->autoDotter = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+  DotterDialogData *dialogData = (DotterDialogData*)data;
+  GtkWidget *blxWindow = dialogData->blxWindow;
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->manualButton)))
+    bc->dotterRefType = BLXDOTTER_REF_MANUAL;
+  else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->transcriptButton)))
+    bc->dotterRefType = BLXDOTTER_REF_TRANSCRIPT;
+  else
+    bc->dotterRefType = BLXDOTTER_REF_AUTO;
+
   return TRUE;
 }
 
@@ -655,7 +663,12 @@ static void onCoordsTypeToggled(GtkWidget *button, gpointer data)
     }
   else
     {
-      /* Transcript button. Don't set the coords because we get the sequence from the transcript */
+      /* Transcript button. Don't set the coords because we get the sequence from the transcript. */
+
+      /* Lock out the entry boxes so they cannot be edited */
+      gtk_widget_set_sensitive(dialogData->startEntry, FALSE);
+      gtk_widget_set_sensitive(dialogData->endEntry, FALSE);
+      gtk_widget_set_sensitive(dialogData->zoomEntry, FALSE);
     }
 }
 
@@ -869,21 +882,21 @@ static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
   /* Append the table as a new tab to the notebook */
   gtk_notebook_append_page(GTK_NOTEBOOK(dialogData->notebook), GTK_WIDGET(table), gtk_label_new("Range"));
 
-  /* Radio buttons for auto/manual params. We only attach a callback to the first button because
-   * there are only two (so if one is set we know the other is not and vice versa). */
+  /* Radio buttons for auto/manual params. */
   dialogData->autoButton = gtk_radio_button_new_with_mnemonic(NULL, "_Auto");
+  widgetSetCallbackData(dialogData->autoButton, onSaveDotterMode, dialogData);
+  gtk_widget_set_tooltip_text(dialogData->autoButton, "Always use the visible big picture range");
   gtk_table_attach(table, dialogData->autoButton, 0, 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
 
-  gtk_widget_set_tooltip_text(dialogData->autoButton, "Always use the visible big picture range");
-  widgetSetCallbackData(dialogData->autoButton, onSaveDotterMode, dialogData->blxWindow);
-
   dialogData->manualButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->autoButton), "_Manual");
+  widgetSetCallbackData(dialogData->manualButton, onSaveDotterMode, dialogData);
   gtk_widget_set_tooltip_text(dialogData->manualButton, "Set the coords manually. Once saved, the same coords will be used until you change them manually again.");
   gtk_table_attach(table, dialogData->manualButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
 
   dialogData->transcriptButton = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(dialogData->autoButton), "_Transcript");
+  widgetSetCallbackData(dialogData->transcriptButton, onSaveDotterMode, dialogData);
   gtk_widget_set_tooltip_text(dialogData->transcriptButton, "Set the coords manually. Once saved, the same coords will be used until you change them manually again.");
   gtk_table_attach(table, dialogData->transcriptButton, col, col + 1, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
   ++row;
@@ -940,17 +953,21 @@ static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
 
   /* Set the initial state of the toggle buttons and entry widgets (unset it and then set it to
    * force the callback to be called) */
-  if (bc->autoDotter)
+  switch (bc->dotterRefType)
     {
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->manualButton), TRUE);
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->autoButton), TRUE);
+      case BLXDOTTER_REF_AUTO:
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->manualButton), TRUE);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->autoButton), TRUE);
+        break;
+      case BLXDOTTER_REF_MANUAL:
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->autoButton), TRUE);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->manualButton), TRUE);
+        break;
+      case BLXDOTTER_REF_TRANSCRIPT:
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->autoButton), TRUE);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->transcriptButton), TRUE);
+        break;
     }
-  else
-    {
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->autoButton), TRUE);
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->manualButton), TRUE);
-    }
-  
 }
 
 
@@ -1132,11 +1149,12 @@ char getDotterMode(const BlxBlastMode blastMode)
 }
 
 
-/* Get the start/end coords. If the passed autoDotter flag is true, calculate coords
- * automatically - otherwise use the stored manual coords */
+/* Get the start/end coords. If the passed refType flag is auto, calculate coords
+ * automatically - otherwise use the stored manual coords. If refType is transcript
+ * then don't set the coords (they get set later) */
 static gboolean getDotterRange(GtkWidget *blxWindow, 
                                const DotterMatchType matchType,
-                               const gboolean autoDotter,
+                               const DotterRefType refType,
 			       int *dotterStart, 
 			       int *dotterEnd, 
 			       int *dotterZoom, 
@@ -1144,12 +1162,15 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
 {
   g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
 
+  if (refType == BLXDOTTER_REF_TRANSCRIPT)
+    return TRUE;
+
   GError *tmpError = NULL;
   gboolean success = TRUE;
   
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  if (!autoDotter)
+  if (refType == BLXDOTTER_REF_MANUAL)
     {
       /* Use manual coords */
       if (dotterStart) *dotterStart = bc->dotterStart;
@@ -1846,7 +1867,7 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, const gboolean hspsOnly, 
   int dotterStart = UNSET_INT, dotterEnd = UNSET_INT, dotterZoom = 0;
   GError *rangeError = NULL;
   
-  gboolean ok = getDotterRange(blxWindow, FALSE, bc->autoDotter, &dotterStart, &dotterEnd, &dotterZoom, &rangeError);
+  gboolean ok = getDotterRange(blxWindow, FALSE, bc->dotterRefType, &dotterStart, &dotterEnd, &dotterZoom, &rangeError);
 
   if (!ok)
     {
@@ -2039,7 +2060,7 @@ gboolean callDotterOnPastedSeq(DotterDialogData *dialogData, GError **error)
   int dotterStart = UNSET_INT, dotterEnd = UNSET_INT, dotterZoom = 0;
   GError *rangeError = NULL;
   
-  gboolean ok = getDotterRange(blxWindow, FALSE, bc->autoDotter, &dotterStart, &dotterEnd, &dotterZoom, &rangeError);
+  gboolean ok = getDotterRange(blxWindow, FALSE, bc->dotterRefType, &dotterStart, &dotterEnd, &dotterZoom, &rangeError);
 
   if (!ok)
     {
@@ -2119,7 +2140,7 @@ static gboolean callDotterOnSelf(DotterDialogData *dialogData, GError **error)
   int dotterZoom = 0;
   
   GError *tmpError = NULL;
-  if (!getDotterRange(blxWindow, TRUE, bc->autoDotter, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
+  if (!getDotterRange(blxWindow, TRUE, bc->dotterRefType, &dotterStart, &dotterEnd, &dotterZoom, &tmpError))
     {
       g_propagate_error(error, tmpError);
       return FALSE;

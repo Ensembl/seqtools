@@ -69,7 +69,6 @@ int			  blxWindowGetNumFrames(GtkWidget *blxWindow);
 int			  blxWindowGetDotterStart(GtkWidget *blxWindow);
 int			  blxWindowGetDotterEnd(GtkWidget *blxWindow);
 int			  blxWindowGetDotterZoom(GtkWidget *blxWindow);
-int			  blxWindowGetAutoDotter(GtkWidget *blxWindow);
 MSP*			  blxWindowGetMspList(GtkWidget *blxWindow);
 GList*			  blxWindowGetAllMatchSeqs(GtkWidget *blxWindow);
 GList*			  blxWindowGetSequenceGroups(GtkWidget *blxWindow);

@@ -420,6 +420,14 @@ typedef enum
     BLXDOTTER_MATCH_SELF       /* call dotter on the reference sequence vs itself */
   } DotterMatchType ;
 
+/* This enum determines how to find the reference sequence range to call dotter on */
+typedef enum
+  {
+    BLXDOTTER_REF_AUTO,        /* call dotter on an automatically-calculated ref seq range */
+    BLXDOTTER_REF_MANUAL,      /* call dotter on a manually entered ref seq range */
+    BLXDOTTER_REF_TRANSCRIPT   /* call dotter on a transcript range */
+  } DotterRefType;
+
 
 /* Struct to hold all the settings that come from the command line options */
 typedef struct _CommandLineOptions
@@ -511,7 +519,7 @@ typedef struct _BlxViewContext
     GList *sequenceGroups;                  /* A list of SequenceGroups */
     SequenceGroup *matchSetGroup;           /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
     
-    gboolean autoDotter;                    /* Whether to use automatic dotter params */
+    DotterRefType dotterRefType;            /* Whether to dotter a ref seq range or a transcript */
     DotterMatchType dotterMatchType;        /* Saved type of match to call dotter on */
     char *dotterPastedSeq;                  /* Saves the sequence text the user pastes into the dotter dialog */
     gboolean dotterHsps;                    /* Whether the dotter "HSPs only" option is on by default */
