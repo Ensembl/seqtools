@@ -155,7 +155,7 @@ static void DNAmatrix(int mtx[24][24]);
 
 static void                   showHideGreyrampTool(GtkWidget *dotterWindow, const gboolean show);
 static void                   showHideAlignmentTool(GtkWidget *dotterWindow, const gboolean show);
-static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *dotplot, GtkWidget *dotplotContainer, GtkWidget *greyrampContainer, GtkWidget *alignmentContainer, const char *exportFileName, char *windowColor);
+static GtkWidget*             createDotterWindow(DotterContext *dc, DotterWindowContext *dwc, const DotterHspMode hspMode, GtkWidget *dotplot, GtkWidget *dotplotContainer, GtkWidget *greyrampContainer, GtkWidget *alignmentContainer, GtkWidget *greyrampToolMinimised, const char *exportFileName, char *windowColor);
 static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
@@ -1175,7 +1175,9 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
       gtk_frame_set_shadow_type(GTK_FRAME(greyrampContainer), GTK_SHADOW_NONE);
       GtkWidget *greyrampWindow = NULL; /* container for when undocked */
       GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, 40, 100, greyrampSwap, &greyrampWindow);
+      GtkWidget *greyrampToolMinimised = createGreyrampToolMinimised(dotterWinCtx, 40, 100);
       registerGreyrampCallback(greyrampTool, dotplot, dotplotUpdateGreymap);
+      registerGreyrampCallback(greyrampToolMinimised, dotplot, dotplotUpdateGreymap);
       blxSetWidgetColor(greyrampWindow, windowColor);
 
       GtkWidget *alignmentContainer = gtk_frame_new(NULL); /* container for when docked */
@@ -1199,7 +1201,8 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
   
       const DotterHspMode hspMode = dotplotGetHspMode(dotplot);
       dotterWindow = createDotterWindow(dotterCtx, dotterWinCtx, hspMode, 
-                                        dotplot, dotplotWidget, greyrampContainer, alignmentContainer, 
+                                        dotplot, dotplotWidget, 
+                                        greyrampContainer, alignmentContainer, greyrampToolMinimised,
                                         exportFileName, windowColor);
       
       /* Set the tool windows as transient for the main window and clear them up when the
@@ -3664,6 +3667,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
                                      GtkWidget *dotplotContainer, 
                                      GtkWidget *greyrampContainer,
                                      GtkWidget *alignmentContainer,
+                                     GtkWidget *greyrampToolMinimised,
                                      const char *exportFileName,
                                      char *windowColor)
 { 
@@ -3736,6 +3740,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
       /* dotplot spans all columns; alignment tool + greyramp on same row. */
       gtk_table_attach(table, dotplotContainer, 0, numCols, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, padding, padding);
       ++row;
+      gtk_table_attach(table, greyrampToolMinimised, 0, numCols, row, row + 1, GTK_SHRINK, GTK_SHRINK, padding, padding);
+      ++row;
       gtk_table_attach(table, alignmentContainer, 0, 1, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, padding, padding);
       gtk_table_attach(table, greyrampContainer, 1, 2, row, row + 1, GTK_SHRINK, GTK_FILL, padding, padding);
     }
@@ -3744,6 +3750,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
       /* dotplot and greyramp on same row; alignment tool spans all columns */
       gtk_table_attach(table, dotplotContainer, 0, 1, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, padding, padding);
       gtk_table_attach(table, greyrampContainer, 1, 2, row, row + 1, GTK_SHRINK, GTK_FILL, padding, padding);
+      ++row;
+      gtk_table_attach(table, greyrampToolMinimised, 0, numCols, row, row + 1, GTK_SHRINK, GTK_SHRINK, padding, padding);
       ++row;
       gtk_table_attach(table, alignmentContainer, 0, numCols, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, padding, padding);
     }

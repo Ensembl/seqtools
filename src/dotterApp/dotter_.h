@@ -322,6 +322,7 @@ void                callDotterInternal(DotterContext *dc,
 
 /* greyramptool.c */
 GtkWidget*          createGreyrampTool(DotterWindowContext *dwc, const int bottomVal, const int topVal, const gboolean swapValues, GtkWidget **greyrampWindow_out);
+GtkWidget*          createGreyrampToolMinimised(DotterWindowContext *dwc, const int blackPoint, const int whitePoint);
 void                registerGreyrampCallback(GtkWidget *greyramp, GtkWidget *widget, GtkCallback func);
 void                updateGreyMap(GtkWidget *greyramp);
 
