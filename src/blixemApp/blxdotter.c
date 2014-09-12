@@ -618,14 +618,16 @@ static void onDestroyDotterDialog(GtkWidget *dialog, gpointer data)
 
 
 /* Called when the auto/manual/transcript radio button is toggled to select where to get the
- * coords from. */
-static void onCoordsTypeToggled(GtkWidget *button, gpointer data)
+ * ref seq coords from. */
+static void onRefTypeToggled(GtkWidget *button, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
   BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton)))
     {
+      bc->dotterRefType = BLXDOTTER_REF_AUTO;
+
       /* Recalculate auto start/end in case user has selected a different sequence */
       int autoStart = UNSET_INT, autoEnd = UNSET_INT;
       getDotterRange(dialogData->blxWindow, dialogData->matchType, TRUE, &autoStart, &autoEnd, NULL, NULL);
@@ -656,6 +658,8 @@ static void onCoordsTypeToggled(GtkWidget *button, gpointer data)
     }
   else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->manualButton)))
     {
+      bc->dotterRefType = BLXDOTTER_REF_MANUAL;
+
       /* Manual coords. Leave values as they are but unlock the boxes so they can be edited. */
       gtk_widget_set_sensitive(dialogData->startEntry, TRUE);
       gtk_widget_set_sensitive(dialogData->endEntry, TRUE);
@@ -663,6 +667,8 @@ static void onCoordsTypeToggled(GtkWidget *button, gpointer data)
     }
   else
     {
+      bc->dotterRefType = BLXDOTTER_REF_TRANSCRIPT;
+
       /* Transcript button. Don't set the coords because we get the sequence from the transcript. */
 
       /* Lock out the entry boxes so they cannot be edited */
@@ -943,28 +949,24 @@ static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
    * is still open: the auto range does not update automatically for the new sequence. To 
    * mitigate this, connect the 'clicked' signal so that they can
    * click on the 'auto' toggle button and have it refresh, even if that button is already selected.*/
-  g_signal_connect(G_OBJECT(dialogData->autoButton),      "clicked", G_CALLBACK(onCoordsTypeToggled), dialogData);
-  g_signal_connect(G_OBJECT(dialogData->manualButton),    "clicked", G_CALLBACK(onCoordsTypeToggled), dialogData);
-  g_signal_connect(G_OBJECT(dialogData->transcriptButton),"clicked", G_CALLBACK(onCoordsTypeToggled), dialogData);
+  g_signal_connect(G_OBJECT(dialogData->autoButton),      "clicked", G_CALLBACK(onRefTypeToggled), dialogData);
+  g_signal_connect(G_OBJECT(dialogData->manualButton),    "clicked", G_CALLBACK(onRefTypeToggled), dialogData);
+  g_signal_connect(G_OBJECT(dialogData->transcriptButton),"clicked", G_CALLBACK(onRefTypeToggled), dialogData);
 
   g_signal_connect(G_OBJECT(lastSavedButton), "clicked", G_CALLBACK(onLastSavedButtonClicked), dialogData);
   g_signal_connect(G_OBJECT(fullRangeButton), "clicked", G_CALLBACK(onFullRangeButtonClicked), dialogData);
   g_signal_connect(G_OBJECT(bpRangeButton),   "clicked", G_CALLBACK(onBpRangeButtonClicked), dialogData);
 
-  /* Set the initial state of the toggle buttons and entry widgets (unset it and then set it to
-   * force the callback to be called) */
+  /* Set the initial state of the toggle buttons and entry widgets */
   switch (bc->dotterRefType)
     {
       case BLXDOTTER_REF_AUTO:
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->manualButton), TRUE);
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->autoButton), TRUE);
         break;
       case BLXDOTTER_REF_MANUAL:
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->autoButton), TRUE);
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->manualButton), TRUE);
         break;
       case BLXDOTTER_REF_TRANSCRIPT:
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->autoButton), TRUE);
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->transcriptButton), TRUE);
         break;
     }
