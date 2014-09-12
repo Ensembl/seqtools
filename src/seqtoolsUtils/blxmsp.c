@@ -1699,7 +1699,25 @@ void writeTranscriptToOutput(FILE *pipe,
 {
   g_return_if_fail(blxSeq && blxSeq->type == BLXSEQUENCE_TRANSCRIPT);
 
-  const int numMsps = g_list_length(blxSeq->mspList);
+  /* Count how many exons are within range */
+  int numMsps = 0;
+  GList *mspItem = blxSeq->mspList;
+
+  for ( ; mspItem; mspItem = mspItem->next)
+    {
+      const MSP* msp = (const MSP*)(mspItem->data);
+      
+      /* Only output exons. Also, if an exon has child msps then ignore it and only output the children */
+      if (mspIsExon(msp) && !msp->childMsps)
+        {
+          /* It's possible that some exons may be out of bounds: clip them, or if completely out
+           * of range ignore this exon. */
+          if (msp->qRange.min < refSeqRange->max && msp->qRange.max > refSeqRange->min)
+            {
+              ++numMsps;
+            }
+        }
+    }
 
   if (numMsps < 1)
     return;
@@ -1708,13 +1726,14 @@ void writeTranscriptToOutput(FILE *pipe,
           blxSeq->type,
           blxSeq->strand,
           numMsps); /* output number of msps so we know how many to read in */
-      
-  stringProtect(pipe, blxSequenceGetName(blxSeq));
+
+  const char* transcriptName = blxSequenceGetName(blxSeq);
+  stringProtect(pipe, transcriptName);
   stringProtect(pipe, blxSeq->idTag);
       
   fputc('\n', pipe);
   
-  GList *mspItem = blxSeq->mspList;
+  mspItem = blxSeq->mspList;
   int i = 0; /* keeps track of current transcript coord */
   
   for ( ; mspItem; mspItem = mspItem->next)
@@ -1745,7 +1764,7 @@ void writeTranscriptToOutput(FILE *pipe,
                       msp->sRange.max,
                       msp->qStrand,
                       msp->qFrame);
-              stringProtect(pipe, msp->qname);
+              stringProtect(pipe, transcriptName);
               stringProtect(pipe, msp->sname);
               stringProtect(pipe, msp->desc);
               fputc('\n', pipe);
