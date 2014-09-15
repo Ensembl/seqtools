@@ -416,7 +416,7 @@ typedef enum
 typedef enum
   {
     BLXDOTTER_MATCH_SELECTED,  /* call dotter on the currently-selected match sequence */
-    BLXDOTTER_MATCH_PASTED,    /* call dotter on a manually-pasted sequence */
+    BLXDOTTER_MATCH_ADHOC,     /* call dotter on a manually-pasted sequence */
     BLXDOTTER_MATCH_SELF       /* call dotter on the reference sequence vs itself */
   } DotterMatchType ;
 
@@ -521,7 +521,7 @@ typedef struct _BlxViewContext
     
     DotterRefType dotterRefType;            /* Whether to dotter a ref seq range or a transcript */
     DotterMatchType dotterMatchType;        /* Saved type of match to call dotter on */
-    char *dotterPastedSeq;                  /* Saves the sequence text the user pastes into the dotter dialog */
+    char *dotterAdhocSeq;                   /* Saves the sequence text the user pastes into the dotter dialog */
     gboolean dotterHsps;                    /* Whether the dotter "HSPs only" option is on by default */
     gboolean dotterSleep;                   /* Whether the sleep-dotter option is on by default */
     int dotterStart;                        /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
