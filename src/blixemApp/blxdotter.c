@@ -104,7 +104,6 @@ typedef enum {
 /* Local function declarations */
 static gboolean	      getDotterRange(GtkWidget *blxWindow, DotterMatchType matchType, const DotterRefType refType, int *dotterStart, int *dotterEnd, int *dotterZoom, GError **error);
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
-static gboolean	      smartDotterRangeSelf(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
 static gboolean	      callDotterOnSelf(DotterDialogData *dialogData, GError **error);
 static gboolean	      callDotterOnAdhocSeq(DotterDialogData *dialogData, GError **error);
 static char*          getSelectedSequenceDNA(GtkWidget *blxWindow, GError **error); 
@@ -1309,17 +1308,7 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
   if ((dotterStart && *dotterStart == UNSET_INT) || (dotterEnd && *dotterEnd == UNSET_INT))
     {
       /* Calculate automatic coords */
-      switch (matchType)
-        {
-          default: /* fall through */
-          case BLXDOTTER_MATCH_SELECTED:
-          case BLXDOTTER_MATCH_ADHOC:
-            success = smartDotterRange(blxWindow, dotterStart, dotterEnd, &tmpError);
-            break;
-          case BLXDOTTER_MATCH_SELF:
-            success = smartDotterRangeSelf(blxWindow, dotterStart, dotterEnd, &tmpError);
-            break;
-        }
+      success = smartDotterRange(blxWindow, dotterStart, dotterEnd, &tmpError);
     }
 
   if (success && !tmpError && matchType == BLXDOTTER_MATCH_SELECTED)
@@ -1364,35 +1353,6 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
     }
 
   return success;
-}
-
-
-/* Attempts to set the range of dotter in a sensible way, when calling dotter on the reference
- * sequence versus itself. */
-static gboolean smartDotterRangeSelf(GtkWidget *blxWindow,
-				     int *dotter_start_out,
-				     int *dotter_end_out,
-				     GError **error)
-{
-  /* We'll just use a large-ish range centred on the current display range */
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
-  
-  int mid = getRangeCentre(displayRange);
-
-  /* Convert to DNA coords */
-  mid = convertDisplayIdxToDnaIdx(mid, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  
-  const int offset = DEFAULT_DOTTER_RANGE_SELF / 2;
-
-  *dotter_start_out = mid - offset;
-  *dotter_end_out = *dotter_start_out + DEFAULT_DOTTER_RANGE_SELF;
-
-  boundsLimitValue(dotter_start_out, &bc->refSeqRange);
-  boundsLimitValue(dotter_end_out, &bc->refSeqRange);
-  
-  return TRUE;
 }
 
 
