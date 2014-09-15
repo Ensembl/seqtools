@@ -113,8 +113,8 @@ static char*          getDotterTitle(const BlxViewContext *bc, const DotterMatch
 static char*          getDotterTitleAdhocSeq(const BlxViewContext *bc, const char *adhocSeq, const DotterRefType refType);
 static const char*    getDotterRefSeqName(const BlxViewContext *bc, const gboolean transcript);
 static gboolean       boundsCheckDotterCoord(int *coordIn, BlxViewContext *bc, GError **error);
-static int getDisplayCoord(const int coordIn, BlxViewContext *bc);
-static char *textViewGetText(GtkWidget *textView);
+static int            getDisplayCoord(const int coordIn, BlxViewContext *bc);
+static char*          textViewGetText(GtkWidget *textView);
 
 
 /*******************************************************************
@@ -516,13 +516,26 @@ static void onRefTypeToggled(GtkWidget *button, gpointer data)
   gtk_window_set_title(GTK_WINDOW(dialogData->dialog), title);
   g_free(title);
 
-  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->autoButton)))
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->manualButton)))
     {
-      dialogData->refType = BLXDOTTER_REF_AUTO;
+      dialogData->refType = BLXDOTTER_REF_MANUAL;
+
+      /* Manual coords. Leave values as they are but unlock the boxes so they can be edited. */
+      gtk_widget_set_sensitive(dialogData->startEntry, TRUE);
+      gtk_widget_set_sensitive(dialogData->endEntry, TRUE);
+      gtk_widget_set_sensitive(dialogData->zoomEntry, TRUE);
+    }
+  else
+    {
+      if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->transcriptButton)))
+        dialogData->refType = BLXDOTTER_REF_TRANSCRIPT;
+      else
+        dialogData->refType = BLXDOTTER_REF_AUTO;
 
       /* Recalculate auto start/end in case user has selected a different sequence */
       int autoStart = UNSET_INT, autoEnd = UNSET_INT;
-      getDotterRange(dialogData->blxWindow, dialogData->matchType, dialogData->refType, &autoStart, &autoEnd, NULL, NULL);
+      getDotterRange(dialogData->blxWindow, dialogData->matchType, dialogData->refType,
+                     &autoStart, &autoEnd, NULL, NULL);
 
       if (autoStart == UNSET_INT && autoEnd == UNSET_INT)
         {
@@ -543,26 +556,6 @@ static void onRefTypeToggled(GtkWidget *button, gpointer data)
       g_free(endString);
       g_free(zoomString);
       
-      /* Lock out the entry boxes so they cannot be edited */
-      gtk_widget_set_sensitive(dialogData->startEntry, FALSE);
-      gtk_widget_set_sensitive(dialogData->endEntry, FALSE);
-      gtk_widget_set_sensitive(dialogData->zoomEntry, FALSE);
-    }
-  else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->manualButton)))
-    {
-      dialogData->refType = BLXDOTTER_REF_MANUAL;
-
-      /* Manual coords. Leave values as they are but unlock the boxes so they can be edited. */
-      gtk_widget_set_sensitive(dialogData->startEntry, TRUE);
-      gtk_widget_set_sensitive(dialogData->endEntry, TRUE);
-      gtk_widget_set_sensitive(dialogData->zoomEntry, TRUE);
-    }
-  else
-    {
-      dialogData->refType = BLXDOTTER_REF_TRANSCRIPT;
-
-      /* Transcript button. Don't set the coords because we get the sequence from the transcript. */
-
       /* Lock out the entry boxes so they cannot be edited */
       gtk_widget_set_sensitive(dialogData->startEntry, FALSE);
       gtk_widget_set_sensitive(dialogData->endEntry, FALSE);
@@ -1039,17 +1032,11 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean resetValues)
   static DotterDialogData *dialogData = NULL;
 
   GtkWidget *dialog = getOrCreateDotterDialog(blxWindow, resetValues, &dialogData);
-
-  /* Temp cache the notebook page because it will change when we create the notebook */
-  //guint notebookPage = dialogData ? dialogData->notebookPage : 0;
   
   gtk_widget_show_all(dialog);
 
-  /* If just refreshing the dialog, re-instate the last notbook page that was selected. Note that
-   * we have to do this after the notebook widget is shown */
-  //if (!resetValues && dialogData && dialogData->notebook)
-  //  gtk_notebook_set_current_page(GTK_NOTEBOOK(dialogData->notebook), notebookPage);
-  
+  onRefTypeToggled(NULL, dialogData);
+
   if (resetValues)
     {
       gtk_window_present(GTK_WINDOW(dialog));
@@ -1281,20 +1268,36 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
 {
   g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
 
-  if (refType == BLXDOTTER_REF_TRANSCRIPT)
-    return TRUE;
-
   GError *tmpError = NULL;
   gboolean success = TRUE;
   
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
-  if (refType == BLXDOTTER_REF_MANUAL)
+
+  if (refType == BLXDOTTER_REF_TRANSCRIPT)
+    {
+      BlxSequence *transcriptSeq = blxContextGetSelectedTranscript(bc);
+
+      if (transcriptSeq)
+        {
+          if (dotterStart)
+            *dotterStart = transcriptSeq->qRangeFwd.min;
+
+          if (dotterEnd)
+            *dotterEnd = transcriptSeq->qRangeFwd.max;
+        }
+    }
+  else if (refType == BLXDOTTER_REF_MANUAL)
     {
       /* Use manual coords */
-      if (dotterStart) *dotterStart = bc->dotterStart;
-      if (dotterEnd) *dotterEnd = bc->dotterEnd;
-      if (dotterZoom) *dotterZoom = bc->dotterZoom;
+      if (dotterStart) 
+        *dotterStart = bc->dotterStart;
+
+      if (dotterEnd) 
+        *dotterEnd = bc->dotterEnd;
+
+      if (dotterZoom) 
+        *dotterZoom = bc->dotterZoom;
       
       if ((dotterStart && *dotterStart == UNSET_INT) || (dotterEnd && *dotterEnd == UNSET_INT))
 	{
@@ -1319,7 +1322,7 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
         }
     }
 
-  if (success && !tmpError)
+  if (success && !tmpError && matchType == BLXDOTTER_MATCH_SELECTED)
     {
       /* Check that there are valid MSPs within the dotter range. Set a warning if not. */
       gboolean found = FALSE;
