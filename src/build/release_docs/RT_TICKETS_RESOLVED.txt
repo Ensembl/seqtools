@@ -1,0 +1,30 @@
+
+Request Tracker Tickets Resolved from 02/07/2014 to 15/09/2014
+
+ticket/407536
+id: ticket/407536
+Queue: seqtools
+Subject: blixem crash
+Requestors: mpk@sanger.ac.uk
+Owner: gb10
+Resolved: Wed Jul 02 14:05:18 2014
+
+ticket/408965
+id: ticket/408965
+Queue: seqtools
+Subject: Blixem upper-cases hit names
+Requestors: mg13@sanger.ac.uk
+Owner: edgrif
+Resolved: Mon Jul 14 12:28:19 2014
+
+ticket/418836
+id: ticket/418836
+Queue: seqtools
+Subject: Feature request for ... blixem  (or zmap... or otterlace)
+Requestors: mpk@sanger.ac.uk
+Owner: gb10
+Resolved: Thu Sep 04 13:52:06 2014
+
+
+End of Request Tracker tickets
+
