@@ -1,6 +1,8 @@
 
 Git commits for  from commit "production" until commit "release/4.29"
 
+a22f8e1 2014-09-15 Update release notes for 4.29
+07e3049 2014-09-15 SeqTools version 4.28-39-gf6e3 - Update RT and git commit reports
 f6e36cf 2014-09-15 Merge branch 'feature/dotter_transcript' into develop
 4153f60 2014-09-12 Merge branch 'feature/dotter_transcript' into develop
 71c366b 2014-09-12 Merge branch 'feature/minimise_greyramp' into develop
@@ -14,6 +16,7 @@ b30b771 2014-09-02 Fix a bug with tree bootstrapping in Belvu
 5482625 2014-08-28 Minor updates to windows installation instructions
 e069c6d 2014-07-28 Merge branch 'production' into develop
 a944046 2014-07-28 Merge branch 'release/4.28' into develop
+
 
 End of git commits
 

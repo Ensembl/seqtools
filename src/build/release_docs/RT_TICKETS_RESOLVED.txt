@@ -1,5 +1,5 @@
 
-Request Tracker Tickets Resolved from 02/07/2014 to 15/09/2014
+Request Tracker Tickets Resolved from 02/07/2014 to 18/09/2014
 
 ticket/407536
 id: ticket/407536

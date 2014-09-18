@@ -1,4 +1,16 @@
 2014-09-15  Gemma Barson  <gb10@sanger.ac.uk>
+ Update release notes for 4.29
+ src/doc/User_doc/release_notes.html |   30 ++++++++++++++++++++++++++++++
+ 1 files changed, 30 insertions(+), 0 deletions(-)
+
+2014-09-15  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.28-39-gf6e3 - Update RT and git commit reports
+ src/ChangeLog                                  |  200 ++++++++++++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |   19 +++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   30 ++++
+ 3 files changed, 249 insertions(+), 0 deletions(-)
+
+2014-09-15  Gemma Barson  <gb10@sanger.ac.uk>
  Merge branch 'feature/dotter_transcript' into develop
 2014-09-15  Gemma Barson  <gb10@sanger.ac.uk>
  Dotter ref vs itself now uses big picture range
