@@ -5541,9 +5541,11 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->sequenceGroups = NULL;
   blxContext->matchSetGroup = NULL;
   
-  blxContext->autoDotter = TRUE;
-  blxContext->dotterSelf = FALSE;
+  blxContext->dotterRefType = BLXDOTTER_REF_AUTO;
+  blxContext->dotterMatchType = BLXDOTTER_MATCH_SELECTED;
+  blxContext->dotterAdhocSeq = NULL;
   blxContext->dotterHsps = FALSE;
+  blxContext->dotterSleep = FALSE;
   blxContext->dotterStart = UNSET_INT;
   blxContext->dotterEnd = UNSET_INT;
   blxContext->dotterZoom = 0;
@@ -5704,12 +5706,6 @@ int blxWindowGetNumFrames(GtkWidget *blxWindow)
   return blxContext ? blxContext->numFrames : UNSET_INT;
 }
 
-int blxWindowGetAutoDotter(GtkWidget *blxWindow)
-{
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContext ? blxContext->autoDotter : TRUE;
-}
-
 int blxWindowGetDotterStart(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
@@ -5811,6 +5807,59 @@ SequenceGroup *blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSeq
 }
 
 
+/* Return a list of all selected features of the given type. Result should be free'd by caller
+ * using g_list_free */
+GList *blxContextGetSelectedSeqsByType(const BlxViewContext *blxContext, const BlxSequenceType type)
+{
+  GList *result = NULL;
+
+  GList *list_item = blxContext->selectedSeqs;
+  
+  for ( ; list_item; list_item = list_item->next)
+    {
+      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
+      
+      if (curSeq->type == type)
+        {
+          result = g_list_append(result, curSeq);
+        }
+    }
+
+  return result;
+}
+
+
+/* If there is one (and only one) selected transcript then return it; otherwise return null */
+BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext)
+{
+  BlxSequence *result = NULL;
+
+  GList *list_item = blxContext->selectedSeqs;
+  
+  for ( ; list_item; list_item = list_item->next)
+    {
+      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
+      
+      if (curSeq->type == BLXSEQUENCE_TRANSCRIPT)
+        {
+          if (result)
+            {
+              /* Found more than one - don't know which to choose so return null */
+              result = NULL;
+              break;
+            }
+          else
+            {
+              /* First one found: set the result. Continue to make sure there aren't any more */
+              result = curSeq;
+            }
+        }
+    }
+
+  return result;
+}
+
+
 /* Returns the group that the given sequence belongs to, if any (assumes the sequence
  * is only in one group; otherwise it just returns the first group it finds). */
 SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind)
@@ -5852,10 +5901,35 @@ static void blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean useP
  *                        Selections                       *
  ***********************************************************/
 
+/* Return all the selected sequences */
 GList* blxWindowGetSelectedSeqs(GtkWidget *blxWindow)
 {
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->selectedSeqs : NULL;
+}
+
+
+/* Return a list of all selected features of the given type. Result should be free'd by caller
+ * using g_list_free */
+GList *blxWindowGetSelectedSeqsByType(GtkWidget *blxWindow, const BlxSequenceType type)
+{
+  GList *result = NULL;
+
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  result = blxContextGetSelectedSeqsByType(blxContext, type);
+
+  return result;
+}
+
+/* If there is one (and only one) selected transcript then return it; otherwise return null */
+BlxSequence* blxWindowGetSelectedTranscript(GtkWidget *blxWindow)
+{
+  BlxSequence *result = NULL;
+
+  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  result = blxContextGetSelectedTranscript(blxContext);
+
+  return result;
 }
 
 

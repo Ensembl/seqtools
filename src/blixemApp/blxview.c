@@ -607,11 +607,10 @@ static void blviewCreate(char *align_types,
           blxWindowSelectSeq(blixemWindow, msp->sSequence);
           
           GError *error = NULL;
-          char *dotterSSeq = getDotterSSeq(blixemWindow, &error);
           
           if (!error)
             {
-              callDotter(blixemWindow, FALSE, dotterSSeq, NULL);
+              callDotterOnSelectedSeq(blixemWindow, FALSE, FALSE, BLXDOTTER_REF_AUTO, NULL);
             }
             
           reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);

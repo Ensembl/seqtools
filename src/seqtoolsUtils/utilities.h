@@ -338,6 +338,7 @@ BlxStyle*             getBlxStyle(const char *styleName, GSList *styles, GError 
 
 void                  sortValues(int *val1, int *val2, gboolean forwards);
 int                   numDigitsInInt(int val);
+
 gboolean              getColorFromString(const char *colorStr, GdkColor *color, GError **error);
 void                  getSelectionColor(const GdkColor* const origColor, GdkColor *result);
 void                  getDropShadowColor(const GdkColor* const origColor, GdkColor *result);

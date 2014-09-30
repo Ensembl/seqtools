@@ -60,15 +60,15 @@ gboolean blixem_debug_G = FALSE ;
 #define USAGE_TEXT "\n\
  Blixem - display multiple alignments against a reference sequence.\n\
 \n\
- Usage: blixem [options] [<sequencefile>] <datafile> [X options] \n\
+ Usage: blixem [options] [<sequence_file>] <data_file> [X options] \n\
 \n\
-   <sequencefile> contains the reference sequence in FASTA format.\n\
-   <datafile> is a GFF v3 file containing alignments and other features.\n\
-   If <sequencefile> is ommitted, <datafile> should contain the reference\n\
+   <sequence_file> contains the reference sequence in FASTA format.\n\
+   <data_file> is a GFF v3 file containing alignments and other features.\n\
+   If <sequence_file> is ommitted, <data_file> should contain the reference\n\
    sequence in FASTA format, below a comment line that reads ##FASTA.\n\
 \n\
-   Both <sequencefile> and <datafile> can be substituted by \"-\"\n\
-   for reading from stdin (pipe).  If <sequencefile> is piped, the first\n\
+   Both <sequence_file> and <data_file> can be substituted by \"-\"\n\
+   for reading from stdin (pipe).  If <sequence_file> is piped, the first\n\
    line should contain the sequence name and the second the sequence itself.\n\
 \n\
 \n\
@@ -93,8 +93,14 @@ gboolean blixem_debug_G = FALSE ;
   --compiled\n\
     Show package compile date.\n\
 \n\
+  -d <data_file>, --data-file=<data_file>\n\
+    Alternative way of specifying <data_file> using an argument\n\
+\n\
   --dataset\n\
     Optional string to indicate a data-set that the alignments are from.\n\
+\n\
+  -e <sequence_file>, --sequence-file=<sequence_file>\n\
+    Alternative way of specifying <sequence_file> using an argument\n\
 \n\
   --dotter-first-match\n\
     Call Dotter on the first match to the right of the default start coord.\n\
@@ -282,9 +288,9 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->bigPictON = TRUE;          
   options->hideInactive = FALSE;         
   options->initSortColumn = BLXCOL_ID;
-  options->sortInverted = FALSE;	
+  options->sortInverted = FALSE;        
   options->highlightDiffs = FALSE;   
-  options->dotterFirst = FALSE;	
+  options->dotterFirst = FALSE; 
   options->startNextMatch = FALSE;
   options->squashMatches = FALSE;
   options->optionalColumns = FALSE;
@@ -448,13 +454,13 @@ int main(int argc, char **argv)
   signal(SIGSEGV, errorHandler);
   signal(SIGFPE, errorHandler);
 
-  FILE *seqfile, *FSfile;
-  char seqfilename[1000] = {'\0'};
-  char FSfilename[1000] = {'\0'};
+  FILE *seqfile = NULL, *FSfile = NULL;
+  char *seqfilename = NULL;
+  char *FSfilename = NULL;
   
   int install = 1;
-  static gboolean showVersion = FALSE;	    /* gets set to true if blixem was called with --version option */
-  static gboolean showCompiled = FALSE;	    /* gets set to true if blixem was called with --compiled option */
+  static gboolean showVersion = FALSE;      /* gets set to true if blixem was called with --version option */
+  static gboolean showCompiled = FALSE;     /* gets set to true if blixem was called with --compiled option */
   
   static gboolean rm_input_files = FALSE ; /* whether to remove input files once we're done with them */
   PfetchParams *pfetch = NULL ;
@@ -491,16 +497,16 @@ int main(int argc, char **argv)
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
     {
-      {"abbrev-title-off",	no_argument,        &options.abbrevTitle, 0},
-      {"abbrev-title-on",	no_argument,        &options.abbrevTitle, 1},
-      {"compiled",		no_argument,        &showCompiled, 1},
-      {"dataset",	        required_argument,  NULL, 0},
+      {"abbrev-title-off",      no_argument,        &options.abbrevTitle, 0},
+      {"abbrev-title-on",       no_argument,        &options.abbrevTitle, 1},
+      {"compiled",              no_argument,        &showCompiled, 1},
+      {"dataset",               required_argument,  NULL, 0},
       {"dotter-first-match",    no_argument,        &options.dotterFirst, 1},
       {"fetch-server",          required_argument,  NULL, 0},
       {"hide-big-picture",      no_argument,        &options.bigPictON, 0},
       {"hide-inactive-strand",  no_argument,        &options.hideInactive, 1},
       {"highlight-diffs",       no_argument,        &options.highlightDiffs, 1},
-      {"invert-sort",		no_argument,        &options.sortInverted, 1},
+      {"invert-sort",           no_argument,        &options.sortInverted, 1},
       {"optional-data",         no_argument,        &options.optionalColumns, 1},
       {"remove-input-files",    no_argument,        &rm_input_files, 1},
       {"save-temp-files",       no_argument,        &options.saveTempFiles, 1},
@@ -508,11 +514,13 @@ int main(int argc, char **argv)
       {"sort-mode",             required_argument,  NULL, 0},
       {"squash-matches",        no_argument,        &options.squashMatches, 1},
       {"start-next-match",      no_argument,        &options.startNextMatch, 1},
-      {"version",		no_argument,        &showVersion, 1},
+      {"version",               no_argument,        &showVersion, 1},
       {"zoom-whole",            no_argument,        &options.zoomWhole, 1},
 
       {"alignment-names",       required_argument,  0, 'a'},
       {"config-file",           required_argument,  0, 'c'},
+      {"data-file",             required_argument,  0, 'd'},
+      {"sequence-file",         required_argument,  0, 'e'},
       {"help",                  no_argument,        0, 'h'},
       {"disable-install",       no_argument,        0, 'i'}, /* "secret" option (hide from user) */
       {"map-coords",            required_argument,  0, 'm'}, 
@@ -527,18 +535,20 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
    };
 
-  const char  *optstring="a:c:him:no:rs:t:wx:y:z:";
+  const char  *optstring="a:c:d:e:him:no:rs:t:wx:y:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
   int          optc;        /* the current option gets stored here */
   gboolean wait = FALSE ;
-
+  gboolean have_args = FALSE;
 
   while ((optc = getopt_long(argc, argv, optstring, long_options, &optionIndex)) != EOF)
     {
+      have_args = TRUE;
+
       switch (optc)
-	{
+        {
         case 0:
             if (long_options[optionIndex].flag != 0)
               {
@@ -556,28 +566,34 @@ int main(int argc, char **argv)
               }
             else if (stringsEqual(long_options[optionIndex].name, "dataset", TRUE))
               {
-		options.dataset = g_strdup(optarg);
+                options.dataset = g_strdup(optarg);
               }
           break; 
           
         case '?':
           break; /* getopt_long already printed an error message */
           
-	case 'a':
-	  align_types = g_strdup_printf("%s", optarg) ;
-	  break;
-	case 'c': 
-	  config_file = g_strdup(optarg) ;
-	  break;
-	case 'h': 
+        case 'a':
+          align_types = g_strdup_printf("%s", optarg) ;
+          break;
+        case 'c': 
+          config_file = g_strdup(optarg) ;
+          break;
+        case 'd': 
+          FSfilename = g_strdup(optarg) ;
+          break;
+        case 'e': 
+          seqfilename = g_strdup(optarg) ;
+          break;
+        case 'h': 
           {
-	    showHelpText(supportedTypes, EXIT_SUCCESS);
+            showHelpText(supportedTypes, EXIT_SUCCESS);
             exit(EXIT_SUCCESS) ;
             break;
           }
-	case 'i':
-	  install = 0;
-	  break;
+        case 'i':
+          install = 0;
+          break;
         case 'm':
           {
             options.mapCoords = TRUE;
@@ -593,16 +609,16 @@ int main(int argc, char **argv)
         case 'n':
           options.negateCoords = TRUE;
           break;
-	case 'o':
+        case 'o':
           options.refSeqOffset = convertStringToInt(optarg);
-	  break;
+          break;
         case 'r':
           options.activeStrand = BLXSTRAND_REVERSE;
           break ;
         case 's': 
-	  options.startCoord = atoi(optarg);
+          options.startCoord = atoi(optarg);
           options.startCoordSet = TRUE;
-	  break;
+          break;
         case 't':
           options.seqType = getSeqTypeFromChar(*optarg);
           break;
@@ -610,9 +626,9 @@ int main(int argc, char **argv)
           wait = TRUE;
           break ;
         case 'x': 
-	  xtra_data = TRUE ;
-	  strcpy(xtra_filename, optarg);
-	  break;
+          xtra_data = TRUE ;
+          strcpy(xtra_filename, optarg);
+          break;
         case 'y':
           key_file = g_strdup(optarg) ;
           break;
@@ -641,8 +657,14 @@ int main(int argc, char **argv)
             break;
           }
             
-	default : g_error("Illegal option\n");
-	}
+        default : g_error("Illegal option\n");
+        }
+    }
+
+  if (!have_args)
+    {
+      showUsageText(EXIT_SUCCESS);
+      exit(EXIT_SUCCESS);
     }
 
   if (wait)
@@ -669,14 +691,7 @@ int main(int argc, char **argv)
   blxDestroyGffTypeList(&supportedTypes);
   supportedTypes = blxCreateSupportedGffTypeList(options.seqType);
   
-  /* We expect one or two input files */
   const int numFiles = argc - optind;
-  if (!(numFiles == 1 || numFiles == 2))
-    {
-      showUsageText(EXIT_FAILURE);
-      exit(EXIT_FAILURE);
-    }
-
 
   /* Add -install for private colormaps */
   if (install)
@@ -705,26 +720,45 @@ int main(int argc, char **argv)
   /* Get the file names */
   if (numFiles == 1)
     {
-      /* We have a single file containing both the aligments and the ref seq */
-      strcpy(FSfilename, argv[optind]);
+      if (!FSfilename)
+        {
+          /* We have a single file containing both the aligments and the ref seq */
+          FSfilename = g_strdup(argv[optind]);
+        }
+      else
+        {
+          g_error("Data file specified twice - please specify at the last argument OR using the -d argument.");
+        }
     }
   else if (numFiles == 2)
     {
-      /* The ref seq is in a separate file (the first arg) */
-      strcpy(seqfilename, argv[optind]);
-      strcpy(FSfilename, argv[optind+1]);
+      if (!seqfilename && !FSfilename)
+        {
+          /* The ref seq is in a separate file (the first arg) */
+          seqfilename = g_strdup(argv[optind]);
+          FSfilename = g_strdup(argv[optind+1]);
+        }
+      else 
+        {
+          if (seqfilename && FSfilename)
+            g_error("Sequence file and data file specified twice - please specify these as the last arguments OR using the -e and -d arguments.");
+          else if (seqfilename)
+            g_error("Sequence file specified twice - please specify this as the penultimate argument OR using the -e argument.");
+          else if (FSfilename)
+            g_error("Data file specified twice - please specify this as the last argument OR using the-d argument.");
+        }
     }
-  else
+  else if (numFiles > 2)
     {
       showUsageText(EXIT_FAILURE);
     }
 
   /* Parse the data file containing the homol descriptions.                */
-  if (!strcmp(FSfilename, "-"))
+  if (FSfilename && !strcmp(FSfilename, "-"))
     {
       FSfile = stdin;
     }
-  else if(!(FSfile = fopen(FSfilename, "r")))
+  else if(FSfilename && !(FSfile = fopen(FSfilename, "r")))
     {
       g_error("Cannot open file %s\n", FSfilename);
     }
@@ -755,9 +789,12 @@ int main(int argc, char **argv)
   if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_NONE)
     options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
   
-  parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
-          &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, inputConfigFile, lookupTable, &error) ;
-  
+  if (FSfile)
+    {
+      parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
+              &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, inputConfigFile, lookupTable, &error) ;
+    }
+
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);  
 
   /* Now see if blast mode was set and set seqtype from it if not already set... */
@@ -766,7 +803,7 @@ int main(int argc, char **argv)
 
   /* Parse the reference sequence, if we have a separate sequence file (and it was
    * not already specified in the features file) */
-  if (!options.refSeq && numFiles == 2)
+  if (!options.refSeq && seqfilename)
     {
       /* Open the file (or stdin) */
       if (!strcmp(seqfilename, "-"))
@@ -796,7 +833,7 @@ int main(int argc, char **argv)
       options.refSeqRange.max = strlen(options.refSeq);
     }
 
-  if (FSfile != stdin)
+  if (FSfile && FSfile != stdin)
     {
       fclose(FSfile) ;
     }
@@ -805,9 +842,9 @@ int main(int argc, char **argv)
   if (xtra_data)
     {
       if(!(xtra_file = fopen(xtra_filename, "r")))
-	{
-	  g_error("Cannot open %s\n", xtra_filename) ;
-	}
+        {
+          g_error("Cannot open %s\n", xtra_filename) ;
+        }
       
       parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
               &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig(), lookupTable, &error) ;
@@ -819,14 +856,14 @@ int main(int argc, char **argv)
   /* Remove the input files if requested.                                  */
   if (rm_input_files)
     {
-      if(seqfilename[0] != '\0' && unlink(seqfilename) != 0)
+      if(seqfilename && seqfilename[0] != '\0' && unlink(seqfilename) != 0)
         {
           char *msg = getSystemErrorText();
           g_warning("Unlink of sequence input file \"%s\" failed: %s\n", seqfilename, msg) ;
           g_free(msg);
         }
         
-      if(FSfilename[0] != '\0' && unlink(FSfilename) != 0)
+      if(FSfilename && FSfilename[0] != '\0' && unlink(FSfilename) != 0)
         {
           char *msg = getSystemErrorText();
           g_warning("Unlink of MSP input file \"%s\" failed: %s\n", FSfilename, msg) ;
@@ -841,6 +878,12 @@ int main(int argc, char **argv)
         }
     }
 
+
+  if (seqfilename)
+    g_free(seqfilename);
+
+  if (FSfilename)
+    g_free(FSfilename);
   
   /* Now display the alignments. (Note that TRUE signals blxview() that it is being called from
    * this standalone blixem program instead of as part of acedb. */
