@@ -4363,7 +4363,11 @@ static void readMul(BelvuContext *bc, FILE *pipe)
       char *cp = strchr(line, '\n');
       if (cp) 
         *cp = 0;
-      
+
+      cp = strchr(line, '\r');
+      if (cp)
+        *cp = 0;
+
       int lineLen = strlen(line);
 
       if (lineLen > 0 && *line != '#' && strcmp(line, "//") != 0)
