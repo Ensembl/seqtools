@@ -541,7 +541,7 @@ static void createBlixemObject(BlxGffData *gffData,
           /* For transcripts, although we don't create an MSP we do create a sequence */
           addBlxSequence(gffData->sName, gffData->sName_orig, gffData->idTag, gffData->qStrand,
                          dataType, gffData->source, seqList, columnList, gffData->sequence, NULL, 
-                         lookupTable, &tmpError);
+                         lookupTable, NULL, &tmpError);
         }
     }
   else
@@ -598,6 +598,7 @@ static void createBlixemObject(BlxGffData *gffData,
 			      gffData->sequence, 
                               filename,
                               lookupTable,
+                              NULL,
 			      &tmpError);
 
     if (!tmpError)

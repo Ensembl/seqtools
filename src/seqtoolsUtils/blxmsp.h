@@ -418,7 +418,7 @@ MSP*                  createNewMsp(GArray* featureLists[],
                                    const BlxStrand qStrand, const int qFrame,
                                    const char *sName, const char *const sName_orig, int sStart, const int sEnd, 
                                    const BlxStrand sStrand, char *sequence,
-                                   const GQuark filename, GHashTable *lookupTable, GError **error);  
+                                   const GQuark filename, GHashTable *lookupTable, BlxSequence *blxSeq, GError **error);  
 MSP*                  copyMsp(const MSP* const src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, const gboolean addToParent);
 
 //void                  insertFS(MSP *msp, char *series);
@@ -444,7 +444,7 @@ void                  addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GE
 BlxSequence*          addBlxSequence(const char *name, const char *name_orig, const char *idTag,
                                      BlxStrand strand, BlxDataType *dataType, const char *source,
                                      GList **seqList, GList *columnList, char *sequence, MSP *msp,
-                                     GHashTable *lookupTable, GError **error);
+                                     GHashTable *lookupTable, BlxSequence *blxSeq, GError **error);
 GList*                blxSequenceConstructCdsList(BlxSequence *seq);
 void                  blxSequenceSetValue(const BlxSequence *seq, const int columnId, GValue *value);
 void                  blxSequenceSetValueFromString(const BlxSequence *seq, const int columnId, const char *inputStr);

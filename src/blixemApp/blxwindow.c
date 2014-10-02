@@ -762,6 +762,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
   MSP *newMsps = NULL;
   GList *newSeqs = NULL;
   GError *tmp_error = NULL;
+  int numAdded = 0;
 
   /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
   GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
@@ -787,14 +788,17 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
     {
       /* Count how many features were added. (Need to do this before blxMergeFeatures because
        * once this list gets merged the count will no longer be correct.) */
-      const int numAdded = g_list_length(newSeqs);
+      numAdded = g_list_length(newSeqs);
 
       /* Fetch any missing sequence data and finalise the new sequences */
       bulkFetchSequences(0, FALSE, bc->saveTempFiles, bc->seqType, &newSeqs, bc->columnList,
                          bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
                          bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
                          &bc->refSeqRange, bc->dataset, FALSE, lookupTable);
+    }
 
+  if (newMsps)
+    {
       finaliseFetch(newSeqs, bc->columnList);
 
       finaliseBlxSequences(bc->featureLists, &newMsps, &newSeqs, bc->columnList, bc->refSeqOffset, bc->seqType, 
