@@ -468,7 +468,7 @@ static void addFeaturesToCompactTree(GtkWidget *tree, GtkListStore *store, GtkWi
                     gtk_list_store_set(store, &iter, columnInfo->columnIdx, prevMsp->sRange.max, -1);
                   else
                     {
-                      GValue *val = blxSequenceGetValue(msp->sSequence, columnInfo->columnId);
+                      GValue *val = blxSequenceGetValue(prevMsp->sSequence, columnInfo->columnId);
                       if (val) gtk_list_store_set_value(store, &iter, columnInfo->columnIdx, val);
                     }
                 }
