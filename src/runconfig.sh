@@ -23,9 +23,10 @@ switch ( $opsys )
     switch ( $arch )
       case "x86_64":
       case "ia64":
-        # Our 64-bit machines do not have a recent enough version of GTK, so use the version in /software
-        set pkgpath=/software/acedb/gtk/lib/pkgconfig
-        set ldflags="-Xlinker -rpath -Xlinker /software/acedb/gtk/lib"
+        # gb10: This is no longer required but is left here as an example in case we need 
+        # to write similar code in future...
+        #set pkgpath=/software/acedb/gtk/lib/pkgconfig
+        #set ldflags="-Xlinker -rpath -Xlinker /software/acedb/gtk/lib"
         breaksw
       default:
         breaksw
