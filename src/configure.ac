@@ -90,7 +90,7 @@ echo " Warning: libcurl not found; excluding blixemh
 fi
 
 if test "$HAVE_SQLITE3" -eq 0; then
-echo " Warning: sqlite3 not found"
+echo " Warning: sqlite3 not found
 "
 fi
 
