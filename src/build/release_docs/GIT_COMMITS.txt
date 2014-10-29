@@ -1,6 +1,7 @@
 
 Git commits for  from commit "production" until commit "release/4.30"
 
+cbf0858 2014-10-23 SeqTools version 4.29-6-gf0e18 - Update RT and git commit reports
 f0e1839 2014-10-17 creation of release notes after build
 2262889 2014-10-17 SeqTools version 4.29-4-gd795 - Update RT and git commit reports
 d795577 2014-10-17 Fix potential crash with accessing null value
