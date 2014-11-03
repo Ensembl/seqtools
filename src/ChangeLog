@@ -1,212 +1,55 @@
-2014-09-15  Gemma Barson  <gb10@sanger.ac.uk>
- Update release notes for 4.29
- src/doc/User_doc/release_notes.html |   30 ++++++++++++++++++++++++++++++
- 1 files changed, 30 insertions(+), 0 deletions(-)
+2014-10-30  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.29-8-ge868 - Update RT and git commit reports
+ src/ChangeLog                                  |    7 +++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 3 files changed, 9 insertions(+), 1 deletions(-)
 
-2014-09-15  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.28-39-gf6e3 - Update RT and git commit reports
- src/ChangeLog                                  |  200 ++++++++++++++++++++++++
- src/build/release_docs/GIT_COMMITS.txt         |   19 +++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |   30 ++++
- 3 files changed, 249 insertions(+), 0 deletions(-)
+2014-10-29  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.29-7-gcbf0 - Update RT and git commit reports
+ src/ChangeLog                                  |    7 +++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 3 files changed, 9 insertions(+), 1 deletions(-)
 
-2014-09-15  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'feature/dotter_transcript' into develop
-2014-09-15  Gemma Barson  <gb10@sanger.ac.uk>
- Dotter ref vs itself now uses big picture range
- src/blixemApp/blxdotter.c |   42 +-----------------------------------------
- 1 files changed, 1 insertions(+), 41 deletions(-)
+2014-10-23  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.29-6-gf0e18 - Update RT and git commit reports
+ src/ChangeLog                                  |   12 ++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    2 ++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 3 files changed, 15 insertions(+), 1 deletions(-)
 
-2014-09-15  Gemma Barson  <gb10@sanger.ac.uk>
- Fix minor issues with dotter dialog updates
- src/blixemApp/blxdotter.c |   85 +++++++++++++++++++++++---------------------
- 1 files changed, 44 insertions(+), 41 deletions(-)
+2014-10-17  Steve Miller  <sm23@sanger.ac.uk>
+ creation of release notes after build
+ src/doc/User_doc/release_notes.html |   11 +++++++++++
+ 1 files changed, 11 insertions(+), 0 deletions(-)
 
-2014-09-15  Gemma Barson  <gb10@sanger.ac.uk>
- Tidying: reorganise file
- src/blixemApp/blxdotter.c | 1160 +++++++++++++++++++++++----------------------
- 1 files changed, 588 insertions(+), 572 deletions(-)
+2014-10-17  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.29-4-gd795 - Update RT and git commit reports
+ src/ChangeLog                                  |  234 +++---------------------
+ src/build/release_docs/GIT_COMMITS.txt         |   21 +--
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   26 +---
+ 3 files changed, 28 insertions(+), 253 deletions(-)
 
-2014-09-15  Gemma Barson  <gb10@sanger.ac.uk>
- Tidying and improvements to dotter dialog
- src/blixemApp/blixem_.h   |    4 +-
- src/blixemApp/blxdotter.c |  350 ++++++++++++++++++++++++---------------------
- src/blixemApp/blxwindow.c |    2 +-
- 3 files changed, 189 insertions(+), 167 deletions(-)
+2014-10-17  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix potential crash with accessing null value
+ src/blixemApp/detailviewtree.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'feature/dotter_transcript' into develop
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- don't reset dialog page when select seq
- src/blixemApp/blxdotter.c |   26 +++++++++++++++++++++++++-
- 1 files changed, 25 insertions(+), 1 deletions(-)
+2014-10-02  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix infinite loop loading features file
+ src/blixemApp/blxview.c           |   22 ++++++++++++++++------
+ src/blixemApp/blxwindow.c         |    6 +++++-
+ src/seqtoolsUtils/blxGff3Parser.c |    3 ++-
+ src/seqtoolsUtils/blxmsp.c        |   34 ++++++++++++++++++++++------------
+ src/seqtoolsUtils/blxmsp.h        |    4 ++--
+ src/seqtoolsUtils/blxparser.c     |   12 ++++++------
+ 6 files changed, 53 insertions(+), 28 deletions(-)
 
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Don't reset to cached values when selecting sequence
- src/blixemApp/blxdotter.c |   49 +++++++++++++++++++++++---------------------
- 1 files changed, 26 insertions(+), 23 deletions(-)
+2014-10-01  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix a bug reading files with carriage return chars
+ src/belvuApp/belvu.c |    6 +++++-
+ 1 files changed, 5 insertions(+), 1 deletions(-)
 
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Minor improvements to tooltips and window size
- src/blixemApp/blxdotter.c |   31 ++++++++++++++++++++++++++-----
- 1 files changed, 26 insertions(+), 5 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'feature/minimise_greyramp' into develop
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Minimise greyramp tool by default
- src/dotterApp/dotter.c |   24 +++++++++++++++++++++---
- 1 files changed, 21 insertions(+), 3 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- WIP: minimised greyramp tool
- src/dotterApp/dotter.c       |   12 +++-
- src/dotterApp/dotter_.h      |    1 +
- src/dotterApp/greyramptool.c |  175 ++++++++++++++++++++++++++++++++++++------
- 3 files changed, 162 insertions(+), 26 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'feature/dotter_transcript' into develop
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Fix bugs with sending transcript to dotter
- src/seqtoolsUtils/blxmsp.c |   29 ++++++++++++++++++++++++-----
- 1 files changed, 24 insertions(+), 5 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Add option to sleep dotter on startup
- src/blixemApp/blixem_.h   |    1 +
- src/blixemApp/blxdotter.c |   53 +++++++++++++++++++++++++++++++++++++++-----
- src/blixemApp/blxdotter.h |    2 +-
- src/blixemApp/blxview.c   |    2 +-
- src/blixemApp/blxwindow.c |    1 +
- 5 files changed, 51 insertions(+), 8 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Add sleep argument to dotter
- src/dotterApp/dotterMain.c |    9 +++++++++
- 1 files changed, 9 insertions(+), 0 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Fix bug sending transcript to dotter
- src/seqtoolsUtils/blxmsp.c |   10 +++++++---
- 1 files changed, 7 insertions(+), 3 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- WIP: pass transcript to dotter
- src/blixemApp/blxdotter.c  |   42 +++++++++++++++++++-----
- src/seqtoolsUtils/blxmsp.c |   77 +++++++++++++++++++++++++++++++++++++++++---
- src/seqtoolsUtils/blxmsp.h |    1 +
- 3 files changed, 106 insertions(+), 14 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'feature/dotter_transcript' into develop
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Fix bug with caching ref seq type to dotter against
- src/blixemApp/blxdotter.c |   65 ++++++++++++++++++++++-----------------------
- src/blixemApp/blxdotter.h |    4 +-
- src/blixemApp/blxview.c   |    2 +-
- 3 files changed, 35 insertions(+), 36 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Update dotter title with transcript name
- src/blixemApp/blxdotter.c |   92 +++++++++++++++++++++++++++++++-------------
- src/blixemApp/blxwindow.c |   88 +++++++++++++++++++++++++++----------------
- src/blixemApp/blxwindow.h |    2 +
- 3 files changed, 122 insertions(+), 60 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Fix minor bug with cached dotter type not updating
- src/blixemApp/blxdotter.c |   22 ++++++++++++----------
- 1 files changed, 12 insertions(+), 10 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Set correct dotter title for transcript
- src/blixemApp/blxdotter.c |   31 ++++++++++++++++++++++---------
- 1 files changed, 22 insertions(+), 9 deletions(-)
-
-2014-09-12  Gemma Barson  <gb10@sanger.ac.uk>
- Cache dotter-transcript setting
- src/blixemApp/blixem_.h   |   10 +++++-
- src/blixemApp/blxdotter.c |   73 +++++++++++++++++++++++++++++----------------
- src/blixemApp/blxwindow.c |    8 +----
- src/blixemApp/blxwindow.h |    1 -
- 4 files changed, 57 insertions(+), 35 deletions(-)
-
-2014-09-11  Gemma Barson  <gb10@sanger.ac.uk>
- WIP: add facility to dotter vs transcript sequence
- src/blixemApp/blxdotter.c     |  166 ++++++++++++++++++++++++++++-------------
- src/blixemApp/blxdotter.h     |    2 +-
- src/blixemApp/blxview.c       |    2 +-
- src/blixemApp/blxwindow.c     |   56 ++++++++++++++
- src/blixemApp/blxwindow.h     |    2 +
- src/seqtoolsUtils/blxmsp.c    |   65 ++++++++++++++++
- src/seqtoolsUtils/blxmsp.h    |    2 +
- src/seqtoolsUtils/utilities.h |    1 +
- 8 files changed, 241 insertions(+), 55 deletions(-)
-
-2014-09-10  Gemma Barson  <gb10@sanger.ac.uk>
- Allow blixem to open on a fasta file only
- src/blixemApp/blxmain.c |  179 +++++++++++++++++++++++++++++------------------
- 1 files changed, 111 insertions(+), 68 deletions(-)
-
-2014-09-04  Gemma Barson  <gb10@sanger.ac.uk>
- Remove spurious warning when dottering otf
- src/blixemApp/blxdotter.c |   16 ----------------
- 1 files changed, 0 insertions(+), 16 deletions(-)
-
-2014-09-04  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'feature/dotter_otf' into develop
-2014-09-04  Gemma Barson  <gb10@sanger.ac.uk>
- Tidy layout of dotter dialog
- src/blixemApp/blxdotter.c |   13 +++++++------
- 1 files changed, 7 insertions(+), 6 deletions(-)
-
-2014-09-04  Gemma Barson  <gb10@sanger.ac.uk>
- Update dotter dialog title when toggle match type
- src/blixemApp/blxdotter.c |  123 ++++++++++++++++++++++++++++-----------------
- 1 files changed, 76 insertions(+), 47 deletions(-)
-
-2014-09-04  Gemma Barson  <gb10@sanger.ac.uk>
- Set dotter dialog title for on-the-fly dotter
- src/blixemApp/blxdotter.c |  199 ++++++++++++++++++++++++++++++++-------------
- 1 files changed, 143 insertions(+), 56 deletions(-)
-
-2014-09-04  Gemma Barson  <gb10@sanger.ac.uk>
- Save previously-used pasted sequence
- src/blixemApp/blixem_.h   |    1 +
- src/blixemApp/blxdotter.c |   42 +++++++++++++++++++++++++++++++++++++++---
- src/blixemApp/blxwindow.c |    1 +
- 3 files changed, 41 insertions(+), 3 deletions(-)
-
-2014-09-04  Gemma Barson  <gb10@sanger.ac.uk>
- Allow user to paste fasta or raw sequence in dotter dialog
- src/blixemApp/blxdotter.c |  214 +++++++++++++++++++++++++++++++++------------
- 1 files changed, 158 insertions(+), 56 deletions(-)
-
-2014-09-04  Gemma Barson  <gb10@sanger.ac.uk>
- Allow user to paste raw sequence to send to dotter
- src/blixemApp/blixem_.h   |   12 +-
- src/blixemApp/blxdotter.c |  540 ++++++++++++++++++++++++++++++++++-----------
- src/blixemApp/blxdotter.h |    3 +-
- src/blixemApp/blxview.c   |    3 +-
- src/blixemApp/blxwindow.c |    2 +-
- 5 files changed, 419 insertions(+), 141 deletions(-)
-
-2014-09-02  Gemma Barson  <gb10@sanger.ac.uk>
- Fix a bug with tree bootstrapping in Belvu
- src/belvuApp/belvu.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-2014-09-01  Gemma Barson  <gb10@sanger.ac.uk>
- Add RT and git notes files
- 0 files changed, 0 insertions(+), 0 deletions(-)
-
-2014-08-28  Gemma Barson  <gb10@sanger.ac.uk>
- Minor updates to windows installation instructions
- src/INSTALL.windows |    4 +++-
- 1 files changed, 3 insertions(+), 1 deletions(-)
-
-2014-07-28  Ed Griffiths  <edgrif@sanger.ac.uk>
+2014-09-30  Gemma Barson  <gb10@sanger.ac.uk>
  Merge branch 'production' into develop
-2014-07-28  Ed Griffiths  <edgrif@sanger.ac.uk>
- Merge branch 'release/4.28' into develop

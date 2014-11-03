@@ -69,7 +69,7 @@ static void addBlxSequences(const char *name, const char *name_orig, const char 
                             BlxStrand strand, BlxDataType *dataType, const char *source, 
                             GArray *featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
                             GList *columnList, char *sequence, 
-                            MSP *msp, GHashTable *lookupTable, GError **error);
+                            MSP *msp, GHashTable *lookupTable, BlxSequence *blxSeq, GError **error);
 static void findSequenceExtents(BlxSequence *blxSeq);
 static MSP* createMissingMsp(const BlxMspType newType,
                              const int newStart,
@@ -1562,7 +1562,7 @@ static void copyBlxSequenceNamedCds(const BlxSequence *src,
            * i.e. the first time we get here for this idTag) */
           addBlxSequence(newMsp->sname, newMsp->sname_orig, idTag, sStrand, dataType, 
                          source, seqList, columnList, 
-                         NULL, newMsp, lookupTable, &tmpError);
+                         NULL, newMsp, lookupTable, NULL, &tmpError);
         }
     }
 
@@ -2108,6 +2108,7 @@ MSP* createNewMsp(GArray* featureLists[],
                   char *sequence,
                   const GQuark filename,
                   GHashTable *lookupTable, 
+                  BlxSequence *blxSeq,
                   GError **error)
 {
   MSP *msp = createEmptyMsp(lastMsp, mspList);
@@ -2148,7 +2149,7 @@ MSP* createNewMsp(GArray* featureLists[],
     {
       addBlxSequences(msp->sname, msp->sname_orig, idTag, sStrand, dataType, source, 
                       featureLists, lastMsp, mspList, seqList,
-                      columnList, sequence, msp, lookupTable, error);
+                      columnList, sequence, msp, lookupTable, blxSeq, error);
     }
 
   if (error && *error)
@@ -2316,7 +2317,7 @@ static MSP* createMissingMsp(const BlxMspType newType,
                             qname, newStart, newEnd, blxSeq->strand, newFrame,
                             blxSequenceGetName(blxSeq), blxSequenceGetName(blxSeq),
                             UNSET_INT, UNSET_INT, blxSeq->strand, NULL,
-                            0, lookupTable, &tmpError);
+                            0, lookupTable, blxSeq, &tmpError);
       
       result->style = newStyle;
       
@@ -2532,7 +2533,7 @@ static void constructExonData(BlxSequence *blxSeq,
                                curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
                                blxSequenceGetName(blxSeq), blxSequenceGetName(blxSeq),
                                UNSET_INT, UNSET_INT, blxSeq->strand, NULL, 
-                               0, lookupTable, &tmpError);
+                               0, lookupTable, blxSeq, &tmpError);
                   
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }
@@ -3244,12 +3245,18 @@ static void addBlxSequences(const char *name,
                             char *sequence, 
                             MSP *msp_in, 
                             GHashTable *lookupTable,
+                            BlxSequence *blxSeq,
                             GError **error)
 {
   GError *tmpError = NULL;
   MSP *msp = msp_in;
 
-  if (idTag)
+  if (blxSeq)
+    {
+      /* Add to existing blx sequence */
+      addBlxSequence(msp->sname, msp->sname_orig, idTag, strand, dataType, source, seqList, columnList, sequence, msp, lookupTable, blxSeq, &tmpError);
+    }
+  else if (idTag)
     {
       /* For exons and introns, the ID tag we receive is the parent tag, and it may contain
        * multiple parent transcripts. In this case we need to add the msp to multiple parent
@@ -3268,7 +3275,7 @@ static void addBlxSequences(const char *name,
 
           if (!tmpError)
             addBlxSequence(msp->sname, msp->sname_orig, *token, strand,
-                           dataType, source, seqList, columnList, sequence, msp, lookupTable, &tmpError);
+                           dataType, source, seqList, columnList, sequence, msp, lookupTable, NULL, &tmpError);
 
           usedMsp = TRUE;
           ++token;
@@ -3278,7 +3285,7 @@ static void addBlxSequences(const char *name,
     }
   else
     {
-      addBlxSequence(msp->sname, msp->sname_orig, idTag, strand, dataType, source, seqList, columnList, sequence, msp, lookupTable, &tmpError);
+      addBlxSequence(msp->sname, msp->sname_orig, idTag, strand, dataType, source, seqList, columnList, sequence, msp, lookupTable, NULL, &tmpError);
     }
 
   if (tmpError)
@@ -3302,11 +3309,12 @@ BlxSequence* addBlxSequence(const char *name,
 			    char *sequence, 
 			    MSP *msp, 
                             GHashTable *lookupTable,
-			    GError **error)
+                            BlxSequence *blxSeq_in,
+                            GError **error)
 {
-  BlxSequence *blxSeq = NULL;
+  BlxSequence *blxSeq = blxSeq_in;
 
-  if (name || idTag)
+  if (blxSeq || name || idTag)
     {
       /* If this is an exon or intron the match strand is not applicable. The exon should 
        * be in the same direction as the ref seq, so use the ref seq strand. */
@@ -3318,7 +3326,9 @@ BlxSequence* addBlxSequence(const char *name,
       /* See if this sequence already exists. This matches on name (if linkFeaturesByName is
        * true) or on tag, and strand. */
       gboolean linkFeaturesByName = dataTypeGetFlag(dataType, MSPFLAG_LINK_FEATURES_BY_NAME);
-      blxSeq = findBlxSequence(lookupTable, name, idTag, strand, linkFeaturesByName);
+
+      if (!blxSeq)
+        blxSeq = findBlxSequence(lookupTable, name, idTag, strand, linkFeaturesByName);
       
       if (!blxSeq)
         {

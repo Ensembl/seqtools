@@ -309,14 +309,24 @@ static void populateMissingDataFromParent(BlxSequence *curSeq, GList *seqList, G
  * list into seqList. Takes ownership of the contents of both newMsps and newSeqs. */
 void blxMergeFeatures(MSP *newMsps, GList *newSeqs, MSP **mspList, GList **seqList)
 {
-  /* Append new MSPs to MSP list */
-  MSP *lastMsp = *mspList;
+  g_return_if_fail(mspList && seqList);
+
+  if (mspList && *mspList)
+    {
+      /* Append new MSPs to MSP list */
+      MSP *lastMsp = *mspList;
   
-  while (lastMsp->next)
-    lastMsp = lastMsp->next;
+      while (lastMsp->next)
+        lastMsp = lastMsp->next;
   
-  lastMsp->next = newMsps;
-  
+      lastMsp->next = newMsps;
+    }
+  else
+    {
+      /* Create new msp list */
+      *mspList = newMsps;
+    }
+
   /* Append new sequences to sequence list */
   *seqList = g_list_concat(*seqList, newSeqs);
 }
