@@ -1,6 +1,7 @@
 
 Git commits for  from commit "production" until commit "release/4.31"
 
+588ac2d 2014-11-12 SeqTools version 4.30-7-g8cf9 - Update RT and git commit reports
 8cf9694 2014-11-03 Merge branch 'production' into develop
 2c10b1e 2014-11-03 Merge branch 'release/4.30' into develop
 5b10ee8 2014-10-28 Fix typo in configure.ac causing it to fail
