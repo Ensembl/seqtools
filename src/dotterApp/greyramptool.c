@@ -59,19 +59,19 @@
 
 
 /* Local function declarations */
-static void                       onCloseMenu(GtkAction *action, gpointer data);
+static void onMinimiseMenu(GtkAction *action, gpointer data);
 
 
 /* Menu builders */
 static const GtkActionEntry greyrampToolMenuEntries[] = {
-{ "Close",        NULL, "_Minimise",              NULL,	"Minimise the greyramp tool",             G_CALLBACK(onCloseMenu)},
+{ "MinimiseGreyramp", NULL, "_Minimise greyramp", "<control>G", "Minimise the greyramp tool", G_CALLBACK(onMinimiseMenu)},
 };
 
 /* This defines the layout of the menu */
 static const char greyrampToolMenuDescription[] =
 "<ui>"
 "  <popup name='MainMenu'>"
-"      <menuitem action='Close'/>"
+"      <menuitem action='MinimiseGreyramp'/>"
 "  </popup>"
 "</ui>";
 
@@ -292,7 +292,7 @@ static gboolean onDeleteGreyrampTool(GtkWidget *widget, GdkEvent *event, gpointe
 /* This closes the greyramp tool. The menu is called "minimise" because when we close this tool,
  * dotter shows a minimsed version of it instead (it's not a true minimised tool though because
  * it's a separate widget). */
-static void onCloseMenu(GtkAction *action, gpointer data)
+static void onMinimiseMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *greyrampTool = GTK_WIDGET(data);
   GreyrampProperties *properties = greyrampGetProperties(greyrampTool);

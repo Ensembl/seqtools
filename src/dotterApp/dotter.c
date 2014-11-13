@@ -201,6 +201,7 @@ static void                       onHelpMenu(GtkAction *action, gpointer data);
 static void                       onAboutMenu(GtkAction *action, gpointer data);
 static void                       onCopyHCoordMenu(GtkAction *action, gpointer data);
 static void                       onCopyVCoordMenu(GtkAction *action, gpointer data);
+static void                       onMaximiseGreyrampMenu(GtkAction *action, gpointer data);
 static void                       onToggleUsePrintColorsMenu(GtkAction *action, gpointer data);
 static void                       onToggleBumpExonsMenu(GtkAction *action, gpointer data);
 static void                       onToggleDockWindowsMenu(GtkAction *action, gpointer data);
@@ -223,7 +224,8 @@ static const GtkActionEntry menuEntries[] = {
 { "Help",           GTK_STOCK_HELP,         "_Help",                  "<control>H", "Dotter Help",                G_CALLBACK(onHelpMenu)},
 { "About",          GTK_STOCK_ABOUT,        "_About",                 NULL,         "About Dotter",               G_CALLBACK(onAboutMenu)},
 { "CopyHCoord",     NULL,                   "Copy _horizontal coord", NULL,         "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
-{ "CopyVCoord",     NULL,                   "Copy _vertical coord",   NULL,         "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)}
+{ "CopyVCoord",     NULL,                   "Copy _vertical coord",   NULL,         "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)},
+{ "MaximiseGreyramp", NULL,                 "_Maximise greyramp",     "<control>G", "Maximise the greyramp tool", G_CALLBACK(onMaximiseGreyrampMenu)}
 };
 
 /* Toggle-able menu entries are listed here: */
@@ -235,7 +237,7 @@ static GtkToggleActionEntry toggleMenuEntries[] = {
 { "ToggleFullscreen", NULL, "Crosshair fullscreen",  NULL,  "Show the crosshair full screen", G_CALLBACK(onToggleFullscreenMenu),      TRUE},
 { "TogglePrintColors",NULL, "Use print colors",      NULL,  "Use print _colors",              G_CALLBACK(onToggleUsePrintColorsMenu),  FALSE},
 { "ToggleBumpExons",  NULL, "Bump exons",            "B",   "_Bump exons",                    G_CALLBACK(onToggleBumpExonsMenu),       FALSE},
-{ "ToggleGreyramp",   NULL, "_Greyramp tool",        "<control>G", "Show/hide the greyramp tool",G_CALLBACK(onShowHideGreyrampMenu),   TRUE},
+{ "ToggleGreyramp",   NULL, "_Greyramp tool",        "<control>G", "Maximise/minimise the greyramp tool",G_CALLBACK(onShowHideGreyrampMenu),   TRUE},
 { "ToggleAlignment",  NULL, "_Alignment tool",       "<control>A", "Show/hide the alignment tool",G_CALLBACK(onShowHideAlignmentMenu), TRUE},
 { "DockWindows",      NULL, "Dock windows",          "<control>K", "_Dock windows",           G_CALLBACK(onToggleDockWindowsMenu),     DOCK_WINDOWS_DEFAULT}
 };
@@ -321,6 +323,9 @@ static const char mainMenuDescription[] =
 "      <menuitem action='HspsLine'/>"
 "      <menuitem action='HspsFunc'/>"
 "    </menu>"
+"  </popup>"
+"  <popup name='GreyrampContextMenu' accelerators='true'>"
+"    <menuitem action='MaximiseGreyramp'/>"
 "  </popup>"
 "</ui>";
 
@@ -3105,6 +3110,14 @@ static void onCopyVCoordMenu(GtkAction *action, gpointer data)
   copyIntToDefaultClipboard(properties->dotterWinCtx->matchCoord);
 }
 
+/* Callback called when the user selects the 'maximise greyramp' menu option */
+static void onMaximiseGreyrampMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+
+  showHideGreyrampTool(dotterWindow, TRUE);
+}
+
 static void onShowHideGreyrampMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *dotterWindow = GTK_WIDGET(data);
@@ -3221,6 +3234,21 @@ static gboolean onButtonPressDotter(GtkWidget *window, GdkEventButton *event, gp
     {
       /* If the dot-plot was clicked the selected coords will have changed. Perform required updates. */
       updateOnSelectedCoordsChanged(window);
+      handled = TRUE;
+    }
+  
+  return handled;
+}
+
+/* Mouse button handler for the minimised greyramp widget that is embedded in the main window */
+static gboolean onButtonPressGreyrampWidget(GtkWidget *greyrampTool, GdkEventButton *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
+    {
+      GtkMenu *contextMenu = GTK_MENU(data);
+      gtk_menu_popup (contextMenu, NULL, NULL, NULL, NULL, event->button, event->time);
       handled = TRUE;
     }
   
@@ -3700,6 +3728,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   dwc->uiManager = createUiManager(dotterWindow, hspMode, &dwc->actionGroup);
   GtkWidget *menuBar = createDotterMenu(dotterWindow, mainMenuDescription, "/MenuBar", dwc->uiManager);
   GtkWidget *contextMenu = createDotterMenu(dotterWindow, mainMenuDescription, "/ContextMenu", dwc->uiManager);
+  GtkWidget *contextMenuGreyramp = createDotterMenu(dotterWindow, mainMenuDescription, "/GreyrampContextMenu", dwc->uiManager);
   
   blxSetWidgetColor(menuBar, windowColor);
 
@@ -3778,6 +3807,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   gtk_widget_add_events(dotterWindow, GDK_POINTER_MOTION_MASK);
   g_signal_connect(G_OBJECT(dotterWindow), "key-press-event", G_CALLBACK(onKeyPressDotterCoords), dotterWindow);
   g_signal_connect(G_OBJECT(dotterWindow), "button-press-event", G_CALLBACK(onButtonPressDotter), contextMenu);
+  g_signal_connect(G_OBJECT(greyrampToolMinimised), "button-press-event", G_CALLBACK(onButtonPressGreyrampWidget), contextMenuGreyramp);
   g_signal_connect(G_OBJECT(dotterWindow), "motion-notify-event", G_CALLBACK(onMouseMoveDotter), NULL);
   
   gtk_widget_show_all(dotterWindow);
