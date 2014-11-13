@@ -64,7 +64,7 @@ static void                       onCloseMenu(GtkAction *action, gpointer data);
 
 /* Menu builders */
 static const GtkActionEntry greyrampToolMenuEntries[] = {
-{ "Close",        NULL, "_Close tool\tCtrl-W",              NULL,	"Close the greyramp tool",             G_CALLBACK(onCloseMenu)},
+{ "Close",        NULL, "_Minimise",              NULL,	"Minimise the greyramp tool",             G_CALLBACK(onCloseMenu)},
 };
 
 /* This defines the layout of the menu */
@@ -289,6 +289,9 @@ static gboolean onDeleteGreyrampTool(GtkWidget *widget, GdkEvent *event, gpointe
   return TRUE;
 }
 
+/* This closes the greyramp tool. The menu is called "minimise" because when we close this tool,
+ * dotter shows a minimsed version of it instead (it's not a true minimised tool though because
+ * it's a separate widget). */
 static void onCloseMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *greyrampTool = GTK_WIDGET(data);
