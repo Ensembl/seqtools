@@ -58,24 +58,6 @@
 #define GRADIENT_RECT_FRAME_PADDING     10      /* padding around the outside of the gradient widget */
 
 
-/* Local function declarations */
-static void onMinimiseMenu(GtkAction *action, gpointer data);
-
-
-/* Menu builders */
-static const GtkActionEntry greyrampToolMenuEntries[] = {
-{ "MinimiseGreyramp", NULL, "_Minimise greyramp", "<control>G", "Minimise the greyramp tool", G_CALLBACK(onMinimiseMenu)},
-};
-
-/* This defines the layout of the menu */
-static const char greyrampToolMenuDescription[] =
-"<ui>"
-"  <popup name='MainMenu'>"
-"      <menuitem action='MinimiseGreyramp'/>"
-"  </popup>"
-"</ui>";
-
-
 
 typedef struct _CallbackItem
 {
@@ -284,21 +266,9 @@ static gboolean onDeleteGreyrampTool(GtkWidget *widget, GdkEvent *event, gpointe
   GreyrampProperties *properties = greyrampGetProperties(greyrampTool);
 
   if (properties && properties->dwc)
-    setToggleMenuStatus(properties->dwc->actionGroup, "ToggleGreyramp", FALSE);
+    dotterSetToggleMenuStatus(properties->dwc, "ToggleGreyramp", FALSE);
 
   return TRUE;
-}
-
-/* This closes the greyramp tool. The menu is called "minimise" because when we close this tool,
- * dotter shows a minimsed version of it instead (it's not a true minimised tool though because
- * it's a separate widget). */
-static void onMinimiseMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *greyrampTool = GTK_WIDGET(data);
-  GreyrampProperties *properties = greyrampGetProperties(greyrampTool);
-
-  if (properties && properties->dwc)
-    setToggleMenuStatus(properties->dwc->actionGroup, "ToggleGreyramp", FALSE);
 }
 
 
@@ -579,7 +549,7 @@ static void onCloseGreyramp(GtkWidget *greyramp, gpointer data)
   GreyrampProperties *properties = greyrampGetProperties(greyrampTool);
 
   if (properties && properties->dwc)
-    setToggleMenuStatus(properties->dwc->actionGroup, "ToggleGreyramp", FALSE);
+    dotterSetToggleMenuStatus(properties->dwc, "ToggleGreyramp", FALSE);
 }
 
 
@@ -787,44 +757,6 @@ static gint onPressSwapButton(GtkWidget *button, gpointer data)
   return TRUE;
 }
 
-/* Create the menu */
-static GtkWidget* createGreyrampToolMenu(GtkWidget *window, GtkWidget *greyrampTool)
-{
-  GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
-  gtk_action_group_add_actions (action_group, greyrampToolMenuEntries, G_N_ELEMENTS (greyrampToolMenuEntries), greyrampTool);
-  
-  GtkUIManager *ui_manager = gtk_ui_manager_new ();
-  gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
-  
-  GtkAccelGroup *accel_group = gtk_ui_manager_get_accel_group (ui_manager);
-  gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
-  
-  GError *error = NULL;
-  const char *menuDescription = greyrampToolMenuDescription;
-  
-  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
-    {
-      prefixError(error, "Building menus failed: ");
-      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
-    }
-
-  GtkWidget *result = gtk_ui_manager_get_widget (ui_manager, "/MainMenu");
-
-  return result;
-}
-
-
-/* Mouse button handler */
-static gboolean onButtonPressGreyrampTool(GtkWidget *window, GdkEventButton *event, gpointer data)
-{
-  if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
-    {
-      gtk_menu_popup (GTK_MENU (data), NULL, NULL, NULL, NULL, event->button, event->time);
-      return TRUE;
-    }
-  
-  return TRUE;
-}
 
 
 /***********************************************************
@@ -971,10 +903,6 @@ static GtkWidget *createGreyrampToolWindow(DotterWindowContext *dwc, GtkWidget *
   char *title = g_strdup_printf("%sGreyramp Tool", dotterGetTitlePrefix(dwc->dotterCtx));
   gtk_window_set_title(GTK_WINDOW(greyrampWindow), title);
   g_free(title);
-
-  /* Create the right-click menu */
-  GtkWidget *menu = createGreyrampToolMenu(greyrampWindow, greyrampTool);
-  g_signal_connect(G_OBJECT(greyrampTool), "button-press-event", G_CALLBACK(onButtonPressGreyrampTool), menu);
 
   /* Set event handlers */
   gtk_widget_add_events(greyrampTool, GDK_BUTTON_PRESS_MASK);

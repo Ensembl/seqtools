@@ -112,7 +112,6 @@ typedef struct _AlignmentToolProperties
   IntRange selectionRange;
   
   DotterWindowContext *dotterWinCtx;
-  GtkActionGroup *actionGroup;
 
   gboolean spliceSitesOn;
 } AlignmentToolProperties;
@@ -120,13 +119,6 @@ typedef struct _AlignmentToolProperties
 
 
 /* Local function declarations */
-static void                        onCloseMenu(GtkAction *action, gpointer data);
-static void                        onPrintMenu(GtkAction *action, gpointer data);
-static void                        onCopyHCoordMenu(GtkAction *action, gpointer data);
-static void                        onCopyVCoordMenu(GtkAction *action, gpointer data);
-static void                        onCopySelnMenu(GtkAction *action, gpointer data);
-static void                        onCopySelnCoordsMenu(GtkAction *action, gpointer data);
-static void                        onClearSelnMenu(GtkAction *action, gpointer data);
 static void                        drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool);
 static void                        drawSequenceHeader(GtkWidget *widget, GtkWidget *alignmentTool, GdkDrawable *drawable, const gboolean horizontal);
 static int                         getSequenceOffset(SequenceProperties *properties, DotterContext *dc);
@@ -138,7 +130,6 @@ static void                        highlightSequenceBase(SequenceProperties *seq
 static void                        selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmentTool);
 static int                         getDisplayStart(SequenceProperties *properties, DotterContext *dc);
 static char*                       getSequenceBetweenCoords(GtkWidget *sequenceWidget, const int startCoord, const int endCoord, DotterWindowContext *dwc);
-static void                        clearSequenceSelection(GtkWidget *alignmentTool);
 static int                         getSequenceStart(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords);
 static int                         getSequenceEnd(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords);
 static gboolean                    onDeleteAlignmentTool(GtkWidget *widget, GdkEvent *event, gpointer data);
@@ -150,35 +141,6 @@ static void highlightSpliceSite(SequenceProperties *seq1,
                                 const gboolean isStart,
                                 GdkGC *gc,
                                 GdkDrawable *drawable);
-
-
-/* Menu builders - standard menu entries */
-static const GtkActionEntry alignmentToolMenuEntries[] = {
-{ "ToggleAlignment",NULL, "_Close tool",              "<control>A", "Close the alignment tool",             G_CALLBACK(onCloseMenu)},
-{ "Print",          NULL, "_Print...",                "<control>P", "Print the alignment tool window",      G_CALLBACK(onPrintMenu)},
-{ "CopyHCoord",     NULL, "Copy _horizontal coord",   NULL,         "Copy the current horizontal sequence coord to the clipboard", G_CALLBACK(onCopyHCoordMenu)},
-{ "CopyVCoord",     NULL, "Copy _vertical coord",     NULL,         "Copy the current vertical sequence coord to the clipboard", G_CALLBACK(onCopyVCoordMenu)},
-{ "CopySeln",       NULL, "Copy selectio_n",          "<control>C", "Copy the current selection to the clipboard", G_CALLBACK(onCopySelnMenu)},
-{ "ClearSeln",      NULL, "C_lear current selection",  "Escape","Clear the current selection", G_CALLBACK(onClearSelnMenu)},
-{ "CopySelnCoords", NULL, "Copy selection coor_ds",   "<shift><control>C","Copy the start/end coords of the current selection to the clipboard", G_CALLBACK(onCopySelnCoordsMenu)}
-};
-
-
-/* This defines the layout of the menu */
-static const char alignmentToolMenuDescription[] =
-"<ui>"
-"  <popup name='MainMenu' accelerators='true'>"
-"      <menuitem action='CopyHCoord'/>"
-"      <menuitem action='CopyVCoord'/>"
-"      <menuitem action='CopySeln'/>"
-"      <menuitem action='CopySelnCoords'/>"
-"      <menuitem action='ClearSeln'/>"
-"      <separator/>"
-"      <menuitem action='ToggleAlignment'/>"
-"      <menuitem action='Print'/>"
-"  </popup>"
-"</ui>";
-
 
 
 
@@ -260,8 +222,7 @@ static void onDestroyAlignmentTool(GtkWidget *widget)
 
 static void alignmentToolCreateProperties(GtkWidget *widget,
                                           GtkWidget *alignmentWindow, 
-                                          DotterWindowContext *dotterWinCtx,
-                                          GtkActionGroup *actionGroup)
+                                          DotterWindowContext *dotterWinCtx)
 {
   if (widget)
     {
@@ -269,7 +230,6 @@ static void alignmentToolCreateProperties(GtkWidget *widget,
     
       properties->alignmentWindow = alignmentWindow;
       properties->dotterWinCtx = dotterWinCtx;
-      properties->actionGroup = actionGroup;
       properties->alignmentLen = DEFAULT_ALIGNMENT_LENGTH;
       properties->refDisplayRange.min = 0;
       properties->refDisplayRange.max = 20;
@@ -382,53 +342,6 @@ static gboolean onExposeMatchSequenceHeader(GtkWidget *widget, GdkEventExpose *e
 static void onAlignmentToolRangeChanged(GtkWidget *alignmentTool)
 {
   alignmentToolRedrawAll(alignmentTool);
-}
-
-
-/* Create the menu */
-static GtkWidget* createAlignmentToolMenu(GtkWidget *window, GtkWidget *alignmentTool, GtkActionGroup **actionGroup_out)
-{
-  GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
-  gtk_action_group_add_actions (action_group, alignmentToolMenuEntries, G_N_ELEMENTS (alignmentToolMenuEntries), alignmentTool);
-  enableMenuAction(action_group, "CopySeln", FALSE);
-  enableMenuAction(action_group, "CopySelnCoords", FALSE);
-  enableMenuAction(action_group, "ClearSeln", FALSE);
-
-  GtkUIManager *ui_manager = gtk_ui_manager_new ();
-  gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
-  
-  GtkAccelGroup *accel_group = gtk_ui_manager_get_accel_group (ui_manager);
-  gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
-  
-  GError *error = NULL;
-  const char *menuDescription = alignmentToolMenuDescription;
-  
-  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
-    {
-      prefixError(error, "Building menus failed: ");
-      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
-    }
-
-  if (actionGroup_out)
-    *actionGroup_out = action_group;
-  
-  return gtk_ui_manager_get_widget (ui_manager, "/MainMenu");
-}
-
-
-/* General mouse button handler */
-static gboolean onButtonPressAlignmentTool(GtkWidget *alignmentTool, GdkEventButton *event, gpointer data)
-{
-  gboolean handled = TRUE;
-  
-  if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
-    {
-      gtk_menu_popup (GTK_MENU (data), NULL, NULL, NULL, NULL, event->button, event->time);
-      handled = TRUE;
-    }
-  
-  
-  return handled;
 }
 
 
@@ -554,138 +467,6 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
 
 
 /***********************************************************
- *                          Menus                          *
- ***********************************************************/
-
-static void onCloseMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-
-  if (properties && properties->dotterWinCtx)
-    setToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleAlignment", FALSE);
-}
-
-
-/* Called when the user selects the print menu option */
-static void onPrintMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-  DotterWindowContext *dwc = properties->dotterWinCtx;
-
-  /* Set the background colour to something sensible for printing */
-  GdkColor *defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, TRUE);
-  setWidgetBackgroundColor(alignmentTool, defaultBgColor);
-  alignmentToolRedrawAll(alignmentTool);
-
-  /* Make sure cached drawables are re-drawn before we print them. */
-  gdk_window_process_all_updates();
-  
-  GtkWidget *window = gtk_widget_get_toplevel(alignmentTool);
-  blxPrintWidget(alignmentTool, NULL, GTK_WINDOW(window), &dwc->printSettings, &dwc->pageSetup, NULL, TRUE, PRINT_FIT_BOTH);
-
-  /* Revert the background colour */
-  defaultBgColor = getGdkColor(DOTCOLOR_BACKGROUND, dwc->dotterCtx->defaultColors, FALSE, dwc->usePrintColors);
-  setWidgetBackgroundColor(alignmentTool, defaultBgColor);
-  alignmentToolRedrawAll(alignmentTool);
-}
-
-
-/* Utility to copy an integer value as a string to the primary clipboard */
-static void copyIntToPrimaryClipboard(const int val)
-{
-  char *displayText = convertIntToString(val);
-  setPrimaryClipboardText(displayText);
-  g_free(displayText); 
-}
-
-/* Callback called when the user selects the 'copy horizontal coord' menu option */
-static void onCopyHCoordMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-  
-  copyIntToDefaultClipboard(properties->dotterWinCtx->refCoord);
-  copyIntToPrimaryClipboard(properties->dotterWinCtx->refCoord);
-}
-
-/* Callback called when the user selects the 'copy vertical coord' menu option */
-static void onCopyVCoordMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-
-  copyIntToDefaultClipboard(properties->dotterWinCtx->matchCoord);
-  copyIntToPrimaryClipboard(properties->dotterWinCtx->matchCoord);
-}
-
-/* Callback called when the user selects the 'copy selection' menu option */
-static void onCopySelnMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
-
-  if (atProperties->selectionWidget)
-    {
-      /* copy the selection to the clipboard */
-      char *text = getSequenceBetweenCoords(atProperties->selectionWidget,
-                                            atProperties->selectionRange.min,
-                                            atProperties->selectionRange.max,
-                                            atProperties->dotterWinCtx);
-
-      setDefaultClipboardText(text);
-      setPrimaryClipboardText(text);
-      
-      g_free(text);
-    }
-}
-
-/* Callback called when the user selects the 'copy selection coords' menu option */
-static void onCopySelnCoordsMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
-
-  if (atProperties->selectionWidget)
-    {
-      SequenceProperties *properties = sequenceGetProperties(atProperties->selectionWidget);
-      DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
-
-      /* Convert the selected coords to dna coords */
-      int start = convertToDnaIdx(atProperties->selectionRange.min, properties->horizontal, dc, properties->frame, 1);
-      int end = convertToDnaIdx(atProperties->selectionRange.max, properties->horizontal, dc, properties->frame, dc->numFrames);
-
-      /* Negate the coords for display, if necessary */
-      start = getDisplayCoord(start, dc, properties->horizontal);
-      end = getDisplayCoord(end, dc, properties->horizontal);
-
-      /* Swap start and end if strand is reversed */
-      if (properties->strand == BLXSTRAND_REVERSE)
-        {
-          int tmp = start;
-          start = end;
-          end = tmp;
-        }    
-
-      char *text = g_strdup_printf("%d, %d", start, end);
-
-      setDefaultClipboardText(text);
-      setPrimaryClipboardText(text);
-      
-      g_free(text);
-    }
-}
-
-/* Callback called when the user selects the 'clear selection' menu option */
-static void onClearSelnMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *alignmentTool = GTK_WIDGET(data);
-  clearSequenceSelection(alignmentTool);
-}
-
-
-/***********************************************************
  *                       Initialisation                    *
  ***********************************************************/
 
@@ -742,7 +523,6 @@ static void createRefSeqWidget(GtkWidget *alignmentTool,
 /* Create a drawing-area widget and add it to the given table in the
  * given row. Increments the row number when done. the given expose
  * function will draw the widget. */
-                          
 static void createDrawingAreaWidget(DotterContext *dc,
                                     GCallback exposeFunc,
                                     gpointer exposeFuncData,
@@ -839,7 +619,7 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
 
 
 /* Create a window to hold the alignment tool when it is un-docked */
-static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, GtkWidget *alignmentTool, GtkActionGroup **actionGroup_out)
+static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, GtkWidget *alignmentTool)
 {
   GtkWidget *alignmentWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size(GTK_WINDOW(alignmentWindow), 1160, -1);
@@ -847,10 +627,6 @@ static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, GtkWidget 
   char *title = g_strdup_printf("%sAlignment tool", dotterGetTitlePrefix(dwc->dotterCtx));
   gtk_window_set_title(GTK_WINDOW(alignmentWindow), title);
   g_free(title);
-
-  /* Create the right-click menu */
-  GtkWidget *menu = createAlignmentToolMenu(alignmentWindow, alignmentTool, actionGroup_out);
-  g_signal_connect(G_OBJECT(alignmentTool), "button-press-event", G_CALLBACK(onButtonPressAlignmentTool), menu);
 
   g_signal_connect(G_OBJECT(alignmentWindow), "delete-event", G_CALLBACK(onDeleteAlignmentTool), alignmentTool);
 
@@ -871,12 +647,11 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **al
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(alignmentTool), vbox);
 
-  GtkActionGroup *actionGroup = NULL;
-  GtkWidget *alignmentWindow = createAlignmentToolWindow(dotterWinCtx, alignmentTool, &actionGroup);
+  GtkWidget *alignmentWindow = createAlignmentToolWindow(dotterWinCtx, alignmentTool);
     
   /* Remember the headers so we can store them in the properties. We'll need to update them
    * when the range updates since they contain the centre coord of the current display range. */
-  alignmentToolCreateProperties(alignmentTool, alignmentWindow, dotterWinCtx, actionGroup);
+  alignmentToolCreateProperties(alignmentTool, alignmentWindow, dotterWinCtx);
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
 
@@ -1156,7 +931,7 @@ static gboolean onDeleteAlignmentTool(GtkWidget *widget, GdkEvent *event, gpoint
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
 
   if (properties && properties->dotterWinCtx)
-    setToggleMenuStatus(properties->dotterWinCtx->actionGroup, "ToggleAlignment", FALSE);
+    dotterSetToggleMenuStatus(properties->dotterWinCtx, "ToggleAlignment", FALSE);
 
   return TRUE;
 }
@@ -1352,14 +1127,12 @@ static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
 static void setSelectionWidget(AlignmentToolProperties *atProperties, GtkWidget *selectionWidget)
 {
   atProperties->selectionWidget = selectionWidget;
-  enableMenuAction(atProperties->actionGroup, "CopySelnCoords", selectionWidget != NULL);
-  enableMenuAction(atProperties->actionGroup, "CopySeln", selectionWidget != NULL);
-  enableMenuAction(atProperties->actionGroup, "ClearSeln", selectionWidget != NULL);
+  dotterEnableSelectionMenus(atProperties->dotterWinCtx, selectionWidget != NULL);
 }
 
 
 /* This clears the current selection */
-static void clearSequenceSelection(GtkWidget *alignmentTool)
+void alignmentToolClearSequenceSelection(GtkWidget *alignmentTool)
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
 
@@ -1373,6 +1146,58 @@ static void clearSequenceSelection(GtkWidget *alignmentTool)
     }
 }
 
+void alignmentToolCopySeln(GtkWidget* alignmentTool)
+{
+  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+  if (atProperties->selectionWidget)
+    {
+      /* copy the selection to the clipboard */
+      char *text = getSequenceBetweenCoords(atProperties->selectionWidget,
+                                            atProperties->selectionRange.min,
+                                            atProperties->selectionRange.max,
+                                            atProperties->dotterWinCtx);
+
+      setDefaultClipboardText(text);
+      setPrimaryClipboardText(text);
+      
+      g_free(text);
+    }
+}
+
+void alignmentToolCopySelnCoords(GtkWidget *alignmentTool)
+{
+  AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+  if (atProperties->selectionWidget)
+    {
+      SequenceProperties *properties = sequenceGetProperties(atProperties->selectionWidget);
+      DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
+
+      /* Convert the selected coords to dna coords */
+      int start = convertToDnaIdx(atProperties->selectionRange.min, properties->horizontal, dc, properties->frame, 1);
+      int end = convertToDnaIdx(atProperties->selectionRange.max, properties->horizontal, dc, properties->frame, dc->numFrames);
+
+      /* Negate the coords for display, if necessary */
+      start = getDisplayCoord(start, dc, properties->horizontal);
+      end = getDisplayCoord(end, dc, properties->horizontal);
+
+      /* Swap start and end if strand is reversed */
+      if (properties->strand == BLXSTRAND_REVERSE)
+        {
+          int tmp = start;
+          start = end;
+          end = tmp;
+        }    
+
+      char *text = g_strdup_printf("%d, %d", start, end);
+
+      setDefaultClipboardText(text);
+      setPrimaryClipboardText(text);
+      
+      g_free(text);
+    }
+}
 
 /* Initiate dragging on a sequence widget */
 static void sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *alignmentTool, const int x)
@@ -1384,7 +1209,7 @@ static void sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *align
   atProperties->dragStart = getCoordAtPos(x, sequenceWidget, alignmentTool);
 
   /* flag that we should highlight the selected sequence (clear any current selection first) */
-  clearSequenceSelection(alignmentTool);
+  alignmentToolClearSequenceSelection(alignmentTool);
   
   atProperties->selectionRange.min = atProperties->dragStart;
   atProperties->selectionRange.max = atProperties->dragStart;
@@ -1436,7 +1261,7 @@ static void selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmen
 
   /* flag that we should highlight the selected sequence (clear any current
    * selection first) and set the coords of the highlighted bit */
-  clearSequenceSelection(alignmentTool);
+  alignmentToolClearSequenceSelection(alignmentTool);
 
   int start = getDisplayStart(properties, dc);
   int end = getDisplayEnd(properties, dc);
