@@ -804,6 +804,10 @@ static GtkWidget* createGreyrampToolbar(GtkTable *table,
   GtkWidget *swapButton = gtk_button_new_with_label("Swap");
   GtkWidget *undoButton = gtk_button_new_with_label("Undo");
 
+  gtk_widget_set_tooltip_text(quitButton, "Close the full greyramp tool and show the minimised version instead (Ctrl-G)");
+  gtk_widget_set_tooltip_text(swapButton, "Swap the black and white point to invert the colours");
+  gtk_widget_set_tooltip_text(undoButton, "Undo/redo the last change to the sliders");
+
   g_signal_connect(G_OBJECT(quitButton), "pressed", G_CALLBACK(onCloseGreyramp), greyramp); 
   g_signal_connect(G_OBJECT(undoButton), "pressed", G_CALLBACK(onPressUndoButton), greyramp);
   g_signal_connect(G_OBJECT(swapButton), "pressed", G_CALLBACK(onPressSwapButton), greyramp);
