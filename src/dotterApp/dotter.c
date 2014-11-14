@@ -162,7 +162,6 @@ static DotterContext*         dotterGetContext(GtkWidget *dotterWindow);
 static void                   redrawAll(GtkWidget *dotterWindow, gpointer data);
 static void                   refreshAll(GtkWidget *dotterWindow, gpointer data);
 static gboolean               onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data);
-static gboolean               onKeyPressDotterCoords(GtkWidget *widget, GdkEventKey *event, gpointer data);
 static gboolean               negateDisplayCoord(DotterContext *dc, const gboolean horizontal);
 static gboolean               setStartCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
 static gboolean               setEndCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue);
@@ -234,7 +233,7 @@ static const GtkActionEntry menuEntries[] = {
 { "MinimiseGreyramp", NULL,                 "M_inimise greyramp",     "<control>G", "Minimise the greyramp tool", G_CALLBACK(onMinimiseGreyrampMenu)},
 
 { "CloseAlignment", NULL, "_Close tool",              "<control>A",       "Close the alignment tool",                                            G_CALLBACK(onCloseAlignmentMenu)},
-{ "PrintAlignment", NULL, "_Print alignment...",      "<control>P",       "Print the alignment tool window",                                     G_CALLBACK(onPrintAlignmentMenu)},
+{ "PrintAlignment", NULL, "_Print alignment...",      NULL,               "Print the alignment tool window",                                     G_CALLBACK(onPrintAlignmentMenu)},
 { "CopyHCoord",     NULL, "Copy _horizontal coord",   NULL,               "Copy the current horizontal sequence coord to the clipboard",         G_CALLBACK(onCopyHCoordMenu)},
 { "CopyVCoord",     NULL, "Copy _vertical coord",     NULL,               "Copy the current vertical sequence coord to the clipboard",           G_CALLBACK(onCopyVCoordMenu)},
 { "CopySeln",       NULL, "Copy selectio_n",          "<control>C",       "Copy the current selection to the clipboard",                         G_CALLBACK(onCopySelnMenu)},
@@ -1257,7 +1256,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
        * the main window as data. */
       gtk_widget_add_events(alignmentWindow, GDK_KEY_PRESS_MASK);
       gtk_widget_add_events(greyrampWindow, GDK_KEY_PRESS_MASK);
-      g_signal_connect(G_OBJECT(alignmentWindow), "key-press-event", G_CALLBACK(onKeyPressDotterCoords), dotterWindow);
+      g_signal_connect(G_OBJECT(alignmentWindow), "key-press-event", G_CALLBACK(onKeyPressDotter), dotterWindow);
       g_signal_connect(G_OBJECT(greyrampWindow), "key-press-event", G_CALLBACK(onKeyPressDotter), dotterWindow);
 
       /* Keep track of all the windows we create, so that we can destroy the DotterContext when
@@ -2975,7 +2974,7 @@ void dotterSetToggleMenuStatus(DotterWindowContext *dwc,
                                const char *menuItem,
                                const gboolean enable)
 {
-  setToggleMenuStatus(dwc, menuItem, enable);
+  setToggleMenuStatus(dwc->actionGroup, menuItem, enable);
 }
 
 /***********************************************************
@@ -3613,6 +3612,24 @@ static gboolean onKeyPressA(GtkWidget *dotterWindow, const gboolean ctrlModifier
   return ctrlModifier;
 }
 
+/* Handle C key press (Ctrl-C => copy selection; Shift-Ctrl-C => copy selection coords) */
+static gboolean onKeyPressC(GtkWidget *dotterWindow, 
+                            const gboolean ctrlModifier,
+                            const gboolean shiftModifier)
+{
+  if (ctrlModifier)
+    {
+      DotterProperties *properties = dotterGetProperties(dotterWindow);
+
+      if (shiftModifier)
+        alignmentToolCopySelnCoords(properties->alignmentTool);
+      else
+        alignmentToolCopySeln(properties->alignmentTool);
+    }
+
+  return ctrlModifier;
+}
+
 /* Handle D key press (Ctrl-D => show dotplot) */
 static gboolean onKeyPressD(GtkWidget *dotterWindow, const gboolean ctrlModifier)
 {
@@ -3682,6 +3699,17 @@ static gboolean onKeyPressLeftRightBracket(GtkWidget *dotterWindow, const gboole
   incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->refCoord, dwc->dotterCtx->hozScaleRev, TRUE, !modifier, isLeft ? -1 : 1);
   incrementCoord(dotterWindow, dwc->dotterCtx, &dwc->matchCoord, dwc->dotterCtx->vertScaleRev, FALSE, !modifier, isLeft ? 1 : -1);
   return TRUE;
+
+}
+
+/* Handle Esc key press (clear selection) */
+static gboolean onKeyPressEsc(GtkWidget *dotterWindow)
+{
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+
+  alignmentToolClearSequenceSelection(properties->alignmentTool);
+
+  return TRUE;
 }
 
 
@@ -3693,73 +3721,56 @@ gboolean onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data)
   GtkWidget *dotterWindow = GTK_WIDGET(data);
   
   const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;  
+  const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;  
   
   switch (event->keyval)
     {
-      case GDK_Q:   /* fall through */
-      case GDK_q:   handled = onKeyPressQ(dotterWindow, ctrlModifier);              break;
-
-      case GDK_W:   /* fall through */
-      case GDK_w:   handled = onKeyPressW(widget, ctrlModifier);                    break;
-        
-      case GDK_H:   /* fall through */
-      case GDK_h:   handled = onKeyPressH(dotterWindow, ctrlModifier);              break;
-
-      case GDK_S:   /* fall through */
-      case GDK_s:   handled = onKeyPressS(dotterWindow, ctrlModifier);              break;
-
-      case GDK_G:   /* fall through */
-      case GDK_g:   handled = onKeyPressG(dotterWindow, ctrlModifier);              break;
-
       case GDK_A:   /* fall through */
       case GDK_a:   handled = onKeyPressA(dotterWindow, ctrlModifier);              break;
+
+      case GDK_C:   /* fall through */
+      case GDK_c:   handled = onKeyPressC(dotterWindow, ctrlModifier, shiftModifier); break;
 
       case GDK_D:   /* fall through */
       case GDK_d:   handled = onKeyPressD(dotterWindow, ctrlModifier);              break;
 
+      case GDK_G:   /* fall through */
+      case GDK_g:   handled = onKeyPressG(dotterWindow, ctrlModifier);              break;
+        
+      case GDK_H:   /* fall through */
+      case GDK_h:   handled = onKeyPressH(dotterWindow, ctrlModifier);              break;
+
       case GDK_K:   /* fall through */
       case GDK_k:   handled = onKeyPressK(dotterWindow, ctrlModifier);              break;
 
+      case GDK_Q:   /* fall through */
+      case GDK_q:   handled = onKeyPressQ(dotterWindow, ctrlModifier);              break;
+
+      case GDK_S:   /* fall through */
+      case GDK_s:   handled = onKeyPressS(dotterWindow, ctrlModifier);              break;
+
+      case GDK_W:   /* fall through */
+      case GDK_w:   handled = onKeyPressW(widget, ctrlModifier);                    break;
+
+      case GDK_Escape:        handled = onKeyPressEsc(widget);
+
+      case GDK_Up:            handled = onKeyPressUpDown(dotterWindow, TRUE, shiftModifier);        break;
+      case GDK_Down:          handled = onKeyPressUpDown(dotterWindow, FALSE, shiftModifier);       break;
+            
+      case GDK_Left:          handled = onKeyPressLeftRight(dotterWindow, TRUE, shiftModifier);     break;
+      case GDK_Right:         handled = onKeyPressLeftRight(dotterWindow, FALSE, shiftModifier);    break;
+            
+      case GDK_comma:         handled = onKeyPressCommaPeriod(dotterWindow, TRUE, shiftModifier);   break;
+      case GDK_less:          handled = onKeyPressCommaPeriod(dotterWindow, TRUE, shiftModifier);   break;
+      case GDK_period:        handled = onKeyPressCommaPeriod(dotterWindow, FALSE, shiftModifier);  break;
+      case GDK_greater:       handled = onKeyPressCommaPeriod(dotterWindow, FALSE, shiftModifier);  break;
+        
+      case GDK_bracketleft:   handled = onKeyPressLeftRightBracket(dotterWindow, TRUE, shiftModifier);        break;
+      case GDK_braceleft:     handled = onKeyPressLeftRightBracket(dotterWindow, TRUE, shiftModifier);        break;
+      case GDK_bracketright:  handled = onKeyPressLeftRightBracket(dotterWindow, FALSE, shiftModifier);       break;
+      case GDK_braceright:    handled = onKeyPressLeftRightBracket(dotterWindow, FALSE, shiftModifier);       break;
+        
       default: break;
-  }
-  
-  return handled;
-}
-
-
-/* Key press handler for dotter windows that move the selected coords (including main window and
- *  alignment tool.). */
-gboolean onKeyPressDotterCoords(GtkWidget *widget, GdkEventKey *event, gpointer data)
-{
-  gboolean handled = onKeyPressDotter(widget, event, data);
-  
-  if (!handled)
-    {
-      GtkWidget *dotterWindow = GTK_WIDGET(data);
-
-      const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
-      //  const gboolean altModifier = (event->state & GDK_MOD1_MASK) == GDK_MOD1_MASK;
-      
-      switch (event->keyval)
-        {
-          case GDK_Up:            handled = onKeyPressUpDown(dotterWindow, TRUE, shiftModifier);        break;
-          case GDK_Down:          handled = onKeyPressUpDown(dotterWindow, FALSE, shiftModifier);       break;
-            
-          case GDK_Left:          handled = onKeyPressLeftRight(dotterWindow, TRUE, shiftModifier);     break;
-          case GDK_Right:         handled = onKeyPressLeftRight(dotterWindow, FALSE, shiftModifier);    break;
-            
-          case GDK_comma:         handled = onKeyPressCommaPeriod(dotterWindow, TRUE, shiftModifier);   break;
-          case GDK_less:          handled = onKeyPressCommaPeriod(dotterWindow, TRUE, shiftModifier);   break;
-          case GDK_period:        handled = onKeyPressCommaPeriod(dotterWindow, FALSE, shiftModifier);  break;
-          case GDK_greater:       handled = onKeyPressCommaPeriod(dotterWindow, FALSE, shiftModifier);  break;
-            
-          case GDK_bracketleft:   handled = onKeyPressLeftRightBracket(dotterWindow, TRUE, shiftModifier);        break;
-          case GDK_braceleft:     handled = onKeyPressLeftRightBracket(dotterWindow, TRUE, shiftModifier);        break;
-          case GDK_bracketright:  handled = onKeyPressLeftRightBracket(dotterWindow, FALSE, shiftModifier);       break;
-          case GDK_braceright:    handled = onKeyPressLeftRightBracket(dotterWindow, FALSE, shiftModifier);       break;
-            
-          default: break;
-        }
     }
   
   return handled;
@@ -3944,7 +3955,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
 
   gtk_widget_add_events(dotterWindow, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(dotterWindow, GDK_POINTER_MOTION_MASK);
-  g_signal_connect(G_OBJECT(dotterWindow), "key-press-event", G_CALLBACK(onKeyPressDotterCoords), dotterWindow);
+  g_signal_connect(G_OBJECT(dotterWindow), "key-press-event", G_CALLBACK(onKeyPressDotter), dotterWindow);
   g_signal_connect(G_OBJECT(dotterWindow), "motion-notify-event", G_CALLBACK(onMouseMoveDotter), NULL);
   g_signal_connect(G_OBJECT(dotterWindow), "button-press-event", G_CALLBACK(onButtonPressDotter), contextMenu);
   g_signal_connect(G_OBJECT(greyrampTool), "button-press-event", G_CALLBACK(onButtonPressTool), contextMenuGreyrampMax);
