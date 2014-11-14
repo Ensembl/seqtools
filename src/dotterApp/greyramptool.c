@@ -758,6 +758,14 @@ static gint onPressSwapButton(GtkWidget *button, gpointer data)
 }
 
 
+static void onMaximiseGreyrampClicked(GtkWidget *button, gpointer data)
+{
+  GtkWidget *greyrampTool = GTK_WIDGET(data);
+  GreyrampProperties *properties = greyrampGetProperties(greyrampTool);
+
+  dotterSetToggleMenuStatus(properties->dwc, "ToggleGreyramp", TRUE);
+}
+
 
 /***********************************************************
  *                    Initialisation                       *
@@ -865,7 +873,7 @@ static GtkWidget* createGradientRect(GtkWidget *greyramp, GdkRectangle *rect)
 
 
 /* Create the minimised version of the rectangle area that displays the gradient */
-static GtkWidget* createGradientRectMinimised(GdkRectangle *rect)
+static GtkWidget* createGradientRectMinimised(GdkRectangle *rect, GtkWidget *greyrampTool)
 {
   /* Get the total size of the gradient area, including markers and padding */
   const int totalWidth = GRADIENT_RECT_WIDTH + (2 * GRADIENT_RECT_X_PADDING) ;
@@ -880,10 +888,10 @@ static GtkWidget* createGradientRectMinimised(GdkRectangle *rect)
   gtk_widget_add_events(greyramp, GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(greyramp, GDK_POINTER_MOTION_MASK);
   
-  g_signal_connect(G_OBJECT(greyramp), "expose-event", G_CALLBACK(onExposeGradientMinimised), greyramp);
-  g_signal_connect(G_OBJECT(greyramp), "button-press-event", G_CALLBACK(onButtonPressGradient), greyramp);
-  g_signal_connect(G_OBJECT(greyramp), "button-release-event", G_CALLBACK(onButtonReleaseGradient), greyramp);
-  g_signal_connect(G_OBJECT(greyramp), "motion-notify-event", G_CALLBACK(onMouseMoveGradient), greyramp);
+  g_signal_connect(G_OBJECT(greyramp), "expose-event", G_CALLBACK(onExposeGradientMinimised), greyrampTool);
+  g_signal_connect(G_OBJECT(greyramp), "button-press-event", G_CALLBACK(onButtonPressGradient), greyrampTool);
+  g_signal_connect(G_OBJECT(greyramp), "button-release-event", G_CALLBACK(onButtonReleaseGradient), greyrampTool);
+  g_signal_connect(G_OBJECT(greyramp), "motion-notify-event", G_CALLBACK(onMouseMoveGradient), greyrampTool);
   
   /* Set the size of the gradient rectangle to be drawn */
   rect->x = GRADIENT_RECT_X_PADDING_MIN;
@@ -919,11 +927,20 @@ GtkWidget* createGreyrampToolMinimised(DotterWindowContext *dwc,
 {
   DEBUG_ENTER("createGreyrampToolMinimised");
   
+  GtkWidget *greyrampTool = gtk_hbox_new(FALSE, 0) ;
+
   /* Create a layout for drawing the greyramp gradient onto. This will be in the first column,
    * spanning all rows */
   GdkRectangle gradientRect;
-  GtkWidget *greyrampTool = createGradientRectMinimised(&gradientRect);
-  
+  GtkWidget *gradient = createGradientRectMinimised(&gradientRect, greyrampTool);
+  gtk_box_pack_start(GTK_BOX(greyrampTool), gradient, TRUE, TRUE, 0);
+
+  /* Create a 'maximise' button to toggle to the full sized greyramp tool */
+  GtkWidget *button = gtk_button_new_with_label("Maximise");
+  gtk_box_pack_start(GTK_BOX(greyrampTool), button, FALSE, FALSE, 0);
+  g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onMaximiseGreyrampClicked), greyrampTool);
+  gtk_widget_set_tooltip_text(button, "Maximise the greyramp tool for more options (Ctrl-G)");
+
   greyrampCreateProperties(greyrampTool, 
                            NULL,
 			   dwc,
