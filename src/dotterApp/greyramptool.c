@@ -58,24 +58,6 @@
 #define GRADIENT_RECT_FRAME_PADDING     10      /* padding around the outside of the gradient widget */
 
 
-/* Local function declarations */
-static void                       onCloseMenu(GtkAction *action, gpointer data);
-
-
-/* Menu builders */
-static const GtkActionEntry greyrampToolMenuEntries[] = {
-{ "Close",        NULL, "_Close tool\tCtrl-W",              NULL,	"Close the greyramp tool",             G_CALLBACK(onCloseMenu)},
-};
-
-/* This defines the layout of the menu */
-static const char greyrampToolMenuDescription[] =
-"<ui>"
-"  <popup name='MainMenu'>"
-"      <menuitem action='Close'/>"
-"  </popup>"
-"</ui>";
-
-
 
 typedef struct _CallbackItem
 {
@@ -284,18 +266,9 @@ static gboolean onDeleteGreyrampTool(GtkWidget *widget, GdkEvent *event, gpointe
   GreyrampProperties *properties = greyrampGetProperties(greyrampTool);
 
   if (properties && properties->dwc)
-    setToggleMenuStatus(properties->dwc->actionGroup, "ToggleGreyramp", FALSE);
+    dotterSetToggleMenuStatus(properties->dwc, "ToggleGreyramp", FALSE);
 
   return TRUE;
-}
-
-static void onCloseMenu(GtkAction *action, gpointer data)
-{
-  GtkWidget *greyrampTool = GTK_WIDGET(data);
-  GreyrampProperties *properties = greyrampGetProperties(greyrampTool);
-
-  if (properties && properties->dwc)
-    setToggleMenuStatus(properties->dwc->actionGroup, "ToggleGreyramp", FALSE);
 }
 
 
@@ -576,7 +549,7 @@ static void onCloseGreyramp(GtkWidget *greyramp, gpointer data)
   GreyrampProperties *properties = greyrampGetProperties(greyrampTool);
 
   if (properties && properties->dwc)
-    setToggleMenuStatus(properties->dwc->actionGroup, "ToggleGreyramp", FALSE);
+    dotterSetToggleMenuStatus(properties->dwc, "ToggleGreyramp", FALSE);
 }
 
 
@@ -784,43 +757,13 @@ static gint onPressSwapButton(GtkWidget *button, gpointer data)
   return TRUE;
 }
 
-/* Create the menu */
-static GtkWidget* createGreyrampToolMenu(GtkWidget *window, GtkWidget *greyrampTool)
+
+static void onMaximiseGreyrampClicked(GtkWidget *button, gpointer data)
 {
-  GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
-  gtk_action_group_add_actions (action_group, greyrampToolMenuEntries, G_N_ELEMENTS (greyrampToolMenuEntries), greyrampTool);
-  
-  GtkUIManager *ui_manager = gtk_ui_manager_new ();
-  gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
-  
-  GtkAccelGroup *accel_group = gtk_ui_manager_get_accel_group (ui_manager);
-  gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
-  
-  GError *error = NULL;
-  const char *menuDescription = greyrampToolMenuDescription;
-  
-  if (!gtk_ui_manager_add_ui_from_string (ui_manager, menuDescription, -1, &error))
-    {
-      prefixError(error, "Building menus failed: ");
-      reportAndClearIfError(&error, G_LOG_LEVEL_ERROR);
-    }
+  GtkWidget *greyrampTool = GTK_WIDGET(data);
+  GreyrampProperties *properties = greyrampGetProperties(greyrampTool);
 
-  GtkWidget *result = gtk_ui_manager_get_widget (ui_manager, "/MainMenu");
-
-  return result;
-}
-
-
-/* Mouse button handler */
-static gboolean onButtonPressGreyrampTool(GtkWidget *window, GdkEventButton *event, gpointer data)
-{
-  if (event->type == GDK_BUTTON_PRESS && event->button == 3) /* right click */
-    {
-      gtk_menu_popup (GTK_MENU (data), NULL, NULL, NULL, NULL, event->button, event->time);
-      return TRUE;
-    }
-  
-  return TRUE;
+  dotterSetToggleMenuStatus(properties->dwc, "ToggleGreyramp", TRUE);
 }
 
 
@@ -860,6 +803,10 @@ static GtkWidget* createGreyrampToolbar(GtkTable *table,
   GtkWidget *quitButton = gtk_button_new_with_label("Close");
   GtkWidget *swapButton = gtk_button_new_with_label("Swap");
   GtkWidget *undoButton = gtk_button_new_with_label("Undo");
+
+  gtk_widget_set_tooltip_text(quitButton, "Close the full greyramp tool and show the minimised version instead (Ctrl-G)");
+  gtk_widget_set_tooltip_text(swapButton, "Swap the black and white point to invert the colours");
+  gtk_widget_set_tooltip_text(undoButton, "Undo/redo the last change to the sliders");
 
   g_signal_connect(G_OBJECT(quitButton), "pressed", G_CALLBACK(onCloseGreyramp), greyramp); 
   g_signal_connect(G_OBJECT(undoButton), "pressed", G_CALLBACK(onPressUndoButton), greyramp);
@@ -930,7 +877,7 @@ static GtkWidget* createGradientRect(GtkWidget *greyramp, GdkRectangle *rect)
 
 
 /* Create the minimised version of the rectangle area that displays the gradient */
-static GtkWidget* createGradientRectMinimised(GdkRectangle *rect)
+static GtkWidget* createGradientRectMinimised(GdkRectangle *rect, GtkWidget *greyrampTool)
 {
   /* Get the total size of the gradient area, including markers and padding */
   const int totalWidth = GRADIENT_RECT_WIDTH + (2 * GRADIENT_RECT_X_PADDING) ;
@@ -945,10 +892,10 @@ static GtkWidget* createGradientRectMinimised(GdkRectangle *rect)
   gtk_widget_add_events(greyramp, GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(greyramp, GDK_POINTER_MOTION_MASK);
   
-  g_signal_connect(G_OBJECT(greyramp), "expose-event", G_CALLBACK(onExposeGradientMinimised), greyramp);
-  g_signal_connect(G_OBJECT(greyramp), "button-press-event", G_CALLBACK(onButtonPressGradient), greyramp);
-  g_signal_connect(G_OBJECT(greyramp), "button-release-event", G_CALLBACK(onButtonReleaseGradient), greyramp);
-  g_signal_connect(G_OBJECT(greyramp), "motion-notify-event", G_CALLBACK(onMouseMoveGradient), greyramp);
+  g_signal_connect(G_OBJECT(greyramp), "expose-event", G_CALLBACK(onExposeGradientMinimised), greyrampTool);
+  g_signal_connect(G_OBJECT(greyramp), "button-press-event", G_CALLBACK(onButtonPressGradient), greyrampTool);
+  g_signal_connect(G_OBJECT(greyramp), "button-release-event", G_CALLBACK(onButtonReleaseGradient), greyrampTool);
+  g_signal_connect(G_OBJECT(greyramp), "motion-notify-event", G_CALLBACK(onMouseMoveGradient), greyrampTool);
   
   /* Set the size of the gradient rectangle to be drawn */
   rect->x = GRADIENT_RECT_X_PADDING_MIN;
@@ -969,10 +916,6 @@ static GtkWidget *createGreyrampToolWindow(DotterWindowContext *dwc, GtkWidget *
   gtk_window_set_title(GTK_WINDOW(greyrampWindow), title);
   g_free(title);
 
-  /* Create the right-click menu */
-  GtkWidget *menu = createGreyrampToolMenu(greyrampWindow, greyrampTool);
-  g_signal_connect(G_OBJECT(greyrampTool), "button-press-event", G_CALLBACK(onButtonPressGreyrampTool), menu);
-
   /* Set event handlers */
   gtk_widget_add_events(greyrampTool, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(greyrampWindow), "delete-event", G_CALLBACK(onDeleteGreyrampTool), greyrampTool);
@@ -988,11 +931,20 @@ GtkWidget* createGreyrampToolMinimised(DotterWindowContext *dwc,
 {
   DEBUG_ENTER("createGreyrampToolMinimised");
   
+  GtkWidget *greyrampTool = gtk_hbox_new(FALSE, 0) ;
+
   /* Create a layout for drawing the greyramp gradient onto. This will be in the first column,
    * spanning all rows */
   GdkRectangle gradientRect;
-  GtkWidget *greyrampTool = createGradientRectMinimised(&gradientRect);
-  
+  GtkWidget *gradient = createGradientRectMinimised(&gradientRect, greyrampTool);
+  gtk_box_pack_start(GTK_BOX(greyrampTool), gradient, TRUE, TRUE, 0);
+
+  /* Create a 'maximise' button to toggle to the full sized greyramp tool */
+  GtkWidget *button = gtk_button_new_with_label("Maximise");
+  gtk_box_pack_start(GTK_BOX(greyrampTool), button, FALSE, FALSE, 0);
+  g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onMaximiseGreyrampClicked), greyrampTool);
+  gtk_widget_set_tooltip_text(button, "Maximise the greyramp tool for more options (Ctrl-G)");
+
   greyrampCreateProperties(greyrampTool, 
                            NULL,
 			   dwc,
