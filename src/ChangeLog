@@ -1,55 +1,35 @@
-2014-10-30  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.29-8-ge868 - Update RT and git commit reports
- src/ChangeLog                                  |    7 +++++++
- src/build/release_docs/GIT_COMMITS.txt         |    1 +
+2014-11-12  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.30-7-g8cf9 - Update RT and git commit reports
+ src/ChangeLog                                  |   79 ++++++++----------------
+ src/build/release_docs/GIT_COMMITS.txt         |   20 +++---
  src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 9 insertions(+), 1 deletions(-)
+ 3 files changed, 36 insertions(+), 65 deletions(-)
 
-2014-10-29  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.29-7-gcbf0 - Update RT and git commit reports
- src/ChangeLog                                  |    7 +++++++
- src/build/release_docs/GIT_COMMITS.txt         |    1 +
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 9 insertions(+), 1 deletions(-)
-
-2014-10-23  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.29-6-gf0e18 - Update RT and git commit reports
- src/ChangeLog                                  |   12 ++++++++++++
- src/build/release_docs/GIT_COMMITS.txt         |    2 ++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 15 insertions(+), 1 deletions(-)
-
-2014-10-17  Steve Miller  <sm23@sanger.ac.uk>
- creation of release notes after build
- src/doc/User_doc/release_notes.html |   11 +++++++++++
- 1 files changed, 11 insertions(+), 0 deletions(-)
-
-2014-10-17  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.29-4-gd795 - Update RT and git commit reports
- src/ChangeLog                                  |  234 +++---------------------
- src/build/release_docs/GIT_COMMITS.txt         |   21 +--
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |   26 +---
- 3 files changed, 28 insertions(+), 253 deletions(-)
-
-2014-10-17  Gemma Barson  <gb10@sanger.ac.uk>
- Fix potential crash with accessing null value
- src/blixemApp/detailviewtree.c |    2 +-
+2014-11-03  Steve Miller  <sm23@sanger.ac.uk>
+ Merge branch 'production' into develop
+2014-11-03  Steve Miller  <sm23@sanger.ac.uk>
+ Merge branch 'release/4.30' into develop
+2014-10-28  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix typo in configure.ac causing it to fail
+ src/configure.ac |    2 +-
  1 files changed, 1 insertions(+), 1 deletions(-)
 
-2014-10-02  Gemma Barson  <gb10@sanger.ac.uk>
- Fix infinite loop loading features file
- src/blixemApp/blxview.c           |   22 ++++++++++++++++------
- src/blixemApp/blxwindow.c         |    6 +++++-
- src/seqtoolsUtils/blxGff3Parser.c |    3 ++-
- src/seqtoolsUtils/blxmsp.c        |   34 ++++++++++++++++++++++------------
- src/seqtoolsUtils/blxmsp.h        |    4 ++--
- src/seqtoolsUtils/blxparser.c     |   12 ++++++------
- 6 files changed, 53 insertions(+), 28 deletions(-)
+2014-10-27  Gemma Barson  <gb10@sanger.ac.uk>
+ Update blixem quick start guide with minor colour change
+ src/doc/User_doc/blixem_quick_start.html |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
 
-2014-10-01  Gemma Barson  <gb10@sanger.ac.uk>
- Fix a bug reading files with carriage return chars
- src/belvuApp/belvu.c |    6 +++++-
- 1 files changed, 5 insertions(+), 1 deletions(-)
+2014-10-22  Gemma Barson  <gb10@sanger.ac.uk>
+ Make sqlite optional
+ src/configure.ac |    8 ++++++--
+ 1 files changed, 6 insertions(+), 2 deletions(-)
 
-2014-09-30  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'production' into develop
+2014-10-22  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix autoconf error on cygwin
+ src/Makefile.am |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
+
+2014-10-20  Gemma Barson  <gb10@sanger.ac.uk>
+ Build: remove obsolete hack to pkg-config path
+ src/runconfig.sh |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
