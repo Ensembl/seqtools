@@ -31,8 +31,10 @@
  *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
- * Description: A section of the big picture showing exons and introns for a
- *              particular strand of the reference sequence.
+ * Description: A section of the big picture showing exons, introns and basic
+ *              (box-shaped) features for a particular strand of the reference
+ *              sequence. The naming is all based around exons but has been 
+ *              expanded to draw any box-shape feature.
  *
  *              Pending: It would be good to consolidate the Blixem and Dotter
  *              exonview stuff - see the comment in seqtoolsExonView.h

@@ -891,18 +891,28 @@ static gboolean isMspVisible(const MSP* const msp,
                              const gboolean seqSelected,
                              const SequenceGroup *group)
 {
-  g_return_val_if_fail(msp && msp->sSequence, FALSE) ;
+  g_return_val_if_fail(msp, FALSE) ;
 
   gboolean result = TRUE ;
 
   /* If hiding ungrouped sequences and this is a sequence (i.e. match) without a group, hide it */
-  if (!group && bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS] && msp->sSequence->type == BLXSEQUENCE_MATCH)
-    result = FALSE ;
+  if (msp->sSequence && 
+      msp->sSequence->type == BLXSEQUENCE_MATCH &&
+      bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS] &&
+      !group)
+    {
+      result = FALSE ;
+    }
 
   /* If hiding ungrouped features and this is feature (i.e. anything except a sequence) without
    * a group, hide it */
-  if (!group && bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] && msp->sSequence->type != BLXSEQUENCE_MATCH)
-    result = FALSE ;
+  if (msp->sSequence &&
+      msp->sSequence->type != BLXSEQUENCE_MATCH && 
+      bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] &&
+      !group)
+    {
+      result = FALSE ;
+    }
 
   if (result)
     {

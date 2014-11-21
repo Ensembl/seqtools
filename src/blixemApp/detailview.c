@@ -1213,10 +1213,10 @@ static GtkSortType getColumnSortOrder(BlxViewContext *bc, const BlxColumnId colu
 }
 
 
-  /* We're only interested in sorting exons and matches */
+/* We're only interested in sorting exons, basic features and matches */
 static gboolean mspIsSortable(const MSP* const msp)
 {
-  return (msp && (typeIsMatch(msp->type) || mspIsExon(msp)));
+  return (msp && (typeIsMatch(msp->type) || mspIsBoxFeature(msp)));
 }
 
 
@@ -1684,7 +1684,7 @@ static const MSP* sequenceGetNextMsp(const MSP* const msp,
         {
           /* We've found the input MSP and we're on the next one. See if it is an exon/match,
            * otherwise continue looping. */
-          if (mspIsExon(curMsp) || mspIsBlastMatch(msp))
+          if (mspIsBoxFeature(curMsp) || mspIsBlastMatch(msp))
             {
               result = curMsp;
               break;
@@ -1692,7 +1692,7 @@ static const MSP* sequenceGetNextMsp(const MSP* const msp,
         }
       
       /* Set the previous MSP (but only if it's an exon/match) */
-      if (mspIsExon(curMsp) || mspIsBlastMatch(curMsp))
+      if (mspIsBoxFeature(curMsp) || mspIsBlastMatch(curMsp))
         {
           prevMsp = curMsp;
         }
@@ -2073,7 +2073,8 @@ GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
           MSP *msp = (MSP*)(mspItem->data);
           
           /* Only look at matches/exons on the correct strand */
-          if ((mspIsBlastMatch(msp) || msp->type == BLXMSP_EXON) && mspGetRefStrand(msp) == qStrand)
+          if ((mspIsBlastMatch(msp) || msp->type == BLXMSP_EXON || msp->type == BLXMSP_BASIC) && 
+              mspGetRefStrand(msp) == qStrand)
             {
               if (bc->flags[BLXFLAG_SHOW_SPLICE_SITES])
                 mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
@@ -2493,7 +2494,7 @@ static gboolean isCoordInSelectedMspRange(const BlxViewContext *bc,
           const MSP* const msp = (const MSP*)(mspItem->data);
           const int mspFrame = mspGetRefFrame(msp, seqType);
           
-          if ((mspIsBlastMatch(msp) || mspIsExon(msp)) && 
+          if ((mspIsBlastMatch(msp) || mspIsBoxFeature(msp)) && 
               (refSeqStrand == BLXSTRAND_NONE || mspGetRefStrand(msp) == refSeqStrand) &&
               (refSeqFrame == UNSET_INT || mspFrame == refSeqFrame))
             {
@@ -4591,7 +4592,7 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 
       /* Check its in the sequence list (if given), is a valid match or exon, and is in a visible layer */
       if (mspLayerIsVisible(msp) &&
-          (mspIsExon(msp) || mspIsBlastMatch(msp)) &&
+          (mspIsBoxFeature(msp) || mspIsBlastMatch(msp)) &&
           (!searchData->seqList || g_list_find(searchData->seqList, msp->sSequence)))
         {
           /* Get the offset of the msp coords from the given start coord and find the smallest,
@@ -5115,7 +5116,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
     {
       /* Only add matches/exons to trees. For exons, only add the parent exon;
        * it's child UTR/CDSs will be added automatically */
-      if (mspIsBlastMatch(msp) || msp->type == BLXMSP_EXON)
+      if (mspIsBlastMatch(msp) || msp->type == BLXMSP_EXON || msp->type == BLXMSP_BASIC)
         {
           /* Find the tree that this MSP should belong to based on its reading frame and strand */
           BlxStrand strand = mspGetRefStrand(msp);

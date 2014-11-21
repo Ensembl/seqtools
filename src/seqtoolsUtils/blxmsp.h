@@ -104,6 +104,7 @@ typedef enum
   BLXMSP_REGION,                 /* Region */
   BLXMSP_GAP,                    /* Gap, e.g. assembly gap */
 
+  BLXMSP_BASIC,                  /* Basic feature (just drawn as a simple box) */
   
   
   BLXMSP_NUM_TYPES,               /* the number of valid MSP types - any types following this may be used
@@ -111,11 +112,6 @@ typedef enum
   
   BLXMSP_TRANSCRIPT              /* Transcript */
 } BlxMspType;
-
-
-/* Quick hack to support basic features by just treating them as an exon. Should implement this
- * type properly at some point. */
-#define BLXMSP_BASIC BLXMSP_EXON
 
 
 /* Type definition for BlxSequences */
@@ -331,7 +327,10 @@ gboolean              typeIsTranscript(const BlxMspType mspType);
 gboolean              typeIsMatch(const BlxMspType mspType);
 gboolean              typeIsVariation(const BlxMspType mspType);
 gboolean              typeIsRegion(const BlxMspType mspType);
+gboolean              typeIsBasic(const BlxMspType mspType);
+gboolean              typeIsBoxFeature(const BlxMspType mspType);
 gboolean              typeShownInDetailView(const BlxMspType mspType);
+gboolean              typeAddedToDetailView(const BlxMspType mspType);
 gboolean              blxSequenceShownInDetailView(const BlxSequence *blxSeq);
 gboolean              blxSequenceShownInGrid(const BlxSequence *blxSeq);
 
@@ -388,6 +387,8 @@ gboolean              mspIsBlastMatch(const MSP* const msp);
 gboolean              mspIsPolyASite(const MSP* const msp);
 gboolean              mspIsVariation(const MSP* const msp);
 gboolean              mspIsZeroLenVariation(const MSP* const msp);
+gboolean              mspIsBasic(const MSP* const msp);
+gboolean              mspIsBoxFeature(const MSP* const msp);
 
 gboolean              mspHasSName(const MSP* const msp);
 gboolean              mspHasSSeq(const MSP * const msp);
