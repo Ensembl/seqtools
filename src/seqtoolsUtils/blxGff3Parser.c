@@ -261,7 +261,9 @@ static BlxMspType getBlxType(GSList *supportedTypes, const char *typeStr, GError
   /* Check if it was found... */
   if (result == BLXMSP_INVALID)
   {
-    g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_TYPE, "Unsupported type '%s' will be ignored.\n", typeStr);
+    /* Treat all others as basic features */
+    result = BLXMSP_BASIC;
+    //g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_TYPE, "Unsupported type '%s' will be ignored.\n", typeStr);
   }
   
   return result;
