@@ -173,7 +173,7 @@ static gboolean isGroupVisible(const SequenceGroup* const group)
 static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand, BlxViewContext *bc)
 {
   /* Check it's an exon or intron */
-  gboolean showMsp = mspIsExon(msp) || mspIsIntron(msp);
+  gboolean showMsp = mspIsBoxFeature(msp) || mspIsIntron(msp);
   
   /* Check it's in a visible layer */
   showMsp &= mspLayerIsVisible(msp);
@@ -399,7 +399,7 @@ static void calculateExonViewBorders(GtkWidget *exonView)
  *                       Drawing functions                 *
  ***********************************************************/
 
-/* Draw an exon */
+/* Draw an exon (well, any box-shaped feature, actually) */
 static void drawExon(const MSP* const msp, 
                      DrawData *data, 
                      const BlxSequence *blxSeq, 
@@ -530,7 +530,7 @@ static gboolean drawExonIntron(const MSP *msp,
 
   if (drawn)
     {
-      if (mspIsExon(msp))
+      if (mspIsBoxFeature(msp))
 	{
 	  drawExon(msp, data, blxSeq, isSelected, x, data->y, width, data->height);
 	}
