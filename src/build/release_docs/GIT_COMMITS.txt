@@ -1,6 +1,7 @@
 
 Git commits for  from commit "production" until commit "release/4.31"
 
+3ab2957 2014-11-21 SeqTools version 4.30-12-g5b4f - Update RT and git commit reports
 5b4f832 2014-11-17 SeqTools version 4.30-11-g7c4ef - Update RT and git commit reports
 7c4efb9 2014-11-14 Update release notes
 f8ba65f 2014-11-13 update of release notes for v. 4.31
