@@ -113,6 +113,11 @@ typedef enum
 } BlxMspType;
 
 
+/* Quick hack to support basic features by just treating them as an exon. Should implement this
+ * type properly at some point. */
+#define BLXMSP_BASIC BLXMSP_EXON
+
+
 /* Type definition for BlxSequences */
 typedef enum
   {
