@@ -1,3 +1,10 @@
+2014-11-17  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.30-11-g7c4ef - Update RT and git commit reports
+ src/ChangeLog                                  |   16 ++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    3 ++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   32 +++++++++++++++++++++++-
+ 3 files changed, 50 insertions(+), 1 deletions(-)
+
 2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
  Update release notes
  src/doc/User_doc/release_notes.html |    8 +++++---
