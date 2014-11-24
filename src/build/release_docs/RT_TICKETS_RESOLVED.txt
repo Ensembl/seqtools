@@ -1,5 +1,35 @@
 
-Request Tracker Tickets Resolved from 17/10/2014 to 12/11/2014
+Request Tracker Tickets Resolved from 17/10/2014 to 21/11/2014
+
+ticket/407119
+id: ticket/407119
+Queue: seqtools
+Subject: Dotter coordinates
+Requestors: mh19@sanger.ac.uk
+Owner: gb10
+Resolved: Fri Nov 14 17:26:29 2014
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
+
+ticket/411328
+id: ticket/411328
+Queue: seqtools
+Subject: OTF sequences don't appear in Blixem
+Requestors: sb7@sanger.ac.uk
+Owner: jgrg
+Resolved: Thu Nov 13 14:49:13 2014
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
+
+ticket/417611
+id: ticket/417611
+Queue: seqtools
+Subject: Problem in Installation of Window version of seqtools 4.28
+Requestors: hukam.rawal@gmail.com
+Owner: gb10
+Resolved: Thu Nov 13 14:47:14 2014
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
 
 
 End of Request Tracker tickets

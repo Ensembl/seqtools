@@ -1,3 +1,33 @@
+2014-11-21  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.30-12-g5b4f - Update RT and git commit reports
+ src/ChangeLog                                  |    7 +++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 3 files changed, 9 insertions(+), 1 deletions(-)
+
+2014-11-17  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.30-11-g7c4ef - Update RT and git commit reports
+ src/ChangeLog                                  |   16 ++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    3 ++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   32 +++++++++++++++++++++++-
+ 3 files changed, 50 insertions(+), 1 deletions(-)
+
+2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
+ Update release notes
+ src/doc/User_doc/release_notes.html |    8 +++++---
+ 1 files changed, 5 insertions(+), 3 deletions(-)
+
+2014-11-13  Steve Miller  <sm23@sanger.ac.uk>
+ update of release notes for v. 4.31
+ src/doc/User_doc/release_notes.html |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
+
+2014-11-12  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.30-8-g588a - Update RT and git commit reports
+ src/ChangeLog                          |    7 +++++++
+ src/build/release_docs/GIT_COMMITS.txt |    1 +
+ 2 files changed, 8 insertions(+), 0 deletions(-)
+
 2014-11-12  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.30-7-g8cf9 - Update RT and git commit reports
  src/ChangeLog                                  |   79 ++++++++----------------
