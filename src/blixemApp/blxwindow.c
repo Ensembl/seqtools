@@ -769,7 +769,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
 
   /* Assume it's a natively-supported file and attempt to parse it. The first thing this
    * does is check that it's a native file and if not it sets the error */
-  loadNativeFile(filename, buffer, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, &newMsps, &newSeqs, bc->columnList, lookupTable, bc->refSeqOffset, &bc->refSeqRange, &tmp_error);
+  loadNativeFile(filename, buffer, keyFile, &bc->blastMode, bc->featureLists, bc->supportedTypes, bc->styles, &newMsps, &newSeqs, bc->columnList, lookupTable, bc->refSeqOffset, &bc->refSeqRange, &tmp_error);
 
   if (tmp_error && filename)
     {
