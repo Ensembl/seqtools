@@ -1,3 +1,15 @@
+2014-11-27  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix problem with drag-and-drop of 'Sequence' features from ZMap (RT436929)
+ src/seqtoolsUtils/blxGff3Parser.c |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
+
+2014-11-26  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.30-21-g89cc - Update RT and git commit reports
+ src/ChangeLog                                  |    7 +++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 3 files changed, 9 insertions(+), 1 deletions(-)
+
 2014-11-25  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.30-20-g15bb - Update RT and git commit reports
  src/ChangeLog                                  |    7 +++++++
