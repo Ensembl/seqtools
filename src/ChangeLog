@@ -1,3 +1,55 @@
+2014-11-25  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.30-20-g15bb - Update RT and git commit reports
+ src/ChangeLog                                  |    7 +++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 3 files changed, 9 insertions(+), 1 deletions(-)
+
+2014-11-24  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.30-19-gdf004 - Update RT and git commit reports
+ src/ChangeLog                                  |   38 ++++++++++++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    2 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 3 files changed, 41 insertions(+), 1 deletions(-)
+
+2014-11-24  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'feature/basic_features' into release/4.31
+2014-11-24  Gemma Barson  <gb10@sanger.ac.uk>
+ Update blixem usage info to reflect support for basic types
+ src/blixemApp/blxmain.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+2014-11-21  Gemma Barson  <gb10@sanger.ac.uk>
+ Improve display of exons and basic features in the detail view
+ src/blixemApp/sequencecellrenderer.c |   51 +++++++++------------------------
+ 1 files changed, 14 insertions(+), 37 deletions(-)
+
+2014-11-21  Gemma Barson  <gb10@sanger.ac.uk>
+ Implement basic feature type properly
+ src/blixemApp/blxview.c              |    2 +-
+ src/blixemApp/blxwindow.c            |    2 +-
+ src/blixemApp/detailview.c           |   17 +++---
+ src/blixemApp/detailviewtree.c       |   20 +++++--
+ src/blixemApp/exonview.c             |    6 +-
+ src/blixemApp/exonview.h             |    6 +-
+ src/blixemApp/sequencecellrenderer.c |   40 +++++++-----
+ src/dotterApp/seqtoolsExonView.c     |    6 +-
+ src/seqtoolsUtils/blxmsp.c           |  112 +++++++++++++++++++++-------------
+ src/seqtoolsUtils/blxmsp.h           |   11 ++--
+ 10 files changed, 136 insertions(+), 86 deletions(-)
+
+2014-11-21  Gemma Barson  <gb10@sanger.ac.uk>
+ Quick hack to support basic feature types using exon code
+ src/seqtoolsUtils/blxGff3Parser.c |    4 +++-
+ src/seqtoolsUtils/blxmsp.h        |    5 +++++
+ 2 files changed, 8 insertions(+), 1 deletions(-)
+
+2014-11-21  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.30-13-g3ab2 - Update RT and git commit reports
+ src/ChangeLog                          |    7 +++++++
+ src/build/release_docs/GIT_COMMITS.txt |    1 +
+ 2 files changed, 8 insertions(+), 0 deletions(-)
+
 2014-11-21  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.30-12-g5b4f - Update RT and git commit reports
  src/ChangeLog                                  |    7 +++++++
