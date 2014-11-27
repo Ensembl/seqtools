@@ -210,9 +210,9 @@ GSList* blxCreateSupportedGffTypeList(const BlxSeqType seqType)
   addGffType(&supportedTypes, "processed_transcript", "SO:0000233", BLXMSP_TRANSCRIPT);
   addGffType(&supportedTypes, "mRNA", "SO:0000234", BLXMSP_TRANSCRIPT);
 
-  /* gb10: hack to support old Sequence type from zmap (I don't think this is a real SO term?
-   * I've used the same SO id as mRNA though just to make sure I don't break anything for now.) */
-  addGffType(&supportedTypes, "Sequence", "SO:0000234", BLXMSP_TRANSCRIPT);
+  /* gb10: hack to support old Sequence type from zmap which unfortunately still gets
+   * passed sometimes (it's not even a real SO term) */
+  addGffType(&supportedTypes, "Sequence", NULL, BLXMSP_TRANSCRIPT);
 
   addGffType(&supportedTypes, "CDS", "SO:0000316", BLXMSP_CDS);
   addGffType(&supportedTypes, "UTR", "SO:0000203", BLXMSP_UTR);
