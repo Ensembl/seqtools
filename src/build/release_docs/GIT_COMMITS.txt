@@ -1,23 +1,10 @@
 
 Git commits for  from commit "production" until commit "release/4.31"
 
-89cce71 2014-11-25 SeqTools version 4.30-20-g15bb - Update RT and git commit reports
-15bbfc8 2014-11-24 SeqTools version 4.30-19-gdf004 - Update RT and git commit reports
-df00446 2014-11-24 Merge branch 'feature/basic_features' into release/4.31
-e9a52ae 2014-11-21 SeqTools version 4.30-13-g3ab2 - Update RT and git commit reports
-3ab2957 2014-11-21 SeqTools version 4.30-12-g5b4f - Update RT and git commit reports
-5b4f832 2014-11-17 SeqTools version 4.30-11-g7c4ef - Update RT and git commit reports
-7c4efb9 2014-11-14 Update release notes
-f8ba65f 2014-11-13 update of release notes for v. 4.31
-c2e18c9 2014-11-12 SeqTools version 4.30-8-g588a - Update RT and git commit reports
-588ac2d 2014-11-12 SeqTools version 4.30-7-g8cf9 - Update RT and git commit reports
-8cf9694 2014-11-03 Merge branch 'production' into develop
-2c10b1e 2014-11-03 Merge branch 'release/4.30' into develop
+232f367 2014-11-27 Fix problem with drag-and-drop of 'Sequence' features from ZMap (RT436929)
 5b10ee8 2014-10-28 Fix typo in configure.ac causing it to fail
-0dd4467 2014-10-27 Update blixem quick start guide with minor colour change
 90c2632 2014-10-22 Make sqlite optional
 4c88e41 2014-10-22 Fix autoconf error on cygwin
-f7aca0a 2014-10-20 Build: remove obsolete hack to pkg-config path
 
 
 End of git commits
