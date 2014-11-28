@@ -129,10 +129,29 @@ gboolean typeIsRegion(const BlxMspType mspType)
   return (mspType == BLXMSP_REGION);
 }
 
+gboolean typeIsBasic(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_BASIC);
+}
+
+/* types that are drawn as simple boxes */
+gboolean typeIsBoxFeature(const BlxMspType mspType)
+{
+  return (typeIsExon(mspType) || typeIsBasic(mspType));
+}
+
 /* This returns true if the given type should be shown in the detail-view */
 gboolean typeShownInDetailView(const BlxMspType mspType)
 {
-  return (mspType == BLXMSP_MATCH || mspType == BLXMSP_CDS || mspType == BLXMSP_UTR);
+  return (mspType == BLXMSP_MATCH || mspType == BLXMSP_CDS || mspType == BLXMSP_UTR || mspType == BLXMSP_BASIC);
+}
+
+/* This returns true if the given sequence should be added to the detail-view tree (note that
+ * this is slightly different to what is shown because an exon is added but its child cds/utrs
+ * are what is shown */
+gboolean typeAddedToDetailView(const BlxMspType mspType)
+{
+  return (mspType == BLXMSP_MATCH || mspType == BLXMSP_EXON || mspType == BLXMSP_BASIC);
 }
 
 /* This returns true if the given sequence should be shown in the detail-view */
@@ -161,9 +180,9 @@ gboolean mspLayerIsVisible(const MSP* const msp)
   /* Currently only applicable to exons. Show plain exons OR their CDS/UTR sections,
    * but not both. The plan is to add some options to toggle layers on and off, but for 
    * now just hard code this. */
-  if (msp->type == BLXMSP_EXON /* msp->type == BLXMSP_CDS || msp->type == BLXMSP_UTR */)
+  if (msp->type == BLXMSP_EXON)
     {
-    result = FALSE;
+      result = FALSE;
     }
   
   return result;
@@ -283,6 +302,11 @@ gboolean mspIsZeroLenVariation(const MSP* const msp)
   return result;
 }
 
+gboolean mspIsBoxFeature(const MSP* const msp)
+{
+  return (msp && typeIsBoxFeature(msp->type));
+}
+
 /* Whether the msp has a Target name (i.e. Subject sequence name) */
 gboolean mspHasSName(const MSP* const msp)
 {
@@ -290,10 +314,10 @@ gboolean mspHasSName(const MSP* const msp)
 }
 
 /* Whether the MSP requires subject sequence coords to be set. Only matches 
- * and exons have coords on the subject sequence. (to do: is this optional for exons?) */
+ * and box features have coords on the subject sequence. (to do: is this optional for exons?) */
 gboolean mspHasSCoords(const MSP* const msp)
 {
-  return mspIsExon(msp) || mspIsBlastMatch(msp);
+  return mspIsBoxFeature(msp) || mspIsBlastMatch(msp);
 }
 
 /* Whether the MSP requires subject sequence strand to be set. Only matches 
@@ -539,33 +563,34 @@ const GdkColor* mspGetColor(const MSP* const msp,
   
   if (!result)
     {
-    /* Use the default color for this MSP's type */
-    switch (msp->type)
-      {
-	case BLXMSP_EXON:
-	result = getGdkColor(fill ? exonFillColorId : exonLineColorId, defaultColors, selected, usePrintColors);
-	break;
-	
-	case BLXMSP_CDS:
-	result = getGdkColor(fill ? cdsFillColorId : cdsLineColorId, defaultColors, selected, usePrintColors);
-	break;
-	
-	case BLXMSP_UTR:
-	result = getGdkColor(fill ? utrFillColorId : utrLineColorId, defaultColors, selected, usePrintColors);
-	break;
-	
-        /* to do: mspGetIntronColor() is non-trivial, because it has to work out the color
-         * from the adjacent exons. Since mspGetColor() is called many times on re-draw, it
-         * would be better to work out whether an intron is CDS or UTR during initialisation 
-         * and use different types (e.g. BLXMSP_INTRON_CDS) that can be queried here to quickly
-         * determine what color to use. */
-	case BLXMSP_INTRON:
+      /* Use the default color for this MSP's type */
+      switch (msp->type)
+        {
+        case BLXMSP_BASIC: /* fall through */
+        case BLXMSP_EXON:
+          result = getGdkColor(fill ? exonFillColorId : exonLineColorId, defaultColors, selected, usePrintColors);
+          break;
+
+        case BLXMSP_CDS:
+          result = getGdkColor(fill ? cdsFillColorId : cdsLineColorId, defaultColors, selected, usePrintColors);
+          break;
+
+        case BLXMSP_UTR:
+          result = getGdkColor(fill ? utrFillColorId : utrLineColorId, defaultColors, selected, usePrintColors);
+          break;
+      
+          /* to do: mspGetIntronColor() is non-trivial, because it has to work out the color
+           * from the adjacent exons. Since mspGetColor() is called many times on re-draw, it
+           * would be better to work out whether an intron is CDS or UTR during initialisation 
+           * and use different types (e.g. BLXMSP_INTRON_CDS) that can be queried here to quickly
+           * determine what color to use. */
+        case BLXMSP_INTRON:
           result = mspGetIntronColor(msp, defaultColors, defaultColorId, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
-	break;
-	
-	default:
-	break;
-      };
+          break;
+          
+        default:
+          break;
+        };
     }
   
   return result;
@@ -1667,7 +1692,7 @@ gint compareFuncMspArray(gconstpointer a, gconstpointer b)
 /* returns true if the given msp should be output when piping features to dotter */
 static gboolean outputMsp(const MSP* const msp, IntRange *range1, IntRange *range2)
 {
-  return ((msp->type == BLXMSP_FS_SEG || mspIsExon(msp) || mspIsIntron(msp) || mspIsBlastMatch(msp)) && 
+  return ((msp->type == BLXMSP_FS_SEG || mspIsBoxFeature(msp) || mspIsIntron(msp) || mspIsBlastMatch(msp)) && 
           (rangesOverlap(&msp->qRange, range1) || rangesOverlap(&msp->qRange, range2))
          );
 }
@@ -1708,7 +1733,7 @@ void writeTranscriptToOutput(FILE *pipe,
       const MSP* msp = (const MSP*)(mspItem->data);
       
       /* Only output exons. Also, if an exon has child msps then ignore it and only output the children */
-      if (mspIsExon(msp) && !msp->childMsps)
+      if (mspIsBoxFeature(msp) && !msp->childMsps)
         {
           /* It's possible that some exons may be out of bounds: clip them, or if completely out
            * of range ignore this exon. */
@@ -1743,7 +1768,7 @@ void writeTranscriptToOutput(FILE *pipe,
       /* Only output exons. Also, if an exon has child msps then ignore it: we will come across
        * the child msps themselves in the list so we don't want to output both the parent and the
        * child msps. */
-      if (mspIsExon(msp) && !msp->childMsps)
+      if (mspIsBoxFeature(msp) && !msp->childMsps)
         {
           /* It's possible that some exons may be out of bounds: clip them, or if completely out
            * of range ignore this exon. */
@@ -2131,10 +2156,10 @@ MSP* createNewMsp(GArray* featureLists[],
   intrangeSetValues(&msp->qRange, qStart, qEnd);  
   intrangeSetValues(&msp->sRange, sStart, sEnd);
 
-  /* For exons and introns, the s strand is not applicable. We always want the exon
+  /* For exons, introns and basic features, the s strand is not applicable. We always want the exon
    * to be in the same direction as the ref sequence, so set the match seq strand to be 
    * the same as the ref seq strand */
-  if (mspIsExon(msp) || mspIsIntron(msp))
+  if (mspIsBoxFeature(msp) || mspIsIntron(msp))
     {
       sStrand = qStrand;
     }
@@ -2142,10 +2167,13 @@ MSP* createNewMsp(GArray* featureLists[],
   /* Add it to the relevant feature list. */
   featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
 
-  /* For matches, exons and introns, add a new (or add to an existing) BlxSequence */
-  if (typeIsExon(mspType) || typeIsIntron(mspType) || 
+  /* For main feature types, add a new (or add to an existing) BlxSequence */
+  if (typeIsBasic(mspType) ||
+      typeIsExon(mspType) || 
+      typeIsIntron(mspType) || 
       typeIsMatch(mspType) || 
-      typeIsVariation(mspType) || typeIsRegion(mspType))
+      typeIsVariation(mspType) || 
+      typeIsRegion(mspType))
     {
       addBlxSequences(msp->sname, msp->sname_orig, idTag, sStrand, dataType, source, 
                       featureLists, lastMsp, mspList, seqList,
@@ -3316,9 +3344,9 @@ BlxSequence* addBlxSequence(const char *name,
 
   if (blxSeq || name || idTag)
     {
-      /* If this is an exon or intron the match strand is not applicable. The exon should 
+      /* If this is an exon, intron or basic feature the match strand is not applicable. The exon should 
        * be in the same direction as the ref seq, so use the ref seq strand. */
-      if (msp && (mspIsExon(msp) || mspIsIntron(msp)))
+      if (msp && (mspIsBoxFeature(msp) || mspIsIntron(msp)))
         {
           strand = msp->qStrand;
         }
@@ -3560,7 +3588,7 @@ char *blxSequenceGetSplicedSequence(const BlxSequence* const blxSeq,
       const MSP* msp = (const MSP*)(mspItem->data);
       
       /* Ignore msps that have child msps (we just want to export the child msps) */
-      if (mspIsExon(msp) && !msp->childMsps)
+      if (mspIsBoxFeature(msp) && !msp->childMsps)
         {
           int i = msp->qRange.min - refSeqRange->min; /* convert to 0-based index into ref seq */
 

@@ -205,7 +205,8 @@ FEATURES\n\
   older file formats such as exblx and seqbl, as used by MSPcrunch).\n\
 \n\
   Blixem is mainly aimed at displaying alignments, but can also show other features such as\n\
-  transcripts, variations and polyA tails. The supported SO terms are:\n%s\
+  transcripts, variations and polyA tails. The following SO terms are treated specially in Blixem;\n\
+  other feature types will be displayed as a basic feature with simple positional information.\n%s\
 \n\
 SORT MODE\n\
   The sort mode is specified with the --sort-mode=<mode> argument, where <mode> is\n\

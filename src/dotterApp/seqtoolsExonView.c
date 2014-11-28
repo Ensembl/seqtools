@@ -269,7 +269,7 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
       gint y = data->y + data->yPad;
       gint height = data->height;
       
-      if (mspIsExon(msp))
+      if (mspIsBoxFeature(msp))
 	{
 	  drawExon(msp, data, blxSeq, isSelected, x, y, width, height);
 	}
@@ -287,7 +287,7 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
 static gboolean showMspInExonView(const MSP *msp, DrawData *drawData)
 {
   /* Check it's an exon or intron */
-  gboolean showMsp = mspIsExon(msp) || mspIsIntron(msp);
+  gboolean showMsp = mspIsBoxFeature(msp) || mspIsIntron(msp);
   
   /* Check it's in a visible layer */
   showMsp &= mspLayerIsVisible(msp);
@@ -462,7 +462,7 @@ void calculateDotterExonViewHeight(GtkWidget *exonView)
 	{
 	  const MSP *msp = (const MSP*)(mspItem->data);
 	  
-	  if ((mspIsExon(msp) || mspIsIntron(msp)) && 
+	  if ((mspIsBoxFeature(msp) || mspIsIntron(msp)) && 
               mspGetRefStrand(msp) == properties->strand &&
 	      rangesOverlap(&msp->qRange, properties->qRange))
             {

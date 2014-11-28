@@ -1,15 +1,10 @@
 
-Git commits for  from commit "production" until commit "release/4.30"
+Git commits for  from commit "production" until commit "release/4.31"
 
-bec73a9 2014-10-30 SeqTools version 4.29-8-ge868 - Update RT and git commit reports
-e868fae 2014-10-29 SeqTools version 4.29-7-gcbf0 - Update RT and git commit reports
-cbf0858 2014-10-23 SeqTools version 4.29-6-gf0e18 - Update RT and git commit reports
-f0e1839 2014-10-17 creation of release notes after build
-2262889 2014-10-17 SeqTools version 4.29-4-gd795 - Update RT and git commit reports
-d795577 2014-10-17 Fix potential crash with accessing null value
-01adaef 2014-10-02 Fix infinite loop loading features file
-a9c2cb6 2014-10-01 Fix a bug reading files with carriage return chars
-c68ce2c 2014-09-30 Merge branch 'production' into develop
+232f367 2014-11-27 Fix problem with drag-and-drop of 'Sequence' features from ZMap (RT436929)
+5b10ee8 2014-10-28 Fix typo in configure.ac causing it to fail
+90c2632 2014-10-22 Make sqlite optional
+4c88e41 2014-10-22 Fix autoconf error on cygwin
 
 
 End of git commits

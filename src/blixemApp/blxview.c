@@ -1040,7 +1040,7 @@ int mspGetMatchCoord(const MSP *msp,
 {
   int result = UNSET_INT;
   
-  if (mspIsBlastMatch(msp) || mspIsExon(msp))
+  if (mspIsBlastMatch(msp) || mspIsBoxFeature(msp))
     {
       const gboolean inMspRange = valueWithinRange(qIdx, &msp->qRange);
       

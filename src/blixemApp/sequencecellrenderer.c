@@ -545,8 +545,8 @@ static void rendererDrawSimpleText(SequenceCellRenderer *renderer,
 /* The given renderer is an MSP. This function checks if there is a base index
  * selected and, if so, colors the background for that base with the given color. */
 static void highlightSelectedBase(const int selectedBaseIdx,
-				  GdkColor *highlightColor,
-				  RenderData *data)
+                                  const GdkColor *highlightColor,
+                                  RenderData *data)
 {
   if (selectedBaseIdx != UNSET_INT && valueWithinRange(selectedBaseIdx, data->displayRange))
     {
@@ -559,28 +559,6 @@ static void highlightSelectedBase(const int selectedBaseIdx,
       gdk_gc_set_foreground(data->gc, highlightColor);
       drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, roundNearest(data->charWidth), roundNearest(data->charHeight));
     }
-}
-
-
-/* Utility to get the exon color based on whether it is CDS/UTR and whether it is selected */
-static GdkColor* exonGetFillColor(const MSP* const msp, const gboolean isSelected, RenderData *data)
-{
-  GdkColor *result = NULL;
-
-  if (msp->type == BLXMSP_EXON)
-    {
-      result = (isSelected ? data->exonColorSelected : data->exonColor);
-    }
-  else if (msp->type == BLXMSP_CDS)
-    {
-      result = (isSelected ? data->cdsColorSelected : data->cdsColor);
-    }
-  else
-    {
-      result = (isSelected ? data->utrColorSelected : data->utrColor);
-    }
-    
-  return result;
 }
 
 
@@ -637,12 +615,12 @@ static void exonHighlightPartialCodons(const MSP* const msp,
 
 
 
-/* The given renderer is an MSP that is an exon. This function draws the exon
- * or part of the exon that is in view, if it is within the current display range. */
-static void drawExon(SequenceCellRenderer *renderer,
-		     MSP *msp,
-		     GtkWidget *tree,
-		     RenderData *data)
+/* The given renderer is an MSP that is drawn as a simple box. This function draws the feature
+ * or part of the feature that is in view, if it is within the current display range. */
+static void drawBoxFeature(SequenceCellRenderer *renderer,
+                           MSP *msp,
+                           GtkWidget *tree,
+                           RenderData *data)
 {
   if (mspLayerIsVisible(msp))
     {
@@ -658,25 +636,32 @@ static void drawExon(SequenceCellRenderer *renderer,
       int x, y;
       segmentGetCoordsForBaseIdx(0, &segmentRange, data, &x, &y);
       const int width = ceil((gdouble)segmentLen * data->charWidth);
+      const int height = roundNearest(data->charHeight) - 1;
 
       /* Just draw one big rectangle the same color for the whole thing. Color depends if row selected. */
-      GdkColor *color = exonGetFillColor(msp, data->seqSelected, data);
+      gboolean fill = TRUE;
+      const GdkColor *color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, data->seqSelected, data->bc->usePrintColors, fill, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, color);
-      drawRectangle2(data->window, data->drawable, data->gc, TRUE, x, y, width, roundNearest(data->charHeight));
+      drawRectangle2(data->window, data->drawable, data->gc, fill, x, y, width, height);
       
       /* If a base is selected, highlight it. Its color depends on whether it the base is within the exon range or not. */
       if (data->selectedBaseIdx != UNSET_INT && valueWithinRange(data->selectedBaseIdx, &segmentRange))
         {
           /* Negate the color if double-selected (i.e. if the row is selected as well) */
-          GdkColor *color = exonGetFillColor(msp, !data->seqSelected, data);
+          color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, !data->seqSelected, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
           highlightSelectedBase(data->selectedBaseIdx, color, data);
         }
+
+      /* And now draw the outline (do this after the base highlight because otherwise that will
+       * erase the boundary) */
+      fill = FALSE;
+      color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, data->seqSelected, data->bc->usePrintColors, fill, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
+      gdk_gc_set_foreground(data->gc, color);
+      drawRectangle2(data->window, data->drawable, data->gc, fill, x, y, width, height);
       
       /* If the start or end index is not a full codon, highlight it in a different color */
       exonHighlightPartialCodons(msp, !data->bc->displayRev, x, y, data);
       exonHighlightPartialCodons(msp, data->bc->displayRev, x + width - data->charWidth, y, data);
-      
-      //drawAllVisibleExonBoundaries(tree, data);
     }
 } 
 
@@ -1365,11 +1350,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
     {
       MSP *msp = (MSP*)(mspListItem->data);
       
-      if (mspIsExon(msp))
-        {
-          drawExon(renderer, msp, tree, &data);
-        }
-      else if (mspIsBlastMatch(msp))
+      if (mspIsBlastMatch(msp))
         {
           gboolean selected = blxWindowIsSeqSelected(detailViewProperties->blxWindow, msp->sSequence);
 
@@ -1406,6 +1387,10 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
               drawMsp(renderer, msp, tree, &data);
               mspDrawColinearityLines(msp, prevMsp, selected, &data);
             }
+        }
+      else if (mspIsBoxFeature(msp))
+        {
+          drawBoxFeature(renderer, msp, tree, &data);
         }
       
       prevMsp = msp;

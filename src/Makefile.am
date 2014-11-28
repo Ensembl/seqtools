@@ -94,9 +94,9 @@ endif
 
 AM_LDFLAGS = -L$(top_builddir)
 
-blixem_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBlixemApp.a $(BLX_LIBS) -lSeqtoolsUtils -lBlixemApp
-dotter_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libDotterApp.a $(DEPS_LIBS) -lSeqtoolsUtils -lDotterApp
-belvu_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBelvuApp.a $(DEPS_LIBS) -lSeqtoolsUtils -lBelvuApp
+blixem_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBlixemApp.a -lSeqtoolsUtils -lBlixemApp $(BLX_LIBS)
+dotter_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libDotterApp.a -lSeqtoolsUtils -lDotterApp $(DEPS_LIBS) 
+belvu_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBelvuApp.a -lSeqtoolsUtils -lBelvuApp $(DEPS_LIBS)
 
 # Only compile the blixemh target if we have the libcurl library
 if USE_LIBCURL
