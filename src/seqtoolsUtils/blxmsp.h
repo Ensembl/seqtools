@@ -82,7 +82,8 @@ typedef enum
 /* Supported types of MSP */
 typedef enum 
 {
-  BLXMSP_INVALID,                /* No valid type was set */
+  BLXMSP_NONE,                   /* Not set yet */
+  BLXMSP_INVALID,                /* Invalid type (cannot be displayed by blixem) */
   
   BLXMSP_MATCH,                  /* A match (i.e. alignment) */
   BLXMSP_MATCH_SET,              /* The parent of a set of matches. Can be used to specify generic properties such as color. */
