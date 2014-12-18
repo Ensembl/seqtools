@@ -92,16 +92,19 @@ BLX_LIBS = $(DEPS_LIBS)
 blixem_CPPFLAGS = $(AM_CPPFLAGS)
 endif
 
+# there's a problem on ubuntu 14 with finding X11 so this is a hopefully temporary hack...
+X_LIB = -lX11 -lm
+
 AM_LDFLAGS = -L$(top_builddir)
 
-blixem_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBlixemApp.a -lSeqtoolsUtils -lBlixemApp $(BLX_LIBS)
-dotter_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libDotterApp.a -lSeqtoolsUtils -lDotterApp $(DEPS_LIBS) 
-belvu_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBelvuApp.a -lSeqtoolsUtils -lBelvuApp $(DEPS_LIBS)
+blixem_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBlixemApp.a -lSeqtoolsUtils -lBlixemApp $(BLX_LIBS) $(X_LIB)
+dotter_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libDotterApp.a -lSeqtoolsUtils -lDotterApp $(DEPS_LIBS)  $(X_LIB)
+belvu_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBelvuApp.a -lSeqtoolsUtils -lBelvuApp $(DEPS_LIBS) $(X_LIB)
 
 # Only compile the blixemh target if we have the libcurl library
 if USE_LIBCURL
 blixemh_SOURCES = $(blixem_SOURCES)
 blixemh_CPPFLAGS = $(blixem_CPPFLAGS) -DPFETCH_HTML
-blixemh_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBlixemApp.a $(top_builddir)/libpfetch.a $(BLX_LIBS) -lcurl -lSeqtoolsUtils -lBlixemApp
+blixemh_LDADD = $(top_builddir)/libSeqtoolsUtils.a $(top_builddir)/libBlixemApp.a $(top_builddir)/libpfetch.a $(BLX_LIBS) -lcurl -lSeqtoolsUtils -lBlixemApp  $(X_LIB)
 endif
 
