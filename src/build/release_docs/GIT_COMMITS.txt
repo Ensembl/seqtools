@@ -1,6 +1,7 @@
 
 Git commits for  from commit "production" until commit "release/4.32"
 
+75f36e6 2015-01-21 Fix potential crash in blixem
 99e145a 2015-01-05 "add doc required by Sanger software policy."
 610a3f0 2014-12-18 "add in X11 and m libs to link, otherwise not found on 64 bit ubuntu."
 9039a1a 2014-12-01 Fix bug where matches can be treated like basic features

@@ -1,5 +1,5 @@
 
-Request Tracker Tickets Resolved from 03/11/2014 to 13/01/2015
+Request Tracker Tickets Resolved from 03/11/2014 to 21/01/2015
 
 ticket/407119
 id: ticket/407119
