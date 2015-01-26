@@ -3362,11 +3362,6 @@ static void setWrapWindowStyleProperties(GtkWidget *window)
   const int width = screenWidth * DEFAULT_WRAP_WINDOW_WIDTH_FRACTION;
   const int height = screenHeight * DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION;
   gtk_window_set_default_size(GTK_WINDOW(window), width, height);
-  
-  /* Set the initial position */
-  const int x = (screenWidth - width) / 4;
-  const int y = (screenHeight - height) / 4;
-  gtk_window_move(GTK_WINDOW(window), x, y);
 }
 
 
@@ -3435,11 +3430,6 @@ static void setOrgsWindowStyleProperties(GtkWidget *window, BelvuContext *bc)
   int width = min(maxWidth, charWidth * bc->maxNameLen + ORGS_WINDOW_XPAD * 2);
   int height = min(maxHeight, charHeight * bc->organismArr->len + ORGS_WINDOW_YPAD * 2);
   gtk_window_set_default_size(GTK_WINDOW(window), width, height);
-  
-  /* Set the initial position */
-  const int x = (screenWidth - width) / 4;
-  const int y = (screenHeight - height) / 4;
-  gtk_window_move(GTK_WINDOW(window), x, y);
 }
 
 

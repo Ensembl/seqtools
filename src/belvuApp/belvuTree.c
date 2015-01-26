@@ -2734,11 +2734,6 @@ static void setTreeWindowStyleProperties(GtkWidget *window)
   const int width = screenWidth * DEFAULT_TREE_WINDOW_WIDTH_FRACTION;
   const int height = screenHeight * DEFAULT_TREE_WINDOW_HEIGHT_FRACTION;
   gtk_window_set_default_size(GTK_WINDOW(window), width, height);
-  
-  /* Set the initial position */
-  const int x = (screenWidth - width) / 4;
-  const int y = (screenHeight - height) / 4;
-  gtk_window_move(GTK_WINDOW(window), x, y);
 }
 
 

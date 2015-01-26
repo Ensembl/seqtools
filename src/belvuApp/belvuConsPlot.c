@@ -582,11 +582,6 @@ static void setConsPlotStyleProperties(GtkWidget *window, BelvuContext *bc, cons
   const int width = screenWidth * DEFAULT_BELVU_WINDOW_WIDTH_FRACTION;
   
   gtk_window_set_default_size(GTK_WINDOW(window), width, height + CONS_PLOT_WINDOW_YPAD);
-  
-  /* Set the initial position */
-  const int x = (screenWidth - width) / 4;
-  const int y = (screenHeight - height) / 4;
-  gtk_window_move(GTK_WINDOW(window), x, y);
 }
 
 
