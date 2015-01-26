@@ -4547,16 +4547,21 @@ gboolean seqtoolsGetMonitorSize(GtkWidget *widget, int *widthOut, int *heightOut
        * monitor dimensions as this makes more sense than spreading our windows across multiple
        * monitors */
       GdkScreen *screen = gtk_widget_get_screen(widget);
-      int monitor_idx = 0;
+      int monitor_idx = 0; /* default to first monitor (idx 0) */
 
       if (widget->window)
         monitor_idx = gdk_screen_get_monitor_at_window(screen, widget->window);
+#if GTK_MAJOR_VERSION >= (2) && (GTK_MAJOR_VERSION > (2) || GTK_MINOR_VERSION >= (20))
       else
         monitor_idx = gdk_screen_get_primary_monitor(screen);
+#endif
 
       GdkRectangle rect;
+#if GTK_MAJOR_VERSION >= (3) && (GTK_MAJOR_VERSION > (3) || GTK_MINOR_VERSION >= (4))
+      gdk_screen_get_monitor_workarea(screen, monitor_idx, &rect);
+#else
       gdk_screen_get_monitor_geometry(screen, monitor_idx, &rect);
-      //printf("monitor idx=%d, w=%d, h=%d", monitor_idx, rect.width, rect.height);
+#endif
       
       if (widthOut)
         *widthOut = rect.width;
