@@ -333,7 +333,6 @@ int main(int argc, char **argv)
       featureLists[typeId] = g_array_new(TRUE, FALSE, sizeof(MSP*));
     }
   
-  static char *dotterBinary = NULL;
   static gboolean showHelp = FALSE;
   static gboolean showVersion = FALSE;
   static gboolean showCompiled = FALSE;
@@ -546,7 +545,7 @@ int main(int argc, char **argv)
     {
       DEBUG_OUT("Dotter was called internally.\n");
       
-      /* The input arguments (following the options) are: qname, qlen, sname, slen, dotterBinary. */
+      /* The input arguments (following the options) are: qname, qlen, sname, slen. */
       if (argc - optind < 5 || argc - optind > 5)
         {
           g_error("Incorrect number of arguments passed to dotter from internal program call\n"); 
@@ -556,7 +555,6 @@ int main(int argc, char **argv)
       options.qlen = atoi(argv[optind + 1]);
       options.sname = g_strdup(argv[optind + 2]);
       options.slen = atoi(argv[optind + 3]);
-      dotterBinary = g_strdup(argv[optind + 4]);
       
       /* Allocate memory for the sequences, now we know their lengths */
       options.qseq = (char*)g_malloc(sizeof(char) * (options.qlen+1));

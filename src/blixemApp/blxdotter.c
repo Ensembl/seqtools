@@ -2315,18 +2315,6 @@ static gboolean callDotterOnSelf(DotterDialogData *dialogData, GError **error)
       return FALSE;
     }
   
-  /* Set the type */
-  char type = ' ';
-  
-  if (bc->blastMode == BLXMODE_BLASTP || bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
-    {
-      type = 'P';
-    }
-  else if (bc->blastMode == BLXMODE_BLASTX || bc->blastMode == BLXMODE_BLASTN)
-    {
-      type = 'N';
-    }
-
   /* Get the section of reference sequence that we're interested in */
   const BlxStrand qStrand = blxWindowGetActiveStrand(blxWindow);
   const int frame = 1;

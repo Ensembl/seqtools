@@ -661,7 +661,6 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
                             GList *columnList,
                             GHashTable *lookupTable)
 {
-  int   qlen, slen;
   char *cp;
   char *line ;
   char *seq_pos = NULL ;
@@ -763,9 +762,6 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
       
   seq_pos = cp + strlen(sName) ;
             
-  qlen = mspGetQRangeLen(msp);
-  slen = mspGetSRangeLen(msp);
-
   /* Parse the sequence, if applicable */
   char *sequence = NULL;
   
@@ -784,12 +780,6 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
     }
   else if (parserState == SEQBL_BODY)
     {
-      if (blastMode == BLXMODE_TBLASTX)
-	{
-	  slen = (abs(sEnd - sStart) + 1)/3;
-	}
-      
-      
       /* Line contains chars other than sequence so get the starter data...not sure this test
        * is necessary any more now we have a better mechanism of getting a whole line 
        * from a file. All this is a horrible mixture of strtok and sscanf but what else
@@ -880,7 +870,6 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
   DEBUG_ENTER("parseEXBLXSEQBLExtended");
   
   gboolean result = FALSE ;
-  int  qlen, slen;
   char *cp;
   char *line ;
   char *seq_pos = NULL;
@@ -987,9 +976,6 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
 
   seq_pos = cp + strlen(sName) ;
             
-  qlen = mspGetQRangeLen(msp);
-  slen = mspGetSRangeLen(msp);
-
   /* Now read attributes. */
   char *sequence = NULL;
   
@@ -1025,11 +1011,6 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
 		}
 	      else if ((parserState == SEQBL_X_BODY || mspIsVariation(msp)) && (strstr(seq_pos, BLX_SEQUENCE_TAG)))
 		{
-		  if (blastMode == BLXMODE_TBLASTX)
-		    {
-		      slen = mspGetSRangeLen(msp) / 3;
-		    }
-                  
                   sequence = parseSequence(&seq_pos, msp, blastMode);
                   result = (sequence != NULL);
                   
@@ -1049,16 +1030,6 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
   
-  if (parserState == SEQBL_X_BODY)
-    {
-      if (blastMode == BLXMODE_TBLASTX)
-	{
-	  slen = mspGetSRangeLen(msp) / 3;
-	}
-	
-
-    }
-
   if (parserState == SEQBL_X_BODY)
     { 
       checkReversedSubjectAllowed(msp, blastMode);
