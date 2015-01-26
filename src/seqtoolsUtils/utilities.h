@@ -60,6 +60,10 @@
 #define max(a,b)        (((a) > (b)) ? (a) : (b))
 #define min(a,b)        (((a) < (b)) ? (a) : (b))
 
+/* Utility macro to check that our gtk version meets the given minimum version. Use this in
+ * an #if statement */
+#define CHECK_GTK_VERSION(MAJOR, MINOR) GTK_MAJOR_VERSION > (MAJOR) || (GTK_MAJOR_VERSION == (MAJOR) && GTK_MINOR_VERSION >= (MINOR))
+
 
 /* Debug logging macros. #define DEBUG to enable debug output. */
 #ifdef DEBUG

@@ -1763,7 +1763,7 @@ static void aboutDialogOpenLinkCB(GtkAboutDialog *about, const gchar *link, gpoi
 /* Shows the 'About' dialog */
 static void showAboutDialog(GtkWidget *parent)
 {
-#if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (6)
+#if CHECK_GTK_VERSION(2, 6)
   const gchar *authors[] = {AUTHOR_LIST, NULL} ;
 
   gtk_about_dialog_set_url_hook(aboutDialogOpenLinkCB, NULL, NULL) ;

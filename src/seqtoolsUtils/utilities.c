@@ -4551,13 +4551,13 @@ gboolean seqtoolsGetMonitorSize(GtkWidget *widget, int *widthOut, int *heightOut
 
       if (widget->window)
         monitor_idx = gdk_screen_get_monitor_at_window(screen, widget->window);
-#if GTK_MAJOR_VERSION >= (2) && (GTK_MAJOR_VERSION > (2) || GTK_MINOR_VERSION >= (20))
+#if CHECK_GTK_VERSION(2, 20)
       else
         monitor_idx = gdk_screen_get_primary_monitor(screen);
 #endif
 
       GdkRectangle rect;
-#if GTK_MAJOR_VERSION >= (3) && (GTK_MAJOR_VERSION > (3) || GTK_MINOR_VERSION >= (4))
+#if CHECK_GTK_VERSION(3, 4)
       gdk_screen_get_monitor_workarea(screen, monitor_idx, &rect);
 #else
       gdk_screen_get_monitor_geometry(screen, monitor_idx, &rect);

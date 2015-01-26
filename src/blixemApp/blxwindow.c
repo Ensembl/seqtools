@@ -3695,8 +3695,8 @@ static void onResponseFontSelectionDialog(GtkDialog *dialog, gint responseId, gp
       /* Check that the user selected a monospace font (unfortunately there's no easy way to get the
        * font family in older GTK versions so don't bother checking) */
       gboolean ok = TRUE;
-      
-#if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (14)
+    
+#if CHECK_GTK_VERSION(2, 6)  
       GtkFontSelection *fontSeln = GTK_FONT_SELECTION(gtk_buildable_get_internal_child(GTK_BUILDABLE(dialog), gtk_builder_new(), "font_selection"));
       PangoFontFamily *family = gtk_font_selection_get_family(fontSeln);
       ok = pango_font_family_is_monospace(family);
@@ -4355,7 +4355,7 @@ static void aboutDialogOpenLinkCB(GtkAboutDialog *about, const gchar *link, gpoi
 /* Shows the 'About' dialog */
 void showAboutDialog(GtkWidget *parent)
 {
-#if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (6)
+#if CHECK_GTK_VERSION(2, 6)
   const gchar *authors[] = {AUTHOR_LIST, NULL} ;
 
   gtk_about_dialog_set_url_hook(aboutDialogOpenLinkCB, NULL, NULL) ;
