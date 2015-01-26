@@ -3884,9 +3884,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
 
   /* We'll set the default window size based on the dotplot/exon widget size, up to a 
    * max based on screen size. */
-  GdkScreen *screen = gtk_widget_get_screen(dotterWindow);
-  const int maxWidth = gdk_screen_get_width(screen) * MAX_WINDOW_WIDTH_FRACTION;
-  const int maxHeight = gdk_screen_get_height(screen) * MAX_WINDOW_HEIGHT_FRACTION;
+  int maxWidth = 300, maxHeight = 200;
+  seqtoolsGetMonitorSizeFraction(dotterWindow, MAX_WINDOW_WIDTH_FRACTION, MAX_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
 
   const int exonViewHeight = 2 * (DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
   DotplotProperties *dotplotProperties = dotplotGetProperties(dotplot);

@@ -2959,9 +2959,11 @@ static gboolean onColumnSizeChanged(GtkWidget *widget, const gint responseId, gp
        * catches excessively large values, which can cause Blixem to crash. Slightly
        * too-large values may make things look odd but should be recoverable. */
       GtkWidget *blxWindow = dialogChildGetBlxWindow(widget);
-      GdkScreen *screen = gtk_widget_get_screen(blxWindow);
+      
+      int maxWidth = 300;
+      seqtoolsGetMonitorSize(blxWindow, &maxWidth, NULL);
 
-      if (newWidth > gdk_screen_get_width(screen))
+      if (newWidth > maxWidth)
         {
           g_critical("Column width '%d' too large; not changed.\n", newWidth);
         }
@@ -3820,9 +3822,8 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
       g_free(title);
       
-      GdkScreen *screen = gtk_widget_get_screen(dialog);
-      const int width = gdk_screen_get_width(screen) * 0.33;
-      const int height = gdk_screen_get_height(screen) * 0.33;
+      int width = 300, height = 200;
+      seqtoolsGetMonitorSizeFraction(dialog, 0.33, 0.33, &width, &height);
       gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
       
       /* These calls are required to make the dialog persistent... */
@@ -6270,9 +6271,9 @@ static void setStyleProperties(GtkWidget *widget, char *windowColor)
   DEBUG_ENTER("setStyleProperties()");
 
   /* Set the initial window size based on some fraction of the screen size */
-  GdkScreen *screen = gtk_widget_get_screen(widget);
-  const int width = gdk_screen_get_width(screen) * DEFAULT_WINDOW_WIDTH_FRACTION;
-  const int height = gdk_screen_get_height(screen) * DEFAULT_WINDOW_HEIGHT_FRACTION;
+  int width = 300, height = 200;
+  seqtoolsGetMonitorSizeFraction(widget, DEFAULT_WINDOW_WIDTH_FRACTION, DEFAULT_WINDOW_HEIGHT_FRACTION,
+                                 &width, &height);
   
   gtk_window_set_default_size(GTK_WINDOW(widget), width, height);
   

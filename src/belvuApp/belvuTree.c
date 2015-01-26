@@ -2728,9 +2728,8 @@ static void setTreeWindowStyleProperties(GtkWidget *window)
   gtk_widget_set_name(window, BELVU_TREE_WINDOW_NAME);
   
   /* Set the initial window size based on some fraction of the screen size */
-  GdkScreen *screen = gtk_widget_get_screen(window);
-  const int screenWidth = gdk_screen_get_width(screen);
-  const int screenHeight = gdk_screen_get_height(screen);
+  int screenWidth = 300, screenHeight = 200;
+  seqtoolsGetMonitorSize(window, &screenWidth, &screenHeight);
   
   const int width = screenWidth * DEFAULT_TREE_WINDOW_WIDTH_FRACTION;
   const int height = screenHeight * DEFAULT_TREE_WINDOW_HEIGHT_FRACTION;

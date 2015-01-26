@@ -3356,9 +3356,8 @@ static void setWrapWindowStyleProperties(GtkWidget *window)
   gtk_widget_set_name(window, WRAPPED_BELVU_WINDOW_NAME);
   
   /* Set the initial window size based on some fraction of the screen size */
-  GdkScreen *screen = gtk_widget_get_screen(window);
-  const int screenWidth = gdk_screen_get_width(screen);
-  const int screenHeight = gdk_screen_get_height(screen);
+  int screenWidth = 300, screenHeight = 200;
+  seqtoolsGetMonitorSize(window, &screenWidth, &screenHeight);
 
   const int width = screenWidth * DEFAULT_WRAP_WINDOW_WIDTH_FRACTION;
   const int height = screenHeight * DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION;
@@ -3427,9 +3426,8 @@ static void setOrgsWindowStyleProperties(GtkWidget *window, BelvuContext *bc)
   gdouble charWidth = 0, charHeight = 0;
   getFontCharSize(window, window->style->font_desc, &charWidth, &charHeight);
 
-  GdkScreen *screen = gtk_widget_get_screen(window);
-  const int screenWidth = gdk_screen_get_width(screen);
-  const int screenHeight = gdk_screen_get_height(screen);
+  int screenWidth = 100, screenHeight = 100;
+  seqtoolsGetMonitorSize(window, &screenWidth, &screenHeight);
   
   const int maxWidth = screenWidth * MAX_ORGS_WINDOW_WIDTH_FRACTION;
   const int maxHeight = screenHeight * MAX_ORGS_WINDOW_HEIGHT_FRACTION;
@@ -3621,9 +3619,9 @@ void showAnnotationWindow(BelvuContext *bc)
   int width = ((maxLen + 1) * charWidth) + scrollBarWidth();
   int height = ((g_slist_length(bc->annotationList) + 1) * charHeight) + scrollBarWidth() + 40; /* extra fudge to allow space for buttons */
 
-  GdkScreen *screen = gtk_widget_get_screen(dialog);
-  const int maxWidth = gdk_screen_get_width(screen) * MAX_ANNOTATION_WINDOW_WIDTH_FRACTION;
-  const int maxHeight = gdk_screen_get_height(screen) * MAX_ANNOTATION_WINDOW_HEIGHT_FRACTION;
+  int maxWidth = 300, maxHeight = 200;
+  seqtoolsGetMonitorSizeFraction(dialog, MAX_ANNOTATION_WINDOW_WIDTH_FRACTION, MAX_ANNOTATION_WINDOW_HEIGHT_FRACTION,
+                                 &maxWidth, &maxHeight);
   width = min(width, maxWidth);
   height = min(height, maxHeight);
   
@@ -4001,12 +3999,10 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar)
 static void setStyleProperties(GtkWidget *window, GtkToolbar *toolbar)
 {
   /* Set the initial window size based on some fraction of the screen size */
-  GdkScreen *screen = gtk_widget_get_screen(window);
-  const int screenWidth = gdk_screen_get_width(screen);
-  const int screenHeight = gdk_screen_get_height(screen);
-  
-  const int width = screenWidth * DEFAULT_BELVU_WINDOW_WIDTH_FRACTION;
-  const int height = screenHeight * DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION;
+  int width = 300, height = 200;
+  seqtoolsGetMonitorSizeFraction(window, DEFAULT_BELVU_WINDOW_WIDTH_FRACTION, DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION,
+                                 &width, &height);
+
   gtk_window_set_default_size(GTK_WINDOW(window), width, height);
   
   gtk_container_set_border_width (GTK_CONTAINER(window), DEFAULT_WINDOW_BORDER_WIDTH); 

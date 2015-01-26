@@ -691,9 +691,9 @@ static void dotterDialogSetDefaultSize(GtkWidget *dialog, GtkWidget *blxWindow)
   /* We'll set the default window width to a preferred default, but make it smaller
    * if it exceeds a maximum percentage of the screen size. Just use the height 
    * allocated for the widgets. */
-  GdkScreen *screen = gtk_widget_get_screen(blxWindow);
-  const int maxWidth = gdk_screen_get_width(screen) * MAX_WINDOW_WIDTH_FRACTION;
-
+  int maxWidth = 300;
+  seqtoolsGetMonitorSizeFraction(dialog, MAX_WINDOW_WIDTH_FRACTION, 1, &maxWidth, NULL);
+  
   const int width = min(DEFAULT_WINDOW_WIDTH, maxWidth);
 
   gtk_window_set_default_size(GTK_WINDOW(dialog), width, -1);

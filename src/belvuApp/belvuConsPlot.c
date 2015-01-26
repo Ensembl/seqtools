@@ -576,9 +576,8 @@ static void setConsPlotStyleProperties(GtkWidget *window, BelvuContext *bc, cons
   g_signal_connect(window, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
   
   /* Set default size based on scale height and alignment window width */
-  GdkScreen *screen = gtk_widget_get_screen(window);
-  const int screenWidth = gdk_screen_get_width(screen);
-  const int screenHeight = gdk_screen_get_height(screen);
+  int screenWidth = 300, screenHeight = 100;
+  seqtoolsGetMonitorSize(window, &screenWidth, &screenHeight);
   
   const int width = screenWidth * DEFAULT_BELVU_WINDOW_WIDTH_FRACTION;
   
