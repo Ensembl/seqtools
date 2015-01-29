@@ -1976,17 +1976,25 @@ static void getPolyASignalBasesToHighlight(GtkWidget *detailView,
   if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && (!bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] || g_slist_length(polyATailMsps) > 0))
     {
       BlxColorId colorId = BLXCOLOR_POLYA_SIGNAL;
-                                        
+
       /* Loop through each base in the visible range */
       const char *seq = bc->refSeq;
       int idx = qRange->min - bc->refSeqRange.min; /* convert to 0-based */
       const int max_idx = qRange->max - bc->refSeqRange.min; /* convert to 0-based */
-      const char *cp = seq + idx;
       const char *comparison = POLYA_SIGNAL;
       const int comparison_len = strlen(comparison);
+      const char *cp = NULL;
 
-      for ( ; idx < max_idx && cp && *cp; ++idx, ++cp)
+      for ( ; idx < max_idx && cp && *cp; ++idx)
         {
+          if (idx < 0)
+            continue;
+
+          cp = seq + idx;
+
+          if (cp == NULL || *cp == NULL)
+            break;
+
           if (!strncasecmp(cp, comparison, comparison_len))
             {
               /* Add each base in the polyA signal range to the hash table. This may overwrite

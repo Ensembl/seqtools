@@ -1,36 +1,89 @@
+2015-01-23  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.31-30-g890b - Update RT and git commit reports
+ src/ChangeLog                                  |    7 +++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 8 insertions(+), 1 deletions(-)
+
+2015-01-21  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.31-29-g75f3 - Update RT and git commit reports
+ src/ChangeLog                                  |   15 +++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 3 files changed, 17 insertions(+), 1 deletions(-)
+
+2015-01-21  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix potential crash in blixem
+ src/blixemApp/detailview.c |   14 +++++++++++---
+ 1 files changed, 11 insertions(+), 3 deletions(-)
+
+2015-01-13  Gemma Barson  <gb10@sanger.ac.uk>
+ Update release notes
+ src/doc/User_doc/release_notes.html |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+2015-01-13  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.31-26-g476d - Update RT and git commit reports
+ src/ChangeLog |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
+
+2015-01-13  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.31-25-gfcf4 - Update RT and git commit reports
+ src/ChangeLog                                  |  176 ++++++++++++------------
+ src/build/release_docs/GIT_COMMITS.txt         |   15 ++-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 3 files changed, 96 insertions(+), 97 deletions(-)
+
+2015-01-13  Gemma Barson  <gb10@sanger.ac.uk>
+ Minor update to blixem quick start guide
+ src/doc/User_doc/blixem_quick_start.html |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
+
+2015-01-05  Ed Griffiths  <edgrif@sanger.ac.uk>
+ "add doc required by Sanger software policy."
+ src/RANGE_OF_YEARS_COPYRIGHT |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
+
+2014-12-18  Ed Griffiths  <edgrif@sanger.ac.uk>
+ "add in X11 and m libs to link, otherwise not found on 64 bit ubuntu."
+ src/Makefile.am |   11 +++++++----
+ 1 files changed, 7 insertions(+), 4 deletions(-)
+
+2014-12-01  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix bug where matches can be treated like basic features
+ src/seqtoolsUtils/blxGff3Parser.c |   59 +++++++++++++++++++-----------------
+ src/seqtoolsUtils/blxmsp.h        |    3 +-
+ 2 files changed, 33 insertions(+), 29 deletions(-)
+
+2014-11-28  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Merge branch 'production' into develop
 2014-11-27  Gemma Barson  <gb10@sanger.ac.uk>
- Fix problem with drag-and-drop of 'Sequence' features from ZMap (RT436929)
- src/seqtoolsUtils/blxGff3Parser.c |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
+ Fix bug where styles were not being picked up for new features
+ src/blixemApp/blxwindow.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-2014-11-26  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.30-21-g89cc - Update RT and git commit reports
- src/ChangeLog                                  |    7 +++++++
- src/build/release_docs/GIT_COMMITS.txt         |    1 +
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 9 insertions(+), 1 deletions(-)
+2014-11-27  Gemma Barson  <gb10@sanger.ac.uk>
+ Set NULL SO ID for invalid Sequence type
+ src/seqtoolsUtils/blxGff3Parser.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
 
-2014-11-25  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.30-20-g15bb - Update RT and git commit reports
- src/ChangeLog                                  |    7 +++++++
- src/build/release_docs/GIT_COMMITS.txt         |    1 +
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 9 insertions(+), 1 deletions(-)
-
-2014-11-24  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.30-19-gdf004 - Update RT and git commit reports
- src/ChangeLog                                  |   38 ++++++++++++++++++++++++
- src/build/release_docs/GIT_COMMITS.txt         |    2 +
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 41 insertions(+), 1 deletions(-)
-
+2014-11-27  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'release/4.31' into develop
 2014-11-24  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'feature/basic_features' into release/4.31
+ Merge branch 'release/4.31' into develop
+2014-11-24  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'feature/basic_features' into develop
 2014-11-24  Gemma Barson  <gb10@sanger.ac.uk>
  Update blixem usage info to reflect support for basic types
  src/blixemApp/blxmain.c |    3 ++-
  1 files changed, 2 insertions(+), 1 deletions(-)
 
+2014-11-24  Gemma Barson  <gb10@sanger.ac.uk>
+ Update release notes
+ src/doc/User_doc/release_notes.html |   15 +++++++++++++++
+ 1 files changed, 15 insertions(+), 0 deletions(-)
+
+2014-11-21  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'feature/basic_features' into develop
 2014-11-21  Gemma Barson  <gb10@sanger.ac.uk>
  Improve display of exons and basic features in the detail view
  src/blixemApp/sequencecellrenderer.c |   51 +++++++++------------------------
@@ -56,74 +109,50 @@
  src/seqtoolsUtils/blxmsp.h        |    5 +++++
  2 files changed, 8 insertions(+), 1 deletions(-)
 
-2014-11-21  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.30-13-g3ab2 - Update RT and git commit reports
- src/ChangeLog                          |    7 +++++++
- src/build/release_docs/GIT_COMMITS.txt |    1 +
- 2 files changed, 8 insertions(+), 0 deletions(-)
-
-2014-11-21  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.30-12-g5b4f - Update RT and git commit reports
- src/ChangeLog                                  |    7 +++++++
- src/build/release_docs/GIT_COMMITS.txt         |    1 +
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 9 insertions(+), 1 deletions(-)
-
-2014-11-17  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.30-11-g7c4ef - Update RT and git commit reports
- src/ChangeLog                                  |   16 ++++++++++++
- src/build/release_docs/GIT_COMMITS.txt         |    3 ++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |   32 +++++++++++++++++++++++-
- 3 files changed, 50 insertions(+), 1 deletions(-)
+2014-11-19  Ed Griffiths  <edgrif@sanger.ac.uk>
+ update INSTALL files to match Gemma's web writeups.
+ src/INSTALL         |  436 ++++++++++++++++++++++++++++++++++++++++++---------
+ src/INSTALL.linux   |   60 +++++++
+ src/INSTALL.mac     |   51 ++++++
+ src/INSTALL.windows |   81 +++++-----
+ 4 files changed, 513 insertions(+), 115 deletions(-)
 
 2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
- Update release notes
- src/doc/User_doc/release_notes.html |    8 +++++---
- 1 files changed, 5 insertions(+), 3 deletions(-)
+ Merge branch 'release/4.31' into develop
+2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'feature/GUI_improvements' into develop
+2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
+ Add tooltips to greyramp tool buttons
+ src/dotterApp/greyramptool.c |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
-2014-11-13  Steve Miller  <sm23@sanger.ac.uk>
- update of release notes for v. 4.31
- src/doc/User_doc/release_notes.html |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
+2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
+ Add maximise button for greyramp tool
+ src/dotterApp/greyramptool.c |   31 ++++++++++++++++++++++++-------
+ 1 files changed, 24 insertions(+), 7 deletions(-)
 
-2014-11-12  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.30-8-g588a - Update RT and git commit reports
- src/ChangeLog                          |    7 +++++++
- src/build/release_docs/GIT_COMMITS.txt |    1 +
- 2 files changed, 8 insertions(+), 0 deletions(-)
+2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix keyboard shortcuts on separate tools
+ src/dotterApp/dotter.c |  121 ++++++++++++++++++++++++++----------------------
+ 1 files changed, 66 insertions(+), 55 deletions(-)
 
-2014-11-12  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.30-7-g8cf9 - Update RT and git commit reports
- src/ChangeLog                                  |   79 ++++++++----------------
- src/build/release_docs/GIT_COMMITS.txt         |   20 +++---
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 36 insertions(+), 65 deletions(-)
+2014-11-13  Gemma Barson  <gb10@sanger.ac.uk>
+ Move tool menus to main window
+ src/dotterApp/alignmenttool.c |  297 +++++++++--------------------------------
+ src/dotterApp/dotter.c        |  185 ++++++++++++++++++++++---
+ src/dotterApp/dotter_.h       |   10 ++-
+ src/dotterApp/greyramptool.c  |   76 +----------
+ 4 files changed, 235 insertions(+), 333 deletions(-)
 
-2014-11-03  Steve Miller  <sm23@sanger.ac.uk>
- Merge branch 'production' into develop
-2014-11-03  Steve Miller  <sm23@sanger.ac.uk>
- Merge branch 'release/4.30' into develop
-2014-10-28  Gemma Barson  <gb10@sanger.ac.uk>
- Fix typo in configure.ac causing it to fail
- src/configure.ac |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+2014-11-13  Gemma Barson  <gb10@sanger.ac.uk>
+ Add right click option to maximise greyramp tool
+ src/dotterApp/alignmenttool.c |    4 ++--
+ src/dotterApp/dotter.c        |   34 ++++++++++++++++++++++++++++++++--
+ src/dotterApp/greyramptool.c  |    8 ++++----
+ 3 files changed, 38 insertions(+), 8 deletions(-)
 
-2014-10-27  Gemma Barson  <gb10@sanger.ac.uk>
- Update blixem quick start guide with minor colour change
- src/doc/User_doc/blixem_quick_start.html |    8 ++++----
- 1 files changed, 4 insertions(+), 4 deletions(-)
-
-2014-10-22  Gemma Barson  <gb10@sanger.ac.uk>
- Make sqlite optional
- src/configure.ac |    8 ++++++--
- 1 files changed, 6 insertions(+), 2 deletions(-)
-
-2014-10-22  Gemma Barson  <gb10@sanger.ac.uk>
- Fix autoconf error on cygwin
- src/Makefile.am |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
-
-2014-10-20  Gemma Barson  <gb10@sanger.ac.uk>
- Build: remove obsolete hack to pkg-config path
- src/runconfig.sh |    7 ++++---
- 1 files changed, 4 insertions(+), 3 deletions(-)
+2014-11-13  Gemma Barson  <gb10@sanger.ac.uk>
+ Trivial menu name change
+ src/dotterApp/alignmenttool.c |    2 +-
+ src/dotterApp/greyramptool.c  |    5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
