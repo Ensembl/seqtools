@@ -181,25 +181,30 @@ void blxDestroyGffTypeList(GSList **supportedTypes)
 GSList* blxCreateSupportedGffTypeList(const BlxSeqType seqType)
 {
   GSList *supportedTypes = NULL;
-  
-  if (seqType == BLXSEQ_DNA || seqType == BLXSEQ_NONE)
-    {
-      addGffType(&supportedTypes, "nucleotide_match", "SO:0000347", BLXMSP_MATCH);
-      addGffType(&supportedTypes, "primer_match", "SO:0001472", BLXMSP_MATCH);
-      addGffType(&supportedTypes, "cross_genome_match", "SO:0000177", BLXMSP_MATCH);
-      addGffType(&supportedTypes, "translated_nucleotide_match", "SO:0000181", BLXMSP_MATCH);
-      addGffType(&supportedTypes, "expressed_sequence_match", "SO:0000102", BLXMSP_MATCH);
-      addGffType(&supportedTypes, "cDNA_match", "SO:0000689", BLXMSP_MATCH);
-      addGffType(&supportedTypes, "EST_match", "SO:0000668", BLXMSP_MATCH);
-      addGffType(&supportedTypes, "UST_match", "SO:0001470", BLXMSP_MATCH);
-      addGffType(&supportedTypes, "RST_match", "SO:0001471", BLXMSP_MATCH);
-    }
 
-  if (seqType == BLXSEQ_PEPTIDE || seqType == BLXSEQ_NONE)
-    {
-      addGffType(&supportedTypes, "protein_match", "SO:0000349", BLXMSP_MATCH);
-      addGffType(&supportedTypes, "protein_hmm_match", "SO:0001831", BLXMSP_MATCH);
-    }
+  BlxMspType dnaType = BLXMSP_MATCH;
+  BlxMspType proteinType = BLXMSP_MATCH;
+
+  /* In DNA mode we need to exclude protein matches, so set them to invalid */
+  if (seqType == BLXSEQ_DNA)
+    proteinType = BLXMSP_INVALID;
+
+  /* In protein mode we need to exclude nucleotide matches, so set them to invalid */
+  if (seqType == BLXSEQ_PEPTIDE)
+    dnaType = BLXMSP_INVALID;
+  
+  addGffType(&supportedTypes, "nucleotide_match", "SO:0000347", dnaType);
+  addGffType(&supportedTypes, "primer_match", "SO:0001472", dnaType);
+  addGffType(&supportedTypes, "cross_genome_match", "SO:0000177", dnaType);
+  addGffType(&supportedTypes, "translated_nucleotide_match", "SO:0000181", dnaType);
+  addGffType(&supportedTypes, "expressed_sequence_match", "SO:0000102", dnaType);
+  addGffType(&supportedTypes, "cDNA_match", "SO:0000689", dnaType);
+  addGffType(&supportedTypes, "EST_match", "SO:0000668", dnaType);
+  addGffType(&supportedTypes, "UST_match", "SO:0001470", dnaType);
+  addGffType(&supportedTypes, "RST_match", "SO:0001471", dnaType);
+
+  addGffType(&supportedTypes, "protein_match", "SO:0000349", proteinType);
+  addGffType(&supportedTypes, "protein_hmm_match", "SO:0001831", proteinType);
   
   addGffType(&supportedTypes, "match", "SO:0000343", BLXMSP_MATCH);
   addGffType(&supportedTypes, "match_part", "SO:0000039", BLXMSP_MATCH);
@@ -210,9 +215,9 @@ GSList* blxCreateSupportedGffTypeList(const BlxSeqType seqType)
   addGffType(&supportedTypes, "processed_transcript", "SO:0000233", BLXMSP_TRANSCRIPT);
   addGffType(&supportedTypes, "mRNA", "SO:0000234", BLXMSP_TRANSCRIPT);
 
-  /* gb10: hack to support old Sequence type from zmap (I don't think this is a real SO term?
-   * I've used the same SO id as mRNA though just to make sure I don't break anything for now.) */
-  addGffType(&supportedTypes, "Sequence", "SO:0000234", BLXMSP_TRANSCRIPT);
+  /* gb10: hack to support old Sequence type from zmap which unfortunately still gets
+   * passed sometimes (it's not even a real SO term) */
+  addGffType(&supportedTypes, "Sequence", NULL, BLXMSP_TRANSCRIPT);
 
   addGffType(&supportedTypes, "CDS", "SO:0000316", BLXMSP_CDS);
   addGffType(&supportedTypes, "UTR", "SO:0000203", BLXMSP_UTR);
@@ -246,7 +251,7 @@ GSList* blxCreateSupportedGffTypeList(const BlxSeqType seqType)
  * the SO id) */
 static BlxMspType getBlxType(GSList *supportedTypes, const char *typeStr, GError **error)
 {
-  BlxMspType result = BLXMSP_INVALID;
+  BlxMspType result = BLXMSP_NONE;
 
   /* Loop through the supported types and see if the requested type matches the name or SO id */
   GSList *item = supportedTypes;
@@ -262,14 +267,12 @@ static BlxMspType getBlxType(GSList *supportedTypes, const char *typeStr, GError
         }
     }
   
-  /* Check if it was found... */
-  if (result == BLXMSP_INVALID)
-  {
-    /* Treat all others as basic features */
-    result = BLXMSP_BASIC;
-    //g_set_error(error, BLX_GFF3_ERROR, BLX_GFF3_ERROR_INVALID_TYPE, "Unsupported type '%s' will be ignored.\n", typeStr);
-  }
-  
+  /* If it wasn't found, treat as a basic feature... */
+  if (result == BLXMSP_NONE)
+    {
+      result = BLXMSP_BASIC;
+    }
+
   return result;
 }
 
@@ -657,7 +660,7 @@ void parseGff3Body(const int lineNum,
                                * of lines we can't read */
   
   /* Parse the data into a temporary struct */
-  BlxGffData gffData = {NULL, NULL, BLXMSP_INVALID,
+  BlxGffData gffData = {NULL, NULL, BLXMSP_NONE,
                         UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
 			NULL, NULL, BLXSTRAND_NONE,
                         UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, BLX_GAP_STRING_INVALID, 0, 0};

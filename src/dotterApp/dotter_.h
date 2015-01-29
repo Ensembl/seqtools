@@ -313,12 +313,18 @@ void                copyIntToDefaultClipboard(const int val);
 int                 getStartCoord(DotterWindowContext *dwc, const gboolean horizontal);
 int                 getEndCoord(DotterWindowContext *dwc, const gboolean horizontal);
 int                 getSelectedCoord(DotterWindowContext *dwc, const gboolean horizontal);
+void                dotterEnableSelectionMenus(DotterWindowContext *dwc, const gboolean enable);
 
 void                callDotterInternal(DotterContext *dc, 
                                        const IntRange* const refSeqRange,
                                        const IntRange* const matchSeqRange,
                                        const gdouble zoomFactor,
                                        const gboolean breaklinesOn);
+
+void                dotterSetToggleMenuStatus(DotterWindowContext *dwc, 
+                                              const char *menuItem,
+                                              const gboolean enable);
+
 
 /* greyramptool.c */
 GtkWidget*          createGreyrampTool(DotterWindowContext *dwc, const int bottomVal, const int topVal, const gboolean swapValues, GtkWidget **greyrampWindow_out);
@@ -332,7 +338,9 @@ void                updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowC
 void                alignmentToolSetSpliceSitesOn(GtkWidget *alignmentTool, const gboolean spliceSitesOn);
 gboolean            alignmentToolGetSpliceSitesOn(GtkWidget *alignmentTool);
 void                alignmentToolRedrawAll(GtkWidget *alignmentTool);
-
+void                alignmentToolCopySeln(GtkWidget* alignmentTool);
+void                alignmentToolCopySelnCoords(GtkWidget *alignmentTool);
+void                alignmentToolClearSequenceSelection(GtkWidget *alignmentTool);
 
 /* dotplot.c */
 GtkWidget*          createDotplot(DotterWindowContext *dwc, 

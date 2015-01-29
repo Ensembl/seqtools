@@ -1,10 +1,16 @@
 
-Git commits for  from commit "production" until commit "release/4.31"
+Git commits for  from commit "production" until commit "release/4.32"
 
-232f367 2014-11-27 Fix problem with drag-and-drop of 'Sequence' features from ZMap (RT436929)
-5b10ee8 2014-10-28 Fix typo in configure.ac causing it to fail
-90c2632 2014-10-22 Make sqlite optional
-4c88e41 2014-10-22 Fix autoconf error on cygwin
+75f36e6 2015-01-21 Fix potential crash in blixem
+99e145a 2015-01-05 "add doc required by Sanger software policy."
+610a3f0 2014-12-18 "add in X11 and m libs to link, otherwise not found on 64 bit ubuntu."
+9039a1a 2014-12-01 Fix bug where matches can be treated like basic features
+e2aef48 2014-11-27 Fix bug where styles were not being picked up for new features
+ff120f2 2014-11-27 Set NULL SO ID for invalid Sequence type
+f4fc3ad 2014-11-24 Merge branch 'feature/basic_features' into develop
+1315c5d 2014-11-21 Merge branch 'feature/basic_features' into develop
+4d5630a 2014-11-19 update INSTALL files to match Gemma's web writeups.
+43a4c86 2014-11-14 Merge branch 'feature/GUI_improvements' into develop
 
 
 End of git commits

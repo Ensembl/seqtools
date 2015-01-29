@@ -1,0 +1,51 @@
+
+INSTALLING SEQTOOLS ON MAX OS X
+===============================
+
+Install the following pre-requisites. We strongly recommend that you use
+MacPorts to install these packages as this will also install any dependencies
+for you.
+
+    curl    (optional)
+    gtk2
+    glib2
+    sqlite3 (optional)
+
+In the terminal, unpack the downloaded seqtools tar file using the following
+command, where XXX is the version you downloaded:
+
+    tar -xf seqtools-XXX.tar.gz
+
+To install in the default location (usually /opt/local/bin):
+
+    cd seqtools-XXX
+    ./configure 
+    make 
+    make install 
+
+To install in a different location, or for help with dependencies, see the tips
+section.
+
+
+Tips
+
+You may need to run make install using sudo if you do not have root privileges,
+i.e.:
+
+    sudo make install
+
+Alternatively, to install to a different location (e.g. one not requiring root
+privileges), use the --prefix argument when you run ./configure. For example,
+the following command would set the install location to foo/bar in your home
+directory:
+
+    ./configure --prefix=~/foo/bar
+
+If GTK+ is not in the default location then you may need to pass its location to
+the configure script. GTK+ is usually installed in /usr/lib, /usr/local/lib,
+/opt/lib or /opt/local/lib. If GTK+ is in e.g. /opt/local/lib then you would
+call configure with the following arguments:
+
+    ./configure PKG_CONFIG_PATH=/opt/local/lib/pkgconfig LDFLAGS="-Xlinker -rpath -Xlinker /opt/local/lib"
+
+
