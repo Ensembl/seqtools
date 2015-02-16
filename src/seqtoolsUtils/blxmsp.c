@@ -3365,7 +3365,7 @@ BlxSequence* addBlxSequence(const char *name,
           
           /* Add it to the return sequence list (must append it because this function can be
            * called from within a loop which relies on new sequences being appended) */
-          *seqList = g_list_append(*seqList, blxSeq);
+          *seqList = g_list_prepend(*seqList, blxSeq);
 
           /* Add an entry to the lookup table (add an entry for both id and name, if given,
            * because the next feature may have only one or the other set.) */

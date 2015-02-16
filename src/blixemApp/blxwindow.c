@@ -6805,8 +6805,9 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   
   /* Just once, at the start, update the visibility of all tree rows. (After this,
    * filter updates will be done on affected rows only.) */
-  callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
-  detailViewResortTrees(detailView);
+  // gb10: already done by updatemsplengths
+  //callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
+  //detailViewResortTrees(detailView);
   
   /* Calculate initial size of the exon views (depends on big picture range) */
   calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
