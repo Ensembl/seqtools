@@ -5834,12 +5834,14 @@ GList *blxContextGetSelectedSeqsByType(const BlxViewContext *blxContext, const B
 }
 
 
-/* If there is one (and only one) selected transcript then return it; otherwise return null */
-BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext)
+/* If there is one (and only one) selected transcript then return it; otherwise return null. If
+ * num_transcripts is given then return the number of selected transcripts. */
+BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext, int *num_transcripts)
 {
   BlxSequence *result = NULL;
 
   GList *list_item = blxContext->selectedSeqs;
+  int num_found = 0;
   
   for ( ; list_item; list_item = list_item->next)
     {
@@ -5847,11 +5849,16 @@ BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext)
       
       if (curSeq->type == BLXSEQUENCE_TRANSCRIPT)
         {
+          ++num_found;
+          
           if (result)
             {
               /* Found more than one - don't know which to choose so return null */
               result = NULL;
-              break;
+
+              /* If we don't need to return the count, then exit now */
+              if (!num_transcripts)
+                break;
             }
           else
             {
@@ -5860,6 +5867,9 @@ BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext)
             }
         }
     }
+
+  if (num_transcripts)
+    *num_transcripts = num_found;
 
   return result;
 }
@@ -5932,7 +5942,7 @@ BlxSequence* blxWindowGetSelectedTranscript(GtkWidget *blxWindow)
   BlxSequence *result = NULL;
 
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  result = blxContextGetSelectedTranscript(blxContext);
+  result = blxContextGetSelectedTranscript(blxContext, NULL);
 
   return result;
 }
