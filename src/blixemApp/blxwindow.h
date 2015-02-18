@@ -92,7 +92,7 @@ BlxSequence*              blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
 gboolean                  blxContextIsSeqSelected(const BlxViewContext* const bc, const BlxSequence *seq);
 SequenceGroup*            blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSequence *seqToFind);
-BlxSequence*              blxContextGetSelectedTranscript(const BlxViewContext *blxContext);
+BlxSequence*              blxContextGetSelectedTranscript(const BlxViewContext *blxContext, int *num_transcripts);
 GList*                    blxContextGetSelectedSeqsByType(const BlxViewContext *blxContext, const BlxSequenceType type);
 
 int                       sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
