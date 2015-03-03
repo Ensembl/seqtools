@@ -33,6 +33,10 @@
  *-------------------------------------------------------------------
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef __LIBPFETCH_I_H__
 #define __LIBPFETCH_I_H__
 
@@ -237,3 +241,7 @@ typedef struct _pfetchHandleHttpClassStruct
 
 
 #endif /* __LIBPFETCH_I_H__ */
+
+#ifdef __cplusplus
+}
+#endif
