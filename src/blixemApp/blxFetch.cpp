@@ -1157,7 +1157,7 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
   
   gboolean debug_pfetch = FALSE ;
-  PFetchData pfetch_data ;
+  PFetchData pfetch_data = NULL ;
   GError *tmpError = NULL;
   GString *command = NULL;
   GString *request = NULL;
@@ -1191,11 +1191,16 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
                              bc->dataset, &tmpError);
     }
   
-  if (tmpError)
+  if (!pfetch_data || tmpError)
     {
       /* Couldn't initiate the fetch; try again with a different fetch method */
-      g_free(pfetch_data->pfetch);
-      g_free(pfetch_data);
+      if (pfetch_data)
+        {
+          g_free(pfetch_data->pfetch);
+          g_free(pfetch_data);
+          pfetch_data = NULL;
+        }
+
       reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
       fetchSequence(blxSeq, TRUE, attempt + 1, blxWindow, dialog, text_buffer);
     }

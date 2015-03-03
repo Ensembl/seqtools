@@ -801,8 +801,8 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
 static void drawBelvuSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
 {
   /* The range starts at the current adjustment value (add one to make it a 1-based column number) */
-  IntRange displayRange = {properties->hAdjustment->value + 1,
-                           min(properties->bc->maxLen, properties->hAdjustment->value + properties->hAdjustment->page_size)};
+  IntRange displayRange = {(int)(properties->hAdjustment->value + 1),
+                           (int)min(properties->bc->maxLen, properties->hAdjustment->value + properties->hAdjustment->page_size)};
   
   drawHScale(widget, 
              drawable,

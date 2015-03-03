@@ -1430,7 +1430,7 @@ static void destroyMspFull(MSP *msp, BlxSequence *seq, GArray *featureLists[], M
 {
   /* Remove from the feature list */
   GArray *array = featureLists[msp->type];
-  int i = 0;
+  unsigned int i = 0;
   for ( ; i < array->len; ++i)
     {
       MSP *curMsp = g_array_index(array, MSP*, i);

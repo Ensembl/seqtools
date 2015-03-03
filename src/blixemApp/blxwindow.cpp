@@ -6261,9 +6261,9 @@ static void setDragDropProperties(GtkWidget *widget)
 
   static GtkTargetEntry targetentries[] =
     {
-      { "STRING",        0, TARGET_STRING },
-      { "text/plain",    0, TARGET_STRING },
-      { "text/uri-list", 0, TARGET_URL },
+      { (gchar*)"STRING",        0, TARGET_STRING },
+      { (gchar*)"text/plain",    0, TARGET_STRING },
+      { (gchar*)"text/uri-list", 0, TARGET_URL },
     };
   
   gtk_drag_dest_set(widget, GTK_DEST_DEFAULT_ALL, targetentries, 3,

@@ -740,7 +740,7 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
       else
 	{
 	  /* Try to make a proper db:name.  Use last non-blank field */
-	  char *db=p, *last;
+          char *db=p, *last=NULL;
   	    
 	  p = strtok(0, "|");
 	  while (p) {
@@ -954,7 +954,7 @@ static void parseEXBLXSEQBLExtended(GArray* featureLists[],
       else
 	{
 	  /* Try to make a proper db:name.  Use last non-blank field */
-	  char *db=p, *last;
+          char *db=p, *last=NULL;
   	    
 	  p = strtok(0, "|");
 	  while (p) {

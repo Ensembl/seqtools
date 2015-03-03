@@ -2150,7 +2150,7 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow,
       dotterSName = mspGetSName(firstMsp);
     }
 
-  IntRange sRange = {1, strlen(dotterSSeq)};
+  IntRange sRange = {1, (int)strlen(dotterSSeq)};
   
   const int offset = dotterRange.min - 1;
   const BlxStrand refSeqStrand = blxWindowGetActiveStrand(blxWindow);
@@ -2297,7 +2297,7 @@ gboolean callDotterOnAdhocSeq(DotterDialogData *dialogData, GError **error)
       reportAndClearIfError(&seqError, G_LOG_LEVEL_WARNING);
     }
 
-  IntRange sRange = {1, strlen(dotterSSeq)};
+  IntRange sRange = {1, (int)strlen(dotterSSeq)};
   
   const int offset = dotterRange.min - 1;
   const BlxStrand refSeqStrand = blxWindowGetActiveStrand(blxWindow);
