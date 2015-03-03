@@ -15,7 +15,7 @@ $(NULL)
 
 AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS)
 
-libpfetch_a_CFLAGS = 
+libpfetch_a_CFLAGS = -I$(top_srcdir)
 
 libpfetch_a_marshal = libpfetch-cmarshal.list
 

@@ -5,7 +5,7 @@ noinst_LIBRARIES = libBlixemApp.a
 
 libBlixemApp_a_SOURCES = sequencecellrenderer.c bigpicture.c bigpicturegrid.c detailview.c detailviewtree.c blxwindow.c exonview.c coverageview.c blxdotter.c blxFetchDb.c blxview.h blixem_.h detailview.h detailviewtree.h sequencecellrenderer.h bigpicture.h bigpicturegrid.h blxwindow.h exonview.h coverageview.h blxdotter.h 
 libBlixemApp_a_LIBADD  = 
-libBlixemApp_a_CFLAGS  = 
+libBlixemApp_a_CFLAGS  = -I$(top_srcdir)
 
 # there's a problem on ubuntu 14 with finding X11 so this is a hopefully temporary hack...
 X_LIB = -lX11 -lm
@@ -27,7 +27,7 @@ else
 bin_PROGRAMS = blixem
 endif
 
-AM_LDFLAGS = -L$(top_builddir)
+AM_LDFLAGS = -L$(top_builddir)/seqtoolsUtils -L$(top_builddir)/blixemApp
 
 blixem_SOURCES = blxmain.c blxview.c blxFetch.c
 blixem_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a libBlixemApp.a -lSeqtoolsUtils -lBlixemApp $(BLX_LIBS) $(X_LIB)
