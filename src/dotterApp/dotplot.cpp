@@ -2717,7 +2717,7 @@ static const char* getShortMspName(const MSP* const msp)
   
   if (sName)
     {
-      char *mspName = strchr(sName, ':');  
+      const char *mspName = strchr(sName, ':');  
       result = mspName ? ++mspName : sName;
     }
   

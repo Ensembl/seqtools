@@ -612,8 +612,8 @@ gint organismorder(gconstpointer xIn, gconstpointer yIn)
   const ALN *y = *((const ALN**)yIn);
 
   int retval=0;
-  char *p1 = strchr(x->name, '_'), 
-       *p2 = strchr(y->name, '_');
+  const char *p1 = strchr(x->name, '_'), 
+             *p2 = strchr(y->name, '_');
 
   if (!p1 && !p2) return alphaorder(xIn, yIn);
   if (!p1) return 1;
@@ -4148,7 +4148,8 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
   char
     *namep,		/* Seqname */
     name[MAXNAMESIZE+1],/* Seqname */
-    *labelp,		/* Label (OS) */
+    *labelp;		/* Label (OS) */
+  const char
     *valuep;		/* Organism (c. elegans) */
 
   

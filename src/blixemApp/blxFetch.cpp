@@ -454,7 +454,7 @@ static int doFetchStringSubstitutionKeyword(const char* input_string,
    * the text in between */
   if (input_string && *input_string == '(')
     {
-      char *cp = strchr(input_string, ')');
+      const char *cp = strchr(input_string, ')');
       
       if (cp)
         {

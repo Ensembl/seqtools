@@ -653,7 +653,7 @@ static void processGeneName(BlxSequence *blxSeq)
   
   if (geneName)
     {
-      char *startPtr = strstr(geneName, "Name=");
+      const char *startPtr = strstr(geneName, "Name=");
       
       if (!startPtr)
         {
