@@ -4222,11 +4222,15 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
          non-redundant list of present organisms */
       
       /* Find string in permanent stack */
-      if (!(valuep = strstr(cp, valuep)))
+      const char *valuepconst = strstr(cp, valuep);
+
+      if (!valuepconst)
         {
           g_critical("Failed to parse organism properly.\n");
           return;
         }
+
+      valuep = strdup(valuepconst);
       
       /* Create an ALN struct from this organism */
       ALN *aln = createEmptyAln();

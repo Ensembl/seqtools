@@ -44,6 +44,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <ctype.h>
+#include <unistd.h>
 
 #define UNSET_INT  -1
 
@@ -479,7 +480,7 @@ int main(int argc, char **argv)
     }
 
   if (sleepSecs > 0)
-    sleep(sleepSecs);
+    usleep(sleepSecs * 1000);
 
   /* We're in batch mode if we've specified a save file or an export file */
   const gboolean batchMode = options.savefile || options.exportfile;
