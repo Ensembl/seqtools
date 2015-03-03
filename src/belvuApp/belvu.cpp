@@ -4148,8 +4148,7 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
   char
     *namep,		/* Seqname */
     name[MAXNAMESIZE+1],/* Seqname */
-    *labelp;		/* Label (OS) */
-  const char
+    *labelp,		/* Label (OS) */
     *valuep;		/* Organism (c. elegans) */
 
   

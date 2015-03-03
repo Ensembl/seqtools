@@ -663,7 +663,7 @@ static void processGeneName(BlxSequence *blxSeq)
       if (startPtr)
         {
           startPtr += 5;
-          char *endPtr = strchr(startPtr, ';');
+          const char *endPtr = strchr(startPtr, ';');
           const int numChars = endPtr ? endPtr - startPtr : strlen(startPtr);
           
           char *result = (char*)g_malloc((numChars + 1) * sizeof(char));
