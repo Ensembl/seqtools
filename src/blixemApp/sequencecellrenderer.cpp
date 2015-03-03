@@ -35,12 +35,12 @@
  *----------------------------------------------------------------------------
  */
 
-#include <blixemApp/sequencecellrenderer.h>
-#include <blixemApp/detailview.h>
-#include <blixemApp/detailviewtree.h>
-#include <blixemApp/blxwindow.h>
-#include <seqtoolsUtils/blxmsp.h>
-#include <seqtoolsUtils/utilities.h>
+#include <blixemApp/sequencecellrenderer.hpp>
+#include <blixemApp/detailview.hpp>
+#include <blixemApp/detailviewtree.hpp>
+#include <blixemApp/blxwindow.hpp>
+#include <seqtoolsUtils/blxmsp.hpp>
+#include <seqtoolsUtils/utilities.hpp>
 #include <gtk/gtkcellrenderertext.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -294,7 +294,7 @@ sequence_cell_renderer_get_type (void)
       cell_sequence_type = g_type_register_static (GTK_TYPE_CELL_RENDERER,
 						   "SequenceCellRenderer",
 						   &cell_sequence_info,
-                                                   0);
+                                                   G_TYPE_FLAG_ABSTRACT);
     }
   
   return cell_sequence_type;

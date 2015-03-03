@@ -35,8 +35,8 @@
  *----------------------------------------------------------------------------
  */
 
-#include <seqtoolsUtils/blxmsp.h>
-#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/blxmsp.hpp>
+#include <seqtoolsUtils/utilities.hpp>
 #include <string.h>
 
 

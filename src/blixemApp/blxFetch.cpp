@@ -52,10 +52,10 @@
 #include <errno.h>
 #include <signal.h>
 
-#include <seqtoolsUtils/utilities.h>
-#include <blixemApp/blxwindow.h>
-#include <blixemApp/detailview.h>
-#include <blixemApp/blixem_.h>
+#include <seqtoolsUtils/utilities.hpp>
+#include <blixemApp/blxwindow.hpp>
+#include <blixemApp/detailview.hpp>
+#include <blixemApp/blixem_.hpp>
 
 #ifdef PFETCH_HTML 
 #include <libpfetch/libpfetch.h>

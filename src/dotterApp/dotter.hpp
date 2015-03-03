@@ -46,7 +46,7 @@
 #ifndef DEF_DOTTER_H
 #define DEF_DOTTER_H
 
-#include <seqtoolsUtils/blxmsp.h>
+#include <seqtoolsUtils/blxmsp.hpp>
 
 
 /* Possible graphical formats the plot can be exported as */

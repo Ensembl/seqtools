@@ -5,7 +5,7 @@ noinst_LIBRARIES = libBelvuApp.a
 
 AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir)
 
-libBelvuApp_a_SOURCES = belvu_.h belvu.c belvuWindow.h belvuWindow.c belvuAlignment.h belvuAlignment.c belvuTree.h belvuTree.c belvuConsPlot.h belvuConsPlot.c
+libBelvuApp_a_SOURCES = belvu_.hpp belvu.cpp belvuWindow.hpp belvuWindow.cpp belvuAlignment.hpp belvuAlignment.cpp belvuTree.hpp belvuTree.cpp belvuConsPlot.hpp belvuConsPlot.cpp
 libBelvuApp_a_LIBADD  = 
 libBelvuApp_a_CFLAGS  = 
 
@@ -15,7 +15,7 @@ X_LIB = -lX11 -lm
 AM_LDFLAGS = -L$(top_builddir)/seqtoolsUtils -L$(top_builddir)/belvuApp
 
 bin_PROGRAMS = belvu
-belvu_SOURCES = belvuMain.c
+belvu_SOURCES = belvuMain.cpp
 belvu_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a libBelvuApp.a -lSeqtoolsUtils -lBelvuApp $(DEPS_LIBS) $(X_LIB)
 
 # Extra files to remove for the maintainer-clean target.

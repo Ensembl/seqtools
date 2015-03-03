@@ -38,7 +38,7 @@
  *----------------------------------------------------------------------------
  */
 
-#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/utilities.hpp>
 #include <sys/utsname.h>
 #include <glib.h>
 #include <stdlib.h>

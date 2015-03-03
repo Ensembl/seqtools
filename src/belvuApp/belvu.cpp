@@ -125,11 +125,11 @@
 */
 
 
-#include <belvuApp/belvu_.h>
-#include <belvuApp/belvuWindow.h>
-#include <belvuApp/belvuTree.h>
-#include <belvuApp/belvuConsPlot.h>
-#include <belvuApp/belvuAlignment.h>
+#include <belvuApp/belvu_.hpp>
+#include <belvuApp/belvuWindow.hpp>
+#include <belvuApp/belvuTree.hpp>
+#include <belvuApp/belvuConsPlot.hpp>
+#include <belvuApp/belvuAlignment.hpp>
 
 #include <stdarg.h>
 /*#include <stdlib.h> / * Needed for RAND_MAX but clashes with other stuff */

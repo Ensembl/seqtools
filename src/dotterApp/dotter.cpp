@@ -68,10 +68,10 @@
    prof -pixie -h -only calcWindow dotter dotter.Addrs dotter.Counts
 */
 
-#include <seqtoolsUtils/version.h>
-#include <seqtoolsUtils/utilities.h>
-#include <dotterApp/dotter_.h>
-#include <dotterApp/seqtoolsExonView.h>
+#include <seqtoolsUtils/version.hpp>
+#include <seqtoolsUtils/utilities.hpp>
+#include <dotterApp/dotter_.hpp>
+#include <dotterApp/seqtoolsExonView.hpp>
 #include <gdk/gdkkeysyms.h>
 #include <math.h>
 #include <string.h>
@@ -3928,28 +3928,28 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
   gtk_container_add(GTK_CONTAINER(dotterWindow), GTK_WIDGET(table));
 
-  gtk_table_attach(table, menuBar, 0, numCols, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, padding, padding);
+  gtk_table_attach(table, menuBar, 0, numCols, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), GTK_SHRINK, padding, padding);
   ++row;
 
   if (maximise_dotplot)
     {
       /* dotplot spans all columns; alignment tool + greyramp on same row. */
-      gtk_table_attach(table, dotplotContainer, 0, numCols, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, padding, padding);
+      gtk_table_attach(table, dotplotContainer, 0, numCols, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), padding, padding);
       ++row;
       gtk_table_attach(table, greyrampToolMinimised, 0, numCols, row, row + 1, GTK_SHRINK, GTK_SHRINK, padding, padding);
       ++row;
-      gtk_table_attach(table, alignmentContainer, 0, 1, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, padding, padding);
+      gtk_table_attach(table, alignmentContainer, 0, 1, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), GTK_SHRINK, padding, padding);
       gtk_table_attach(table, greyrampContainer, 1, 2, row, row + 1, GTK_SHRINK, GTK_FILL, padding, padding);
     }
   else
     {
       /* dotplot and greyramp on same row; alignment tool spans all columns */
-      gtk_table_attach(table, dotplotContainer, 0, 1, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, padding, padding);
+      gtk_table_attach(table, dotplotContainer, 0, 1, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), padding, padding);
       gtk_table_attach(table, greyrampContainer, 1, 2, row, row + 1, GTK_SHRINK, GTK_FILL, padding, padding);
       ++row;
       gtk_table_attach(table, greyrampToolMinimised, 0, numCols, row, row + 1, GTK_SHRINK, GTK_SHRINK, padding, padding);
       ++row;
-      gtk_table_attach(table, alignmentContainer, 0, numCols, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_SHRINK, padding, padding);
+      gtk_table_attach(table, alignmentContainer, 0, numCols, row, row + 1, (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), GTK_SHRINK, padding, padding);
     }
 
   gtk_widget_add_events(dotterWindow, GDK_BUTTON_PRESS_MASK);

@@ -36,7 +36,7 @@
  */
 
 
-#include <dotterApp/dotter_.h>
+#include <dotterApp/dotter_.hpp>
 #include <gtk/gtk.h>
 #include <math.h>
 #include <stdlib.h>

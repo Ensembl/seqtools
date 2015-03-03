@@ -41,8 +41,8 @@
  *----------------------------------------------------------------------------
  */
 
-#include <dotterApp/dotter_.h>
-#include <seqtoolsUtils/utilities.h>
+#include <dotterApp/dotter_.hpp>
+#include <seqtoolsUtils/utilities.hpp>
 #include <gtk/gtk.h>
 #include <math.h>
 #include <string.h>

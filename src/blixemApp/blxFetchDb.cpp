@@ -50,9 +50,9 @@
 #include <sqlite3.h>
 //#endif
 
-#include <seqtoolsUtils/utilities.h>
-#include <blixemApp/blixem_.h>
-#include <blixemApp/blxwindow.h>
+#include <seqtoolsUtils/utilities.hpp>
+#include <blixemApp/blixem_.hpp>
+#include <blixemApp/blxwindow.hpp>
 
 /* Error codes and domain */
 #define BLX_FETCH_ERROR g_quark_from_string("Blixem config")

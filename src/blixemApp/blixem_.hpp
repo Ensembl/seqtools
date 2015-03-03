@@ -40,9 +40,9 @@
 
 #include <gtk/gtk.h>
 #include <config.h>
-#include <seqtoolsUtils/utilities.h>
-#include <seqtoolsUtils/blxmsp.h>
-#include <seqtoolsUtils/version.h>
+#include <seqtoolsUtils/utilities.hpp>
+#include <seqtoolsUtils/blxmsp.hpp>
+#include <seqtoolsUtils/version.hpp>
 
 
 /*            blixem program version and information.                        */

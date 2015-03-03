@@ -54,9 +54,9 @@
 #define _detail_view_tree_included_
 
 #include <gtk/gtk.h>
-#include <seqtoolsUtils/utilities.h>
-#include <blixemApp/sequencecellrenderer.h>
-#include <blixemApp/detailview.h>
+#include <seqtoolsUtils/utilities.hpp>
+#include <blixemApp/sequencecellrenderer.hpp>
+#include <blixemApp/detailview.hpp>
 
 #define DETAIL_VIEW_TREE_NAME		  "DetailViewTreeName"
 #define DETAIL_VIEW_TREE_CONTAINER_NAME	  "DetailViewTreeContainerName"

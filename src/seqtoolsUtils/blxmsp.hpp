@@ -43,7 +43,7 @@
 #ifndef _blxmsp_included_
 #define _blxmsp_included_
 
-#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/utilities.hpp>
 #include <stdlib.h>
 #include <gtk/gtk.h>
 

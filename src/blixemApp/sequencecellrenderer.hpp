@@ -51,7 +51,7 @@
 #ifndef _sequence_cell_renderer_included_
 #define _sequence_cell_renderer_included_
 
-#include <blixemApp/blixem_.h>
+#include <blixemApp/blixem_.hpp>
 #include <gtk/gtk.h>
 #include <gtk/gtkcellrenderertext.h>
 

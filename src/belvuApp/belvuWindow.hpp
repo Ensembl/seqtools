@@ -38,7 +38,7 @@
 #ifndef _belvuwindow_h_included_
 #define _belvuwindow_h_included_
 
-#include <belvuApp/belvu_.h>
+#include <belvuApp/belvu_.hpp>
 #include <gtk/gtk.h>
 
 gboolean              createBelvuWindow(BelvuContext *bc, BlxMessageData *msgData);

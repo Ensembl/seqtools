@@ -38,8 +38,8 @@
  *----------------------------------------------------------------------------
  */
 
-#include <seqtoolsUtils/utilities.h>
-#include <seqtoolsUtils/iupac.h>
+#include <seqtoolsUtils/utilities.hpp>
+#include <seqtoolsUtils/iupac.hpp>
 #include <glib.h>
 #include <ctype.h>
 #include <string.h>

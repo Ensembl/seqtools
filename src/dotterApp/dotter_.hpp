@@ -38,8 +38,8 @@
 #ifndef _dotter_p_h_included_
 #define _dotter_p_h_included_
 
-#include <dotterApp/dotter.h>
-#include <seqtoolsUtils/version.h>
+#include <dotterApp/dotter.hpp>
+#include <seqtoolsUtils/version.hpp>
 #include <config.h>
 
 #define NR                    23                        /* Not A residue */

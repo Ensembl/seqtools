@@ -46,8 +46,8 @@
 #define _blxwindow_included_
 
 #include <gtk/gtk.h>
-#include <blixemApp/blixem_.h>
-#include <seqtoolsUtils/utilities.h>
+#include <blixemApp/blixem_.hpp>
+#include <seqtoolsUtils/utilities.hpp>
 
 
 /* Public function declarations */

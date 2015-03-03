@@ -39,7 +39,7 @@
 #define BLX_GFF_P_H
 
 #include <gtk/gtk.h>
-#include <seqtoolsUtils/blxmsp.h>
+#include <seqtoolsUtils/blxmsp.hpp>
 
 /* We follow glib convention in error domain naming:
  *          "The error domain is called <NAMESPACE>_<MODULE>_ERROR" */

@@ -40,7 +40,7 @@
 #define _belvutree_h_included_
 
 
-#include <belvuApp/belvu_.h>
+#include <belvuApp/belvu_.hpp>
 #include <gtk/gtk.h>
 
 

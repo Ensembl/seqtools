@@ -36,8 +36,8 @@
  *----------------------------------------------------------------------------
  */
 
-#include <dotterApp/dotter_.h>
-#include <dotterApp/seqtoolsExonView.h>
+#include <dotterApp/dotter_.hpp>
+#include <dotterApp/seqtoolsExonView.hpp>
 #include <gtk/gtk.h>
 #include <math.h>
 #include <string.h>

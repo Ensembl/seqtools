@@ -36,10 +36,10 @@
  *----------------------------------------------------------------------------
  */
 
-#include <blixemApp/blixem_.h>
-#include <seqtoolsUtils/utilities.h>
-#include <seqtoolsUtils/blxparser.h>
-#include <seqtoolsUtils/blxGff3Parser.h>
+#include <blixemApp/blixem_.hpp>
+#include <seqtoolsUtils/utilities.hpp>
+#include <seqtoolsUtils/blxparser.hpp>
+#include <seqtoolsUtils/blxGff3Parser.hpp>
 #include <string.h>
 #include <stdlib.h>
 #include <getopt.h>

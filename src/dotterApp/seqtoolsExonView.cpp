@@ -35,9 +35,9 @@
  *----------------------------------------------------------------------------
  */
 
-#include <dotterApp/seqtoolsExonView.h>
-#include <dotterApp/dotter_.h>
-#include <seqtoolsUtils/blxmsp.h>
+#include <dotterApp/seqtoolsExonView.hpp>
+#include <dotterApp/dotter_.hpp>
+#include <seqtoolsUtils/blxmsp.hpp>
 #include <string.h>
 #include <stdlib.h>
 

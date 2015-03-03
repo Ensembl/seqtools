@@ -35,12 +35,12 @@
  *----------------------------------------------------------------------------
  */
 
-#include <blixemApp/blxdotter.h>
-#include <blixemApp/blxwindow.h>
-#include <blixemApp/bigpicture.h>
-#include <blixemApp/detailview.h>
-#include <seqtoolsUtils/utilities.h>
-#include <seqtoolsUtils/blxmsp.h>
+#include <blixemApp/blxdotter.hpp>
+#include <blixemApp/blxwindow.hpp>
+#include <blixemApp/bigpicture.hpp>
+#include <blixemApp/detailview.hpp>
+#include <seqtoolsUtils/utilities.hpp>
+#include <seqtoolsUtils/blxmsp.hpp>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -65,9 +65,9 @@ typedef struct _DotterDialogData
     GtkWidget *endEntry;            /* the text entry box on the dialog for the end coord */
     GtkWidget *zoomEntry;           /* the text entry box on the dialog for the zoom value */
     
-    gboolean matchType;             /* whether to call dotter on the selected match, an adhoc seq,
+    DotterMatchType matchType;      /* whether to call dotter on the selected match, an adhoc seq,
                                      * or the query seq versus itself */
-    gboolean refType;               /* whether to use the ref seq or a transcript seq */
+    DotterRefType refType;          /* whether to use the ref seq or a transcript seq */
     gboolean hspsOnly;              /* whether to call dotter on HSPs only */
     gboolean sleep;                 /* whether to sleep dotter on startup */
     
@@ -863,7 +863,8 @@ static void createSequenceTab(DotterDialogData *dialogData, const int spacing)
   gtk_container_add(GTK_CONTAINER(scrollWin), dialogData->adhocSeqText);
   gtk_container_add(GTK_CONTAINER(frame), scrollWin);
 
-  gtk_table_attach(table, frame, col, col + 1, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, xpad, ypad);
+  gtk_table_attach(table, frame, col, col + 1, row, row + 1, 
+                   (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), xpad, ypad);
   ++row;
 
 

@@ -35,13 +35,13 @@
  *----------------------------------------------------------------------------
  */
 
-#include <blixemApp/detailviewtree.h>
-#include <blixemApp/detailview.h>
-#include <blixemApp/bigpicturegrid.h>
-#include <blixemApp/sequencecellrenderer.h>
-#include <blixemApp/blxwindow.h>
-#include <seqtoolsUtils/utilities.h>
-#include <seqtoolsUtils/blxmsp.h>
+#include <blixemApp/detailviewtree.hpp>
+#include <blixemApp/detailview.hpp>
+#include <blixemApp/bigpicturegrid.hpp>
+#include <blixemApp/sequencecellrenderer.hpp>
+#include <blixemApp/blxwindow.hpp>
+#include <seqtoolsUtils/utilities.hpp>
+#include <seqtoolsUtils/blxmsp.hpp>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <math.h>

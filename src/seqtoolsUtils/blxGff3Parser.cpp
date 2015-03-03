@@ -35,10 +35,10 @@
  *----------------------------------------------------------------------------
  */
 
-#include <seqtoolsUtils/blxGff3Parser.h>
-#include <seqtoolsUtils/blxparser.h>
-#include <seqtoolsUtils/utilities.h>
-#include <seqtoolsUtils/blxmsp.h>
+#include <seqtoolsUtils/blxGff3Parser.hpp>
+#include <seqtoolsUtils/blxparser.hpp>
+#include <seqtoolsUtils/utilities.hpp>
+#include <seqtoolsUtils/blxmsp.hpp>
 #include <string.h>
 #include <ctype.h>
 

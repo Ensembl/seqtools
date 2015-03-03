@@ -35,16 +35,16 @@
  *----------------------------------------------------------------------------
  */
 
-#include <blixemApp/blxwindow.h>
-#include <blixemApp/detailview.h>
-#include <blixemApp/detailviewtree.h>
-#include <blixemApp/bigpicture.h>
-#include <blixemApp/blxdotter.h>
-#include <blixemApp/exonview.h>
-#include <blixemApp/coverageview.h>
-#include <seqtoolsUtils/utilities.h>
-#include <seqtoolsUtils/blxGff3Parser.h>
-#include <seqtoolsUtils/blxmsp.h>
+#include <blixemApp/blxwindow.hpp>
+#include <blixemApp/detailview.hpp>
+#include <blixemApp/detailviewtree.hpp>
+#include <blixemApp/bigpicture.hpp>
+#include <blixemApp/blxdotter.hpp>
+#include <blixemApp/exonview.hpp>
+#include <blixemApp/coverageview.hpp>
+#include <seqtoolsUtils/utilities.hpp>
+#include <seqtoolsUtils/blxGff3Parser.hpp>
+#include <seqtoolsUtils/blxmsp.hpp>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <ctype.h>
@@ -6267,7 +6267,7 @@ static void setDragDropProperties(GtkWidget *widget)
     };
   
   gtk_drag_dest_set(widget, GTK_DEST_DEFAULT_ALL, targetentries, 3,
-                    GDK_ACTION_COPY|GDK_ACTION_MOVE|GDK_ACTION_LINK);
+                    (GdkDragAction)(GDK_ACTION_COPY|GDK_ACTION_MOVE|GDK_ACTION_LINK));
  
   g_signal_connect(widget, "drag-data-received", G_CALLBACK(onDragDataReceived), NULL);
   g_signal_connect(widget, "drag-motion", G_CALLBACK(onDragMotion),	NULL);

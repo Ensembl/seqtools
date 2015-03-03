@@ -3,7 +3,7 @@ SUBDIRS = .
 
 noinst_LIBRARIES = libBlixemApp.a
 
-libBlixemApp_a_SOURCES = sequencecellrenderer.c bigpicture.c bigpicturegrid.c detailview.c detailviewtree.c blxwindow.c exonview.c coverageview.c blxdotter.c blxFetchDb.c blxview.h blixem_.h detailview.h detailviewtree.h sequencecellrenderer.h bigpicture.h bigpicturegrid.h blxwindow.h exonview.h coverageview.h blxdotter.h 
+libBlixemApp_a_SOURCES = sequencecellrenderer.cpp bigpicture.cpp bigpicturegrid.cpp detailview.cpp detailviewtree.cpp blxwindow.cpp exonview.cpp coverageview.cpp blxdotter.cpp blxFetchDb.cpp blxview.hpp blixem_.hpp detailview.hpp detailviewtree.hpp sequencecellrenderer.hpp bigpicture.hpp bigpicturegrid.hpp blxwindow.hpp exonview.hpp coverageview.hpp blxdotter.hpp 
 libBlixemApp_a_LIBADD  = 
 libBlixemApp_a_CFLAGS  = -I$(top_srcdir)
 
@@ -29,7 +29,7 @@ endif
 
 AM_LDFLAGS = -L$(top_builddir)/seqtoolsUtils -L$(top_builddir)/blixemApp
 
-blixem_SOURCES = blxmain.c blxview.c blxFetch.c
+blixem_SOURCES = blxmain.cpp blxview.cpp blxFetch.cpp
 blixem_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a libBlixemApp.a -lSeqtoolsUtils -lBlixemApp $(BLX_LIBS) $(X_LIB)
 
 # Only compile the blixemh target if we have the libcurl library

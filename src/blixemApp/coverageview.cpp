@@ -36,10 +36,10 @@
  *----------------------------------------------------------------------------
  */
 
-#include "blixemApp/coverageview.h"
-#include "blixemApp/bigpicture.h"
-#include "blixemApp/detailview.h"
-#include "blixemApp/blixem_.h"
+#include "blixemApp/coverageview.hpp"
+#include "blixemApp/bigpicture.hpp"
+#include "blixemApp/detailview.hpp"
+#include "blixemApp/blixem_.hpp"
 #include <gtk/gtk.h>
 #include <math.h>
 

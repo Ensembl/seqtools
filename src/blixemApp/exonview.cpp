@@ -35,14 +35,14 @@
  *----------------------------------------------------------------------------
  */
 
-#include <blixemApp/exonview.h>
-#include <blixemApp/detailviewtree.h>
-#include <blixemApp/bigpicture.h>
-#include <blixemApp/bigpicturegrid.h>
-#include <blixemApp/detailview.h>
-#include <blixemApp/blxwindow.h>
-#include <seqtoolsUtils/utilities.h>
-#include <seqtoolsUtils/blxmsp.h>
+#include <blixemApp/exonview.hpp>
+#include <blixemApp/detailviewtree.hpp>
+#include <blixemApp/bigpicture.hpp>
+#include <blixemApp/bigpicturegrid.hpp>
+#include <blixemApp/detailview.hpp>
+#include <blixemApp/blxwindow.hpp>
+#include <seqtoolsUtils/utilities.hpp>
+#include <seqtoolsUtils/blxmsp.hpp>
 #include <string.h>
 #include <stdlib.h>
 

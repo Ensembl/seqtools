@@ -35,12 +35,12 @@
  *----------------------------------------------------------------------------
  */
 
-#include <blixemApp/bigpicture.h>
-#include <blixemApp/blxwindow.h>
-#include <blixemApp/detailview.h>
-#include <blixemApp/exonview.h>
-#include <blixemApp/coverageview.h>
-#include <seqtoolsUtils/utilities.h>
+#include <blixemApp/bigpicture.hpp>
+#include <blixemApp/blxwindow.hpp>
+#include <blixemApp/detailview.hpp>
+#include <blixemApp/exonview.hpp>
+#include <blixemApp/coverageview.hpp>
+#include <seqtoolsUtils/utilities.hpp>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

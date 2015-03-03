@@ -35,11 +35,11 @@
  *----------------------------------------------------------------------------
  */
 
-#include <dotterApp/dotter_.h>
-#include <seqtoolsUtils/utilities.h>
-#include <seqtoolsUtils/blxGff3Parser.h>
-#include <seqtoolsUtils/blxparser.h>
-#include <seqtoolsUtils/blxmsp.h>
+#include <dotterApp/dotter_.hpp>
+#include <seqtoolsUtils/utilities.hpp>
+#include <seqtoolsUtils/blxGff3Parser.hpp>
+#include <seqtoolsUtils/blxparser.hpp>
+#include <seqtoolsUtils/blxmsp.hpp>
 #include <string.h>
 #include <stdlib.h>
 #include <getopt.h>

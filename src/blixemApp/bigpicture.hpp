@@ -46,9 +46,9 @@
 #ifndef _big_picture_included_
 #define _big_picture_included_
 
-#include <blixemApp/bigpicturegrid.h>
-#include <blixemApp/blxwindow.h>
-#include <blixemApp/blixem_.h>
+#include <blixemApp/bigpicturegrid.hpp>
+#include <blixemApp/blxwindow.hpp>
+#include <blixemApp/blixem_.hpp>
 
 
 typedef struct _BigPictureProperties

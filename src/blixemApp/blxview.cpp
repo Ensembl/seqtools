@@ -61,14 +61,14 @@ MSP score codes (for obsolete exblx file format):
 #include <ctype.h>
 #include <gdk/gdkkeysyms.h>
 
-#include <blixemApp/blixem_.h>
-#include <blixemApp/blxwindow.h>
-#include <blixemApp/detailview.h>
-#include <blixemApp/blxdotter.h>
-#include <blixemApp/sequencecellrenderer.h>
-#include <seqtoolsUtils/blxmsp.h>
-#include <seqtoolsUtils/blxparser.h>
-#include <seqtoolsUtils/utilities.h>
+#include <blixemApp/blixem_.hpp>
+#include <blixemApp/blxwindow.hpp>
+#include <blixemApp/detailview.hpp>
+#include <blixemApp/blxdotter.hpp>
+#include <blixemApp/sequencecellrenderer.hpp>
+#include <seqtoolsUtils/blxmsp.hpp>
+#include <seqtoolsUtils/blxparser.hpp>
+#include <seqtoolsUtils/utilities.hpp>
 
 
 #define MAXALIGNLEN			      10000

@@ -35,7 +35,7 @@
  *----------------------------------------------------------------------------
  */
 
-#include <seqtoolsUtils/utilities.h>
+#include <seqtoolsUtils/utilities.hpp>
 #include <string.h>
 #include <ctype.h>
 #include <math.h>

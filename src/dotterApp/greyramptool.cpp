@@ -39,8 +39,8 @@
  */
 
 #include <gtk/gtk.h>
-#include <seqtoolsUtils/utilities.h>
-#include <dotterApp/dotter_.h>
+#include <seqtoolsUtils/utilities.hpp>
+#include <dotterApp/dotter_.hpp>
 
 //#define MAXY                            20
 //#define MINY                            140

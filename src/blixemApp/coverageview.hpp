@@ -39,7 +39,7 @@
 #ifndef _coverage_view_h_included_
 #define _coverage_view_h_included_
 
-#include "blixemApp/blixem_.h"
+#include "blixemApp/blixem_.hpp"
 #include <gtk/gtk.h>
 
 
