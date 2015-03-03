@@ -35,11 +35,11 @@
  *----------------------------------------------------------------------------
  */
 
-#include "belvuApp/belvuWindow.h"
-#include "belvuApp/belvuAlignment.h"
-#include "belvuApp/belvuTree.h"
-#include "belvuApp/belvuConsPlot.h"
-#include "belvuApp/belvu_.h"
+#include "belvuApp/belvuWindow.hpp"
+#include "belvuApp/belvuAlignment.hpp"
+#include "belvuApp/belvuTree.hpp"
+#include "belvuApp/belvuConsPlot.hpp"
+#include "belvuApp/belvu_.hpp"
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>

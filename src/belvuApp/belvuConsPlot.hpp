@@ -35,7 +35,7 @@
  *----------------------------------------------------------------------------
  */
 
-#include "belvuApp/belvu_.h"
+#include "belvuApp/belvu_.hpp"
 
 #define BELVU_CONS_PLOT_WINDOW_NAME        "BelvuConsPlot"
 

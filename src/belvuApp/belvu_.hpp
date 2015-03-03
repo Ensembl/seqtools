@@ -38,9 +38,9 @@
 #ifndef DEF_BELVU_P_H
 #define DEF_BELVU_P_H
 
-#include "seqtoolsUtils/utilities.h"
-#include "seqtoolsUtils/blxmsp.h"
-#include "seqtoolsUtils/version.h"
+#include "seqtoolsUtils/utilities.hpp"
+#include "seqtoolsUtils/blxmsp.hpp"
+#include "seqtoolsUtils/version.hpp"
 #include <sys/param.h>
 #include <gtk/gtk.h>
 #include <config.h>

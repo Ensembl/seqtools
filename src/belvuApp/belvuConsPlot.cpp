@@ -35,9 +35,9 @@
  *----------------------------------------------------------------------------
  */
 
-#include "belvuApp/belvuConsPlot.h"
-#include "belvuApp/belvuWindow.h"
-#include "seqtoolsUtils/utilities.h"
+#include "belvuApp/belvuConsPlot.hpp"
+#include "belvuApp/belvuWindow.hpp"
+#include "seqtoolsUtils/utilities.hpp"
 #include <gtk/gtk.h>
 
 

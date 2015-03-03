@@ -35,8 +35,8 @@
  *----------------------------------------------------------------------------
  */
 
-#include "belvuApp/belvuAlignment.h"
-#include "belvuApp/belvuWindow.h"
+#include "belvuApp/belvuAlignment.hpp"
+#include "belvuApp/belvuWindow.hpp"
 #include <math.h>
 
 

@@ -35,11 +35,11 @@
  *----------------------------------------------------------------------------
  */
 
-#include "belvuApp/belvu_.h"
-#include "belvuApp/belvuWindow.h"
-#include "belvuApp/belvuTree.h"
-#include "seqtoolsUtils/utilities.h"
-#include "seqtoolsUtils/blxmsp.h"
+#include "belvuApp/belvu_.hpp"
+#include "belvuApp/belvuWindow.hpp"
+#include "belvuApp/belvuTree.hpp"
+#include "seqtoolsUtils/utilities.hpp"
+#include "seqtoolsUtils/blxmsp.hpp"
 #include <string.h>
 #include <stdlib.h>
 #include <getopt.h>

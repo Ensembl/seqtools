@@ -36,9 +36,9 @@
  */
 
 
-#include "belvuApp/belvuTree.h"
-#include "belvuApp/belvuWindow.h"
-#include "seqtoolsUtils/utilities.h"
+#include "belvuApp/belvuTree.hpp"
+#include "belvuApp/belvuWindow.hpp"
+#include "seqtoolsUtils/utilities.hpp"
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <ctype.h> /* for isspace etc. */
