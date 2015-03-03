@@ -594,7 +594,7 @@ static void parseLook(MSP *msp, char *s)
 /* Copy 'remainder of s1 after word s2' into msp->desc  */
 static void getDesc(MSP *msp, const char *s1, const char *s2)
 {
-    char *cp;
+    const char *cp;
     
     if (!(cp = strstr(s1, s2))) {
 	g_critical("Can't find back %s in %s", s2, s1);
@@ -1047,7 +1047,7 @@ static char *nextLineOfBuffer(const char **buffer_inout, GString *line_string)
   g_return_val_if_fail(buffer_inout && line_string, result);
 
   const char *buffer = *buffer_inout;
-  char *cp = strchr(buffer, '\n');
+  const char *cp = strchr(buffer, '\n');
   
   if (cp)
     {
