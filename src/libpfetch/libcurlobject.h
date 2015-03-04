@@ -33,6 +33,10 @@
  *-------------------------------------------------------------------
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef CURL_OBJ_H
 #define CURL_OBJ_H
 
@@ -76,5 +80,8 @@ CURLObjectStatus CURLObjectPerform     (CURLObject curlobject, gboolean use_mult
 CURLObjectStatus CURLObjectErrorMessage(CURLObject curl_object, char **message);
 CURLObject       CURLObjectDestroy     (CURLObject curlobject);
 
-
 #endif	/* CURL_OBJ_H */
+
+#ifdef __cplusplus
+}
+#endif
