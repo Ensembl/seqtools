@@ -1,8 +1,8 @@
 
 SUBDIRS = .
 
-AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir)
-AM_LDFLAGS = -L$(top_builddir)/seqtoolsUtils -L$(top_builddir)/belvuApp
+AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir) -I$(top_srcdir)/gbtools/src/include
+AM_LDFLAGS = -L$(top_builddir)/gbtools -L$(top_builddir)/seqtoolsUtils -L$(top_builddir)/belvuApp
 
 noinst_LIBRARIES = libBelvuApp.a
 
@@ -15,7 +15,7 @@ X_LIB = -lX11 -lm
 
 bin_PROGRAMS = belvu
 belvu_SOURCES = belvuMain.cpp
-belvu_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a libBelvuApp.a -lSeqtoolsUtils -lBelvuApp $(DEPS_LIBS) $(X_LIB)
+belvu_LDADD = -lSeqtoolsUtils -lBelvuApp $(DEPS_LIBS) $(X_LIB)
 
 # Extra files to remove for the maintainer-clean target.
 #
