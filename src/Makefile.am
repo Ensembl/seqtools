@@ -5,9 +5,9 @@
 
 # libpfetch is only used if we have libcurl
 if USE_LIBCURL
-SUBDIRS = libpfetch seqtoolsUtils dotterApp blixemApp belvuApp 
+SUBDIRS = libpfetch seqtoolsUtils dotterApp blixemApp belvuApp doc
 else
-SUBDIRS = seqtoolsUtils dotterApp blixemApp belvuApp
+SUBDIRS = seqtoolsUtils dotterApp blixemApp belvuApp doc
 endif
 
 # these are included in the distribution, but are not installed
