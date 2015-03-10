@@ -15,7 +15,7 @@ X_LIB = -lX11 -lm
 
 bin_PROGRAMS = dotter
 dotter_SOURCES = dotterMain.cpp
-dotter_LDADD = -lgbtools -lSeqtoolsUtils -lDotterApp $(DEPS_LIBS)  $(X_LIB)
+dotter_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(top_builddir)/dotterApp/libDotterApp.a -lgbtools $(DEPS_LIBS)  $(X_LIB)
 
 # Extra files to remove for the maintainer-clean target.
 #
