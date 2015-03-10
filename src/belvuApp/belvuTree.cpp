@@ -2730,7 +2730,7 @@ static void setTreeWindowStyleProperties(GtkWidget *window)
   
   /* Set the initial window size based on some fraction of the screen size */
   int screenWidth = 300, screenHeight = 200;
-  gbtools::getMonitorSize(window, &screenWidth, &screenHeight);
+  gbtools::GUIGetTrueMonitorSize(window, &screenWidth, &screenHeight);
   
   const int width = screenWidth * DEFAULT_TREE_WINDOW_WIDTH_FRACTION;
   const int height = screenHeight * DEFAULT_TREE_WINDOW_HEIGHT_FRACTION;

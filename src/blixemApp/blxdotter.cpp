@@ -693,7 +693,7 @@ static void dotterDialogSetDefaultSize(GtkWidget *dialog, GtkWidget *blxWindow)
    * if it exceeds a maximum percentage of the screen size. Just use the height 
    * allocated for the widgets. */
   int maxWidth = 300;
-  gbtools::getMonitorSizeFraction(dialog, MAX_WINDOW_WIDTH_FRACTION, 1, &maxWidth, NULL);
+  gbtools::GUIGetTrueMonitorSizeFraction(dialog, MAX_WINDOW_WIDTH_FRACTION, 1, &maxWidth, NULL);
   
   const int width = min(DEFAULT_WINDOW_WIDTH, maxWidth);
 

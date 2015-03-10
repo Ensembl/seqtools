@@ -4433,7 +4433,7 @@ GtkWidget* displayFetchResults(const char *title,
       PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
       
       int maxWidth = 300, maxHeight = 200;
-      gbtools::getMonitorSizeFraction(widget, DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION, DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
+      gbtools::GUIGetTrueMonitorSizeFraction(widget, DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION, DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
       
       GtkTextView *textView = NULL;
       result = showMessageDialog(title, displayText, NULL, maxWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);

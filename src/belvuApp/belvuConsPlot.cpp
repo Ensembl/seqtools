@@ -578,7 +578,7 @@ static void setConsPlotStyleProperties(GtkWidget *window, BelvuContext *bc, cons
   
   /* Set default size based on scale height and alignment window width */
   int screenWidth = 300, screenHeight = 100;
-  gbtools::getMonitorSize(window, &screenWidth, &screenHeight);
+  gbtools::GUIGetTrueMonitorSize(window, &screenWidth, &screenHeight);
   
   const int width = screenWidth * DEFAULT_BELVU_WINDOW_WIDTH_FRACTION;
   
