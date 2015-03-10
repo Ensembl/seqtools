@@ -20,6 +20,10 @@ dotterApp/Makefile
 belvuApp/Makefile
 seqtoolsUtils/Makefile
 libpfetch/Makefile
+doc/Makefile
+doc/User_doc/Makefile
+doc/Design_notes/Makefile
+doc/Design_notes/modules/Makefile
 ])
 
 # Check if this is a Git repository and, if so, include info about the current
