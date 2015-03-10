@@ -39,6 +39,7 @@
 #include "belvuApp/belvuTree.hpp"
 #include "belvuApp/belvuWindow.hpp"
 #include "seqtoolsUtils/utilities.hpp"
+#include <gbtools/gbtoolsGUI.hpp>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <ctype.h> /* for isspace etc. */
@@ -2729,7 +2730,7 @@ static void setTreeWindowStyleProperties(GtkWidget *window)
   
   /* Set the initial window size based on some fraction of the screen size */
   int screenWidth = 300, screenHeight = 200;
-  seqtoolsGetMonitorSize(window, &screenWidth, &screenHeight);
+  gbtools::getMonitorSize(window, &screenWidth, &screenHeight);
   
   const int width = screenWidth * DEFAULT_TREE_WINDOW_WIDTH_FRACTION;
   const int height = screenHeight * DEFAULT_TREE_WINDOW_HEIGHT_FRACTION;

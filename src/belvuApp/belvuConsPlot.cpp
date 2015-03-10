@@ -39,6 +39,7 @@
 #include "belvuApp/belvuWindow.hpp"
 #include "seqtoolsUtils/utilities.hpp"
 #include <gtk/gtk.h>
+#include <gbtools/gbtoolsGUI.hpp>
 
 
 #define DEFAULT_CONS_PLOT_SCALE_HEIGHT      200   /* default height of the conservation plot scale */
@@ -577,7 +578,7 @@ static void setConsPlotStyleProperties(GtkWidget *window, BelvuContext *bc, cons
   
   /* Set default size based on scale height and alignment window width */
   int screenWidth = 300, screenHeight = 100;
-  seqtoolsGetMonitorSize(window, &screenWidth, &screenHeight);
+  gbtools::getMonitorSize(window, &screenWidth, &screenHeight);
   
   const int width = screenWidth * DEFAULT_BELVU_WINDOW_WIDTH_FRACTION;
   
