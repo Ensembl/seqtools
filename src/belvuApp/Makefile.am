@@ -15,7 +15,7 @@ X_LIB = -lX11 -lm
 
 bin_PROGRAMS = belvu
 belvu_SOURCES = belvuMain.cpp
-belvu_LDADD = -lSeqtoolsUtils -lBelvuApp $(DEPS_LIBS) $(X_LIB)
+belvu_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(top_builddir)/belvuApp/libBelvuApp.a -lgbtools $(DEPS_LIBS) $(X_LIB)
 
 # Extra files to remove for the maintainer-clean target.
 #

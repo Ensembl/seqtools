@@ -13,10 +13,10 @@ libBlixemApp_a_CFLAGS  = -I$(top_srcdir)
 # there's a problem on ubuntu 14 with finding X11 so this is a hopefully temporary hack...
 X_LIB = -lX11 -lm
 
-# use sqlite for blixem if it's available
-BLX_LIBS = $(DEPS_LIBS)
+BLX_LIBS = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(top_builddir)/blixemApp/libBlixemApp.a -lgbtools $(DEPS_LIBS) $(X_LIB)
 blixem_CPPFLAGS = $(AM_CPPFLAGS)
 
+# use sqlite for blixem if it's available
 if USE_SQLITE3
 AM_CPPFLAGS += $(DEPS_SQLITE3)
 BLX_LIBS += $(DEPS_SQLITE3_LIBS)
@@ -30,13 +30,13 @@ bin_PROGRAMS = blixem
 endif
 
 blixem_SOURCES = blxmain.cpp blxview.cpp blxFetch.cpp
-blixem_LDADD = -lSeqtoolsUtils -lBlixemApp $(BLX_LIBS) $(X_LIB)
+blixem_LDADD = $(BLX_LIBS)
 
 # Only compile the blixemh target if we have the libcurl library
 if USE_LIBCURL
 blixemh_SOURCES = $(blixem_SOURCES)
 blixemh_CPPFLAGS = $(blixem_CPPFLAGS) -DPFETCH_HTML
-blixemh_LDADD = $(top_builddir)/libpfetch/libpfetch.a $(BLX_LIBS) -lcurl -lSeqtoolsUtils -lBlixemApp  $(X_LIB)
+blixemh_LDADD = $(top_builddir)/libpfetch/libpfetch.a $(BLX_LIBS) -lcurl
 endif
 
 
