@@ -33,10 +33,6 @@
  *-------------------------------------------------------------------
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef __LIBPFETCH_H__
 #define __LIBPFETCH_H__
 
@@ -158,7 +154,3 @@ GType PFetchHandleStatusGetType (void);
 
 
 #endif /* __LIBPFETCH_H__ */
-
-#ifdef __cplusplus
-}
-#endif

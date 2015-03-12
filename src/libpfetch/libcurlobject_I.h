@@ -33,11 +33,6 @@
  *-------------------------------------------------------------------
  */
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <libpfetch/libcurlobject.h>
 
 
@@ -91,8 +86,3 @@ typedef struct _curlObjectClassStruct
   guint signals[LAST_SIGNAL];
 
 } curlObjectClassStruct;
-
-
-#ifdef __cplusplus
-}
-#endif
