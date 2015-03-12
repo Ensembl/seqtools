@@ -1,6 +1,16 @@
 
 Request Tracker Tickets Resolved from 13/01/2015 to 12/03/2015
 
+ticket/456864
+id: ticket/456864
+Queue: seqtools
+Subject: Species identifier confusion in Blixem
+Requestors: erb@sanger.ac.uk
+Owner: gb10
+Resolved: Thu Mar 12 15:50:34 2015
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
+
 
 End of Request Tracker tickets
 
