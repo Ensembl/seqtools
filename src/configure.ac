@@ -6,17 +6,10 @@ m4_include([./version.m4])
 AC_PREREQ([2.50])
 AC_INIT([SeqTools], VERSION_NUMBER, [gb10@sanger.ac.uk])
 AC_CONFIG_AUX_DIR([config])
-AC_CONFIG_SRCDIR([blixemApp/blxmain.cpp])
+AC_CONFIG_SRCDIR([blixemApp/blxmain.c])
 AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_HEADERS([config.h])
-
-AC_CONFIG_FILES([Makefile
-blixemApp/Makefile
-dotterApp/Makefile
-belvuApp/Makefile
-seqtoolsUtils/Makefile
-libpfetch/Makefile
-])
+AC_CONFIG_FILES([Makefile])
 
 # Check if this is a Git repository and, if so, include info about the current
 # status in the version info. Otherwise use PACKAGE_VERSION (which will get
