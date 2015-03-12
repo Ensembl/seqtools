@@ -1,5 +1,5 @@
 
-SUBDIRS = User_doc Design_notes
+SUBDIRS = User_doc
 
 EXTRA_DIST = Design_notes index.html 
 
