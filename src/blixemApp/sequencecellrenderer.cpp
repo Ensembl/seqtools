@@ -294,7 +294,7 @@ sequence_cell_renderer_get_type (void)
       cell_sequence_type = g_type_register_static (GTK_TYPE_CELL_RENDERER,
 						   "SequenceCellRenderer",
 						   &cell_sequence_info,
-                                                   (GTypeFlags)G_TYPE_FLAG_INSTANTIATABLE);
+                                                   (GTypeFlags)0);
     }
   
   return cell_sequence_type;
