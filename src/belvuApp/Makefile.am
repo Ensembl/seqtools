@@ -1,10 +1,14 @@
 
 SUBDIRS = .
 
-AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir) -I$(top_srcdir)/gbtools/src/include
-AM_LDFLAGS = -L$(top_builddir)/gbtools -L$(top_builddir)/seqtoolsUtils -L$(top_builddir)/belvuApp
-
 noinst_LIBRARIES = libBelvuApp.a
+
+AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir)
+
+# If gbtools is in a subdirectory, add it to the include path
+if USE_GBTOOLS
+AM_CPPFLAGS += -I$(top_srcdir)/gbtools/src/include
+endif
 
 libBelvuApp_a_SOURCES = belvu_.hpp belvu.cpp belvuWindow.hpp belvuWindow.cpp belvuAlignment.hpp belvuAlignment.cpp belvuTree.hpp belvuTree.cpp belvuConsPlot.hpp belvuConsPlot.cpp
 libBelvuApp_a_LIBADD  = 
@@ -15,7 +19,15 @@ X_LIB = -lX11 -lm
 
 bin_PROGRAMS = belvu
 belvu_SOURCES = belvuMain.cpp
-belvu_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(top_builddir)/belvuApp/libBelvuApp.a -lgbtools $(DEPS_LIBS) $(X_LIB)
+belvu_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(top_builddir)/belvuApp/libBelvuApp.a $(DEPS_LIBS) $(X_LIB)
+
+# If gbtools is in a subdirectory, add it; otherwise look for a local installation
+if USE_GBTOOLS
+belvu_LDADD += $(top_builddir)/gbtools/libgbtools.a        
+else
+belvu_LDADD += -lgbtools
+endif
+
 
 # Extra files to remove for the maintainer-clean target.
 #
