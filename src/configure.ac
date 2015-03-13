@@ -68,8 +68,7 @@ PKG_CHECK_MODULES([DEPS_SQLITE3], [sqlite3], [HAVE_SQLITE3=1], [HAVE_SQLITE3=0])
 # Check if the gbtools library exists as a subdirectory. This should be the case for
 # the dist. It doesn't exist in the git repository though, so for development it
 # either needs to be copied in or installed locally.
-AC_CHECK_HEADERS([gbtools/src/include/gbtoolsGUI.hpp], [HAVE_GBTOOLS=1], [HAVE_GBTOOLS=0])
-AM_CONDITIONAL([USE_GBTOOLS], [test "$HAVE_GBTOOLS" -eq 1])
+AM_CONDITIONAL([USE_GBTOOLS], [test -d "$srcdir/gbtools/src"])
 
 # Check for the curl library. This is only required by blixemh, so don't fail
 # if we can't find it, but set the USE_LIBCURL to false. Note: I think we should 

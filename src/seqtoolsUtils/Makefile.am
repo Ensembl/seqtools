@@ -1,7 +1,12 @@
 
 SUBDIRS = .
 
-AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir) -I$(top_srcdir)/gbtools/src/include
+AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir)
+
+# If gbtools is in a subdirectory, add it to the include path
+if USE_GBTOOLS
+AM_CPPFLAGS += -I$(top_srcdir)/gbtools/src/include
+endif
 
 noinst_LIBRARIES = libSeqtoolsUtils.a
 
