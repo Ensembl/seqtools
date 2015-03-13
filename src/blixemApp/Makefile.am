@@ -18,7 +18,7 @@ libBlixemApp_a_CFLAGS  = -I$(top_srcdir)
 X_LIB = -lX11 -lm
 
 blixem_CPPFLAGS = $(AM_CPPFLAGS)
-BLX_LIBS = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(top_builddir)/blixemApp/libBlixemApp.a $(DEPS_LIBS) $(X_LIB)
+BLX_LIBS = $(top_builddir)/blixemApp/libBlixemApp.a $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(DEPS_LIBS) $(X_LIB)
 
 # If gbtools is in a subdirectory, add it; otherwise look for a local installation
 if USE_GBTOOLS

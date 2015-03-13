@@ -19,7 +19,7 @@ X_LIB = -lX11 -lm
 
 bin_PROGRAMS = belvu
 belvu_SOURCES = belvuMain.cpp
-belvu_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(top_builddir)/belvuApp/libBelvuApp.a $(DEPS_LIBS) $(X_LIB)
+belvu_LDADD = $(top_builddir)/belvuApp/libBelvuApp.a $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(DEPS_LIBS) $(X_LIB)
 
 # If gbtools is in a subdirectory, add it; otherwise look for a local installation
 if USE_GBTOOLS

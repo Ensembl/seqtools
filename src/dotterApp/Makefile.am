@@ -19,7 +19,7 @@ X_LIB = -lX11 -lm
 
 bin_PROGRAMS = dotter
 dotter_SOURCES = dotterMain.cpp
-dotter_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(top_builddir)/dotterApp/libDotterApp.a $(DEPS_LIBS)  $(X_LIB)
+dotter_LDADD = $(top_builddir)/dotterApp/libDotterApp.a $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(DEPS_LIBS)  $(X_LIB)
 
 # If gbtools is in a subdirectory, add it; otherwise look for a local installation
 if USE_GBTOOLS
