@@ -1,3 +1,10 @@
+2015-03-12  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.32.1-35-gcfe0 - Update RT and git commit reports
+ src/ChangeLog                                  |  161 ++++++++++++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    2 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   10 ++
+ 3 files changed, 173 insertions(+), 0 deletions(-)
+
 2015-03-12  Gemma Barson  <gb10@sanger.ac.uk>
  Revert "Merge branch 'feature/cpp' into develop"
  src/Makefile.am                          |  103 +-
