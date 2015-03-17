@@ -72,7 +72,7 @@
 #include <seqtoolsUtils/utilities.hpp>
 #include <dotterApp/dotter_.hpp>
 #include <dotterApp/seqtoolsExonView.hpp>
-#include <gbtools/gbtoolsGUI.hpp>
+#include <gbtools/gbtools.hpp>
 #include <gdk/gdkkeysyms.h>
 #include <math.h>
 #include <string.h>

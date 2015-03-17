@@ -39,7 +39,7 @@
 #include "belvuApp/belvuTree.hpp"
 #include "belvuApp/belvuWindow.hpp"
 #include "seqtoolsUtils/utilities.hpp"
-#include <gbtools/gbtoolsGUI.hpp>
+#include <gbtools/gbtools.hpp>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <ctype.h> /* for isspace etc. */

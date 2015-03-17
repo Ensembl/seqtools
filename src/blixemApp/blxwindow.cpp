@@ -45,7 +45,7 @@
 #include <seqtoolsUtils/utilities.hpp>
 #include <seqtoolsUtils/blxGff3Parser.hpp>
 #include <seqtoolsUtils/blxmsp.hpp>
-#include <gbtools/gbtoolsGUI.hpp>
+#include <gbtools/gbtools.hpp>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <ctype.h>

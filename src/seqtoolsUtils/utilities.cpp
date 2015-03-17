@@ -42,7 +42,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/utsname.h>
-#include <gbtools/gbtoolsGUI.hpp>
+#include <gbtools/gbtools.hpp>
 
 #ifdef HAVE_EXECINFO_H
 #include <execinfo.h>

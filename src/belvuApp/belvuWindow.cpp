@@ -40,7 +40,7 @@
 #include "belvuApp/belvuTree.hpp"
 #include "belvuApp/belvuConsPlot.hpp"
 #include "belvuApp/belvu_.hpp"
-#include <gbtools/gbtoolsGUI.hpp>
+#include <gbtools/gbtools.hpp>
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>

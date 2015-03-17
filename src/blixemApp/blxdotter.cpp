@@ -41,7 +41,7 @@
 #include <blixemApp/detailview.hpp>
 #include <seqtoolsUtils/utilities.hpp>
 #include <seqtoolsUtils/blxmsp.hpp>
-#include <gbtools/gbtoolsGUI.hpp>
+#include <gbtools/gbtools.hpp>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>

@@ -39,7 +39,7 @@
 #include "belvuApp/belvuWindow.hpp"
 #include "seqtoolsUtils/utilities.hpp"
 #include <gtk/gtk.h>
-#include <gbtools/gbtoolsGUI.hpp>
+#include <gbtools/gbtools.hpp>
 
 
 #define DEFAULT_CONS_PLOT_SCALE_HEIGHT      200   /* default height of the conservation plot scale */
