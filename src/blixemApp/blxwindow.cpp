@@ -45,6 +45,7 @@
 #include <seqtoolsUtils/utilities.hpp>
 #include <seqtoolsUtils/blxGff3Parser.hpp>
 #include <seqtoolsUtils/blxmsp.hpp>
+#include <gbtools/gbtools.hpp>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <ctype.h>
@@ -2961,7 +2962,7 @@ static gboolean onColumnSizeChanged(GtkWidget *widget, const gint responseId, gp
       GtkWidget *blxWindow = dialogChildGetBlxWindow(widget);
       
       int maxWidth = 300;
-      seqtoolsGetMonitorSize(blxWindow, &maxWidth, NULL);
+      gbtools::GUIGetTrueMonitorSize(blxWindow, &maxWidth, NULL);
 
       if (newWidth > maxWidth)
         {
@@ -3823,7 +3824,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       g_free(title);
       
       int width = 300, height = 200;
-      seqtoolsGetMonitorSizeFraction(dialog, 0.33, 0.33, &width, &height);
+      gbtools::GUIGetTrueMonitorSizeFraction(dialog, 0.33, 0.33, &width, &height);
       gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
       
       /* These calls are required to make the dialog persistent... */
@@ -6282,8 +6283,8 @@ static void setStyleProperties(GtkWidget *widget, char *windowColor)
 
   /* Set the initial window size based on some fraction of the screen size */
   int width = 300, height = 200;
-  seqtoolsGetMonitorSizeFraction(widget, DEFAULT_WINDOW_WIDTH_FRACTION, DEFAULT_WINDOW_HEIGHT_FRACTION,
-                                 &width, &height);
+  gbtools::GUIGetTrueMonitorSizeFraction(widget, DEFAULT_WINDOW_WIDTH_FRACTION, DEFAULT_WINDOW_HEIGHT_FRACTION,
+                                  &width, &height);
   
   gtk_window_set_default_size(GTK_WINDOW(widget), width, height);
   

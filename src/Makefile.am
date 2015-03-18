@@ -3,13 +3,17 @@
 # Process this file with automake to create Makefile.in.
 #
 
-# libpfetch is only used if we have libcurl
-if USE_LIBCURL
-SUBDIRS = libpfetch seqtoolsUtils dotterApp blixemApp belvuApp doc
-else
-SUBDIRS = seqtoolsUtils dotterApp blixemApp belvuApp doc
+SUBDIRS = .
+
+if USE_GBTOOLS
+SUBDIRS += gbtools
 endif
 
+if USE_LIBCURL
+SUBDIRS += libpfetch
+endif
+
+SUBDIRS += seqtoolsUtils dotterApp blixemApp belvuApp doc
 # these are included in the distribution, but are not installed
 EXTRA_DIST = INSTALL.windows 
 

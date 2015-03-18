@@ -72,6 +72,7 @@
 #include <seqtoolsUtils/utilities.hpp>
 #include <dotterApp/dotter_.hpp>
 #include <dotterApp/seqtoolsExonView.hpp>
+#include <gbtools/gbtools.hpp>
 #include <gdk/gdkkeysyms.h>
 #include <math.h>
 #include <string.h>
@@ -3885,7 +3886,7 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
   /* We'll set the default window size based on the dotplot/exon widget size, up to a 
    * max based on screen size. */
   int maxWidth = 300, maxHeight = 200;
-  seqtoolsGetMonitorSizeFraction(dotterWindow, MAX_WINDOW_WIDTH_FRACTION, MAX_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
+  gbtools::GUIGetTrueMonitorSizeFraction(dotterWindow, MAX_WINDOW_WIDTH_FRACTION, MAX_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
 
   const int exonViewHeight = 2 * (DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
   DotplotProperties *dotplotProperties = dotplotGetProperties(dotplot);

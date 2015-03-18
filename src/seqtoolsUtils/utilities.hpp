@@ -574,9 +574,6 @@ void                               getTextSize(GtkWidget *widget, const char *te
 int                                getTextWidth(GtkWidget *widget, const char *text);
 int                                getTextHeight(GtkWidget *widget, const char *text);
 
-gboolean                           seqtoolsGetMonitorSizeFraction(GtkWidget *widget, const double widthFraction, const double heightFraction, int *widthOut, int *heightOut);
-gboolean                           seqtoolsGetMonitorSize(GtkWidget *widget, int *widthOut, int *heightOut);
-
 GtkWidget*                         createTextEntryFromInt(GtkWidget *widget,
                                                           GtkTable *table, 
                                                           const int row,

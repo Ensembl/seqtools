@@ -15,8 +15,8 @@ set arch = "`uname -m`"
 set machine = "`uname -s`-`uname -m`"
 set pkgpath = ""
 set ldflags = ""
-set cflags = "-g -Wall"
-set install_dir = $1
+set cppflags = "-g -Wall"
+set configure_args = "$*"
 
 switch ( $opsys )
   case "Linux":
@@ -44,12 +44,12 @@ set run_dir = `dirname $0`
 set script_name = "configure"
 set script_exe = "$run_dir/$script_name"
 
-echo "Running $script_exe $install_dir PKG_CONFIG_PATH='$pkgpath' LDFLAGS='$ldflags' CFLAGS='$cflags'"
+echo "Running $script_exe $configure_args PKG_CONFIG_PATH='$pkgpath' LDFLAGS='$ldflags' CPPFLAGS='$cppflags'"
 
 if ($#argv < 1 ) then
-  $script_exe PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags" CFLAGS="$cflags"
+  $script_exe PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags" CPPFLAGS="$cppflags"
 else
-  $script_exe $install_dir PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags" CFLAGS="$cflags"
+  $script_exe $configure_args PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags" CPPFLAGS="$cppflags"
 endif
 
 

@@ -40,6 +40,7 @@
 #include "belvuApp/belvuTree.hpp"
 #include "belvuApp/belvuConsPlot.hpp"
 #include "belvuApp/belvu_.hpp"
+#include <gbtools/gbtools.hpp>
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
@@ -3357,7 +3358,7 @@ static void setWrapWindowStyleProperties(GtkWidget *window)
   
   /* Set the initial window size based on some fraction of the screen size */
   int screenWidth = 300, screenHeight = 200;
-  seqtoolsGetMonitorSize(window, &screenWidth, &screenHeight);
+  gbtools::GUIGetTrueMonitorSize(window, &screenWidth, &screenHeight);
 
   const int width = screenWidth * DEFAULT_WRAP_WINDOW_WIDTH_FRACTION;
   const int height = screenHeight * DEFAULT_WRAP_WINDOW_HEIGHT_FRACTION;
@@ -3422,7 +3423,7 @@ static void setOrgsWindowStyleProperties(GtkWidget *window, BelvuContext *bc)
   getFontCharSize(window, window->style->font_desc, &charWidth, &charHeight);
 
   int screenWidth = 100, screenHeight = 100;
-  seqtoolsGetMonitorSize(window, &screenWidth, &screenHeight);
+  gbtools::GUIGetTrueMonitorSize(window, &screenWidth, &screenHeight);
   
   const int maxWidth = screenWidth * MAX_ORGS_WINDOW_WIDTH_FRACTION;
   const int maxHeight = screenHeight * MAX_ORGS_WINDOW_HEIGHT_FRACTION;
@@ -3610,8 +3611,8 @@ void showAnnotationWindow(BelvuContext *bc)
   int height = ((g_slist_length(bc->annotationList) + 1) * charHeight) + scrollBarWidth() + 40; /* extra fudge to allow space for buttons */
 
   int maxWidth = 300, maxHeight = 200;
-  seqtoolsGetMonitorSizeFraction(dialog, MAX_ANNOTATION_WINDOW_WIDTH_FRACTION, MAX_ANNOTATION_WINDOW_HEIGHT_FRACTION,
-                                 &maxWidth, &maxHeight);
+  gbtools::GUIGetTrueMonitorSizeFraction(dialog, MAX_ANNOTATION_WINDOW_WIDTH_FRACTION, MAX_ANNOTATION_WINDOW_HEIGHT_FRACTION,
+                                  &maxWidth, &maxHeight);
   width = min(width, maxWidth);
   height = min(height, maxHeight);
   
@@ -3990,8 +3991,8 @@ static void setStyleProperties(GtkWidget *window, GtkToolbar *toolbar)
 {
   /* Set the initial window size based on some fraction of the screen size */
   int width = 300, height = 200;
-  seqtoolsGetMonitorSizeFraction(window, DEFAULT_BELVU_WINDOW_WIDTH_FRACTION, DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION,
-                                 &width, &height);
+  gbtools::GUIGetTrueMonitorSizeFraction(window, DEFAULT_BELVU_WINDOW_WIDTH_FRACTION, DEFAULT_BELVU_WINDOW_HEIGHT_FRACTION,
+                                  &width, &height);
 
   gtk_window_set_default_size(GTK_WINDOW(window), width, height);
   
