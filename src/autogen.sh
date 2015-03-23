@@ -15,7 +15,7 @@
 # and the stuff about AC_INIT
 # NOTE that seqtools_version.m4 is referenced from configure.ac
 #
-version_macro_file='version.m4'
+version_macro_file='seqtools_version.m4'
 rm -f $version_macro_file
 
 SEQTOOLS_VERSION=`git describe --dirty --abbrev=1`
