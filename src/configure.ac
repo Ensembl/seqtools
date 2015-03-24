@@ -10,9 +10,6 @@ AC_CONFIG_SRCDIR([blixemApp/blxmain.cpp])
 AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_HEADERS([config.h])
 
-# Set up calling of configure scripts in subdirectories
-AC_CONFIG_SUBDIRS([gbtools])
-
 # Set up calling of Makefiles in toplevel directory and subdirectories
 AC_CONFIG_FILES([Makefile
 blixemApp/Makefile
@@ -68,7 +65,8 @@ PKG_CHECK_MODULES([DEPS_SQLITE3], [sqlite3], [HAVE_SQLITE3=1], [HAVE_SQLITE3=0])
 # Check if the gbtools library exists as a subdirectory. This should be the case for
 # the dist. It doesn't exist in the git repository though, so for development it
 # either needs to be copied in or installed locally.
-AM_CONDITIONAL([USE_GBTOOLS], [test -d "$srcdir/gbtools/src"])
+AM_CONDITIONAL([USE_GBTOOLS], [test -e "$srcdir/gbtools/configure.ac"])
+AM_COND_IF([USE_GBTOOLS], [AC_CONFIG_SUBDIRS([gbtools])])
 
 # Check for the curl library. This is only required by blixemh, so don't fail
 # if we can't find it, but set the USE_LIBCURL to false. Note: I think we should 
