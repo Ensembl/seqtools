@@ -4361,6 +4361,8 @@ void showAboutDialog(GtkWidget *parent)
 
   gtk_about_dialog_set_url_hook(aboutDialogOpenLinkCB, NULL, NULL) ;
   
+  char *comments_string = blxGetCommentsString();
+
   gtk_show_about_dialog(GTK_WINDOW(parent),
                         "authors", authors,
                         "comments", blxGetCommentsString(), 
@@ -4370,6 +4372,8 @@ void showAboutDialog(GtkWidget *parent)
                         "version", blxGetVersionString(),
                         "website", blxGetWebSiteString(),
                         NULL) ;
+
+  g_free(comments_string);
 #endif
 }
 

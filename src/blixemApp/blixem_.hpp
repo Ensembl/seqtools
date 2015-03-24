@@ -43,6 +43,7 @@
 #include <seqtoolsUtils/utilities.hpp>
 #include <seqtoolsUtils/blxmsp.hpp>
 #include <seqtoolsUtils/version.hpp>
+#include <gbtools/gbtools.hpp>
 
 
 /*            blixem program version and information.                        */
@@ -57,14 +58,9 @@
 #define BLIXEM_TITLE_STRING        UT_MAKE_TITLE_STRING(BLIXEM_TITLE, BLIXEM_VERSION_STRING)
 #define BLIXEM_VERSION_COMPILE     BLIXEM_VERSION_STRING "  " UT_MAKE_COMPILE_DATE()
 
-#define BLIXEM_COPYRIGHT_STRING    UT_MAKE_COPYRIGHT_STRING("2009-2011")
+#define BLIXEM_COPYRIGHT_STRING    UT_MAKE_COPYRIGHT_STRING("2009-2015")
 #define BLIXEM_WEBSITE_STRING      "http://www.sanger.ac.uk/resources/software/seqtools/"
 #define BLIXEM_LICENSE_STRING      UT_MAKE_LICENCE_STRING(BLIXEM_TITLE)
-
-#define BLIXEM_COMMENTS_STRING()                                \
-"("BLIXEM_TITLE_STRING", "                                      \
-UT_COMPILE_PHRASE " " UT_MAKE_COMPILE_DATE() ")\n\n"            \
-AUTHOR_TEXT "\n"
 
 
 
@@ -621,7 +617,7 @@ const char*                        blxGetAppName();
 const char*                        blxGetTitlePrefix(const BlxViewContext* const bc);
 const char*                        blxGetCopyrightString();
 const char*                        blxGetWebSiteString();
-const char*                        blxGetCommentsString();
+char*                              blxGetCommentsString();
 const char*                        blxGetLicenseString();
 const char*                        blxGetVersionString();        
 

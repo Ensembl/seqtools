@@ -69,6 +69,7 @@ MSP score codes (for obsolete exblx file format):
 #include <seqtoolsUtils/blxmsp.hpp>
 #include <seqtoolsUtils/blxparser.hpp>
 #include <seqtoolsUtils/utilities.hpp>
+#include <gbtools/gbtools.hpp>
 
 
 #define MAXALIGNLEN			      10000
@@ -1651,10 +1652,18 @@ const char *blxGetWebSiteString()
   return BLIXEM_WEBSITE_STRING ;
 }
 
-/* Returns a comments string for the Blixem application. */
-const char *blxGetCommentsString()
+/* Returns a comments string for the Blixem application. Note that unlike the const
+ * functions, this one allocates a new string which must be free'd by the caller */
+char *blxGetCommentsString()
 {
-  return BLIXEM_COMMENTS_STRING() ;
+  char *result = g_strdup_printf("%s\n%s\n%s %s\n\n%s\n", 
+                                 BLIXEM_TITLE_STRING, 
+                                 gbtools::UtilsGetVersionTitle(),
+                                 UT_COMPILE_PHRASE, 
+                                 UT_MAKE_COMPILE_DATE(), 
+                                 AUTHOR_TEXT);
+
+  return result;
 }
 
 /* Returns a license string for the blx application. */

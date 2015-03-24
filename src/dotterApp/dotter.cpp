@@ -3998,10 +3998,18 @@ const char *dotterGetWebSiteString(void)
   return DOTTER_WEBSITE_STRING ;
 }
 
-/* Returns a comments string for the Dotter application. */
+/* Returns a comments string for the Dotter application. Note that unlike the const
+ * functions, this one allocates a new string which must be free'd by the caller */
 const char *dotterGetCommentsString(void)
 {
-  return DOTTER_COMMENTS_STRING() ;
+  char *result = g_strdup_printf("%s\n%s\n%s %s\n\n%s\n", 
+                                 DOTTER_TITLE_STRING, 
+                                 gbtools::UtilsGetVersionTitle(),
+                                 UT_COMPILE_PHRASE, 
+                                 UT_MAKE_COMPILE_DATE(), 
+                                 AUTHOR_TEXT);
+
+  return result;
 }
 
 /* Returns a license string for the dotter application. */

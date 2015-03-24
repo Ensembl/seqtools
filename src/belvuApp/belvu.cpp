@@ -130,6 +130,7 @@
 #include <belvuApp/belvuTree.hpp>
 #include <belvuApp/belvuConsPlot.hpp>
 #include <belvuApp/belvuAlignment.hpp>
+#include <gbtools/gbtools.hpp>
 
 #include <stdarg.h>
 /*#include <stdlib.h> / * Needed for RAND_MAX but clashes with other stuff */
@@ -2598,10 +2599,19 @@ const char *belvuGetWebSiteString(void)
   return BELVU_WEBSITE_STRING ;
 }
 
-/* Returns a comments string for the Blixem application. */
+/* Returns a comments string for the Belvu application. Note that unlike the const
+ * functions, this one allocates a new string which must be free'd by the caller */
 const char *belvuGetCommentsString(void)
 {
-  return BELVU_COMMENTS_STRING() ;
+  char *result = g_strdup_printf("%s\n%s\n%s %s\n\n%s\n", 
+                                 BELVU_TITLE_STRING, 
+                                 gbtools::UtilsGetVersionTitle(),
+                                 UT_COMPILE_PHRASE, 
+                                 UT_MAKE_COMPILE_DATE(), 
+                                 AUTHOR_TEXT);
+
+  return result;
+  
 }
 
 /* Returns a license string for the belvu application. */

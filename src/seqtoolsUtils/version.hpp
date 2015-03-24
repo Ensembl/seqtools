@@ -62,7 +62,7 @@ char *utAppGetCompileDate(void) ;
 /* before or after the main function. Do not put a terminating ';' after     */
 /* the macro, this will cause a compile error.                               */
 /*                                                                           */
-#define UT_COMPILE_PHRASE "compiled on:"
+#define UT_COMPILE_PHRASE "Compiled on:"
 
 #define UT_MAKE_GETCOMPILEDATEROUTINE()                                      \
 char *utAppGetCompileDate(void) { return UT_COMPILE_PHRASE " " __DATE__ " " __TIME__ ; }

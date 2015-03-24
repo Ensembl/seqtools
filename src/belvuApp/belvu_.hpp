@@ -58,14 +58,9 @@
 #define BELVU_TITLE_STRING	   UT_MAKE_TITLE_STRING(BELVU_TITLE, BELVU_VERSION_STRING)
 #define BELVU_VERSION_COMPILE	   BELVU_VERSION_STRING "  " UT_MAKE_COMPILE_DATE()
 
-#define BELVU_COPYRIGHT_STRING	   UT_MAKE_COPYRIGHT_STRING("2011")
+#define BELVU_COPYRIGHT_STRING	   UT_MAKE_COPYRIGHT_STRING("2011-2015")
 #define BELVU_WEBSITE_STRING	   "http://www.sanger.ac.uk/resources/software/seqtools/"
 #define BELVU_LICENSE_STRING	   UT_MAKE_LICENCE_STRING(BELVU_TITLE)
-
-#define BELVU_COMMENTS_STRING()                                \
-"("BELVU_TITLE_STRING", "					\
-UT_COMPILE_PHRASE " " UT_MAKE_COMPILE_DATE() ")\n\n"            \
-AUTHOR_TEXT "\n"
 
 
 #define DEFAULT_BELVU_WINDOW_WIDTH_FRACTION     0.95   /* default width of belvu window (as fraction of screen width) */
