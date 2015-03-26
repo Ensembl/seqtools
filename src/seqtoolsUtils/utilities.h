@@ -60,8 +60,14 @@
 #define max(a,b)        (((a) > (b)) ? (a) : (b))
 #define min(a,b)        (((a) < (b)) ? (a) : (b))
 
+/* Utility macro to check that our gtk version meets the given minimum version. Use this in
+ * an #if statement */
+#define CHECK_GTK_VERSION(MAJOR, MINOR) GTK_MAJOR_VERSION > (MAJOR) || (GTK_MAJOR_VERSION == (MAJOR) && GTK_MINOR_VERSION >= (MINOR))
+
 
 /* Debug logging macros. #define DEBUG to enable debug output. */
+#define DEBUG
+
 #ifdef DEBUG
 #define DEBUG_OUT(format, args...) debugLogLevel(0); printf(format, ##args); fflush(stdout);
 #else
@@ -569,7 +575,8 @@ void                               getTextSize(GtkWidget *widget, const char *te
 int                                getTextWidth(GtkWidget *widget, const char *text);
 int                                getTextHeight(GtkWidget *widget, const char *text);
 
-void                               getScreenSizeFraction(GtkWidget *widget, const double widthFraction, const double heightFraction, int *widthOut, int *heightOut);
+gboolean                           seqtoolsGetMonitorSizeFraction(GtkWidget *widget, const double widthFraction, const double heightFraction, int *widthOut, int *heightOut);
+gboolean                           seqtoolsGetMonitorSize(GtkWidget *widget, int *widthOut, int *heightOut);
 
 GtkWidget*                         createTextEntryFromInt(GtkWidget *widget,
                                                           GtkTable *table, 

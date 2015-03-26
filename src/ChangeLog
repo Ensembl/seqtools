@@ -1,158 +1,579 @@
-2015-01-23  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.31-30-g890b - Update RT and git commit reports
+2015-03-24  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.32.1-40-g9ea7 - Update RT and git commit reports
+ src/ChangeLog |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
+
+2015-03-24  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.32.1-39-g3fcd - Update RT and git commit reports
+ src/ChangeLog                                  |    6 ++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 7 insertions(+), 1 deletions(-)
+
+2015-03-19  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.32.1-38-gd7c9 - Update RT and git commit reports
+ src/ChangeLog                                  |    6 ++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 7 insertions(+), 1 deletions(-)
+
+2015-03-18  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.32.1-37-gb867 - Update RT and git commit reports
+ src/ChangeLog                                  |    6 ++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 7 insertions(+), 1 deletions(-)
+
+2015-03-16  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.32.1-36-g2d57 - Update RT and git commit reports
  src/ChangeLog                                  |    7 +++++++
  src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
  2 files changed, 8 insertions(+), 1 deletions(-)
 
-2015-01-21  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.31-29-g75f3 - Update RT and git commit reports
- src/ChangeLog                                  |   15 +++++++++++++++
- src/build/release_docs/GIT_COMMITS.txt         |    1 +
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 17 insertions(+), 1 deletions(-)
+2015-03-12  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.32.1-35-gcfe0 - Update RT and git commit reports
+ src/ChangeLog                                  |  161 ++++++++++++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    2 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   10 ++
+ 3 files changed, 173 insertions(+), 0 deletions(-)
 
-2015-01-21  Gemma Barson  <gb10@sanger.ac.uk>
- Fix potential crash in blixem
- src/blixemApp/detailview.c |   14 +++++++++++---
- 1 files changed, 11 insertions(+), 3 deletions(-)
+2015-03-12  Gemma Barson  <gb10@sanger.ac.uk>
+ Revert "Merge branch 'feature/cpp' into develop"
+ src/Makefile.am                          |  103 +-
+ src/belvuApp/Makefile.am                 |   23 -
+ src/belvuApp/belvu.c                     | 4967 ++++++++++++++++++++++
+ src/belvuApp/belvu.cpp                   | 4971 ----------------------
+ src/belvuApp/belvuAlignment.c            | 1855 ++++++++
+ src/belvuApp/belvuAlignment.cpp          | 1855 --------
+ src/belvuApp/belvuAlignment.h            |   74 +
+ src/belvuApp/belvuAlignment.hpp          |   74 -
+ src/belvuApp/belvuConsPlot.c             |  641 +++
+ src/belvuApp/belvuConsPlot.cpp           |  641 ---
+ src/belvuApp/belvuConsPlot.h             |   47 +
+ src/belvuApp/belvuConsPlot.hpp           |   47 -
+ src/belvuApp/belvuMain.c                 | 1006 +++++
+ src/belvuApp/belvuMain.cpp               | 1006 -----
+ src/belvuApp/belvuTree.c                 | 2835 +++++++++++++
+ src/belvuApp/belvuTree.cpp               | 2835 -------------
+ src/belvuApp/belvuTree.h                 |   76 +
+ src/belvuApp/belvuTree.hpp               |   76 -
+ src/belvuApp/belvuWindow.c               | 4135 ++++++++++++++++++
+ src/belvuApp/belvuWindow.cpp             | 4135 ------------------
+ src/belvuApp/belvuWindow.h               |   61 +
+ src/belvuApp/belvuWindow.hpp             |   61 -
+ src/belvuApp/belvu_.h                    |  579 +++
+ src/belvuApp/belvu_.hpp                  |  579 ---
+ src/blixemApp/Makefile.am                |   45 -
+ src/blixemApp/bigpicture.c               | 1669 ++++++++
+ src/blixemApp/bigpicture.cpp             | 1669 --------
+ src/blixemApp/bigpicture.h               |  186 +
+ src/blixemApp/bigpicture.hpp             |  186 -
+ src/blixemApp/bigpicturegrid.c           |  870 ++++
+ src/blixemApp/bigpicturegrid.cpp         |  870 ----
+ src/blixemApp/bigpicturegrid.h           |   93 +
+ src/blixemApp/bigpicturegrid.hpp         |   93 -
+ src/blixemApp/blixem_.h                  |  699 +++
+ src/blixemApp/blixem_.hpp                |  699 ---
+ src/blixemApp/blxFetch.c                 | 3516 +++++++++++++++
+ src/blixemApp/blxFetch.cpp               | 3521 ---------------
+ src/blixemApp/blxFetchDb.c               |  325 ++
+ src/blixemApp/blxFetchDb.cpp             |  325 --
+ src/blixemApp/blxdotter.c                | 2407 +++++++++++
+ src/blixemApp/blxdotter.cpp              | 2408 -----------
+ src/blixemApp/blxdotter.h                |   62 +
+ src/blixemApp/blxdotter.hpp              |   62 -
+ src/blixemApp/blxmain.c                  |  905 ++++
+ src/blixemApp/blxmain.cpp                |  905 ----
+ src/blixemApp/blxview.c                  | 1954 +++++++++
+ src/blixemApp/blxview.cpp                | 1954 ---------
+ src/blixemApp/blxview.h                  |   42 +
+ src/blixemApp/blxview.hpp                |   42 -
+ src/blixemApp/blxwindow.c                | 6831 ++++++++++++++++++++++++++++++
+ src/blixemApp/blxwindow.cpp              | 6831 ------------------------------
+ src/blixemApp/blxwindow.h                |  123 +
+ src/blixemApp/blxwindow.hpp              |  123 -
+ src/blixemApp/coverageview.c             |  587 +++
+ src/blixemApp/coverageview.cpp           |  587 ---
+ src/blixemApp/coverageview.h             |   63 +
+ src/blixemApp/coverageview.hpp           |   63 -
+ src/blixemApp/detailview.c               | 5244 +++++++++++++++++++++++
+ src/blixemApp/detailview.cpp             | 5244 -----------------------
+ src/blixemApp/detailview.h               |  312 ++
+ src/blixemApp/detailview.hpp             |  312 --
+ src/blixemApp/detailviewtree.c           | 3148 ++++++++++++++
+ src/blixemApp/detailviewtree.cpp         | 3148 --------------
+ src/blixemApp/detailviewtree.h           |  135 +
+ src/blixemApp/detailviewtree.hpp         |  135 -
+ src/blixemApp/exonview.c                 |  942 ++++
+ src/blixemApp/exonview.cpp               |  942 ----
+ src/blixemApp/exonview.h                 |   66 +
+ src/blixemApp/exonview.hpp               |   66 -
+ src/blixemApp/sequencecellrenderer.c     | 1612 +++++++
+ src/blixemApp/sequencecellrenderer.cpp   | 1612 -------
+ src/blixemApp/sequencecellrenderer.h     |  102 +
+ src/blixemApp/sequencecellrenderer.hpp   |  102 -
+ src/configure.ac                         |   11 +-
+ src/doc/Makefile.am                      |    8 -
+ src/doc/User_doc/Makefile.am             |   22 -
+ src/dotterApp/Makefile.am                |   23 -
+ src/dotterApp/alignmenttool.c            | 1399 ++++++
+ src/dotterApp/alignmenttool.cpp          | 1399 ------
+ src/dotterApp/dotplot.c                  | 3195 ++++++++++++++
+ src/dotterApp/dotplot.cpp                | 3195 --------------
+ src/dotterApp/dotter.c                   | 4059 ++++++++++++++++++
+ src/dotterApp/dotter.cpp                 | 4059 ------------------
+ src/dotterApp/dotter.h                   |  137 +
+ src/dotterApp/dotter.hpp                 |  137 -
+ src/dotterApp/dotterKarlin.c             |  458 ++
+ src/dotterApp/dotterKarlin.cpp           |  458 --
+ src/dotterApp/dotterMain.c               |  905 ++++
+ src/dotterApp/dotterMain.cpp             |  906 ----
+ src/dotterApp/dotter_.h                  |  394 ++
+ src/dotterApp/dotter_.hpp                |  394 --
+ src/dotterApp/greyramptool.c             | 1035 +++++
+ src/dotterApp/greyramptool.cpp           | 1035 -----
+ src/dotterApp/seqtoolsExonView.c         |  746 ++++
+ src/dotterApp/seqtoolsExonView.cpp       |  746 ----
+ src/dotterApp/seqtoolsExonView.h         |   84 +
+ src/dotterApp/seqtoolsExonView.hpp       |   84 -
+ src/examples/Makefile.am                 |    8 -
+ src/libpfetch/Makefile.am                |   50 -
+ src/libpfetch/libcurlobject.h            |    9 +-
+ src/libpfetch/libcurlobject_I.h          |   10 -
+ src/libpfetch/libpfetch-cmarshal.h       |    7 -
+ src/libpfetch/libpfetch.h                |    8 -
+ src/libpfetch/libpfetch_I.h              |    8 -
+ src/libpfetch/libpfetch_P.h              |    8 -
+ src/seqtoolsUtils/Makefile.am            |   14 -
+ src/seqtoolsUtils/blxGff3Parser.c        | 1545 +++++++
+ src/seqtoolsUtils/blxGff3Parser.cpp      | 1545 -------
+ src/seqtoolsUtils/blxGff3Parser.h        |  146 +
+ src/seqtoolsUtils/blxGff3Parser.hpp      |  146 -
+ src/seqtoolsUtils/blxmsp.c               | 3635 ++++++++++++++++
+ src/seqtoolsUtils/blxmsp.cpp             | 3635 ----------------
+ src/seqtoolsUtils/blxmsp.h               |  507 +++
+ src/seqtoolsUtils/blxmsp.hpp             |  507 ---
+ src/seqtoolsUtils/blxparser.c            | 2000 +++++++++
+ src/seqtoolsUtils/blxparser.cpp          | 2000 ---------
+ src/seqtoolsUtils/blxparser.h            |   47 +
+ src/seqtoolsUtils/blxparser.hpp          |   47 -
+ src/seqtoolsUtils/iupac.h                |  320 ++
+ src/seqtoolsUtils/iupac.hpp              |  320 --
+ src/seqtoolsUtils/seqtoolsWebBrowser.c   |  392 ++
+ src/seqtoolsUtils/seqtoolsWebBrowser.cpp |  392 --
+ src/seqtoolsUtils/translate.c            |  212 +
+ src/seqtoolsUtils/translate.cpp          |  212 -
+ src/seqtoolsUtils/utilities.c            | 4921 +++++++++++++++++++++
+ src/seqtoolsUtils/utilities.cpp          | 4921 ---------------------
+ src/seqtoolsUtils/utilities.h            |  659 +++
+ src/seqtoolsUtils/utilities.hpp          |  658 ---
+ src/seqtoolsUtils/version.h              |  179 +
+ src/seqtoolsUtils/version.hpp            |  179 -
+ src/test/Makefile.am                     |    8 -
+ 131 files changed, 75246 insertions(+), 75417 deletions(-)
 
-2015-01-13  Gemma Barson  <gb10@sanger.ac.uk>
- Update release notes
- src/doc/User_doc/release_notes.html |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
+2015-03-12  Gemma Barson  <gb10@sanger.ac.uk>
+ Revert "Fix missing docs installation - BUILD"
+ src/Makefile.am |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-2015-01-13  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.31-26-g476d - Update RT and git commit reports
- src/ChangeLog |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
+2015-03-12  Gemma Barson  <gb10@sanger.ac.uk>
+ Revert "Fix installation of docs in dist file - BUILD"
+ src/configure.ac                         |    4 ----
+ src/doc/Design_notes/Makefile.am         |   13 -------------
+ src/doc/Design_notes/modules/Makefile.am |   13 -------------
+ src/doc/Makefile.am                      |    2 +-
+ 4 files changed, 1 insertions(+), 31 deletions(-)
 
-2015-01-13  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.31-25-gfcf4 - Update RT and git commit reports
- src/ChangeLog                                  |  176 ++++++++++++------------
- src/build/release_docs/GIT_COMMITS.txt         |   15 ++-
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 96 insertions(+), 97 deletions(-)
+2015-03-12  Gemma Barson  <gb10@sanger.ac.uk>
+ Make organism abbreviation longer to avoid duplicates - RT 456864
+ src/blixemApp/blixem_.hpp |    2 +-
+ src/blixemApp/blxview.cpp |   30 +++++++++++++++++++++++++++++-
+ 2 files changed, 30 insertions(+), 2 deletions(-)
 
-2015-01-13  Gemma Barson  <gb10@sanger.ac.uk>
- Minor update to blixem quick start guide
- src/doc/User_doc/blixem_quick_start.html |    4 +++-
- 1 files changed, 3 insertions(+), 1 deletions(-)
+2015-03-12  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.32.1-30-g3f48 - Update RT and git commit reports
+ src/ChangeLog                                  |  536 +++++++++++++++++-------
+ src/build/release_docs/GIT_COMMITS.txt         |   20 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   32 +--
+ 3 files changed, 389 insertions(+), 199 deletions(-)
 
-2015-01-05  Ed Griffiths  <edgrif@sanger.ac.uk>
- "add doc required by Sanger software policy."
- src/RANGE_OF_YEARS_COPYRIGHT |    9 +++++++++
- 1 files changed, 9 insertions(+), 0 deletions(-)
+2015-03-12  Steve Miller  <sm23@sanger.ac.uk>
+ editing of release notes - BUILD
+ src/doc/User_doc/release_notes.html |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
 
-2014-12-18  Ed Griffiths  <edgrif@sanger.ac.uk>
- "add in X11 and m libs to link, otherwise not found on 64 bit ubuntu."
- src/Makefile.am |   11 +++++++----
- 1 files changed, 7 insertions(+), 4 deletions(-)
+2015-03-10  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix installation of docs in dist file - BUILD
+ src/configure.ac                         |    4 ++++
+ src/doc/Design_notes/Makefile.am         |   13 +++++++++++++
+ src/doc/Design_notes/modules/Makefile.am |   13 +++++++++++++
+ src/doc/Makefile.am                      |    2 +-
+ 4 files changed, 31 insertions(+), 1 deletions(-)
 
-2014-12-01  Gemma Barson  <gb10@sanger.ac.uk>
- Fix bug where matches can be treated like basic features
- src/seqtoolsUtils/blxGff3Parser.c |   59 +++++++++++++++++++-----------------
- src/seqtoolsUtils/blxmsp.h        |    3 +-
- 2 files changed, 33 insertions(+), 29 deletions(-)
+2015-03-10  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix missing docs installation - BUILD
+ src/Makefile.am |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-2014-11-28  Ed Griffiths  <edgrif@sanger.ac.uk>
- Merge branch 'production' into develop
-2014-11-27  Gemma Barson  <gb10@sanger.ac.uk>
- Fix bug where styles were not being picked up for new features
- src/blixemApp/blxwindow.c |    2 +-
+2015-03-04  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'feature/cpp' into develop
+2015-03-04  Gemma Barson  <gb10@sanger.ac.uk>
+ "Fix error using abstract type - TRIVIAL"
+ src/blixemApp/sequencecellrenderer.cpp |    2 +-
  1 files changed, 1 insertions(+), 1 deletions(-)
 
-2014-11-27  Gemma Barson  <gb10@sanger.ac.uk>
- Set NULL SO ID for invalid Sequence type
- src/seqtoolsUtils/blxGff3Parser.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Fix c++ compiler errors - BUILD"
+ src/belvuApp/belvu.cpp    |    3 +--
+ src/blixemApp/blxview.cpp |    2 +-
+ 2 files changed, 2 insertions(+), 3 deletions(-)
 
-2014-11-27  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'release/4.31' into develop
-2014-11-24  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'release/4.31' into develop
-2014-11-24  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'feature/basic_features' into develop
-2014-11-24  Gemma Barson  <gb10@sanger.ac.uk>
- Update blixem usage info to reflect support for basic types
- src/blixemApp/blxmain.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Fix c++ compiler errors - BUILD"
+ src/belvuApp/belvu.cpp       |    6 +++++-
+ src/dotterApp/dotterMain.cpp |    3 ++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)
 
-2014-11-24  Gemma Barson  <gb10@sanger.ac.uk>
- Update release notes
- src/doc/User_doc/release_notes.html |   15 +++++++++++++++
- 1 files changed, 15 insertions(+), 0 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Fix more c++ compiler errors on linux - BUILD"
+ src/belvuApp/belvu.cpp     |    7 ++++---
+ src/blixemApp/blxFetch.cpp |    2 +-
+ src/blixemApp/blxview.cpp  |    2 +-
+ src/dotterApp/dotplot.cpp  |    2 +-
+ 4 files changed, 7 insertions(+), 6 deletions(-)
 
-2014-11-21  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'feature/basic_features' into develop
-2014-11-21  Gemma Barson  <gb10@sanger.ac.uk>
- Improve display of exons and basic features in the detail view
- src/blixemApp/sequencecellrenderer.c |   51 +++++++++------------------------
- 1 files changed, 14 insertions(+), 37 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Fix compile error on linux - BUILD"
+ src/seqtoolsUtils/blxparser.cpp |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-2014-11-21  Gemma Barson  <gb10@sanger.ac.uk>
- Implement basic feature type properly
- src/blixemApp/blxview.c              |    2 +-
- src/blixemApp/blxwindow.c            |    2 +-
- src/blixemApp/detailview.c           |   17 +++---
- src/blixemApp/detailviewtree.c       |   20 +++++--
- src/blixemApp/exonview.c             |    6 +-
- src/blixemApp/exonview.h             |    6 +-
- src/blixemApp/sequencecellrenderer.c |   40 +++++++-----
- src/dotterApp/seqtoolsExonView.c     |    6 +-
- src/seqtoolsUtils/blxmsp.c           |  112 +++++++++++++++++++++-------------
- src/seqtoolsUtils/blxmsp.h           |   11 ++--
- 10 files changed, 136 insertions(+), 86 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Fix c++ compiler warnings - BUILD"
+ src/belvuApp/belvuAlignment.cpp |    4 ++--
+ src/blixemApp/blxFetch.cpp      |   13 +++++++++----
+ src/blixemApp/blxdotter.cpp     |    4 ++--
+ src/blixemApp/blxwindow.cpp     |    6 +++---
+ src/seqtoolsUtils/blxmsp.cpp    |    2 +-
+ src/seqtoolsUtils/blxparser.cpp |    4 ++--
+ 6 files changed, 19 insertions(+), 14 deletions(-)
 
-2014-11-21  Gemma Barson  <gb10@sanger.ac.uk>
- Quick hack to support basic feature types using exon code
- src/seqtoolsUtils/blxGff3Parser.c |    4 +++-
- src/seqtoolsUtils/blxmsp.h        |    5 +++++
- 2 files changed, 8 insertions(+), 1 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Fix compiler errors - BUILD"
+ src/belvuApp/belvuAlignment.cpp |    4 ++--
+ src/belvuApp/belvuConsPlot.cpp  |    6 +++---
+ src/belvuApp/belvuConsPlot.hpp  |    2 +-
+ src/belvuApp/belvuMain.cpp      |   10 +++++-----
+ src/belvuApp/belvuTree.cpp      |    6 +++---
+ src/belvuApp/belvuWindow.cpp    |   10 +++++-----
+ src/belvuApp/belvu_.hpp         |    6 +++---
+ 7 files changed, 22 insertions(+), 22 deletions(-)
 
-2014-11-19  Ed Griffiths  <edgrif@sanger.ac.uk>
- update INSTALL files to match Gemma's web writeups.
- src/INSTALL         |  436 ++++++++++++++++++++++++++++++++++++++++++---------
- src/INSTALL.linux   |   60 +++++++
- src/INSTALL.mac     |   51 ++++++
- src/INSTALL.windows |   81 +++++-----
- 4 files changed, 513 insertions(+), 115 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Add C linkage to libpfetch c files - BUILD"
+ src/libpfetch/libcurlobject.h      |    9 ++++++++-
+ src/libpfetch/libcurlobject_I.h    |   10 ++++++++++
+ src/libpfetch/libpfetch-cmarshal.h |    7 +++++++
+ src/libpfetch/libpfetch.h          |    8 ++++++++
+ src/libpfetch/libpfetch_I.h        |    8 ++++++++
+ src/libpfetch/libpfetch_P.h        |    8 ++++++++
+ 6 files changed, 49 insertions(+), 1 deletions(-)
 
-2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'release/4.31' into develop
-2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'feature/GUI_improvements' into develop
-2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
- Add tooltips to greyramp tool buttons
- src/dotterApp/greyramptool.c |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Fix cpp compiler errors - BUILD"
+ src/belvuApp/Makefile.am                 |    4 ++--
+ src/belvuApp/belvu.cpp                   |   10 +++++-----
+ src/belvuApp/belvuAlignment.hpp          |    2 +-
+ src/belvuApp/belvuTree.hpp               |    2 +-
+ src/belvuApp/belvuWindow.hpp             |    2 +-
+ src/blixemApp/Makefile.am                |    4 ++--
+ src/blixemApp/bigpicture.cpp             |   12 ++++++------
+ src/blixemApp/bigpicture.hpp             |    6 +++---
+ src/blixemApp/bigpicturegrid.cpp         |   12 ++++++------
+ src/blixemApp/bigpicturegrid.hpp         |    4 ++--
+ src/blixemApp/blixem_.hpp                |    6 +++---
+ src/blixemApp/blxFetch.cpp               |    8 ++++----
+ src/blixemApp/blxFetchDb.cpp             |    6 +++---
+ src/blixemApp/blxdotter.cpp              |   19 ++++++++++---------
+ src/blixemApp/blxdotter.hpp              |    2 +-
+ src/blixemApp/blxmain.cpp                |    8 ++++----
+ src/blixemApp/blxview.cpp                |   16 ++++++++--------
+ src/blixemApp/blxwindow.cpp              |   22 +++++++++++-----------
+ src/blixemApp/blxwindow.hpp              |    4 ++--
+ src/blixemApp/coverageview.cpp           |    8 ++++----
+ src/blixemApp/coverageview.hpp           |    2 +-
+ src/blixemApp/detailview.cpp             |   14 +++++++-------
+ src/blixemApp/detailview.hpp             |    4 ++--
+ src/blixemApp/detailviewtree.cpp         |   14 +++++++-------
+ src/blixemApp/detailviewtree.hpp         |    6 +++---
+ src/blixemApp/exonview.cpp               |   16 ++++++++--------
+ src/blixemApp/exonview.hpp               |    2 +-
+ src/blixemApp/sequencecellrenderer.cpp   |   14 +++++++-------
+ src/blixemApp/sequencecellrenderer.hpp   |    2 +-
+ src/configure.ac                         |    2 +-
+ src/dotterApp/Makefile.am                |    4 ++--
+ src/dotterApp/alignmenttool.cpp          |    4 ++--
+ src/dotterApp/dotplot.cpp                |    4 ++--
+ src/dotterApp/dotter.cpp                 |   18 +++++++++---------
+ src/dotterApp/dotter.hpp                 |    2 +-
+ src/dotterApp/dotterKarlin.cpp           |    2 +-
+ src/dotterApp/dotterMain.cpp             |   10 +++++-----
+ src/dotterApp/dotter_.hpp                |    4 ++--
+ src/dotterApp/greyramptool.cpp           |    4 ++--
+ src/dotterApp/seqtoolsExonView.cpp       |    6 +++---
+ src/dotterApp/seqtoolsExonView.hpp       |    4 ++--
+ src/seqtoolsUtils/Makefile.am            |    6 +++---
+ src/seqtoolsUtils/blxGff3Parser.cpp      |    8 ++++----
+ src/seqtoolsUtils/blxGff3Parser.hpp      |    2 +-
+ src/seqtoolsUtils/blxmsp.cpp             |    4 ++--
+ src/seqtoolsUtils/blxmsp.hpp             |    2 +-
+ src/seqtoolsUtils/blxparser.cpp          |    8 ++++----
+ src/seqtoolsUtils/seqtoolsWebBrowser.cpp |    2 +-
+ src/seqtoolsUtils/translate.cpp          |    4 ++--
+ src/seqtoolsUtils/utilities.cpp          |    2 +-
+ 50 files changed, 167 insertions(+), 166 deletions(-)
 
-2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
- Add maximise button for greyramp tool
- src/dotterApp/greyramptool.c |   31 ++++++++++++++++++++++++-------
- 1 files changed, 24 insertions(+), 7 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Change libpfetch files back to .h/.c - BUILD"
+ src/libpfetch/libcurlobject.c        | 1046 ++++++++++++++++++++++++
+ src/libpfetch/libcurlobject.cpp      | 1046 ------------------------
+ src/libpfetch/libpfetch-cmarshal.c   |  131 +++
+ src/libpfetch/libpfetch-cmarshal.cpp |  131 ---
+ src/libpfetch/libpfetch-utils.c      |  114 +++
+ src/libpfetch/libpfetch-utils.cpp    |  114 ---
+ src/libpfetch/libpfetch.c            | 1446 ++++++++++++++++++++++++++++++++++
+ src/libpfetch/libpfetch.cpp          | 1446 ----------------------------------
+ src/libpfetch/libpfetch_I.h          |  239 ++++++
+ src/libpfetch/libpfetch_I.hpp        |  239 ------
+ src/libpfetch/libpfetch_P.h          |  125 +++
+ src/libpfetch/libpfetch_P.hpp        |  125 ---
+ 12 files changed, 3101 insertions(+), 3101 deletions(-)
 
-2014-11-14  Gemma Barson  <gb10@sanger.ac.uk>
- Fix keyboard shortcuts on separate tools
- src/dotterApp/dotter.c |  121 ++++++++++++++++++++++++++----------------------
- 1 files changed, 66 insertions(+), 55 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Rename .h files to .hpp - BUILD"
+ src/belvuApp/belvuAlignment.h          |   74 ----
+ src/belvuApp/belvuAlignment.hpp        |   74 ++++
+ src/belvuApp/belvuConsPlot.h           |   47 ---
+ src/belvuApp/belvuConsPlot.hpp         |   47 +++
+ src/belvuApp/belvuTree.h               |   76 ----
+ src/belvuApp/belvuTree.hpp             |   76 ++++
+ src/belvuApp/belvuWindow.h             |   61 ---
+ src/belvuApp/belvuWindow.hpp           |   61 +++
+ src/belvuApp/belvu_.h                  |  579 --------------------------
+ src/belvuApp/belvu_.hpp                |  579 ++++++++++++++++++++++++++
+ src/blixemApp/bigpicture.h             |  186 ---------
+ src/blixemApp/bigpicture.hpp           |  186 +++++++++
+ src/blixemApp/bigpicturegrid.h         |   93 -----
+ src/blixemApp/bigpicturegrid.hpp       |   93 +++++
+ src/blixemApp/blixem_.h                |  699 --------------------------------
+ src/blixemApp/blixem_.hpp              |  699 ++++++++++++++++++++++++++++++++
+ src/blixemApp/blxdotter.h              |   62 ---
+ src/blixemApp/blxdotter.hpp            |   62 +++
+ src/blixemApp/blxview.h                |   42 --
+ src/blixemApp/blxview.hpp              |   42 ++
+ src/blixemApp/blxwindow.h              |  123 ------
+ src/blixemApp/blxwindow.hpp            |  123 ++++++
+ src/blixemApp/coverageview.h           |   63 ---
+ src/blixemApp/coverageview.hpp         |   63 +++
+ src/blixemApp/detailview.h             |  312 --------------
+ src/blixemApp/detailview.hpp           |  312 ++++++++++++++
+ src/blixemApp/detailviewtree.h         |  135 ------
+ src/blixemApp/detailviewtree.hpp       |  135 ++++++
+ src/blixemApp/exonview.h               |   66 ---
+ src/blixemApp/exonview.hpp             |   66 +++
+ src/blixemApp/sequencecellrenderer.h   |  102 -----
+ src/blixemApp/sequencecellrenderer.hpp |  102 +++++
+ src/dotterApp/dotter.h                 |  137 -------
+ src/dotterApp/dotter.hpp               |  137 +++++++
+ src/dotterApp/dotter_.h                |  394 ------------------
+ src/dotterApp/dotter_.hpp              |  394 ++++++++++++++++++
+ src/dotterApp/seqtoolsExonView.h       |   84 ----
+ src/dotterApp/seqtoolsExonView.hpp     |   84 ++++
+ src/libpfetch/libpfetch_I.h            |  239 -----------
+ src/libpfetch/libpfetch_I.hpp          |  239 +++++++++++
+ src/libpfetch/libpfetch_P.h            |  125 ------
+ src/libpfetch/libpfetch_P.hpp          |  125 ++++++
+ src/seqtoolsUtils/blxGff3Parser.h      |  146 -------
+ src/seqtoolsUtils/blxGff3Parser.hpp    |  146 +++++++
+ src/seqtoolsUtils/blxmsp.h             |  507 -----------------------
+ src/seqtoolsUtils/blxmsp.hpp           |  507 +++++++++++++++++++++++
+ src/seqtoolsUtils/blxparser.h          |   47 ---
+ src/seqtoolsUtils/blxparser.hpp        |   47 +++
+ src/seqtoolsUtils/iupac.h              |  320 ---------------
+ src/seqtoolsUtils/iupac.hpp            |  320 +++++++++++++++
+ src/seqtoolsUtils/utilities.h          |  658 ------------------------------
+ src/seqtoolsUtils/utilities.hpp        |  658 ++++++++++++++++++++++++++++++
+ src/seqtoolsUtils/version.h            |  179 --------
+ src/seqtoolsUtils/version.hpp          |  179 ++++++++
+ 54 files changed, 5556 insertions(+), 5556 deletions(-)
 
-2014-11-13  Gemma Barson  <gb10@sanger.ac.uk>
- Move tool menus to main window
- src/dotterApp/alignmenttool.c |  297 +++++++++--------------------------------
- src/dotterApp/dotter.c        |  185 ++++++++++++++++++++++---
- src/dotterApp/dotter_.h       |   10 ++-
- src/dotterApp/greyramptool.c  |   76 +----------
- 4 files changed, 235 insertions(+), 333 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Renmae .c files to .cpp - BUILD"
+ src/belvuApp/belvu.c                     | 4967 ----------------------
+ src/belvuApp/belvu.cpp                   | 4967 ++++++++++++++++++++++
+ src/belvuApp/belvuAlignment.c            | 1855 --------
+ src/belvuApp/belvuAlignment.cpp          | 1855 ++++++++
+ src/belvuApp/belvuConsPlot.c             |  641 ---
+ src/belvuApp/belvuConsPlot.cpp           |  641 +++
+ src/belvuApp/belvuMain.c                 | 1006 -----
+ src/belvuApp/belvuMain.cpp               | 1006 +++++
+ src/belvuApp/belvuTree.c                 | 2835 -------------
+ src/belvuApp/belvuTree.cpp               | 2835 +++++++++++++
+ src/belvuApp/belvuWindow.c               | 4135 ------------------
+ src/belvuApp/belvuWindow.cpp             | 4135 ++++++++++++++++++
+ src/blixemApp/bigpicture.c               | 1669 --------
+ src/blixemApp/bigpicture.cpp             | 1669 ++++++++
+ src/blixemApp/bigpicturegrid.c           |  870 ----
+ src/blixemApp/bigpicturegrid.cpp         |  870 ++++
+ src/blixemApp/blxFetch.c                 | 3516 ---------------
+ src/blixemApp/blxFetch.cpp               | 3516 +++++++++++++++
+ src/blixemApp/blxFetchDb.c               |  325 --
+ src/blixemApp/blxFetchDb.cpp             |  325 ++
+ src/blixemApp/blxdotter.c                | 2407 -----------
+ src/blixemApp/blxdotter.cpp              | 2407 +++++++++++
+ src/blixemApp/blxmain.c                  |  905 ----
+ src/blixemApp/blxmain.cpp                |  905 ++++
+ src/blixemApp/blxview.c                  | 1926 ---------
+ src/blixemApp/blxview.cpp                | 1926 +++++++++
+ src/blixemApp/blxwindow.c                | 6831 ------------------------------
+ src/blixemApp/blxwindow.cpp              | 6831 ++++++++++++++++++++++++++++++
+ src/blixemApp/coverageview.c             |  587 ---
+ src/blixemApp/coverageview.cpp           |  587 +++
+ src/blixemApp/detailview.c               | 5244 -----------------------
+ src/blixemApp/detailview.cpp             | 5244 +++++++++++++++++++++++
+ src/blixemApp/detailviewtree.c           | 3148 --------------
+ src/blixemApp/detailviewtree.cpp         | 3148 ++++++++++++++
+ src/blixemApp/exonview.c                 |  942 ----
+ src/blixemApp/exonview.cpp               |  942 ++++
+ src/blixemApp/sequencecellrenderer.c     | 1612 -------
+ src/blixemApp/sequencecellrenderer.cpp   | 1612 +++++++
+ src/dotterApp/alignmenttool.c            | 1399 ------
+ src/dotterApp/alignmenttool.cpp          | 1399 ++++++
+ src/dotterApp/dotplot.c                  | 3195 --------------
+ src/dotterApp/dotplot.cpp                | 3195 ++++++++++++++
+ src/dotterApp/dotter.c                   | 4059 ------------------
+ src/dotterApp/dotter.cpp                 | 4059 ++++++++++++++++++
+ src/dotterApp/dotterKarlin.c             |  458 --
+ src/dotterApp/dotterKarlin.cpp           |  458 ++
+ src/dotterApp/dotterMain.c               |  905 ----
+ src/dotterApp/dotterMain.cpp             |  905 ++++
+ src/dotterApp/greyramptool.c             | 1035 -----
+ src/dotterApp/greyramptool.cpp           | 1035 +++++
+ src/dotterApp/seqtoolsExonView.c         |  746 ----
+ src/dotterApp/seqtoolsExonView.cpp       |  746 ++++
+ src/libpfetch/libcurlobject.c            | 1046 -----
+ src/libpfetch/libcurlobject.cpp          | 1046 +++++
+ src/libpfetch/libpfetch-cmarshal.c       |  131 -
+ src/libpfetch/libpfetch-cmarshal.cpp     |  131 +
+ src/libpfetch/libpfetch-utils.c          |  114 -
+ src/libpfetch/libpfetch-utils.cpp        |  114 +
+ src/libpfetch/libpfetch.c                | 1446 -------
+ src/libpfetch/libpfetch.cpp              | 1446 +++++++
+ src/seqtoolsUtils/blxGff3Parser.c        | 1545 -------
+ src/seqtoolsUtils/blxGff3Parser.cpp      | 1545 +++++++
+ src/seqtoolsUtils/blxmsp.c               | 3635 ----------------
+ src/seqtoolsUtils/blxmsp.cpp             | 3635 ++++++++++++++++
+ src/seqtoolsUtils/blxparser.c            | 2000 ---------
+ src/seqtoolsUtils/blxparser.cpp          | 2000 +++++++++
+ src/seqtoolsUtils/seqtoolsWebBrowser.c   |  392 --
+ src/seqtoolsUtils/seqtoolsWebBrowser.cpp |  392 ++
+ src/seqtoolsUtils/translate.c            |  212 -
+ src/seqtoolsUtils/translate.cpp          |  212 +
+ src/seqtoolsUtils/utilities.c            | 4921 ---------------------
+ src/seqtoolsUtils/utilities.cpp          | 4921 +++++++++++++++++++++
+ 72 files changed, 72660 insertions(+), 72660 deletions(-)
 
-2014-11-13  Gemma Barson  <gb10@sanger.ac.uk>
- Add right click option to maximise greyramp tool
- src/dotterApp/alignmenttool.c |    4 ++--
- src/dotterApp/dotter.c        |   34 ++++++++++++++++++++++++++++++++--
- src/dotterApp/greyramptool.c  |    8 ++++----
- 3 files changed, 38 insertions(+), 8 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Remove debug output - TRIVIAL"
+ src/seqtoolsUtils/utilities.h |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
 
-2014-11-13  Gemma Barson  <gb10@sanger.ac.uk>
- Trivial menu name change
- src/dotterApp/alignmenttool.c |    2 +-
- src/dotterApp/greyramptool.c  |    5 ++++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "Finish moving autotools stuff to subdirs - BUILD"
+ src/belvuApp/Makefile.am      |    4 ++--
+ src/blixemApp/Makefile.am     |    4 ++--
+ src/dotterApp/Makefile.am     |    4 ++--
+ src/libpfetch/Makefile.am     |    2 +-
+ src/seqtoolsUtils/Makefile.am |    2 +-
+ 5 files changed, 8 insertions(+), 8 deletions(-)
+
+2015-03-03  Gemma Barson  <gb10@sanger.ac.uk>
+ "WIP: change autotools to use subdirs - BUILD"
+ src/Makefile.am               |  103 ++---------------------------------------
+ src/belvuApp/Makefile.am      |   23 +++++++++
+ src/blixemApp/Makefile.am     |   45 ++++++++++++++++++
+ src/configure.ac              |    9 +++-
+ src/doc/Makefile.am           |    8 +++
+ src/doc/User_doc/Makefile.am  |   22 +++++++++
+ src/dotterApp/Makefile.am     |   23 +++++++++
+ src/examples/Makefile.am      |    8 +++
+ src/libpfetch/Makefile.am     |   50 ++++++++++++++++++++
+ src/seqtoolsUtils/Makefile.am |   14 ++++++
+ src/test/Makefile.am          |    8 +++
+ 11 files changed, 213 insertions(+), 100 deletions(-)
+
+2015-02-18  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'feature/multi_dotter' into develop
+2015-02-18  Gemma Barson  <gb10@sanger.ac.uk>
+ Start multiple dotters from blixem
+ src/blixemApp/blxdotter.c     |  130 +++++++++++++++++++++++++++-------------
+ src/blixemApp/blxdotter.h     |    2 +-
+ src/blixemApp/blxview.c       |    2 +-
+ src/blixemApp/blxwindow.c     |   18 +++++-
+ src/blixemApp/blxwindow.h     |    2 +-
+ src/blixemApp/detailview.c    |    2 +-
+ src/seqtoolsUtils/utilities.h |    2 +
+ 7 files changed, 108 insertions(+), 50 deletions(-)
+
+2015-02-17  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'production' into develop
+2015-02-16  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix regression caused by previous change
+ src/blixemApp/blxwindow.c |    8 +++++---
+ 1 files changed, 5 insertions(+), 3 deletions(-)
+
+2015-02-16  Gemma Barson  <gb10@sanger.ac.uk>
+ Efficiency improvements starting up blixem
+ src/blixemApp/blxwindow.c  |    5 +++--
+ src/seqtoolsUtils/blxmsp.c |    2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+2015-01-29  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'production' into develop
+2015-01-26  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix compiler warnings for unused variables
+ src/blixemApp/blxdotter.c     |   12 ------------
+ src/dotterApp/dotterMain.c    |    4 +---
+ src/libpfetch/libpfetch.c     |   20 ++++++++------------
+ src/seqtoolsUtils/blxparser.c |   29 -----------------------------
+ 4 files changed, 9 insertions(+), 56 deletions(-)
+
+2015-01-26  Gemma Barson  <gb10@sanger.ac.uk>
+ Minor change to future-proof gtk version checks
+ src/belvuApp/belvuWindow.c    |    2 +-
+ src/blixemApp/blxwindow.c     |    6 +++---
+ src/dotterApp/dotter.c        |    2 +-
+ src/seqtoolsUtils/utilities.c |    4 ++--
+ src/seqtoolsUtils/utilities.h |    4 ++++
+ 5 files changed, 11 insertions(+), 7 deletions(-)
+
+2015-01-26  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix compile error on older versions of GTK
+ src/seqtoolsUtils/utilities.c |    9 +++++++--
+ 1 files changed, 7 insertions(+), 2 deletions(-)
+
+2015-01-26  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix belvu bug where windows appear on wrong monitor
+ src/belvuApp/belvuConsPlot.c |    5 -----
+ src/belvuApp/belvuTree.c     |    5 -----
+ src/belvuApp/belvuWindow.c   |   10 ----------
+ 3 files changed, 0 insertions(+), 20 deletions(-)
+
+2015-01-26  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix window sizes on dual monitors
+ src/belvuApp/belvuConsPlot.c  |    5 +--
+ src/belvuApp/belvuTree.c      |    5 +--
+ src/belvuApp/belvuWindow.c    |   26 +++++++---------
+ src/blixemApp/blxdotter.c     |    6 ++--
+ src/blixemApp/blxwindow.c     |   17 ++++++-----
+ src/dotterApp/dotter.c        |    5 +--
+ src/seqtoolsUtils/utilities.c |   64 +++++++++++++++++++++++++++++++++++------
+ src/seqtoolsUtils/utilities.h |    3 +-
+ 8 files changed, 86 insertions(+), 45 deletions(-)

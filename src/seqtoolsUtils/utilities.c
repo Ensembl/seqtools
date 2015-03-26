@@ -4431,8 +4431,8 @@ GtkWidget* displayFetchResults(const char *title,
       const char *fontFamily = findFixedWidthFont(widget);
       PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
       
-      int maxWidth = 0, maxHeight = 0;
-      getScreenSizeFraction(widget, DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION, DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
+      int maxWidth = 300, maxHeight = 200;
+      seqtoolsGetMonitorSizeFraction(widget, DEFAULT_PFETCH_WINDOW_WIDTH_FRACTION, DEFAULT_PFETCH_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
       
       GtkTextView *textView = NULL;
       result = showMessageDialog(title, displayText, NULL, maxWidth, maxHeight, FALSE, FALSE, fontDesc, &textView);
@@ -4512,16 +4512,67 @@ int getTextHeight(GtkWidget *widget, const char *text)
 }
 
 
-/* Utility to get the size of the screen multiplied by the given width/height fractions */
-void getScreenSizeFraction(GtkWidget *widget, const double widthFraction, const double heightFraction, int *widthOut, int *heightOut)
+/* Utility to get the size of the monitor multiplied by the given width/height fractions. Returns true
+ * if successful, false if there was a problem (in which case output values are unchanged) */
+gboolean seqtoolsGetMonitorSizeFraction(GtkWidget *widget, const double widthFraction, const double heightFraction, int *widthOut, int *heightOut)
 {
-  GdkScreen *screen = gtk_widget_get_screen(widget);
+  gboolean result = seqtoolsGetMonitorSize(widget, widthOut, heightOut);
+
+  if (result)
+    {
+      if (widthOut)
+        *widthOut *= widthFraction;
+
+      if (heightOut)
+        *heightOut *= heightFraction;
+    }
   
-  if (widthOut)
-    *widthOut = gdk_screen_get_width(screen) * widthFraction;
+  return result;
+}
+
+
+/* Utility to get the size of the monitor that the given widget is displayed on. Returns true if 
+ * successful, false if there was a problem (in which case output values are unchanged) */
+gboolean seqtoolsGetMonitorSize(GtkWidget *widget, int *widthOut, int *heightOut)
+{
+  gboolean result = FALSE;
   
-  if (heightOut)
-    *heightOut = gdk_screen_get_height(screen) * heightFraction;
+  if (!widthOut && !heightOut)
+    {
+      result = TRUE; /* didn't ask for anything so no error */
+    }
+  else if (widget)
+    {
+      /* Note that a screen may consist of multiple monitors, so we actually use the current
+       * monitor dimensions as this makes more sense than spreading our windows across multiple
+       * monitors */
+      GdkScreen *screen = gtk_widget_get_screen(widget);
+      int monitor_idx = 0; /* default to first monitor (idx 0) */
+
+      if (widget->window)
+        monitor_idx = gdk_screen_get_monitor_at_window(screen, widget->window);
+#if CHECK_GTK_VERSION(2, 20)
+      else
+        monitor_idx = gdk_screen_get_primary_monitor(screen);
+#endif
+
+      GdkRectangle rect;
+#if CHECK_GTK_VERSION(3, 4)
+      gdk_screen_get_monitor_workarea(screen, monitor_idx, &rect);
+#else
+      gdk_screen_get_monitor_geometry(screen, monitor_idx, &rect);
+#endif
+      
+      if (widthOut)
+        *widthOut = rect.width;
+  
+      if (heightOut)
+        *heightOut = rect.height;
+
+      result = TRUE;
+    }
+
+  return result;
 }
 
 

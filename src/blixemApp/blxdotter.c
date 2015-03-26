@@ -106,7 +106,7 @@ static gboolean	      getDotterRange(GtkWidget *blxWindow, DotterMatchType match
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
 static gboolean	      callDotterOnSelf(DotterDialogData *dialogData, GError **error);
 static gboolean	      callDotterOnAdhocSeq(DotterDialogData *dialogData, GError **error);
-static char*          getSelectedSequenceDNA(GtkWidget *blxWindow, GError **error); 
+static char*          getSelectedSequenceDNA(const BlxSequence *selectedSeq, const BlxViewContext *bc, GError **error);
 static void           textGetSeqDetails(const char *text, char **sequence, char **sequenceName);
 static char*          getDotterTitle(const BlxViewContext *bc, const DotterMatchType matchType, const DotterRefType refType, const char *adhocSeq); 
 static char*          getDotterTitleAdhocSeq(const BlxViewContext *bc, const char *adhocSeq, const DotterRefType refType);
@@ -141,11 +141,11 @@ static void onResponseDotterDialog(GtkDialog *dialog, gint responseId, gpointer 
                   {
                     /* The 'transcript' flag indicates that we're dottering vs the selected
                      * transcript rather than the reference sequence*/
-                    destroy = callDotterOnSelectedSeq(dialogData->blxWindow, 
-                                                      dialogData->hspsOnly, 
-                                                      dialogData->sleep,
-                                                      dialogData->refType,
-                                                      &error);
+                    destroy = callDotterOnSelectedSeqs(dialogData->blxWindow, 
+                                                       dialogData->hspsOnly, 
+                                                       dialogData->sleep,
+                                                       dialogData->refType,
+                                                       &error);
                     break;
                   }
                 case BLXDOTTER_MATCH_ADHOC:
@@ -691,9 +691,9 @@ static void dotterDialogSetDefaultSize(GtkWidget *dialog, GtkWidget *blxWindow)
   /* We'll set the default window width to a preferred default, but make it smaller
    * if it exceeds a maximum percentage of the screen size. Just use the height 
    * allocated for the widgets. */
-  GdkScreen *screen = gtk_widget_get_screen(blxWindow);
-  const int maxWidth = gdk_screen_get_width(screen) * MAX_WINDOW_WIDTH_FRACTION;
-
+  int maxWidth = 300;
+  seqtoolsGetMonitorSizeFraction(dialog, MAX_WINDOW_WIDTH_FRACTION, 1, &maxWidth, NULL);
+  
   const int width = min(DEFAULT_WINDOW_WIDTH, maxWidth);
 
   gtk_window_set_default_size(GTK_WINDOW(dialog), width, -1);
@@ -827,7 +827,7 @@ static void createSequenceTab(DotterDialogData *dialogData, const int spacing)
   GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, spacing));
   gtk_table_attach(table, GTK_WIDGET(vbox), col, col + 1, row, row + 2, GTK_FILL, GTK_FILL, xpad, ypad);
 
-  dialogData->selectedButton = gtk_radio_button_new_with_mnemonic(NULL, "_Selected match");
+  dialogData->selectedButton = gtk_radio_button_new_with_mnemonic(NULL, "_Selected match(es)");
   gtk_widget_set_tooltip_text(dialogData->selectedButton, "Dotter against the selected match sequence");
   widgetSetCallbackData(dialogData->selectedButton, onSaveDotterSelectedSeq, blxWindow);
   gtk_box_pack_start(vbox, dialogData->selectedButton, FALSE, FALSE, spacing);
@@ -1075,7 +1075,7 @@ static char* getDotterTitleSelectedSeq(const BlxViewContext *bc, const DotterRef
     }
   else
     {
-      g_string_append(resultStr, "<multiple sequences>");
+      g_string_append_printf(resultStr, "<%d sequences>", numSeqs);
     }
   
   result = g_string_free(resultStr, FALSE);
@@ -1275,7 +1275,7 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
 
   if (refType == BLXDOTTER_REF_TRANSCRIPT)
     {
-      BlxSequence *transcriptSeq = blxContextGetSelectedTranscript(bc);
+      BlxSequence *transcriptSeq = blxContextGetSelectedTranscript(bc, NULL);
 
       if (transcriptSeq)
         {
@@ -1547,23 +1547,12 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
  * the same match sequence. Returns null if no MSPs are selected, with details of the error
  * in 'error'.  If the sequence was found but there were warnings, it returns non-null with
  * the warnings in 'error'. The return value should be free'd with g_free */
-static char* getSelectedSequenceDNA(GtkWidget *blxWindow, GError **error)
+static char* getSelectedSequenceDNA(const BlxSequence *blxSeq, const BlxViewContext *bc, GError **error)
 {
   g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
   
   char *dotterSSeq = NULL;
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  GList *selectedSeqs = blxWindowGetSelectedSeqsByType(blxWindow, BLXSEQUENCE_MATCH);
   
-  /* Get the selected sequence name */
-  if (g_list_length(selectedSeqs) < 1)
-    {
-      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_SEQS, "There are no sequences selected.\n");
-      return dotterSSeq;
-    }
-  
-  const BlxSequence *blxSeq = (const BlxSequence*)(selectedSeqs->data);
-
   /* If we're in seqbl mode, only part of the sequence is stored
    * internally, so try to fetch the full sequence.
    * gb10: I don't think this is applicable any more (or even if it
@@ -1618,10 +1607,13 @@ static const char* getDotterRefSeqName(const BlxViewContext *bc, const gboolean 
   if (transcript)
     {
       /* Get the sequence for a transcript */
-      BlxSequence *transcriptSeq = blxContextGetSelectedTranscript(bc);
+      int num_found = 0;
+      BlxSequence *transcriptSeq = blxContextGetSelectedTranscript(bc, &num_found);
       
       if (transcriptSeq)
         result = blxSequenceGetName(transcriptSeq);
+      else if (num_found > 0)
+        result = "<multiple transcripts>";
     }
   else
     {
@@ -1664,7 +1656,7 @@ static char* getDotterRefSeq(GtkWidget *blxWindow,
             *refSeqName_out = "<no transcript selected>";
 
           g_set_error(&tmpError, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_TRANSCRIPT,
-                      "Please select one (and only one) transcript to dotter against.\n\nUse Ctrl to select multiple features i.e. the transcript and the sequence you want to dotter against it.");
+                      "Please select one (and only one) transcript to dotter against.\n\nUse Ctrl to select multiple features i.e. the transcript and the sequence(s) you want to dotter against it.");
         }
       
       /* Set the range of coords of the result. */
@@ -1934,6 +1926,15 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
 {
 #if !defined(NO_POPEN)
 
+  static gboolean child_in_progress = FALSE;
+  static gboolean pipes_in_progress = FALSE;
+
+  while (child_in_progress || pipes_in_progress)
+    {
+      /* wait until any previous fork/pipe operations are fully
+       * complete before starting another fork */
+    }
+
   if (clipRange)
     boundsLimitRange(seq1Range, &bc->refSeqRange, FALSE);
 
@@ -1975,6 +1976,8 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
     }
   else if (pid == 0)
     {
+      child_in_progress = TRUE;
+
       /* Child process. Execute dotter. First, close the write end of the pipe */
       close(pipes[1]);
 
@@ -1983,9 +1986,13 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
                              seq1Name, seq1Range, seq1Strand, seq1DisplayRev,
                              seq2Name, seq2Range, seq2Strand, seq2DisplayRev,
                              pipes, bc);
+
+      child_in_progress = FALSE;
     }
   else
     {
+      pipes_in_progress = TRUE;
+
       /* Parent process. Pipe sequences and MSPs to dotter. First, close the read end of the pipe. */
       close(pipes[0]);
 
@@ -2021,6 +2028,8 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
       fflush(pipe);
       
       DEBUG_OUT("...done\n");
+
+      pipes_in_progress = FALSE;
     }
 #endif
   
@@ -2028,35 +2037,19 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
 }
 
 
-/* Call dotter on the currently-selected sequence. Returns true if dotter was called; 
+/* Call dotter on the given sequence. Returns true if dotter was called; 
  * false if we quit trying. */
 gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow, 
                                  const gboolean hspsOnly,
                                  const gboolean sleep,
                                  const DotterRefType refType,
+                                 const BlxSequence *selectedSeq,
                                  GError **error)
 {
-  g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must
-                                                            be NULL */
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  GList *selectedSeqs = blxWindowGetSelectedSeqsByType(blxWindow, BLXSEQUENCE_MATCH);
 
-  const int numSeqsSelected = g_list_length(selectedSeqs);
-  
-  if (numSeqsSelected < 1)
-    {
-      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_SEQS, "There are no sequences selected.\n");
-      return FALSE;
-    }
-  else if (numSeqsSelected > 1)
-    {
-      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_TOO_MANY_SEQS, "Cannot run dotter on multiple sequences.\n");
-      return FALSE;
-    }
-  
   /* Check this sequence is a valid blast match (just check the first MSP;
    * they must all the same type if they have the same seq name) */
-  const BlxSequence *selectedSeq = (const BlxSequence*)(selectedSeqs->data);
   const MSP *firstMsp = (const MSP*)(selectedSeq->mspList->data);
 
   if (!mspIsBlastMatch(firstMsp))
@@ -2087,7 +2080,7 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow,
     }
   
   /* Make a copy of the match sequence, because dotter takes ownership of this. */
-  char *dotterSSeq = getSelectedSequenceDNA(blxWindow, NULL);
+  char *dotterSSeq = getSelectedSequenceDNA(selectedSeq, bc, NULL);
 
   if (!dotterSSeq)
     {
@@ -2183,6 +2176,59 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow,
                             refSeqName, &dotterRange, refSeqSegment, refSeqStrand, revHozScale,
                             dotterSName, &sRange, dotterSSeq, selectedSeq->strand, revVertScale,
                             clipRange, &bc->refSeqRange, transcriptSeq, error);
+}
+
+
+/* Call dotter on the currently-selected sequence(s). Returns true if all dotters were; 
+ * successful; false if there was a problem. */
+gboolean callDotterOnSelectedSeqs(GtkWidget *blxWindow, 
+                                  const gboolean hspsOnly,
+                                  const gboolean startup_sleep,
+                                  const DotterRefType refType,
+                                  GError **error)
+{
+  gboolean result = FALSE;
+  g_return_val_if_fail(!error || *error == NULL, result); /* if error is passed, its contents must
+                                                            be NULL */
+  const int max_dotters = 5;
+  GList *selectedSeqs = blxWindowGetSelectedSeqsByType(blxWindow, BLXSEQUENCE_MATCH);
+
+  const int numSeqsSelected = g_list_length(selectedSeqs);
+  
+  if (numSeqsSelected < 1)
+    {
+      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_SEQS, "There are no sequences selected.\n");
+      return FALSE;
+    }
+  else
+    {
+      gboolean ok = TRUE;
+
+      if (numSeqsSelected > max_dotters)
+        {
+          char *msg = g_strdup_printf("You are about to open %d dotters - continue?", numSeqsSelected);
+
+          if (runConfirmationBox(blxWindow, "Run multiple dotters", msg) != GTK_RESPONSE_ACCEPT)
+            ok = FALSE;
+            
+          g_free(msg);
+        }
+
+      if (ok)
+        {
+          /* Call dotter on each selected sequence */
+          result = TRUE;
+          GList *item = selectedSeqs;
+
+          for ( ; item; item = item->next)
+            {
+              const BlxSequence *selectedSeq = (const BlxSequence*)(item->data);
+              result &= callDotterOnSelectedSeq(blxWindow, hspsOnly, startup_sleep, refType, selectedSeq, error);
+            }
+        }
+    }
+
+  return result;
 }
 
 
@@ -2315,18 +2361,6 @@ static gboolean callDotterOnSelf(DotterDialogData *dialogData, GError **error)
       return FALSE;
     }
   
-  /* Set the type */
-  char type = ' ';
-  
-  if (bc->blastMode == BLXMODE_BLASTP || bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
-    {
-      type = 'P';
-    }
-  else if (bc->blastMode == BLXMODE_BLASTX || bc->blastMode == BLXMODE_BLASTN)
-    {
-      type = 'N';
-    }
-
   /* Get the section of reference sequence that we're interested in */
   const BlxStrand qStrand = blxWindowGetActiveStrand(blxWindow);
   const int frame = 1;

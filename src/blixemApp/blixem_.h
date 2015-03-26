@@ -83,7 +83,7 @@ AUTHOR_TEXT "\n"
 #define BLXCOL_START_WIDTH              50    /* default width for the start coord column */
 #define BLXCOL_END_WIDTH                80    /* default width for end coord column (bigger because it also spans the scrollbar) */
 #define BLXCOL_SEQUENCE_WIDTH           40    /* default width for sequence column */
-#define BLXCOL_ORGANISM_WIDTH           28    /* default width for organism column */
+#define BLXCOL_ORGANISM_WIDTH           40    /* default width for organism column */
 #define BLXCOL_GENE_NAME_WIDTH          58    /* default width for gene-name column  */
 #define BLXCOL_STRAIN_WIDTH             85    /* default width for strain column  */
 #define BLXCOL_TISSUE_TYPE_WIDTH        100   /* default width for tissue-type column  */

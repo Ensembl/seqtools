@@ -903,14 +903,13 @@ static void pfetch_child_watch_func(GPid pid, gint status, gpointer user_data)
       else if(watch_data->watch_data)
 	{
 	  PFetchHandleClass handle_class = PFETCH_HANDLE_GET_CLASS(watch_data->watch_data);
-	  PFetchStatus signal_return = PFETCH_STATUS_OK;
 	  GQuark detail = 0;
 
 	  watch_data->watch_pid = 0;
-
-	  signal_return = emit_signal(PFETCH_HANDLE(watch_data->watch_data),
-				      handle_class->handle_signals[HANDLE_CLOSED_SIGNAL], 
-				      detail, NULL, NULL, NULL);
+          
+          emit_signal(PFETCH_HANDLE(watch_data->watch_data),
+                      handle_class->handle_signals[HANDLE_CLOSED_SIGNAL], 
+                      detail, NULL, NULL, NULL);
 	}
       else
 	{
@@ -933,9 +932,7 @@ static void source_remove_and_zero(guint *source_id)
 {
   if(source_id && *source_id)
     {
-      gboolean source_removed;
-
-      source_removed = g_source_remove(*source_id);
+      g_source_remove(*source_id);
       
       *source_id = 0;
     }
@@ -1435,12 +1432,11 @@ static void conn_close_handler(CURLObject curl_object, PFetchHandleHttp pfetch)
   if(pfetch->request_counter == 0)
     {
       PFetchHandleClass handle_class = PFETCH_HANDLE_GET_CLASS(pfetch);
-      PFetchStatus signal_return = PFETCH_STATUS_OK;
       GQuark detail = 0;
 
-      signal_return = emit_signal(PFETCH_HANDLE(pfetch),
-				  handle_class->handle_signals[HANDLE_CLOSED_SIGNAL], 
-				  detail, NULL, NULL, NULL);
+      emit_signal(PFETCH_HANDLE(pfetch),
+                  handle_class->handle_signals[HANDLE_CLOSED_SIGNAL], 
+                  detail, NULL, NULL, NULL);
     }
 
   return ;

@@ -1992,7 +1992,7 @@ static void getPolyASignalBasesToHighlight(GtkWidget *detailView,
 
           cp = seq + idx;
 
-          if (cp == NULL || *cp == NULL)
+          if (cp == NULL || *cp == 0)
             break;
 
           if (!strncasecmp(cp, comparison, comparison_len))

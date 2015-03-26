@@ -2994,7 +2994,7 @@ static void aboutDialogOpenLinkCB(GtkAboutDialog *about, const gchar *link, gpoi
 /* Shows the 'About' dialog */
 static void showAboutDialog(GtkWidget *parent)
 {
-#if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (6)
+#if CHECK_GTK_VERSION(2, 6)
   const gchar *authors[] = {AUTHOR_LIST, NULL} ;
 
   gtk_about_dialog_set_url_hook(aboutDialogOpenLinkCB, NULL, NULL) ;
@@ -3884,9 +3884,8 @@ static GtkWidget* createDotterWindow(DotterContext *dc,
 
   /* We'll set the default window size based on the dotplot/exon widget size, up to a 
    * max based on screen size. */
-  GdkScreen *screen = gtk_widget_get_screen(dotterWindow);
-  const int maxWidth = gdk_screen_get_width(screen) * MAX_WINDOW_WIDTH_FRACTION;
-  const int maxHeight = gdk_screen_get_height(screen) * MAX_WINDOW_HEIGHT_FRACTION;
+  int maxWidth = 300, maxHeight = 200;
+  seqtoolsGetMonitorSizeFraction(dotterWindow, MAX_WINDOW_WIDTH_FRACTION, MAX_WINDOW_HEIGHT_FRACTION, &maxWidth, &maxHeight);
 
   const int exonViewHeight = 2 * (DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
   DotplotProperties *dotplotProperties = dotplotGetProperties(dotplot);

@@ -620,7 +620,7 @@ static void blviewCreate(char *align_types,
           
           if (!error)
             {
-              callDotterOnSelectedSeq(blixemWindow, FALSE, FALSE, BLXDOTTER_REF_AUTO, NULL);
+              callDotterOnSelectedSeqs(blixemWindow, FALSE, FALSE, BLXDOTTER_REF_AUTO, NULL);
             }
             
           reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
@@ -689,7 +689,12 @@ static void processOrganism(BlxSequence *blxSeq)
   if (organism)
     {
       /* To create the alias, we'll take the first letter of each word until we hit a non-alpha
-       * character, e.g. the alias for "Homo sapiens (human)" would be "Hs" */
+       * character. To reduce likelihood of duplicates, we'll take 3 chars from the second word
+       * and then quit. e.g. 
+       *   Homo sapiens (human)           -> Hsap
+       *   Mus musculus (house mouse)     -> Mmus 
+       *   Macaca mulatta (Rhesus monkey) -> Mmul 
+       */
       int srcIdx = 0;
       int srcLen = strlen(organism);
       
@@ -698,6 +703,7 @@ static void processOrganism(BlxSequence *blxSeq)
       char alias[destLen + 1];
       
       gboolean startWord = TRUE;
+      gboolean first = TRUE;
       
       for ( ; srcIdx < srcLen && destIdx < destLen; ++srcIdx)
         {
@@ -712,6 +718,28 @@ static void processOrganism(BlxSequence *blxSeq)
                   alias[destIdx] = organism[srcIdx];
                   ++destIdx;
                   startWord = FALSE;
+
+                  if (!first)
+                    {
+                      /* For the second word, also include the next 2 chars 
+                       * and then exit. */
+                      ++srcIdx;
+                      if (srcIdx < srcLen && destIdx < destLen)
+                        {
+                          alias[destIdx] = organism[srcIdx];
+                          ++destIdx;
+                        }
+
+                      ++srcIdx;
+                      if (srcIdx < srcLen && destIdx < destLen)
+                        {
+                          alias[destIdx] = organism[srcIdx];
+                          ++destIdx;
+                        }
+                      break;
+                    }
+
+                  first = FALSE;
                 }
             }
           else

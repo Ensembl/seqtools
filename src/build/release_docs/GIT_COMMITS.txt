@@ -1,16 +1,14 @@
 
-Git commits for  from commit "production" until commit "release/4.32"
+Git commits for  from commit "production" until commit "release/4.33"
 
-75f36e6 2015-01-21 Fix potential crash in blixem
-99e145a 2015-01-05 "add doc required by Sanger software policy."
-610a3f0 2014-12-18 "add in X11 and m libs to link, otherwise not found on 64 bit ubuntu."
-9039a1a 2014-12-01 Fix bug where matches can be treated like basic features
-e2aef48 2014-11-27 Fix bug where styles were not being picked up for new features
-ff120f2 2014-11-27 Set NULL SO ID for invalid Sequence type
-f4fc3ad 2014-11-24 Merge branch 'feature/basic_features' into develop
-1315c5d 2014-11-21 Merge branch 'feature/basic_features' into develop
-4d5630a 2014-11-19 update INSTALL files to match Gemma's web writeups.
-43a4c86 2014-11-14 Merge branch 'feature/GUI_improvements' into develop
+cfe03e4 2015-03-12 Revert "Merge branch 'feature/cpp' into develop"
+923080d 2015-03-12 Make organism abbreviation longer to avoid duplicates - RT 456864
+0dbe9d6 2015-03-04 Merge branch 'feature/cpp' into develop
+e771404 2015-02-18 Merge branch 'feature/multi_dotter' into develop
+a5187c5 2015-02-16 Fix regression caused by previous change
+be70230 2015-02-16 Efficiency improvements starting up blixem
+d25286d 2015-01-26 Fix belvu bug where windows appear on wrong monitor
+a2222e2 2015-01-26 Fix window sizes on dual monitors
 
 
 End of git commits

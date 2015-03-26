@@ -2959,9 +2959,11 @@ static gboolean onColumnSizeChanged(GtkWidget *widget, const gint responseId, gp
        * catches excessively large values, which can cause Blixem to crash. Slightly
        * too-large values may make things look odd but should be recoverable. */
       GtkWidget *blxWindow = dialogChildGetBlxWindow(widget);
-      GdkScreen *screen = gtk_widget_get_screen(blxWindow);
+      
+      int maxWidth = 300;
+      seqtoolsGetMonitorSize(blxWindow, &maxWidth, NULL);
 
-      if (newWidth > gdk_screen_get_width(screen))
+      if (newWidth > maxWidth)
         {
           g_critical("Column width '%d' too large; not changed.\n", newWidth);
         }
@@ -3693,8 +3695,8 @@ static void onResponseFontSelectionDialog(GtkDialog *dialog, gint responseId, gp
       /* Check that the user selected a monospace font (unfortunately there's no easy way to get the
        * font family in older GTK versions so don't bother checking) */
       gboolean ok = TRUE;
-      
-#if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (14)
+    
+#if CHECK_GTK_VERSION(2, 6)  
       GtkFontSelection *fontSeln = GTK_FONT_SELECTION(gtk_buildable_get_internal_child(GTK_BUILDABLE(dialog), gtk_builder_new(), "font_selection"));
       PangoFontFamily *family = gtk_font_selection_get_family(fontSeln);
       ok = pango_font_family_is_monospace(family);
@@ -3820,9 +3822,8 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
       g_free(title);
       
-      GdkScreen *screen = gtk_widget_get_screen(dialog);
-      const int width = gdk_screen_get_width(screen) * 0.33;
-      const int height = gdk_screen_get_height(screen) * 0.33;
+      int width = 300, height = 200;
+      seqtoolsGetMonitorSizeFraction(dialog, 0.33, 0.33, &width, &height);
       gtk_window_set_default_size(GTK_WINDOW(dialog), width, height);
       
       /* These calls are required to make the dialog persistent... */
@@ -4354,7 +4355,7 @@ static void aboutDialogOpenLinkCB(GtkAboutDialog *about, const gchar *link, gpoi
 /* Shows the 'About' dialog */
 void showAboutDialog(GtkWidget *parent)
 {
-#if GTK_MAJOR_VERSION >= (2) && GTK_MINOR_VERSION >= (6)
+#if CHECK_GTK_VERSION(2, 6)
   const gchar *authors[] = {AUTHOR_LIST, NULL} ;
 
   gtk_about_dialog_set_url_hook(aboutDialogOpenLinkCB, NULL, NULL) ;
@@ -5833,12 +5834,14 @@ GList *blxContextGetSelectedSeqsByType(const BlxViewContext *blxContext, const B
 }
 
 
-/* If there is one (and only one) selected transcript then return it; otherwise return null */
-BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext)
+/* If there is one (and only one) selected transcript then return it; otherwise return null. If
+ * num_transcripts is given then return the number of selected transcripts. */
+BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext, int *num_transcripts)
 {
   BlxSequence *result = NULL;
 
   GList *list_item = blxContext->selectedSeqs;
+  int num_found = 0;
   
   for ( ; list_item; list_item = list_item->next)
     {
@@ -5846,11 +5849,16 @@ BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext)
       
       if (curSeq->type == BLXSEQUENCE_TRANSCRIPT)
         {
+          ++num_found;
+          
           if (result)
             {
               /* Found more than one - don't know which to choose so return null */
               result = NULL;
-              break;
+
+              /* If we don't need to return the count, then exit now */
+              if (!num_transcripts)
+                break;
             }
           else
             {
@@ -5859,6 +5867,9 @@ BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext)
             }
         }
     }
+
+  if (num_transcripts)
+    *num_transcripts = num_found;
 
   return result;
 }
@@ -5931,7 +5942,7 @@ BlxSequence* blxWindowGetSelectedTranscript(GtkWidget *blxWindow)
   BlxSequence *result = NULL;
 
   BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  result = blxContextGetSelectedTranscript(blxContext);
+  result = blxContextGetSelectedTranscript(blxContext, NULL);
 
   return result;
 }
@@ -6270,9 +6281,9 @@ static void setStyleProperties(GtkWidget *widget, char *windowColor)
   DEBUG_ENTER("setStyleProperties()");
 
   /* Set the initial window size based on some fraction of the screen size */
-  GdkScreen *screen = gtk_widget_get_screen(widget);
-  const int width = gdk_screen_get_width(screen) * DEFAULT_WINDOW_WIDTH_FRACTION;
-  const int height = gdk_screen_get_height(screen) * DEFAULT_WINDOW_HEIGHT_FRACTION;
+  int width = 300, height = 200;
+  seqtoolsGetMonitorSizeFraction(widget, DEFAULT_WINDOW_WIDTH_FRACTION, DEFAULT_WINDOW_HEIGHT_FRACTION,
+                                 &width, &height);
   
   gtk_window_set_default_size(GTK_WINDOW(widget), width, height);
   
