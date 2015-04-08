@@ -54,7 +54,6 @@
 #include <blixemApp/blxwindow.hpp>
 
 
-#define HEADER_CONTAINER_NAME           "header container"
 #define SNP_TRACK_HEADER_NAME           "SNP track header"
 #define DNA_TRACK_HEADER_NAME           "DNA track header"
 #define DETAIL_VIEW_STATUSBAR_CONTEXT   "statusBarCtx"
@@ -252,7 +251,7 @@ void                    detailViewUpdateMspLengths(GtkWidget *detailView, const 
 void                    detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases);
 void                    detailViewToggleSnpTrack(GtkWidget *detailView);
 
-GtkWidget*              createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const BlxStrand strand);
+GtkWidget*              createSnpTrackHeader(GtkWidget *detailView, const BlxStrand strand);
 void                    refreshTextHeader(GtkWidget *widget, gpointer data);
 gboolean                onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 

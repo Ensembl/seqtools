@@ -97,7 +97,6 @@ typedef struct _RecursiveFuncData
 /* Local function declarations */
 static BlxViewContext*        detailViewGetContext(GtkWidget *detailView);
 static GtkWidget*             detailViewGetBigPicture(GtkWidget *detailView);
-static GtkWidget*             detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*             detailViewGetFeedbackBox(GtkWidget *detailView);
 static int                    detailViewGetSnpConnectorHeight(GtkWidget *detailView);
 static void                   refreshDetailViewHeaders(GtkWidget *detailView);
@@ -620,8 +619,8 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
       gtk_widget_queue_draw(header);
     }
   
-  /* If this is a container of header widgets, recurse over each child */
-  if (!strcmp(widgetName, HEADER_CONTAINER_NAME) && GTK_IS_CONTAINER(header))
+  /* If this is a container, recurse over each child */
+  if (GTK_IS_CONTAINER(header))
     {
       gtk_container_foreach(GTK_CONTAINER(header), refreshTextHeader, data);
     }
@@ -632,10 +631,9 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
  * headers; use detailViewRefreshAllHeaders if you want to do that */
 static void refreshDetailViewHeaders(GtkWidget *detailView)
 {
-  /* Loop through all widgets in the header and call refreshTextHeader. This
+  /* Loop through all widgets and call refreshTextHeader. This
    * updates the font etc. if it is a type of widget that requires that. */
-  GtkWidget *header = detailViewGetHeader(detailView);
-  gtk_container_foreach(GTK_CONTAINER(header), refreshTextHeader, detailView);
+  gtk_container_foreach(GTK_CONTAINER(detailView), refreshTextHeader, detailView);
   
   /* Loop through all columns and call the individual refresh callbacks for
    * each of their headers. This updates the specific information within the header. */
@@ -3488,12 +3486,6 @@ int detailViewGetNumFrames(GtkWidget *detailView)
   return bc->numFrames;
 }
 
-static GtkWidget* detailViewGetHeader(GtkWidget *detailView)
-{
-  DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
-  return detailViewProperties->header;
-}
-
 static GtkWidget* detailViewGetFeedbackBox(GtkWidget *detailView)
 {
   DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
@@ -3784,7 +3776,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
                                        GtkCellRenderer *renderer,
                                        GList *fwdStrandTrees,
                                        GList *revStrandTrees,
-                                       GtkWidget *header,
                                        GtkWidget *feedbackBox,
                                        GtkWidget *statusBar,
                                        GList *columnList,
@@ -3805,7 +3796,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->renderer = renderer;
       properties->fwdStrandTrees = fwdStrandTrees;
       properties->revStrandTrees = revStrandTrees;
-      properties->header = header;
       properties->feedbackBox = feedbackBox;
       properties->statusBar = statusBar;
       properties->adjustment = adjustment;
@@ -4801,45 +4791,37 @@ static void addColumnsToHeaderBar(GtkBox *headerBar, GList *columnList)
  * individual labels for each tree). For protein sequence matches, the header
  * for the sequence column will also show the DNA sequence (separated into reading
  * frames). 
- * Column data is compiled into the detailViewColumns return argument. */
+ * Column data is compiled into the detailViewColumns return argument. 
+ * If includeSnpTrack is true then the snp track widget will also be created. */
 static GtkWidget* createDetailViewHeader(GtkWidget *detailView, 
                                          const BlxSeqType seqType, 
                                          const int numFrames,
                                          GList *columnList,
-                                         const gboolean includeSnpTrack)
+                                         const gboolean includeSnpTrack,
+                                         GtkWidget **snpTrack)
 {
-  GtkBox *header = NULL; /* outermost container for the header */
   GtkBox *headerBar = GTK_BOX(gtk_hbox_new(FALSE, 0)); /* hbox for the column headers */
   
   /* Create a SNP track, if requested */
-  if (includeSnpTrack)
+  if (includeSnpTrack && snpTrack)
     {
-      header = GTK_BOX(gtk_vbox_new(FALSE, 0));
-      createSnpTrackHeader(GTK_BOX(header), detailView, BLXSTRAND_NONE);
-      gtk_box_pack_start(header, GTK_WIDGET(headerBar), FALSE, FALSE, 0);
-      gtk_widget_set_name(GTK_WIDGET(headerBar), HEADER_CONTAINER_NAME);
-    }
-  else
-    {
-      /* Only need the column header bar */
-      header = headerBar;
+      *snpTrack = createSnpTrackHeader(detailView, BLXSTRAND_NONE);
     }
 
   /* Add all the column headers to the header bar */
   addColumnsToHeaderBar(headerBar, columnList);
 
-  return GTK_WIDGET(header);
+  return GTK_WIDGET(headerBar);
 }
 
 
 /* Create the variations track header widget. If the strand is BLXSTRAND_NONE
  * then the active strand will be used. */
-GtkWidget* createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const BlxStrand strand)
+GtkWidget* createSnpTrackHeader(GtkWidget *detailView, const BlxStrand strand)
 {
   GtkWidget *snpTrack = gtk_layout_new(NULL, NULL);
 
   gtk_widget_set_name(snpTrack, SNP_TRACK_HEADER_NAME);  
-  gtk_box_pack_start(parent, snpTrack, FALSE, TRUE, 0);
   snpTrackSetStrand(snpTrack, strand);
 
   gtk_widget_add_events(snpTrack, GDK_BUTTON_PRESS_MASK);
@@ -4860,7 +4842,6 @@ static void createSeqColHeader(GtkWidget *detailView,
   if (seqType == BLXSEQ_PEPTIDE)
     {
       GtkWidget *header = gtk_vbox_new(FALSE, 0);
-      gtk_widget_set_name(header, HEADER_CONTAINER_NAME);
       
       int frame = 0;
       for ( ; frame < numFrames; ++frame)
@@ -5188,15 +5169,16 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
    * before calling createDetailViewHeader) */
   createSeqColHeader(detailView, seqType, numFrames, columnList);
 
-  /* Create the header bar. If viewing protein matches include one SNP track in the detail 
-   * view header; otherwise create SNP tracks in each tree header. */
-  const gboolean singleSnpTrack = (seqType == BLXSEQ_PEPTIDE);
-  GtkWidget *header = createDetailViewHeader(detailView, seqType, numFrames, columnList, singleSnpTrack);
-
   /* Create the toolbar. We need to remember the feedback box and status bar so we can set them in the properties. */
   GtkWidget *feedbackBox = NULL;
   GtkWidget *statusBar = NULL;
   GtkWidget *buttonBar = createDetailViewButtonBar(detailView, toolbar, mode, sortColumn, columnList, windowColor, &feedbackBox, &statusBar);
+
+  /* Create the header bar. If viewing protein matches include one SNP track in the detail 
+   * view header; otherwise create SNP tracks in each tree header. */
+  const gboolean singleSnpTrack = (seqType == BLXSEQ_PEPTIDE);
+  GtkWidget *snpTrack = NULL;
+  GtkWidget *header = createDetailViewHeader(detailView, seqType, numFrames, columnList, singleSnpTrack, &snpTrack);
 
   /* Create a custom cell renderer to render the sequences in the detail view */
   GtkCellRenderer *renderer = sequence_cell_renderer_new();
@@ -5215,10 +5197,31 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
                         columnList,
                         refSeqName,
                         !singleSnpTrack);
-    
+
+  /* Add the elements into the main widget */
   gtk_box_pack_start(GTK_BOX(detailView), buttonBar, FALSE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(detailView), header, FALSE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(detailView), panedWin, TRUE, TRUE, 0);
+
+  if (snpTrack)
+    {
+      /* Add the snp track in a pane so it can be resized vs everything below it */
+      GtkPaned *paned = GTK_PANED(gtk_vpaned_new());
+      gtk_box_pack_start(GTK_BOX(detailView), GTK_WIDGET(paned), TRUE, TRUE, 0);
+
+      /* Top pane is the snp track */
+      gtk_paned_pack1(paned, snpTrack, TRUE, TRUE);
+
+      /* Bottom pane is everything else (in a vbox) */
+      GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+      gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
+      gtk_box_pack_start(GTK_BOX(vbox), panedWin, TRUE, TRUE, 0);
+      gtk_paned_pack2(paned, vbox, TRUE, TRUE);
+    }
+  else
+    {
+      gtk_box_pack_start(GTK_BOX(detailView), buttonBar, FALSE, TRUE, 0);
+      gtk_box_pack_start(GTK_BOX(detailView), header, FALSE, TRUE, 0);
+      gtk_box_pack_start(GTK_BOX(detailView), panedWin, TRUE, TRUE, 0);
+    }
 
   /* Connect signals */
   gtk_widget_add_events(detailView, GDK_BUTTON_PRESS_MASK);
@@ -5231,7 +5234,6 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
                              renderer,
                              fwdStrandTrees,
                              revStrandTrees,
-                             header,
                              feedbackBox, 
                              statusBar,
                              columnList,

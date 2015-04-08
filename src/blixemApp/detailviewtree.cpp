@@ -663,10 +663,6 @@ void treeUpdateSquashMatches(GtkWidget *tree, gpointer data)
 void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 {
   TreeProperties *properties = treeGetProperties(tree);
-
-  /* Loop through all widgets in the header and call refreshTextHeader. This
-   * updates the font etc. if it is a type of widget that requires that. */
-  gtk_container_foreach(GTK_CONTAINER(properties->treeHeader), refreshTextHeader, treeGetDetailView(tree));
   
   /* Loop through all column headers and call their individual refresh functions
    * (this sets the specific data for the column headers) */
@@ -3057,9 +3053,9 @@ static GtkWidget *createDetailViewTreeHeader(GtkWidget *detailView,
     {
       /* Pack the snp track and the column header bar into a vbox */
       treeHeader = gtk_vbox_new(FALSE, 0);
-      gtk_widget_set_name(treeHeader, HEADER_CONTAINER_NAME);
       
-      createSnpTrackHeader(GTK_BOX(treeHeader), detailView, strand);
+      GtkWidget *snpTrack = createSnpTrackHeader(detailView, strand);
+      gtk_box_pack_start(GTK_BOX(treeHeader), snpTrack, FALSE, TRUE, 0);
       gtk_box_pack_start(GTK_BOX(treeHeader), columnHeaderBar, FALSE, FALSE, 0);
     }
   else
