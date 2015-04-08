@@ -3090,7 +3090,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   GtkWidget *snpTrack = NULL;
   GtkWidget *columnHeaderBar = createDetailViewTreeHeader(detailView, strand, includeSnpTrack, &snpTrack);
   
-  /* Pack the headers and alignments into the outer container for the tree. */
+  /* Pack the headers and alignments in a container. */
   GtkWidget *container = NULL;
 
   if (snpTrack)
@@ -3102,6 +3102,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
       gtk_paned_pack1(GTK_PANED(container), snpTrack, FALSE, TRUE);
 
       GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+      gtk_widget_set_name(vbox, DETAIL_VIEW_TREE_CONTAINER_NAME);
       gtk_box_pack_start(GTK_BOX(vbox), columnHeaderBar, FALSE, FALSE, 0);
       gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
 
@@ -3141,13 +3142,19 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
 
   GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
   g_signal_connect(G_OBJECT(selection), "changed", G_CALLBACK(onSelectionChangedTree), tree);
+
+  /* Put the contents in a frame */
+  GtkWidget *treeFrame = gtk_frame_new(NULL);
+  gtk_widget_set_name(treeFrame, DETAIL_VIEW_TREE_CONTAINER_NAME);
+  gtk_frame_set_shadow_type(GTK_FRAME(treeFrame), GTK_SHADOW_IN);
+  gtk_container_add(GTK_CONTAINER(treeFrame), container);
   
   /* Add the tree's outermost container to the given tree list. Also increase its ref count so that
    * we can add/remove it from its parent (which we do to switch panes when we toggle strands)
    * without worrying about it being destroyed. */
-  *treeList = g_list_append(*treeList, container);
-  g_object_ref(container);
-  
-  return container;
+  *treeList = g_list_append(*treeList, treeFrame);
+  g_object_ref(treeFrame);
+
+  return treeFrame;
 }
 

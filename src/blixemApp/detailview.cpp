@@ -463,8 +463,8 @@ static gboolean widgetIsTreeContainer(GtkWidget *widget)
 }
 
 
-/* Given a widget contains a single child that is a detail-view-tree, return
- * that tree. */
+/* Given a widget contains a single detail-view-tree somewhere in its child
+ * hierarchy, return that tree. */
 static GtkWidget *treeContainerGetTree(GtkContainer *container)
 {
   GtkWidget *result = NULL;
