@@ -5208,7 +5208,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
       gtk_box_pack_start(GTK_BOX(detailView), GTK_WIDGET(paned), TRUE, TRUE, 0);
 
       /* Top pane is the snp track */
-      gtk_paned_pack1(paned, snpTrack, TRUE, TRUE);
+      gtk_paned_pack1(paned, snpTrack, FALSE, TRUE);
 
       /* Bottom pane is everything else (in a vbox) */
       GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
@@ -5218,7 +5218,6 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
     }
   else
     {
-      gtk_box_pack_start(GTK_BOX(detailView), buttonBar, FALSE, TRUE, 0);
       gtk_box_pack_start(GTK_BOX(detailView), header, FALSE, TRUE, 0);
       gtk_box_pack_start(GTK_BOX(detailView), panedWin, TRUE, TRUE, 0);
     }

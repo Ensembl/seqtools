@@ -80,7 +80,6 @@ typedef struct _TreeProperties
     GtkWidget *detailView;	    /* The detail view that this tree belongs to */
 
     int readingFrame;		    /* Which reading frame this tree displays */
-    GtkWidget *treeHeader;	    /* The container that contains all the widgets for the tree header */
     GList *treeColumnHeaderList;    /* List of info about the tree column headers */
     gboolean hasSnpHeader;	    /* Whether a SNP track is shown above this tree */
 

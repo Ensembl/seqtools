@@ -1022,7 +1022,6 @@ static void treeCreateProperties(GtkWidget *widget,
 				 GtkWidget *grid, 
 				 GtkWidget *detailView, 
 				 const int frame,
-				 GtkWidget *treeHeader,
 				 GList *treeColumnHeaderList,
 				 const gboolean hasSnpHeader)
 {
@@ -1033,7 +1032,6 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->grid = grid;
       properties->detailView = detailView;
       properties->readingFrame = frame;
-      properties->treeHeader = treeHeader;
       properties->treeColumnHeaderList = treeColumnHeaderList;
       properties->hasSnpHeader = hasSnpHeader;
       
@@ -3041,30 +3039,21 @@ static void setTreeStyle(GtkTreeView *tree)
 }
 
 
-/* Create the widget that will contain all the header widgets. */
+/* Create the widget that will contain all the header widgets. If includeNnpTrack is
+ * not null then the snpTrack is also created */
 static GtkWidget *createDetailViewTreeHeader(GtkWidget *detailView, 
-					     const gboolean includeSnpTrack,
-					     const BlxStrand strand,
-					     GtkWidget *columnHeaderBar)
+                                             const BlxStrand strand,
+                                             const gboolean includeSnpTrack,
+                                             GtkWidget **snpTrack)
 {
-  GtkWidget *treeHeader = NULL; /* the outermost container for the header widgets */
+  GtkWidget *columnHeaderBar = gtk_hbox_new(FALSE, 0);
   
-  if (includeSnpTrack)
+  if (includeSnpTrack && snpTrack)
     {
-      /* Pack the snp track and the column header bar into a vbox */
-      treeHeader = gtk_vbox_new(FALSE, 0);
-      
-      GtkWidget *snpTrack = createSnpTrackHeader(detailView, strand);
-      gtk_box_pack_start(GTK_BOX(treeHeader), snpTrack, FALSE, TRUE, 0);
-      gtk_box_pack_start(GTK_BOX(treeHeader), columnHeaderBar, FALSE, FALSE, 0);
+      *snpTrack = createSnpTrackHeader(detailView, strand);
     }
-  else
-    {
-      /* Only include the column headers */
-      treeHeader = columnHeaderBar;
-    }
-  
-  return treeHeader;
+   
+  return columnHeaderBar;
 }
 
 
@@ -3097,16 +3086,36 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   g_signal_connect(G_OBJECT(adjustment), "changed", G_CALLBACK(onScrollChangedTree), tree);
   g_signal_connect(G_OBJECT(adjustment), "value-changed", G_CALLBACK(onScrollChangedTree), tree);
 
-  /* Create a header, and put the tree and header in a vbox. This vbox is the outermost
-   * container for the tree */
-  GtkWidget *columnHeaderBar = gtk_hbox_new(FALSE, 0);
-  GtkWidget *treeHeader = createDetailViewTreeHeader(detailView, includeSnpTrack, strand, columnHeaderBar);
+  /* Create a header */
+  GtkWidget *snpTrack = NULL;
+  GtkWidget *columnHeaderBar = createDetailViewTreeHeader(detailView, strand, includeSnpTrack, &snpTrack);
   
-  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_widget_set_name(vbox, DETAIL_VIEW_TREE_CONTAINER_NAME);
-  gtk_box_pack_start(GTK_BOX(vbox), treeHeader, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
-  
+  /* Pack the headers and alignments into the outer container for the tree. */
+  GtkWidget *container = NULL;
+
+  if (snpTrack)
+    {
+      /* Put the snp track in one pane and everything else in another */
+      container = gtk_vpaned_new();
+      gtk_widget_set_name(container, DETAIL_VIEW_TREE_CONTAINER_NAME);
+
+      gtk_paned_pack1(GTK_PANED(container), snpTrack, FALSE, TRUE);
+
+      GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+      gtk_box_pack_start(GTK_BOX(vbox), columnHeaderBar, FALSE, FALSE, 0);
+      gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
+
+      gtk_paned_pack2(GTK_PANED(container), vbox, TRUE, TRUE);
+    }
+  else
+    {
+      /* Just put everything in a vbox */
+      container = gtk_vbox_new(FALSE, 0);
+      gtk_widget_set_name(container, DETAIL_VIEW_TREE_CONTAINER_NAME);
+      gtk_box_pack_start(GTK_BOX(container), columnHeaderBar, FALSE, FALSE, 0);
+      gtk_box_pack_start(GTK_BOX(container), scrollWin, TRUE, TRUE, 0);
+    }  
+
   /* Create the tree columns */
   GList *treeColumnHeaderList = createTreeColumns(tree, detailView, renderer, seqType, columnList, columnHeaderBar, refSeqName, frame, strand);
   
@@ -3114,7 +3123,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   addColumnsToTreeHeader(columnHeaderBar, treeColumnHeaderList);
   
   /* Set the essential tree properties */
-  treeCreateProperties(tree, grid, detailView, frame, treeHeader, treeColumnHeaderList, includeSnpTrack);
+  treeCreateProperties(tree, grid, detailView, frame, treeColumnHeaderList, includeSnpTrack);
   
   /* Connect signals */
   gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);
@@ -3136,9 +3145,9 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   /* Add the tree's outermost container to the given tree list. Also increase its ref count so that
    * we can add/remove it from its parent (which we do to switch panes when we toggle strands)
    * without worrying about it being destroyed. */
-  *treeList = g_list_append(*treeList, vbox);
-  g_object_ref(vbox);
+  *treeList = g_list_append(*treeList, container);
+  g_object_ref(container);
   
-  return vbox;
+  return container;
 }
 
