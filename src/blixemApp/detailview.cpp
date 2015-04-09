@@ -5403,6 +5403,27 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
 }
 
 
+/* Utility to create the paned window for the snp track. The otherWidget is the container for all
+ * the other widgets to go into the 2nd pane of the new paned window. */
+GtkWidget* snpTrackCreatePanedWin(GtkWidget *snpTrack, GtkWidget *otherWidget)
+{
+  GtkPaned *paned = GTK_PANED(gtk_vpaned_new());
+  gtk_widget_set_name(GTK_WIDGET(paned), SNP_TRACK_CONTAINER_NAME);  
+
+  /* Top pane is the snp track. Put it inside a scrollwin */
+  GtkWidget *snpScrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(snpScrollWin), snpTrack);
+
+  gtk_widget_set_name(GTK_WIDGET(snpScrollWin), SNP_TRACK_SCROLL_WIN_NAME);  
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(snpScrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
+
+  gtk_paned_pack1(paned, snpScrollWin, FALSE, TRUE);
+  gtk_paned_pack2(paned, otherWidget, TRUE, TRUE);
+
+  return GTK_WIDGET(paned);
+}
+
+
 GtkWidget* createDetailView(GtkWidget *blxWindow,
                             GtkContainer *parent,
                             GtkWidget *toolbar,
@@ -5470,27 +5491,14 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 
   if (snpTrack)
     {
-      /* Add the snp track in a pane so it can be resized vs everything below it */
-      GtkPaned *paned = GTK_PANED(gtk_vpaned_new());
-      gtk_widget_set_name(GTK_WIDGET(paned), SNP_TRACK_CONTAINER_NAME);  
-      gtk_box_pack_start(GTK_BOX(detailView), GTK_WIDGET(paned), TRUE, TRUE, 0);
-
-      /* Top pane is the snp track. Put it inside a scrollwin */
-      GtkWidget *snpScrollWin = gtk_scrolled_window_new(NULL, NULL);
-      gtk_widget_set_name(GTK_WIDGET(snpScrollWin), SNP_TRACK_SCROLL_WIN_NAME);  
-      gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(snpScrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
-      gtk_container_add(GTK_CONTAINER(snpScrollWin), snpTrack);
-
-      gtk_paned_pack1(paned, snpScrollWin, FALSE, TRUE);
-
-      GtkAdjustment *snpAdjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(snpScrollWin));
-      snpAdjustment->step_increment = 1;
-
-      /* Bottom pane is everything else (in a vbox) */
+      /* Add the snp track in a pane so it can be resized vs everything below it.
+       * Top pane is the snp track, bottom pane is everything else (in a vbox) */
       GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
       gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
       gtk_box_pack_start(GTK_BOX(vbox), panedWin, TRUE, TRUE, 0);
-      gtk_paned_pack2(paned, vbox, TRUE, TRUE);
+
+      GtkWidget *paned = snpTrackCreatePanedWin(snpTrack, vbox);
+      gtk_box_pack_start(GTK_BOX(detailView), GTK_WIDGET(paned), TRUE, TRUE, 0);
     }
   else
     {

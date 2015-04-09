@@ -309,5 +309,6 @@ GtkWidget*              createDetailView(GtkWidget *blxWindow,
 GtkWidget*              createDetailViewScrollBar(GtkAdjustment *adjustment, 
                                                   GtkWidget *blxWindow);
 
+GtkWidget*              snpTrackCreatePanedWin(GtkWidget *snpTrack, GtkWidget *otherWidget); 
 
 #endif /* _detail_view_included_ */
