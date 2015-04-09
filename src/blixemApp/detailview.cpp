@@ -4181,7 +4181,13 @@ static void snpTrackSetHeight(GtkWidget *detailView, GtkWidget *snpTrack)
           /* Use the cached position then reset the cache (because the splitter bar will keep
            * track of it from here). */
           DEBUG_OUT("Setting splitter position to %d\n", properties->snpSplitterPos);
-          gtk_paned_set_position(panedWin, properties->snpSplitterPos);
+
+          /* gb10: actually I'm going to reset it to 'unset' because that's probably a bit more
+           * sensible when re-showing the snp track (which is the only time this cache gets
+           * used). Could do with tidying up this logic a bit. It might be nice to offer the
+           * option to use the cached position too. */
+          //gtk_paned_set_position(panedWin, properties->snpSplitterPos);
+          gtk_paned_set_position(panedWin, -1);
           properties->snpSplitterPos = -1;
         }
     }
