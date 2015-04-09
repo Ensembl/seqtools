@@ -3014,6 +3014,7 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   
   if (!bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] || !bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS])
     {
+      DEBUG_EXIT("drawVariationsTrack returning");
       return;
     }
   
@@ -5403,9 +5404,46 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
 }
 
 
+static gboolean onMouseMoveSnpSplitter(GtkWidget *paned, GdkEventMotion *event, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+
+  if ((event->state & GDK_BUTTON1_MASK)) /* left button */
+    {
+      /* If the splitter position is zero then disable the snp track display */
+
+      if (GTK_IS_PANED(paned))
+        {
+          const int splitterPos = gtk_paned_get_position(GTK_PANED(paned));
+          BlxViewContext *bc = detailViewGetContext(detailView);
+
+          if (splitterPos != 0 && 
+              !(bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] && bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS]) )
+            {
+              /* Show the track. We must also enable highlight-variations or it will not make any
+               * sense (and probably won't work anyway because the code checks both values). */
+              bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] = TRUE;
+              bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS] = TRUE;
+              detailViewRefreshAllHeaders(detailView);
+              DEBUG_OUT("Enabled variations track (exposed by splitter)\n");
+            }
+          else if (splitterPos == 0 && bc->flags[BLXFLAG_SHOW_VARIATION_TRACK])
+            {
+              /* Disable the variations track. Leave the highlight-varations setting as it is. */
+              bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] = FALSE;
+              detailViewRefreshAllHeaders(detailView);
+              DEBUG_OUT("Disabled variations track (hidden by splitter)\n");
+            }
+        }
+    }
+
+  return FALSE; /* allow default handler to continue */
+}
+
+
 /* Utility to create the paned window for the snp track. The otherWidget is the container for all
  * the other widgets to go into the 2nd pane of the new paned window. */
-GtkWidget* snpTrackCreatePanedWin(GtkWidget *snpTrack, GtkWidget *otherWidget)
+GtkWidget* snpTrackCreatePanedWin(GtkWidget *detailView, GtkWidget *snpTrack, GtkWidget *otherWidget)
 {
   GtkPaned *paned = GTK_PANED(gtk_vpaned_new());
   gtk_widget_set_name(GTK_WIDGET(paned), SNP_TRACK_CONTAINER_NAME);  
@@ -5419,6 +5457,9 @@ GtkWidget* snpTrackCreatePanedWin(GtkWidget *snpTrack, GtkWidget *otherWidget)
 
   gtk_paned_pack1(paned, snpScrollWin, FALSE, TRUE);
   gtk_paned_pack2(paned, otherWidget, TRUE, TRUE);
+
+  /* Connect to signals for the splitter bar handle */
+  g_signal_connect(G_OBJECT(paned), "motion-notify-event", G_CALLBACK(onMouseMoveSnpSplitter), detailView);
 
   return GTK_WIDGET(paned);
 }
@@ -5497,7 +5538,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
       gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
       gtk_box_pack_start(GTK_BOX(vbox), panedWin, TRUE, TRUE, 0);
 
-      GtkWidget *paned = snpTrackCreatePanedWin(snpTrack, vbox);
+      GtkWidget *paned = snpTrackCreatePanedWin(detailView, snpTrack, vbox);
       gtk_box_pack_start(GTK_BOX(detailView), GTK_WIDGET(paned), TRUE, TRUE, 0);
     }
   else

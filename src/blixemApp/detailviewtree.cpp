@@ -3102,7 +3102,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
       gtk_box_pack_start(GTK_BOX(vbox), columnHeaderBar, FALSE, TRUE, 0);
       gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
 
-      container = snpTrackCreatePanedWin(snpTrack, vbox);
+      container = snpTrackCreatePanedWin(detailView, snpTrack, vbox);
       gtk_widget_set_name(container, DETAIL_VIEW_TREE_CONTAINER_NAME);
     }
   else
