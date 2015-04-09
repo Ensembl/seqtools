@@ -103,6 +103,7 @@ static void                   refreshDetailViewHeaders(GtkWidget *detailView);
 
 static void                   snpTrackSetStrand(GtkWidget *snpTrack, const BlxStrand strand);
 static BlxStrand              snpTrackGetStrand(GtkWidget *snpTrack, GtkWidget *detailView);
+static void                   snpTrackSetHeight(GtkWidget *detailView, GtkWidget *snpTrack);
 static void                   getVariationDisplayRange(const MSP *msp, const gboolean expand, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange* const refSeqRange, IntRange *displayRange, IntRange *expandedRange);
 static void                   recalculateSnpTrackBorders(GtkWidget *snpTrack, gpointer data);
 
@@ -170,7 +171,7 @@ void detailViewRefreshAllHeaders(GtkWidget *detailView)
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   
-  RecursiveFuncData data = {SNP_TRACK_CONTAINER_NAME, recalculateSnpTrackBorders, detailView};
+  RecursiveFuncData data = {SNP_TRACK_HEADER_NAME, recalculateSnpTrackBorders, detailView};
   callFuncOnChildren(detailView, &data);
 
   gtk_widget_queue_draw(detailView);
@@ -187,7 +188,7 @@ void detailViewRedrawAll(GtkWidget *detailView)
   callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable, NULL);
 
   /* Recalculate the size of the snp track headers */
-  RecursiveFuncData data = {SNP_TRACK_CONTAINER_NAME, recalculateSnpTrackBorders, detailView};  
+  RecursiveFuncData data = {SNP_TRACK_HEADER_NAME, recalculateSnpTrackBorders, detailView};  
   callFuncOnChildren(detailView, &data);
 
   gtk_widget_queue_draw(detailView);
@@ -773,50 +774,16 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
       /* Update the font and the widget height, in case the font-size has changed. */
       GtkWidget *detailView = GTK_WIDGET(data);
       gtk_widget_modify_font(header, detailViewGetFontDesc(detailView));
-
-      const gdouble charHeight = detailViewGetCharHeight(detailView);
-      
+     
       if (!strcmp(widgetName, SNP_TRACK_HEADER_NAME))
         {
-          /* SNP track */
-          BlxViewContext *bc = detailViewGetContext(detailView);
-        
-          if (!bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] || !bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS])
-            {
-              /* SNP track is hidden, so set the height to 0 */
-              gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, 0);
-              gtk_widget_set_size_request(header, -1, 0);
-            }
-          else
-            {
-              /* Set the height to the total character height plus the connector line height */
-              DetailViewProperties *properties = detailViewGetProperties(detailView);
-              const int activeFrame = detailViewGetActiveFrame(detailView);
-              BlxStrand strand = snpTrackGetStrand(header, detailView);
-              const int numRows = getNumSnpTrackRows(bc, properties, strand, activeFrame);
-
-              const int height = roundNearest(charHeight * (numRows + (gdouble)detailViewGetSnpConnectorHeight(detailView)));
-              gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, height);
-              gtk_widget_set_size_request(header, -1, height);
-
-              /* Get the parent scrolled window and set the adjustment step increment to be one
-               * char height */
-              GtkWidget *snpScrollWin = detailViewContainerGetParentWidget(GTK_CONTAINER(detailView), header, SNP_TRACK_SCROLL_WIN_NAME);
-
-              if (snpScrollWin)
-                {
-                  GtkAdjustment *snpAdjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(snpScrollWin));
-
-                  if (snpAdjustment)
-                    {
-                      snpAdjustment->step_increment = (int)charHeight + detailViewGetSnpConnectorHeight(detailView);
-                    }
-                }
-            }
+          /* SNP track - must adjust its size based on the char height and number of rows visible */
+          snpTrackSetHeight(detailView, header);
         }
       else if (GTK_IS_LAYOUT(header))
         {
           /* Normal text header. Set the height to the character height */
+          const gdouble charHeight = detailViewGetCharHeight(detailView);
           gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, roundNearest(charHeight));
           gtk_widget_set_size_request(header, -1, roundNearest(charHeight));
         }
@@ -3070,34 +3037,12 @@ static int getNumSnpTrackRows(const BlxViewContext *bc,
  * we turn the track on/off, and also whenever we we scroll, because more/less
  * variations can appear and if they overlap then we add extra rows in which to
  * draw them. */
-static void recalculateSnpTrackBorders(GtkWidget *panedWin, gpointer data)
+static void recalculateSnpTrackBorders(GtkWidget *snpTrack, gpointer data)
 {
   DEBUG_ENTER("recalculateSnpTrackBorders()");
 
   GtkWidget *detailView = GTK_WIDGET(data);
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  GtkWidget *blxWindow = properties->blxWindow;
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
-
-  GtkWidget *snpScrollWin = detailViewContainerGetWidget(GTK_CONTAINER(panedWin), SNP_TRACK_SCROLL_WIN_NAME);
-  GtkWidget *snpTrack = detailViewContainerGetWidget(GTK_CONTAINER(snpScrollWin), SNP_TRACK_HEADER_NAME);
-
-  if (snpScrollWin && snpTrack && bc->flags[BLXFLAG_SHOW_VARIATION_TRACK])
-    {
-      const int activeFrame = detailViewGetActiveFrame(detailView);
-      BlxStrand strand = snpTrackGetStrand(snpTrack, detailView);
-
-      const int rowHeight = ceil(properties->charHeight);
-      const int numRows = getNumSnpTrackRows(bc, properties, strand, activeFrame);
-
-      gtk_widget_set_size_request(snpTrack, -1, numRows * rowHeight);
-      gtk_widget_set_size_request(snpScrollWin, -1, numRows * rowHeight);
-    }
-  else
-    {
-      gtk_widget_set_size_request(snpTrack, -1, 0);
-      gtk_widget_set_size_request(snpScrollWin, -1, 0);
-    }
+  //snpTrackSetHeight(detailView, snpTrack);
 
   DEBUG_EXIT("recalculateSnpTrackBorders returning ");
 }
@@ -4104,6 +4049,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->charWidth = 0.0;
       properties->charHeight = 0.0;
       properties->snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
+      properties->snpSplitterPos = -1;
       properties->numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
       
       /* The numunalignedbases may be set in the config file; if so, override the default */
@@ -4231,6 +4177,79 @@ static BlxStrand snpTrackGetStrand(GtkWidget *snpTrack, GtkWidget *detailView)
     }
   
   return strand;
+}
+
+
+static void snpTrackSetHeight(GtkWidget *detailView, GtkWidget *snpTrack)
+{
+  DEBUG_ENTER("snpTrackSetHeight()");
+
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  GtkWidget *snpScrollWin = detailViewContainerGetParentWidget(GTK_CONTAINER(detailView), snpTrack, SNP_TRACK_SCROLL_WIN_NAME);
+
+  const int activeFrame = detailViewGetActiveFrame(detailView);
+  BlxStrand strand = snpTrackGetStrand(snpTrack, detailView);
+  const int numRows = getNumSnpTrackRows(bc, properties, strand, activeFrame);
+  const gdouble charHeight = detailViewGetCharHeight(detailView);
+
+  /* Set the height to the total character height plus the connector line height */
+  const int height = roundNearest(charHeight * (numRows + (gdouble)detailViewGetSnpConnectorHeight(detailView)));
+  gtk_layout_set_size(GTK_LAYOUT(snpTrack), snpTrack->allocation.width, height);
+  gtk_widget_set_size_request(snpTrack, -1, height);
+  gtk_widget_set_size_request(snpScrollWin, -1, height);
+
+  /* Get the parent scrolled window and set the adjustment step increment to be one
+   * char height */
+  if (snpScrollWin && GTK_IS_SCROLLED_WINDOW(snpScrollWin))
+    {
+      GtkAdjustment *snpAdjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(snpScrollWin));
+
+      if (snpAdjustment)
+        {
+          snpAdjustment->step_increment = (int)charHeight + detailViewGetSnpConnectorHeight(detailView);
+        }
+    }
+  else
+    {
+      g_warning("Error setting scroll increment for variations track\n");
+    }
+
+  /* Now set the paned window splitter bar position. */
+  const gboolean showSnpTrack = bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] && bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS];
+  GtkWidget *panedWidget = detailViewContainerGetParentWidget(GTK_CONTAINER(detailView), snpTrack, SNP_TRACK_CONTAINER_NAME);
+  GtkPaned *panedWin = GTK_IS_PANED(panedWidget) ? GTK_PANED(panedWidget) : NULL;
+
+  if (panedWin && showSnpTrack)
+    {
+      /* Set it to the saved position, if there is one set */
+      if (properties->snpSplitterPos >= 0)
+        {
+          /* Use the cached position then reset the cache (because the splitter bar will keep
+           * track of it from here). */
+          DEBUG_OUT("Setting splitter position to %d\n", properties->snpSplitterPos);
+          gtk_paned_set_position(panedWin, properties->snpSplitterPos);
+          properties->snpSplitterPos = -1;
+        }
+    }
+  else if (panedWin)
+    {
+      /* Save the current value then set it to 0 to hide the SNP track */
+      int splitterPos = gtk_paned_get_position(panedWin);
+
+      if (splitterPos > 0)
+        {
+          DEBUG_OUT("Setting splitter position to 0 and caching old position %d\n", splitterPos);
+          properties->snpSplitterPos = splitterPos;
+          gtk_paned_set_position(panedWin, 0);
+        }
+    }
+  else
+    {
+      g_warning("Error setting splitter bar position for variations track");
+    }
+
+  DEBUG_EXIT("snpTrackSetHeight returning ");
 }
 
 
