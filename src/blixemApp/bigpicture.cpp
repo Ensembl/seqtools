@@ -450,8 +450,6 @@ void calculateHighlightBoxBorders(GdkRectangle *drawingRect,
 				  GtkWidget *bigPicture,
 				  const int yPadding)
 {
-  DEBUG_ENTER("calculateGridHighlightBoxBorders(grid)");
-  
   /* Calculate how many pixels from the left edge of the widget to the first base in the range. Truncating
    * the double to an int after the multiplication means we can be up to 1 pixel out, but this should be fine. */
   GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
@@ -480,8 +478,6 @@ void calculateHighlightBoxBorders(GdkRectangle *drawingRect,
       highlightRect->width = abs(x1 - x2);
       highlightRect->height = drawingRect->height + roundNearest(bpProperties->charHeight / 2.0) + yPadding + (2 * bpProperties->highlightBoxYPad);
     }
-  
-  DEBUG_EXIT("calculateGridHighlightBoxBorders returning");
 }
 
 

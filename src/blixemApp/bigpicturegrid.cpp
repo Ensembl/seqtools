@@ -464,20 +464,14 @@ void gridPrepareForPrinting(GtkWidget *grid)
 
 void calculateGridHighlightBoxBorders(GtkWidget *grid)
 {
-  DEBUG_ENTER("calculateGridHighlightBoxBorders(grid)");
-
   GridProperties *properties = gridGetProperties(grid);
   calculateHighlightBoxBorders(&properties->gridRect, &properties->highlightRect, properties->bigPicture, properties->mspLineHeight);
-    
-  DEBUG_EXIT("calculateGridHighlightBoxBorders returning");
 }
 
 
 /* Calculate the borders for the big picture view */
 void calculateGridBorders(GtkWidget *grid)
 {
-  DEBUG_ENTER("calculateGridBorders");
-
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   int numVCells = gridGetNumVCells(grid);
@@ -512,8 +506,6 @@ void calculateGridBorders(GtkWidget *grid)
        * width, because we want the user to be able to resize that. */
       gtk_widget_set_size_request(grid, 0, properties->displayRect.height);
     }
-  
-  DEBUG_EXIT("calculateGridBorders returning");
 }
 
 

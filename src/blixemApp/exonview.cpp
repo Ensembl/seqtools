@@ -349,8 +349,6 @@ void calculateExonViewHeight(GtkWidget *exonView)
 
 void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
 {
-  DEBUG_ENTER("calculateExonViewHighlightBoxBorders");
-
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
   
@@ -372,15 +370,11 @@ void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
   
   properties->highlightRect.width = abs(x1 - x2);
   properties->highlightRect.height = exonView->allocation.height;
-  
-  DEBUG_EXIT("calculateExonViewHighlightBoxBorders returning");
 }
 
 
 static void calculateExonViewBorders(GtkWidget *exonView)
 {
-  DEBUG_ENTER("calculateExonViewBorders");
-
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
@@ -390,8 +384,6 @@ static void calculateExonViewBorders(GtkWidget *exonView)
   
   /* Calculate the size of the highlight box */
   calculateExonViewHighlightBoxBorders(exonView);
-  
-  DEBUG_EXIT("calculateExonViewBorders returning");
 }
 
 
