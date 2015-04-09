@@ -55,6 +55,7 @@
 
 
 #define SNP_TRACK_HEADER_NAME           "SNP track header"
+#define SNP_TRACK_SCROLL_WIN_NAME       "SNP scroll window"
 #define SNP_TRACK_CONTAINER_NAME        "SNP track container"
 #define DNA_TRACK_HEADER_NAME           "DNA track header"
 #define DETAIL_VIEW_STATUSBAR_CONTEXT   "statusBarCtx"

@@ -3097,11 +3097,12 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
     {
       /* Put the snp track in one pane and everything else in another */
       container = gtk_vpaned_new();
+      gtk_widget_set_name(container, SNP_TRACK_CONTAINER_NAME);  
       gtk_widget_set_name(container, DETAIL_VIEW_TREE_CONTAINER_NAME);
 
       /* Also put the snp track in a scrollwin */
       GtkWidget *snpScrollWin = gtk_scrolled_window_new(NULL, NULL);
-      gtk_widget_set_name(snpTrack, SNP_TRACK_CONTAINER_NAME);  
+      gtk_widget_set_name(GTK_WIDGET(snpScrollWin), SNP_TRACK_SCROLL_WIN_NAME);
       gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(snpScrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
       gtk_container_add(GTK_CONTAINER(snpScrollWin), snpTrack);
 

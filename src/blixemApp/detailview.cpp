@@ -138,6 +138,7 @@ static gboolean                coordAffectedByPolyASite(const int dnaIdx,
                                                         const MSP **mspOut,
                                                         gboolean *multipleVariations);
 
+static GtkWidget*              detailViewContainerGetWidget(GtkContainer *container, const char *name);
 
 /***********************************************************
  *                     Utility functions                   *
@@ -167,7 +168,7 @@ void detailViewRefreshAllHeaders(GtkWidget *detailView)
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   
-  RecursiveFuncData data = {SNP_TRACK_CONTAINER_NAME, recalculateSnpTrackBorders, detailView};    
+  RecursiveFuncData data = {SNP_TRACK_CONTAINER_NAME, recalculateSnpTrackBorders, detailView};
   callFuncOnChildren(detailView, &data);
 
   gtk_widget_queue_draw(detailView);
@@ -556,6 +557,40 @@ static GtkWidget *treeContainerGetTree(GtkContainer *container)
           else if (GTK_IS_CONTAINER(childWidget))
            {
              result = treeContainerGetTree(GTK_CONTAINER(childWidget));
+           }
+        }
+    }
+
+  g_list_free(children);
+  
+  return result;
+}
+
+
+/* Given a container that contains a single widget with the given name in its child
+ * hierarchy, return that widget (doesn't check if there's only one, just
+ * returns the first one). */
+static GtkWidget *detailViewContainerGetWidget(GtkContainer *container, const char *name)
+{
+  GtkWidget *result = NULL;
+  
+  GList *children = gtk_container_get_children(container);
+  GList *child = children;
+  
+  for ( ; child && !result; child = child->next)
+    {
+      if (GTK_IS_WIDGET(child->data))
+        {
+          GtkWidget *childWidget = GTK_WIDGET(child->data);
+          
+          if (strcmp(gtk_widget_get_name(childWidget), name) == 0)
+            {
+              result = childWidget;
+              break;
+            }
+          else if (GTK_IS_CONTAINER(childWidget))
+           {
+             result = detailViewContainerGetWidget(GTK_CONTAINER(childWidget), name);
            }
         }
     }
@@ -2944,7 +2979,7 @@ static int getNumSnpTrackRows(const BlxViewContext *bc,
  * we turn the track on/off, and also whenever we we scroll, because more/less
  * variations can appear and if they overlap then we add extra rows in which to
  * draw them. */
-static void recalculateSnpTrackBorders(GtkWidget *snpScrollWin, gpointer data)
+static void recalculateSnpTrackBorders(GtkWidget *panedWin, gpointer data)
 {
   DEBUG_ENTER("recalculateSnpTrackBorders()");
 
@@ -2953,40 +2988,42 @@ static void recalculateSnpTrackBorders(GtkWidget *snpScrollWin, gpointer data)
   GtkWidget *blxWindow = properties->blxWindow;
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
-  /* Get the GtkLayout which is the snp track itself. It should be the single child widget in the
-   * scrolled window. */
-  GList *children = gtk_container_get_children(GTK_CONTAINER(snpScrollWin));
+  GtkWidget *snpScrollWin = detailViewContainerGetWidget(GTK_CONTAINER(panedWin), SNP_TRACK_SCROLL_WIN_NAME);
+  GtkWidget *snpTrack = detailViewContainerGetWidget(GTK_CONTAINER(snpScrollWin), SNP_TRACK_HEADER_NAME);
 
-  if (g_list_length(children) == 1)
+  if (snpScrollWin && snpTrack && bc->flags[BLXFLAG_SHOW_VARIATION_TRACK])
     {
-      GtkWidget *snpTrack = GTK_WIDGET(children->data);
+      const int activeFrame = detailViewGetActiveFrame(detailView);
+      BlxStrand strand = snpTrackGetStrand(snpTrack, detailView);
 
-      if (bc->flags[BLXFLAG_SHOW_VARIATION_TRACK])
+      const int rowHeight = ceil(properties->charHeight);
+      const int numRows = getNumSnpTrackRows(bc, properties, strand, activeFrame);
+
+      gtk_widget_set_size_request(snpTrack, -1, numRows * rowHeight);
+      gtk_widget_set_size_request(snpScrollWin, -1, numRows * rowHeight);
+
+      /* Set the range of the adjustment bar to be the number of rows (to do: doesn't work!) */
+      GtkAdjustment *snpAdjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(snpScrollWin));
+
+      DEBUG_OUT("BEFORE Strand %d, frame %d: upper=%f, pageinc=%f, pagesize=%f\n",
+                (int)strand, activeFrame,
+                snpAdjustment->upper,
+                snpAdjustment->page_increment, snpAdjustment->page_size);
+
+      if (snpAdjustment)
         {
-          const int activeFrame = detailViewGetActiveFrame(detailView);
-          BlxStrand strand = snpTrackGetStrand(snpTrack, detailView);
-
-          const int rowHeight = ceil(properties->charHeight);
-          const int numRows = getNumSnpTrackRows(bc, properties, strand, activeFrame);
-
-          gtk_widget_set_size_request(snpTrack, -1, numRows * rowHeight);
-          gtk_widget_set_size_request(snpScrollWin, -1, numRows * rowHeight);
-
-          /* Set the range of the adjustment bar to be the number of rows */
-          GtkAdjustment *snpAdjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(snpScrollWin));
-          printf("Setting snp track upper from %f to %d (numrows=%d, rowht=%d, pagesize=%f, step=%f, value=%f)\n", 
-                 snpAdjustment->upper, numRows * rowHeight, numRows, rowHeight, snpAdjustment->page_size, snpAdjustment->step_increment, snpAdjustment->value);
-
           snpAdjustment->upper = numRows * rowHeight;
-          printf("Set it to %f\n", snpAdjustment->upper);
-      
-          //gtk_adjustment_changed(snpAdjustment);
         }
-      else
-        {
-          gtk_widget_set_size_request(snpTrack, -1, 0);
-          gtk_widget_set_size_request(snpScrollWin, -1, 0);
-        }
+
+      DEBUG_OUT("AFTER  Strand %d, frame %d: upper=%f, pageinc=%f, pagesize=%f\n",
+                (int)strand, activeFrame,
+                snpAdjustment->upper,
+                snpAdjustment->page_increment, snpAdjustment->page_size);
+    }
+  else
+    {
+      gtk_widget_set_size_request(snpTrack, -1, 0);
+      gtk_widget_set_size_request(snpScrollWin, -1, 0);
     }
 
   DEBUG_EXIT("recalculateSnpTrackBorders returning ");
@@ -5391,11 +5428,12 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
     {
       /* Add the snp track in a pane so it can be resized vs everything below it */
       GtkPaned *paned = GTK_PANED(gtk_vpaned_new());
+      gtk_widget_set_name(GTK_WIDGET(paned), SNP_TRACK_CONTAINER_NAME);  
       gtk_box_pack_start(GTK_BOX(detailView), GTK_WIDGET(paned), TRUE, TRUE, 0);
 
       /* Top pane is the snp track. Put it inside a scrollwin */
       GtkWidget *snpScrollWin = gtk_scrolled_window_new(NULL, NULL);
-      gtk_widget_set_name(snpScrollWin, SNP_TRACK_CONTAINER_NAME);  
+      gtk_widget_set_name(GTK_WIDGET(snpScrollWin), SNP_TRACK_SCROLL_WIN_NAME);  
       gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(snpScrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
       gtk_container_add(GTK_CONTAINER(snpScrollWin), snpTrack);
 
