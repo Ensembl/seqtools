@@ -139,6 +139,8 @@ static gboolean                coordAffectedByPolyASite(const int dnaIdx,
                                                         gboolean *multipleVariations);
 
 static GtkWidget*              detailViewContainerGetWidget(GtkContainer *container, const char *name);
+static GtkWidget*              detailViewContainerGetParentWidget(GtkContainer *container, GtkWidget *search_child, const char *parent_name);
+static gboolean                detailViewContainerIsParent(GtkContainer *container, GtkWidget *search_child);
 
 /***********************************************************
  *                     Utility functions                   *
@@ -601,6 +603,76 @@ static GtkWidget *detailViewContainerGetWidget(GtkContainer *container, const ch
 }
 
 
+/* Returns true if the given container is a parent (of any level) of the given child */
+static gboolean detailViewContainerIsParent(GtkContainer *container, GtkWidget *search_child)
+{
+  gboolean result = FALSE;
+
+  /* Loop through all children of the given container and see if any are the search_child */
+  GList *check_list = gtk_container_get_children(GTK_CONTAINER(container));
+  GList *check_child = check_list;
+
+  for ( ; check_child && !result ; check_child = check_child->next)
+    {
+      GtkWidget *check_widget = GTK_WIDGET(check_child->data);
+
+      if (check_widget == search_child)
+        {
+          result = TRUE;
+        }
+      else if (GTK_IS_CONTAINER(check_widget))
+        {
+          /* Recurse through the current widget's children */
+          result = detailViewContainerIsParent(GTK_CONTAINER(check_widget), search_child);
+        }
+    }
+  
+  g_list_free(check_list);
+
+  return result;
+}
+
+
+/* Find the parent of the given child widget, where the parent has the given name.
+ * The parent and widget must both be in the given container */
+static GtkWidget *detailViewContainerGetParentWidget(GtkContainer *container, GtkWidget *search_child, const char *parent_name)
+{
+  GtkWidget *result = NULL;
+
+  /* Loop through all children in the container looking for a widget with parent_name */
+  GList *container_children = gtk_container_get_children(container);
+  GList *cur_item = container_children;
+  
+  for ( ; cur_item && !result; cur_item = cur_item->next)
+    {
+      if (GTK_IS_WIDGET(cur_item->data))
+        {
+          GtkWidget *cur_widget = GTK_WIDGET(cur_item->data);
+          
+          /* If the name matches, then check if this widget is a container with a child
+           * (or child-of-a-child) that matches search_child. If not, keep on searching. */
+          if (strcmp(gtk_widget_get_name(cur_widget), parent_name) == 0 && GTK_IS_CONTAINER(cur_widget))
+            {
+              if (detailViewContainerIsParent(GTK_CONTAINER(cur_widget), search_child))
+                {
+                  result = cur_widget;
+                  break;
+                }
+            }
+          
+          if (GTK_IS_CONTAINER(cur_widget))
+           {
+             result = detailViewContainerGetParentWidget(GTK_CONTAINER(cur_widget), search_child, parent_name);
+           }
+        }
+    }
+
+  g_list_free(container_children);
+  
+  return result;
+}
+
+
 /* This function removes all detail-view-trees from the given container widget. */
 static void removeAllTreesFromContainer(GtkWidget *widget, gpointer data)
 {
@@ -721,11 +793,25 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
               DetailViewProperties *properties = detailViewGetProperties(detailView);
               const int activeFrame = detailViewGetActiveFrame(detailView);
               BlxStrand strand = snpTrackGetStrand(header, detailView);
-              const int numRows = getNumSnpTrackRows(bc, properties, snpTrackGetStrand(header, detailView), activeFrame);
+              const int numRows = getNumSnpTrackRows(bc, properties, strand, activeFrame);
 
-              const int height = roundNearest((charHeight * numRows) + (gdouble)detailViewGetSnpConnectorHeight(detailView));
+              const int height = roundNearest(charHeight * (numRows + (gdouble)detailViewGetSnpConnectorHeight(detailView)));
               gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, height);
               gtk_widget_set_size_request(header, -1, height);
+
+              /* Get the parent scrolled window and set the adjustment step increment to be one
+               * char height */
+              GtkWidget *snpScrollWin = detailViewContainerGetParentWidget(GTK_CONTAINER(detailView), header, SNP_TRACK_SCROLL_WIN_NAME);
+
+              if (snpScrollWin)
+                {
+                  GtkAdjustment *snpAdjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(snpScrollWin));
+
+                  if (snpAdjustment)
+                    {
+                      snpAdjustment->step_increment = (int)charHeight + detailViewGetSnpConnectorHeight(detailView);
+                    }
+                }
             }
         }
       else if (GTK_IS_LAYOUT(header))
