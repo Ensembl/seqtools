@@ -717,8 +717,13 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
             }
           else
             {
-              /* Set the height to the character height plus the connector line height */
-              const int height = roundNearest(charHeight + (gdouble)detailViewGetSnpConnectorHeight(detailView));
+              /* Set the height to the total character height plus the connector line height */
+              DetailViewProperties *properties = detailViewGetProperties(detailView);
+              const int activeFrame = detailViewGetActiveFrame(detailView);
+              BlxStrand strand = snpTrackGetStrand(header, detailView);
+              const int numRows = getNumSnpTrackRows(bc, properties, snpTrackGetStrand(header, detailView), activeFrame);
+
+              const int height = roundNearest((charHeight * numRows) + (gdouble)detailViewGetSnpConnectorHeight(detailView));
               gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, height);
               gtk_widget_set_size_request(header, -1, height);
             }
@@ -3001,24 +3006,6 @@ static void recalculateSnpTrackBorders(GtkWidget *panedWin, gpointer data)
 
       gtk_widget_set_size_request(snpTrack, -1, numRows * rowHeight);
       gtk_widget_set_size_request(snpScrollWin, -1, numRows * rowHeight);
-
-      /* Set the range of the adjustment bar to be the number of rows (to do: doesn't work!) */
-      GtkAdjustment *snpAdjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(snpScrollWin));
-
-      DEBUG_OUT("BEFORE Strand %d, frame %d: upper=%f, pageinc=%f, pagesize=%f\n",
-                (int)strand, activeFrame,
-                snpAdjustment->upper,
-                snpAdjustment->page_increment, snpAdjustment->page_size);
-
-      if (snpAdjustment)
-        {
-          snpAdjustment->upper = numRows * rowHeight;
-        }
-
-      DEBUG_OUT("AFTER  Strand %d, frame %d: upper=%f, pageinc=%f, pagesize=%f\n",
-                (int)strand, activeFrame,
-                snpAdjustment->upper,
-                snpAdjustment->page_increment, snpAdjustment->page_size);
     }
   else
     {
@@ -5438,6 +5425,9 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
       gtk_container_add(GTK_CONTAINER(snpScrollWin), snpTrack);
 
       gtk_paned_pack1(paned, snpScrollWin, FALSE, TRUE);
+
+      GtkAdjustment *snpAdjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(snpScrollWin));
+      snpAdjustment->step_increment = 1;
 
       /* Bottom pane is everything else (in a vbox) */
       GtkWidget *vbox = gtk_vbox_new(FALSE, 0);

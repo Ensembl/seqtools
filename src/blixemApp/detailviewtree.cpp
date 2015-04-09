@@ -3106,6 +3106,9 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
       gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(snpScrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
       gtk_container_add(GTK_CONTAINER(snpScrollWin), snpTrack);
 
+      GtkAdjustment *snpAdjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(snpScrollWin));
+      snpAdjustment->step_increment = 1;
+
       gtk_paned_pack1(GTK_PANED(container), snpScrollWin, FALSE, TRUE);
 
       GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
