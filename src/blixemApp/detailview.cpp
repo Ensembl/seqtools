@@ -85,6 +85,15 @@ typedef struct
   } MatchSearchData;
 
 
+/* Utility struct to pass data to a recursive function */
+typedef struct _RecursiveFuncData
+{
+  const char *widgetName;   /* the name of widgets that the function will be called on */
+  GtkCallback callbackFunc; /* the function to call */
+  gpointer callbackData;    /* user data to pass to the function */
+} RecursiveFuncData;
+
+
 /* Local function declarations */
 static BlxViewContext*        detailViewGetContext(GtkWidget *detailView);
 static GtkWidget*             detailViewGetBigPicture(GtkWidget *detailView);
@@ -96,6 +105,7 @@ static void                   snpTrackSetStrand(GtkWidget *snpTrack, const BlxSt
 static BlxStrand              snpTrackGetStrand(GtkWidget *snpTrack, GtkWidget *detailView);
 static void                   snpTrackSetHeight(GtkWidget *detailView, GtkWidget *snpTrack);
 static void                   getVariationDisplayRange(const MSP *msp, const gboolean expand, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange* const refSeqRange, IntRange *displayRange, IntRange *expandedRange);
+static void                   recalculateSnpTrackBorders(GtkWidget *snpTrack, gpointer data);
 
 static void                   detailViewCacheFontSize(GtkWidget *detailView, gdouble charWidth, gdouble charHeight);
 static gboolean               widgetIsTree(GtkWidget *widget);
@@ -137,6 +147,22 @@ static gboolean                detailViewContainerIsParent(GtkContainer *contain
  *                     Utility functions                   *
  ***********************************************************/
 
+/* Recursively call a given function on a given widget and its
+ * children if it/they have the given name. The callback function,
+ * callback data and widget name are passed in a RecursiveFuncData
+ * struct */
+void callFuncOnChildren(GtkWidget *widget, gpointer data)
+{
+  RecursiveFuncData *funcData = (RecursiveFuncData*)data;
+
+  if (stringsEqual(gtk_widget_get_name(widget), funcData->widgetName, TRUE))
+    funcData->callbackFunc(widget, funcData->callbackData);
+  
+  if (GTK_IS_CONTAINER(widget))
+    gtk_container_foreach(GTK_CONTAINER(widget), callFuncOnChildren, data);
+}
+
+
 /* Refresh headers for the detail view and its children */
 void detailViewRefreshAllHeaders(GtkWidget *detailView)
 {
@@ -145,6 +171,9 @@ void detailViewRefreshAllHeaders(GtkWidget *detailView)
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   
+  RecursiveFuncData data = {SNP_TRACK_HEADER_NAME, recalculateSnpTrackBorders, detailView};
+  callFuncOnChildren(detailView, &data);
+
   gtk_widget_queue_draw(detailView);
 
   DEBUG_EXIT("detailViewRefreshAllHeaders returning ");
@@ -157,6 +186,10 @@ void detailViewRedrawAll(GtkWidget *detailView)
 
   /* Redraw all the trees */
   callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable, NULL);
+
+  /* Recalculate the size of the snp track headers */
+  RecursiveFuncData data = {SNP_TRACK_HEADER_NAME, recalculateSnpTrackBorders, detailView};  
+  callFuncOnChildren(detailView, &data);
 
   gtk_widget_queue_draw(detailView);
 
@@ -2997,6 +3030,21 @@ static int getNumSnpTrackRows(const BlxViewContext *bc,
   
   DEBUG_EXIT("getNumSnpTrackRows returning %d", numRows);
   return numRows;
+}
+
+
+/* Recalculate the size of the variations track. This needs to be done whenever
+ * we turn the track on/off, and also whenever we we scroll, because more/less
+ * variations can appear and if they overlap then we add extra rows in which to
+ * draw them. */
+static void recalculateSnpTrackBorders(GtkWidget *snpTrack, gpointer data)
+{
+  DEBUG_ENTER("recalculateSnpTrackBorders()");
+
+  GtkWidget *detailView = GTK_WIDGET(data);
+  //snpTrackSetHeight(detailView, snpTrack);
+
+  DEBUG_EXIT("recalculateSnpTrackBorders returning ");
 }
 
 
