@@ -663,10 +663,6 @@ void treeUpdateSquashMatches(GtkWidget *tree, gpointer data)
 void refreshTreeHeaders(GtkWidget *tree, gpointer data)
 {
   TreeProperties *properties = treeGetProperties(tree);
-
-  /* Loop through all widgets in the header and call refreshTextHeader. This
-   * updates the font etc. if it is a type of widget that requires that. */
-  gtk_container_foreach(GTK_CONTAINER(properties->treeHeader), refreshTextHeader, treeGetDetailView(tree));
   
   /* Loop through all column headers and call their individual refresh functions
    * (this sets the specific data for the column headers) */
@@ -1026,7 +1022,6 @@ static void treeCreateProperties(GtkWidget *widget,
 				 GtkWidget *grid, 
 				 GtkWidget *detailView, 
 				 const int frame,
-				 GtkWidget *treeHeader,
 				 GList *treeColumnHeaderList,
 				 const gboolean hasSnpHeader)
 {
@@ -1037,7 +1032,6 @@ static void treeCreateProperties(GtkWidget *widget,
       properties->grid = grid;
       properties->detailView = detailView;
       properties->readingFrame = frame;
-      properties->treeHeader = treeHeader;
       properties->treeColumnHeaderList = treeColumnHeaderList;
       properties->hasSnpHeader = hasSnpHeader;
       
@@ -1756,41 +1750,6 @@ static gboolean onButtonReleaseTreeHeader(GtkWidget *header, GdkEventButton *eve
   GtkWidget *tree = GTK_WIDGET(data);
   propagateEventButton(tree, treeGetDetailView(tree), event);
   return FALSE;
-}
-
-
-/* Implement custom scrolling for horizontal mouse wheel movements over the tree.
- * This scrolls our custom horizontal scrollbar for the whole Detail View. Leaves
- * vertical scrolling to the default handler. */
-static gboolean onScrollTree(GtkWidget *tree, GdkEventScroll *event, gpointer data)
-{
-  gboolean handled = FALSE;
-  
-  switch (event->direction)
-    {
-      case GDK_SCROLL_LEFT:
-	{
-	  scrollDetailViewLeftStep(treeGetDetailView(tree));
-	  handled = TRUE;
-	  break;
-	}
-	
-      case GDK_SCROLL_RIGHT:
-	{
-	  scrollDetailViewRightStep(treeGetDetailView(tree));
-	  handled = TRUE;
-	  break;
-	}
-
-      default:
-	{
-	  /* Default handler can handle vertical scrolling */
-	  handled = FALSE;
-	  break;
-	}
-    };
-  
-  return handled;
 }
 
 
@@ -3045,30 +3004,21 @@ static void setTreeStyle(GtkTreeView *tree)
 }
 
 
-/* Create the widget that will contain all the header widgets. */
+/* Create the widget that will contain all the header widgets. If includeNnpTrack is
+ * not null then the snpTrack is also created */
 static GtkWidget *createDetailViewTreeHeader(GtkWidget *detailView, 
-					     const gboolean includeSnpTrack,
-					     const BlxStrand strand,
-					     GtkWidget *columnHeaderBar)
+                                             const BlxStrand strand,
+                                             const gboolean includeSnpTrack,
+                                             GtkWidget **snpTrack)
 {
-  GtkWidget *treeHeader = NULL; /* the outermost container for the header widgets */
+  GtkWidget *columnHeaderBar = gtk_hbox_new(FALSE, 0);
   
-  if (includeSnpTrack)
+  if (includeSnpTrack && snpTrack)
     {
-      /* Pack the snp track and the column header bar into a vbox */
-      treeHeader = gtk_vbox_new(FALSE, 0);
-      gtk_widget_set_name(treeHeader, HEADER_CONTAINER_NAME);
-      
-      createSnpTrackHeader(GTK_BOX(treeHeader), detailView, strand);
-      gtk_box_pack_start(GTK_BOX(treeHeader), columnHeaderBar, FALSE, FALSE, 0);
+      *snpTrack = createSnpTrackHeader(detailView, strand);
     }
-  else
-    {
-      /* Only include the column headers */
-      treeHeader = columnHeaderBar;
-    }
-  
-  return treeHeader;
+   
+  return columnHeaderBar;
 }
 
 
@@ -3093,7 +3043,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
    * custom adjustment). Always display the scrollbars because we assume the column widths 
    * are the same for all trees and they won't be if one shows a scrollbar and another doesn't. */
   GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
-  gtk_widget_set_name(scrollWin, DETAIL_VIEW_TREE_CONTAINER_NAME);
+  //gtk_widget_set_name(scrollWin, DETAIL_VIEW_TREE_CONTAINER_NAME);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
   gtk_container_add(GTK_CONTAINER(scrollWin), tree);
 
@@ -3101,16 +3051,35 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   g_signal_connect(G_OBJECT(adjustment), "changed", G_CALLBACK(onScrollChangedTree), tree);
   g_signal_connect(G_OBJECT(adjustment), "value-changed", G_CALLBACK(onScrollChangedTree), tree);
 
-  /* Create a header, and put the tree and header in a vbox. This vbox is the outermost
-   * container for the tree */
-  GtkWidget *columnHeaderBar = gtk_hbox_new(FALSE, 0);
-  GtkWidget *treeHeader = createDetailViewTreeHeader(detailView, includeSnpTrack, strand, columnHeaderBar);
+  /* Create a header */
+  GtkWidget *snpTrack = NULL;
+  GtkWidget *columnHeaderBar = createDetailViewTreeHeader(detailView, strand, includeSnpTrack, &snpTrack);
   
-  GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-  gtk_widget_set_name(vbox, DETAIL_VIEW_TREE_CONTAINER_NAME);
-  gtk_box_pack_start(GTK_BOX(vbox), treeHeader, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
-  
+  /* Pack the headers and alignments in a container. */
+  GtkWidget *container = NULL;
+
+  if (snpTrack)
+    {
+      /* Add the snp track in a pane so it can be resized vs everything below it.
+       * Top pane is the snp track, bottom pane is everything else (in a vbox) */
+      GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+      //gtk_widget_set_name(vbox, DETAIL_VIEW_TREE_CONTAINER_NAME);
+      gtk_box_pack_start(GTK_BOX(vbox), columnHeaderBar, FALSE, TRUE, 0);
+      gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
+
+      container = snpTrackCreatePanedWin(detailView, snpTrack, vbox);
+      //gtk_widget_set_name(container, DETAIL_VIEW_TREE_CONTAINER_NAME);
+    }
+  else
+    {
+      /* Just put everything in a vbox */
+      container = gtk_vbox_new(FALSE, 0);
+      //gtk_widget_set_name(container, DETAIL_VIEW_TREE_CONTAINER_NAME);
+
+      gtk_box_pack_start(GTK_BOX(container), columnHeaderBar, FALSE, FALSE, 0);
+      gtk_box_pack_start(GTK_BOX(container), scrollWin, TRUE, TRUE, 0);
+    }  
+
   /* Create the tree columns */
   GList *treeColumnHeaderList = createTreeColumns(tree, detailView, renderer, seqType, columnList, columnHeaderBar, refSeqName, frame, strand);
   
@@ -3118,14 +3087,13 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   addColumnsToTreeHeader(columnHeaderBar, treeColumnHeaderList);
   
   /* Set the essential tree properties */
-  treeCreateProperties(tree, grid, detailView, frame, treeHeader, treeColumnHeaderList, includeSnpTrack);
+  treeCreateProperties(tree, grid, detailView, frame, treeColumnHeaderList, includeSnpTrack);
   
   /* Connect signals */
   gtk_widget_add_events(tree, GDK_FOCUS_CHANGE_MASK);
   g_signal_connect(G_OBJECT(tree), "button-press-event",    G_CALLBACK(onButtonPressTree),	NULL);
   g_signal_connect(G_OBJECT(tree), "button-release-event",  G_CALLBACK(onButtonReleaseTree),	detailView);
   g_signal_connect(G_OBJECT(tree), "motion-notify-event",   G_CALLBACK(onMouseMoveTree),	detailView);
-  g_signal_connect(G_OBJECT(tree), "scroll-event",	    G_CALLBACK(onScrollTree),		detailView);
   g_signal_connect(G_OBJECT(tree), "enter-notify-event",    G_CALLBACK(onEnterTree),		NULL);
   g_signal_connect(G_OBJECT(tree), "leave-notify-event",    G_CALLBACK(onLeaveTree),		NULL);
   //g_signal_connect(G_OBJECT(tree), "drag-begin",	    G_CALLBACK(onDragBeginTree),	NULL);
@@ -3136,13 +3104,19 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
 
   GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
   g_signal_connect(G_OBJECT(selection), "changed", G_CALLBACK(onSelectionChangedTree), tree);
+
+  /* Put the contents in a frame */
+  GtkWidget *treeFrame = gtk_frame_new(NULL);
+  gtk_widget_set_name(treeFrame, DETAIL_VIEW_TREE_CONTAINER_NAME);
+  gtk_frame_set_shadow_type(GTK_FRAME(treeFrame), GTK_SHADOW_IN);
+  gtk_container_add(GTK_CONTAINER(treeFrame), container);
   
   /* Add the tree's outermost container to the given tree list. Also increase its ref count so that
    * we can add/remove it from its parent (which we do to switch panes when we toggle strands)
    * without worrying about it being destroyed. */
-  *treeList = g_list_append(*treeList, vbox);
-  g_object_ref(vbox);
-  
-  return vbox;
+  *treeList = g_list_append(*treeList, treeFrame);
+  g_object_ref(treeFrame);
+
+  return treeFrame;
 }
 

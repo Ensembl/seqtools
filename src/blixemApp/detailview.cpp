@@ -69,20 +69,28 @@
 
 
 typedef struct 
-  {
-    const int startDnaIdx;              /* the DNA coord to start searching from */
-    const gboolean searchRight;         /* search towards the right or left */
-    const int searchDirection;          /* multiplier to add/subtract depending on whether searching right/left */
-    const gboolean displayRev;          /* true if the display is reversed */
-    const BlxSeqType seqType;           /* whether viewing DNA or peptide seqs */
-    const int numFrames;                /* number of reading frames */
-    const IntRange* const refSeqRange;  /* the full range of the reference sequence */
-    GList *seqList;                     /* only search matches in these sequences */
+{
+  const int startDnaIdx;              /* the DNA coord to start searching from */
+  const gboolean searchRight;         /* search towards the right or left */
+  const int searchDirection;          /* multiplier to add/subtract depending on whether searching right/left */
+  const gboolean displayRev;          /* true if the display is reversed */
+  const BlxSeqType seqType;           /* whether viewing DNA or peptide seqs */
+  const int numFrames;                /* number of reading frames */
+  const IntRange* const refSeqRange;  /* the full range of the reference sequence */
+  GList *seqList;                     /* only search matches in these sequences */
 
-    int offset;                         /* the offset of the found MSP */
-    int foundFrame;                     /* which ref seq frame the MSP we chose is in */
-    MSP *foundMsp;                      /* the found msp */
-  } MatchSearchData;
+  int offset;                         /* the offset of the found MSP */
+  int foundFrame;                     /* which ref seq frame the MSP we chose is in */
+  MSP *foundMsp;                      /* the found msp */
+} MatchSearchData;
+
+
+/* We need to store some info about the paned window for the SNP track so that we can cache and
+ * reinstate the splitter position when the user toggles the display off and on again. */
+typedef struct _PanedWindowProperties
+{
+  int splitterPos; /* -1 for unset. If >=0 then it is a cached position ready for re-instating */
+} PanedWindowProperties;
 
 
 /* Utility struct to pass data to a recursive function */
@@ -97,13 +105,16 @@ typedef struct _RecursiveFuncData
 /* Local function declarations */
 static BlxViewContext*        detailViewGetContext(GtkWidget *detailView);
 static GtkWidget*             detailViewGetBigPicture(GtkWidget *detailView);
-static GtkWidget*             detailViewGetHeader(GtkWidget *detailView);
 static GtkWidget*             detailViewGetFeedbackBox(GtkWidget *detailView);
 static int                    detailViewGetSnpConnectorHeight(GtkWidget *detailView);
 static void                   refreshDetailViewHeaders(GtkWidget *detailView);
 
+static void                   panedWindowCreateProperties(GtkWidget *widget, const int splitterPos);
+static PanedWindowProperties* panedWindowGetProperties(GtkWidget *widget);
+static void                   onDestroyPanedWindow(GtkWidget *widget);
 static void                   snpTrackSetStrand(GtkWidget *snpTrack, const BlxStrand strand);
 static BlxStrand              snpTrackGetStrand(GtkWidget *snpTrack, GtkWidget *detailView);
+static void                   snpTrackSetHeight(GtkWidget *detailView, GtkWidget *snpTrack);
 static void                   getVariationDisplayRange(const MSP *msp, const gboolean expand, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange* const refSeqRange, IntRange *displayRange, IntRange *expandedRange);
 static void                   recalculateSnpTrackBorders(GtkWidget *snpTrack, gpointer data);
 
@@ -139,6 +150,9 @@ static gboolean                coordAffectedByPolyASite(const int dnaIdx,
                                                         const MSP **mspOut,
                                                         gboolean *multipleVariations);
 
+static GtkWidget*              detailViewContainerGetWidget(GtkContainer *container, const char *name);
+static GtkWidget*              detailViewContainerGetParentWidget(GtkContainer *container, GtkWidget *search_child, const char *parent_name);
+static gboolean                detailViewContainerIsParent(GtkContainer *container, GtkWidget *search_child);
 
 /***********************************************************
  *                     Utility functions                   *
@@ -163,18 +177,24 @@ void callFuncOnChildren(GtkWidget *widget, gpointer data)
 /* Refresh headers for the detail view and its children */
 void detailViewRefreshAllHeaders(GtkWidget *detailView)
 {
+  DEBUG_ENTER("detailViewRefreshAllHeaders()");
+
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   
-  RecursiveFuncData data = {SNP_TRACK_HEADER_NAME, recalculateSnpTrackBorders, detailView};    
+  RecursiveFuncData data = {SNP_TRACK_HEADER_NAME, recalculateSnpTrackBorders, detailView};
   callFuncOnChildren(detailView, &data);
 
   gtk_widget_queue_draw(detailView);
+
+  DEBUG_EXIT("detailViewRefreshAllHeaders returning ");
 }
 
 
 void detailViewRedrawAll(GtkWidget *detailView)
 {
+  DEBUG_ENTER("detailViewRedrawAll()");
+
   /* Redraw all the trees */
   callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable, NULL);
 
@@ -183,17 +203,23 @@ void detailViewRedrawAll(GtkWidget *detailView)
   callFuncOnChildren(detailView, &data);
 
   gtk_widget_queue_draw(detailView);
+
+  DEBUG_EXIT("detailViewRedrawAll returning ");
 }
 
 
 /* Save any user-settings that are stored in the detail-view properties */
 void detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file)
 {
+  DEBUG_ENTER("detailViewSaveProperties()");
+
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   
   g_key_file_set_integer(key_file, SETTINGS_GROUP, SETTING_NAME_NUM_UNALIGNED_BASES, properties->numUnalignedBases);
   saveColumnWidths(detailViewGetColumnList(detailView), key_file);
   saveSummaryColumns(detailViewGetColumnList(detailView), key_file);
+
+  DEBUG_EXIT("detailViewSaveProperties returning ");
 }
 
 
@@ -201,8 +227,12 @@ void detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file)
  * range (within bounds). the coord should be in terms of display coords */
 void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)
 {
+  DEBUG_ENTER("setDetailViewStartIdx()");
+
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, coord);
+
+  DEBUG_EXIT("setDetailViewStartIdx returning ");
 }
 
 
@@ -210,6 +240,8 @@ void setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType co
  * range (within bounds). the coord should be in terms of display coords */
 void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType)
 {
+  DEBUG_ENTER("setDetailViewEndIdx()");
+
   /* Get the new start coord */
   const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
   const int displayLen = getRangeLength(displayRange);
@@ -217,12 +249,16 @@ void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coor
 
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, newStart);
+
+  DEBUG_EXIT("setDetailViewEndIdx returning ");
 }
 
 
 /* Update the scroll position of the adjustment to the given value. Does bounds checking. */
 static void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
-{  
+{ 
+  DEBUG_ENTER("setDetailViewScrollPos()");
+
   /* bounds checking */
   int maxValue = adjustment->upper - adjustment->page_size + 1;
   
@@ -240,52 +276,80 @@ static void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
   
   /* Emit notification that the scroll pos has changed */
    gtk_adjustment_value_changed(adjustment);
+
+   DEBUG_EXIT("setDetailViewScrollPos returning ");
 }
 
 
 /* Scroll left/right by one base. */
 void scrollDetailViewLeft1(GtkWidget *detailView)
 {
+  DEBUG_ENTER("scrollDetailViewLeft1()");
+
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, adjustment->value - 1);
+
+  DEBUG_EXIT("scrollDetailViewLeft1 returning ");
 }
 
 void scrollDetailViewRight1(GtkWidget *detailView)
 {
+  DEBUG_ENTER("scrollDetailViewRight1()");
+
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, adjustment->value + 1);
+
+  DEBUG_EXIT("scrollDetailViewRight1 returning ");
 }
 
 /* Scroll by one step increment */
 void scrollDetailViewLeftStep(GtkWidget *detailView)
 {
+  DEBUG_ENTER("scrollDetailViewLeftStep()");
+
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, adjustment->value - adjustment->step_increment);
+
+  DEBUG_EXIT("scrollDetailViewLeftStep returning ");
 }
 
 void scrollDetailViewRightStep(GtkWidget *detailView)
 {
+  DEBUG_ENTER("scrollDetailViewRightStep()");
+
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, adjustment->value + adjustment->step_increment);
+
+  DEBUG_EXIT("scrollDetailViewRightStep returning ");
 }
 
 /* Scroll by one page size */
 void scrollDetailViewLeftPage(GtkWidget *detailView)
 {
+  DEBUG_ENTER("scrollDetailViewLeftPage()");
+
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, adjustment->value - adjustment->page_increment);
+
+  DEBUG_EXIT("scrollDetailViewLeftPage returning ");
 }
 
 void scrollDetailViewRightPage(GtkWidget *detailView)
 {
+  DEBUG_ENTER("scrollDetailViewRightPage()");
+
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
   setDetailViewScrollPos(adjustment, adjustment->value + adjustment->page_increment);
+
+  DEBUG_EXIT("scrollDetailViewRightPage returning ");
 }
 
 
 /* Calculate the number of bases that can be displayed in the sequence column */
 static int calcNumBasesInSequenceColumn(DetailViewProperties *properties)
 {
+  DEBUG_ENTER("calcNumBasesInSequenceColumn()");
+
   int numChars = 0;
   
   /* Find the width of the sequence column */
@@ -312,6 +376,7 @@ static int calcNumBasesInSequenceColumn(DetailViewProperties *properties)
       numChars = (int)((gdouble)colWidth / properties->charWidth);
     }
   
+  DEBUG_EXIT("calcNumBasesInSequenceColumn returning %d", numChars);
   return numChars;
 }
 
@@ -322,6 +387,8 @@ static int calcNumBasesInSequenceColumn(DetailViewProperties *properties)
  * in the new column width. */
 void updateDetailViewRange(GtkWidget *detailView)
 {
+  DEBUG_ENTER("updateDetailViewRange()");
+
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   
   if (properties->adjustment)
@@ -356,6 +423,8 @@ void updateDetailViewRange(GtkWidget *detailView)
           gtk_adjustment_changed(properties->adjustment); /* signal that the scroll range has changed */
         }
     }
+
+  DEBUG_EXIT("updateDetailViewRange returning ");
 }
 
 
@@ -363,6 +432,8 @@ void updateDetailViewRange(GtkWidget *detailView)
  * have one. If there are two, it returns the first one it finds. */
 static GtkWidget *findNestedPanedWidget(GtkContainer *parentWidget)
 {
+  DEBUG_ENTER("findNestedPanedWidget()");
+
   GtkWidget *result = NULL;
   
   GList *children = gtk_container_get_children(parentWidget);
@@ -382,6 +453,8 @@ static GtkWidget *findNestedPanedWidget(GtkContainer *parentWidget)
   
   g_list_free(children);
 
+  DEBUG_EXIT("findNestedPanedWidget returning ");
+
   return result;
 }
 
@@ -394,6 +467,8 @@ static void addTreesToDetailViewPane(GtkPaned *panedWin,
                                      GList *treeList, 
                                      const gboolean first)
 {
+  DEBUG_ENTER("addTreesToDetailViewPane()");
+
   int numTrees = g_list_length(treeList);
   
   if (numTrees == 1)
@@ -444,14 +519,20 @@ static void addTreesToDetailViewPane(GtkPaned *panedWin,
           addTreesToDetailViewPane(GTK_PANED(nestedPanedWidget), remainingTrees, FALSE);
         }
     }
+
+  DEBUG_EXIT("addTreesToDetailViewPane returning ");
 }
 
 
 /* Returns true if this widget is a detail-view-tree */
 static gboolean widgetIsTree(GtkWidget *widget)
 {
+  gboolean result = FALSE;
+
   const char *name = gtk_widget_get_name(widget);
-  return (strcmp(name, DETAIL_VIEW_TREE_NAME) == 0);
+  result = (strcmp(name, DETAIL_VIEW_TREE_NAME) == 0);
+
+  return result;
 }
 
 
@@ -459,13 +540,17 @@ static gboolean widgetIsTree(GtkWidget *widget)
  * a container that has only one child that is a detail-view-tree.) */
 static gboolean widgetIsTreeContainer(GtkWidget *widget)
 {
+  gboolean result = FALSE;
+
   const char *name = gtk_widget_get_name(widget);
-  return (strcmp(name, DETAIL_VIEW_TREE_CONTAINER_NAME) == 0);
+  result = (strcmp(name, DETAIL_VIEW_TREE_CONTAINER_NAME) == 0);
+
+  return result;
 }
 
 
-/* Given a widget contains a single child that is a detail-view-tree, return
- * that tree. */
+/* Given a widget contains a single detail-view-tree somewhere in its child
+ * hierarchy, return that tree. */
 static GtkWidget *treeContainerGetTree(GtkContainer *container)
 {
   GtkWidget *result = NULL;
@@ -496,9 +581,115 @@ static GtkWidget *treeContainerGetTree(GtkContainer *container)
 }
 
 
+/* Given a container that contains a single widget with the given name in its child
+ * hierarchy, return that widget (doesn't check if there's only one, just
+ * returns the first one). */
+static GtkWidget *detailViewContainerGetWidget(GtkContainer *container, const char *name)
+{
+  GtkWidget *result = NULL;
+  
+  GList *children = gtk_container_get_children(container);
+  GList *child = children;
+  
+  for ( ; child && !result; child = child->next)
+    {
+      if (GTK_IS_WIDGET(child->data))
+        {
+          GtkWidget *childWidget = GTK_WIDGET(child->data);
+          
+          if (strcmp(gtk_widget_get_name(childWidget), name) == 0)
+            {
+              result = childWidget;
+              break;
+            }
+          else if (GTK_IS_CONTAINER(childWidget))
+           {
+             result = detailViewContainerGetWidget(GTK_CONTAINER(childWidget), name);
+           }
+        }
+    }
+
+  g_list_free(children);
+  
+  return result;
+}
+
+
+/* Returns true if the given container is a parent (of any level) of the given child */
+static gboolean detailViewContainerIsParent(GtkContainer *container, GtkWidget *search_child)
+{
+  gboolean result = FALSE;
+
+  /* Loop through all children of the given container and see if any are the search_child */
+  GList *check_list = gtk_container_get_children(GTK_CONTAINER(container));
+  GList *check_child = check_list;
+
+  for ( ; check_child && !result ; check_child = check_child->next)
+    {
+      GtkWidget *check_widget = GTK_WIDGET(check_child->data);
+
+      if (check_widget == search_child)
+        {
+          result = TRUE;
+        }
+      else if (GTK_IS_CONTAINER(check_widget))
+        {
+          /* Recurse through the current widget's children */
+          result = detailViewContainerIsParent(GTK_CONTAINER(check_widget), search_child);
+        }
+    }
+  
+  g_list_free(check_list);
+
+  return result;
+}
+
+
+/* Find the parent of the given child widget, where the parent has the given name.
+ * The parent and widget must both be in the given container */
+static GtkWidget *detailViewContainerGetParentWidget(GtkContainer *container, GtkWidget *search_child, const char *parent_name)
+{
+  GtkWidget *result = NULL;
+
+  /* Loop through all children in the container looking for a widget with parent_name */
+  GList *container_children = gtk_container_get_children(container);
+  GList *cur_item = container_children;
+  
+  for ( ; cur_item && !result; cur_item = cur_item->next)
+    {
+      if (GTK_IS_WIDGET(cur_item->data))
+        {
+          GtkWidget *cur_widget = GTK_WIDGET(cur_item->data);
+          
+          /* If the name matches, then check if this widget is a container with a child
+           * (or child-of-a-child) that matches search_child. If not, keep on searching. */
+          if (strcmp(gtk_widget_get_name(cur_widget), parent_name) == 0 && GTK_IS_CONTAINER(cur_widget))
+            {
+              if (detailViewContainerIsParent(GTK_CONTAINER(cur_widget), search_child))
+                {
+                  result = cur_widget;
+                  break;
+                }
+            }
+          
+          if (GTK_IS_CONTAINER(cur_widget))
+           {
+             result = detailViewContainerGetParentWidget(GTK_CONTAINER(cur_widget), search_child, parent_name);
+           }
+        }
+    }
+
+  g_list_free(container_children);
+  
+  return result;
+}
+
+
 /* This function removes all detail-view-trees from the given container widget. */
 static void removeAllTreesFromContainer(GtkWidget *widget, gpointer data)
 {
+  DEBUG_ENTER("removeAllTreesFromContainer()");
+
   /* See if this widget is a tree (or a container containing only a single tree - the
    * detail view contains the outermost single-tree container, e.g. typically the trees
    * will live in a vbox or scrolled window, and it is this container that the detail view
@@ -513,6 +704,8 @@ static void removeAllTreesFromContainer(GtkWidget *widget, gpointer data)
       /* It is a nested container, containing multiple children. Recurse. */
       gtk_container_foreach(GTK_CONTAINER(widget), removeAllTreesFromContainer, widget);
     }
+
+  DEBUG_EXIT("removeAllTreesFromContainer returning ");
 }
 
 
@@ -522,6 +715,8 @@ static void removeAllTreesFromContainer(GtkWidget *widget, gpointer data)
  * detailView container, and that the properties have been set for all 3 widgets. */
 static void refreshTreeOrder(GtkWidget *detailView)
 {
+  DEBUG_ENTER("refreshTreeOrder()");
+
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   BlxViewContext *bc = detailViewGetContext(detailView);
   gboolean toggled = detailViewGetDisplayRev(detailView);
@@ -558,6 +753,8 @@ static void refreshTreeOrder(GtkWidget *detailView)
    * However, we then need to re-hide any that may have been previously hidden by the user. */
   gtk_widget_show_all(detailView);
   gtk_container_foreach(GTK_CONTAINER(detailView), hideUserHiddenWidget, NULL);
+
+  DEBUG_EXIT("refreshTreeOrder returning ");
 }
 
 
@@ -588,31 +785,16 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
       /* Update the font and the widget height, in case the font-size has changed. */
       GtkWidget *detailView = GTK_WIDGET(data);
       gtk_widget_modify_font(header, detailViewGetFontDesc(detailView));
-
-      const gdouble charHeight = detailViewGetCharHeight(detailView);
-      
+     
       if (!strcmp(widgetName, SNP_TRACK_HEADER_NAME))
         {
-          /* SNP track */
-          BlxViewContext *bc = detailViewGetContext(detailView);
-        
-          if (!bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] || !bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS])
-            {
-              /* SNP track is hidden, so set the height to 0 */
-              gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, 0);
-              gtk_widget_set_size_request(header, -1, 0);
-            }
-          else
-            {
-              /* Set the height to the character height plus the connector line height */
-              const int height = roundNearest(charHeight + (gdouble)detailViewGetSnpConnectorHeight(detailView));
-              gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, height);
-              gtk_widget_set_size_request(header, -1, height);
-            }
+          /* SNP track - must adjust its size based on the char height and number of rows visible */
+          snpTrackSetHeight(detailView, header);
         }
       else if (GTK_IS_LAYOUT(header))
         {
           /* Normal text header. Set the height to the character height */
+          const gdouble charHeight = detailViewGetCharHeight(detailView);
           gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, roundNearest(charHeight));
           gtk_widget_set_size_request(header, -1, roundNearest(charHeight));
         }
@@ -620,8 +802,8 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
       gtk_widget_queue_draw(header);
     }
   
-  /* If this is a container of header widgets, recurse over each child */
-  if (!strcmp(widgetName, HEADER_CONTAINER_NAME) && GTK_IS_CONTAINER(header))
+  /* If this is a container, recurse over each child */
+  if (GTK_IS_CONTAINER(header))
     {
       gtk_container_foreach(GTK_CONTAINER(header), refreshTextHeader, data);
     }
@@ -632,10 +814,11 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
  * headers; use detailViewRefreshAllHeaders if you want to do that */
 static void refreshDetailViewHeaders(GtkWidget *detailView)
 {
-  /* Loop through all widgets in the header and call refreshTextHeader. This
+  DEBUG_ENTER("refreshDetailViewHeaders()");
+
+  /* Loop through all widgets and call refreshTextHeader. This
    * updates the font etc. if it is a type of widget that requires that. */
-  GtkWidget *header = detailViewGetHeader(detailView);
-  gtk_container_foreach(GTK_CONTAINER(header), refreshTextHeader, detailView);
+  gtk_container_foreach(GTK_CONTAINER(detailView), refreshTextHeader, detailView);
   
   /* Loop through all columns and call the individual refresh callbacks for
    * each of their headers. This updates the specific information within the header. */
@@ -657,12 +840,16 @@ static void refreshDetailViewHeaders(GtkWidget *detailView)
           g_critical("Invalid column data for detail view header; header may not be refreshed correctly.\n");
         }
     }
+
+  DEBUG_EXIT("refreshDetailViewHeaders returning ");
 }
 
 
 /* Resize the detail view header widgets. Should be called whenever a column is resized. */
 void resizeDetailViewHeaders(GtkWidget *detailView)
 {
+  DEBUG_ENTER("resizeDetailViewHeaders()");
+
   GList *listItem = detailViewGetColumnList(detailView);
   
   for ( ; listItem; listItem = listItem->next)
@@ -688,12 +875,16 @@ void resizeDetailViewHeaders(GtkWidget *detailView)
             }
         }
     }
+
+  DEBUG_EXIT("resizeDetailViewHeaders returning ");
 }
 
 
 /* Update the font description for all relevant components of the detail view */
 void updateDetailViewFontDesc(GtkWidget *detailView)
 {
+  DEBUG_ENTER("updateDetailViewFontDesc()");
+
   PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
   
   gtk_widget_modify_font(detailView, fontDesc);
@@ -704,11 +895,15 @@ void updateDetailViewFontDesc(GtkWidget *detailView)
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   callFuncOnAllDetailViewTrees(detailView, treeUpdateFontSize, NULL);
   detailViewRedrawAll(detailView);
+
+  DEBUG_EXIT("updateDetailViewFontDesc returning ");
 }
 
 
 static void incrementFontSize(GtkWidget *detailView)
 {
+  DEBUG_ENTER("incrementFontSize()");
+
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   int newSize = (pango_font_description_get_size(properties->fontDesc) / PANGO_SCALE) + FONT_INCREMENT_SIZE;
   
@@ -717,11 +912,15 @@ static void incrementFontSize(GtkWidget *detailView)
       pango_font_description_set_size(properties->fontDesc, newSize * PANGO_SCALE);
       updateDetailViewFontDesc(detailView);
     }
+
+  DEBUG_EXIT("incrementFontSize returning ");
 }
 
 
 static void decrementFontSize(GtkWidget *detailView)
 {
+  DEBUG_ENTER("decrementFontSize()");
+
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   int newSize = (pango_font_description_get_size(properties->fontDesc) / PANGO_SCALE) - FONT_INCREMENT_SIZE;
   
@@ -732,12 +931,16 @@ static void decrementFontSize(GtkWidget *detailView)
       pango_font_description_set_size(properties->fontDesc, newSize * PANGO_SCALE);
       updateDetailViewFontDesc(detailView);
     }
+
+  DEBUG_EXIT("decrementFontSize returning ");
 }
 
 
 /* Zoom the detail view in/out */
 void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
 {
+  DEBUG_ENTER("zoomDetailView()");
+
   if (zoomIn)
     {
       incrementFontSize(detailView);
@@ -748,6 +951,8 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
     }
   
   updateDetailViewRange(detailView);
+
+  DEBUG_EXIT("zoomDetailView returning ");
 }
 
 
@@ -756,6 +961,8 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
  * The string returned by this function must be free'd with g_free. */
 static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, const int numSeqsSelected)
 {
+  DEBUG_ENTER("getFeedbackText()");
+
   /* The info we need to find... */
   int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
   int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
@@ -842,6 +1049,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
   
   char *messageText = g_string_free(resultString, FALSE);
   
+  DEBUG_EXIT("getFeedbackText returning %s", messageText);
   return messageText;
 }
 
@@ -851,6 +1059,8 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
  * to display, say, summary information about multiple MSPs. */
 void updateFeedbackBox(GtkWidget *detailView)
 {
+  DEBUG_ENTER("updateFeedbackBox()");
+
   char *messageText = NULL;
 
   BlxViewContext *bc = detailViewGetContext(detailView);
@@ -872,12 +1082,16 @@ void updateFeedbackBox(GtkWidget *detailView)
   gtk_widget_queue_draw(feedbackBox);
   
   g_free(messageText);
+
+  DEBUG_EXIT("updateFeedbackBox returning ");
 }
 
 
 /* Clear the feedback area */
 void clearFeedbackArea(GtkWidget *detailView)
 {
+  DEBUG_ENTER("clearFeedbackArea()");
+
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
   if (properties)
@@ -890,6 +1104,8 @@ void clearFeedbackArea(GtkWidget *detailView)
           gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, "");
         }
     }
+
+  DEBUG_EXIT("clearFeedbackArea returning ");
 }
 
 
@@ -995,6 +1211,8 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
 /* Scroll the detail-view if necessary to keep it within the given range */
 void detailViewScrollToKeepInRange(GtkWidget *detailView, const IntRange* const range)
 {
+  DEBUG_ENTER("detailViewScrollToKeepInRange()");
+
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   const BlxSeqType seqType = detailViewGetSeqType(detailView);
       
@@ -1006,6 +1224,8 @@ void detailViewScrollToKeepInRange(GtkWidget *detailView, const IntRange* const 
     {
       setDetailViewEndIdx(detailView, range->max, seqType);
     }
+
+  DEBUG_EXIT("detailViewScrollToKeepInRange returning ");
 }
 
 
@@ -1014,6 +1234,8 @@ void detailViewScrollToKeepInRange(GtkWidget *detailView, const IntRange* const 
  * scrollMinimum is true; otherwise we re-centre on the selection. */
 static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean scrollMinimum)
 {
+  DEBUG_ENTER("scrollToKeepSelectionInRange()");
+
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
 
@@ -1038,6 +1260,8 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
           setDetailViewStartIdx(detailView, newStart, seqType);
         }
     }
+
+  DEBUG_EXIT("scrollToKeepSelectionInRange returning ");
 }
 
 
@@ -1046,6 +1270,8 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
  * is true, or reverts to the expanded version (where each MSP has its own row) if squash is false. */
 void detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash)
 {
+  DEBUG_ENTER("detailViewUpdateSquashMatches()");
+
   BlxViewContext *bc = detailViewGetContext(detailView);
   
   if (squash && bc->modelId != BLXMODEL_SQUASHED)
@@ -1062,6 +1288,8 @@ void detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash)
     }
 
   detailViewRedrawAll(detailView);
+
+  DEBUG_EXIT("detailViewUpdateSquashMatches returning ");
 }
 
 
@@ -1346,6 +1574,8 @@ static gint detailViewSortByColumns(gconstpointer a, gconstpointer b)
 /* Re-sort all trees */
 void detailViewResortTrees(GtkWidget *detailView)
 {
+  DEBUG_ENTER("detailViewResortTrees()");
+
   /* Sort the data for each tree */
   callFuncOnAllDetailViewTrees(detailView, resortTree, NULL);
 
@@ -1354,24 +1584,34 @@ void detailViewResortTrees(GtkWidget *detailView)
   bc->matchSeqs = g_list_sort(bc->matchSeqs, detailViewSortByColumns);
 
   bigPictureRedrawAll(detailViewGetBigPicture(detailView));
+
+  DEBUG_EXIT("detailViewResortTrees returning ");
 }
 
 
 /* Set the value of the 'invert sort order' flag */
 void detailViewUpdateSortInverted(GtkWidget *detailView, const gboolean invert)
 {
+  DEBUG_ENTER("detailViewUpdateSortInverted()");
+
   detailViewResortTrees(detailView);
+
+  DEBUG_EXIT("detailViewUpdateSortInverted returning ");
 }
 
 
 /* Set the value of the 'Show SNP track' flag */
 void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpTrack)
 {
+  DEBUG_ENTER("detailViewUpdateShowSnpTrack()");
+
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   detailViewRedrawAll(detailView);
   
   refreshDialog(BLXDIALOG_SETTINGS, detailViewGetBlxWindow(detailView));
+
+  DEBUG_EXIT("detailViewUpdateShowSnpTrack returning ");
 }
 
 
@@ -1380,6 +1620,8 @@ void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpT
  * or 'show polyA tails' options. */
 void detailViewUpdateMspLengths(GtkWidget *detailView, const int numUnalignedBases)
 {
+  DEBUG_ENTER("detailViewUpdateMspLengths()");
+
   /* Re-calculate the full extent of all MSPs, and the max msp length */
   setMaxMspLen(0);
   
@@ -1396,15 +1638,21 @@ void detailViewUpdateMspLengths(GtkWidget *detailView, const int numUnalignedBas
   detailViewResortTrees(detailView);
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
   detailViewRedrawAll(detailView);
+
+  DEBUG_EXIT("detailViewUpdateMspLengths returning ");
 }
 
 
 /* Set the number of additional bases to show for the show-unaligned-sequence option */
 void detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases)
 {
+  DEBUG_ENTER("detailViewSetNumUnalignedBases()");
+
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   properties->numUnalignedBases = numBases;
   detailViewUpdateMspLengths(detailView, properties->numUnalignedBases);
+
+  DEBUG_EXIT("detailViewSetNumUnalignedBases returning ");
 }
 
 
@@ -1486,10 +1734,14 @@ static void getSeqColHeaderClickedNucleotide(GtkWidget *header, GtkWidget *detai
 /* Select the coord at the given x,y position in the given sequence column header */
 static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, const int x, const int y)
 {
+  DEBUG_ENTER("selectClickedNucleotide()");
+
   int coord, frame, baseNum;
   getSeqColHeaderClickedNucleotide(header, detailView, x, y, &coord, &frame, &baseNum);
   
   detailViewSetSelectedBaseIdx(detailView, coord, frame, baseNum, FALSE, TRUE);
+
+  DEBUG_EXIT("selectClickedNucleotide returning ");
 }
 
 
@@ -1511,6 +1763,8 @@ void selectClickedSnp(GtkWidget *snpTrack,
                       const gboolean expandSnps,
                       const int clickedBase)
 {
+  DEBUG_ENTER("selectClickedSnp()");
+
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -1582,6 +1836,8 @@ void selectClickedSnp(GtkWidget *snpTrack,
       /* Clear any existing selections and select the new SNP(s) */
       blxWindowSetSelectedSeqList(blxWindow, snpList);
     }
+
+  DEBUG_EXIT("selectClickedSnp returning ");
 }
 
 
@@ -2752,7 +3008,9 @@ static int getNumSnpTrackRows(const BlxViewContext *bc,
                               const BlxStrand strand, 
                               const int frame)
 {
-  int numRows = 1; /* Always show one row, even if it is empty */
+  DEBUG_ENTER("getNumSnpTrackRows()");
+
+  int numRows = 0; /* Always show one row, even if it is empty */
 
   int i = 0;
   const MSP* msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
@@ -2781,6 +3039,7 @@ static int getNumSnpTrackRows(const BlxViewContext *bc,
 
   freeRowsList(rows);
   
+  DEBUG_EXIT("getNumSnpTrackRows returning %d", numRows);
   return numRows;
 }
 
@@ -2791,31 +3050,20 @@ static int getNumSnpTrackRows(const BlxViewContext *bc,
  * draw them. */
 static void recalculateSnpTrackBorders(GtkWidget *snpTrack, gpointer data)
 {
-  GtkWidget *detailView = GTK_WIDGET(data);
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  GtkWidget *blxWindow = properties->blxWindow;
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  DEBUG_ENTER("recalculateSnpTrackBorders()");
 
-  if (bc->flags[BLXFLAG_SHOW_VARIATION_TRACK])
-    {
-      const int activeFrame = detailViewGetActiveFrame(detailView);
-      BlxStrand strand = snpTrackGetStrand(snpTrack, detailView);
+  //GtkWidget *detailView = GTK_WIDGET(data);
+  //snpTrackSetHeight(detailView, snpTrack);
 
-      const int rowHeight = ceil(properties->charHeight);
-      const int numRows = getNumSnpTrackRows(bc, properties, strand, activeFrame);
-
-      gtk_widget_set_size_request(snpTrack, -1, numRows * rowHeight);
-    }
-  else
-    {
-      gtk_widget_set_size_request(snpTrack, -1, 0);
-    }
+  DEBUG_EXIT("recalculateSnpTrackBorders returning ");
 }
 
 
 /* Function that does the drawing for the variations track */
 static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 {
+  DEBUG_ENTER("drawVariationsTrack()");
+
   /* Create the drawable for the widget (whether we're actually going to do any drawing or not) */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   GdkDrawable *drawable = createBlankSizedPixmap(snpTrack, snpTrack->window, snpTrack->allocation.width, ceil(properties->charHeight) * 10);
@@ -2825,6 +3073,7 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   
   if (!bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] || !bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS])
     {
+      DEBUG_EXIT("drawVariationsTrack returning");
       return;
     }
   
@@ -2897,6 +3146,8 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
   drawColumnSeparatorLine(snpTrack, drawable, gc, bc);
   
   g_object_unref(gc);
+
+  DEBUG_EXIT("drawVariationsTrack returning ");
 }
 
 
@@ -2904,6 +3155,8 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
  * nothing if there isn't a selected base. */
 static void detailViewCentreOnSelection(GtkWidget *detailView)
 {
+  DEBUG_ENTER("detailViewCentreOnSelection()");
+
   const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
   
   if (selectedBaseIdx != UNSET_INT)
@@ -2915,6 +3168,8 @@ static void detailViewCentreOnSelection(GtkWidget *detailView)
       int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
       setDetailViewStartIdx(detailView, newStart, seqType);
     }
+
+  DEBUG_EXIT("detailViewCentreOnSelection returning ");
 }
 
 
@@ -3071,7 +3326,7 @@ static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *
 /* Refilter the tree row that this msp is in */
 static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxViewContext *bc)
 {
-  DEBUG_ENTER("refilterMspRow(msp=[%d,%d])", msp->fullRange.min, msp->fullRange.max);
+  //DEBUG_ENTER("refilterMspRow(msp=[%d,%d])", msp->fullRange.min, msp->fullRange.max);
 
   /* Find the tree row that this MSP is in and force that row to update
    * its visibility status. */
@@ -3096,7 +3351,7 @@ static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxViewContext *bc)
       gtk_tree_path_free(path);
     }
   
-  DEBUG_EXIT("refilterMspRow returning ");
+  //DEBUG_EXIT("refilterMspRow returning ");
 }
 
 
@@ -3126,8 +3381,6 @@ static gboolean getAnyMspInRange(GArray *mspArray,
                                  const gboolean displayRev, 
                                  int *idx)
 {
-  DEBUG_ENTER("getAnyMspInRange");
-
   gboolean result = FALSE;
   
   /* Do a binary search based on start coord until we find a start coord 
@@ -3163,8 +3416,6 @@ static gboolean getAnyMspInRange(GArray *mspArray,
         }
     }
   
-  
-  DEBUG_EXIT("getAnyMspInRange returning %d (idx=%d)", result, *idx);
   return result;
 }
 
@@ -3220,7 +3471,7 @@ static void refilterMspArrayByRange(BlxMspType mspType,
                                    const IntRange* const displayRange, 
                                    GtkWidget *detailView)
 {
-  DEBUG_ENTER("refilterMspArrayByRange(mspType=%d)", mspType);
+  //DEBUG_ENTER("refilterMspArrayByRange(mspType=%d)", mspType);
 
   if (!displayRange)
     return;
@@ -3265,7 +3516,7 @@ static void refilterMspArrayByRange(BlxMspType mspType,
       refilterMspList(startIdx, bc->featureLists[mspType], &extendedRange, detailView, bc);
     }
   
-  DEBUG_EXIT("refilterMspArrayByRange returning ");
+  //DEBUG_EXIT("refilterMspArrayByRange returning ");
 }
 
 
@@ -3486,12 +3737,6 @@ int detailViewGetNumFrames(GtkWidget *detailView)
 {
   BlxViewContext *bc = detailViewGetContext(detailView);
   return bc->numFrames;
-}
-
-static GtkWidget* detailViewGetHeader(GtkWidget *detailView)
-{
-  DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
-  return detailViewProperties->header;
 }
 
 static GtkWidget* detailViewGetFeedbackBox(GtkWidget *detailView)
@@ -3784,7 +4029,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
                                        GtkCellRenderer *renderer,
                                        GList *fwdStrandTrees,
                                        GList *revStrandTrees,
-                                       GtkWidget *header,
                                        GtkWidget *feedbackBox,
                                        GtkWidget *statusBar,
                                        GList *columnList,
@@ -3805,7 +4049,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->renderer = renderer;
       properties->fwdStrandTrees = fwdStrandTrees;
       properties->revStrandTrees = revStrandTrees;
-      properties->header = header;
       properties->feedbackBox = feedbackBox;
       properties->statusBar = statusBar;
       properties->adjustment = adjustment;
@@ -3921,6 +4164,51 @@ int seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames)
   return baseNum;
 }
 
+/***********************************************************
+ *                Paned window properties
+ *
+ * This is requried for the SNP track paned windows, because
+ * we need to cache the splitter position when the user toggles
+ * it off so that we can reinstate it when the toggle back on.
+ ***********************************************************/
+
+static void panedWindowCreateProperties(GtkWidget *widget, const int splitterPos)
+{
+  if (widget)
+    { 
+      PanedWindowProperties *properties = (PanedWindowProperties*)g_malloc(sizeof *properties);
+
+      properties->splitterPos = splitterPos;
+      
+      g_object_set_data(G_OBJECT(widget), "PanedWindowProperties", properties);
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyPanedWindow), NULL); 
+    }
+}
+
+
+static PanedWindowProperties* panedWindowGetProperties(GtkWidget *widget)
+{
+  PanedWindowProperties *properties = NULL;
+
+  if (!properties && widget)
+    properties = (PanedWindowProperties*)(g_object_get_data(G_OBJECT(widget), "PanedWindowProperties"));
+  
+  return properties;
+}
+
+
+static void onDestroyPanedWindow(GtkWidget *widget)
+{
+  PanedWindowProperties *properties = panedWindowGetProperties(widget);
+
+  if (properties)
+    {
+      g_free(properties);
+      properties = NULL;
+      g_object_set_data(G_OBJECT(widget), "DetailViewProperties", NULL);
+    }
+}
+
 
 /* Get/set functions for the SNP track header strand. (There is only one property
  * to set, so it's not worth having a struct for the properties.) */
@@ -3945,6 +4233,89 @@ static BlxStrand snpTrackGetStrand(GtkWidget *snpTrack, GtkWidget *detailView)
     }
   
   return strand;
+}
+
+
+static void snpTrackSetHeight(GtkWidget *detailView, GtkWidget *snpTrack)
+{
+  DEBUG_ENTER("snpTrackSetHeight()");
+
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  GtkWidget *snpScrollWin = detailViewContainerGetParentWidget(GTK_CONTAINER(detailView), snpTrack, SNP_TRACK_SCROLL_WIN_NAME);
+
+  const int activeFrame = detailViewGetActiveFrame(detailView);
+  BlxStrand strand = snpTrackGetStrand(snpTrack, detailView);
+  const int numRows = getNumSnpTrackRows(bc, properties, strand, activeFrame);
+  const gdouble charHeight = detailViewGetCharHeight(detailView);
+
+  /* Set the height to the total character height plus the connector line height */
+  const int height = roundNearest(charHeight * (numRows + (gdouble)detailViewGetSnpConnectorHeight(detailView)));
+  gtk_layout_set_size(GTK_LAYOUT(snpTrack), snpTrack->allocation.width, height);
+  gtk_widget_set_size_request(snpTrack, -1, height);
+  gtk_widget_set_size_request(snpScrollWin, -1, height);
+  DEBUG_OUT("Strand %d, frame %d: Set SNP track height to %d\n", (int)strand, activeFrame, height);
+
+  /* Get the parent scrolled window and set the adjustment step increment to be one
+   * char height */
+  if (snpScrollWin && GTK_IS_SCROLLED_WINDOW(snpScrollWin))
+    {
+      GtkAdjustment *snpAdjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(snpScrollWin));
+
+      if (snpAdjustment)
+        {
+          snpAdjustment->step_increment = (int)charHeight + detailViewGetSnpConnectorHeight(detailView);
+        }
+    }
+  else
+    {
+      g_warning("Error setting scroll increment for variations track\n");
+      DEBUG_OUT("Error setting scroll increment for variations track\n");
+    }
+
+  /* Now set the paned window splitter bar position. */
+  const gboolean showSnpTrack = bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] && bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS];
+  GtkWidget *panedWidget = detailViewContainerGetParentWidget(GTK_CONTAINER(detailView), snpTrack, SNP_TRACK_CONTAINER_NAME);
+  GtkPaned *panedWin = GTK_IS_PANED(panedWidget) ? GTK_PANED(panedWidget) : NULL;
+  PanedWindowProperties *snpProperties = panedWindowGetProperties(GTK_WIDGET(panedWin));
+
+  if (panedWin && showSnpTrack)
+    {
+      /* Set it to the saved position, if there is one set */
+      if (snpProperties->splitterPos >= 0)
+        {
+          /* Use the cached position then reset the cache (because the splitter bar will keep
+           * track of it from here). */
+          DEBUG_OUT("Setting splitter position to %d\n", snpProperties->splitterPos);
+
+          /* gb10: actually I'm going to reset it to 'unset' because that's probably a bit more
+           * sensible when re-showing the snp track (which is the only time this cache gets
+           * used). Could do with tidying up this logic a bit. It might be nice to offer the
+           * option to use the cached position too. */
+          //gtk_paned_set_position(panedWin, snpProperties->splitterPos);
+          gtk_paned_set_position(panedWin, -1);
+          snpProperties->splitterPos = -1;
+        }
+    }
+  else if (panedWin)
+    {
+      /* Save the current value then set it to 0 to hide the SNP track */
+      int splitterPos = gtk_paned_get_position(panedWin);
+
+      if (splitterPos > 0)
+        {
+          DEBUG_OUT("Setting splitter position to 0 and caching old position %d\n", splitterPos);
+          snpProperties->splitterPos = splitterPos;
+          gtk_paned_set_position(panedWin, 0);
+        }
+    }
+  else
+    {
+      g_warning("Error setting splitter bar position for variations track\n");
+      DEBUG_OUT("Error setting splitter bar position for variations track\n");
+    }
+
+  DEBUG_EXIT("snpTrackSetHeight returning ");
 }
 
 
@@ -4163,6 +4534,41 @@ static gboolean onMouseMoveDetailView(GtkWidget *detailView, GdkEventMotion *eve
       
       handled = TRUE;
     }
+  
+  return handled;
+}
+
+
+/* Implement custom scrolling for horizontal mouse wheel movements over the detailview.
+ * This scrolls our custom horizontal scrollbar for the whole Detail View. Leaves
+ * vertical scrolling to the default handler. */
+static gboolean onScrollDetailView(GtkWidget *detailView, GdkEventScroll *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  switch (event->direction)
+    {
+      case GDK_SCROLL_LEFT:
+        {
+          scrollDetailViewLeftStep(detailView);
+          handled = TRUE;
+          break;
+        }
+
+      case GDK_SCROLL_RIGHT:
+        {
+          scrollDetailViewRightStep(detailView);
+          handled = TRUE;
+          break;
+        }
+
+      default:
+        {
+          /* Default handler can handle vertical scrolling */
+          handled = FALSE;
+          break;
+        }
+    };
   
   return handled;
 }
@@ -4801,45 +5207,37 @@ static void addColumnsToHeaderBar(GtkBox *headerBar, GList *columnList)
  * individual labels for each tree). For protein sequence matches, the header
  * for the sequence column will also show the DNA sequence (separated into reading
  * frames). 
- * Column data is compiled into the detailViewColumns return argument. */
+ * Column data is compiled into the detailViewColumns return argument. 
+ * If includeSnpTrack is true then the snp track widget will also be created. */
 static GtkWidget* createDetailViewHeader(GtkWidget *detailView, 
                                          const BlxSeqType seqType, 
                                          const int numFrames,
                                          GList *columnList,
-                                         const gboolean includeSnpTrack)
+                                         const gboolean includeSnpTrack,
+                                         GtkWidget **snpTrack)
 {
-  GtkBox *header = NULL; /* outermost container for the header */
   GtkBox *headerBar = GTK_BOX(gtk_hbox_new(FALSE, 0)); /* hbox for the column headers */
   
   /* Create a SNP track, if requested */
-  if (includeSnpTrack)
+  if (includeSnpTrack && snpTrack)
     {
-      header = GTK_BOX(gtk_vbox_new(FALSE, 0));
-      createSnpTrackHeader(GTK_BOX(header), detailView, BLXSTRAND_NONE);
-      gtk_box_pack_start(header, GTK_WIDGET(headerBar), FALSE, FALSE, 0);
-      gtk_widget_set_name(GTK_WIDGET(headerBar), HEADER_CONTAINER_NAME);
-    }
-  else
-    {
-      /* Only need the column header bar */
-      header = headerBar;
+      *snpTrack = createSnpTrackHeader(detailView, BLXSTRAND_NONE);
     }
 
   /* Add all the column headers to the header bar */
   addColumnsToHeaderBar(headerBar, columnList);
 
-  return GTK_WIDGET(header);
+  return GTK_WIDGET(headerBar);
 }
 
 
 /* Create the variations track header widget. If the strand is BLXSTRAND_NONE
  * then the active strand will be used. */
-GtkWidget* createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const BlxStrand strand)
+GtkWidget* createSnpTrackHeader(GtkWidget *detailView, const BlxStrand strand)
 {
   GtkWidget *snpTrack = gtk_layout_new(NULL, NULL);
 
   gtk_widget_set_name(snpTrack, SNP_TRACK_HEADER_NAME);  
-  gtk_box_pack_start(parent, snpTrack, FALSE, TRUE, 0);
   snpTrackSetStrand(snpTrack, strand);
 
   gtk_widget_add_events(snpTrack, GDK_BUTTON_PRESS_MASK);
@@ -4860,7 +5258,6 @@ static void createSeqColHeader(GtkWidget *detailView,
   if (seqType == BLXSEQ_PEPTIDE)
     {
       GtkWidget *header = gtk_vbox_new(FALSE, 0);
-      gtk_widget_set_name(header, HEADER_CONTAINER_NAME);
       
       int frame = 0;
       for ( ; frame < numFrames; ++frame)
@@ -5155,6 +5552,70 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
 }
 
 
+static gboolean onMouseMoveSnpSplitter(GtkWidget *paned, GdkEventMotion *event, gpointer data)
+{
+  GtkWidget *detailView = GTK_WIDGET(data);
+
+  if ((event->state & GDK_BUTTON1_MASK)) /* left button */
+    {
+      /* If the splitter position is zero then disable the snp track display */
+
+      if (GTK_IS_PANED(paned))
+        {
+          const int splitterPos = gtk_paned_get_position(GTK_PANED(paned));
+          BlxViewContext *bc = detailViewGetContext(detailView);
+
+          if (splitterPos != 0 && 
+              !(bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] && bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS]) )
+            {
+              /* Show the track. We must also enable highlight-variations or it will not make any
+               * sense (and probably won't work anyway because the code checks both values). */
+              bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] = TRUE;
+              bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS] = TRUE;
+              detailViewRefreshAllHeaders(detailView);
+              DEBUG_OUT("Enabled variations track (exposed by splitter)\n");
+            }
+          else if (splitterPos == 0 && bc->flags[BLXFLAG_SHOW_VARIATION_TRACK])
+            {
+              /* Disable the variations track. Leave the highlight-varations setting as it is. */
+              bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] = FALSE;
+              detailViewRefreshAllHeaders(detailView);
+              DEBUG_OUT("Disabled variations track (hidden by splitter)\n");
+            }
+        }
+    }
+
+  return FALSE; /* allow default handler to continue */
+}
+
+
+/* Utility to create the paned window for the snp track. The otherWidget is the container for all
+ * the other widgets to go into the 2nd pane of the new paned window. */
+GtkWidget* snpTrackCreatePanedWin(GtkWidget *detailView, GtkWidget *snpTrack, GtkWidget *otherWidget)
+{
+  GtkPaned *paned = GTK_PANED(gtk_vpaned_new());
+  gtk_widget_set_name(GTK_WIDGET(paned), SNP_TRACK_CONTAINER_NAME);  
+
+  /* Top pane is the snp track. Put it inside a scrollwin */
+  GtkWidget *snpScrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_container_add(GTK_CONTAINER(snpScrollWin), snpTrack);
+
+  gtk_widget_set_name(GTK_WIDGET(snpScrollWin), SNP_TRACK_SCROLL_WIN_NAME);  
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(snpScrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
+
+  gtk_paned_pack1(paned, snpScrollWin, FALSE, TRUE);
+  gtk_paned_pack2(paned, otherWidget, TRUE, TRUE);
+
+  /* Connect to signals for the splitter bar handle */
+  g_signal_connect(G_OBJECT(paned), "motion-notify-event", G_CALLBACK(onMouseMoveSnpSplitter), detailView);
+
+  /* Create properties struct for the paned window, which will cache the splitter position */
+  panedWindowCreateProperties(GTK_WIDGET(paned), -1);
+
+  return GTK_WIDGET(paned);
+}
+
+
 GtkWidget* createDetailView(GtkWidget *blxWindow,
                             GtkContainer *parent,
                             GtkWidget *toolbar,
@@ -5188,15 +5649,16 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
    * before calling createDetailViewHeader) */
   createSeqColHeader(detailView, seqType, numFrames, columnList);
 
-  /* Create the header bar. If viewing protein matches include one SNP track in the detail 
-   * view header; otherwise create SNP tracks in each tree header. */
-  const gboolean singleSnpTrack = (seqType == BLXSEQ_PEPTIDE);
-  GtkWidget *header = createDetailViewHeader(detailView, seqType, numFrames, columnList, singleSnpTrack);
-
   /* Create the toolbar. We need to remember the feedback box and status bar so we can set them in the properties. */
   GtkWidget *feedbackBox = NULL;
   GtkWidget *statusBar = NULL;
   GtkWidget *buttonBar = createDetailViewButtonBar(detailView, toolbar, mode, sortColumn, columnList, windowColor, &feedbackBox, &statusBar);
+
+  /* Create the header bar. If viewing protein matches include one SNP track in the detail 
+   * view header; otherwise create SNP tracks in each tree header. */
+  const gboolean singleSnpTrack = (seqType == BLXSEQ_PEPTIDE);
+  GtkWidget *snpTrack = NULL;
+  GtkWidget *header = createDetailViewHeader(detailView, seqType, numFrames, columnList, singleSnpTrack, &snpTrack);
 
   /* Create a custom cell renderer to render the sequences in the detail view */
   GtkCellRenderer *renderer = sequence_cell_renderer_new();
@@ -5215,23 +5677,39 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
                         columnList,
                         refSeqName,
                         !singleSnpTrack);
-    
+
+  /* Add the elements into the main widget */
   gtk_box_pack_start(GTK_BOX(detailView), buttonBar, FALSE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(detailView), header, FALSE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(detailView), panedWin, TRUE, TRUE, 0);
+
+  if (snpTrack)
+    {
+      /* Add the snp track in a pane so it can be resized vs everything below it.
+       * Top pane is the snp track, bottom pane is everything else (in a vbox) */
+      GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
+      gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, TRUE, 0);
+      gtk_box_pack_start(GTK_BOX(vbox), panedWin, TRUE, TRUE, 0);
+
+      GtkWidget *paned = snpTrackCreatePanedWin(detailView, snpTrack, vbox);
+      gtk_box_pack_start(GTK_BOX(detailView), GTK_WIDGET(paned), TRUE, TRUE, 0);
+    }
+  else
+    {
+      gtk_box_pack_start(GTK_BOX(detailView), header, FALSE, TRUE, 0);
+      gtk_box_pack_start(GTK_BOX(detailView), panedWin, TRUE, TRUE, 0);
+    }
 
   /* Connect signals */
   gtk_widget_add_events(detailView, GDK_BUTTON_PRESS_MASK);
-  g_signal_connect(G_OBJECT(detailView), "button-press-event", G_CALLBACK(onButtonPressDetailView), NULL);
+  g_signal_connect(G_OBJECT(detailView), "button-press-event",   G_CALLBACK(onButtonPressDetailView),   NULL);
   g_signal_connect(G_OBJECT(detailView), "button-release-event", G_CALLBACK(onButtonReleaseDetailView), NULL);
-  g_signal_connect(G_OBJECT(detailView), "motion-notify-event", G_CALLBACK(onMouseMoveDetailView), NULL);
+  g_signal_connect(G_OBJECT(detailView), "motion-notify-event",  G_CALLBACK(onMouseMoveDetailView),     NULL);
+  g_signal_connect(G_OBJECT(detailView), "scroll-event",         G_CALLBACK(onScrollDetailView),        NULL);
 
   detailViewCreateProperties(detailView, 
                              blxWindow, 
                              renderer,
                              fwdStrandTrees,
                              revStrandTrees,
-                             header,
                              feedbackBox, 
                              statusBar,
                              columnList,

@@ -54,8 +54,9 @@
 #include <blixemApp/blxwindow.hpp>
 
 
-#define HEADER_CONTAINER_NAME           "header container"
 #define SNP_TRACK_HEADER_NAME           "SNP track header"
+#define SNP_TRACK_SCROLL_WIN_NAME       "SNP scroll window"
+#define SNP_TRACK_CONTAINER_NAME        "SNP track container"
 #define DNA_TRACK_HEADER_NAME           "DNA track header"
 #define DETAIL_VIEW_STATUSBAR_CONTEXT   "statusBarCtx"
 
@@ -87,7 +88,6 @@ typedef struct _DetailViewProperties
     GtkCellRenderer *renderer;    /* The cell renderer that renders the sequences */
     GtkAdjustment *adjustment;    /* The scroll adjustment control for the detail view */
 
-    GtkWidget *header;            /* Contains all the widgets in the detail view header */
     GtkWidget *feedbackBox;       /* A text box that feeds back info to the user about the currently selected items */
     GtkWidget *statusBar;         /* A status bar that feeds back info to the user about the currently moused-over items */
     GList *columnList;            /* A list of details about all the columns in the detail view */    
@@ -252,7 +252,7 @@ void                    detailViewUpdateMspLengths(GtkWidget *detailView, const 
 void                    detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases);
 void                    detailViewToggleSnpTrack(GtkWidget *detailView);
 
-GtkWidget*              createSnpTrackHeader(GtkBox *parent, GtkWidget *detailView, const BlxStrand strand);
+GtkWidget*              createSnpTrackHeader(GtkWidget *detailView, const BlxStrand strand);
 void                    refreshTextHeader(GtkWidget *widget, gpointer data);
 gboolean                onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 
@@ -308,5 +308,6 @@ GtkWidget*              createDetailView(GtkWidget *blxWindow,
 GtkWidget*              createDetailViewScrollBar(GtkAdjustment *adjustment, 
                                                   GtkWidget *blxWindow);
 
+GtkWidget*              snpTrackCreatePanedWin(GtkWidget* detailView, GtkWidget *snpTrack, GtkWidget *otherWidget); 
 
 #endif /* _detail_view_included_ */
