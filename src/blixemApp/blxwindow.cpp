@@ -6095,7 +6095,13 @@ static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int from
           int toIdx = toIdx_in;
 
           if (bc->seqType == BLXSEQ_PEPTIDE)
-            toIdx += 2;
+            {
+              /* In rev mode decrement the start coord instead */
+              if (bc->displayRev)
+                toIdx -= 2;
+              else
+                toIdx += 2;
+            }
           
           /* Find the match-sequence coord at these ref-seq coords */
           GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
@@ -6159,7 +6165,7 @@ static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int from
 
                       setDefaultClipboardText(displayText);
                       g_message("Copied sequence data for %s (%d, %d) to clipboard\n", 
-                                blxSequenceGetName(seq), matchStart, matchEnd);
+                                blxSequenceGetName(seq), matchStart + 1, matchEnd + 1);
 
                       g_free(displayText);
                     }
