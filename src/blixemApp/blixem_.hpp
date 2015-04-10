@@ -594,11 +594,12 @@ const IntRange*                    mspGetFullDisplayRange(const MSP* const msp, 
 void                               mspCalculateFullExtents(MSP *msp, const BlxViewContext* const bc, const int numUnalignedBases);
 void                               cacheMspDisplayRanges(const BlxViewContext* const bc, const int numUnalignedBases);
 
-int                                mspGetMatchCoord(const MSP *msp, 
+gboolean                           mspGetMatchCoord(const MSP *msp, 
                                                     const int qIdx, 
                                                     const gboolean seqSelected,
                                                     const int numUnalignedBases,
-                                                    BlxViewContext *bc);
+                                                    BlxViewContext *bc,
+                                                    int *result_out);
 
 
 void                               drawAssemblyGaps(GtkWidget *widget,

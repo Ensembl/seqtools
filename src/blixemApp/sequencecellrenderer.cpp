@@ -709,7 +709,7 @@ static void mspDrawBaseBg(MSP *msp,
   *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
   
   /* Find the match-sequence coord at this ref-seq coord */
-  *sIdx = mspGetMatchCoord(msp, *qIdx, data->seqSelected, data->numUnalignedBases, data->bc);
+  gboolean found_sIdx = mspGetMatchCoord(msp, *qIdx, data->seqSelected, data->numUnalignedBases, data->bc, sIdx);
   
   /* Highlight the base if its base index is selected, or if its sequence is selected.
    * (If it is selected in both, show it in the normal color) */
@@ -720,7 +720,7 @@ static void mspDrawBaseBg(MSP *msp,
       /* We're outside the alignment range. There might still be a base to display if
        * we're displaying unaligned parts of the match sequence or polyA tails; otherwise, we 
        * show nothing. */
-      if (*sIdx != UNSET_INT)
+      if (found_sIdx)
 	{
           sBase = blxSeqGetMatchSeqBase(msp->sSequence, *sIdx, data->bc->seqType);
 
@@ -736,7 +736,7 @@ static void mspDrawBaseBg(MSP *msp,
             }
 	}
     }
-  else if (*sIdx == UNSET_INT)
+  else if (!found_sIdx)
     {
       /* We're inside the alignment range but there is no base to display: we must be in a deletion. */
       sBase = SEQUENCE_CHAR_DELETION;

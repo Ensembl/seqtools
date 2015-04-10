@@ -104,6 +104,7 @@ static void                       onSettingsMenu(GtkAction *action, gpointer dat
 static void                       onLoadMenu(GtkAction *action, gpointer data);
 static void                       onCopySeqsMenu(GtkAction *action, gpointer data);
 static void                       onCopySeqDataMenu(GtkAction *action, gpointer data);
+static void                       onCopySeqDataMarkMenu(GtkAction *action, gpointer data);
 static void                       onCopyRefSeqMenu(GtkAction *action, gpointer data);
 static void                       onSortMenu(GtkAction *action, gpointer data);
 static void                       onZoomInMenu(GtkAction *action, gpointer data);
@@ -161,6 +162,7 @@ static gdouble                    calculateMspData(MSP *mspList, BlxViewContext 
 
 static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
 static void                       copySelectedSeqDataToClipboard(GtkWidget *blxWindow);
+static void                       copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int fromIdx, const int toIdx);
 static void                       copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
 
 
@@ -178,8 +180,9 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Settings",         GTK_STOCK_PREFERENCES,    "_Settings...",             "<control>S",         "Settings  Ctrl+S",                     G_CALLBACK(onSettingsMenu)},
   { "Load",             GTK_STOCK_OPEN,           "_Open features file...",    NULL,                "Load additional features from file  Ctrl+O", G_CALLBACK(onLoadMenu)},
 
-  { "CopySeqNames",     NULL,                     "Copy sequence name(s)",    "<control>C",         "Copy selected sequences name(s)  Ctrl+C", G_CALLBACK(onCopySeqsMenu)},
-  { "CopySeqData",      NULL,                     "Copy sequence data",       "<shift><control>C",  "Copy selected sequences data  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMenu)},
+  { "CopySeqNames",     NULL,                     "Copy match name(s)",       "<control>C",         "Copy selected match sequence's name(s)  Ctrl+C", G_CALLBACK(onCopySeqsMenu)},
+  { "CopySeqData",      NULL,                     "Copy match sequence",      "<shift><control>C",  "Copy selected match sequence's data  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMenu)},
+  { "CopySeqDataMark",  NULL,                     "Copy match from mark",     "<shift><control>C",  "Copy selected match sequence's data from mark  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMarkMenu)},
   { "CopyRefSeq",       NULL,                     "Copy reference sequence from mark",  NULL,                 "Copy selected sequences name(s)  Alt+C", G_CALLBACK(onCopyRefSeqMenu)},
 
   { "Sort",             GTK_STOCK_SORT_ASCENDING, "Sort...",                  NULL,                 "Sort sequences",                       G_CALLBACK(onSortMenu)},
@@ -231,6 +234,7 @@ static const char standardMenuDescription[] =
 "      <menu action='CopyMenuAction'>"
 "        <menuitem action='CopySeqNames'/>"
 "        <menuitem action='CopySeqData'/>"
+"        <menuitem action='CopySeqDataMark'/>"
 "        <menuitem action='CopyRefSeq'/>"
 "      </menu>"
 "      <menuitem action='View'/>"
@@ -4646,6 +4650,27 @@ static void onCopySeqDataMenu(GtkAction *action, gpointer data)
   copySelectedSeqDataToClipboard(blxWindow);
 }
 
+static void onCopySeqDataMarkMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+
+  /* Copy the portion of the match seq from the selected index
+   * to the clicked index */
+  
+  if (detailViewGetSelectedBaseSet(detailView))
+    {
+      const int fromIdx = detailViewGetSelectedDnaBaseIdx(detailView);
+      const int toIdx = detailViewGetClickedBaseIdx(detailView);
+
+      copySelectedSeqRangeToClipboard(blxWindow, fromIdx, toIdx);
+    }
+  else
+    {
+      g_critical("Please middle-click on a coordinate first to set the mark\n");
+    }
+}
+
 static void onCopyRefSeqMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
@@ -6040,6 +6065,111 @@ static void copySelectedSeqDataToClipboard(GtkWidget *blxWindow)
         {
           setDefaultClipboardText(displayText);
           g_message("Copied selected sequence data to clipboard\n");
+        }
+    }
+}
+
+
+/* This function copies the currently-selected sequence's data to the default
+ * clipboard. Only copies the range between the given coords */
+static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in)
+{
+  GList *listItem = blxWindowGetSelectedSeqs(blxWindow);
+  const char *sequence = NULL;
+
+  if (g_list_length(listItem) < 1)
+    g_critical("Please select a sequence.\n");
+  else if (g_list_length(listItem) > 1)
+    g_critical("Please select a single sequence.\n");
+  else
+    {
+      const BlxSequence *seq = (const BlxSequence*)(listItem->data);
+      sequence = blxSequenceGetSequence(seq);
+
+      if (sequence)
+        {
+          /* In protein mode, the given indexes are the start of the codon. Update the end index
+             to be inclusive of the whole codon (i.e. add 2 to make it the end coord of the codon). */
+          BlxViewContext *bc = blxWindowGetContext(blxWindow);
+          int fromIdx = fromIdx_in;
+          int toIdx = toIdx_in;
+
+          if (bc->seqType == BLXSEQ_PEPTIDE)
+            toIdx += 2;
+          
+          /* Find the match-sequence coord at these ref-seq coords */
+          GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+          const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
+
+          /* Loop through all msps and look for one which contains both the start and end coord. */
+          int matchStart = 0, matchEnd = 0;
+          GList *mspItem = seq->mspList;
+          const MSP *msp = NULL;
+
+          for ( ; mspItem && !msp; mspItem = mspItem->next)
+            {
+              const MSP *check_msp = (const MSP*)(mspItem->data);
+
+              if (mspGetMatchCoord(check_msp, fromIdx, TRUE, numUnalignedBases, bc, &matchStart) &&
+                  mspGetMatchCoord(check_msp, toIdx, TRUE, numUnalignedBases, bc, &matchEnd))
+                {
+                  msp = check_msp;
+                  break;
+                }
+            }
+
+          if (msp)
+            {
+              /* Match coords are 1-based: convert to 0-based */
+              --matchStart;
+              --matchEnd;
+
+              const int sourceLen = strlen(sequence);
+              const int len = matchEnd - matchStart + 1;
+              DEBUG_OUT("Copying %s (%d, %d) (len=%d) for ref seq (%d, %d)\n", 
+                        blxSequenceGetName(seq), matchStart, matchEnd, sourceLen, fromIdx, toIdx);
+
+              if (matchStart >= sourceLen || matchEnd >= sourceLen)
+                {
+                  g_critical("Coordinates (%d, %d) are not within match sequence length %d", matchStart, matchEnd, sourceLen);
+                }
+              else if (len > sourceLen)
+                {
+                  g_critical("Match sequence range (%d, %d) is longer than match sequence length (%d)", matchStart, matchEnd, sourceLen);
+                }
+              else if (len < 0)
+                {
+                  g_critical("Error: range length is negative (%d)", len);
+                }
+              else if (len == 0)
+                {
+                  g_critical("Error: range length is 0");
+                }
+              else if (matchStart > matchEnd)
+                {
+                  g_critical("Error copying sequence: match sequence start coord is less than the end coord");
+                }
+              else
+                {
+                  /* Warn user if they're about to copy a large sequence */
+                  if (len <= MAX_RECOMMENDED_COPY_LENGTH || 
+                      runConfirmationBox(blxWindow, "Copy sequence", "You are about to copy a large amount of text to the clipboard\n\nAre you sure you want to continue?") == GTK_RESPONSE_ACCEPT)
+                    {
+                      char *displayText = g_strndup(sequence + matchStart, len);
+
+                      setDefaultClipboardText(displayText);
+                      g_message("Copied sequence data for %s (%d, %d) to clipboard\n", 
+                                blxSequenceGetName(seq), matchStart, matchEnd);
+
+                      g_free(displayText);
+                    }
+                }
+            }
+          else
+            {
+              g_critical("Failed to find a match from sequence '%s' which contains the range (%d, %d)", 
+                         blxSequenceGetName(seq), fromIdx, toIdx);
+            }
         }
     }
 }

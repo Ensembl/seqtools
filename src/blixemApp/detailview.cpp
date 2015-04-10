@@ -1000,9 +1000,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
                 {
                   MSP *msp = (MSP*)(mspListItem->data);
                   
-                  sIdx = mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc);
-
-                  if (sIdx != UNSET_INT)
+                  if (mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
                     {
                       break;
                     }
