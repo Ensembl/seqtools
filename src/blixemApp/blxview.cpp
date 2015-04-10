@@ -1017,6 +1017,9 @@ static gboolean mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, con
       success = TRUE;
     }
   
+  if (success && result_out)
+    *result_out = result;
+
   return success;
 }  
 

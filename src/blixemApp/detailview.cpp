@@ -967,6 +967,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
   int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
   int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
   int sLen = UNSET_INT; /* the length of the match sequence */
+  gboolean found_sIdx = FALSE;
 
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   BlxViewContext *bc = detailViewGetContext(detailView);
@@ -999,8 +1000,9 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
               for ( ; mspListItem; mspListItem = mspListItem->next)
                 {
                   MSP *msp = (MSP*)(mspListItem->data);
-                  
-                  if (mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
+                  found_sIdx = mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx);
+
+                  if (found_sIdx)
                     {
                       break;
                     }
@@ -1040,7 +1042,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
       g_string_append_printf(resultString, "(%d)", sLen);
     }
 
-  if (sIdx != UNSET_INT && (!seq || seq->type != BLXSEQUENCE_VARIATION))
+  if (found_sIdx && (!seq || seq->type != BLXSEQUENCE_VARIATION))
     {
       g_string_append_printf(resultString, " : %d", sIdx);
     }
