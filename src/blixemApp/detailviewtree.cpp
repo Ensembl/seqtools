@@ -3078,7 +3078,7 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
    * custom adjustment). Always display the scrollbars because we assume the column widths 
    * are the same for all trees and they won't be if one shows a scrollbar and another doesn't. */
   GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
-  gtk_widget_set_name(scrollWin, DETAIL_VIEW_TREE_CONTAINER_NAME);
+  //gtk_widget_set_name(scrollWin, DETAIL_VIEW_TREE_CONTAINER_NAME);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
   gtk_container_add(GTK_CONTAINER(scrollWin), tree);
 
@@ -3098,18 +3098,18 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
       /* Add the snp track in a pane so it can be resized vs everything below it.
        * Top pane is the snp track, bottom pane is everything else (in a vbox) */
       GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-      gtk_widget_set_name(vbox, DETAIL_VIEW_TREE_CONTAINER_NAME);
+      //gtk_widget_set_name(vbox, DETAIL_VIEW_TREE_CONTAINER_NAME);
       gtk_box_pack_start(GTK_BOX(vbox), columnHeaderBar, FALSE, TRUE, 0);
       gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
 
       container = snpTrackCreatePanedWin(detailView, snpTrack, vbox);
-      gtk_widget_set_name(container, DETAIL_VIEW_TREE_CONTAINER_NAME);
+      //gtk_widget_set_name(container, DETAIL_VIEW_TREE_CONTAINER_NAME);
     }
   else
     {
       /* Just put everything in a vbox */
       container = gtk_vbox_new(FALSE, 0);
-      gtk_widget_set_name(container, DETAIL_VIEW_TREE_CONTAINER_NAME);
+      //gtk_widget_set_name(container, DETAIL_VIEW_TREE_CONTAINER_NAME);
 
       gtk_box_pack_start(GTK_BOX(container), columnHeaderBar, FALSE, FALSE, 0);
       gtk_box_pack_start(GTK_BOX(container), scrollWin, TRUE, TRUE, 0);

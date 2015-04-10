@@ -113,7 +113,6 @@ typedef struct _DetailViewProperties
     PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
 
     int snpConnectorHeight;       /* The height of the connector between the SNP track and the DNA base track */
-    int snpSplitterPos;           /* Cached position of the splitter bar for the snp track */
     int numUnalignedBases;        /* If the display-unaligned-sequence option is on, this specifies how many additional bases to show at each end of the alignment */
 
     /* Cached font sizes, needed often for calculations. */

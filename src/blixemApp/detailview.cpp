@@ -69,20 +69,28 @@
 
 
 typedef struct 
-  {
-    const int startDnaIdx;              /* the DNA coord to start searching from */
-    const gboolean searchRight;         /* search towards the right or left */
-    const int searchDirection;          /* multiplier to add/subtract depending on whether searching right/left */
-    const gboolean displayRev;          /* true if the display is reversed */
-    const BlxSeqType seqType;           /* whether viewing DNA or peptide seqs */
-    const int numFrames;                /* number of reading frames */
-    const IntRange* const refSeqRange;  /* the full range of the reference sequence */
-    GList *seqList;                     /* only search matches in these sequences */
+{
+  const int startDnaIdx;              /* the DNA coord to start searching from */
+  const gboolean searchRight;         /* search towards the right or left */
+  const int searchDirection;          /* multiplier to add/subtract depending on whether searching right/left */
+  const gboolean displayRev;          /* true if the display is reversed */
+  const BlxSeqType seqType;           /* whether viewing DNA or peptide seqs */
+  const int numFrames;                /* number of reading frames */
+  const IntRange* const refSeqRange;  /* the full range of the reference sequence */
+  GList *seqList;                     /* only search matches in these sequences */
 
-    int offset;                         /* the offset of the found MSP */
-    int foundFrame;                     /* which ref seq frame the MSP we chose is in */
-    MSP *foundMsp;                      /* the found msp */
-  } MatchSearchData;
+  int offset;                         /* the offset of the found MSP */
+  int foundFrame;                     /* which ref seq frame the MSP we chose is in */
+  MSP *foundMsp;                      /* the found msp */
+} MatchSearchData;
+
+
+/* We need to store some info about the paned window for the SNP track so that we can cache and
+ * reinstate the splitter position when the user toggles the display off and on again. */
+typedef struct _PanedWindowProperties
+{
+  int splitterPos; /* -1 for unset. If >=0 then it is a cached position ready for re-instating */
+} PanedWindowProperties;
 
 
 /* Utility struct to pass data to a recursive function */
@@ -101,6 +109,9 @@ static GtkWidget*             detailViewGetFeedbackBox(GtkWidget *detailView);
 static int                    detailViewGetSnpConnectorHeight(GtkWidget *detailView);
 static void                   refreshDetailViewHeaders(GtkWidget *detailView);
 
+static void                   panedWindowCreateProperties(GtkWidget *widget, const int splitterPos);
+static PanedWindowProperties* panedWindowGetProperties(GtkWidget *widget);
+static void                   onDestroyPanedWindow(GtkWidget *widget);
 static void                   snpTrackSetStrand(GtkWidget *snpTrack, const BlxStrand strand);
 static BlxStrand              snpTrackGetStrand(GtkWidget *snpTrack, GtkWidget *detailView);
 static void                   snpTrackSetHeight(GtkWidget *detailView, GtkWidget *snpTrack);
@@ -2999,7 +3010,7 @@ static int getNumSnpTrackRows(const BlxViewContext *bc,
 {
   DEBUG_ENTER("getNumSnpTrackRows()");
 
-  int numRows = 1; /* Always show one row, even if it is empty */
+  int numRows = 0; /* Always show one row, even if it is empty */
 
   int i = 0;
   const MSP* msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
@@ -3041,7 +3052,7 @@ static void recalculateSnpTrackBorders(GtkWidget *snpTrack, gpointer data)
 {
   DEBUG_ENTER("recalculateSnpTrackBorders()");
 
-  GtkWidget *detailView = GTK_WIDGET(data);
+  //GtkWidget *detailView = GTK_WIDGET(data);
   //snpTrackSetHeight(detailView, snpTrack);
 
   DEBUG_EXIT("recalculateSnpTrackBorders returning ");
@@ -4050,7 +4061,6 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->charWidth = 0.0;
       properties->charHeight = 0.0;
       properties->snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
-      properties->snpSplitterPos = -1;
       properties->numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
       
       /* The numunalignedbases may be set in the config file; if so, override the default */
@@ -4154,6 +4164,51 @@ int seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames)
   return baseNum;
 }
 
+/***********************************************************
+ *                Paned window properties
+ *
+ * This is requried for the SNP track paned windows, because
+ * we need to cache the splitter position when the user toggles
+ * it off so that we can reinstate it when the toggle back on.
+ ***********************************************************/
+
+static void panedWindowCreateProperties(GtkWidget *widget, const int splitterPos)
+{
+  if (widget)
+    { 
+      PanedWindowProperties *properties = (PanedWindowProperties*)g_malloc(sizeof *properties);
+
+      properties->splitterPos = splitterPos;
+      
+      g_object_set_data(G_OBJECT(widget), "PanedWindowProperties", properties);
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyPanedWindow), NULL); 
+    }
+}
+
+
+static PanedWindowProperties* panedWindowGetProperties(GtkWidget *widget)
+{
+  PanedWindowProperties *properties = NULL;
+
+  if (!properties && widget)
+    properties = (PanedWindowProperties*)(g_object_get_data(G_OBJECT(widget), "PanedWindowProperties"));
+  
+  return properties;
+}
+
+
+static void onDestroyPanedWindow(GtkWidget *widget)
+{
+  PanedWindowProperties *properties = panedWindowGetProperties(widget);
+
+  if (properties)
+    {
+      g_free(properties);
+      properties = NULL;
+      g_object_set_data(G_OBJECT(widget), "DetailViewProperties", NULL);
+    }
+}
+
 
 /* Get/set functions for the SNP track header strand. (There is only one property
  * to set, so it's not worth having a struct for the properties.) */
@@ -4199,6 +4254,7 @@ static void snpTrackSetHeight(GtkWidget *detailView, GtkWidget *snpTrack)
   gtk_layout_set_size(GTK_LAYOUT(snpTrack), snpTrack->allocation.width, height);
   gtk_widget_set_size_request(snpTrack, -1, height);
   gtk_widget_set_size_request(snpScrollWin, -1, height);
+  DEBUG_OUT("Strand %d, frame %d: Set SNP track height to %d\n", (int)strand, activeFrame, height);
 
   /* Get the parent scrolled window and set the adjustment step increment to be one
    * char height */
@@ -4214,29 +4270,31 @@ static void snpTrackSetHeight(GtkWidget *detailView, GtkWidget *snpTrack)
   else
     {
       g_warning("Error setting scroll increment for variations track\n");
+      DEBUG_OUT("Error setting scroll increment for variations track\n");
     }
 
   /* Now set the paned window splitter bar position. */
   const gboolean showSnpTrack = bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] && bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS];
   GtkWidget *panedWidget = detailViewContainerGetParentWidget(GTK_CONTAINER(detailView), snpTrack, SNP_TRACK_CONTAINER_NAME);
   GtkPaned *panedWin = GTK_IS_PANED(panedWidget) ? GTK_PANED(panedWidget) : NULL;
+  PanedWindowProperties *snpProperties = panedWindowGetProperties(GTK_WIDGET(panedWin));
 
   if (panedWin && showSnpTrack)
     {
       /* Set it to the saved position, if there is one set */
-      if (properties->snpSplitterPos >= 0)
+      if (snpProperties->splitterPos >= 0)
         {
           /* Use the cached position then reset the cache (because the splitter bar will keep
            * track of it from here). */
-          DEBUG_OUT("Setting splitter position to %d\n", properties->snpSplitterPos);
+          DEBUG_OUT("Setting splitter position to %d\n", snpProperties->splitterPos);
 
           /* gb10: actually I'm going to reset it to 'unset' because that's probably a bit more
            * sensible when re-showing the snp track (which is the only time this cache gets
            * used). Could do with tidying up this logic a bit. It might be nice to offer the
            * option to use the cached position too. */
-          //gtk_paned_set_position(panedWin, properties->snpSplitterPos);
+          //gtk_paned_set_position(panedWin, snpProperties->splitterPos);
           gtk_paned_set_position(panedWin, -1);
-          properties->snpSplitterPos = -1;
+          snpProperties->splitterPos = -1;
         }
     }
   else if (panedWin)
@@ -4247,13 +4305,14 @@ static void snpTrackSetHeight(GtkWidget *detailView, GtkWidget *snpTrack)
       if (splitterPos > 0)
         {
           DEBUG_OUT("Setting splitter position to 0 and caching old position %d\n", splitterPos);
-          properties->snpSplitterPos = splitterPos;
+          snpProperties->splitterPos = splitterPos;
           gtk_paned_set_position(panedWin, 0);
         }
     }
   else
     {
-      g_warning("Error setting splitter bar position for variations track");
+      g_warning("Error setting splitter bar position for variations track\n");
+      DEBUG_OUT("Error setting splitter bar position for variations track\n");
     }
 
   DEBUG_EXIT("snpTrackSetHeight returning ");
@@ -5514,6 +5573,9 @@ GtkWidget* snpTrackCreatePanedWin(GtkWidget *detailView, GtkWidget *snpTrack, Gt
 
   /* Connect to signals for the splitter bar handle */
   g_signal_connect(G_OBJECT(paned), "motion-notify-event", G_CALLBACK(onMouseMoveSnpSplitter), detailView);
+
+  /* Create properties struct for the paned window, which will cache the splitter position */
+  panedWindowCreateProperties(GTK_WIDGET(paned), -1);
 
   return GTK_WIDGET(paned);
 }
