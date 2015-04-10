@@ -1753,41 +1753,6 @@ static gboolean onButtonReleaseTreeHeader(GtkWidget *header, GdkEventButton *eve
 }
 
 
-/* Implement custom scrolling for horizontal mouse wheel movements over the tree.
- * This scrolls our custom horizontal scrollbar for the whole Detail View. Leaves
- * vertical scrolling to the default handler. */
-static gboolean onScrollTree(GtkWidget *tree, GdkEventScroll *event, gpointer data)
-{
-  gboolean handled = FALSE;
-  
-  switch (event->direction)
-    {
-      case GDK_SCROLL_LEFT:
-	{
-	  scrollDetailViewLeftStep(treeGetDetailView(tree));
-	  handled = TRUE;
-	  break;
-	}
-	
-      case GDK_SCROLL_RIGHT:
-	{
-	  scrollDetailViewRightStep(treeGetDetailView(tree));
-	  handled = TRUE;
-	  break;
-	}
-
-      default:
-	{
-	  /* Default handler can handle vertical scrolling */
-	  handled = FALSE;
-	  break;
-	}
-    };
-  
-  return handled;
-}
-
-
 static gboolean onMouseMoveTree(GtkWidget *tree, GdkEventMotion *event, gpointer data)
 {
   if (!(event->state & GDK_BUTTON1_MASK) &&
@@ -3129,7 +3094,6 @@ GtkWidget* createDetailViewTree(GtkWidget *grid,
   g_signal_connect(G_OBJECT(tree), "button-press-event",    G_CALLBACK(onButtonPressTree),	NULL);
   g_signal_connect(G_OBJECT(tree), "button-release-event",  G_CALLBACK(onButtonReleaseTree),	detailView);
   g_signal_connect(G_OBJECT(tree), "motion-notify-event",   G_CALLBACK(onMouseMoveTree),	detailView);
-  g_signal_connect(G_OBJECT(tree), "scroll-event",	    G_CALLBACK(onScrollTree),		detailView);
   g_signal_connect(G_OBJECT(tree), "enter-notify-event",    G_CALLBACK(onEnterTree),		NULL);
   g_signal_connect(G_OBJECT(tree), "leave-notify-event",    G_CALLBACK(onLeaveTree),		NULL);
   //g_signal_connect(G_OBJECT(tree), "drag-begin",	    G_CALLBACK(onDragBeginTree),	NULL);

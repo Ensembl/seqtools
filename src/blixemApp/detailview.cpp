@@ -4539,6 +4539,41 @@ static gboolean onMouseMoveDetailView(GtkWidget *detailView, GdkEventMotion *eve
 }
 
 
+/* Implement custom scrolling for horizontal mouse wheel movements over the detailview.
+ * This scrolls our custom horizontal scrollbar for the whole Detail View. Leaves
+ * vertical scrolling to the default handler. */
+static gboolean onScrollDetailView(GtkWidget *detailView, GdkEventScroll *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  
+  switch (event->direction)
+    {
+      case GDK_SCROLL_LEFT:
+        {
+          scrollDetailViewLeftStep(detailView);
+          handled = TRUE;
+          break;
+        }
+
+      case GDK_SCROLL_RIGHT:
+        {
+          scrollDetailViewRightStep(detailView);
+          handled = TRUE;
+          break;
+        }
+
+      default:
+        {
+          /* Default handler can handle vertical scrolling */
+          handled = FALSE;
+          break;
+        }
+    };
+  
+  return handled;
+}
+
+
 static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
@@ -5665,9 +5700,10 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 
   /* Connect signals */
   gtk_widget_add_events(detailView, GDK_BUTTON_PRESS_MASK);
-  g_signal_connect(G_OBJECT(detailView), "button-press-event", G_CALLBACK(onButtonPressDetailView), NULL);
+  g_signal_connect(G_OBJECT(detailView), "button-press-event",   G_CALLBACK(onButtonPressDetailView),   NULL);
   g_signal_connect(G_OBJECT(detailView), "button-release-event", G_CALLBACK(onButtonReleaseDetailView), NULL);
-  g_signal_connect(G_OBJECT(detailView), "motion-notify-event", G_CALLBACK(onMouseMoveDetailView), NULL);
+  g_signal_connect(G_OBJECT(detailView), "motion-notify-event",  G_CALLBACK(onMouseMoveDetailView),     NULL);
+  g_signal_connect(G_OBJECT(detailView), "scroll-event",         G_CALLBACK(onScrollDetailView),        NULL);
 
   detailViewCreateProperties(detailView, 
                              blxWindow, 
