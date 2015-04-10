@@ -182,8 +182,8 @@ static const GtkActionEntry mainMenuEntries[] = {
 
   { "CopySeqNames",     NULL,                     "Copy match name(s)",       "<control>C",         "Copy selected match sequence's name(s)  Ctrl+C", G_CALLBACK(onCopySeqsMenu)},
   { "CopySeqData",      NULL,                     "Copy match sequence",      "<shift><control>C",  "Copy selected match sequence's data  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMenu)},
-  { "CopySeqDataMark",  NULL,                     "Copy match from mark",     "<shift><control>C",  "Copy selected match sequence's data from mark  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMarkMenu)},
-  { "CopyRefSeq",       NULL,                     "Copy reference sequence from mark",  NULL,                 "Copy selected sequences name(s)  Alt+C", G_CALLBACK(onCopyRefSeqMenu)},
+  { "CopySeqDataMark",  NULL,                     "Copy match from mark",     "<alt>C",             "Copy selected match sequence's data from mark  Alt+C", G_CALLBACK(onCopySeqDataMarkMenu)},
+  { "CopyRefSeq",       NULL,                     "Copy reference sequence from mark",  "<shift><alt>C","Copy reference sequence from mark  Shift+Alt+C", G_CALLBACK(onCopyRefSeqMenu)},
 
   { "Sort",             GTK_STOCK_SORT_ASCENDING, "Sort...",                  NULL,                 "Sort sequences",                       G_CALLBACK(onSortMenu)},
   { "ZoomIn",           GTK_STOCK_ZOOM_IN,        "Zoom in",                  "equal",              "Zoom in  =",                           G_CALLBACK(onZoomInMenu)},
@@ -6088,18 +6088,30 @@ static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int from
 
       if (sequence)
         {
-          /* In protein mode, the given indexes are the start of the codon. Update the end index
-             to be inclusive of the whole codon (i.e. add 2 to make it the end coord of the codon). */
           BlxViewContext *bc = blxWindowGetContext(blxWindow);
+          const gboolean reverse = (bc->displayRev != (seq->strand == BLXSTRAND_REVERSE));
           int fromIdx = fromIdx_in;
           int toIdx = toIdx_in;
 
+          /* Coords can be passed in any order. Swap them if from > to */
+          if (!reverse && fromIdx > toIdx)
+            {
+              int tmp = fromIdx;
+              fromIdx = toIdx;
+              toIdx = tmp;
+            }
+          else if (reverse && fromIdx < toIdx)
+            {
+              int tmp = fromIdx;
+              fromIdx = toIdx;
+              toIdx = tmp;
+            }
+
+          /* In protein mode, the given indexes are the start of the codon. Update the end index
+           * to be inclusive of the whole codon (i.e. add 2 to make it the end coord of the codon). */
           if (bc->seqType == BLXSEQ_PEPTIDE)
             {
-              /* In rev mode decrement the start coord instead */
-              if (bc->displayRev)
-                toIdx -= 2;
-              else
+              if (!reverse)
                 toIdx += 2;
             }
           
@@ -6130,6 +6142,14 @@ static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int from
               --matchStart;
               --matchEnd;
 
+              /* Match coords may be opposite direction to ref coords so make sure start < end */
+              if (matchStart > matchEnd)
+                {
+                  int tmp = matchStart;
+                  matchStart = matchEnd;
+                  matchEnd = tmp;
+                }
+
               const int sourceLen = strlen(sequence);
               const int len = matchEnd - matchStart + 1;
               DEBUG_OUT("Copying %s (%d, %d) (len=%d) for ref seq (%d, %d)\n", 
@@ -6145,7 +6165,8 @@ static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int from
                 }
               else if (len < 0)
                 {
-                  g_critical("Error: range length is negative (%d)", len);
+                  g_critical("Error: range length is negative (ref = %d, %d, match = %d, %d, len=%d)", 
+                             fromIdx, toIdx, matchStart, matchEnd, len);
                 }
               else if (len == 0)
                 {
@@ -6157,15 +6178,22 @@ static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int from
                 }
               else
                 {
-                  /* Warn user if they're about to copy a large sequence */
+                  /* Ok, now do the copy */
+
+                  /* Warn user if they're about to copy a large sequence and ask to confirm */
                   if (len <= MAX_RECOMMENDED_COPY_LENGTH || 
                       runConfirmationBox(blxWindow, "Copy sequence", "You are about to copy a large amount of text to the clipboard\n\nAre you sure you want to continue?") == GTK_RESPONSE_ACCEPT)
                     {
                       char *displayText = g_strndup(sequence + matchStart, len);
 
+                      /* If the msp is in the opposite strand to the forward-direction strand (as
+                       * determined by displayRev) then we need to reverse the result */
+                      if (bc->displayRev != (msp->qStrand == BLXSTRAND_REVERSE))
+                        displayText = g_strreverse(displayText);
+
                       setDefaultClipboardText(displayText);
-                      g_message("Copied sequence data for %s (%d, %d) to clipboard\n", 
-                                blxSequenceGetName(seq), matchStart + 1, matchEnd + 1);
+                      g_message("Copied sequence data for %s (%d, %d) to clipboard (%d, %d)\n", 
+                                blxSequenceGetName(seq), matchStart + 1, matchEnd + 1, fromIdx, toIdx);
 
                       g_free(displayText);
                     }
@@ -6186,6 +6214,7 @@ static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int from
 static void copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in)
 {
   const char *refSeq = blxWindowGetRefSeq(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
   if (refSeq)
     {
@@ -6200,12 +6229,22 @@ static void copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, co
       if (len <= MAX_RECOMMENDED_COPY_LENGTH || 
           runConfirmationBox(blxWindow, "Copy sequence", "You are about to copy a large amount of text to the clipboard\n\nAre you sure you want to continue?") == GTK_RESPONSE_ACCEPT)
         {
-          const char *displayText = g_strndup(refSeq + fromIdx, toIdx - fromIdx + 1);
+          char *displayText = g_strndup(refSeq + fromIdx, toIdx - fromIdx + 1);
       
           if (displayText)
             {
+              if (bc->displayRev)
+                {
+                  char *tmp = (char*)g_malloc(strlen(displayText) + 1);
+                  revComplement(tmp, displayText);
+                  g_free(displayText);
+                  displayText = tmp;
+                }
+
               setDefaultClipboardText(displayText);
               g_message("Copied reference sequence from %d to %d\n", fromIdx_in, toIdx_in);
+
+              g_free(displayText);
             }
         }
     }
