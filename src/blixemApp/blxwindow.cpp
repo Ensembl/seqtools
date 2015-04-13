@@ -184,10 +184,10 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Load",             GTK_STOCK_OPEN,           "_Open features file...",    NULL,                "Load additional features from file  Ctrl+O", G_CALLBACK(onLoadMenu)},
 
   { "CopySeqNames",     NULL,                     "Copy match name(s)",       "<control>C",         "Copy selected match sequence's name(s)  Ctrl+C", G_CALLBACK(onCopySeqsMenu)},
-  { "CopySeqData",      NULL,                     "Copy match sequence (entire sequence)","<shift><control>C",  "Copy whole sequence for selected match  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMenu)},
-  { "CopySeqDataMark",  NULL,                     "Copy match sequence (selected section)","<alt>C",           "Copy selected match sequence segment  Alt+C", G_CALLBACK(onCopySeqDataMarkMenu)},
-  { "CopyRefSeqDna",    NULL,                     "Copy reference DNA",       "<shift><alt>C",      "Copy selected reference sequence DNA  Shift+Alt+C", G_CALLBACK(onCopyRefSeqDnaMenu)},
-  { "CopyRefSeqDisplay",NULL,                     "Copy reference translation (current frame)","<shift><control><alt>C","Copy selected reference sequence translation  Shift+Ctrl+Alt+C", G_CALLBACK(onCopyRefSeqDisplayMenu)},
+  { "CopySeqData",      NULL,                     "Copy match sequence (entire sequence)",  NULL,   "Copy whole sequence for selected match",         G_CALLBACK(onCopySeqDataMenu)},
+  { "CopySeqDataMark",  NULL,                     "Copy match sequence (selected section)","<shift><control>C","Copy selected match sequence segment  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMarkMenu)},
+  { "CopyRefSeqDna",    NULL,                     "Copy reference DNA",       "<alt>C",             "Copy selected reference sequence DNA  Alt+C", G_CALLBACK(onCopyRefSeqDnaMenu)},
+  { "CopyRefSeqDisplay",NULL,                     "Copy reference translation (current frame)","<shift><alt>C","Copy selected reference sequence translation  Shift+Alt+C", G_CALLBACK(onCopyRefSeqDisplayMenu)},
 
   { "Sort",             GTK_STOCK_SORT_ASCENDING, "Sort...",                  NULL,                 "Sort sequences",                       G_CALLBACK(onSortMenu)},
   { "ZoomIn",           GTK_STOCK_ZOOM_IN,        "Zoom in",                  "equal",              "Zoom in  =",                           G_CALLBACK(onZoomInMenu)},
