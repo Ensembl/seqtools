@@ -63,6 +63,7 @@ static gboolean		onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *e
 static GList*		treeGetSequenceRows(GtkWidget *tree, const BlxSequence *clickedSeq);
 static BlxSequence*	treeGetSequence(GtkTreeModel *model, GtkTreeIter *iter);
 static void             destroyTreePathList(GList **list);
+static int              treeHeaderGetCoordAtPos(GtkWidget *header, GtkWidget *tree, const int x, const int y);
 
 /***********************************************************
  *                Tree - utility functions                 *
@@ -1267,11 +1268,19 @@ static void treeHighlightSelectedBase(GtkWidget *tree, GdkDrawable *drawable)
   gboolean ok = FALSE;
 
   /* Use the selection range, if set, otherwise the selected coord */
-  if (properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
+  if (detailViewGetSelectedIdxSet(detailView))
     {
-      start = properties->selectedRangeStart.displayIdx;
-      end = properties->selectedRangeEnd.displayIdx;
-      ok = TRUE;
+      /* Display coords may be in reverse direction but this access function returns them 
+       * in min->max order */
+      IntRange *range = detailViewGetSelectedDisplayIdxRange(detailView);
+
+      if (range)
+        {
+          start = range->min;
+          end = range->max;
+          ok = TRUE;
+          g_free(range);
+        }
     }
   else if(properties->selectedIndex.isSet)
     {
@@ -1600,17 +1609,44 @@ static void treeShowHideVariations(GtkWidget *tree)
 }
 
 
+/* Show the tree-header context menu, if applicable (return false if not) */
+static gboolean treeHeaderShowContextMenu(GtkWidget *header, GtkWidget *tree, GdkEventButton *event)
+{
+  gboolean handled = FALSE;
+
+  GtkWidget *detailView = treeGetDetailView(tree);
+
+  /* Check if the click is in the selected coord range and if so show the tree-header menu */
+  if (detailViewGetSelectedIdxSet(detailView))
+    {
+      const int displayIdx = treeHeaderGetCoordAtPos(header, tree, event->x, event->y);
+      IntRange *range = detailViewGetSelectedDisplayIdxRange(detailView);
+
+      if (valueWithinRange(displayIdx, range))
+        {
+          GtkWidget *blxWindow = treeGetBlxWindow(tree);
+          GtkWidget *menu = blxWindowGetTreeHeaderMenu(blxWindow);
+
+          gtk_menu_popup (GTK_MENU(menu), NULL, NULL, NULL, NULL, event->button, event->time);
+
+          handled = TRUE;
+        }
+    }
+
+  return handled;
+}
+
+
 static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
   GtkWidget *tree = GTK_WIDGET(data);
+  GtkWidget *detailView = treeGetDetailView(tree);
 
   switch (event->button)
     {
     case 1: /* left button */
       {
-	GtkWidget *detailView = treeGetDetailView(tree);
-	
 	if (event->type == GDK_BUTTON_PRESS)
 	  {
             /* Set the active frame to the tree that was clicked on */
@@ -1629,7 +1665,12 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 
     case 3: /* right button */
       {
-        
+        /* Set the active frame to the tree that was clicked on */
+        detailViewSetActiveFrame(detailView, treeGetFrame(tree));
+        detailViewRefreshAllHeaders(detailView);
+
+        /* Show tree-header context menu, if applicable */
+        handled = treeHeaderShowContextMenu(header, tree, event);
         break;
       }
       

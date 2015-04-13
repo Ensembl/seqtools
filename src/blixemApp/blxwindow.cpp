@@ -83,6 +83,7 @@ typedef struct _BlxWindowProperties
     GtkWidget *bigPicture;          /* The top section of the view, showing a "big picture" overview of the alignments */
     GtkWidget *detailView;          /* The bottom section of the view, showing a detailed list of the alignments */
     GtkWidget *mainmenu;            /* The main menu */
+    GtkWidget *treeHeaderMenu;      /* The context menu for tree headers */
     GtkActionGroup *actionGroup;    /* The action-group for the menus */
 
     BlxViewContext *blxContext;       /* The blixem view context */
@@ -105,7 +106,8 @@ static void                       onLoadMenu(GtkAction *action, gpointer data);
 static void                       onCopySeqsMenu(GtkAction *action, gpointer data);
 static void                       onCopySeqDataMenu(GtkAction *action, gpointer data);
 static void                       onCopySeqDataMarkMenu(GtkAction *action, gpointer data);
-static void                       onCopyRefSeqMenu(GtkAction *action, gpointer data);
+static void                       onCopyRefSeqDnaMenu(GtkAction *action, gpointer data);
+static void                       onCopyRefSeqDisplayMenu(GtkAction *action, gpointer data);
 static void                       onSortMenu(GtkAction *action, gpointer data);
 static void                       onZoomInMenu(GtkAction *action, gpointer data);
 static void                       onZoomOutMenu(GtkAction *action, gpointer data);
@@ -164,6 +166,7 @@ static gboolean                   setFlagFromButton(GtkWidget *button, gpointer 
 static void                       copySelectedSeqDataToClipboard(GtkWidget *blxWindow);
 static void                       copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int fromIdx, const int toIdx);
 static void                       copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
+static void                       copyRefSeqTranslationToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
 
 
 /* MENU BUILDERS */
@@ -181,9 +184,10 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Load",             GTK_STOCK_OPEN,           "_Open features file...",    NULL,                "Load additional features from file  Ctrl+O", G_CALLBACK(onLoadMenu)},
 
   { "CopySeqNames",     NULL,                     "Copy match name(s)",       "<control>C",         "Copy selected match sequence's name(s)  Ctrl+C", G_CALLBACK(onCopySeqsMenu)},
-  { "CopySeqData",      NULL,                     "Copy match sequence",      "<shift><control>C",  "Copy selected match sequence's data  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMenu)},
-  { "CopySeqDataMark",  NULL,                     "Copy match from mark",     "<alt>C",             "Copy selected match sequence's data from mark  Alt+C", G_CALLBACK(onCopySeqDataMarkMenu)},
-  { "CopyRefSeq",       NULL,                     "Copy reference sequence from mark",  "<shift><alt>C","Copy reference sequence from mark  Shift+Alt+C", G_CALLBACK(onCopyRefSeqMenu)},
+  { "CopySeqData",      NULL,                     "Copy match sequence (entire sequence)","<shift><control>C",  "Copy whole sequence for selected match  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMenu)},
+  { "CopySeqDataMark",  NULL,                     "Copy match sequence (selected section)","<alt>C",           "Copy selected match sequence segment  Alt+C", G_CALLBACK(onCopySeqDataMarkMenu)},
+  { "CopyRefSeqDna",    NULL,                     "Copy reference DNA",       "<shift><alt>C",      "Copy selected reference sequence DNA  Shift+Alt+C", G_CALLBACK(onCopyRefSeqDnaMenu)},
+  { "CopyRefSeqDisplay",NULL,                     "Copy reference translation (current frame)","<shift><control><alt>C","Copy selected reference sequence translation  Shift+Ctrl+Alt+C", G_CALLBACK(onCopyRefSeqDisplayMenu)},
 
   { "Sort",             GTK_STOCK_SORT_ASCENDING, "Sort...",                  NULL,                 "Sort sequences",                       G_CALLBACK(onSortMenu)},
   { "ZoomIn",           GTK_STOCK_ZOOM_IN,        "Zoom in",                  "equal",              "Zoom in  =",                           G_CALLBACK(onZoomInMenu)},
@@ -235,7 +239,8 @@ static const char standardMenuDescription[] =
 "        <menuitem action='CopySeqNames'/>"
 "        <menuitem action='CopySeqData'/>"
 "        <menuitem action='CopySeqDataMark'/>"
-"        <menuitem action='CopyRefSeq'/>"
+"        <menuitem action='CopyRefSeqDna'/>"
+"        <menuitem action='CopyRefSeqDisplay'/>"
 "      </menu>"
 "      <menuitem action='View'/>"
 "      <menuitem action='CreateGroup'/>"
@@ -245,6 +250,10 @@ static const char standardMenuDescription[] =
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
 "      <menuitem action='CloseAllDotters'/>"
+"  </popup>"
+"  <popup name='TreeHeaderContextMenu' accelerators='true'>"
+"      <menuitem action='CopyRefSeqDna'/>"
+"      <menuitem action='CopyRefSeqDisplay'/>"
 "  </popup>"
 "  <toolbar name='Toolbar'>"
 "    <toolitem action='Help'/>"
@@ -4687,16 +4696,19 @@ static void onCopySeqDataMarkMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
 
   /* Copy the portion of the match seq from the selected index
    * to the clicked index */
-  if (properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
+  IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
+
+  if (range)
     {
-      const int fromIdx = properties->selectedRangeStart.dnaIdx;
-      const int toIdx = properties->selectedRangeEnd.dnaIdx;
+      const int fromIdx = range->min;
+      const int toIdx = range->max;
 
       copySelectedSeqRangeToClipboard(blxWindow, fromIdx, toIdx);
+
+      g_free(range);
     }
   else
     {
@@ -4704,21 +4716,52 @@ static void onCopySeqDataMarkMenu(GtkAction *action, gpointer data)
     }
 }
 
-static void onCopyRefSeqMenu(GtkAction *action, gpointer data)
+/* Copy the ref seq for the currently-selected range of coords to the clipboard */
+static void onCopyRefSeqDnaMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
 
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
 
   /* Copy the portion of the ref seq from the selected index
    * to the clicked index */
-  if (properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
+  IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
+
+  if (range)
     {
-      const int fromIdx = properties->selectedRangeStart.dnaIdx;
-      const int toIdx = properties->selectedRangeEnd.dnaIdx;
+      const int fromIdx = range->min;
+      const int toIdx = range->max;
 
       copyRefSeqToClipboard(blxWindow, fromIdx, toIdx);
+
+      g_free(range);
+    }
+  else
+    {
+      g_critical("Please middle-click on a coordinate first to set the mark\n");
+    }
+}
+
+/* Copy the translation of the ref seq for the currently-selected range of coords 
+ * to the clipboard. Uses the currently-active reading frame. */
+static void onCopyRefSeqDisplayMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+
+  /* Copy the portion of the ref seq from the selected index
+   * to the clicked index */
+  IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
+
+  if (range)
+    {
+      const int fromIdx = range->min;
+      const int toIdx = range->max;
+
+      copyRefSeqTranslationToClipboard(blxWindow, fromIdx, toIdx);
+
+      g_free(range);
     }
   else
     {
@@ -5305,6 +5348,12 @@ static void onDestroyBlxWindow(GtkWidget *widget)
           gtk_widget_destroy(properties->mainmenu);
           properties->mainmenu = NULL;
         }
+
+      if (properties->treeHeaderMenu)
+        {
+          gtk_widget_destroy(properties->treeHeaderMenu);
+          properties->treeHeaderMenu = NULL;
+        }
       
       /* Destroy the print settings */
       if (properties->printSettings)
@@ -5660,6 +5709,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
                                       GtkWidget *bigPicture, 
                                       GtkWidget *detailView,
                                       GtkWidget *mainmenu,
+                                      GtkWidget *treeHeaderMenu,
                                       GtkActionGroup *actionGroup,
                                       const IntRange* const refSeqRange,
                                       const IntRange* const fullDisplayRange,
@@ -5674,6 +5724,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
       properties->bigPicture = bigPicture;
       properties->detailView = detailView;
       properties->mainmenu = mainmenu;
+      properties->treeHeaderMenu = treeHeaderMenu;
       properties->actionGroup = actionGroup;
 
       properties->pageSetup = gtk_page_setup_new();
@@ -5717,6 +5768,12 @@ GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->mainmenu : NULL;
+}
+
+GtkWidget* blxWindowGetTreeHeaderMenu(GtkWidget *blxWindow)
+{
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  return properties ? properties->treeHeaderMenu : NULL;
 }
 
 BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
@@ -6247,10 +6304,14 @@ static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int from
 }
 
 
-/* This function copies the reference sequence, from the 
- * clicked position to the marked position, onto the clipboard. */
-static void copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in)
+/* This gets the ref seq segment for the given range of coords. Returns a newly allocated string
+ * which should be free'd by the caller with g_free */
+static char* getRefSeqSegment(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in)
 {
+  DEBUG_ENTER("getRefSeqSegment()");
+
+  char *result = NULL;
+
   const char *refSeq = blxWindowGetRefSeq(blxWindow);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
@@ -6267,25 +6328,105 @@ static void copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, co
       if (len <= MAX_RECOMMENDED_COPY_LENGTH || 
           runConfirmationBox(blxWindow, "Copy sequence", "You are about to copy a large amount of text to the clipboard\n\nAre you sure you want to continue?") == GTK_RESPONSE_ACCEPT)
         {
-          char *displayText = g_strndup(refSeq + fromIdx, toIdx - fromIdx + 1);
+          result = g_strndup(refSeq + fromIdx, toIdx - fromIdx + 1);
       
-          if (displayText)
+          if (result)
             {
               if (bc->displayRev)
                 {
-                  char *tmp = (char*)g_malloc(strlen(displayText) + 1);
-                  revComplement(tmp, displayText);
-                  g_free(displayText);
-                  displayText = tmp;
+                  char *tmp = (char*)g_malloc(strlen(result) + 1);
+                  revComplement(tmp, result);
+                  g_free(result);
+                  result = tmp;
                 }
-
-              setDefaultClipboardText(displayText);
-              g_message("Copied reference sequence from %d to %d\n", fromIdx_in, toIdx_in);
-
-              g_free(displayText);
             }
         }
     }
+  else
+    {
+      DEBUG_OUT("No reference sequence!\n");
+    }
+
+  DEBUG_EXIT("getRefSeqSegment returning %s", result);
+
+  return result;
+}
+
+
+/* This function copies the reference sequence, from the 
+ * clicked position to the marked position, onto the clipboard. */
+static void copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx, const int toIdx)
+{
+  char *dnaSeq = getRefSeqSegment(blxWindow, fromIdx, toIdx);
+
+  if (dnaSeq)
+    {
+      setDefaultClipboardText(dnaSeq);
+      g_message("Copied reference sequence from %d to %d\n", fromIdx, toIdx);
+
+      g_free(dnaSeq);
+    }
+  else
+    {
+      g_critical("Error getting DNA sequence for %d to %d\n", fromIdx, toIdx);
+    }
+}
+
+
+/* This function copies the reference sequence, from the 
+ * clicked position to the marked position, onto the clipboard. */
+static void copyRefSeqTranslationToClipboard(GtkWidget *blxWindow, const int fromIdx, const int toIdx)
+{
+  DEBUG_ENTER("copyRefSeqTranslationToClipboard()");
+
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+
+  if (bc && detailView)
+    {
+      char *dnaSeq = getRefSeqSegment(blxWindow, fromIdx, toIdx);
+
+      if (dnaSeq)
+        {
+          /* Get the offset from the start frame of the dna seq to the required reading frame */
+          int requiredFrame = detailViewGetActiveFrame(detailView);
+
+          int curFrame = fromIdx % 3;
+
+          /* If the display is reversed, use the end coord to calculate frame */
+          if (bc->displayRev)
+            curFrame = toIdx % 3;
+
+          if (curFrame < 1)
+            curFrame += 3;
+
+          int offset = requiredFrame - curFrame;
+          if (offset < 0)
+            offset += 3;
+
+          char *pepSeq = blxTranslate(dnaSeq + offset, bc->geneticCode);
+
+          if (pepSeq)
+            {
+              setDefaultClipboardText(pepSeq);
+              
+              g_message("Copied reference sequence translation from %d to %d for frame %d\n", fromIdx, toIdx, requiredFrame);
+              g_free(pepSeq);
+            }
+          else
+            {
+              g_critical("Error getting translation of DNA sequence from %d to %d for frame %d\n", fromIdx, toIdx, requiredFrame);
+            }
+
+          g_free(dnaSeq);
+        }
+      else
+        {
+          g_critical("Error getting DNA sequence for %d to %d\n", fromIdx, toIdx);
+        }
+    }
+
+  DEBUG_EXIT("copyRefSeqTranslationToClipboard returning ");
 }
 
 
@@ -6521,7 +6662,12 @@ static void setStyleProperties(GtkWidget *widget, char *windowColor)
 
 
 /* Create the main menu */
-static void createMainMenu(GtkWidget *window, BlxViewContext *bc, GtkWidget **mainmenu, GtkWidget **toolbar, GtkActionGroup **actionGroupOut)
+static void createMainMenu(GtkWidget *window,
+                           BlxViewContext *bc,
+                           GtkWidget **mainmenu,
+                           GtkWidget **treeHeaderMenu,
+                           GtkWidget **toolbar,
+                           GtkActionGroup **actionGroupOut)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
   
@@ -6553,6 +6699,7 @@ static void createMainMenu(GtkWidget *window, BlxViewContext *bc, GtkWidget **ma
     }
   
   *mainmenu = gtk_ui_manager_get_widget (ui_manager, "/ContextMenu");
+  *treeHeaderMenu = gtk_ui_manager_get_widget (ui_manager, "/TreeHeaderContextMenu");
   *toolbar = gtk_ui_manager_get_widget (ui_manager, "/Toolbar");
 }
 
@@ -6896,9 +7043,10 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 
   /* Create the main menu */
   GtkWidget *mainmenu = NULL;
+  GtkWidget *treeHeaderMenu = NULL;
   GtkWidget *toolbar = NULL;
   GtkActionGroup *actionGroup = NULL;
-  createMainMenu(window, blxContext, &mainmenu, &toolbar, &actionGroup);
+  createMainMenu(window, blxContext, &mainmenu, &treeHeaderMenu, &toolbar, &actionGroup);
   
   const gdouble lowestId = calculateMspData(options->mspList, blxContext);
   
@@ -6959,6 +7107,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                             bigPicture, 
                             detailView, 
                             mainmenu,
+                            treeHeaderMenu,
                             actionGroup,
                             &refSeqRange, 
                             &fullDisplayRange,

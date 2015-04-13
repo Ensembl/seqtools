@@ -1237,7 +1237,7 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
   DEBUG_ENTER("scrollToKeepSelectionInRange()");
 
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  const gboolean selectedBaseSet = detailViewGetSelectedDisplayIdxSet(detailView);
+  const gboolean selectedBaseSet = detailViewGetSelectedIdxSet(detailView);
   const int selectedBaseIdx = detailViewGetSelectedDisplayIdx(detailView);
 
   if (selectedBaseSet && !valueWithinRange(selectedBaseIdx, displayRange))
@@ -3158,7 +3158,7 @@ static void detailViewCentreOnSelection(GtkWidget *detailView)
 {
   DEBUG_ENTER("detailViewCentreOnSelection()");
 
-  const gboolean selectedBaseSet = detailViewGetSelectedDisplayIdxSet(detailView);
+  const gboolean selectedBaseSet = detailViewGetSelectedIdxSet(detailView);
   const int selectedBaseIdx = detailViewGetSelectedDisplayIdx(detailView);
   
   if (selectedBaseSet)
@@ -3765,22 +3765,56 @@ BlxSeqType detailViewGetSeqType(GtkWidget *detailView)
   return bc->seqType;
 }
 
+gboolean detailViewGetSelectedIdxSet(GtkWidget *detailView)
+{
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  return properties ? properties->selectedIndex.isSet : FALSE;
+}
+
+/* Return the last-selected coord in display coords */
 int detailViewGetSelectedDisplayIdx(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties && properties->selectedIndex.isSet ? properties->selectedIndex.displayIdx : UNSET_INT;
 }
 
-gboolean detailViewGetSelectedDisplayIdxSet(GtkWidget *detailView)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->selectedIndex.isSet : FALSE;
-}
-
-int detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView)
+/* Return the last-selected coord in dna coords */
+int detailViewGetSelectedDnaIdx(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   return properties && properties->selectedIndex.isSet ? properties->selectedIndex.dnaIdx : UNSET_INT;
+}
+
+/* Return the selection range in display coords. Allocates a  new IntRange* which should be
+ * free'd by the caller with g_free() */
+IntRange *detailViewGetSelectedDisplayIdxRange(GtkWidget *detailView)
+{
+  IntRange *result = NULL;
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
+  if (properties && properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
+    {
+      result = (IntRange*)g_malloc(sizeof *result);
+      intrangeSetValues(result, properties->selectedRangeStart.displayIdx, properties->selectedRangeEnd.displayIdx);
+    }
+
+  return result;
+}
+
+/* Return the selection range in dna coords. Allocates a  new IntRange* which should be
+ * free'd by the caller with g_free() */
+IntRange *detailViewGetSelectedDnaIdxRange(GtkWidget *detailView)
+{
+  IntRange *result = NULL;
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
+  if (properties && properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
+    {
+      result = (IntRange*)g_malloc(sizeof *result);
+      intrangeSetValues(result, properties->selectedRangeStart.dnaIdx, properties->selectedRangeEnd.dnaIdx);
+    }
+
+  return result;
 }
 
 /* Get the active frame. Returns the last-selected frame, or 1 if no frame is selected. */
@@ -3859,16 +3893,18 @@ gboolean detailViewIsDisplayIdxSelected(GtkWidget *detailView, const int display
 
   if (properties)
     {
-      if (properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
+      /* Check if the coord is in the selection range */
+      IntRange *range = detailViewGetSelectedDisplayIdxRange(detailView);
+
+      if (range)
         {
-          /* Check if the coord is in the selection range */
-          IntRange range = {properties->selectedRangeStart.displayIdx, properties->selectedRangeEnd.displayIdx};
-          result = valueWithinRange(displayIdx, &range);
+          result = valueWithinRange(displayIdx, range);
+          g_free(range);
         }
-      else if (properties->selectedIndex.isSet)
+      else if (detailViewGetSelectedIdxSet(detailView))
         {
           /* Check if the coord matches the selected index */
-          result = (displayIdx == properties->selectedIndex.displayIdx);
+          result = (displayIdx == detailViewGetSelectedDisplayIdx(detailView));
         }
     }
 
@@ -3884,16 +3920,18 @@ gboolean detailViewIsDnaIdxSelected(GtkWidget *detailView, const int dnaIdx)
 
   if (properties)
     {
-      if (properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
+      IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
+
+      if (range)
         {
           /* Check if the coord is in the selection range */
-          IntRange range = {properties->selectedRangeStart.dnaIdx, properties->selectedRangeEnd.dnaIdx};
-          result = valueWithinRange(dnaIdx, &range);
+          result = valueWithinRange(dnaIdx, range);
+          g_free(range);
         }
-      else if (properties->selectedIndex.isSet)
+      else if (detailViewGetSelectedIdxSet(detailView))
         {
           /* Check if the coord matches the selected index */
-          result = (dnaIdx == properties->selectedIndex.dnaIdx);
+          result = (dnaIdx == detailViewGetSelectedDnaIdx(detailView));
         }
     }
 
@@ -3913,7 +3951,7 @@ static void setDetailViewIndex(DetailViewIndex *index,
 
   if (index)
     {
-      index->isSet = TRUE;
+      index->isSet = isSet;
       index->dnaIdx = dnaIdx;
       index->displayIdx = displayIdx;
       index->frame = frame;
@@ -3996,10 +4034,15 @@ static void detailViewSetSelectedIndex(GtkWidget *detailView,
       /* Extend or trim the existing range by setting the start or end of the range to the new
        * value depending on whether the click was before or after the initial selection
        * index. If the user clicks on the initial selection index trim both ends. */
-      if (displayIdx <= properties->selectedRangeInit.displayIdx)
+      if (dnaIdx <= properties->selectedRangeInit.dnaIdx)
         setDetailViewIndex(&properties->selectedRangeStart, TRUE, dnaIdx, displayIdx, frame, baseNum);
-      else if (displayIdx >= properties->selectedRangeInit.displayIdx)
+      else if (dnaIdx >= properties->selectedRangeInit.dnaIdx)
         setDetailViewIndex(&properties->selectedRangeEnd, TRUE, dnaIdx, displayIdx, frame, baseNum);
+
+      if (properties->selectedRangeStart.dnaIdx > properties->selectedRangeEnd.dnaIdx)
+        {
+          DEBUG_OUT("Warning: selection range start is greater than end!!\n");
+        }
 
       /* Also set the main selection index so that it is always the last-selected value */
       setDetailViewIndex(&properties->selectedIndex, TRUE, dnaIdx, displayIdx, frame, baseNum);      
@@ -4056,7 +4099,7 @@ void detailViewSetActiveFrame(GtkWidget *detailView, const int frame)
                                  baseNum,
                                  FALSE,
                                  FALSE,
-                                 FALSE);
+                                 TRUE);
     }
 
   DEBUG_EXIT("detailViewSetActiveFrame returning ");
@@ -4216,6 +4259,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
       properties->numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
 
+      
       setDetailViewIndex(&properties->selectedIndex, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
       setDetailViewIndex(&properties->selectedRangeInit, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
       setDetailViewIndex(&properties->selectedRangeStart, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
@@ -4662,7 +4706,6 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
           detailViewSetClickedBaseIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE);
         }
       
-
       GtkWidget *mainmenu = blxWindowGetMainMenu(detailViewGetBlxWindow(detailView));
       gtk_menu_popup (GTK_MENU(mainmenu), NULL, NULL, NULL, NULL, event->button, event->time);
       handled = TRUE;
@@ -4763,7 +4806,7 @@ static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton 
       if (!ctrlModifier)
         {
           /* Move the scrollbar so that the currently-selected base index is at the centre */
-          const gboolean selectedBaseSet = detailViewGetSelectedDisplayIdxSet(detailView);
+          const gboolean selectedBaseSet = detailViewGetSelectedIdxSet(detailView);
           const int selectedBaseIdx = detailViewGetSelectedDisplayIdx(detailView);
           
           if (selectedBaseSet)
@@ -5004,16 +5047,15 @@ void toggleStrand(GtkWidget *detailView)
   /* Re-select the currently-selected index, if there is one, because the display coords
    * have changed. */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  const int activeFrame = detailViewGetActiveFrame(detailView); 
   
   if (properties->selectedIndex.isSet)
-    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedIndex.dnaIdx, activeFrame, FALSE, TRUE, FALSE);
+    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedIndex.dnaIdx, properties->selectedIndex.frame, FALSE, TRUE, FALSE);
 
   if (properties->selectedRangeStart.isSet)
-    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedRangeStart.dnaIdx, activeFrame, FALSE, TRUE, TRUE);
+    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedRangeStart.dnaIdx, properties->selectedRangeStart.frame, FALSE, TRUE, TRUE);
   
   if (properties->selectedRangeEnd.isSet)
-    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedRangeEnd.dnaIdx, activeFrame, FALSE, TRUE, TRUE);
+    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedRangeEnd.dnaIdx, properties->selectedRangeEnd.frame, FALSE, TRUE, TRUE);
   
   /* Re-calculate the cached display ranges for the MSPs */
   cacheMspDisplayRanges(blxContext, properties->numUnalignedBases);
@@ -5296,7 +5338,7 @@ MSP* prevMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
 {
   /* Jump to the nearest match to the currently selected base index, if there is
    * one and if it is currently visible. Otherwise use the current display centre. */
-  int startDnaIdx = detailViewGetSelectedDnaBaseIdx(detailView);
+  int startDnaIdx = detailViewGetSelectedDnaIdx(detailView);
   int startCoord = detailViewGetSelectedDisplayIdx(detailView);
   const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
   
@@ -5319,7 +5361,7 @@ MSP* nextMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
 {
   /* Jump to the nearest match to the currently selected base index, if there is
    * one and if it is currently visible. Otherwise use the current display centre. */
-  int startDnaIdx = detailViewGetSelectedDnaBaseIdx(detailView);
+  int startDnaIdx = detailViewGetSelectedDnaIdx(detailView);
   int startCoord = detailViewGetSelectedDisplayIdx(detailView);
   const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
   

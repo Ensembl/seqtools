@@ -593,7 +593,9 @@ static gboolean exonCoordIsPartialCodon(const MSP* const msp, const gboolean sta
 static gboolean coordIsSelected(RenderData *data, const int coord)
 {
   gboolean result = FALSE;
-  IntRange range = {data->selectedRangeStart, data->selectedRangeEnd};
+
+  IntRange range;
+  intrangeSetValues(&range, data->selectedRangeStart, data->selectedRangeEnd);
   
   if (valueWithinRange(coord, &range))
     result = TRUE;
@@ -1306,6 +1308,8 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
   dashList[0] = 2;
   dashList[1] = 1;
   gdk_gc_set_dashes(gc, 1, dashList, listLen);
+
+  IntRange *selectionRange = detailViewGetSelectedDisplayIdxRange(treeProperties->detailView);
   
   RenderData data = {
     bc,
@@ -1315,9 +1319,9 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
     gc,
     treeGetStrand(tree),
     treeProperties->readingFrame,
-    detailViewProperties->selectedIndex.displayIdx,
-    detailViewProperties->selectedRangeStart.displayIdx,
-    detailViewProperties->selectedRangeEnd.displayIdx,
+    detailViewGetSelectedDisplayIdx(treeProperties->detailView),
+    selectionRange ? selectionRange->min : UNSET_INT,
+    selectionRange ? selectionRange->max : UNSET_INT,
     blxWindowIsSeqSelected(detailViewProperties->blxWindow, seq),
     detailViewProperties->cellXPadding,
     detailViewProperties->cellYPadding,
@@ -1357,6 +1361,9 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
     detailViewProperties->numUnalignedBases
   };  
   
+  g_free(selectionRange);
+  selectionRange = NULL;
+
   /* If a range is selected highlight it now in case we don't come to process it (in 
    * which case this will get drawn over). */
   int i = 0;

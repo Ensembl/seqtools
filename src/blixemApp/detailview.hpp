@@ -167,9 +167,11 @@ typedef struct _DrawBaseData
 int                     detailViewGetNumFrames(GtkWidget *detailView);
 IntRange*               detailViewGetDisplayRange(GtkWidget *detailView);
 int                     detailViewGetClickedBaseIdx(GtkWidget *detailView);
+gboolean                detailViewGetSelectedIdxSet(GtkWidget *detailView);
 int                     detailViewGetSelectedDisplayIdx(GtkWidget *detailView);
-gboolean                detailViewGetSelectedDisplayIdxSet(GtkWidget *detailView);
-int                     detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
+int                     detailViewGetSelectedDnaIdx(GtkWidget *detailView);
+IntRange*               detailViewGetSelectedDisplayIdxRange(GtkWidget *detailView);
+IntRange*               detailViewGetSelectedDnaIdxRange(GtkWidget *detailView);
 int                     detailViewGetOldSelectedBaseIdx(GtkWidget *detailView);
 GtkAdjustment*          detailViewGetAdjustment(GtkWidget *detailView);
 GtkWidget*              detailViewGetTree(GtkWidget *detailView, const BlxStrand strand, const int frame);
