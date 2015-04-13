@@ -4910,22 +4910,23 @@ static gboolean onKeyPressEscape(GtkWidget *window, const gboolean ctrlModifier,
   return TRUE;
 }
 
-static gboolean onKeyPressLeftRight(GtkWidget *window, const gboolean left, const gboolean ctrlModifier, const gboolean shiftModifier)
+static gboolean onKeyPressLeftRight(GtkWidget *window, 
+                                    const gboolean left, 
+                                    const gboolean ctrlModifier, 
+                                    const gboolean shiftModifier,
+                                    const gboolean metaModifier)
 {
-  /*! \todo Use Alt modifier here to move by 1 dna index so that we can use shift to extend
-   * the current selection */
- 
   if (ctrlModifier)
     {
       goToMatch(window, left, shiftModifier);
     }
-  else if (shiftModifier)
+  else if (metaModifier)
     {
-      moveSelectedBaseIdxBy1(window, left, FALSE);
+      moveSelectedBaseIdxBy1(window, left, shiftModifier);
     }
   else
     {
-      moveSelectedDisplayIdxBy1(window, left, FALSE);
+      moveSelectedDisplayIdxBy1(window, left, shiftModifier);
     }
   
   return TRUE;
@@ -5060,13 +5061,14 @@ static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpoin
   
   const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
   const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
+  const gboolean metaModifier = (event->state & GDK_META_MASK) == GDK_META_MASK;
   
   switch (event->keyval)
     {
       case GDK_Escape:      result = onKeyPressEscape(window, ctrlModifier, shiftModifier);           break;
       
-      case GDK_Left:        result = onKeyPressLeftRight(window, TRUE, ctrlModifier, shiftModifier);  break;
-      case GDK_Right:       result = onKeyPressLeftRight(window, FALSE, ctrlModifier, shiftModifier); break;
+      case GDK_Left:        result = onKeyPressLeftRight(window, TRUE, ctrlModifier, shiftModifier, metaModifier);  break;
+      case GDK_Right:       result = onKeyPressLeftRight(window, FALSE, ctrlModifier, shiftModifier, metaModifier); break;
       
       case GDK_Up:          result = onKeyPressUpDown(window, TRUE, ctrlModifier, shiftModifier);     break;
       case GDK_Down:        result = onKeyPressUpDown(window, FALSE, ctrlModifier, shiftModifier);    break;
