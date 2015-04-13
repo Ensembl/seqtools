@@ -83,6 +83,7 @@ typedef struct _BlxWindowProperties
     GtkWidget *bigPicture;          /* The top section of the view, showing a "big picture" overview of the alignments */
     GtkWidget *detailView;          /* The bottom section of the view, showing a detailed list of the alignments */
     GtkWidget *mainmenu;            /* The main menu */
+    GtkWidget *seqHeaderMenu;      /* The context menu for tree headers */
     GtkActionGroup *actionGroup;    /* The action-group for the menus */
 
     BlxViewContext *blxContext;       /* The blixem view context */
@@ -104,7 +105,9 @@ static void                       onSettingsMenu(GtkAction *action, gpointer dat
 static void                       onLoadMenu(GtkAction *action, gpointer data);
 static void                       onCopySeqsMenu(GtkAction *action, gpointer data);
 static void                       onCopySeqDataMenu(GtkAction *action, gpointer data);
-static void                       onCopyRefSeqMenu(GtkAction *action, gpointer data);
+static void                       onCopySeqDataMarkMenu(GtkAction *action, gpointer data);
+static void                       onCopyRefSeqDnaMenu(GtkAction *action, gpointer data);
+static void                       onCopyRefSeqDisplayMenu(GtkAction *action, gpointer data);
 static void                       onSortMenu(GtkAction *action, gpointer data);
 static void                       onZoomInMenu(GtkAction *action, gpointer data);
 static void                       onZoomOutMenu(GtkAction *action, gpointer data);
@@ -161,7 +164,9 @@ static gdouble                    calculateMspData(MSP *mspList, BlxViewContext 
 
 static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
 static void                       copySelectedSeqDataToClipboard(GtkWidget *blxWindow);
+static void                       copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int fromIdx, const int toIdx);
 static void                       copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
+static void                       copyRefSeqTranslationToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
 
 
 /* MENU BUILDERS */
@@ -178,9 +183,11 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "Settings",         GTK_STOCK_PREFERENCES,    "_Settings...",             "<control>S",         "Settings  Ctrl+S",                     G_CALLBACK(onSettingsMenu)},
   { "Load",             GTK_STOCK_OPEN,           "_Open features file...",    NULL,                "Load additional features from file  Ctrl+O", G_CALLBACK(onLoadMenu)},
 
-  { "CopySeqNames",     NULL,                     "Copy sequence name(s)",    "<control>C",         "Copy selected sequences name(s)  Ctrl+C", G_CALLBACK(onCopySeqsMenu)},
-  { "CopySeqData",      NULL,                     "Copy sequence data",       "<shift><control>C",  "Copy selected sequences data  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMenu)},
-  { "CopyRefSeq",       NULL,                     "Copy reference sequence from mark",  NULL,                 "Copy selected sequences name(s)  Alt+C", G_CALLBACK(onCopyRefSeqMenu)},
+  { "CopySeqNames",     NULL,                     "Copy match name(s)",       "<control>C",         "Copy selected match sequence's name(s)  Ctrl+C", G_CALLBACK(onCopySeqsMenu)},
+  { "CopySeqData",      NULL,                     "Copy match sequence (entire sequence)",  NULL,   "Copy whole sequence for selected match",         G_CALLBACK(onCopySeqDataMenu)},
+  { "CopySeqDataMark",  NULL,                     "Copy match sequence (selected section)","<shift><control>C","Copy selected match sequence segment  Shift+Ctrl+C", G_CALLBACK(onCopySeqDataMarkMenu)},
+  { "CopyRefSeqDna",    NULL,                     "Copy reference DNA",       "<alt>C",             "Copy selected reference sequence DNA  Alt+C", G_CALLBACK(onCopyRefSeqDnaMenu)},
+  { "CopyRefSeqDisplay",NULL,                     "Copy reference translation (current frame)","<shift><alt>C","Copy selected reference sequence translation  Shift+Alt+C", G_CALLBACK(onCopyRefSeqDisplayMenu)},
 
   { "Sort",             GTK_STOCK_SORT_ASCENDING, "Sort...",                  NULL,                 "Sort sequences",                       G_CALLBACK(onSortMenu)},
   { "ZoomIn",           GTK_STOCK_ZOOM_IN,        "Zoom in",                  "equal",              "Zoom in  =",                           G_CALLBACK(onZoomInMenu)},
@@ -231,7 +238,9 @@ static const char standardMenuDescription[] =
 "      <menu action='CopyMenuAction'>"
 "        <menuitem action='CopySeqNames'/>"
 "        <menuitem action='CopySeqData'/>"
-"        <menuitem action='CopyRefSeq'/>"
+"        <menuitem action='CopySeqDataMark'/>"
+"        <menuitem action='CopyRefSeqDna'/>"
+"        <menuitem action='CopyRefSeqDisplay'/>"
 "      </menu>"
 "      <menuitem action='View'/>"
 "      <menuitem action='CreateGroup'/>"
@@ -241,6 +250,10 @@ static const char standardMenuDescription[] =
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
 "      <menuitem action='CloseAllDotters'/>"
+"  </popup>"
+"  <popup name='SeqHeaderContextMenu' accelerators='true'>"
+"      <menuitem action='CopyRefSeqDna'/>"
+"      <menuitem action='CopyRefSeqDisplay'/>"
 "  </popup>"
 "  <toolbar name='Toolbar'>"
 "    <toolitem action='Help'/>"
@@ -349,27 +362,39 @@ static gboolean moveRowSelection(GtkWidget *blxWindow, const gboolean moveUp, co
  * DNA bases (i.e. you have to move 3 bases in order to scroll a full peptide
  * if viewing protein matches). Scrolls the detail view if necessary to keep 
  * the new base in view. */
-static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
+static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft, const gboolean extend)
 {
   GtkWidget *detailView = blxWindowGetDetailView(window);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
   const gboolean displayRev = detailViewGetDisplayRev(detailView);
-  
   const int direction = (moveLeft == displayRev ? 1 : -1);
-  const int newDnaIdx = properties->selectedDnaBaseIdx + direction;
   
-  detailViewSetSelectedDnaBaseIdx(detailView, 
-                                  newDnaIdx, 
-                                  detailViewGetActiveFrame(detailView),
-                                  TRUE, TRUE);
+  int newDnaIdx = UNSET_INT;
+  gboolean ok = FALSE;
+
+  if (properties->selectedIndex.isSet)
+    {
+      newDnaIdx = properties->selectedIndex.dnaIdx + direction;
+      ok = TRUE;
+    }
+  
+  if (ok)
+    {
+      detailViewSetSelectedDnaBaseIdx(detailView, 
+                                      newDnaIdx, 
+                                      detailViewGetActiveFrame(detailView),
+                                      TRUE, 
+                                      TRUE,
+                                      extend);
+    }
 }
 
 
 /* Called when user pressed Home/End. If the modifier is pressed, scroll to the
 *  start/end of all matches in the current selection (or all matches, if no 
 * selection), or to the start/end of the entire display if the modifier is not pressed. */
-static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, const gboolean modifier)
+static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, const gboolean modifier, const gboolean extend)
 {
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
@@ -378,9 +403,9 @@ static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, con
       GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
 
       if (moveLeft)
-        firstMatch(detailView, selectedSeqs);
+        firstMatch(detailView, selectedSeqs, extend);
       else
-        lastMatch(detailView, selectedSeqs);
+        lastMatch(detailView, selectedSeqs, extend);
     }
   else
     {
@@ -397,50 +422,64 @@ static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, con
 
 /* Jump left or right to the next/prev nearest match. Only include matches in the
  * current selection, if any rows are selected. */
-static void goToMatch(GtkWidget *blxWindow, const gboolean moveLeft)
+static void goToMatch(GtkWidget *blxWindow, const gboolean moveLeft, const gboolean extend)
 {
   GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
   
   if (moveLeft)
     {
-      prevMatch(blxWindowGetDetailView(blxWindow), selectedSeqs);
+      prevMatch(blxWindowGetDetailView(blxWindow), selectedSeqs, extend);
     }
   else
     {
-      nextMatch(blxWindowGetDetailView(blxWindow), selectedSeqs);      
+      nextMatch(blxWindowGetDetailView(blxWindow), selectedSeqs, extend);  
     }
 }
 
 
 /* Move the selected display index 1 value to the left/right. Moves by full peptides
  * if viewing protein matches. Scrolls the detail view if necessary to keep the new 
- * index in view. */
-static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft)
+ * index in view. If extend is true we extend the current selection range, otherwise
+ * just move the current selection index */
+static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft, const gboolean extend)
 {
+  DEBUG_ENTER("moveSelectedDisplayIdxBy1()");
+
   GtkWidget *detailView = blxWindowGetDetailView(window);
   DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
-  
-  if (detailViewProperties->selectedBaseIdx != UNSET_INT)
+
+  int newSelectedBaseIdx = UNSET_INT;
+  gboolean ok = FALSE;
+
+  if (detailViewProperties->selectedIndex.isSet)
     {
-      /* Decrement the index if moving left decrease and increment it if moving right, 
-       * unless the display is toggled, in which case do the opposite */
-      int newSelectedBaseIdx = detailViewProperties->selectedBaseIdx;
+      /* Decrement the index if moving left or increment if moving right */
+      newSelectedBaseIdx = detailViewProperties->selectedIndex.displayIdx;
       
       if (moveLeft)
-        {
-          --newSelectedBaseIdx;
-        }
+        --newSelectedBaseIdx;
       else
-        {
-          ++newSelectedBaseIdx;
-        }
-      
-      IntRange *fullRange = blxWindowGetFullRange(window);
-      boundsLimitValue(&newSelectedBaseIdx, fullRange);
-      
-      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, detailViewProperties->selectedBaseNum, TRUE, TRUE);
+        ++newSelectedBaseIdx;
+
+      DEBUG_OUT("Moving selected display index to %d\n", newSelectedBaseIdx);
+
+      ok = TRUE;
+    }
+
+  if (ok)
+    {
+      detailViewSetSelectedDisplayIdx(detailView,
+                                      newSelectedBaseIdx,
+                                      detailViewProperties->selectedIndex.frame,
+                                      detailViewProperties->selectedIndex.baseNum,
+                                      TRUE,
+                                      TRUE,
+                                      extend);
+
       detailViewRedrawAll(detailView);
     }
+
+  DEBUG_EXIT("moveSelectedDisplayIdxBy1 returning ");
 }
 
 
@@ -988,11 +1027,11 @@ static void findAgain(GtkWidget *blxWindow, const gboolean modifier)
           
           if (modifier)
             {
-              prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+              prevMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
             }
           else
             {
-              nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+              nextMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
             }
         }
     }
@@ -1355,15 +1394,15 @@ static gboolean onFindSeqsFromName(GtkWidget *button, const gint responseId, gpo
       
       if (responseId == BLX_RESPONSE_FORWARD)
         {
-          nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+          nextMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
       else if (responseId == BLX_RESPONSE_BACK)
         {
-          prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+          prevMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
       else
         {
-          firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+          firstMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
     }
     
@@ -1409,15 +1448,15 @@ static gboolean onFindSeqsFromList(GtkWidget *button, const gint responseId, gpo
       
       if (responseId == BLX_RESPONSE_FORWARD)
         {
-          nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+          nextMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
       else if (responseId == BLX_RESPONSE_BACK)
         {
-          prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+          prevMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
       else
         {
-          firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+          firstMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
     }
   
@@ -1515,10 +1554,17 @@ static void blxWindowFindDnaString(GtkWidget *blxWindow,
       const int frame = 1;
       int baseNum = UNSET_INT;
       
-      int result = searchLeft ? refSeqIdx : matchStart;
-      result = convertDnaIdxToDisplayIdx(result, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
+      int resultStart = searchLeft ? refSeqIdx : matchStart;
+      int resultEnd = searchLeft ? matchStart : refSeqIdx;
+      resultStart = convertDnaIdxToDisplayIdx(resultStart, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
+      resultEnd = convertDnaIdxToDisplayIdx(resultEnd, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
       
-      detailViewSetSelectedBaseIdx(detailView, result, frame, baseNum, TRUE, FALSE);
+      /* Select the start index in the result */
+      detailViewSetSelectedDisplayIdx(detailView, resultStart, frame, baseNum, TRUE, TRUE, FALSE);
+
+      /* Extend the selection to the end index */
+      detailViewSetSelectedDisplayIdx(detailView, resultEnd, frame, baseNum, TRUE, TRUE, FALSE);
+      
       detailViewRedrawAll(detailView);
     }
   else
@@ -1546,7 +1592,7 @@ static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginni
   else  
     {
       GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-      result = detailViewGetSelectedBaseIdx(detailView);
+      result = detailViewGetSelectedDisplayIdx(detailView);
       
       if (result != UNSET_INT)
         {
@@ -2451,7 +2497,7 @@ void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, g
   if (seqList)
     {
       blxWindowSetSelectedSeqList(blxWindow, seqList);
-      firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+      firstMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
     }
 }
 
@@ -4516,28 +4562,28 @@ static void onPrevMatchMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
-  prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+  prevMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
 }
 
 static void onNextMatchMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
-  nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+  nextMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
 }
 
 static void onFirstMatchMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
-  firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+  firstMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
 }
 
 static void onLastMatchMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
-  lastMatch(blxWindowGetDetailView(blxWindow), seqList);
+  lastMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
 }
 
 static void onPageLeftMenu(GtkAction *action, gpointer data)
@@ -4646,7 +4692,32 @@ static void onCopySeqDataMenu(GtkAction *action, gpointer data)
   copySelectedSeqDataToClipboard(blxWindow);
 }
 
-static void onCopyRefSeqMenu(GtkAction *action, gpointer data)
+static void onCopySeqDataMarkMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+
+  /* Copy the portion of the match seq from the selected index
+   * to the clicked index */
+  IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
+
+  if (range)
+    {
+      const int fromIdx = range->min;
+      const int toIdx = range->max;
+
+      copySelectedSeqRangeToClipboard(blxWindow, fromIdx, toIdx);
+
+      g_free(range);
+    }
+  else
+    {
+      g_critical("Please middle-click on a coordinate first to set the mark\n");
+    }
+}
+
+/* Copy the ref seq for the currently-selected range of coords to the clipboard */
+static void onCopyRefSeqDnaMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
 
@@ -4654,13 +4725,43 @@ static void onCopyRefSeqMenu(GtkAction *action, gpointer data)
 
   /* Copy the portion of the ref seq from the selected index
    * to the clicked index */
-  
-  if (detailViewGetSelectedBaseSet(detailView))
+  IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
+
+  if (range)
     {
-      const int fromIdx = detailViewGetSelectedDnaBaseIdx(detailView);
-      const int toIdx = detailViewGetClickedBaseIdx(detailView);
+      const int fromIdx = range->min;
+      const int toIdx = range->max;
 
       copyRefSeqToClipboard(blxWindow, fromIdx, toIdx);
+
+      g_free(range);
+    }
+  else
+    {
+      g_critical("Please middle-click on a coordinate first to set the mark\n");
+    }
+}
+
+/* Copy the translation of the ref seq for the currently-selected range of coords 
+ * to the clipboard. Uses the currently-active reading frame. */
+static void onCopyRefSeqDisplayMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+
+  /* Copy the portion of the ref seq from the selected index
+   * to the clicked index */
+  IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
+
+  if (range)
+    {
+      const int fromIdx = range->min;
+      const int toIdx = range->max;
+
+      copyRefSeqTranslationToClipboard(blxWindow, fromIdx, toIdx);
+
+      g_free(range);
     }
   else
     {
@@ -4829,19 +4930,23 @@ static gboolean onKeyPressEscape(GtkWidget *window, const gboolean ctrlModifier,
   return TRUE;
 }
 
-static gboolean onKeyPressLeftRight(GtkWidget *window, const gboolean left, const gboolean ctrlModifier, const gboolean shiftModifier)
+static gboolean onKeyPressLeftRight(GtkWidget *window, 
+                                    const gboolean left, 
+                                    const gboolean ctrlModifier, 
+                                    const gboolean shiftModifier,
+                                    const gboolean metaModifier)
 {
   if (ctrlModifier)
     {
-      goToMatch(window, left);
+      goToMatch(window, left, shiftModifier);
     }
-  else if (shiftModifier)
+  else if (metaModifier)
     {
-      moveSelectedBaseIdxBy1(window, left);
+      moveSelectedBaseIdxBy1(window, left, shiftModifier);
     }
   else
     {
-      moveSelectedDisplayIdxBy1(window, left);
+      moveSelectedDisplayIdxBy1(window, left, shiftModifier);
     }
   
   return TRUE;
@@ -4855,7 +4960,7 @@ static gboolean onKeyPressUpDown(GtkWidget *window, const gboolean up, const gbo
 
 static gboolean onKeyPressHomeEnd(GtkWidget *window, const gboolean home, const gboolean ctrlModifier, const gboolean shiftModifier)
 {
-  scrollToExtremity(window, home, ctrlModifier);
+  scrollToExtremity(window, home, ctrlModifier, shiftModifier);
   return TRUE;
 }
 
@@ -4976,13 +5081,14 @@ static gboolean onKeyPressBlxWindow(GtkWidget *window, GdkEventKey *event, gpoin
   
   const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
   const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
+  const gboolean metaModifier = (event->state & GDK_META_MASK) == GDK_META_MASK;
   
   switch (event->keyval)
     {
       case GDK_Escape:      result = onKeyPressEscape(window, ctrlModifier, shiftModifier);           break;
       
-      case GDK_Left:        result = onKeyPressLeftRight(window, TRUE, ctrlModifier, shiftModifier);  break;
-      case GDK_Right:       result = onKeyPressLeftRight(window, FALSE, ctrlModifier, shiftModifier); break;
+      case GDK_Left:        result = onKeyPressLeftRight(window, TRUE, ctrlModifier, shiftModifier, metaModifier);  break;
+      case GDK_Right:       result = onKeyPressLeftRight(window, FALSE, ctrlModifier, shiftModifier, metaModifier); break;
       
       case GDK_Up:          result = onKeyPressUpDown(window, TRUE, ctrlModifier, shiftModifier);     break;
       case GDK_Down:        result = onKeyPressUpDown(window, FALSE, ctrlModifier, shiftModifier);    break;
@@ -5241,6 +5347,12 @@ static void onDestroyBlxWindow(GtkWidget *widget)
         {
           gtk_widget_destroy(properties->mainmenu);
           properties->mainmenu = NULL;
+        }
+
+      if (properties->seqHeaderMenu)
+        {
+          gtk_widget_destroy(properties->seqHeaderMenu);
+          properties->seqHeaderMenu = NULL;
         }
       
       /* Destroy the print settings */
@@ -5597,6 +5709,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
                                       GtkWidget *bigPicture, 
                                       GtkWidget *detailView,
                                       GtkWidget *mainmenu,
+                                      GtkWidget *seqHeaderMenu,
                                       GtkActionGroup *actionGroup,
                                       const IntRange* const refSeqRange,
                                       const IntRange* const fullDisplayRange,
@@ -5611,6 +5724,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
       properties->bigPicture = bigPicture;
       properties->detailView = detailView;
       properties->mainmenu = mainmenu;
+      properties->seqHeaderMenu = seqHeaderMenu;
       properties->actionGroup = actionGroup;
 
       properties->pageSetup = gtk_page_setup_new();
@@ -5654,6 +5768,12 @@ GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->mainmenu : NULL;
+}
+
+GtkWidget* blxWindowGetSeqHeaderMenu(GtkWidget *blxWindow)
+{
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+  return properties ? properties->seqHeaderMenu : NULL;
 }
 
 BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
@@ -6045,11 +6165,147 @@ static void copySelectedSeqDataToClipboard(GtkWidget *blxWindow)
 }
 
 
-/* This function copies the reference sequence, from the 
- * clicked position to the marked position, onto the clipboard. */
-static void copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in)
+/* This function copies the currently-selected sequence's data to the default
+ * clipboard. Only copies the range between the given coords */
+static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in)
 {
+  GList *listItem = blxWindowGetSelectedSeqs(blxWindow);
+  const char *sequence = NULL;
+
+  if (g_list_length(listItem) < 1)
+    g_critical("Please select a sequence.\n");
+  else if (g_list_length(listItem) > 1)
+    g_critical("Please select a single sequence.\n");
+  else
+    {
+      const BlxSequence *seq = (const BlxSequence*)(listItem->data);
+      sequence = blxSequenceGetSequence(seq);
+
+      if (sequence)
+        {
+          BlxViewContext *bc = blxWindowGetContext(blxWindow);
+          const gboolean reverse = (bc->displayRev != (seq->strand == BLXSTRAND_REVERSE));
+          int fromIdx = fromIdx_in;
+          int toIdx = toIdx_in;
+
+          /* Coords can be passed in any order. Swap them if from > to */
+          if (!reverse && fromIdx > toIdx)
+            {
+              int tmp = fromIdx;
+              fromIdx = toIdx;
+              toIdx = tmp;
+            }
+          else if (reverse && fromIdx < toIdx)
+            {
+              int tmp = fromIdx;
+              fromIdx = toIdx;
+              toIdx = tmp;
+            }
+          
+          /* Find the match-sequence coord at these ref-seq coords */
+          GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+          const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
+
+          /* Loop through all msps and look for one which contains both the start and end coord. */
+          int matchStart = 0, matchEnd = 0;
+          GList *mspItem = seq->mspList;
+          const MSP *msp = NULL;
+
+          for ( ; mspItem && !msp; mspItem = mspItem->next)
+            {
+              const MSP *check_msp = (const MSP*)(mspItem->data);
+
+              if (mspGetMatchCoord(check_msp, fromIdx, TRUE, numUnalignedBases, bc, &matchStart) &&
+                  mspGetMatchCoord(check_msp, toIdx, TRUE, numUnalignedBases, bc, &matchEnd))
+                {
+                  msp = check_msp;
+                  break;
+                }
+            }
+
+          if (msp)
+            {
+              /* Match coords are 1-based: convert to 0-based */
+              --matchStart;
+              --matchEnd;
+
+              /* Match coords may be opposite direction to ref coords so make sure start < end */
+              if (matchStart > matchEnd)
+                {
+                  int tmp = matchStart;
+                  matchStart = matchEnd;
+                  matchEnd = tmp;
+                }
+
+              const int sourceLen = strlen(sequence);
+              const int len = matchEnd - matchStart + 1;
+              DEBUG_OUT("Copying %s (%d, %d) (len=%d) for ref seq (%d, %d)\n", 
+                        blxSequenceGetName(seq), matchStart, matchEnd, sourceLen, fromIdx, toIdx);
+
+              if (matchStart >= sourceLen || matchEnd >= sourceLen)
+                {
+                  g_critical("Coordinates (%d, %d) are not within match sequence length %d", matchStart, matchEnd, sourceLen);
+                }
+              else if (len > sourceLen)
+                {
+                  g_critical("Match sequence range (%d, %d) is longer than match sequence length (%d)", matchStart, matchEnd, sourceLen);
+                }
+              else if (len < 0)
+                {
+                  g_critical("Error: range length is negative (ref = %d, %d, match = %d, %d, len=%d)", 
+                             fromIdx, toIdx, matchStart, matchEnd, len);
+                }
+              else if (len == 0)
+                {
+                  g_critical("Error: range length is 0");
+                }
+              else if (matchStart > matchEnd)
+                {
+                  g_critical("Error copying sequence: match sequence start coord is less than the end coord");
+                }
+              else
+                {
+                  /* Ok, now do the copy */
+
+                  /* Warn user if they're about to copy a large sequence and ask to confirm */
+                  if (len <= MAX_RECOMMENDED_COPY_LENGTH || 
+                      runConfirmationBox(blxWindow, "Copy sequence", "You are about to copy a large amount of text to the clipboard\n\nAre you sure you want to continue?") == GTK_RESPONSE_ACCEPT)
+                    {
+                      char *displayText = g_strndup(sequence + matchStart, len);
+
+                      /* If the msp is in the opposite strand to the forward-direction strand (as
+                       * determined by displayRev) then we need to reverse the result */
+                      if (bc->displayRev != (msp->qStrand == BLXSTRAND_REVERSE))
+                        displayText = g_strreverse(displayText);
+
+                      setDefaultClipboardText(displayText);
+                      g_message("Copied sequence data for %s (%d, %d) to clipboard (%d, %d)\n", 
+                                blxSequenceGetName(seq), matchStart + 1, matchEnd + 1, fromIdx, toIdx);
+
+                      g_free(displayText);
+                    }
+                }
+            }
+          else
+            {
+              g_critical("Failed to find a match from sequence '%s' which contains the range (%d, %d)", 
+                         blxSequenceGetName(seq), fromIdx, toIdx);
+            }
+        }
+    }
+}
+
+
+/* This gets the ref seq segment for the given range of coords. Returns a newly allocated string
+ * which should be free'd by the caller with g_free */
+static char* getRefSeqSegment(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in)
+{
+  DEBUG_ENTER("getRefSeqSegment()");
+
+  char *result = NULL;
+
   const char *refSeq = blxWindowGetRefSeq(blxWindow);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
   if (refSeq)
     {
@@ -6064,15 +6320,116 @@ static void copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, co
       if (len <= MAX_RECOMMENDED_COPY_LENGTH || 
           runConfirmationBox(blxWindow, "Copy sequence", "You are about to copy a large amount of text to the clipboard\n\nAre you sure you want to continue?") == GTK_RESPONSE_ACCEPT)
         {
-          const char *displayText = g_strndup(refSeq + fromIdx, toIdx - fromIdx + 1);
+          result = g_strndup(refSeq + fromIdx, toIdx - fromIdx + 1);
       
-          if (displayText)
+          if (result)
             {
-              setDefaultClipboardText(displayText);
-              g_message("Copied reference sequence from %d to %d\n", fromIdx_in, toIdx_in);
+              /*! \todo Currently in dna mode the active strand pane is ignored (the strand is
+               * forward if the display is forward and vice versa). We could find the strand here
+               * that the user last clicked on and return the sequence for that. Needs a bit of
+               * thought to get all the directionality right. */
+              //GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+              //BlxStrand strand = detailViewGetSelectedStrand(detailView);
+
+              if (bc->displayRev)
+                {
+                  char *tmp = (char*)g_malloc(strlen(result) + 1);
+                  revComplement(tmp, result);
+                  g_free(result);
+                  result = tmp;
+                }
             }
         }
     }
+  else
+    {
+      DEBUG_OUT("No reference sequence!\n");
+    }
+
+  DEBUG_EXIT("getRefSeqSegment returning %s", result);
+
+  return result;
+}
+
+
+/* This function copies the reference sequence, from the 
+ * clicked position to the marked position, onto the clipboard. */
+static void copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx, const int toIdx)
+{
+  char *dnaSeq = getRefSeqSegment(blxWindow, fromIdx, toIdx);
+
+  if (dnaSeq)
+    {
+      setDefaultClipboardText(dnaSeq);
+      g_message("Copied reference sequence from %d to %d\n", fromIdx, toIdx);
+
+      g_free(dnaSeq);
+    }
+  else
+    {
+      g_critical("Error getting DNA sequence for %d to %d\n", fromIdx, toIdx);
+    }
+}
+
+
+/* This function copies the reference sequence, from the 
+ * clicked position to the marked position, onto the clipboard. */
+static void copyRefSeqTranslationToClipboard(GtkWidget *blxWindow, const int fromIdx, const int toIdx)
+{
+  DEBUG_ENTER("copyRefSeqTranslationToClipboard()");
+
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+
+  if (bc && detailView)
+    {
+      char *dnaSeq = getRefSeqSegment(blxWindow, fromIdx, toIdx);
+
+      if (dnaSeq)
+        {
+          int requiredFrame = detailViewGetActiveFrame(detailView);
+          int offset = 0;
+
+          if (bc->seqType == BLXSEQ_PEPTIDE)
+            {
+              /* Get the offset from the start frame of the dna seq to the required reading frame */
+              int curFrame = fromIdx % 3;
+
+              /* If the display is reversed, use the end coord to calculate frame */
+              if (bc->displayRev)
+                curFrame = toIdx % 3;
+
+              if (curFrame < 1)
+                curFrame += 3;
+
+              int offset = requiredFrame - curFrame;
+              if (offset < 0)
+                offset += 3;
+            }
+
+          char *pepSeq = blxTranslate(dnaSeq + offset, bc->geneticCode);
+
+          if (pepSeq)
+            {
+              setDefaultClipboardText(pepSeq);
+              
+              g_message("Copied reference sequence translation from %d to %d for frame %d\n", fromIdx, toIdx, requiredFrame);
+              g_free(pepSeq);
+            }
+          else
+            {
+              g_critical("Error getting translation of DNA sequence from %d to %d for frame %d\n", fromIdx, toIdx, requiredFrame);
+            }
+
+          g_free(dnaSeq);
+        }
+      else
+        {
+          g_critical("Error getting DNA sequence for %d to %d\n", fromIdx, toIdx);
+        }
+    }
+
+  DEBUG_EXIT("copyRefSeqTranslationToClipboard returning ");
 }
 
 
@@ -6308,7 +6665,12 @@ static void setStyleProperties(GtkWidget *widget, char *windowColor)
 
 
 /* Create the main menu */
-static void createMainMenu(GtkWidget *window, BlxViewContext *bc, GtkWidget **mainmenu, GtkWidget **toolbar, GtkActionGroup **actionGroupOut)
+static void createMainMenu(GtkWidget *window,
+                           BlxViewContext *bc,
+                           GtkWidget **mainmenu,
+                           GtkWidget **seqHeaderMenu,
+                           GtkWidget **toolbar,
+                           GtkActionGroup **actionGroupOut)
 {
   GtkActionGroup *action_group = gtk_action_group_new ("MenuActions");
   
@@ -6340,6 +6702,7 @@ static void createMainMenu(GtkWidget *window, BlxViewContext *bc, GtkWidget **ma
     }
   
   *mainmenu = gtk_ui_manager_get_widget (ui_manager, "/ContextMenu");
+  *seqHeaderMenu = gtk_ui_manager_get_widget (ui_manager, "/SeqHeaderContextMenu");
   *toolbar = gtk_ui_manager_get_widget (ui_manager, "/Toolbar");
 }
 
@@ -6683,9 +7046,10 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 
   /* Create the main menu */
   GtkWidget *mainmenu = NULL;
+  GtkWidget *seqHeaderMenu = NULL;
   GtkWidget *toolbar = NULL;
   GtkActionGroup *actionGroup = NULL;
-  createMainMenu(window, blxContext, &mainmenu, &toolbar, &actionGroup);
+  createMainMenu(window, blxContext, &mainmenu, &seqHeaderMenu, &toolbar, &actionGroup);
   
   const gdouble lowestId = calculateMspData(options->mspList, blxContext);
   
@@ -6746,6 +7110,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                             bigPicture, 
                             detailView, 
                             mainmenu,
+                            seqHeaderMenu,
                             actionGroup,
                             &refSeqRange, 
                             &fullDisplayRange,

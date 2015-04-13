@@ -58,6 +58,7 @@ GtkWidget*		  blxWindowGetBigPicture(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetDetailView(GtkWidget *blxWindow);
 GtkWidget*                blxWindowGetCoverageView(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetMainMenu(GtkWidget *blxWindow);
+GtkWidget*		  blxWindowGetSeqHeaderMenu(GtkWidget *blxWindow);
 BlxBlastMode		  blxWindowGetBlastMode(GtkWidget *blxWindow);
 IntRange*		  blxWindowGetFullRange(GtkWidget *blxWindow);
 IntRange*		  blxWindowGetRefSeqRange(GtkWidget *blxWindow);

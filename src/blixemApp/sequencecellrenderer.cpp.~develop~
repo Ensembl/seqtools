@@ -62,8 +62,6 @@ typedef struct _RenderData
     const BlxStrand qStrand;
     const int qFrame;
     const int selectedBaseIdx;
-    const int selectedRangeStart;
-    const int selectedRangeEnd;
     gboolean seqSelected;
     const int cellXPadding;
     const int cellYPadding;
@@ -590,20 +588,6 @@ static gboolean exonCoordIsPartialCodon(const MSP* const msp, const gboolean sta
 }
 
 
-static gboolean coordIsSelected(RenderData *data, const int coord)
-{
-  gboolean result = FALSE;
-
-  IntRange range;
-  intrangeSetValues(&range, data->selectedRangeStart, data->selectedRangeEnd);
-  
-  if (valueWithinRange(coord, &range))
-    result = TRUE;
-
-  return result;
-}
-
-
 /* Highlight the start (min) peptide of the given msp if it is a partial codon, i.e. if it
  * does not start at base 1 (or end at base 3, if the display is reversed). OR highlight the end
  * (max) codon if 'start' is FALSE. The x/y coords give the top left corner of the peptide. */
@@ -619,7 +603,7 @@ static void exonHighlightPartialCodons(const MSP* const msp,
   if (isPartial && valueWithinRange(displayIdx, data->displayRange)) 
     {
       /* It's not a complete codon, so highlight this base */
-      const gboolean coordSelected = coordIsSelected(data, displayIdx);
+      const gboolean coordSelected = (data->selectedBaseIdx == displayIdx);
       const gboolean isSelected = (data->seqSelected != coordSelected);
 
       GdkColor *color = (isSelected ? data->crosshatchColorSelected : data->crosshatchColor);
@@ -661,15 +645,11 @@ static void drawBoxFeature(SequenceCellRenderer *renderer,
       drawRectangle2(data->window, data->drawable, data->gc, fill, x, y, width, height);
       
       /* If a base is selected, highlight it. Its color depends on whether it the base is within the exon range or not. */
-      int i = 0;
-      for (i = data->selectedRangeStart; i <= data->selectedRangeEnd; ++i)
+      if (data->selectedBaseIdx != UNSET_INT && valueWithinRange(data->selectedBaseIdx, &segmentRange))
         {
-          if (i != UNSET_INT && valueWithinRange(i, &segmentRange))
-            {
-              /* Negate the color if double-selected (i.e. if the row is selected as well) */
-              color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, !data->seqSelected, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
-              highlightSelectedBase(i, color, data);
-            }
+          /* Negate the color if double-selected (i.e. if the row is selected as well) */
+          color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, !data->seqSelected, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
+          highlightSelectedBase(data->selectedBaseIdx, color, data);
         }
 
       /* And now draw the outline (do this after the base highlight because otherwise that will
@@ -729,18 +709,18 @@ static void mspDrawBaseBg(MSP *msp,
   *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
   
   /* Find the match-sequence coord at this ref-seq coord */
-  gboolean found_sIdx = mspGetMatchCoord(msp, *qIdx, data->seqSelected, data->numUnalignedBases, data->bc, sIdx);
+  *sIdx = mspGetMatchCoord(msp, *qIdx, data->seqSelected, data->numUnalignedBases, data->bc);
   
   /* Highlight the base if its base index is selected, or if its sequence is selected.
    * (If it is selected in both, show it in the normal color) */
-  gboolean selected = coordIsSelected(data, displayIdx) != data->seqSelected;
+  gboolean selected = (displayIdx == data->selectedBaseIdx) != data->seqSelected;
 
   if (!valueWithinRange(*qIdx, &msp->qRange))
     {
       /* We're outside the alignment range. There might still be a base to display if
        * we're displaying unaligned parts of the match sequence or polyA tails; otherwise, we 
        * show nothing. */
-      if (found_sIdx)
+      if (*sIdx != UNSET_INT)
 	{
           sBase = blxSeqGetMatchSeqBase(msp->sSequence, *sIdx, data->bc->seqType);
 
@@ -756,7 +736,7 @@ static void mspDrawBaseBg(MSP *msp,
             }
 	}
     }
-  else if (!found_sIdx)
+  else if (*sIdx == UNSET_INT)
     {
       /* We're inside the alignment range but there is no base to display: we must be in a deletion. */
       sBase = SEQUENCE_CHAR_DELETION;
@@ -1308,8 +1288,6 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
   dashList[0] = 2;
   dashList[1] = 1;
   gdk_gc_set_dashes(gc, 1, dashList, listLen);
-
-  IntRange *selectionRange = detailViewGetSelectedDisplayIdxRange(treeProperties->detailView);
   
   RenderData data = {
     bc,
@@ -1319,9 +1297,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
     gc,
     treeGetStrand(tree),
     treeProperties->readingFrame,
-    detailViewGetSelectedDisplayIdx(treeProperties->detailView),
-    selectionRange ? selectionRange->min : UNSET_INT,
-    selectionRange ? selectionRange->max : UNSET_INT,
+    detailViewProperties->selectedBaseIdx,
     blxWindowIsSeqSelected(detailViewProperties->blxWindow, seq),
     detailViewProperties->cellXPadding,
     detailViewProperties->cellYPadding,
@@ -1361,14 +1337,9 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
     detailViewProperties->numUnalignedBases
   };  
   
-  g_free(selectionRange);
-  selectionRange = NULL;
-
-  /* If a range is selected highlight it now in case we don't come to process it (in 
+  /* If a base is selected highlight it now in case we don't come to process it (in 
    * which case this will get drawn over). */
-  int i = 0;
-  for (i = data.selectedRangeStart; i <= data.selectedRangeEnd; ++i)
-    highlightSelectedBase(i, backgroundColorSelected, &data);
+  highlightSelectedBase(data.selectedBaseIdx, backgroundColorSelected, &data);
 
   /* Draw all MSPs in this row */
   GList *mspListItem = renderer->mspGList;

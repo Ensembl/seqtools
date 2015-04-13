@@ -611,7 +611,7 @@ static void blviewCreate(char *align_types,
     {
       /* We must select the sequence before calling callDotter. Get the first
        * sequence to the right of the start coord. */
-      MSP *msp = nextMatch(blxWindowGetDetailView(blixemWindow), NULL);
+      MSP *msp = nextMatch(blxWindowGetDetailView(blixemWindow), NULL, FALSE);
       
       if (msp)
         {
@@ -635,7 +635,7 @@ static void blviewCreate(char *align_types,
   if (options->startNextMatch)
     {
       /* Set the start coord to be the start of the next MSP on from the default start coord */
-      nextMatch(blxWindowGetDetailView(blixemWindow), NULL);
+      nextMatch(blxWindowGetDetailView(blixemWindow), NULL, FALSE);
     }
 }
 
@@ -945,8 +945,9 @@ void cacheMspDisplayRanges(const BlxViewContext* const bc, const int numUnaligne
 /* Return the match-sequence coord of an MSP at the given reference-sequence coord,
  * where the MSP is a gapped MSP and the ref-seq coord is known to lie within the
  * MSP's alignment range. */
-static int mspGetGappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxViewContext *bc)
+static gboolean mspGetGappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxViewContext *bc, int *result_out)
 {
+  gboolean success = FALSE;
   int result = UNSET_INT;
   
   const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
@@ -975,21 +976,26 @@ static int mspGetGappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxV
               /* It's inside this range. Calculate the actual index. */
               int offset = (qIdx - qRangeMin) / bc->numFrames;
               result = sameDirection ? sRangeMin + offset : sRangeMax - offset;
+              success = TRUE;
             }
           
           break;
         }
     }
   
-  return result;
+  if (success && result_out)
+    *result_out = result;
+
+  return success;
 }
 
 
 /* Return the match-sequence coord of an MSP at the given reference-sequence coord,
  * where the MSP is an ungapped MSP and the ref-seq coord is known to lie within the
  * MSP's alignment range. */
-static int mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxViewContext *bc)
+static gboolean mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxViewContext *bc, int *result_out)
 {
+  gboolean success = FALSE;
   int result = UNSET_INT;
   
   /* If strands are in the same direction, find the offset from qRange.min and add it to 
@@ -1004,9 +1010,17 @@ static int mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, const Bl
   if (result < msp->sRange.min || result > msp->sRange.max)
     {
       result = UNSET_INT;
+      success = FALSE;
+    }
+  else
+    {
+      success = TRUE;
     }
   
-  return result;
+  if (success && result_out)
+    *result_out = result;
+
+  return success;
 }  
 
 
@@ -1014,8 +1028,14 @@ static int mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, const Bl
  * where the ref-seq coord is known to lie outside the MSP's alignment range. The 
  * result will be unset unless the option to display unaligned portions of 
  * sequence is enabled. */
-static int mspGetUnalignedCoord(const MSP *msp, const int qIdx, const gboolean seqSelected, const int numUnalignedBases, const BlxViewContext *bc)
+static gboolean mspGetUnalignedCoord(const MSP *msp, 
+                                     const int qIdx, 
+                                     const gboolean seqSelected, 
+                                     const int numUnalignedBases, 
+                                     const BlxViewContext *bc,
+                                     int *result_out)
 {
+  gboolean success = FALSE;
   int result = UNSET_INT;
   
   /* First convert to display coords */
@@ -1035,6 +1055,7 @@ static int mspGetUnalignedCoord(const MSP *msp, const int qIdx, const gboolean s
        * We're working in display coords here. */
       const int offset = mspRange->min - displayIdx;
       result = sForward ? msp->sRange.min - offset : msp->sRange.max + offset;
+      success = TRUE;
     }
   else
     {
@@ -1042,6 +1063,7 @@ static int mspGetUnalignedCoord(const MSP *msp, const int qIdx, const gboolean s
        * s coord range (or subtract it from the low end, if the directions are opposite). */
       const int offset = displayIdx - mspRange->max;
       result = sForward ? msp->sRange.max + offset : msp->sRange.min - offset;
+      success = TRUE;
     }
   
   /* Get the full display range of the match sequence. If the result is still out of range
@@ -1051,23 +1073,27 @@ static int mspGetUnalignedCoord(const MSP *msp, const int qIdx, const gboolean s
   if (!valueWithinRange(result, fullSRange))
     {
       result = UNSET_INT;
+      success = FALSE;
     }
   
-  return result;
+  if (success && result_out)
+    *result_out = result;
+
+  return success;
 }
 
 
 
 /* Given a base index on the reference sequence, find the corresonding base 
- * in the match sequence. The return value is always UNSET_INT if there is not
- * a corresponding base at this position. */
-int mspGetMatchCoord(const MSP *msp, 
-                     const int qIdx, 
-                     const gboolean seqSelected,
-                     const int numUnalignedBases,
-                     BlxViewContext *bc)
+ * in the match sequence. Returns TRUE and sets the result if successful. */
+gboolean mspGetMatchCoord(const MSP *msp, 
+                          const int qIdx, 
+                          const gboolean seqSelected,
+                          const int numUnalignedBases,
+                          BlxViewContext *bc,
+                          int *result_out)
 {
-  int result = UNSET_INT;
+  gboolean success = FALSE;
   
   if (mspIsBlastMatch(msp) || mspIsBoxFeature(msp))
     {
@@ -1075,21 +1101,21 @@ int mspGetMatchCoord(const MSP *msp,
       
       if (msp->gaps && g_slist_length(msp->gaps) >= 1 && inMspRange)
         {
-          result = mspGetGappedAlignmentCoord(msp, qIdx, bc);
+          success = mspGetGappedAlignmentCoord(msp, qIdx, bc, result_out);
         }
       else if (!inMspRange && mspIsBlastMatch(msp))
         {
           /* The q index is outside the alignment range but if the option to show
            * unaligned sequence is enabled we may still have a valie result. */
-          result = mspGetUnalignedCoord(msp, qIdx, seqSelected, numUnalignedBases, bc);
+          success = mspGetUnalignedCoord(msp, qIdx, seqSelected, numUnalignedBases, bc, result_out);
         }
       else
         {
-          result = mspGetUngappedAlignmentCoord(msp, qIdx, bc);
+          success = mspGetUngappedAlignmentCoord(msp, qIdx, bc, result_out);
         }
     }
   
-  return result;
+  return success;
 }
 
 
