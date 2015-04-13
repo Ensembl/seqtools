@@ -6380,21 +6380,25 @@ static void copyRefSeqTranslationToClipboard(GtkWidget *blxWindow, const int fro
 
       if (dnaSeq)
         {
-          /* Get the offset from the start frame of the dna seq to the required reading frame */
           int requiredFrame = detailViewGetActiveFrame(detailView);
+          int offset = 0;
 
-          int curFrame = fromIdx % 3;
+          if (bc->seqType == BLXSEQ_PEPTIDE)
+            {
+              /* Get the offset from the start frame of the dna seq to the required reading frame */
+              int curFrame = fromIdx % 3;
 
-          /* If the display is reversed, use the end coord to calculate frame */
-          if (bc->displayRev)
-            curFrame = toIdx % 3;
+              /* If the display is reversed, use the end coord to calculate frame */
+              if (bc->displayRev)
+                curFrame = toIdx % 3;
 
-          if (curFrame < 1)
-            curFrame += 3;
+              if (curFrame < 1)
+                curFrame += 3;
 
-          int offset = requiredFrame - curFrame;
-          if (offset < 0)
-            offset += 3;
+              int offset = requiredFrame - curFrame;
+              if (offset < 0)
+                offset += 3;
+            }
 
           char *pepSeq = blxTranslate(dnaSeq + offset, bc->geneticCode);
 
