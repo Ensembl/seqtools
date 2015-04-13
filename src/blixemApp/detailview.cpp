@@ -4618,6 +4618,11 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
 {
   gboolean handled = FALSE;
   
+  const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
+
+  //guint modifiers = gtk_accelerator_get_default_mod_mask();
+  //const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
+
   switch (event->button)
   {
     case 2:
@@ -4638,7 +4643,7 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
           /* For protein matches, select the first base in the triplet */
           const int baseNum = 1;
           const int frame = detailViewGetActiveFrame(detailView);
-          detailViewSetSelectedDisplayIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE, FALSE);
+          detailViewSetSelectedDisplayIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE, shiftModifier);
         }
       
       handled = TRUE;
@@ -4676,8 +4681,7 @@ static gboolean onMouseMoveDetailView(GtkWidget *detailView, GdkEventMotion *eve
 {
   gboolean handled = FALSE;
 
-  guint modifiers = gtk_accelerator_get_default_mod_mask();
-  const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
+  const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
   
   if (event->state & GDK_BUTTON2_MASK)
     {
