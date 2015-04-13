@@ -590,6 +590,18 @@ static gboolean exonCoordIsPartialCodon(const MSP* const msp, const gboolean sta
 }
 
 
+static gboolean coordIsSelected(RenderData *data, const int coord)
+{
+  gboolean result = FALSE;
+  IntRange range = {data->selectedRangeStart, data->selectedRangeEnd};
+  
+  if (valueWithinRange(coord, &range))
+    result = TRUE;
+
+  return result;
+}
+
+
 /* Highlight the start (min) peptide of the given msp if it is a partial codon, i.e. if it
  * does not start at base 1 (or end at base 3, if the display is reversed). OR highlight the end
  * (max) codon if 'start' is FALSE. The x/y coords give the top left corner of the peptide. */
@@ -605,7 +617,7 @@ static void exonHighlightPartialCodons(const MSP* const msp,
   if (isPartial && valueWithinRange(displayIdx, data->displayRange)) 
     {
       /* It's not a complete codon, so highlight this base */
-      const gboolean coordSelected = (data->selectedBaseIdx == displayIdx);
+      const gboolean coordSelected = coordIsSelected(data, displayIdx);
       const gboolean isSelected = (data->seqSelected != coordSelected);
 
       GdkColor *color = (isSelected ? data->crosshatchColorSelected : data->crosshatchColor);
@@ -647,11 +659,15 @@ static void drawBoxFeature(SequenceCellRenderer *renderer,
       drawRectangle2(data->window, data->drawable, data->gc, fill, x, y, width, height);
       
       /* If a base is selected, highlight it. Its color depends on whether it the base is within the exon range or not. */
-      if (data->selectedBaseIdx != UNSET_INT && valueWithinRange(data->selectedBaseIdx, &segmentRange))
+      int i = 0;
+      for (i = data->selectedRangeStart; i <= data->selectedRangeEnd; ++i)
         {
-          /* Negate the color if double-selected (i.e. if the row is selected as well) */
-          color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, !data->seqSelected, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
-          highlightSelectedBase(data->selectedBaseIdx, color, data);
+          if (i != UNSET_INT && valueWithinRange(i, &segmentRange))
+            {
+              /* Negate the color if double-selected (i.e. if the row is selected as well) */
+              color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, !data->seqSelected, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
+              highlightSelectedBase(i, color, data);
+            }
         }
 
       /* And now draw the outline (do this after the base highlight because otherwise that will
@@ -715,7 +731,7 @@ static void mspDrawBaseBg(MSP *msp,
   
   /* Highlight the base if its base index is selected, or if its sequence is selected.
    * (If it is selected in both, show it in the normal color) */
-  gboolean selected = (displayIdx == data->selectedBaseIdx) != data->seqSelected;
+  gboolean selected = coordIsSelected(data, displayIdx) != data->seqSelected;
 
   if (!valueWithinRange(*qIdx, &msp->qRange))
     {
@@ -1341,9 +1357,11 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
     detailViewProperties->numUnalignedBases
   };  
   
-  /* If a base is selected highlight it now in case we don't come to process it (in 
+  /* If a range is selected highlight it now in case we don't come to process it (in 
    * which case this will get drawn over). */
-  highlightSelectedBase(data.selectedBaseIdx, backgroundColorSelected, &data);
+  int i = 0;
+  for (i = data.selectedRangeStart; i <= data.selectedRangeEnd; ++i)
+    highlightSelectedBase(i, backgroundColorSelected, &data);
 
   /* Draw all MSPs in this row */
   GList *mspListItem = renderer->mspGList;
