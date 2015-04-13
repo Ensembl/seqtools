@@ -4687,14 +4687,14 @@ static void onCopySeqDataMarkMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
 
   /* Copy the portion of the match seq from the selected index
    * to the clicked index */
-  
-  if (detailViewGetSelectedDisplayIdxSet(detailView))
+  if (properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
     {
-      const int fromIdx = detailViewGetSelectedDnaBaseIdx(detailView);
-      const int toIdx = detailViewGetClickedBaseIdx(detailView);
+      const int fromIdx = properties->selectedRangeStart.dnaIdx;
+      const int toIdx = properties->selectedRangeEnd.dnaIdx;
 
       copySelectedSeqRangeToClipboard(blxWindow, fromIdx, toIdx);
     }
@@ -4709,14 +4709,14 @@ static void onCopyRefSeqMenu(GtkAction *action, gpointer data)
   GtkWidget *blxWindow = GTK_WIDGET(data);
 
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
 
   /* Copy the portion of the ref seq from the selected index
    * to the clicked index */
-  
-  if (detailViewGetSelectedDisplayIdxSet(detailView))
+  if (properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
     {
-      const int fromIdx = detailViewGetSelectedDnaBaseIdx(detailView);
-      const int toIdx = detailViewGetClickedBaseIdx(detailView);
+      const int fromIdx = properties->selectedRangeStart.dnaIdx;
+      const int toIdx = properties->selectedRangeEnd.dnaIdx;
 
       copyRefSeqToClipboard(blxWindow, fromIdx, toIdx);
     }
