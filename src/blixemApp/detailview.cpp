@@ -3982,6 +3982,9 @@ static void detailViewSetSelectedIndex(GtkWidget *detailView,
 
       /* Nothing set or not extending - just set the main selection index */
       setDetailViewIndex(&properties->selectedIndex, TRUE, dnaIdx, displayIdx, frame, baseNum);
+
+      /* Reset the selection range start/end to this index */
+      setDetailViewIndex(&properties->selectedRangeInit, TRUE, dnaIdx, displayIdx, frame, baseNum);
       setDetailViewIndex(&properties->selectedRangeStart, TRUE, dnaIdx, displayIdx, frame, baseNum);
       setDetailViewIndex(&properties->selectedRangeEnd, TRUE, dnaIdx, displayIdx, frame, baseNum);
     }
@@ -3991,13 +3994,15 @@ static void detailViewSetSelectedIndex(GtkWidget *detailView,
                 properties->selectedRangeStart.dnaIdx, properties->selectedRangeEnd.dnaIdx, dnaIdx);
 
       /* Extend or trim the existing range by setting the start or end of the range to the new
-       * value depending on whether the click was before or after the main (i.e. first) selection
-       * index. There's a bit of ambiguity what to do if the user clicks on the main selection
-       * index but we just trim the start in this case (this is what emacs does). */
-      if (dnaIdx <= properties->selectedIndex.dnaIdx)
+       * value depending on whether the click was before or after the initial selection
+       * index. If the user clicks on the initial selection index trim both ends. */
+      if (displayIdx <= properties->selectedRangeInit.displayIdx)
         setDetailViewIndex(&properties->selectedRangeStart, TRUE, dnaIdx, displayIdx, frame, baseNum);
-      else
+      else if (displayIdx >= properties->selectedRangeInit.displayIdx)
         setDetailViewIndex(&properties->selectedRangeEnd, TRUE, dnaIdx, displayIdx, frame, baseNum);
+
+      /* Also set the main selection index so that it is always the last-selected value */
+      setDetailViewIndex(&properties->selectedIndex, TRUE, dnaIdx, displayIdx, frame, baseNum);      
     }
 
   updateFollowingBaseSelection(detailView, allowScroll, scrollMinimum);
@@ -4212,6 +4217,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
 
       setDetailViewIndex(&properties->selectedIndex, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
+      setDetailViewIndex(&properties->selectedRangeInit, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
       setDetailViewIndex(&properties->selectedRangeStart, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
       setDetailViewIndex(&properties->selectedRangeEnd, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
       

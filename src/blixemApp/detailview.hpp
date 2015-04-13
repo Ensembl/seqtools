@@ -115,6 +115,7 @@ typedef struct _DetailViewProperties
 
   DetailViewIndex selectedIndex;       /* The currently-selected index (or start index, if
                                         * shift-selecting a range) */
+  DetailViewIndex selectedRangeInit;   /* Caches the initial selected index when selecting a range */
   DetailViewIndex selectedRangeStart;  /* The currently-selected range start (if shift-selecting) */
   DetailViewIndex selectedRangeEnd;    /* The currently-selected range end (if shift-selecting) */
 

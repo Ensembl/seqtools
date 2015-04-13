@@ -364,16 +364,7 @@ static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft, c
   int newDnaIdx = UNSET_INT;
   gboolean ok = FALSE;
 
-  if (extend && properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
-    {
-      if (direction < 0)
-        newDnaIdx = properties->selectedRangeStart.dnaIdx + direction;
-      else
-        newDnaIdx = properties->selectedRangeEnd.dnaIdx + direction;
-
-      ok = TRUE;
-    }
-  else if (!extend && properties->selectedIndex.isSet)
+  if (properties->selectedIndex.isSet)
     {
       newDnaIdx = properties->selectedIndex.dnaIdx + direction;
       ok = TRUE;
@@ -451,21 +442,7 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
   int newSelectedBaseIdx = UNSET_INT;
   gboolean ok = FALSE;
 
-  if (extend && detailViewProperties->selectedRangeStart.isSet && detailViewProperties->selectedRangeEnd.isSet)
-    {
-      /* Decrement the start index if moving left or increment the end it if moving right */
-      if (moveLeft)
-        newSelectedBaseIdx = detailViewProperties->selectedRangeStart.displayIdx - 1;
-      else
-        newSelectedBaseIdx = detailViewProperties->selectedRangeEnd.displayIdx + 1;
-
-      DEBUG_OUT("Extending selected display range (%d, %d) to %d\n", 
-                detailViewProperties->selectedRangeStart.displayIdx, detailViewProperties->selectedRangeEnd.displayIdx,
-                newSelectedBaseIdx);
-
-      ok = TRUE;
-    }
-  else if (!extend && detailViewProperties->selectedIndex.isSet)
+  if (detailViewProperties->selectedIndex.isSet)
     {
       /* Decrement the index if moving left or increment if moving right */
       newSelectedBaseIdx = detailViewProperties->selectedIndex.displayIdx;
