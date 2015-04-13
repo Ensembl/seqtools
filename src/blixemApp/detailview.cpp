@@ -4366,6 +4366,34 @@ int seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames)
   return baseNum;
 }
 
+/* Get the coord at the given position in the sequence header */
+static int seqColHeaderGetCoordAtPos(GtkWidget *header, GtkWidget *detailView, const int x, const int y)
+{
+  int baseIdx = UNSET_INT;
+  
+  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
+
+  if (x >= 0 && x <= header->allocation.width)
+    {
+      /* Get the 0-based char index at x */
+      gdouble charWidth = detailViewGetCharWidth(detailView);
+      int charIdx = (int)((gdouble)x / charWidth);
+      
+      /* Add the start of the scroll range to convert this to the display index */
+      baseIdx = charIdx + adjustment->value;
+    }
+  else if (x < 0)
+    {
+      baseIdx = adjustment->value;
+    }
+  else if (x > header->allocation.width)
+    {
+      baseIdx = adjustment->value = adjustment->page_size;
+    }
+  
+  return baseIdx;
+}
+
 /***********************************************************
  *                Paned window properties
  *
@@ -4829,19 +4857,45 @@ static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton 
 }
 
 
+/* Show the detail-view-header context menu, if applicable (return false if not) */
+static gboolean detailViewHeaderShowContextMenu(GtkWidget *header, GtkWidget *detailView, GdkEventButton *event)
+{
+  gboolean handled = FALSE;
+
+  /* Check if the click is in the selected coord range and if so show the sequence-header menu */
+  if (detailViewGetSelectedIdxSet(detailView))
+    {
+      const int displayIdx = seqColHeaderGetCoordAtPos(header, detailView, event->x, event->y);
+      IntRange *range = detailViewGetSelectedDisplayIdxRange(detailView);
+
+      if (valueWithinRange(displayIdx, range))
+        {
+          GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+          GtkWidget *menu = blxWindowGetSeqHeaderMenu(blxWindow);
+
+          gtk_menu_popup (GTK_MENU(menu), NULL, NULL, NULL, NULL, event->button, event->time);
+
+          handled = TRUE;
+        }
+    }
+
+  return handled;
+}
+
+
 /* Handler for when a mouse button is pressed on a sequence column header widget.
  * This signal only gets connected for protein matches, where there are 3 header
  * widgets, each showing the DNA nucleotides for a specific reading frame. */
 static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
+
+  GtkWidget *detailView = GTK_WIDGET(data);
   
   switch (event->button)
   {
     case 1:
       {
-        GtkWidget *detailView = GTK_WIDGET(data);
-
         if (event->type == GDK_BUTTON_PRESS)
           {
             /* Select the SNP that was clicked on.  */
@@ -4873,12 +4927,17 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
     case 2:
       {
         /* Middle button: select the nucleotide that was clicked on. */
-        GtkWidget *detailView = GTK_WIDGET(data);
         selectClickedNucleotide(header, detailView, event->x, event->y);
         handled = TRUE;
         break;
       }
       
+    case 3: /* right button */
+      {
+        handled = detailViewHeaderShowContextMenu(header, detailView, event);
+        break;
+      }
+
     default:
       break;
   }

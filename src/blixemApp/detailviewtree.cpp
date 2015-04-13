@@ -1616,7 +1616,7 @@ static gboolean treeHeaderShowContextMenu(GtkWidget *header, GtkWidget *tree, Gd
 
   GtkWidget *detailView = treeGetDetailView(tree);
 
-  /* Check if the click is in the selected coord range and if so show the tree-header menu */
+  /* Check if the click is in the selected coord range and if so show the sequence-header menu */
   if (detailViewGetSelectedIdxSet(detailView))
     {
       const int displayIdx = treeHeaderGetCoordAtPos(header, tree, event->x, event->y);
@@ -1625,7 +1625,7 @@ static gboolean treeHeaderShowContextMenu(GtkWidget *header, GtkWidget *tree, Gd
       if (valueWithinRange(displayIdx, range))
         {
           GtkWidget *blxWindow = treeGetBlxWindow(tree);
-          GtkWidget *menu = blxWindowGetTreeHeaderMenu(blxWindow);
+          GtkWidget *menu = blxWindowGetSeqHeaderMenu(blxWindow);
 
           gtk_menu_popup (GTK_MENU(menu), NULL, NULL, NULL, NULL, event->button, event->time);
 

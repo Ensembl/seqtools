@@ -83,7 +83,7 @@ typedef struct _BlxWindowProperties
     GtkWidget *bigPicture;          /* The top section of the view, showing a "big picture" overview of the alignments */
     GtkWidget *detailView;          /* The bottom section of the view, showing a detailed list of the alignments */
     GtkWidget *mainmenu;            /* The main menu */
-    GtkWidget *treeHeaderMenu;      /* The context menu for tree headers */
+    GtkWidget *seqHeaderMenu;      /* The context menu for tree headers */
     GtkActionGroup *actionGroup;    /* The action-group for the menus */
 
     BlxViewContext *blxContext;       /* The blixem view context */
@@ -251,7 +251,7 @@ static const char standardMenuDescription[] =
 "      <menuitem action='Dotter'/>"
 "      <menuitem action='CloseAllDotters'/>"
 "  </popup>"
-"  <popup name='TreeHeaderContextMenu' accelerators='true'>"
+"  <popup name='SeqHeaderContextMenu' accelerators='true'>"
 "      <menuitem action='CopyRefSeqDna'/>"
 "      <menuitem action='CopyRefSeqDisplay'/>"
 "  </popup>"
@@ -5349,10 +5349,10 @@ static void onDestroyBlxWindow(GtkWidget *widget)
           properties->mainmenu = NULL;
         }
 
-      if (properties->treeHeaderMenu)
+      if (properties->seqHeaderMenu)
         {
-          gtk_widget_destroy(properties->treeHeaderMenu);
-          properties->treeHeaderMenu = NULL;
+          gtk_widget_destroy(properties->seqHeaderMenu);
+          properties->seqHeaderMenu = NULL;
         }
       
       /* Destroy the print settings */
@@ -5709,7 +5709,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
                                       GtkWidget *bigPicture, 
                                       GtkWidget *detailView,
                                       GtkWidget *mainmenu,
-                                      GtkWidget *treeHeaderMenu,
+                                      GtkWidget *seqHeaderMenu,
                                       GtkActionGroup *actionGroup,
                                       const IntRange* const refSeqRange,
                                       const IntRange* const fullDisplayRange,
@@ -5724,7 +5724,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
       properties->bigPicture = bigPicture;
       properties->detailView = detailView;
       properties->mainmenu = mainmenu;
-      properties->treeHeaderMenu = treeHeaderMenu;
+      properties->seqHeaderMenu = seqHeaderMenu;
       properties->actionGroup = actionGroup;
 
       properties->pageSetup = gtk_page_setup_new();
@@ -5770,10 +5770,10 @@ GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
   return properties ? properties->mainmenu : NULL;
 }
 
-GtkWidget* blxWindowGetTreeHeaderMenu(GtkWidget *blxWindow)
+GtkWidget* blxWindowGetSeqHeaderMenu(GtkWidget *blxWindow)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? properties->treeHeaderMenu : NULL;
+  return properties ? properties->seqHeaderMenu : NULL;
 }
 
 BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
@@ -6200,14 +6200,6 @@ static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int from
               int tmp = fromIdx;
               fromIdx = toIdx;
               toIdx = tmp;
-            }
-
-          /* In protein mode, the given indexes are the start of the codon. Update the end index
-           * to be inclusive of the whole codon (i.e. add 2 to make it the end coord of the codon). */
-          if (bc->seqType == BLXSEQ_PEPTIDE)
-            {
-              if (!reverse)
-                toIdx += 2;
             }
           
           /* Find the match-sequence coord at these ref-seq coords */
@@ -6665,7 +6657,7 @@ static void setStyleProperties(GtkWidget *widget, char *windowColor)
 static void createMainMenu(GtkWidget *window,
                            BlxViewContext *bc,
                            GtkWidget **mainmenu,
-                           GtkWidget **treeHeaderMenu,
+                           GtkWidget **seqHeaderMenu,
                            GtkWidget **toolbar,
                            GtkActionGroup **actionGroupOut)
 {
@@ -6699,7 +6691,7 @@ static void createMainMenu(GtkWidget *window,
     }
   
   *mainmenu = gtk_ui_manager_get_widget (ui_manager, "/ContextMenu");
-  *treeHeaderMenu = gtk_ui_manager_get_widget (ui_manager, "/TreeHeaderContextMenu");
+  *seqHeaderMenu = gtk_ui_manager_get_widget (ui_manager, "/SeqHeaderContextMenu");
   *toolbar = gtk_ui_manager_get_widget (ui_manager, "/Toolbar");
 }
 
@@ -7043,10 +7035,10 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 
   /* Create the main menu */
   GtkWidget *mainmenu = NULL;
-  GtkWidget *treeHeaderMenu = NULL;
+  GtkWidget *seqHeaderMenu = NULL;
   GtkWidget *toolbar = NULL;
   GtkActionGroup *actionGroup = NULL;
-  createMainMenu(window, blxContext, &mainmenu, &treeHeaderMenu, &toolbar, &actionGroup);
+  createMainMenu(window, blxContext, &mainmenu, &seqHeaderMenu, &toolbar, &actionGroup);
   
   const gdouble lowestId = calculateMspData(options->mspList, blxContext);
   
@@ -7107,7 +7099,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                             bigPicture, 
                             detailView, 
                             mainmenu,
-                            treeHeaderMenu,
+                            seqHeaderMenu,
                             actionGroup,
                             &refSeqRange, 
                             &fullDisplayRange,
