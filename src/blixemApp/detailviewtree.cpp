@@ -1564,6 +1564,41 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
   return handled;
 }
 
+/* Select the variation that was clicked on, if any */
+static void treeHeaderSelectClickedVariation(GtkWidget *header, GtkWidget *tree, const int x, const int y)
+{
+  /* If variations are highlighted, select the variation that was clicked on, if any.  */
+  BlxViewContext *bc = treeGetContext(tree);
+  GtkWidget *detailView = treeGetDetailView(tree);
+
+  if (bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS])
+    {
+      blxWindowDeselectAllSeqs(treeGetBlxWindow(tree));
+      int clickedBase = 1; /* only get in here for DNA matches; so frame/base number is always one */
+
+      selectClickedSnp(header, NULL, detailView, x, y, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
+	    
+      detailViewRefreshAllHeaders(detailView);
+    }
+}
+
+
+/* Show/hide the variations track (and highlight variations in the ref
+ * sequence, if not already highighted). */
+static void treeShowHideVariations(GtkWidget *tree)
+{
+  GtkWidget *detailView = treeGetDetailView(tree);
+  BlxViewContext *bc = treeGetContext(tree);
+
+  const gboolean showTrack = !bc->flags[BLXFLAG_SHOW_VARIATION_TRACK];
+  bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] = showTrack;
+            
+  if (showTrack)
+    bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS] = TRUE;
+            
+  detailViewUpdateShowSnpTrack(detailView, showTrack);
+}
+
 
 static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event, gpointer data)
 {
@@ -1572,7 +1607,7 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 
   switch (event->button)
     {
-      case 1:
+    case 1: /* left button */
       {
 	GtkWidget *detailView = treeGetDetailView(tree);
 	
@@ -1580,36 +1615,22 @@ static gboolean onButtonPressTreeHeader(GtkWidget *header, GdkEventButton *event
 	  {
             /* Set the active frame to the tree that was clicked on */
             detailViewSetActiveFrame(detailView, treeGetFrame(tree));
-            
-	    /* If variations are highlighted, select the variation that was clicked on, if any.  */
-	    BlxViewContext *bc = treeGetContext(tree);
-
-            if (bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS])
-              {
-                blxWindowDeselectAllSeqs(detailViewGetBlxWindow(detailView));
-                int clickedBase = 1; /* only get in here for DNA matches; so frame/base number is always one */
-
-                selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
-	    
-                detailViewRefreshAllHeaders(detailView);
-              }
+            treeHeaderSelectClickedVariation(header, tree, event->x, event->y);
 	  }
 	else if (event->type == GDK_2BUTTON_PRESS)
 	  {
-            /* Double click. Show/hide the variations track (and highlight variations in the ref
-             * sequence, if not already highighted). */
-	    BlxViewContext *bc = treeGetContext(tree);
-            const gboolean showTrack = !bc->flags[BLXFLAG_SHOW_VARIATION_TRACK];
-	    bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] = showTrack;
-            
-            if (showTrack)
-              bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS] = TRUE;
-            
-            detailViewUpdateShowSnpTrack(detailView, showTrack);
+            /* Double click */
+            treeShowHideVariations(tree);
 	  }
 	
 	handled = TRUE;
 	break;
+      }
+
+    case 3: /* right button */
+      {
+        
+        break;
       }
       
     default:
