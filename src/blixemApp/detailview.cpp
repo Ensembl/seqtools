@@ -973,8 +973,8 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
   BlxViewContext *bc = detailViewGetContext(detailView);
   
   /* Get the selected base index. */
-  if (properties->selectedBaseSet)
-    qIdx = properties->selectedDnaBaseIdx;
+  if (properties->selectedIndex.isSet)
+    qIdx = properties->selectedIndex.dnaIdx;
   
   /* Find the sequence name text (or some default text to indicate that a sequence is not selected) */
   const char *noSeqText = numSeqsSelected > 0 ? MULTIPLE_SUBJECTS_SELECTED_TEXT : NO_SUBJECT_SELECTED_TEXT;
@@ -992,7 +992,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
 
           /* If a q index is selected, see if there is a valid base at that index 
            * for any of the MSPs for the selected sequence. */
-          if (properties->selectedBaseSet)
+          if (properties->selectedIndex.isSet)
             {
               GList *mspListItem = seq->mspList;
               const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
@@ -1014,7 +1014,7 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
   /* Add all the bits into a text string */
   GString *resultString = g_string_sized_new(200); /* will be extended if we need more space */
   
-  if (properties->selectedBaseSet)
+  if (properties->selectedIndex.isSet)
     {
       /* Negate the coord for the display, if necessary */
       int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * qIdx : qIdx);
@@ -1237,9 +1237,10 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
   DEBUG_ENTER("scrollToKeepSelectionInRange()");
 
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+  const gboolean selectedBaseSet = detailViewGetSelectedDisplayIdxSet(detailView);
+  const int selectedBaseIdx = detailViewGetSelectedDisplayIdx(detailView);
 
-  if (selectedBaseIdx != UNSET_INT && !valueWithinRange(selectedBaseIdx, displayRange))
+  if (selectedBaseSet && !valueWithinRange(selectedBaseIdx, displayRange))
     {
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
       
@@ -1739,7 +1740,7 @@ static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, co
   int coord, frame, baseNum;
   getSeqColHeaderClickedNucleotide(header, detailView, x, y, &coord, &frame, &baseNum);
   
-  detailViewSetSelectedBaseIdx(detailView, coord, frame, baseNum, FALSE, TRUE);
+  detailViewSetSelectedDisplayIdx(detailView, coord, frame, baseNum, FALSE, TRUE, FALSE);
 
   DEBUG_EXIT("selectClickedNucleotide returning ");
 }
@@ -1827,7 +1828,7 @@ void selectClickedSnp(GtkWidget *snpTrack,
           if (found)
             {
               snpList = g_list_prepend(snpList, msp->sSequence);
-              detailViewSetSelectedDnaBaseIdx(detailView, dnaIdxToSelect, activeFrame, TRUE, FALSE);
+              detailViewSetSelectedDnaBaseIdx(detailView, dnaIdxToSelect, activeFrame, TRUE, FALSE, FALSE);
             }
         }
       
@@ -2436,8 +2437,8 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
       
       baseData.dnaIdx = qIdx;
       baseData.baseChar = displayText[displayTextPos];
-      baseData.displayIdxSelected = (displayIdx == properties->selectedBaseIdx);
-      baseData.dnaIdxSelected = (qIdx == properties->selectedDnaBaseIdx);
+      baseData.displayIdxSelected = detailViewIsDisplayIdxSelected(detailView, displayIdx);
+      baseData.dnaIdxSelected = detailViewIsDnaIdxSelected(detailView, qIdx);
 
       /* Color the base depending on whether it is selected or affected by a SNP */
       drawHeaderChar(bc, properties, drawable, gc, x, y, basesToHighlight, &baseData);
@@ -3157,9 +3158,10 @@ static void detailViewCentreOnSelection(GtkWidget *detailView)
 {
   DEBUG_ENTER("detailViewCentreOnSelection()");
 
-  const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+  const gboolean selectedBaseSet = detailViewGetSelectedDisplayIdxSet(detailView);
+  const int selectedBaseIdx = detailViewGetSelectedDisplayIdx(detailView);
   
-  if (selectedBaseIdx != UNSET_INT)
+  if (selectedBaseSet)
     {
       /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
@@ -3763,22 +3765,22 @@ BlxSeqType detailViewGetSeqType(GtkWidget *detailView)
   return bc->seqType;
 }
 
-int detailViewGetSelectedBaseIdx(GtkWidget *detailView)
+int detailViewGetSelectedDisplayIdx(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->selectedBaseIdx : UNSET_INT;
+  return properties && properties->selectedIndex.isSet ? properties->selectedIndex.displayIdx : UNSET_INT;
 }
 
-gboolean detailViewGetSelectedBaseSet(GtkWidget *detailView)
+gboolean detailViewGetSelectedDisplayIdxSet(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->selectedBaseSet : FALSE;
+  return properties ? properties->selectedIndex.isSet : FALSE;
 }
 
 int detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->selectedDnaBaseIdx : UNSET_INT;
+  return properties && properties->selectedIndex.isSet ? properties->selectedIndex.dnaIdx : UNSET_INT;
 }
 
 /* Get the active frame. Returns the last-selected frame, or 1 if no frame is selected. */
@@ -3787,9 +3789,9 @@ int detailViewGetActiveFrame(GtkWidget *detailView)
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   int result = 1;
   
-  if (properties && properties->selectedFrame != UNSET_INT)
+  if (properties && properties->selectedIndex.isSet)
     {
-      result = properties->selectedFrame;
+      result = properties->selectedIndex.frame;
 }
 
   return result;
@@ -3849,87 +3851,238 @@ static void updateFollowingBaseSelection(GtkWidget *detailView,
 }
 
 
-/* Cancel the current base index selection */
-void detailViewUnsetSelectedBaseIdx(GtkWidget *detailView)
+/* Return true if the given display index is in the selection range */
+gboolean detailViewIsDisplayIdxSelected(GtkWidget *detailView, const int displayIdx)
 {
+  gboolean result = FALSE;
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  
-  properties->selectedBaseSet = FALSE;
-  properties->selectedDnaBaseIdx = UNSET_INT;
-  properties->selectedBaseIdx = UNSET_INT;
-  properties->selectedBaseNum = UNSET_INT;
-  
-  updateFollowingBaseSelection(detailView, FALSE, FALSE);
+
+  if (properties)
+    {
+      if (properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
+        {
+          /* Check if the coord is in the selection range */
+          IntRange range = {properties->selectedRangeStart.displayIdx, properties->selectedRangeEnd.displayIdx};
+          result = valueWithinRange(displayIdx, &range);
+        }
+      else if (properties->selectedIndex.isSet)
+        {
+          /* Check if the coord matches the selected index */
+          result = (displayIdx == properties->selectedIndex.displayIdx);
+        }
+    }
+
+  return result;
 }
 
 
-/* Set the selected base index to a specific DNA index. Performs any required 
- * refreshes. Scrolls the view to keep the selected base in view if allowScroll 
- * is true. (Such scrolling is by the minimum number of bases necessary if 
- * scrollMinimum is true.) */
-void detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
-                                     const int selectedDnaBaseIdx,
-                                     const int frame,
-                                     const gboolean allowScroll,
-                                     const gboolean scrollMinimum)
+/* Return true if the given dna index is in the selection range */
+gboolean detailViewIsDnaIdxSelected(GtkWidget *detailView, const int dnaIdx)
 {
+  gboolean result = FALSE;
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
-  properties->selectedBaseSet = TRUE;
-  properties->selectedDnaBaseIdx = selectedDnaBaseIdx;
-  properties->selectedFrame = frame;
+  if (properties)
+    {
+      if (properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
+        {
+          /* Check if the coord is in the selection range */
+          IntRange range = {properties->selectedRangeStart.dnaIdx, properties->selectedRangeEnd.dnaIdx};
+          result = valueWithinRange(dnaIdx, &range);
+        }
+      else if (properties->selectedIndex.isSet)
+        {
+          /* Check if the coord matches the selected index */
+          result = (dnaIdx == properties->selectedIndex.dnaIdx);
+        }
+    }
+
+  return result;
+}
+
+
+/* Utility to set the info in a DetailViewIndex struct */
+static void setDetailViewIndex(DetailViewIndex *index, 
+                               const gboolean isSet, 
+                               const int dnaIdx,
+                               const int displayIdx,
+                               const int frame,
+                               const int baseNum)
+{
+  DEBUG_ENTER("setDetailViewIndex(%d, %d, %d, %d, %d)", isSet, dnaIdx, displayIdx, frame, baseNum);
+
+  if (index)
+    {
+      index->isSet = TRUE;
+      index->dnaIdx = dnaIdx;
+      index->displayIdx = displayIdx;
+      index->frame = frame;
+      index->baseNum = baseNum;
+    }
+
+  DEBUG_EXIT("setDetailViewIndex returning ");
+}
+
+
+/* Cancel the current base index selection */
+void detailViewUnsetSelectedBaseIdx(GtkWidget *detailView)
+{
+  DEBUG_ENTER("detailViewUnsetSelectedBaseIdx()");
+
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
+  setDetailViewIndex(&properties->selectedIndex, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
+  setDetailViewIndex(&properties->selectedRangeStart, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
+  setDetailViewIndex(&properties->selectedRangeEnd, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
+    
+  updateFollowingBaseSelection(detailView, FALSE, FALSE);
+
+  DEBUG_EXIT("detailViewUnsetSelectedBaseIdx returning ");
+}
+
+
+/* This function does the work to update the selected index (called by the display/dna specific
+ * functions). It makes sure the selection range is updated correctly when extending the
+ * range. 
+ * Performs any required refreshes. Scrolls the view to keep the selected base 
+ * in view if allowScroll is true. (Such scrolling is by the minimum
+ * number of bases necessary if scrollMinimum is true.) 
+ * if extend is true, then extend the current range rather than starting a new 
+ * selection. */
+static void detailViewSetSelectedIndex(GtkWidget *detailView, 
+                                       const int dnaIdx_in,
+                                       const int displayIdx_in,
+                                       const int frame,
+                                       const int baseNum,
+                                       const gboolean allowScroll, 
+                                       const gboolean scrollMinimum,
+                                       const gboolean extend)
+{
+  DEBUG_ENTER("detailViewSetSelectedIndex(%d, %d, %d, %d, %d)", dnaIdx_in, displayIdx_in, frame, baseNum, extend);
+
+  GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
+  int dnaIdx = dnaIdx_in;
+  int displayIdx = displayIdx_in;
+
+  /* Trim coords to the blixem range */
+  if (blxWindow)
+    {
+      IntRange *displayRange = blxWindowGetFullRange(blxWindow);
+      IntRange* dnaRange = blxWindowGetRefSeqRange(blxWindow);
+      boundsLimitValue(&displayIdx, displayRange);
+      boundsLimitValue(&dnaIdx, dnaRange);
+    }  
   
-  /* For protein matches, calculate the display index and base number of this dna idx */
-  BlxViewContext *bc = detailViewGetContext(detailView);
-  properties->selectedBaseIdx = convertDnaIdxToDisplayIdx(selectedDnaBaseIdx, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &properties->selectedBaseNum);
-  
+  if (!extend || !properties->selectedIndex.isSet ||
+      !properties->selectedRangeStart.isSet || !properties->selectedRangeEnd.isSet)
+    {
+      DEBUG_OUT("Setting selected index to %d\n", dnaIdx);
+
+      /* Nothing set or not extending - just set the main selection index */
+      setDetailViewIndex(&properties->selectedIndex, TRUE, dnaIdx, displayIdx, frame, baseNum);
+      setDetailViewIndex(&properties->selectedRangeStart, TRUE, dnaIdx, displayIdx, frame, baseNum);
+      setDetailViewIndex(&properties->selectedRangeEnd, TRUE, dnaIdx, displayIdx, frame, baseNum);
+    }
+  else
+    {
+      DEBUG_OUT("Extending existing range (%d, %d) to %d\n", 
+                properties->selectedRangeStart.dnaIdx, properties->selectedRangeEnd.dnaIdx, dnaIdx);
+
+      /* Extend or trim the existing range by setting the start or end of the range to the new
+       * value depending on whether the click was before or after the main (i.e. first) selection
+       * index. There's a bit of ambiguity what to do if the user clicks on the main selection
+       * index but we just trim the start in this case (this is what emacs does). */
+      if (dnaIdx <= properties->selectedIndex.dnaIdx)
+        setDetailViewIndex(&properties->selectedRangeStart, TRUE, dnaIdx, displayIdx, frame, baseNum);
+      else
+        setDetailViewIndex(&properties->selectedRangeEnd, TRUE, dnaIdx, displayIdx, frame, baseNum);
+    }
+
   updateFollowingBaseSelection(detailView, allowScroll, scrollMinimum);
+
+  DEBUG_EXIT("detailViewSetSelectedIndex returning ");
+}
+
+
+/* Set the selected base index to a specific DNA index. */
+void detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
+                                     const int dnaIdx,
+                                     const int frame,
+                                     const gboolean allowScroll,
+                                     const gboolean scrollMinimum,
+                                     const gboolean extend)
+{
+  DEBUG_ENTER("detailViewSetSelectedDnaBaseIdx()");
+
+  BlxViewContext *bc = detailViewGetContext(detailView);
+
+  /* For protein matches, calculate the display index and base number of this dna idx */
+  int baseNum = UNSET_INT;
+  const int displayIdx = convertDnaIdxToDisplayIdx(dnaIdx, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
+
+  detailViewSetSelectedIndex(detailView, dnaIdx, displayIdx, frame, baseNum, allowScroll, scrollMinimum, extend);
+
+  DEBUG_EXIT("detailViewSetSelectedDnaBaseIdx returning ");
 }
 
 
 /* Set which frame is the active (currently-selected) reading frame */
 void detailViewSetActiveFrame(GtkWidget *detailView, const int frame)
 {
+  DEBUG_ENTER("detailViewSetActiveFrame()");
+
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   BlxViewContext *bc = detailViewGetContext(detailView);
-  
-  properties->selectedFrame = frame;
   
   /* Keep the selected DNA coord the same and update the base number for the
    * new reading frame */
-  if (properties->selectedBaseSet)
+  if (properties->selectedIndex.isSet)
     {
-      properties->selectedBaseIdx = convertDnaIdxToDisplayIdx(properties->selectedDnaBaseIdx, bc->seqType, frame, bc->numFrames, 
-                                                              bc->displayRev, &bc->refSeqRange, &properties->selectedBaseNum);
+      int baseNum = UNSET_INT;
+      const int displayIdx = convertDnaIdxToDisplayIdx(properties->selectedIndex.dnaIdx, bc->seqType, frame, bc->numFrames, 
+                                                       bc->displayRev, &bc->refSeqRange, &baseNum);
+
+      detailViewSetSelectedIndex(detailView, 
+                                 properties->selectedIndex.dnaIdx, 
+                                 displayIdx, 
+                                 frame,
+                                 baseNum,
+                                 FALSE,
+                                 FALSE,
+                                 FALSE);
     }
-  
-  updateFollowingBaseSelection(detailView, FALSE, FALSE);
+
+  DEBUG_EXIT("detailViewSetActiveFrame returning ");
 }
 
 
-/* Set the selected base index to the given display index and base/frame number.
- *  Performs any required refreshes. Scrolls the view to keep the selected base 
- * in view if allowScroll is true. (Such scrolling is by the minimum
- * number of bases necessary if scrollMinimum is true.) */
-void detailViewSetSelectedBaseIdx(GtkWidget *detailView, 
-                                  const int selectedBaseIdx, 
-                                  const int frame, 
-                                  const int baseNum, 
-                                  const gboolean allowScroll,
-                                  const gboolean scrollMinimum)
+/* Set the selected base index to the given display index and base/frame number. */
+void detailViewSetSelectedDisplayIdx(GtkWidget *detailView, 
+                                     const int displayIdx, 
+                                     const int frame, 
+                                     const int baseNum, 
+                                     const gboolean allowScroll,
+                                     const gboolean scrollMinimum,
+                                     const gboolean extend)
 {
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  DEBUG_ENTER("detailViewSetSelectedDisplayIdx(%d, %d, %d)", displayIdx, frame, baseNum);
 
-  properties->selectedBaseSet = TRUE;
-  properties->selectedBaseIdx = selectedBaseIdx;
-  properties->selectedFrame = frame;
-  properties->selectedBaseNum = baseNum;
-  
-  /* For protein matches, calculate the base index in terms of the DNA sequence and cache it */
   BlxViewContext *bc = detailViewGetContext(detailView);
-  properties->selectedDnaBaseIdx = convertDisplayIdxToDnaIdx(selectedBaseIdx, bc->seqType, frame, baseNum, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  
+  /* For protein matches, calculate the base index in terms of the DNA sequence */
+  const int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx, 
+                                               bc->seqType, 
+                                               frame, 
+                                               baseNum, 
+                                               bc->numFrames, 
+                                               bc->displayRev, 
+                                               &bc->refSeqRange);
 
-  updateFollowingBaseSelection(detailView, allowScroll, scrollMinimum);
+  detailViewSetSelectedIndex(detailView, dnaIdx, displayIdx, frame, baseNum, allowScroll, scrollMinimum, extend);
+
+  DEBUG_EXIT("detailViewSetSelectedDisplayIdx returning ");
 }
 
 
@@ -4052,16 +4205,15 @@ static void detailViewCreateProperties(GtkWidget *detailView,
       properties->feedbackBox = feedbackBox;
       properties->statusBar = statusBar;
       properties->adjustment = adjustment;
-      properties->selectedBaseSet = FALSE;
-      properties->selectedBaseIdx = UNSET_INT;
-      properties->selectedBaseNum = UNSET_INT;
-      properties->selectedFrame = UNSET_INT;
-      properties->selectedDnaBaseIdx = UNSET_INT;
       properties->fontDesc = fontDesc;
       properties->charWidth = 0.0;
       properties->charHeight = 0.0;
       properties->snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
       properties->numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
+
+      setDetailViewIndex(&properties->selectedIndex, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
+      setDetailViewIndex(&properties->selectedRangeStart, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
+      setDetailViewIndex(&properties->selectedRangeEnd, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
       
       /* The numunalignedbases may be set in the config file; if so, override the default */
       GKeyFile *key_file = blxGetConfig();
@@ -4480,7 +4632,7 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
           /* For protein matches, select the first base in the triplet */
           const int baseNum = 1;
           const int frame = detailViewGetActiveFrame(detailView);
-          detailViewSetSelectedBaseIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE);
+          detailViewSetSelectedDisplayIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE, FALSE);
         }
       
       handled = TRUE;
@@ -4517,6 +4669,9 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
 static gboolean onMouseMoveDetailView(GtkWidget *detailView, GdkEventMotion *event, gpointer data)
 {
   gboolean handled = FALSE;
+
+  guint modifiers = gtk_accelerator_get_default_mod_mask();
+  const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
   
   if (event->state & GDK_BUTTON2_MASK)
     {
@@ -4529,7 +4684,9 @@ static gboolean onMouseMoveDetailView(GtkWidget *detailView, GdkEventMotion *eve
           /* For protein matches, get the 1st base in the peptide */
           const int baseNum = 1;
           const int frame = detailViewGetActiveFrame(detailView);
-          detailViewSetSelectedBaseIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE);
+
+          /* If shift is pressed, extend the current selection range */
+          detailViewSetSelectedDisplayIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE, shiftModifier);
         }
       
       handled = TRUE;
@@ -4596,9 +4753,10 @@ static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton 
       if (!ctrlModifier)
         {
           /* Move the scrollbar so that the currently-selected base index is at the centre */
-          const int selectedBaseIdx = detailViewGetSelectedBaseIdx(detailView);
+          const gboolean selectedBaseSet = detailViewGetSelectedDisplayIdxSet(detailView);
+          const int selectedBaseIdx = detailViewGetSelectedDisplayIdx(detailView);
           
-          if (selectedBaseIdx != UNSET_INT)
+          if (selectedBaseSet)
             {
               /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
               const BlxSeqType seqType = detailViewGetSeqType(detailView);
@@ -4836,11 +4994,16 @@ void toggleStrand(GtkWidget *detailView)
   /* Re-select the currently-selected index, if there is one, because the display coords
    * have changed. */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  if (properties->selectedBaseSet)
-    {
-      const int activeFrame = detailViewGetActiveFrame(detailView); 
-      detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedDnaBaseIdx, activeFrame, FALSE, TRUE);
-    }
+  const int activeFrame = detailViewGetActiveFrame(detailView); 
+  
+  if (properties->selectedIndex.isSet)
+    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedIndex.dnaIdx, activeFrame, FALSE, TRUE, FALSE);
+
+  if (properties->selectedRangeStart.isSet)
+    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedRangeStart.dnaIdx, activeFrame, FALSE, TRUE, TRUE);
+  
+  if (properties->selectedRangeEnd.isSet)
+    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedRangeEnd.dnaIdx, activeFrame, FALSE, TRUE, TRUE);
   
   /* Re-calculate the cached display ranges for the MSPs */
   cacheMspDisplayRanges(blxContext, properties->numUnalignedBases);
@@ -4956,7 +5119,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
           if (valueWithinRange(coord, &bc->refSeqRange))
             {
               const int activeFrame = detailViewGetActiveFrame(detailView);
-              detailViewSetSelectedDnaBaseIdx(detailView, coord, activeFrame, TRUE, FALSE);
+              detailViewSetSelectedDnaBaseIdx(detailView, coord, activeFrame, TRUE, FALSE, FALSE);
               detailViewRedrawAll(detailView);
             }
           else
@@ -5057,8 +5220,13 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 /* Find and go to the next match (either left or right depending on the search flag).
  * If a list of sequence names is given, only look at matches in those sequences.
  * startDnaIdx determines where to start searching from. Sets the found match idx as
- * the currently-selected base index */
-static MSP* goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gboolean searchRight, GList *seqList)
+ * the currently-selected base index.
+ * If extend is true, extend the current selection range to the next match position */
+static MSP* goToNextMatch(GtkWidget *detailView,
+                          const int startDnaIdx,
+                          const gboolean searchRight,
+                          GList *seqList, 
+                          const gboolean extend)
 {
   BlxViewContext *bc = detailViewGetContext(detailView);
   
@@ -5104,7 +5272,7 @@ static MSP* goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
     {
       /* Offset the start coord by the found amount. */
       int newDnaIdx = searchData.startDnaIdx + (searchData.offset * searchDirection);
-      detailViewSetSelectedDnaBaseIdx(detailView, newDnaIdx, searchData.foundFrame, TRUE, FALSE);
+      detailViewSetSelectedDnaBaseIdx(detailView, newDnaIdx, searchData.foundFrame, TRUE, FALSE, extend);
       callFuncOnAllDetailViewTrees(detailView, treeScrollSelectionIntoView, NULL);
       detailViewRedrawAll(detailView);
     }
@@ -5114,12 +5282,12 @@ static MSP* goToNextMatch(GtkWidget *detailView, const int startDnaIdx, const gb
 
 
 /* Go to the previous match (optionally limited to matches in the given list)  */
-MSP* prevMatch(GtkWidget *detailView, GList *seqList)
+MSP* prevMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
 {
   /* Jump to the nearest match to the currently selected base index, if there is
    * one and if it is currently visible. Otherwise use the current display centre. */
   int startDnaIdx = detailViewGetSelectedDnaBaseIdx(detailView);
-  int startCoord = detailViewGetSelectedBaseIdx(detailView);
+  int startCoord = detailViewGetSelectedDisplayIdx(detailView);
   const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
   
   if (!valueWithinRange(startCoord, displayRange))
@@ -5132,17 +5300,17 @@ MSP* prevMatch(GtkWidget *detailView, GList *seqList)
       startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
-  return goToNextMatch(detailView, startDnaIdx, FALSE, seqList);
+  return goToNextMatch(detailView, startDnaIdx, FALSE, seqList, extend);
 }
 
 
 /* Go to the next match (optionally limited to matches in the given list)  */
-MSP* nextMatch(GtkWidget *detailView, GList *seqList)
+MSP* nextMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
 {
   /* Jump to the nearest match to the currently selected base index, if there is
    * one and if it is currently visible. Otherwise use the current display centre. */
   int startDnaIdx = detailViewGetSelectedDnaBaseIdx(detailView);
-  int startCoord = detailViewGetSelectedBaseIdx(detailView);
+  int startCoord = detailViewGetSelectedDisplayIdx(detailView);
   const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
   
   if (!valueWithinRange(startCoord, displayRange))
@@ -5155,29 +5323,30 @@ MSP* nextMatch(GtkWidget *detailView, GList *seqList)
       startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
   
-  return goToNextMatch(detailView, startDnaIdx, TRUE, seqList);
+  return goToNextMatch(detailView, startDnaIdx, TRUE, seqList, extend);
 }
 
 
 /* Go to the first match (optionally limited to matches in the given list)  */
-MSP* firstMatch(GtkWidget *detailView, GList *seqList)
+MSP* firstMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
 {
   /* Jump to the nearest match to the start of the ref seq */
   const IntRange* const refSeqRange = detailViewGetRefSeqRange(detailView);
   const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->max : refSeqRange->min;
   
-  return goToNextMatch(detailView, startIdx, TRUE, seqList);
+  return goToNextMatch(detailView, startIdx, TRUE, seqList, extend);
 }
 
 
 /* Go to the last match (optionally limited to matches in the given list)  */
-MSP* lastMatch(GtkWidget *detailView, GList *seqList)
+MSP* lastMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
 {
   /* Jump to the nearest match to the end of the reference sequence */
   const IntRange* const refSeqRange = detailViewGetRefSeqRange(detailView);
   const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->min : refSeqRange->max;
 
-  return goToNextMatch(detailView, startIdx, FALSE, seqList);
+  return goToNextMatch(detailView,
+                       startIdx, FALSE, seqList, extend);
 }
 
 /***********************************************************

@@ -62,6 +62,8 @@ typedef struct _RenderData
     const BlxStrand qStrand;
     const int qFrame;
     const int selectedBaseIdx;
+    const int selectedRangeStart;
+    const int selectedRangeEnd;
     gboolean seqSelected;
     const int cellXPadding;
     const int cellYPadding;
@@ -1297,7 +1299,9 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
     gc,
     treeGetStrand(tree),
     treeProperties->readingFrame,
-    detailViewProperties->selectedBaseIdx,
+    detailViewProperties->selectedIndex.displayIdx,
+    detailViewProperties->selectedRangeStart.displayIdx,
+    detailViewProperties->selectedRangeEnd.displayIdx,
     blxWindowIsSeqSelected(detailViewProperties->blxWindow, seq),
     detailViewProperties->cellXPadding,
     detailViewProperties->cellYPadding,

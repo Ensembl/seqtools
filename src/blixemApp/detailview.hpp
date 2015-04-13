@@ -81,50 +81,61 @@ typedef struct _BlxSpliceSite
   } BlxSpliceSite;
 
 
+/* Info about a particular coord (used for recording which coordinates are selected). */
+typedef struct _DetailViewIndex
+{
+  gboolean isSet;                /* True if this info has been set (the other values are invalid
+                                  * if not) */
+  int dnaIdx;                    /* The index in terms of the DNA sequence */
+  int displayIdx;                /* The index in the display range (nucleotide or peptide) */
+  int frame;                     /* The reading frame */
+  int baseNum;                   /* The base within the reading frame */
+} DetailViewIndex;
+
+
 /* Essential info required by the the detail view */
 typedef struct _DetailViewProperties
-  {
-    GtkWidget *blxWindow;         /* The main blixem window that this view belongs to */
-    GtkCellRenderer *renderer;    /* The cell renderer that renders the sequences */
-    GtkAdjustment *adjustment;    /* The scroll adjustment control for the detail view */
+{
+  GtkWidget *blxWindow;                /* The main blixem window that this view belongs to */
+  GtkCellRenderer *renderer;           /* The cell renderer that renders the sequences */
+  GtkAdjustment *adjustment;           /* The scroll adjustment control for the detail view */
 
-    GtkWidget *feedbackBox;       /* A text box that feeds back info to the user about the currently selected items */
-    GtkWidget *statusBar;         /* A status bar that feeds back info to the user about the currently moused-over items */
-    GList *columnList;            /* A list of details about all the columns in the detail view */    
-    BlxColumnId* sortColumns;     /* Array of columns to sort by, in order of priority. The length of this array will be set to the same length as columnList */
+  GtkWidget *feedbackBox;              /* A text box that feeds back info to the user about the currently selected items */
+  GtkWidget *statusBar;                /* A status bar that feeds back info to the user about the currently moused-over items */
+  GList *columnList;                   /* A list of details about all the columns in the detail view */    
+  BlxColumnId* sortColumns;            /* Array of columns to sort by, in order of priority. The length of this array will be set to the same length as columnList */
     
-    GList *fwdStrandTrees;        /* A list of all the trees that show the forward strand of the ref seq */
-    GList *revStrandTrees;        /* A list of all the trees that show the reverse strand of the ref seq */
+  GList *fwdStrandTrees;               /* A list of all the trees that show the forward strand of the ref seq */
+  GList *revStrandTrees;               /* A list of all the trees that show the reverse strand of the ref seq */
     
-    int cellXPadding;             /* The x padding between the tree cell background area and their drawing area */
-    int cellYPadding;             /* The y padding between the tree cell background area and their drawing area */
+  int cellXPadding;                    /* The x padding between the tree cell background area and their drawing area */
+  int cellYPadding;                    /* The y padding between the tree cell background area and their drawing area */
         
-    IntRange displayRange;        /* The currently-displayed range of bases in the reference sequence */
-    
-    gboolean selectedBaseSet;     /* indicates whether the selected base index below is set or not */
-    int selectedBaseIdx;          /* The currently-selected index in the display range */
-    int selectedFrame;            /* The reading frame to display selected bases for */
-    int selectedBaseNum;          /* The currently-selected base within the selected reading frame */
-    int selectedDnaBaseIdx;       /* The currently-selected index in terms of the DNA sequence */
+  IntRange displayRange;               /* The currently-displayed range of bases in the reference sequence */
 
-    int clickedBaseIdx;           /* Stores the index the user right clicked on (used when copying a range of ref seq) */
+  DetailViewIndex selectedIndex;       /* The currently-selected index (or start index, if
+                                        * shift-selecting a range) */
+  DetailViewIndex selectedRangeStart;  /* The currently-selected range start (if shift-selecting) */
+  DetailViewIndex selectedRangeEnd;    /* The currently-selected range end (if shift-selecting) */
 
-    BlxStrand selectedStrand;     /* BlxStrand of the tree that the last-selected  */
-    PangoFontDescription *fontDesc; /* The fixed-width font that will be used to display the alignments */
+  int clickedBaseIdx;                  /* Stores the index the user right clicked on (used when copying a range of ref seq) */
 
-    int snpConnectorHeight;       /* The height of the connector between the SNP track and the DNA base track */
-    int numUnalignedBases;        /* If the display-unaligned-sequence option is on, this specifies how many additional bases to show at each end of the alignment */
+  BlxStrand selectedStrand;            /* BlxStrand of the tree that the last-selected  */
+  PangoFontDescription *fontDesc;      /* The fixed-width font that will be used to display the alignments */
 
-    /* Cached font sizes, needed often for calculations. */
-    gdouble charHeight;
-    gdouble charWidth;
+  int snpConnectorHeight;              /* The height of the connector between the SNP track and the DNA base track */
+  int numUnalignedBases;               /* If the display-unaligned-sequence option is on, this specifies how many additional bases to show at each end of the alignment */
+
+  /* Cached font sizes, needed often for calculations. */
+  gdouble charHeight;
+  gdouble charWidth;
         
-    int exonBoundaryLineWidth;                 /* line width for exon boundaries */
-    GdkLineStyle exonBoundaryLineStyle;        /* line style for exon boundaries */
-    GdkLineStyle exonBoundaryLineStylePartial; /* line style for exon boundaries (where the boundary is part-way through a codon) */
+  int exonBoundaryLineWidth;                 /* line width for exon boundaries */
+  GdkLineStyle exonBoundaryLineStyle;        /* line style for exon boundaries */
+  GdkLineStyle exonBoundaryLineStylePartial; /* line style for exon boundaries (where the boundary is part-way through a codon) */
     
-    GSList *spliceSites;           /* List of splice sites that can be found and highlighted by Blixem */
-  } DetailViewProperties;
+  GSList *spliceSites;           /* List of splice sites that can be found and highlighted by Blixem */
+} DetailViewProperties;
 
 
 typedef struct _DrawBaseData
@@ -155,8 +166,8 @@ typedef struct _DrawBaseData
 int                     detailViewGetNumFrames(GtkWidget *detailView);
 IntRange*               detailViewGetDisplayRange(GtkWidget *detailView);
 int                     detailViewGetClickedBaseIdx(GtkWidget *detailView);
-int                     detailViewGetSelectedBaseIdx(GtkWidget *detailView);
-gboolean                detailViewGetSelectedBaseSet(GtkWidget *detailView);
+int                     detailViewGetSelectedDisplayIdx(GtkWidget *detailView);
+gboolean                detailViewGetSelectedDisplayIdxSet(GtkWidget *detailView);
 int                     detailViewGetSelectedDnaBaseIdx(GtkWidget *detailView);
 int                     detailViewGetOldSelectedBaseIdx(GtkWidget *detailView);
 GtkAdjustment*          detailViewGetAdjustment(GtkWidget *detailView);
@@ -191,10 +202,10 @@ void                    detailViewResetColumnWidths(GtkWidget *detailView);
 
 int                     getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange* const displayRange);
 
-MSP*                    prevMatch(GtkWidget *detailView, GList *seqList);
-MSP*                    nextMatch(GtkWidget *detailView, GList *seqList);
-MSP*                    firstMatch(GtkWidget *detailView, GList *seqList);
-MSP*                    lastMatch(GtkWidget *detailView, GList *seqList);
+MSP*                    prevMatch(GtkWidget *detailView, GList *seqList, const gboolean extend);
+MSP*                    nextMatch(GtkWidget *detailView, GList *seqList, const gboolean extend);
+MSP*                    firstMatch(GtkWidget *detailView, GList *seqList, const gboolean extend);
+MSP*                    lastMatch(GtkWidget *detailView, GList *seqList, const gboolean extend);
 void                    goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType);
 void                    setDetailViewStartIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);
 void                    setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coordSeqType);
@@ -212,20 +223,25 @@ void                    zoomDetailView(GtkWidget *detailView, const gboolean zoo
 void                    updateDynamicColumnWidths(GtkWidget *detailView);
 void                    refilterDetailView(GtkWidget *detailView, const IntRange* const oldRange);
 
-void                    detailViewSetSelectedBaseIdx(GtkWidget *detailView, 
-                                                     const int selectedBaseIdx, 
-                                                     const int frame, 
-                                                     const int baseNum, 
-                                                     const gboolean allowScroll, 
-                                                     const gboolean scrollMinimum);
+void                    detailViewSetSelectedDisplayIdx(GtkWidget *detailView, 
+                                                        const int selectedBaseIdx, 
+                                                        const int frame, 
+                                                        const int baseNum, 
+                                                        const gboolean allowScroll, 
+                                                        const gboolean scrollMinimum,
+                                                        const gboolean extend);
 
 void                    detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
                                                         const int selectedDnaBaseIdx,
                                                         const int frame,
                                                         const gboolean allowScroll,
-                                                        const gboolean scrollMinimum);
+                                                        const gboolean scrollMinimum,
+                                                        const gboolean extend);
 
 void                    detailViewScrollToKeepInRange(GtkWidget *detailView, const IntRange* const range);
+
+gboolean                detailViewIsDisplayIdxSelected(GtkWidget *detailView, const int displayIdx);
+gboolean                detailViewIsDnaIdxSelected(GtkWidget *detailView, const int dnaIdx);
 
 void                    detailViewUnsetSelectedBaseIdx(GtkWidget *detailView);
 void                    detailViewSetActiveFrame(GtkWidget *detailView, const int frame);

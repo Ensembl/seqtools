@@ -611,7 +611,7 @@ static void blviewCreate(char *align_types,
     {
       /* We must select the sequence before calling callDotter. Get the first
        * sequence to the right of the start coord. */
-      MSP *msp = nextMatch(blxWindowGetDetailView(blixemWindow), NULL);
+      MSP *msp = nextMatch(blxWindowGetDetailView(blixemWindow), NULL, FALSE);
       
       if (msp)
         {
@@ -635,7 +635,7 @@ static void blviewCreate(char *align_types,
   if (options->startNextMatch)
     {
       /* Set the start coord to be the start of the next MSP on from the default start coord */
-      nextMatch(blxWindowGetDetailView(blixemWindow), NULL);
+      nextMatch(blxWindowGetDetailView(blixemWindow), NULL, FALSE);
     }
 }
 

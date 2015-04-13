@@ -1190,7 +1190,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 
   while (displayIdx >= properties->displayRange.min && displayIdx <= properties->displayRange.max)
     {
-      baseData.displayIdxSelected = (displayIdx == properties->selectedBaseIdx - offset);
+      baseData.displayIdxSelected = detailViewIsDisplayIdxSelected(detailView, displayIdx + offset);
       baseData.dnaIdxSelected = baseData.displayIdxSelected;
       baseData.baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
       
@@ -1254,30 +1254,54 @@ static gboolean onExposeRefSeqHeader(GtkWidget *headerWidget, GdkEventExpose *ev
 }
 
 
-/* The given renderer is an MSP. This function checks if there is a base index
- * selected and, if so, colors the background for that base with the given color. */
+/* This function checks if there is a display index/range selected and, if so, 
+ * colors the background for that range with the relevant highlight color. */
 static void treeHighlightSelectedBase(GtkWidget *tree, GdkDrawable *drawable)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   GList *columnList = detailViewGetColumnList(detailView);
   
-  if (properties->selectedBaseIdx != UNSET_INT && valueWithinRange(properties->selectedBaseIdx, &properties->displayRange))
+  int start = UNSET_INT;
+  int end = UNSET_INT;
+  gboolean ok = FALSE;
+
+  /* Use the selection range, if set, otherwise the selected coord */
+  if (properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
     {
-      /* Convert the display-range index to a 0-based index in the display range */
-      const int charIdx = properties->selectedBaseIdx - properties->displayRange.min;
+      start = properties->selectedRangeStart.displayIdx;
+      end = properties->selectedRangeEnd.displayIdx;
+      ok = TRUE;
+    }
+  else if(properties->selectedIndex.isSet)
+    {
+      start = end = properties->selectedIndex.displayIdx;
+      ok = TRUE;
+    }
+
+  if (ok)
+    {
+      int coord = start;
+      for ( ; coord <= end; ++coord)
+        {
+          if (valueWithinRange(coord, &properties->displayRange))
+            {
+              /* Convert the display-range index to a 0-based index in the display range */
+              const int charIdx = coord - properties->displayRange.min;
       
-      /* Get the x coords for the start and end of the sequence column */
-      IntRange xRange;
-      getColumnXCoords(columnList, BLXCOL_SEQUENCE, &xRange);
+              /* Get the x coords for the start and end of the sequence column */
+              IntRange xRange;
+              getColumnXCoords(columnList, BLXCOL_SEQUENCE, &xRange);
       
-      const int x = xRange.min + (charIdx * properties->charWidth);
-      const int y = 0;
+              const int x = xRange.min + (charIdx * properties->charWidth);
+              const int y = 0;
       
-      BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
-      GdkColor *color = getGdkColor(BLXCOLOR_SELECTION, bc->defaultColors, FALSE, bc->usePrintColors);
+              BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+              GdkColor *color = getGdkColor(BLXCOLOR_SELECTION, bc->defaultColors, FALSE, bc->usePrintColors);
       
-      drawRect(drawable, color, x, y, roundNearest(properties->charWidth), tree->allocation.height, 0.3, CAIRO_OPERATOR_XOR);
+              drawRect(drawable, color, x, y, roundNearest(properties->charWidth), tree->allocation.height, 0.3, CAIRO_OPERATOR_XOR);
+            }
+        }
     }
 }
 

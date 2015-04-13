@@ -353,27 +353,48 @@ static gboolean moveRowSelection(GtkWidget *blxWindow, const gboolean moveUp, co
  * DNA bases (i.e. you have to move 3 bases in order to scroll a full peptide
  * if viewing protein matches). Scrolls the detail view if necessary to keep 
  * the new base in view. */
-static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft)
+static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft, const gboolean extend)
 {
   GtkWidget *detailView = blxWindowGetDetailView(window);
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
   const gboolean displayRev = detailViewGetDisplayRev(detailView);
-  
   const int direction = (moveLeft == displayRev ? 1 : -1);
-  const int newDnaIdx = properties->selectedDnaBaseIdx + direction;
   
-  detailViewSetSelectedDnaBaseIdx(detailView, 
-                                  newDnaIdx, 
-                                  detailViewGetActiveFrame(detailView),
-                                  TRUE, TRUE);
+  int newDnaIdx = UNSET_INT;
+  gboolean ok = FALSE;
+
+  if (extend && properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
+    {
+      if (direction < 0)
+        newDnaIdx = properties->selectedRangeStart.dnaIdx + direction;
+      else
+        newDnaIdx = properties->selectedRangeEnd.dnaIdx + direction;
+
+      ok = TRUE;
+    }
+  else if (!extend && properties->selectedIndex.isSet)
+    {
+      newDnaIdx = properties->selectedIndex.dnaIdx + direction;
+      ok = TRUE;
+    }
+  
+  if (ok)
+    {
+      detailViewSetSelectedDnaBaseIdx(detailView, 
+                                      newDnaIdx, 
+                                      detailViewGetActiveFrame(detailView),
+                                      TRUE, 
+                                      TRUE,
+                                      extend);
+    }
 }
 
 
 /* Called when user pressed Home/End. If the modifier is pressed, scroll to the
 *  start/end of all matches in the current selection (or all matches, if no 
 * selection), or to the start/end of the entire display if the modifier is not pressed. */
-static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, const gboolean modifier)
+static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, const gboolean modifier, const gboolean extend)
 {
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   
@@ -382,9 +403,9 @@ static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, con
       GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
 
       if (moveLeft)
-        firstMatch(detailView, selectedSeqs);
+        firstMatch(detailView, selectedSeqs, extend);
       else
-        lastMatch(detailView, selectedSeqs);
+        lastMatch(detailView, selectedSeqs, extend);
     }
   else
     {
@@ -401,50 +422,78 @@ static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, con
 
 /* Jump left or right to the next/prev nearest match. Only include matches in the
  * current selection, if any rows are selected. */
-static void goToMatch(GtkWidget *blxWindow, const gboolean moveLeft)
+static void goToMatch(GtkWidget *blxWindow, const gboolean moveLeft, const gboolean extend)
 {
   GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
   
   if (moveLeft)
     {
-      prevMatch(blxWindowGetDetailView(blxWindow), selectedSeqs);
+      prevMatch(blxWindowGetDetailView(blxWindow), selectedSeqs, extend);
     }
   else
     {
-      nextMatch(blxWindowGetDetailView(blxWindow), selectedSeqs);      
+      nextMatch(blxWindowGetDetailView(blxWindow), selectedSeqs, extend);  
     }
 }
 
 
 /* Move the selected display index 1 value to the left/right. Moves by full peptides
  * if viewing protein matches. Scrolls the detail view if necessary to keep the new 
- * index in view. */
-static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft)
+ * index in view. If extend is true we extend the current selection range, otherwise
+ * just move the current selection index */
+static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft, const gboolean extend)
 {
+  DEBUG_ENTER("moveSelectedDisplayIdxBy1()");
+
   GtkWidget *detailView = blxWindowGetDetailView(window);
   DetailViewProperties *detailViewProperties = detailViewGetProperties(detailView);
-  
-  if (detailViewProperties->selectedBaseIdx != UNSET_INT)
+
+  int newSelectedBaseIdx = UNSET_INT;
+  gboolean ok = FALSE;
+
+  if (extend && detailViewProperties->selectedRangeStart.isSet && detailViewProperties->selectedRangeEnd.isSet)
     {
-      /* Decrement the index if moving left decrease and increment it if moving right, 
-       * unless the display is toggled, in which case do the opposite */
-      int newSelectedBaseIdx = detailViewProperties->selectedBaseIdx;
+      /* Decrement the start index if moving left or increment the end it if moving right */
+      if (moveLeft)
+        newSelectedBaseIdx = detailViewProperties->selectedRangeStart.displayIdx - 1;
+      else
+        newSelectedBaseIdx = detailViewProperties->selectedRangeEnd.displayIdx + 1;
+
+      DEBUG_OUT("Extending selected display range (%d, %d) to %d\n", 
+                detailViewProperties->selectedRangeStart.displayIdx, detailViewProperties->selectedRangeEnd.displayIdx,
+                newSelectedBaseIdx);
+
+      ok = TRUE;
+    }
+  else if (!extend && detailViewProperties->selectedIndex.isSet)
+    {
+      /* Decrement the index if moving left or increment if moving right */
+      newSelectedBaseIdx = detailViewProperties->selectedIndex.displayIdx;
       
       if (moveLeft)
-        {
-          --newSelectedBaseIdx;
-        }
+        --newSelectedBaseIdx;
       else
-        {
-          ++newSelectedBaseIdx;
-        }
-      
-      IntRange *fullRange = blxWindowGetFullRange(window);
-      boundsLimitValue(&newSelectedBaseIdx, fullRange);
-      
-      detailViewSetSelectedBaseIdx(detailView, newSelectedBaseIdx, detailViewProperties->selectedFrame, detailViewProperties->selectedBaseNum, TRUE, TRUE);
+        ++newSelectedBaseIdx;
+
+      DEBUG_OUT("Moving selected display index to %d\n", newSelectedBaseIdx);
+
+      ok = TRUE;
+    }
+
+  if (ok)
+    {
+      detailViewSetSelectedDisplayIdx(detailView,
+                                      newSelectedBaseIdx,
+                                      detailViewProperties->selectedIndex.frame,
+                                      detailViewProperties->selectedIndex.baseNum,
+                                      TRUE,
+                                      TRUE,
+                                      extend);
+
       detailViewRedrawAll(detailView);
     }
+
+  DEBUG_EXIT("moveSelectedDisplayIdxBy1 returning ");
 }
 
 
@@ -992,11 +1041,11 @@ static void findAgain(GtkWidget *blxWindow, const gboolean modifier)
           
           if (modifier)
             {
-              prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+              prevMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
             }
           else
             {
-              nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+              nextMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
             }
         }
     }
@@ -1359,15 +1408,15 @@ static gboolean onFindSeqsFromName(GtkWidget *button, const gint responseId, gpo
       
       if (responseId == BLX_RESPONSE_FORWARD)
         {
-          nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+          nextMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
       else if (responseId == BLX_RESPONSE_BACK)
         {
-          prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+          prevMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
       else
         {
-          firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+          firstMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
     }
     
@@ -1413,15 +1462,15 @@ static gboolean onFindSeqsFromList(GtkWidget *button, const gint responseId, gpo
       
       if (responseId == BLX_RESPONSE_FORWARD)
         {
-          nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+          nextMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
       else if (responseId == BLX_RESPONSE_BACK)
         {
-          prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+          prevMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
       else
         {
-          firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+          firstMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
         }
     }
   
@@ -1519,10 +1568,17 @@ static void blxWindowFindDnaString(GtkWidget *blxWindow,
       const int frame = 1;
       int baseNum = UNSET_INT;
       
-      int result = searchLeft ? refSeqIdx : matchStart;
-      result = convertDnaIdxToDisplayIdx(result, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
+      int resultStart = searchLeft ? refSeqIdx : matchStart;
+      int resultEnd = searchLeft ? matchStart : refSeqIdx;
+      resultStart = convertDnaIdxToDisplayIdx(resultStart, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
+      resultEnd = convertDnaIdxToDisplayIdx(resultEnd, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
       
-      detailViewSetSelectedBaseIdx(detailView, result, frame, baseNum, TRUE, FALSE);
+      /* Select the start index in the result */
+      detailViewSetSelectedDisplayIdx(detailView, resultStart, frame, baseNum, TRUE, TRUE, FALSE);
+
+      /* Extend the selection to the end index */
+      detailViewSetSelectedDisplayIdx(detailView, resultEnd, frame, baseNum, TRUE, TRUE, FALSE);
+      
       detailViewRedrawAll(detailView);
     }
   else
@@ -1550,7 +1606,7 @@ static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginni
   else  
     {
       GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-      result = detailViewGetSelectedBaseIdx(detailView);
+      result = detailViewGetSelectedDisplayIdx(detailView);
       
       if (result != UNSET_INT)
         {
@@ -2455,7 +2511,7 @@ void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, g
   if (seqList)
     {
       blxWindowSetSelectedSeqList(blxWindow, seqList);
-      firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+      firstMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
     }
 }
 
@@ -4520,28 +4576,28 @@ static void onPrevMatchMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
-  prevMatch(blxWindowGetDetailView(blxWindow), seqList);
+  prevMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
 }
 
 static void onNextMatchMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
-  nextMatch(blxWindowGetDetailView(blxWindow), seqList);
+  nextMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
 }
 
 static void onFirstMatchMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
-  firstMatch(blxWindowGetDetailView(blxWindow), seqList);
+  firstMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
 }
 
 static void onLastMatchMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GList *seqList = blxWindowGetSelectedSeqs(blxWindow);
-  lastMatch(blxWindowGetDetailView(blxWindow), seqList);
+  lastMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
 }
 
 static void onPageLeftMenu(GtkAction *action, gpointer data)
@@ -4658,7 +4714,7 @@ static void onCopySeqDataMarkMenu(GtkAction *action, gpointer data)
   /* Copy the portion of the match seq from the selected index
    * to the clicked index */
   
-  if (detailViewGetSelectedBaseSet(detailView))
+  if (detailViewGetSelectedDisplayIdxSet(detailView))
     {
       const int fromIdx = detailViewGetSelectedDnaBaseIdx(detailView);
       const int toIdx = detailViewGetClickedBaseIdx(detailView);
@@ -4680,7 +4736,7 @@ static void onCopyRefSeqMenu(GtkAction *action, gpointer data)
   /* Copy the portion of the ref seq from the selected index
    * to the clicked index */
   
-  if (detailViewGetSelectedBaseSet(detailView))
+  if (detailViewGetSelectedDisplayIdxSet(detailView))
     {
       const int fromIdx = detailViewGetSelectedDnaBaseIdx(detailView);
       const int toIdx = detailViewGetClickedBaseIdx(detailView);
@@ -4856,17 +4912,20 @@ static gboolean onKeyPressEscape(GtkWidget *window, const gboolean ctrlModifier,
 
 static gboolean onKeyPressLeftRight(GtkWidget *window, const gboolean left, const gboolean ctrlModifier, const gboolean shiftModifier)
 {
+  /*! \todo Use Alt modifier here to move by 1 dna index so that we can use shift to extend
+   * the current selection */
+ 
   if (ctrlModifier)
     {
-      goToMatch(window, left);
+      goToMatch(window, left, shiftModifier);
     }
   else if (shiftModifier)
     {
-      moveSelectedBaseIdxBy1(window, left);
+      moveSelectedBaseIdxBy1(window, left, FALSE);
     }
   else
     {
-      moveSelectedDisplayIdxBy1(window, left);
+      moveSelectedDisplayIdxBy1(window, left, FALSE);
     }
   
   return TRUE;
@@ -4880,7 +4939,7 @@ static gboolean onKeyPressUpDown(GtkWidget *window, const gboolean up, const gbo
 
 static gboolean onKeyPressHomeEnd(GtkWidget *window, const gboolean home, const gboolean ctrlModifier, const gboolean shiftModifier)
 {
-  scrollToExtremity(window, home, ctrlModifier);
+  scrollToExtremity(window, home, ctrlModifier, shiftModifier);
   return TRUE;
 }
 
