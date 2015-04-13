@@ -6324,6 +6324,13 @@ static char* getRefSeqSegment(GtkWidget *blxWindow, const int fromIdx_in, const 
       
           if (result)
             {
+              /*! \todo Currently in dna mode the active strand pane is ignored (the strand is
+               * forward if the display is forward and vice versa). We could find the strand here
+               * that the user last clicked on and return the sequence for that. Needs a bit of
+               * thought to get all the directionality right. */
+              //GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+              //BlxStrand strand = detailViewGetSelectedStrand(detailView);
+
               if (bc->displayRev)
                 {
                   char *tmp = (char*)g_malloc(strlen(result) + 1);
