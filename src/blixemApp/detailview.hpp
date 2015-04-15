@@ -159,6 +159,7 @@ typedef struct _DrawBaseData
   gboolean drawEnd;
   gboolean drawJoiningLines;
   gboolean shadeBackground;
+  IntRange *selectionRange;     /* the range of reference seq coords that is selected, in dna coords */
 } DrawBaseData;
 
 

@@ -2427,7 +2427,25 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   int qIdx = bc->displayRev ? qRange.max : qRange.min;
   int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, activeFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   const int y = 0;
-  DrawBaseData baseData = {qIdx, 0, strand, UNSET_INT, BLXSEQ_DNA, TRUE, FALSE, FALSE, FALSE, highlightSnps, TRUE, BLXCOLOR_BACKGROUND, NULL, NULL, FALSE, FALSE, FALSE, FALSE};
+  DrawBaseData baseData = {qIdx,
+                           0,
+                           strand,
+                           UNSET_INT,
+                           BLXSEQ_DNA,
+                           TRUE,
+                           FALSE,
+                           FALSE,
+                           FALSE,
+                           highlightSnps,
+                           TRUE,
+                           BLXCOLOR_BACKGROUND,
+                           NULL,
+                           NULL,
+                           FALSE,
+                           FALSE,
+                           FALSE,
+                           FALSE,
+                           detailViewGetSelectedDnaIdxRange(detailView)};
   
   while (qIdx >= qRange.min && qIdx <= qRange.max)
     {
@@ -2820,11 +2838,19 @@ void drawHeaderChar(BlxViewContext *bc,
                     GHashTable *basesToHighlight,
                     DrawBaseData *data)
 {
-  /* Shade the background if the base is selected XOR if the base is within the range of a 
-   * selected sequence. (If both conditions are true we don't shade, to give the effect of an
-   * inverted selection color.) */
-  gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, data->dnaIdx, data->strand, data->frame, data->seqType);
-  data->shadeBackground = (data->displayIdxSelected != inSelectedMspRange);
+  if (!data->selectionRange || (data->selectionRange && getRangeLength(data->selectionRange) == 1))
+    {
+      /* Shade the background if the base is selected XOR if the base is within the range of a 
+       * selected sequence. (If both conditions are true we don't shade, to give the effect of an
+       * inverted selection color.) */
+      gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, data->dnaIdx, data->strand, data->frame, data->seqType);
+      data->shadeBackground = (data->displayIdxSelected != inSelectedMspRange);
+    }
+  else
+    {
+      /* We have a range of selected coords. Just shade if this coord is in that range. */
+      data->shadeBackground = valueWithinRange(data->dnaIdx, data->selectionRange);
+    }
 
   /* Reset background color and outlines to defaults */
   data->outlineColor = NULL;
