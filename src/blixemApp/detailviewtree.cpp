@@ -1187,7 +1187,26 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 
   const int incrementValue = bc->displayRev ? -1 * bc->numFrames : bc->numFrames;
   int displayIdx = properties->displayRange.min;
-  DrawBaseData baseData = {qIdx1, 0, strand, frame, bc->seqType, FALSE, FALSE, FALSE, TRUE, highlightSnps, FALSE, BLXCOLOR_REF_SEQ, NULL, NULL, FALSE, FALSE, FALSE, FALSE};
+
+  DrawBaseData baseData = {qIdx1,
+                           0,
+                           strand,
+                           frame,
+                           bc->seqType,
+                           FALSE,
+                           FALSE,
+                           FALSE,
+                           TRUE,
+                           highlightSnps,
+                           FALSE,
+                           BLXCOLOR_REF_SEQ,
+                           NULL,
+                           NULL,
+                           FALSE,
+                           FALSE,
+                           FALSE,
+                           FALSE,
+                           detailViewGetSelectedDnaIdxRange(detailView)};
 
   while (displayIdx >= properties->displayRange.min && displayIdx <= properties->displayRange.max)
     {
