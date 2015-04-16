@@ -4059,11 +4059,19 @@ static void detailViewSetSelectedIndex(GtkWidget *detailView,
 
       /* Extend or trim the existing range by setting the start or end of the range to the new
        * value depending on whether the click was before or after the initial selection
-       * index. If the user clicks on the initial selection index trim both ends. */
-      if (dnaIdx <= properties->selectedRangeInit.dnaIdx)
-        setDetailViewIndex(&properties->selectedRangeStart, TRUE, dnaIdx, displayIdx, frame, baseNum);
-      else if (dnaIdx >= properties->selectedRangeInit.dnaIdx)
-        setDetailViewIndex(&properties->selectedRangeEnd, TRUE, dnaIdx, displayIdx, frame, baseNum);
+       * index. If the user clicked on the inital index, then trim the end that was last modified. */
+      const int initIdx = properties->selectedRangeInit.dnaIdx;
+      const int lastIdx = properties->selectedIndex.dnaIdx;
+
+      if (dnaIdx < initIdx || (dnaIdx == initIdx && lastIdx < initIdx))
+        {
+          setDetailViewIndex(&properties->selectedRangeStart, TRUE, dnaIdx, displayIdx, frame, baseNum);
+        }
+
+      if (dnaIdx > initIdx || (dnaIdx == initIdx && lastIdx > initIdx))
+        {
+          setDetailViewIndex(&properties->selectedRangeEnd, TRUE, dnaIdx, displayIdx, frame, baseNum);
+        }
 
       if (properties->selectedRangeStart.dnaIdx > properties->selectedRangeEnd.dnaIdx)
         {
