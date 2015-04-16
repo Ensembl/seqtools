@@ -3996,6 +3996,7 @@ void detailViewUnsetSelectedBaseIdx(GtkWidget *detailView)
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
   setDetailViewIndex(&properties->selectedIndex, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
+  setDetailViewIndex(&properties->selectedRangeInit, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
   setDetailViewIndex(&properties->selectedRangeStart, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
   setDetailViewIndex(&properties->selectedRangeEnd, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
     
@@ -4059,11 +4060,19 @@ static void detailViewSetSelectedIndex(GtkWidget *detailView,
 
       /* Extend or trim the existing range by setting the start or end of the range to the new
        * value depending on whether the click was before or after the initial selection
-       * index. If the user clicks on the initial selection index trim both ends. */
-      if (dnaIdx <= properties->selectedRangeInit.dnaIdx)
-        setDetailViewIndex(&properties->selectedRangeStart, TRUE, dnaIdx, displayIdx, frame, baseNum);
-      else if (dnaIdx >= properties->selectedRangeInit.dnaIdx)
-        setDetailViewIndex(&properties->selectedRangeEnd, TRUE, dnaIdx, displayIdx, frame, baseNum);
+       * index. If the user clicked on the inital index, then trim the end that was last modified. */
+      const int initIdx = properties->selectedRangeInit.dnaIdx;
+      const int lastIdx = properties->selectedIndex.dnaIdx;
+
+      if (dnaIdx < initIdx || (dnaIdx == initIdx && lastIdx < initIdx))
+        {
+          setDetailViewIndex(&properties->selectedRangeStart, TRUE, dnaIdx, displayIdx, frame, baseNum);
+        }
+
+      if (dnaIdx > initIdx || (dnaIdx == initIdx && lastIdx > initIdx))
+        {
+          setDetailViewIndex(&properties->selectedRangeEnd, TRUE, dnaIdx, displayIdx, frame, baseNum);
+        }
 
       if (properties->selectedRangeStart.dnaIdx > properties->selectedRangeEnd.dnaIdx)
         {
@@ -4718,9 +4727,6 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
   
   const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
 
-  //guint modifiers = gtk_accelerator_get_default_mod_mask();
-  //const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
-
   switch (event->button)
   {
     case 2:
@@ -4853,9 +4859,8 @@ static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton 
     {
       /* Cancel middle-drag mode */
       setMouseDragMode(FALSE);
-      
-      guint modifiers = gtk_accelerator_get_default_mod_mask();
-      const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
+
+      const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
       
       if (!ctrlModifier)
         {
@@ -4979,8 +4984,7 @@ static gboolean onButtonReleaseSeqColHeader(GtkWidget *header, GdkEventButton *e
   /* Middle button: scroll the selected base index to the centre (unless CTRL is pressed) */
   if (event->button == 2)
     {
-      guint modifiers = gtk_accelerator_get_default_mod_mask();
-      const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
+      const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
       
       if (!ctrlModifier)
         {
@@ -5129,19 +5133,33 @@ void toggleStrand(GtkWidget *detailView)
   const int newStart = fullRange->max - displayRange->max + fullRange->min;
   setDetailViewStartIdx(detailView, newStart, blxContext->seqType);
 
-  /* Re-select the currently-selected index, if there is one, because the display coords
-   * have changed. */
+  /* Re-select the currently-selected index/range, if set, because the display coords
+   * have changed and need updating in the index structs. */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  
+ 
   if (properties->selectedIndex.isSet)
-    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedIndex.dnaIdx, properties->selectedIndex.frame, FALSE, TRUE, FALSE);
+    {
+      const int initIdx = properties->selectedRangeInit.dnaIdx;
+      const int lastIdx = properties->selectedIndex.dnaIdx;
+      int startIdx = properties->selectedRangeStart.dnaIdx;
+      int endIdx = properties->selectedRangeEnd.dnaIdx;
 
-  if (properties->selectedRangeStart.isSet)
-    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedRangeStart.dnaIdx, properties->selectedRangeStart.frame, FALSE, TRUE, TRUE);
-  
-  if (properties->selectedRangeEnd.isSet)
-    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedRangeEnd.dnaIdx, properties->selectedRangeEnd.frame, FALSE, TRUE, TRUE);
-  
+      /* Must set start/end in the correct order, so if the 'start' was set last, swap them. */
+      if (lastIdx == startIdx)
+        {
+          startIdx = properties->selectedRangeEnd.dnaIdx;
+          endIdx = properties->selectedRangeStart.dnaIdx;
+        }
+
+      /* Unset, then select the inital index (with extend=false) */
+      detailViewUnsetSelectedBaseIdx(detailView);
+      detailViewSetSelectedDnaBaseIdx(detailView, initIdx, properties->selectedIndex.frame, FALSE, TRUE, FALSE);
+
+      /* Now set the extents, passing extend=true to extend either side of the init index */
+      detailViewSetSelectedDnaBaseIdx(detailView, startIdx, properties->selectedRangeStart.frame, FALSE, TRUE, TRUE);
+      detailViewSetSelectedDnaBaseIdx(detailView, endIdx, properties->selectedRangeEnd.frame, FALSE, TRUE, TRUE);
+    }
+
   /* Re-calculate the cached display ranges for the MSPs */
   cacheMspDisplayRanges(blxContext, properties->numUnalignedBases);
   

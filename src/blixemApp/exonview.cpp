@@ -818,9 +818,8 @@ static gboolean onButtonPressExonView(GtkWidget *exonView, GdkEventButton *event
   if (event->button == 1) /* left button */
     {
       /* If we clicked on top of an exon, select that msp */
-      guint modifiers = gtk_accelerator_get_default_mod_mask();
-      const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
-      const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
+      const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
+      const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
 
       handled = selectClickedExon(exonView, event, ctrlModifier, shiftModifier);
     }

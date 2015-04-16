@@ -1471,9 +1471,8 @@ static void treeSelectRowRange(GtkWidget *blxWindow, GtkTreeModel *model, GtkTre
 
 static gboolean treeSelectRow(GtkWidget *tree, GdkEventButton *event)
 {
-  guint modifiers = gtk_accelerator_get_default_mod_mask();
-  const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
-  const gboolean shiftModifier = ((event->state & modifiers) == GDK_SHIFT_MASK);
+  const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
+  const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
   
   if (!ctrlModifier && !shiftModifier)
     {
