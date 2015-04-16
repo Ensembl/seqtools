@@ -3753,7 +3753,7 @@ gboolean onKeyPressDotter(GtkWidget *widget, GdkEventKey *event, gpointer data)
       case GDK_W:   /* fall through */
       case GDK_w:   handled = onKeyPressW(widget, ctrlModifier);                    break;
 
-      case GDK_Escape:        handled = onKeyPressEsc(widget);
+      case GDK_Escape:        handled = onKeyPressEsc(dotterWindow);
 
       case GDK_Up:            handled = onKeyPressUpDown(dotterWindow, TRUE, shiftModifier);        break;
       case GDK_Down:          handled = onKeyPressUpDown(dotterWindow, FALSE, shiftModifier);       break;
