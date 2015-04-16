@@ -4975,8 +4975,7 @@ static gboolean onButtonReleaseSeqColHeader(GtkWidget *header, GdkEventButton *e
   /* Middle button: scroll the selected base index to the centre (unless CTRL is pressed) */
   if (event->button == 2)
     {
-      guint modifiers = gtk_accelerator_get_default_mod_mask();
-      const gboolean ctrlModifier = ((event->state & modifiers) == GDK_CONTROL_MASK);
+      const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
       
       if (!ctrlModifier)
         {
