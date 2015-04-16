@@ -1733,14 +1733,14 @@ static void getSeqColHeaderClickedNucleotide(GtkWidget *header, GtkWidget *detai
 
 
 /* Select the coord at the given x,y position in the given sequence column header */
-static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, const int x, const int y)
+static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, const int x, const int y, const gboolean extend)
 {
   DEBUG_ENTER("selectClickedNucleotide()");
 
   int coord, frame, baseNum;
   getSeqColHeaderClickedNucleotide(header, detailView, x, y, &coord, &frame, &baseNum);
   
-  detailViewSetSelectedDisplayIdx(detailView, coord, frame, baseNum, FALSE, TRUE, FALSE);
+  detailViewSetSelectedDisplayIdx(detailView, coord, frame, baseNum, FALSE, TRUE, extend);
 
   DEBUG_EXIT("selectClickedNucleotide returning ");
 }
@@ -4676,12 +4676,12 @@ static gboolean onExposeVariationsTrack(GtkWidget *snpTrack, GdkEventExpose *eve
 static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
+  GtkWidget *detailView = GTK_WIDGET(data);
 
   switch (event->button)
   {
     case 1:
       {
-        GtkWidget *detailView = GTK_WIDGET(data);
         GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
         GList *columnList = detailViewGetColumnList(detailView);
         
@@ -4715,6 +4715,11 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
         break;
       }
   }
+
+  if (!handled)
+    { 
+      propagateEventButton(snpTrack, detailView, event);
+    }
   
   return handled;
 }
@@ -4921,6 +4926,7 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 {
   gboolean handled = FALSE;
 
+  const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
   GtkWidget *detailView = GTK_WIDGET(data);
   
   switch (event->button)
@@ -4958,7 +4964,7 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
     case 2:
       {
         /* Middle button: select the nucleotide that was clicked on. */
-        selectClickedNucleotide(header, detailView, event->x, event->y);
+        selectClickedNucleotide(header, detailView, event->x, event->y, shiftModifier);
         handled = TRUE;
         break;
       }
@@ -4972,6 +4978,11 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
     default:
       break;
   }
+
+  if (!handled)
+    { 
+      propagateEventButton(header, detailView, event);
+    }
   
   return handled;
 }
@@ -5003,11 +5014,12 @@ static gboolean onButtonReleaseSeqColHeader(GtkWidget *header, GdkEventButton *e
 static gboolean onMouseMoveSeqColHeader(GtkWidget *header, GdkEventMotion *event, gpointer data)
 {
   GtkWidget *detailView = GTK_WIDGET(data);
+  const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
 
   if (event->state & GDK_BUTTON2_MASK)
     {
       /* Moving mouse with middle mouse button down. Update the currently-selected base */
-      selectClickedNucleotide(header, detailView, event->x, event->y);
+      selectClickedNucleotide(header, detailView, event->x, event->y, shiftModifier);
     }
   else
     {

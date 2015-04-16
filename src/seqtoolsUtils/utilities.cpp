@@ -367,6 +367,36 @@ void blxSetWidgetColor(GtkWidget* widget, char *colorName)
     }
 }
 
+
+/* Find the position of the left edge of the source widget wrt the dest widget and offset 
+ * the event by this amount, then propagate the event to the dest widget. This allows us
+ * to get the correct x coord on the parent widget for a click on the child widget. */
+void propagateEventButton(GtkWidget *srcWidget, GtkWidget *destWidget, GdkEventButton *event)
+{
+  int xOffset;
+  gtk_widget_translate_coordinates(srcWidget, destWidget, 0, 0, &xOffset, NULL);
+  
+  event->x += xOffset;
+  
+  gtk_propagate_event(destWidget, (GdkEvent*)event);
+}
+
+
+/* Utility to translate the coords in the given event from coords relative to the source
+ * widget to coords relative to the destination widget, and then propagate the event to the
+ * dest widget. */
+void propagateEventMotion(GtkWidget *srcWidget, GtkWidget *destWidget, GdkEventMotion *event)
+{
+  /* Find the position of 0,0 of the source widget wrt the dest widget and offset by this amount. */
+  int xOffset, yOffset;
+  gtk_widget_translate_coordinates(srcWidget, destWidget, 0, 0, &xOffset, &yOffset);
+  
+  event->x += xOffset;
+  event->y += yOffset;  
+  
+  gtk_propagate_event(destWidget, (GdkEvent*)event);
+}
+
 /***********************************************************
  *                       Misc utils                        * 
  ***********************************************************/
