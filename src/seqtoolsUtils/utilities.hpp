@@ -550,6 +550,8 @@ void                               onBeginPrint(GtkPrintOperation *print, GtkPri
 void                               collatePixmaps(GtkWidget *widget, gpointer data);
 void                               onDrawPage(GtkPrintOperation *print, GtkPrintContext *context, gint pageNum, gpointer data);
 void                               setWidgetBackgroundColor(GtkWidget *widget, gpointer data);
+void                               propagateEventButton(GtkWidget *srcWidget, GtkWidget *destWidget, GdkEventButton *event);
+void                               propagateEventMotion(GtkWidget *srcWidget, GtkWidget *destWidget, GdkEventMotion *event);
 
 void                               forceResize(GtkWidget *widget);
 
