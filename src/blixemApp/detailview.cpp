@@ -3996,6 +3996,7 @@ void detailViewUnsetSelectedBaseIdx(GtkWidget *detailView)
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
   setDetailViewIndex(&properties->selectedIndex, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
+  setDetailViewIndex(&properties->selectedRangeInit, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
   setDetailViewIndex(&properties->selectedRangeStart, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
   setDetailViewIndex(&properties->selectedRangeEnd, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
     
@@ -5132,19 +5133,33 @@ void toggleStrand(GtkWidget *detailView)
   const int newStart = fullRange->max - displayRange->max + fullRange->min;
   setDetailViewStartIdx(detailView, newStart, blxContext->seqType);
 
-  /* Re-select the currently-selected index, if there is one, because the display coords
-   * have changed. */
+  /* Re-select the currently-selected index/range, if set, because the display coords
+   * have changed and need updating in the index structs. */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  
+ 
   if (properties->selectedIndex.isSet)
-    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedIndex.dnaIdx, properties->selectedIndex.frame, FALSE, TRUE, FALSE);
+    {
+      const int initIdx = properties->selectedRangeInit.dnaIdx;
+      const int lastIdx = properties->selectedIndex.dnaIdx;
+      int startIdx = properties->selectedRangeStart.dnaIdx;
+      int endIdx = properties->selectedRangeEnd.dnaIdx;
 
-  if (properties->selectedRangeStart.isSet)
-    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedRangeStart.dnaIdx, properties->selectedRangeStart.frame, FALSE, TRUE, TRUE);
-  
-  if (properties->selectedRangeEnd.isSet)
-    detailViewSetSelectedDnaBaseIdx(detailView, properties->selectedRangeEnd.dnaIdx, properties->selectedRangeEnd.frame, FALSE, TRUE, TRUE);
-  
+      /* Must set start/end in the correct order, so if the 'start' was set last, swap them. */
+      if (lastIdx == startIdx)
+        {
+          startIdx = properties->selectedRangeEnd.dnaIdx;
+          endIdx = properties->selectedRangeStart.dnaIdx;
+        }
+
+      /* Unset, then select the inital index (with extend=false) */
+      detailViewUnsetSelectedBaseIdx(detailView);
+      detailViewSetSelectedDnaBaseIdx(detailView, initIdx, properties->selectedIndex.frame, FALSE, TRUE, FALSE);
+
+      /* Now set the extents, passing extend=true to extend either side of the init index */
+      detailViewSetSelectedDnaBaseIdx(detailView, startIdx, properties->selectedRangeStart.frame, FALSE, TRUE, TRUE);
+      detailViewSetSelectedDnaBaseIdx(detailView, endIdx, properties->selectedRangeEnd.frame, FALSE, TRUE, TRUE);
+    }
+
   /* Re-calculate the cached display ranges for the MSPs */
   cacheMspDisplayRanges(blxContext, properties->numUnalignedBases);
   
