@@ -1552,18 +1552,15 @@ static void blxWindowFindDnaString(GtkWidget *blxWindow,
     {
       GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
       const int frame = 1;
-      int baseNum = UNSET_INT;
       
       int resultStart = searchLeft ? refSeqIdx : matchStart;
       int resultEnd = searchLeft ? matchStart : refSeqIdx;
-      resultStart = convertDnaIdxToDisplayIdx(resultStart, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
-      resultEnd = convertDnaIdxToDisplayIdx(resultEnd, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, &baseNum);
       
       /* Select the start index in the result */
-      detailViewSetSelectedDisplayIdx(detailView, resultStart, frame, baseNum, TRUE, TRUE, FALSE);
+      detailViewSetSelectedDnaBaseIdx(detailView, resultStart, frame, TRUE, FALSE, FALSE);
 
       /* Extend the selection to the end index */
-      detailViewSetSelectedDisplayIdx(detailView, resultEnd, frame, baseNum, TRUE, TRUE, FALSE);
+      detailViewSetSelectedDnaBaseIdx(detailView, resultEnd, frame, FALSE, TRUE, TRUE);
       
       detailViewRedrawAll(detailView);
     }
