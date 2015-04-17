@@ -4134,7 +4134,7 @@ void detailViewSetActiveFrame(GtkWidget *detailView, const int frame)
                                  baseNum,
                                  FALSE,
                                  FALSE,
-                                 TRUE);
+                                 FALSE);
     }
 
   DEBUG_EXIT("detailViewSetActiveFrame returning ");
