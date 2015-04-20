@@ -1,6 +1,7 @@
 
 Git commits for  from commit "production" until commit "release/4.34"
 
+0b247e4 2015-04-20 Better fix for codon highlighting - REGRESSION FIX
 81fd919 2015-04-17 DNA search now highlights the result range - NEW FEATURE 'DNA search'
 a3dc8f1 2015-04-16 Fix crash pressing Esc on undocked tool - BUG FIX
 91b90e1 2015-04-16 Update blixem manual for v34 - DOC

@@ -1,3 +1,33 @@
+2015-04-20  Gemma Barson  <gb10@sanger.ac.uk>
+ Better fix for codon highlighting - REGRESSION FIX
+ src/blixemApp/blxwindow.cpp      |   12 ++--
+ src/blixemApp/detailview.cpp     |  161 +++++++++++++++++++++++---------------
+ src/blixemApp/detailview.hpp     |    3 +-
+ src/blixemApp/detailviewtree.cpp |    4 +-
+ 4 files changed, 107 insertions(+), 73 deletions(-)
+
+2015-04-20  Gemma Barson  <gb10@sanger.ac.uk>
+ Improve highlighting of selected sequence range - WIP
+ src/blixemApp/sequencecellrenderer.cpp |   28 ++++++++++++++++++++--------
+ 1 files changed, 20 insertions(+), 8 deletions(-)
+
+2015-04-17  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix minor bug with codon highlighting in protein blixem - REGRESSION FIX
+ src/blixemApp/detailview.cpp |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+2015-04-17  Gemma Barson  <gb10@sanger.ac.uk>
+ Update release notes - DOC
+ src/doc/User_doc/release_notes.html |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+2015-04-17  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.33-84-g81fd - Update RT and git commit reports
+ src/ChangeLog                                  | 1053 ++++++++++++-----------
+ src/build/release_docs/GIT_COMMITS.txt         |   27 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   32 +-
+ 3 files changed, 597 insertions(+), 515 deletions(-)
+
 2015-04-17  Gemma Barson  <gb10@sanger.ac.uk>
  DNA search now highlights the result range - NEW FEATURE 'DNA search'
  src/blixemApp/blxwindow.cpp |    7 ++-----

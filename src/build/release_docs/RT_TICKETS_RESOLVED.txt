@@ -1,5 +1,5 @@
 
-Request Tracker Tickets Resolved from 10/03/2015 to 17/04/2015
+Request Tracker Tickets Resolved from 10/03/2015 to 20/04/2015
 
 ticket/456864
 id: ticket/456864
