@@ -373,9 +373,9 @@ static void moveSelectedBaseIdxBy1(GtkWidget *window, const gboolean moveLeft, c
   int newDnaIdx = UNSET_INT;
   gboolean ok = FALSE;
 
-  if (properties->selectedIndex.isSet)
+  if (detailViewGetSelectedIdxSet(detailView))
     {
-      newDnaIdx = properties->selectedIndex.dnaIdx + direction;
+      newDnaIdx = properties->selectedIndex->dnaIdx + direction;
       ok = TRUE;
     }
   
@@ -451,10 +451,10 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
   int newSelectedBaseIdx = UNSET_INT;
   gboolean ok = FALSE;
 
-  if (detailViewProperties->selectedIndex.isSet)
+  if (detailViewGetSelectedIdxSet(detailView))
     {
       /* Decrement the index if moving left or increment if moving right */
-      newSelectedBaseIdx = detailViewProperties->selectedIndex.displayIdx;
+      newSelectedBaseIdx = detailViewProperties->selectedIndex->displayIdx;
       
       if (moveLeft)
         --newSelectedBaseIdx;
@@ -470,8 +470,8 @@ static void moveSelectedDisplayIdxBy1(GtkWidget *window, const gboolean moveLeft
     {
       detailViewSetSelectedDisplayIdx(detailView,
                                       newSelectedBaseIdx,
-                                      detailViewProperties->selectedIndex.frame,
-                                      detailViewProperties->selectedIndex.baseNum,
+                                      detailViewProperties->selectedIndex->frame,
+                                      detailViewProperties->selectedIndex->baseNum,
                                       TRUE,
                                       TRUE,
                                       extend);

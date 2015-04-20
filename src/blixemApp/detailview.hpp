@@ -113,11 +113,10 @@ typedef struct _DetailViewProperties
         
   IntRange displayRange;               /* The currently-displayed range of bases in the reference sequence */
 
-  DetailViewIndex selectedIndex;       /* The currently-selected index (or start index, if
-                                        * shift-selecting a range) */
   DetailViewIndex selectedRangeInit;   /* Caches the initial selected index when selecting a range */
   DetailViewIndex selectedRangeStart;  /* The currently-selected range start (if shift-selecting) */
   DetailViewIndex selectedRangeEnd;    /* The currently-selected range end (if shift-selecting) */
+  DetailViewIndex *selectedIndex;      /* Pointer to the last-selected index (i.e. start or end of range) */
 
   int clickedBaseIdx;                  /* Stores the index the user right clicked on (used when copying a range of ref seq) */
 
