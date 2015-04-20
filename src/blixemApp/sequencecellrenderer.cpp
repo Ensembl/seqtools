@@ -64,6 +64,7 @@ typedef struct _RenderData
     const int selectedBaseIdx;
     IntRange *selectionRange;
     gboolean seqSelected;
+    GList *selectedSeqs;
     const int cellXPadding;
     const int cellYPadding;
     const gdouble charWidth;
@@ -600,9 +601,13 @@ static gboolean coordIsSelected(RenderData *data, const int coord)
 
   if (data->selectionRange && getRangeLength(data->selectionRange) > 1)
     {
-      /* There is a range of selected coords. We highlight the base if it's in this range. (We
-       * don't highlight other coords in the selected sequence if they're outside this range.) */
-      result = coordSelected;
+      /* There is a range of selected coords. We highlight the base if it's in this range.
+       * We only highlight selection-range coords for the currently selected sequence(s), unless 
+       * there are no selected sequences, in which case highlight all rows. */
+      if (data->seqSelected || !data->selectedSeqs || g_list_length(data->selectedSeqs) < 1)
+        result = coordSelected;
+      else
+        result = FALSE;
     }
   else
     {
@@ -665,9 +670,11 @@ static void drawBoxFeature(SequenceCellRenderer *renderer,
       const int width = ceil((gdouble)segmentLen * data->charWidth);
       const int height = roundNearest(data->charHeight) - 1;
 
-      /* Just draw one big rectangle the same color for the whole thing. Color depends if row selected. */
+      /* Just draw one big rectangle the same color for the whole thing. Color depends if row
+       * is selected, but note we don't highlight the whole row if a coord range is also selected. */
       gboolean fill = TRUE;
-      const GdkColor *color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, data->seqSelected, data->bc->usePrintColors, fill, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
+      const gboolean highlightExon = data->seqSelected && (!data->selectionRange || getRangeLength(data->selectionRange) < 2);
+      const GdkColor *color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, highlightExon, data->bc->usePrintColors, fill, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, color);
       drawRectangle2(data->window, data->drawable, data->gc, fill, x, y, width, height);
       
@@ -679,8 +686,9 @@ static void drawBoxFeature(SequenceCellRenderer *renderer,
             {
               if (i != UNSET_INT && valueWithinRange(i, &segmentRange))
                 {
-                  /* Negate the color if double-selected (i.e. if the row is selected as well) */
-                  color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, !data->seqSelected, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
+                  /* Call coordIsSelected to determine highlighting of this base */
+                  const gboolean highlightBase = coordIsSelected(data, i);
+                  color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, highlightBase, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
                   highlightSelectedBase(i, color, data);
                 }
             }
@@ -1334,6 +1342,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
     detailViewGetSelectedDisplayIdx(treeProperties->detailView),
     detailViewGetSelectedDisplayIdxRange(treeProperties->detailView),
     blxWindowIsSeqSelected(detailViewProperties->blxWindow, seq),
+    blxWindowGetSelectedSeqs(detailViewProperties->blxWindow),
     detailViewProperties->cellXPadding,
     detailViewProperties->cellYPadding,
     detailViewProperties->charWidth,
@@ -1378,7 +1387,10 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
     {
       int i = 0;
       for (i = data.selectionRange->min; i <= data.selectionRange->max; ++i)
-        highlightSelectedBase(i, backgroundColorSelected, &data);
+        {
+          if (coordIsSelected(&data, i))
+            highlightSelectedBase(i, backgroundColorSelected, &data);
+        }
     }
 
   /* Draw all MSPs in this row */
