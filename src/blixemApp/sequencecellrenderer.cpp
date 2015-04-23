@@ -983,7 +983,7 @@ static void mspDrawSequenceText(GtkWidget *tree,
     }
   else
     {
-      g_critical("Invalid string constructed when trying to display sequence.\n");
+      g_warning("Invalid string constructed when trying to display sequence.\n");
     }
   
 }
