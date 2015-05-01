@@ -1,4 +1,4 @@
-#!/bin/csh
+#!/bin/bash
 #
 # runconfig.sh
 #
@@ -10,46 +10,50 @@
 # can be omitted to use the default prefix.
 #
 
-set opsys = "`uname -s`"
-set arch = "`uname -m`"
-set machine = "`uname -s`-`uname -m`"
-set pkgpath = ""
-set ldflags = ""
-set cflags = "-g -Wall"
-set install_dir = $1
-
-switch ( $opsys )
-  case "Linux":
-    switch ( $arch )
-      case "x86_64":
-      case "ia64":
-        # gb10: This is no longer required but is left here as an example in case we need 
-        # to write similar code in future...
-        #set pkgpath=/software/acedb/gtk/lib/pkgconfig
-        #set ldflags="-Xlinker -rpath -Xlinker /software/acedb/gtk/lib"
-        breaksw
-      default:
-        breaksw
-    endsw
-
-  case "Darwin":
-    breaksw
-
-  default:
-    breaksw
-endsw
+opsys="`uname -s`"
+arch="`uname -m`"
+machine="`uname -s`-`uname -m`"
+pkgpath=""
 
 
-set run_dir = `dirname $0`
-set script_name = "configure"
-set script_exe = "$run_dir/$script_name"
+ldflags_args="$LDFLAGS"
+cppflags_args="-g -Wall $CPPFLAGS"
 
-echo "Running $script_exe $install_dir PKG_CONFIG_PATH='$pkgpath' LDFLAGS='$ldflags' CFLAGS='$cflags'"
+case $opsys in
+    Linux )
+        case $arch in
+            x86_64 )
+                # gb10: This is no longer required but is left here as an example in case we need 
+                # to write similar code in future...
+                #set pkgpath=/software/acedb/gtk/lib/pkgconfig
+                #set ldflags_args="-Xlinker -rpath -Xlinker /software/acedb/gtk/lib"
+                ;;
+            ia64 )
+                ;;
+            * )
+                ;;
+        esac
+        ;;
 
-if ($#argv < 1 ) then
-  $script_exe PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags" CFLAGS="$cflags"
+    Darwin )
+        ;;
+    
+    * )
+        ;;
+esac
+
+
+run_dir=`dirname $0`
+script_name="configure"
+script_exe="$run_dir/$script_name"
+
+echo "Running $script_exe PKG_CONFIG_PATH='$pkgpath' LDFLAGS='$ldflags_args' CPPFLAGS='$cppflags_args' $@"
+
+if [ $#argv -lt 1 ] ; then
+  $script_exe PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags_args" CPPFLAGS="$cppflags_args"
 else
-  $script_exe $install_dir PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags" CFLAGS="$cflags"
-endif
+  $script_exe PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags_args" CPPFLAGS="$cppflags_args" "$@"
+fi
 
 
+exit 0

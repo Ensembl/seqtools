@@ -1,5 +1,5 @@
 
-Request Tracker Tickets Resolved from 13/01/2015 to 24/03/2015
+Request Tracker Tickets Resolved from 10/03/2015 to 20/04/2015
 
 ticket/456864
 id: ticket/456864
@@ -8,6 +8,36 @@ Subject: Species identifier confusion in Blixem
 Requestors: erb@sanger.ac.uk
 Owner: gb10
 Resolved: Thu Mar 12 15:50:34 2015
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
+
+ticket/457103
+id: ticket/457103
+Queue: seqtools
+Subject: Make Blixem Variations Track Scrollable 
+Requestors: mms@sanger.ac.uk
+Owner: gb10
+Resolved: Fri Apr 10 11:57:24 2015
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
+
+ticket/457600
+id: ticket/457600
+Queue: seqtools
+Subject: ability to select sequence from blixem
+Requestors: mpk@sanger.ac.uk
+Owner: gb10
+Resolved: Fri Apr 17 09:35:39 2015
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
+
+ticket/460733
+id: ticket/460733
+Queue: seqtools
+Subject: Re:  Resolved: Species identifier confusion in Blixem
+Requestors: erb@sanger.ac.uk
+Owner: gb10
+Resolved: Tue Mar 31 15:19:05 2015
 CF.{zmapace_gitcommit}: 
 CF.{zmapace_resolve_version}: 
 

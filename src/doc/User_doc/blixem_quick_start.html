@@ -80,11 +80,11 @@
   </ul>
   
   <ul>
-    <li>You can select a nucleotide/peptide by middle-clicking on it in the detail view.  This selects the entire column at that index, and the coordinate number on the query sequence is shown in the feedback box.  (The coordinate on the subject sequence is also shown if a subject sequence is selected.)</li>
+    <li>You can select a nucleotide/peptide by middle-clicking on it in the detail view.  This selects the entire column at that index, and the coordinate number on the query sequence is shown in the feedback box.  (The coordinate on the subject sequence is also shown if a subject sequence is selected.) Hold Shift to select a range.</li>
     <li>For protein matches, when a peptide is selected, the three nucleotides for that peptide (for the current reading frame) are highlighted in the header in blue.  The current reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.  The darker highlighting indicates the specific nucleotide that is currently selected (i.e. whose coordinate is displayed in the feedback box).</li>
-    <li>You can move the selection to the previous/next nucleotide using the left and right arrow keys.</li>
-    <li>You can move the selection to the previous/next peptide by holding Shift while using the left and right arrow keys.</li>
-    <li>You can move the selection to the start/end of the previous/next matchb by holding Ctrl while using the left and right arrow keys (limited to just the selected sequences if any are selected).</li>
+    <li>You can move the selection to the previous/next nucleotide using the left and right arrow keys. Hold Shift to select a range.</li>
+    <li>You can move the selection to the previous/next peptide by holding Alt (or Cmd on a Mac) while using the left and right arrow keys. Hold Shift to select a range.</li>
+    <li>You can move the selection to the start/end of the previous/next matchb by holding Ctrl while using the left and right arrow keys (limited to just the selected sequences if any are selected). Hold Shift to select a range.</li>
     <li>To select a coordinate without the display re-centering on it, hold down Ctrl as you middle-click.</li>
   </ul>
 </div>
@@ -305,7 +305,7 @@
     <li><b>Ctrl-D</b>    Dotter</li>
     
     <li><b>Left</b>/<b>right</b> arrow keys    Move the currently-selected coordinate one place to the left/right</li>
-    <li><b>Shift-Left</b>/<b>right</b>    Same as left/right arrow keys, but for proteins it scrolls by a single nucleotide, rather than an entire codon.</li>
+    <li><b>Alt-Left (Cmd-Left on Macs)</b>/<b>right</b>    Same as left/right arrow keys, but for proteins it scrolls by a single nucleotide, rather than an entire codon.</li>
     <li><b>Ctrl-Left</b>/<b>right</b>    Scroll to the start/end of the previous/next alignment (limited to just the selected sequences, if any are selected).</li>
     <li><b>Home</b>/<b>End</b>    Scroll to the start/end of the display.</li>
     <li><b>Ctrl-Home</b>/<b>End</b>    Scroll to the first/last alignment (limited to just the selected sequences, if any are selected).</li>

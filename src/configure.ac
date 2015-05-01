@@ -1,15 +1,27 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-m4_include([./version.m4])
+m4_include([./seqtools_version.m4])
 
 AC_PREREQ([2.50])
 AC_INIT([SeqTools], VERSION_NUMBER, [gb10@sanger.ac.uk])
 AC_CONFIG_AUX_DIR([config])
-AC_CONFIG_SRCDIR([blixemApp/blxmain.c])
+AC_CONFIG_SRCDIR([blixemApp/blxmain.cpp])
 AM_INIT_AUTOMAKE([1.9 foreign])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile])
+
+# Set up calling of Makefiles in toplevel directory and subdirectories
+AC_CONFIG_FILES([Makefile
+blixemApp/Makefile
+dotterApp/Makefile
+belvuApp/Makefile
+seqtoolsUtils/Makefile
+libpfetch/Makefile
+doc/Makefile
+doc/User_doc/Makefile
+doc/Design_notes/Makefile
+doc/Design_notes/modules/Makefile
+])
 
 # Check if this is a Git repository and, if so, include info about the current
 # status in the version info. Otherwise use PACKAGE_VERSION (which will get
@@ -49,6 +61,12 @@ PKG_CHECK_MODULES([DEPS], [glib-2.0 gtk+-2.0 >= 2.10])
 
 # Check for dependencies required by sqlite code
 PKG_CHECK_MODULES([DEPS_SQLITE3], [sqlite3], [HAVE_SQLITE3=1], [HAVE_SQLITE3=0])
+
+# Check if the gbtools library exists as a subdirectory. This should be the case for
+# the dist. It doesn't exist in the git repository though, so for development it
+# either needs to be copied in or installed locally.
+AM_CONDITIONAL([USE_GBTOOLS], [test -e "$srcdir/gbtools/configure.ac"])
+AM_COND_IF([USE_GBTOOLS], [AC_CONFIG_SUBDIRS([gbtools])])
 
 # Check for the curl library. This is only required by blixemh, so don't fail
 # if we can't find it, but set the USE_LIBCURL to false. Note: I think we should 

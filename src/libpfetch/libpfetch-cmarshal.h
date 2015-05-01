@@ -1,4 +1,8 @@
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef __libpfetch_cmarshal_MARSHAL_H__
 #define __libpfetch_cmarshal_MARSHAL_H__
 
@@ -26,3 +30,6 @@ G_END_DECLS
 
 #endif /* __libpfetch_cmarshal_MARSHAL_H__ */
 
+#ifdef __cplusplus
+}
+#endif

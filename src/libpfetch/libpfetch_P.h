@@ -33,6 +33,10 @@
  *-------------------------------------------------------------------
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef __LIBPFETCH_P_H__
 #define __LIBPFETCH_P_H__
 
@@ -123,3 +127,7 @@ PFetchStatus emit_signal(PFetchHandle handle,
 			 GError      *error);
 
 #endif /* __LIBPFETCH_P_H__ */
+
+#ifdef __cplusplus
+}
+#endif

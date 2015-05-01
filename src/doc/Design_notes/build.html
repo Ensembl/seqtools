@@ -36,7 +36,9 @@
       <li>blixemApp: Blixem application code.
       <li>dotterApp: Dotter application code.
       <li>seqtoolsUtils: Generic utility functions. Required by dotter, blixem and blixemh.
+      <li>seqtoolsUtils: Generic seqtools utility functions. Required by dotter, blixem and blixemh.
       <li>libpfetch: Utilities for fetching sequences over http. Required by blixemh.
+      <li>gbtools: Generic utility functions from an external repository of shared code. This code is included in the distribution so that it is automatically compiled as part of the seqtools package.
     </ul>
   </p>
 
@@ -45,6 +47,7 @@
     <ul>
       <li>All of the executables in the SeqTools package require the GLib and GTK+ libraries. These are built using pkg-config. configure.ac specifies which version of the libraries are required.
       <li>blixemh uses the libpfetch library, which requires the libcurl library.
+      <li>blixem and blixemh compile in the sqlite3 library if it is availble. If it is not available, the sqlite functionality is disabled.
     </ul>
   </p>
 </div>

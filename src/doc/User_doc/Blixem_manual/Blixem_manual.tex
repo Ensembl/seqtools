@@ -232,6 +232,9 @@
  Updated for Blixem v4.27  &
  17/04/14 &
  Gemma Barson\\\hline
+ Updated for Blixem v4.34  &
+ 16/04/15 &
+ Gemma Barson\\\hline
  &
  &
  \\\hline
@@ -1518,112 +1521,96 @@ strand)\\
 \hypertarget{RefHeading1861056909880}{}\begin{flushleft}
 \tablehead{}
 \begin{supertabular}{p{4.15cm}p{10.436cm}}
-{\bfseries Middle-click/double-click and then
-drag in big picture}
 
-~
+{\bfseries Middle-click/double-click and then drag in big picture}
  &
- Jump to a particular region. Dragging moves the highlight box.\\
+ Jump to a particular region. Dragging moves the highlight box.
+\\
+
 {\bfseries Click on the highlight box and drag}
-
-~
  &
- Move the highlight box.\\
+ Move the highlight box.
+\\
+
 {\bfseries Middle-click/drag in detail view}
-
-~
  &
- Select a base. Releasing the mouse button scrolls the display to centre on the selected base (hold down Ctrl to avoid scrolling.)\\
-\bfseries Click a feature in the big picture &
+ Select a base. Releasing the mouse button scrolls the display to centre on the selected base (hold down Ctrl to avoid scrolling.) Holding Shift selects a range of bases.
+\\
+
+\bfseries Click a feature in the big picture 
+&
 { Selects that feature and scrolls the
 detail-view vertically so that it is visible (if it is in the current
 detail view range).}
-
-~
 \\
+
 {\bfseries Horizontal scrollbar}
-
-~
  &
- Scroll the detail-view range.\\
-{\bfseries Vertical scrollbars}
+ Scroll the detail-view range.
+\\
 
-~
+{\bfseries Vertical scrollbars}
  &
  Scroll up/down in the detail view or the big
-picture.\\
-{\bfseries Horizontal mouse-wheel}
+picture.
+\\
 
-~
+{\bfseries Horizontal mouse-wheel}
  &
 { Scroll the detail-view range (if your mouse
 has a horizontal scroll-wheel).}
-
-~
 \\
-{\bfseries Vertical mouse-wheel}
 
-~
+{\bfseries Vertical mouse-wheel}
  &
 { Scroll up/down the currently moused-over
 alignment list in the detail view, or the big picture.}
-
-~
 \\
+
 {\bfseries Ctrl-left}
-
 {\bfseries Ctrl-right}
-
-~
  &
 { Scroll to the start/end of the previous/next
 match (limited to currently-selected sequences, if any are selected;
 includes all sequences otherwise).}
-
-~
 \\
+
 {\bfseries Home}
-
 {\bfseries End}
-
-~
  &
- Scroll to the start/end of the display.\\
+ Scroll to the start/end of the display.
+\\
+
 {\bfseries Ctrl-Home}
-
 {\bfseries Ctrl-End}
-
-~
  &
 { Scroll to the start/end of the
 currently-selected alignments (or to the first/last alignment if none
 are selected).}
-
-~
 \\
+
 {\bfseries {\textquoteleft},{\textquoteright}
 (comma)}
-
 {\bfseries {\textquoteleft}.{\textquoteright}
 (full-stop)}
-
-~
  &
  Scroll the detail-view range one nucleotide to
-the left/right.\\
+the left/right.
+\\
+
 {\bfseries Ctrl-,}
-
 {\bfseries Ctrl-.}
-
-~
  &
  Scroll the detail-view range one page to the
-left/right.\\
-{\bfseries Go-to button or}
+left/right.
+\\
 
+{\bfseries Go-to button or}
 \bfseries {\textquoteleft}p{\textquoteright} key
 &
- Scroll to a specific coordinate position.\\
+ Scroll to a specific coordinate position.
+\\
+
 \end{supertabular}
 \end{flushleft}
 
@@ -1684,36 +1671,21 @@ currently-selected amino acid in reading-frame 3. Selected nucleotide
 
 \liststyleWWviiiNumxiii
 \begin{itemize}
-\item {
-You can select a nucleotide/peptide by middle-clicking on it in the
-detail view. This selects the entire column at that index, and the
-coordinate number on the reference sequence is shown in the feedback
-box. (The coordinate on the match sequence is also shown if a match
-sequence is selected.)}
-\item {
-By default the display will centre on the selected base when you middle
-click. To select a base without scrolling, hold down Ctrl when you
-middle click.}
-\item {
-For protein matches, when a peptide is selected, the three nucleotides
-for that peptide (for the active reading frame) are highlighted in the
-header in blue. (The active reading frame is whichever alignment list
-currently has the focus - click in a different list to change the
-reading frame.) Darker blue highlighting indicates the specific
-nucleotide that is currently selected (i.e. whose coordinate is
-displayed in the feedback box).}
-\item {
-You can move the selection to the previous/next index using the left and
-right arrow keys.}
-\item {
-In protein mode, you can move the selected nucleotide by a single base
-(rather than an entire codon) holding Shift while using the left and
-right arrow keys.}
-\item {
-You can move the selection to the start/end of the previous/next match
-by holding Ctrl while using the left and right arrow keys (limited to
-just the selected sequences if any are selected; includes all sequences
-otherwise).}
+\item 
+You can select a nucleotide/peptide by middle-clicking on it in the detail view. This selects the entire column at that index, and the coordinate number on the reference sequence is shown in the feedback box. (The coordinate on the match sequence is also shown if a match sequence is selected.)
+\item
+Hold down Shift when you middle-click to select the range of coordinates.
+\item
+By default the display will centre on the selected base when you middle click. To select a base without scrolling, hold down Ctrl when you middle click.
+\item
+For protein matches, when a peptide is selected, the three nucleotides for that peptide (for the active reading frame) are highlighted in the header in blue. (The active reading frame is whichever alignment list currently has the focus - click in a different list to change the reading frame.) Darker blue highlighting indicates the specific nucleotide that is currently selected (i.e. whose coordinate is displayed in the feedback box).
+\item
+You can move the selection to the previous/next index using the left and right arrow keys. Hold Shift to extend/shrink the range.
+\item
+In protein mode, you can move the selected nucleotide by a single base (rather than an entire codon) holding Alt (or Cmd on a Mac) while using the left and right arrow keys. Hold Shift to extend/shrink the range.
+\item
+You can move the selection to the start/end of the previous/next match by holding Ctrl while using the left and right arrow keys (limited to just the selected sequences if any are selected; includes all sequences otherwise). Hold down Shift to extend/trim the range.
+\item Press Esc to clear the selection.
 \end{itemize}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Finding sequences]{Finding sequences}}
@@ -2026,13 +1998,19 @@ The settings menu can be accessed by right-clicking and selecting Settings, or b
 \hypertarget{RefHeading2261056909880}{}
 When this option is enabled, bases in the reference sequence that have know variations (such as SNPs, insertions, deletions etc., loaded from the GFF file) are highlighted in the reference sequence (nucleotide) header.
 
+\begin{itemize}
+\item Hover over a highlighted nucleotide to view the variation details in the mouse-over feedback area
+\item Click on a highlighted nucleotide to view its details in the feedback box.
+\end{itemize}
+
 \bigskip
 
-If the {\textquoteleft}Show variations track{\textquoteright} sub-option is also enabled, then an additional line is shown above the nucleotide header showing the alternative bases for each variation. Note that the Variations track can be quickly enabled or disabled by double-clicking the nucleotide header.
-
-\bigskip
-
-You can double-click a variation to open its URL.
+If the {\textquoteleft}Show variations track{\textquoteright} sub-option is also enabled, then an additional track is shown above the nucleotide header showing the alternative bases for each variation.
+\begin{itemize}
+\item Double-click a variation to open its URL. 
+\item Drag the splitter bar to set a specific height (instead of it automatically resizing to fit all variations).
+\item Double-click the yellow header bar to quickly hide/show the variations track. Note that this resets the height, so that it will automatically resize again.
+\end{itemize}
 
 \begin{figure}
 \centering
@@ -2211,10 +2189,10 @@ left\footnotemark[2]\\
 \bfseries Right-arrow &
  Move coordinate section one index to the
 right\footnotemark[2] \\
-\bfseries Shift-Left &
+\bfseries Alt-Left (or Cmd-Left on Mac) &
  Same as Left, but in protein mode it scrolls by
 a single nucleotide\\
-\bfseries Shift-Right &
+\bfseries Alt-Right (or Cmd-Right on Mac) &
  Same as Right, but in protein mode it scrolls
 by a single nucleotide\\
 \bfseries Ctrl-Left &
