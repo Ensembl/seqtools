@@ -1272,9 +1272,9 @@ static void treeHighlightSelectedBase(GtkWidget *tree, GdkDrawable *drawable)
           g_free(range);
         }
     }
-  else if(properties->selectedIndex.isSet)
+  else if(detailViewGetSelectedIdxSet(detailView))
     {
-      start = end = properties->selectedIndex.displayIdx;
+      start = end = properties->selectedIndex->displayIdx;
       ok = TRUE;
     }
 
