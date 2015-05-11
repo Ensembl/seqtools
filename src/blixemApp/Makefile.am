@@ -1,8 +1,6 @@
 
 SUBDIRS = .
 
-noinst_LIBRARIES = libBlixemApp.a
-
 AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir)
 
 # If gbtools is in a subdirectory, add it to the include path
@@ -10,15 +8,11 @@ if USE_GBTOOLS
 AM_CPPFLAGS += -I$(top_srcdir)/gbtools/src/include
 endif
 
-libBlixemApp_a_SOURCES = sequencecellrenderer.cpp bigpicture.cpp bigpicturegrid.cpp detailview.cpp detailviewtree.cpp blxwindow.cpp exonview.cpp coverageview.cpp blxdotter.cpp blxFetchDb.cpp blxview.hpp blixem_.hpp detailview.hpp detailviewtree.hpp sequencecellrenderer.hpp bigpicture.hpp bigpicturegrid.hpp blxwindow.hpp exonview.hpp coverageview.hpp blxdotter.hpp 
-libBlixemApp_a_LIBADD  = 
-libBlixemApp_a_CFLAGS  = -I$(top_srcdir)
-
 # there's a problem on ubuntu 14 with finding X11 so this is a hopefully temporary hack...
 X_LIB = -lX11 -lm
 
 blixem_CPPFLAGS = $(AM_CPPFLAGS)
-BLX_LIBS = $(top_builddir)/blixemApp/libBlixemApp.a $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a
+BLX_LIBS = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a
 
 # If gbtools is in a subdirectory, add it; otherwise look for a local installation
 if USE_GBTOOLS
@@ -43,7 +37,7 @@ else
 bin_PROGRAMS = blixem
 endif
 
-blixem_SOURCES = blxmain.cpp blxview.cpp blxFetch.cpp
+blixem_SOURCES = blxmain.cpp blxview.cpp blxFetch.cpp sequencecellrenderer.cpp bigpicture.cpp bigpicturegrid.cpp detailview.cpp detailviewtree.cpp blxwindow.cpp exonview.cpp coverageview.cpp blxdotter.cpp blxFetchDb.cpp blxview.hpp blixem_.hpp detailview.hpp detailviewtree.hpp sequencecellrenderer.hpp bigpicture.hpp bigpicturegrid.hpp blxwindow.hpp exonview.hpp coverageview.hpp blxdotter.hpp 
 blixem_LDADD = $(BLX_LIBS)
 
 # Only compile the blixemh target if we have the libcurl library
