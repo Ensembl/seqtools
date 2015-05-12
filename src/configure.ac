@@ -21,6 +21,18 @@ doc/Makefile
 doc/User_doc/Makefile
 doc/Design_notes/Makefile
 doc/Design_notes/modules/Makefile
+examples/Makefile
+test/Makefile
+test/data/Makefile
+test/scripts/Makefile
+test/scripts/automated/Makefile
+test/scripts/automated/belvu/Makefile
+test/scripts/automated/blixem/Makefile
+test/scripts/automated/dotter/Makefile
+test/scripts/manual/Makefile
+test/scripts/manual/belvu/Makefile
+test/scripts/manual/blixem/Makefile
+test/scripts/manual/dotter/Makefile
 ])
 
 # Check if this is a Git repository and, if so, include info about the current
