@@ -13,7 +13,7 @@ if USE_LIBCURL
 SUBDIRS += libpfetch
 endif
 
-SUBDIRS += seqtoolsUtils dotterApp blixemApp belvuApp doc
+SUBDIRS += seqtoolsUtils dotterApp blixemApp belvuApp doc test examples
 # these are included in the distribution, but are not installed
 EXTRA_DIST = INSTALL.windows 
 

@@ -1,7 +1,7 @@
 
-SUBDIRS = .
+SUBDIRS = data scripts
 
-EXTRA_DIST = ./*
+EXTRA_DIST = README test_plan.ods
 
 # Extra files to remove for the maintainer-clean target.
 #
