@@ -1,7 +1,7 @@
 
 SUBDIRS = belvu blixem dotter
 
-EXTRA_DIST = README test_plan.ods
+EXTRA_DIST = 
 
 # Extra files to remove for the maintainer-clean target.
 #
