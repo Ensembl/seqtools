@@ -1,3 +1,10 @@
+2015-05-19  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.1-10-g5aa6 - Update RT and git commit reports
+ src/ChangeLog                                  |  698 ++----------------------
+ src/build/release_docs/GIT_COMMITS.txt         |   19 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   50 +-
+ 3 files changed, 83 insertions(+), 684 deletions(-)
+
 2015-05-12  Gemma Barson  <gb10@sanger.ac.uk>
  Fix build problem from latest changes - REGRESSION FIX
  src/test/scripts/manual/Makefile.am |    2 +-
