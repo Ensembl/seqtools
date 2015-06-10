@@ -794,6 +794,8 @@ int main(int argc, char **argv)
    * a markup line. */
   if (bc->sortType == BELVU_SORT_SIM || bc->sortType == BELVU_SORT_ID)
     {
+      g_array_sort(bc->alignArr, nrorder);
+
       int i = 0;
       bc->selectedAln = g_array_index(bc->alignArr, ALN*, i);
 
