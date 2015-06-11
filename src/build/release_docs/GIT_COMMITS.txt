@@ -1,22 +1,7 @@
 
-Git commits for  from commit "production" until commit "release/4.34"
+Git commits for  from commit "production" until commit "release/4.35"
 
-0b247e4 2015-04-20 Better fix for codon highlighting - REGRESSION FIX
-81fd919 2015-04-17 DNA search now highlights the result range - NEW FEATURE 'DNA search'
-a3dc8f1 2015-04-16 Fix crash pressing Esc on undocked tool - BUG FIX
-91b90e1 2015-04-16 Update blixem manual for v34 - DOC
-39b1af9 2015-04-16 Update test plan - DOC
-fdd5d73 2015-04-16 Merge branch 'feature/select_sequence' into develop
-2a72300 2015-04-16 Update release docs for recent features - DOC
-fcb0f7c 2015-04-16 Merge branch 'feature/select_sequence' into develop
-92ec663 2015-04-15 Merge branch 'feature/select_sequence' into develop
-d5d65cf 2015-04-13 Merge branch 'feature/select_sequence' into develop - RT 457600
-3079361 2015-04-10 Merge branch 'feature/snp_track' into develop - RT 457103
-2ea5fe8 2015-03-24 Add gbtools version string to about dialog - NEW FEATURE 'Version strings'
-9e54476 2015-03-18 Merge branch 'feature/gbtools' into develop
-d88b598 2015-03-13 Fix hang on linux, regression caused by c++ changes - BUG FIX
-365ac95 2015-03-12 Revert "Revert "Merge branch 'feature/cpp' into develop""
-c27d005 2015-03-12 Make organism abbreviation longer to avoid duplicates - RT 456864
+7591d47 2015-05-11 Fix dependency problem when compiling with multiple threads - RT 467905
 
 
 End of git commits
