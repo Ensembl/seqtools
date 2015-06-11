@@ -1,4 +1,16 @@
 2015-06-11  Steve Miller  <sm23@sanger.ac.uk>
+ edit of release notes - DOC
+ src/doc/User_doc/release_notes.html |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
+
+2015-06-11  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.7-16-gacf2 - Update RT and git commit reports
+ src/ChangeLog                                  |   16 ++++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   12 +++++++++++-
+ 3 files changed, 28 insertions(+), 1 deletions(-)
+
+2015-06-11  Steve Miller  <sm23@sanger.ac.uk>
  Merge branch 'release/4.35' into develop
 2015-06-10  Gemma Barson  <gb10@sanger.ac.uk>
  Merge branch 'production' into develop
