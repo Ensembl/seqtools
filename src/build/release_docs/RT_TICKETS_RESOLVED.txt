@@ -1,5 +1,5 @@
 
-Request Tracker Tickets Resolved from 17/04/2015 to 19/05/2015
+Request Tracker Tickets Resolved from 17/04/2015 to 11/06/2015
 
 ticket/247292
 id: ticket/247292
@@ -48,6 +48,16 @@ Subject: Cannot compile seqtools in parallel
 Requestors: mmokrejs@fold.natur.cuni.cz
 Owner: gb10
 Resolved: Wed May 13 10:20:56 2015
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
+
+ticket/473624
+id: ticket/473624
+Queue: seqtools
+Subject: Belvu -- Failure to sort the MSA according to the sequence identity of the first sequence
+Requestors: su.lam.13@ucl.ac.uk
+Owner: gb10
+Resolved: Thu Jun 11 09:43:08 2015
 CF.{zmapace_gitcommit}: 
 CF.{zmapace_resolve_version}: 
 

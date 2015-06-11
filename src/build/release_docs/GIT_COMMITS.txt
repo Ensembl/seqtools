@@ -1,6 +1,7 @@
 
 Git commits for  from commit "production" until commit "release/4.35"
 
+bf3e421 2015-06-10 Fix bug with sorting by similarity/identity to first sequence - RT 473624
 7591d47 2015-05-11 Fix dependency problem when compiling with multiple threads - RT 467905
 
 
