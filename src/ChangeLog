@@ -1,3 +1,8 @@
+2015-06-11  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.7-18-g1513 - Update RT and git commit reports
+ src/ChangeLog |   12 ++++++++++++
+ 1 files changed, 12 insertions(+), 0 deletions(-)
+
 2015-06-11  Steve Miller  <sm23@sanger.ac.uk>
  edit of release notes - DOC
  src/doc/User_doc/release_notes.html |    9 +++++++++
