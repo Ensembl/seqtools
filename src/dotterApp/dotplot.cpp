@@ -50,7 +50,12 @@
 #define CROSSHAIR_TEXT_PADDING                      5     /* padding between the crosshair and the coord display text */ 
 #define ANNOTATION_LABEL_PADDING		    5	  /* padding around annotation labels, if shown */
 #define ANNOTATION_LABEL_LEN			    8	  /* number of chars to allow to show for annotation labels */
-#define MAX_IMAGE_DIMENSION                         16000 /* max width / height to allow for a gdk image. Guesstimate based on the fact that it blacks out the lower part of the plot (overdraws on it?) if we allow more than this */
+
+/* max width / height to allow for a gdk image. Guesstimate based on the fact that 
+ * it blacks out the lower part of the plot (overdraws on it?) if we allow more than this.
+ * gb10: this was 16000 but reducing it because some users are seeing crashing with long, skinny plots. */
+#define MAX_IMAGE_DIMENSION                         12000 
+
 
 int atob_0[]	/* NEW (starting at 0) ASCII-to-binary translation table */
 = {
@@ -2932,10 +2937,15 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
   
   int row, col;
 #if G_BYTE_ORDER == G_BIG_ENDIAN
+  DEBUG_OUT("G_BYTE_ORDER == G_BIG_ENDIAN\n");
   gboolean byterev = (image->byte_order == GDK_LSB_FIRST);
 #else
+  DEBUG_OUT("G_BYTE_ORDER != G_BIG_ENDIAN\n");
   gboolean byterev = (image->byte_order == GDK_MSB_FIRST);
 #endif
+
+  DEBUG_OUT("width=%d, height=%d, byterev=%d, image->bpp=%d, image->bpl=%d\n", 
+            image->width, image->height, byterev, image->bpp, image->bpl);
   
   /* Switch on the number of bytes per pixel */
   switch (image->bpp)
