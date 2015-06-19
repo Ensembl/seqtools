@@ -35,6 +35,12 @@
 
 #include <libpfetch/libcurlobject_I.h>
 
+#ifdef _WIN32
+#define SHORT_SLEEP Sleep(100)
+#else
+#define SHORT_SLEEP usleep(100000)
+#endif
+
 enum
   {
     CURLOBJECT_PROPID = 0,		/* zero is invalid prop id */
@@ -796,18 +802,18 @@ static gboolean curl_object_watch_func(GIOChannel  *source,
 				    &call_again)) == CURLM_CALL_MULTI_PERFORM);
 	}
       else if(!call_again)
-	g_warning("%s", "multi_perform returned !call_again");	
+	g_warning("%s\n", "multi_perform returned !call_again");	
     }
   else if((condition & G_IO_HUP) ||
 	  (condition & G_IO_ERR) ||
 	  (condition & G_IO_NVAL))
     {
-      g_warning("%s", "HUP, ERR or NVAL");
+      g_warning("%s\n", "HUP, ERR or NVAL");
       call_again = FALSE;
     }
   else
     {
-      g_warning("%s", "something else?");
+      g_warning("%s\n", "something else?");
       call_again = FALSE;
     }
     
@@ -819,44 +825,60 @@ static void run_multi_perform(CURLObject curl_object)
   CURLMsg *easy_msg;
   int still_runnning = 0;
   gboolean got_handler = FALSE;
+  gboolean try_again = FALSE;
+  int max_tries = 100;
+  int count = 0;
 
   g_return_if_fail(_curl_status_ok(G_OBJECT(curl_object)));
 
-  while((curl_object->last_multi_status = curl_multi_perform(curl_object->multi, &still_runnning)) == CURLM_CALL_MULTI_PERFORM);
-
-  easy_msg = curl_multi_info_read(curl_object->multi, &still_runnning);
-
-  if(easy_msg && easy_msg->easy_handle == curl_object->easy)
-    curl_object->last_easy_status = easy_msg->data.result;
-
-  if((curl_object->last_easy_status == CURLE_OK) &&
-     (curl_object->last_multi_status != CURLM_CALL_MULTI_PERFORM))
+  do 
     {
-      GIOCondition write_cond = (G_IO_OUT | G_IO_HUP | G_IO_ERR | G_IO_NVAL);
-      fd_set read_set, write_set, exc_set;
-      int fd, fd_max;
+      try_again = FALSE;
+      ++count;
 
-      FD_ZERO(&read_set);
-      FD_ZERO(&write_set);
-      FD_ZERO(&exc_set);
+      do {
+        curl_object->last_multi_status = curl_multi_perform(curl_object->multi, &still_runnning);
+      } while (curl_object->last_multi_status == CURLM_CALL_MULTI_PERFORM);
 
-      /* Stupid curl, why can't I get the fd to the current added job? */
-      curl_object->last_multi_status = curl_multi_fdset(curl_object->multi, 
-						    &read_set, &write_set, 
-						    &exc_set, &fd_max);
+      easy_msg = curl_multi_info_read(curl_object->multi, &still_runnning);
 
-      for(fd = 0; fd <= fd_max; fd++)
-	{
-	  if (FD_ISSET(fd, &write_set))
-	    {
-	      curl_fd_to_watched_GIOChannel(fd, write_cond, 
-					    curl_object_watch_func, 
-					    curl_object);
-	      curl_object->transfer_in_progress = got_handler = TRUE;
-	    }
-	}
-    }
+      if(easy_msg && easy_msg->easy_handle == curl_object->easy)
+        curl_object->last_easy_status = easy_msg->data.result;
 
+      if((curl_object->last_easy_status == CURLE_OK) &&
+         (curl_object->last_multi_status != CURLM_CALL_MULTI_PERFORM))
+        {
+          GIOCondition write_cond = (G_IO_OUT | G_IO_HUP | G_IO_ERR | G_IO_NVAL);
+          fd_set read_set, write_set, exc_set;
+          int fd, fd_max;
+
+          FD_ZERO(&read_set);
+          FD_ZERO(&write_set);
+          FD_ZERO(&exc_set);
+
+          /* Stupid curl, why can't I get the fd to the current added job? */
+          curl_object->last_multi_status = curl_multi_fdset(curl_object->multi, 
+                                                            &read_set, &write_set, 
+                                                            &exc_set, &fd_max);
+          if(fd_max == -1) {
+            SHORT_SLEEP;
+            try_again = TRUE;
+          }
+          else 
+            {
+              for(fd = 0; fd <= fd_max; fd++)
+                {
+                  if (FD_ISSET(fd, &write_set))
+                    {
+                      curl_fd_to_watched_GIOChannel(fd, write_cond, 
+                                                    curl_object_watch_func, 
+                                                    curl_object);
+                      curl_object->transfer_in_progress = got_handler = TRUE;
+                    }
+                }
+            }
+        }
+    } while (try_again && count < max_tries);
 
   if(got_handler == FALSE)
     {
