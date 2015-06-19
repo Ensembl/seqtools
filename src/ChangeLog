@@ -1,4 +1,9 @@
 2015-06-16  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.7-21-gb08b - Update RT and git commit reports
+ src/ChangeLog |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
+
+2015-06-16  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.34.7-20-gd9bc - Update RT and git commit reports
  src/ChangeLog                                  |    6 ++++++
  src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
