@@ -34,6 +34,7 @@
  */
 
 #include <libpfetch/libcurlobject_I.h>
+#include <unistd.h>
 
 #ifdef _WIN32
 #define SHORT_SLEEP Sleep(100)
@@ -176,13 +177,19 @@ CURLObject CURLObjectNew()
  */
 CURLObjectStatus CURLObjectSet(CURLObject curl_object, const gchar *first_arg_name, ...)
 {
+  CURLObjectStatus result = CURL_STATUS_FAILED;
   va_list args;
 
   va_start(args, first_arg_name);
   g_object_set_valist(G_OBJECT(curl_object), first_arg_name, args);
   va_end(args);
 
-  return curl_object->last_easy_status;
+  if (curl_object->last_easy_status == CURLE_OK)
+    result = CURL_STATUS_OK;
+  else
+    result = CURL_STATUS_FAILED;
+
+  return result;
 }
 
 /*!
@@ -237,6 +244,8 @@ CURLObjectStatus CURLObjectPerform(CURLObject curl_object, gboolean use_multi)
 
 CURLObjectStatus CURLObjectErrorMessage(CURLObject curl_object, char **message)
 {
+  CURLObjectStatus result = CURL_STATUS_FAILED;
+
   if(message)
     {
       *message = NULL;
@@ -244,7 +253,12 @@ CURLObjectStatus CURLObjectErrorMessage(CURLObject curl_object, char **message)
 	*message = g_strdup(curl_object->error_message);
     }
 
-  return curl_object->last_easy_status;
+  if (curl_object->last_easy_status == CURLE_OK)
+    result = CURL_STATUS_OK;
+  else
+    result = CURL_STATUS_FAILED;
+
+  return result;
 }
 
 /*!
@@ -861,6 +875,7 @@ static void run_multi_perform(CURLObject curl_object)
                                                             &read_set, &write_set, 
                                                             &exc_set, &fd_max);
           if(fd_max == -1) {
+            g_warning("curl_multi_fdset returned fd_max as -1; trying again\n");
             SHORT_SLEEP;
             try_again = TRUE;
           }
