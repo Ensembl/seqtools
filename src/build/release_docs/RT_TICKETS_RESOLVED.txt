@@ -1,5 +1,5 @@
 
-Request Tracker Tickets Resolved from 17/04/2015 to 19/06/2015
+Request Tracker Tickets Resolved from 17/04/2015 to 23/06/2015
 
 ticket/247292
 id: ticket/247292

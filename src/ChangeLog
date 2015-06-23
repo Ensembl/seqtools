@@ -1,3 +1,19 @@
+2015-06-23  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix compiler warnings and add logging for pfetch fix - TRIVIAL
+ src/libpfetch/libcurlobject.c |   19 +++++++++++++++++--
+ 1 files changed, 17 insertions(+), 2 deletions(-)
+
+2015-06-19  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix for http-pfetch on trusty - RT 474213
+ src/libpfetch/libcurlobject.c |   96 +++++++++++++++++++++++++----------------
+ 1 files changed, 59 insertions(+), 37 deletions(-)
+
+2015-06-19  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.7-22-ge741 - Update RT and git commit reports
+ src/ChangeLog                                  |    5 +++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 6 insertions(+), 1 deletions(-)
+
 2015-06-16  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.34.7-21-gb08b - Update RT and git commit reports
  src/ChangeLog |    6 ++++++
