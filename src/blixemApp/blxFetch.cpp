@@ -1262,7 +1262,7 @@ static gboolean httpFetchSequence(const BlxSequence *blxSeq,
 
           if (!ok)
             {
-              char *msg = g_strdup_printf("Error performing http fetch request:\nRequest: %s\nError: %s\n", 
+              char *msg = g_strdup_printf("Error performing http fetch request:\n  Request: %s\n  Error: %s\n", 
                                           command->str, 
                                           (error ? error->message : "no error"));
               g_warning(msg);
