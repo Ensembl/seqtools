@@ -185,7 +185,7 @@ static PFetchStatus                sequence_pfetch_closed(PFetchHandle *handle, 
 static void                        sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
 static gboolean                    parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod, char *read_text, int length, PFetchSequence fetch_data) ;
 
-static void                        httpFetchSequence(const BlxSequence *blxSeq, const BlxFetchMethod* const fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer);
+static gboolean                    httpFetchSequence(const BlxSequence *blxSeq, const BlxFetchMethod* const fetchMethod, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer);
 #endif
 
 static int                         socketConstruct(const char *ipAddress, int port, gboolean External, GError **error) ;
@@ -1087,31 +1087,37 @@ static gboolean httpFetchList(GList *seqsToFetch,
 
   g_signal_connect(G_OBJECT(fetch_data.pfetch), "closed", G_CALLBACK(sequence_pfetch_closed), &fetch_data) ;
 
-  GString *request = getFetchArgsMultiple(fetchMethod, seqsToFetch, error);
-  
-  /* Set up pfetch/curl connection routines, this is non-blocking so if connection
-   * is successful we block using our own flag. */
-  if (PFetchHandleFetch(fetch_data.pfetch, request->str) == PFETCH_STATUS_OK)
+  GError *g_error = NULL;
+  GString *request = getFetchArgsMultiple(fetchMethod, seqsToFetch, &g_error);
+
+  if (!g_error)
     {
-      status = TRUE ;
+      /* Set up pfetch/curl connection routines, this is non-blocking so if connection
+       * is successful we block using our own flag. */
+      PFetchStatus pfetch_status = PFetchHandleFetch(fetch_data.pfetch, request->str, &g_error);
 
-      while (!(fetch_data.connection_closed) && status && fetch_data.fetchData.parserState != PARSING_CANCELLED)
+      if (pfetch_status == PFETCH_STATUS_OK)
         {
-          checkProgressBar(fetch_data.fetchData.bar, &fetch_data.fetchData.parserState, &status);
-          gtk_main_iteration() ;
-        }
+          status = TRUE ;
 
-      status = fetch_data.fetchData.status ;
-      
-      if (!status)
-        {
-          if (fetch_data.fetchData.parserState != PARSING_CANCELLED)
+          while (!(fetch_data.connection_closed) && status && fetch_data.fetchData.parserState != PARSING_CANCELLED)
             {
-              g_critical("Sequence fetch from http server failed: %s\n", fetch_data.err_txt) ;
-              
-              if (fetch_data.err_txt)
-                { 
-                  g_free(fetch_data.err_txt) ;
+              checkProgressBar(fetch_data.fetchData.bar, &fetch_data.fetchData.parserState, &status);
+              gtk_main_iteration() ;
+            }
+
+          status = fetch_data.fetchData.status ;
+      
+          if (!status)
+            {
+              if (fetch_data.fetchData.parserState != PARSING_CANCELLED)
+                {
+                  g_critical("Sequence fetch from http server failed: %s\n", (fetch_data.err_txt ? fetch_data.err_txt : "no error")) ;
+                  
+                  if (fetch_data.err_txt)
+                    { 
+                      g_free(fetch_data.err_txt) ;
+                    }
                 }
             }
         }
@@ -1119,6 +1125,11 @@ static gboolean httpFetchList(GList *seqsToFetch,
   else
     {
       status = FALSE ;
+    }
+
+  if (g_error)
+    {
+      g_propagate_error(error, g_error);
     }
   
   destroyProgressBar(fetch_data.fetchData.bar) ;
@@ -1140,18 +1151,20 @@ static gboolean httpFetchList(GList *seqsToFetch,
  * do anything other than update the display window, so if
  * we're just requesting the sequence, this currently just 
  * returns null. */
-static void httpFetchSequence(const BlxSequence *blxSeq,
-                              const BlxFetchMethod* const fetchMethod,
-                              const gboolean displayResults,
-                              const int attempt,
-                              GtkWidget *blxWindow, 
-                              GtkWidget *dialog, 
-                              GtkTextBuffer **text_buffer)
+static gboolean httpFetchSequence(const BlxSequence *blxSeq,
+                                  const BlxFetchMethod* const fetchMethod,
+                                  const gboolean displayResults,
+                                  const int attempt,
+                                  GtkWidget *blxWindow, 
+                                  GtkWidget *dialog, 
+                                  GtkTextBuffer **text_buffer)
 {
+  gboolean ok = 0;
+
   if (!displayResults)
     {
       g_warning("Program error: http-fetch expected to display results but displayResults is false.\n");
-      return;
+      return ok;
     }
 
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -1202,57 +1215,80 @@ static void httpFetchSequence(const BlxSequence *blxSeq,
         }
 
       reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
-      fetchSequence(blxSeq, TRUE, attempt + 1, blxWindow, dialog, text_buffer);
+      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, dialog, text_buffer);
     }
   else
     {
       pfetch_data->title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), command->str);
       
-      if (pfetch_data->title)
+      if (!dialog || !text_buffer || *text_buffer == NULL)
         {
-          if (dialog && text_buffer && *text_buffer)
-            {
-              gtk_window_set_title(GTK_WINDOW(dialog), pfetch_data->title);
-              pfetch_data->dialog = dialog;
-              pfetch_data->text_buffer = *text_buffer;
-            }
-          else
-            {
-              pfetch_data->dialog = displayFetchResults(pfetch_data->title, "pfetching...\n", blxWindow, dialog, &pfetch_data->text_buffer);
-            }
+          pfetch_data->dialog = displayFetchResults(pfetch_data->title, "pfetching...\n", blxWindow, dialog, &pfetch_data->text_buffer);
+          dialog = pfetch_data->dialog;
+          text_buffer = &pfetch_data->text_buffer;
+        }
+
+      if (dialog && text_buffer && *text_buffer)
+        {
+          gtk_window_set_title(GTK_WINDOW(dialog), pfetch_data->title);
+          pfetch_data->dialog = dialog;
+          pfetch_data->text_buffer = *text_buffer;
 
           pfetch_data->widget_destroy_handler_id = 
             g_signal_connect(G_OBJECT(pfetch_data->dialog), "destroy", 
                              G_CALLBACK(handle_dialog_close), pfetch_data); 
-        }
+          
+          if (PFETCH_IS_HTTP_HANDLE(pfetch_data->pfetch))
+            {
+              PFetchHandleSettings(pfetch_data->pfetch, 
+                                   "port",       fetchMethod->port,
+                                   "debug",      debug_pfetch,
+                                   "pfetch",     fetchMethod->location,
+                                   "cookie-jar", fetchMethod->cookie_jar,
+                                   NULL);
+            }
+          else
+            {
+              PFetchHandleSettings(pfetch_data->pfetch, 
+                                   "pfetch",     fetchMethod->location,
+                                   NULL);
+            }
       
-      if (PFETCH_IS_HTTP_HANDLE(pfetch_data->pfetch))
-        {
-            PFetchHandleSettings(pfetch_data->pfetch, 
-                                 "port",       fetchMethod->port,
-                                 "debug",      debug_pfetch,
-                                 "pfetch",     fetchMethod->location,
-                                 "cookie-jar", fetchMethod->cookie_jar,
-                                 NULL);
+          g_signal_connect(G_OBJECT(pfetch_data->pfetch), "reader", G_CALLBACK(pfetch_reader_func), pfetch_data);
+          g_signal_connect(G_OBJECT(pfetch_data->pfetch), "closed", G_CALLBACK(pfetch_closed_func), pfetch_data);
+
+          GError *error = NULL;
+          ok = (PFetchHandleFetch(pfetch_data->pfetch, request->str, &error) == PFETCH_STATUS_OK) ;
+
+          if (!ok)
+            {
+              char *msg = g_strdup_printf("Error performing http fetch request:\nRequest: %s\nError: %s\n", 
+                                          command->str, 
+                                          (error ? error->message : "no error"));
+              g_warning(msg);
+              displayFetchResults(pfetch_data->title, msg, blxWindow, dialog, text_buffer);
+              g_free(msg);
+
+              fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, dialog, text_buffer);
+            }
+          else if (error)
+            {
+              reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
+              g_error_free(error);
+            }
         }
       else
         {
-            PFetchHandleSettings(pfetch_data->pfetch, 
-                                 "pfetch",     fetchMethod->location,
-                                 NULL);
+          g_warning("Error creating http fetch results dialog\n");
         }
-      
-      g_signal_connect(G_OBJECT(pfetch_data->pfetch), "reader", G_CALLBACK(pfetch_reader_func), pfetch_data);
-      g_signal_connect(G_OBJECT(pfetch_data->pfetch), "closed", G_CALLBACK(pfetch_closed_func), pfetch_data);
-
-      PFetchHandleFetch(pfetch_data->pfetch, request->str) ;
-      
     }
 
   if (request)
     {
       g_string_free(request, FALSE);
     }
+
+  return ok;
 }
 
 

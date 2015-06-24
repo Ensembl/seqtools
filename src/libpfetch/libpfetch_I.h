@@ -180,7 +180,7 @@ typedef struct _pfetchHandleClassStruct
   GObjectClass parent_class;
 
   /* methods */
-  PFetchStatus (* fetch)(PFetchHandle handle, char *sequence);
+  PFetchStatus (* fetch)(PFetchHandle handle, char *sequence, GError **error);
 
   /* signals */
   PFetchStatus (* reader)(PFetchHandle handle, char *output, guint *output_size, GError *error);
