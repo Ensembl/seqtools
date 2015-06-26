@@ -1333,64 +1333,64 @@ gboolean colorByResId(BelvuContext *bc)
 /* Utility to clear all residue colors to white */
 static void clearResidueColors(BelvuContext *bc)
 {
-  color['A'] = color['a'] = WHITE;
-  color['B'] = color['b'] = NOCOLOR;
-  color['C'] = color['c'] = WHITE;
-  color['D'] = color['d'] = WHITE;
-  color['E'] = color['e'] = WHITE;
-  color['F'] = color['f'] = WHITE;
-  color['G'] = color['g'] = WHITE;
-  color['H'] = color['h'] = WHITE;
-  color['I'] = color['i'] = WHITE;
-  color['J'] = color['j'] = WHITE;
-  color['K'] = color['k'] = WHITE;
-  color['L'] = color['l'] = WHITE;
-  color['M'] = color['m'] = WHITE;
-  color['N'] = color['n'] = WHITE;
-  color['O'] = color['o'] = WHITE;
-  color['P'] = color['p'] = WHITE;
-  color['Q'] = color['q'] = WHITE;
-  color['R'] = color['r'] = WHITE;
-  color['S'] = color['s'] = WHITE;
-  color['T'] = color['t'] = WHITE;
-  color['V'] = color['v'] = WHITE;
-  color['U'] = color['u'] = WHITE;
-  color['W'] = color['w'] = WHITE;
-  color['X'] = color['x'] = WHITE;
-  color['Y'] = color['y'] = WHITE;
-  color['Z'] = color['z'] = NOCOLOR;
+  color[(unsigned char)'A'] = color[(unsigned char)'a'] = WHITE;
+  color[(unsigned char)'B'] = color[(unsigned char)'b'] = NOCOLOR;
+  color[(unsigned char)'C'] = color[(unsigned char)'c'] = WHITE;
+  color[(unsigned char)'D'] = color[(unsigned char)'d'] = WHITE;
+  color[(unsigned char)'E'] = color[(unsigned char)'e'] = WHITE;
+  color[(unsigned char)'F'] = color[(unsigned char)'f'] = WHITE;
+  color[(unsigned char)'G'] = color[(unsigned char)'g'] = WHITE;
+  color[(unsigned char)'H'] = color[(unsigned char)'h'] = WHITE;
+  color[(unsigned char)'I'] = color[(unsigned char)'i'] = WHITE;
+  color[(unsigned char)'J'] = color[(unsigned char)'j'] = WHITE;
+  color[(unsigned char)'K'] = color[(unsigned char)'k'] = WHITE;
+  color[(unsigned char)'L'] = color[(unsigned char)'l'] = WHITE;
+  color[(unsigned char)'M'] = color[(unsigned char)'m'] = WHITE;
+  color[(unsigned char)'N'] = color[(unsigned char)'n'] = WHITE;
+  color[(unsigned char)'O'] = color[(unsigned char)'o'] = WHITE;
+  color[(unsigned char)'P'] = color[(unsigned char)'p'] = WHITE;
+  color[(unsigned char)'Q'] = color[(unsigned char)'q'] = WHITE;
+  color[(unsigned char)'R'] = color[(unsigned char)'r'] = WHITE;
+  color[(unsigned char)'S'] = color[(unsigned char)'s'] = WHITE;
+  color[(unsigned char)'T'] = color[(unsigned char)'t'] = WHITE;
+  color[(unsigned char)'V'] = color[(unsigned char)'v'] = WHITE;
+  color[(unsigned char)'U'] = color[(unsigned char)'u'] = WHITE;
+  color[(unsigned char)'W'] = color[(unsigned char)'w'] = WHITE;
+  color[(unsigned char)'X'] = color[(unsigned char)'x'] = WHITE;
+  color[(unsigned char)'Y'] = color[(unsigned char)'y'] = WHITE;
+  color[(unsigned char)'Z'] = color[(unsigned char)'z'] = NOCOLOR;
 }
 
 
 /* Utility to clear all custom colors to white. Should be called during initialisation. */
 void initCustomColors()
 {
-  customColor['A'] = customColor['a'] = WHITE;
-  customColor['B'] = customColor['b'] = NOCOLOR;
-  customColor['C'] = customColor['c'] = WHITE;
-  customColor['D'] = customColor['d'] = WHITE;
-  customColor['E'] = customColor['e'] = WHITE;
-  customColor['F'] = customColor['f'] = WHITE;
-  customColor['G'] = customColor['g'] = WHITE;
-  customColor['H'] = customColor['h'] = WHITE;
-  customColor['I'] = customColor['i'] = WHITE;
-  customColor['J'] = customColor['j'] = WHITE;
-  customColor['K'] = customColor['k'] = WHITE;
-  customColor['L'] = customColor['l'] = WHITE;
-  customColor['M'] = customColor['m'] = WHITE;
-  customColor['N'] = customColor['n'] = WHITE;
-  customColor['O'] = customColor['o'] = WHITE;
-  customColor['P'] = customColor['p'] = WHITE;
-  customColor['Q'] = customColor['q'] = WHITE;
-  customColor['R'] = customColor['r'] = WHITE;
-  customColor['S'] = customColor['s'] = WHITE;
-  customColor['T'] = customColor['t'] = WHITE;
-  customColor['V'] = customColor['v'] = WHITE;
-  customColor['U'] = customColor['u'] = WHITE;
-  customColor['W'] = customColor['w'] = WHITE;
-  customColor['X'] = customColor['x'] = WHITE;
-  customColor['Y'] = customColor['y'] = WHITE;
-  customColor['Z'] = customColor['z'] = NOCOLOR;
+  customColor[(unsigned char)'A'] = customColor[(unsigned char)'a'] = WHITE;
+  customColor[(unsigned char)'B'] = customColor[(unsigned char)'b'] = NOCOLOR;
+  customColor[(unsigned char)'C'] = customColor[(unsigned char)'c'] = WHITE;
+  customColor[(unsigned char)'D'] = customColor[(unsigned char)'d'] = WHITE;
+  customColor[(unsigned char)'E'] = customColor[(unsigned char)'e'] = WHITE;
+  customColor[(unsigned char)'F'] = customColor[(unsigned char)'f'] = WHITE;
+  customColor[(unsigned char)'G'] = customColor[(unsigned char)'g'] = WHITE;
+  customColor[(unsigned char)'H'] = customColor[(unsigned char)'h'] = WHITE;
+  customColor[(unsigned char)'I'] = customColor[(unsigned char)'i'] = WHITE;
+  customColor[(unsigned char)'J'] = customColor[(unsigned char)'j'] = WHITE;
+  customColor[(unsigned char)'K'] = customColor[(unsigned char)'k'] = WHITE;
+  customColor[(unsigned char)'L'] = customColor[(unsigned char)'l'] = WHITE;
+  customColor[(unsigned char)'M'] = customColor[(unsigned char)'m'] = WHITE;
+  customColor[(unsigned char)'N'] = customColor[(unsigned char)'n'] = WHITE;
+  customColor[(unsigned char)'O'] = customColor[(unsigned char)'o'] = WHITE;
+  customColor[(unsigned char)'P'] = customColor[(unsigned char)'p'] = WHITE;
+  customColor[(unsigned char)'Q'] = customColor[(unsigned char)'q'] = WHITE;
+  customColor[(unsigned char)'R'] = customColor[(unsigned char)'r'] = WHITE;
+  customColor[(unsigned char)'S'] = customColor[(unsigned char)'s'] = WHITE;
+  customColor[(unsigned char)'T'] = customColor[(unsigned char)'t'] = WHITE;
+  customColor[(unsigned char)'V'] = customColor[(unsigned char)'v'] = WHITE;
+  customColor[(unsigned char)'U'] = customColor[(unsigned char)'u'] = WHITE;
+  customColor[(unsigned char)'W'] = customColor[(unsigned char)'w'] = WHITE;
+  customColor[(unsigned char)'X'] = customColor[(unsigned char)'x'] = WHITE;
+  customColor[(unsigned char)'Y'] = customColor[(unsigned char)'y'] = WHITE;
+  customColor[(unsigned char)'Z'] = customColor[(unsigned char)'z'] = NOCOLOR;
 }
 
 
@@ -1398,9 +1398,9 @@ static void colorSchemeCGP(BelvuContext *bc)
 {
   clearResidueColors(bc);
   
-  color['C'] = color['c'] = CYAN;
-  color['G'] = color['g'] = RED;
-  color['P'] = color['p'] = GREEN;
+  color[(unsigned char)'C'] = color[(unsigned char)'c'] = CYAN;
+  color[(unsigned char)'G'] = color[(unsigned char)'g'] = RED;
+  color[(unsigned char)'P'] = color[(unsigned char)'p'] = GREEN;
 }
 
 
@@ -1408,10 +1408,10 @@ static void colorSchemeCGPH(BelvuContext *bc)
 {
   clearResidueColors(bc);
   
-  color['C'] = color['c'] = CYAN;
-  color['G'] = color['g'] = RED;
-  color['P'] = color['p'] = GREEN;
-  color['H'] = color['p'] = YELLOW;
+  color[(unsigned char)'C'] = color[(unsigned char)'c'] = CYAN;
+  color[(unsigned char)'G'] = color[(unsigned char)'g'] = RED;
+  color[(unsigned char)'P'] = color[(unsigned char)'p'] = GREEN;
+  color[(unsigned char)'H'] = color[(unsigned char)'p'] = YELLOW;
 }
 
 
@@ -1432,28 +1432,28 @@ static void colorSchemeErik(BelvuContext *bc)
    BDENQSTZ - LIGHTRED
    */
   
-  color['A'] = color['a'] = YELLOW;
-  color['B'] = color['b'] = NOCOLOR;
-  color['C'] = color['c'] = MIDBLUE;
-  color['D'] = color['d'] = LIGHTRED;
-  color['E'] = color['e'] = LIGHTRED;
-  color['F'] = color['f'] = YELLOW;
-  color['G'] = color['g'] = CYAN;
-  color['H'] = color['h'] = GREEN;
-  color['I'] = color['i'] = YELLOW;
-  color['K'] = color['k'] = GREEN;
-  color['L'] = color['l'] = YELLOW;
-  color['M'] = color['m'] = YELLOW;
-  color['N'] = color['n'] = LIGHTRED;
-  color['P'] = color['p'] = CYAN;
-  color['Q'] = color['q'] = LIGHTRED;
-  color['R'] = color['r'] = GREEN;
-  color['S'] = color['s'] = LIGHTRED;
-  color['T'] = color['t'] = LIGHTRED;
-  color['V'] = color['v'] = YELLOW;
-  color['W'] = color['w'] = YELLOW;
-  color['Y'] = color['y'] = YELLOW;
-  color['Z'] = color['z'] = NOCOLOR;
+  color[(unsigned char)'A'] = color[(unsigned char)'a'] = YELLOW;
+  color[(unsigned char)'B'] = color[(unsigned char)'b'] = NOCOLOR;
+  color[(unsigned char)'C'] = color[(unsigned char)'c'] = MIDBLUE;
+  color[(unsigned char)'D'] = color[(unsigned char)'d'] = LIGHTRED;
+  color[(unsigned char)'E'] = color[(unsigned char)'e'] = LIGHTRED;
+  color[(unsigned char)'F'] = color[(unsigned char)'f'] = YELLOW;
+  color[(unsigned char)'G'] = color[(unsigned char)'g'] = CYAN;
+  color[(unsigned char)'H'] = color[(unsigned char)'h'] = GREEN;
+  color[(unsigned char)'I'] = color[(unsigned char)'i'] = YELLOW;
+  color[(unsigned char)'K'] = color[(unsigned char)'k'] = GREEN;
+  color[(unsigned char)'L'] = color[(unsigned char)'l'] = YELLOW;
+  color[(unsigned char)'M'] = color[(unsigned char)'m'] = YELLOW;
+  color[(unsigned char)'N'] = color[(unsigned char)'n'] = LIGHTRED;
+  color[(unsigned char)'P'] = color[(unsigned char)'p'] = CYAN;
+  color[(unsigned char)'Q'] = color[(unsigned char)'q'] = LIGHTRED;
+  color[(unsigned char)'R'] = color[(unsigned char)'r'] = GREEN;
+  color[(unsigned char)'S'] = color[(unsigned char)'s'] = LIGHTRED;
+  color[(unsigned char)'T'] = color[(unsigned char)'t'] = LIGHTRED;
+  color[(unsigned char)'V'] = color[(unsigned char)'v'] = YELLOW;
+  color[(unsigned char)'W'] = color[(unsigned char)'w'] = YELLOW;
+  color[(unsigned char)'Y'] = color[(unsigned char)'y'] = YELLOW;
+  color[(unsigned char)'Z'] = color[(unsigned char)'z'] = NOCOLOR;
 }
 
 
@@ -1476,28 +1476,28 @@ static void colorSchemeGibson(BelvuContext *bc)
    pink        H         LIGHTRED (16-colours: DARKRED)
    */
   
-  color['A'] = color['a'] = MIDBLUE;
-  color['B'] = color['b'] = NOCOLOR;
-  color['C'] = color['c'] = MIDBLUE;
-  color['D'] = color['d'] = PURPLE;
-  color['E'] = color['e'] = PURPLE;
-  color['F'] = color['f'] = MIDBLUE;
-  color['G'] = color['g'] = ORANGE;
-  color['H'] = color['h'] = LIGHTRED;
-  color['I'] = color['i'] = MIDBLUE;
-  color['K'] = color['k'] = RED;
-  color['L'] = color['l'] = MIDBLUE;
-  color['M'] = color['m'] = MIDBLUE;
-  color['N'] = color['n'] = GREEN;
-  color['P'] = color['p'] = YELLOW;
-  color['Q'] = color['q'] = GREEN;
-  color['R'] = color['r'] = RED;
-  color['S'] = color['s'] = GREEN;
-  color['T'] = color['t'] = GREEN;
-  color['V'] = color['v'] = MIDBLUE;
-  color['W'] = color['w'] = MIDBLUE;
-  color['Y'] = color['y'] = LIGHTBLUE;
-  color['Z'] = color['z'] = NOCOLOR;
+  color[(unsigned char)'A'] = color[(unsigned char)'a'] = MIDBLUE;
+  color[(unsigned char)'B'] = color[(unsigned char)'b'] = NOCOLOR;
+  color[(unsigned char)'C'] = color[(unsigned char)'c'] = MIDBLUE;
+  color[(unsigned char)'D'] = color[(unsigned char)'d'] = PURPLE;
+  color[(unsigned char)'E'] = color[(unsigned char)'e'] = PURPLE;
+  color[(unsigned char)'F'] = color[(unsigned char)'f'] = MIDBLUE;
+  color[(unsigned char)'G'] = color[(unsigned char)'g'] = ORANGE;
+  color[(unsigned char)'H'] = color[(unsigned char)'h'] = LIGHTRED;
+  color[(unsigned char)'I'] = color[(unsigned char)'i'] = MIDBLUE;
+  color[(unsigned char)'K'] = color[(unsigned char)'k'] = RED;
+  color[(unsigned char)'L'] = color[(unsigned char)'l'] = MIDBLUE;
+  color[(unsigned char)'M'] = color[(unsigned char)'m'] = MIDBLUE;
+  color[(unsigned char)'N'] = color[(unsigned char)'n'] = GREEN;
+  color[(unsigned char)'P'] = color[(unsigned char)'p'] = YELLOW;
+  color[(unsigned char)'Q'] = color[(unsigned char)'q'] = GREEN;
+  color[(unsigned char)'R'] = color[(unsigned char)'r'] = RED;
+  color[(unsigned char)'S'] = color[(unsigned char)'s'] = GREEN;
+  color[(unsigned char)'T'] = color[(unsigned char)'t'] = GREEN;
+  color[(unsigned char)'V'] = color[(unsigned char)'v'] = MIDBLUE;
+  color[(unsigned char)'W'] = color[(unsigned char)'w'] = MIDBLUE;
+  color[(unsigned char)'Y'] = color[(unsigned char)'y'] = LIGHTBLUE;
+  color[(unsigned char)'Z'] = color[(unsigned char)'z'] = NOCOLOR;
 }
 
 
@@ -1506,28 +1506,28 @@ void saveCustomColors(BelvuContext *bc)
 {
   bc->haveCustomColors = TRUE;
   
-  customColor['A'] = customColor['a'] = color['a'];
-  customColor['B'] = customColor['b'] = color['b'];
-  customColor['C'] = customColor['c'] = color['c'];
-  customColor['D'] = customColor['d'] = color['d'];
-  customColor['E'] = customColor['e'] = color['e'];
-  customColor['F'] = customColor['f'] = color['f'];
-  customColor['G'] = customColor['g'] = color['g'];
-  customColor['H'] = customColor['h'] = color['h'];
-  customColor['I'] = customColor['i'] = color['i'];
-  customColor['K'] = customColor['k'] = color['k'];
-  customColor['L'] = customColor['l'] = color['l'];
-  customColor['M'] = customColor['m'] = color['m'];
-  customColor['N'] = customColor['n'] = color['n'];
-  customColor['P'] = customColor['p'] = color['p'];
-  customColor['Q'] = customColor['q'] = color['q'];
-  customColor['R'] = customColor['r'] = color['r'];
-  customColor['S'] = customColor['s'] = color['s'];
-  customColor['T'] = customColor['t'] = color['t'];
-  customColor['V'] = customColor['v'] = color['v'];
-  customColor['W'] = customColor['w'] = color['w'];
-  customColor['Y'] = customColor['y'] = color['y'];
-  customColor['Z'] = customColor['z'] = color['z'];
+  customColor[(unsigned char)'A'] = customColor[(unsigned char)'a'] = color[(unsigned char)'a'];
+  customColor[(unsigned char)'B'] = customColor[(unsigned char)'b'] = color[(unsigned char)'b'];
+  customColor[(unsigned char)'C'] = customColor[(unsigned char)'c'] = color[(unsigned char)'c'];
+  customColor[(unsigned char)'D'] = customColor[(unsigned char)'d'] = color[(unsigned char)'d'];
+  customColor[(unsigned char)'E'] = customColor[(unsigned char)'e'] = color[(unsigned char)'e'];
+  customColor[(unsigned char)'F'] = customColor[(unsigned char)'f'] = color[(unsigned char)'f'];
+  customColor[(unsigned char)'G'] = customColor[(unsigned char)'g'] = color[(unsigned char)'g'];
+  customColor[(unsigned char)'H'] = customColor[(unsigned char)'h'] = color[(unsigned char)'h'];
+  customColor[(unsigned char)'I'] = customColor[(unsigned char)'i'] = color[(unsigned char)'i'];
+  customColor[(unsigned char)'K'] = customColor[(unsigned char)'k'] = color[(unsigned char)'k'];
+  customColor[(unsigned char)'L'] = customColor[(unsigned char)'l'] = color[(unsigned char)'l'];
+  customColor[(unsigned char)'M'] = customColor[(unsigned char)'m'] = color[(unsigned char)'m'];
+  customColor[(unsigned char)'N'] = customColor[(unsigned char)'n'] = color[(unsigned char)'n'];
+  customColor[(unsigned char)'P'] = customColor[(unsigned char)'p'] = color[(unsigned char)'p'];
+  customColor[(unsigned char)'Q'] = customColor[(unsigned char)'q'] = color[(unsigned char)'q'];
+  customColor[(unsigned char)'R'] = customColor[(unsigned char)'r'] = color[(unsigned char)'r'];
+  customColor[(unsigned char)'S'] = customColor[(unsigned char)'s'] = color[(unsigned char)'s'];
+  customColor[(unsigned char)'T'] = customColor[(unsigned char)'t'] = color[(unsigned char)'t'];
+  customColor[(unsigned char)'V'] = customColor[(unsigned char)'v'] = color[(unsigned char)'v'];
+  customColor[(unsigned char)'W'] = customColor[(unsigned char)'w'] = color[(unsigned char)'w'];
+  customColor[(unsigned char)'Y'] = customColor[(unsigned char)'y'] = color[(unsigned char)'y'];
+  customColor[(unsigned char)'Z'] = customColor[(unsigned char)'z'] = color[(unsigned char)'z'];
   
 }
 
@@ -1535,28 +1535,28 @@ void saveCustomColors(BelvuContext *bc)
 /* Set the current colors the the last-saved 'custom' color scheme */
 static void colorSchemeCustom(BelvuContext *bc)
 {
-  color['A'] = color['a'] = customColor['a'];
-  color['B'] = color['b'] = customColor['b'];
-  color['C'] = color['c'] = customColor['c'];
-  color['D'] = color['d'] = customColor['d'];
-  color['E'] = color['e'] = customColor['e'];
-  color['F'] = color['f'] = customColor['f'];
-  color['G'] = color['g'] = customColor['g'];
-  color['H'] = color['h'] = customColor['h'];
-  color['I'] = color['i'] = customColor['i'];
-  color['K'] = color['k'] = customColor['k'];
-  color['L'] = color['l'] = customColor['l'];
-  color['M'] = color['m'] = customColor['m'];
-  color['N'] = color['n'] = customColor['n'];
-  color['P'] = color['p'] = customColor['p'];
-  color['Q'] = color['q'] = customColor['q'];
-  color['R'] = color['r'] = customColor['r'];
-  color['S'] = color['s'] = customColor['s'];
-  color['T'] = color['t'] = customColor['t'];
-  color['V'] = color['v'] = customColor['v'];
-  color['W'] = color['w'] = customColor['w'];
-  color['Y'] = color['y'] = customColor['y'];
-  color['Z'] = color['z'] = customColor['z'];
+  color[(unsigned char)'A'] = color[(unsigned char)'a'] = customColor[(unsigned char)'a'];
+  color[(unsigned char)'B'] = color[(unsigned char)'b'] = customColor[(unsigned char)'b'];
+  color[(unsigned char)'C'] = color[(unsigned char)'c'] = customColor[(unsigned char)'c'];
+  color[(unsigned char)'D'] = color[(unsigned char)'d'] = customColor[(unsigned char)'d'];
+  color[(unsigned char)'E'] = color[(unsigned char)'e'] = customColor[(unsigned char)'e'];
+  color[(unsigned char)'F'] = color[(unsigned char)'f'] = customColor[(unsigned char)'f'];
+  color[(unsigned char)'G'] = color[(unsigned char)'g'] = customColor[(unsigned char)'g'];
+  color[(unsigned char)'H'] = color[(unsigned char)'h'] = customColor[(unsigned char)'h'];
+  color[(unsigned char)'I'] = color[(unsigned char)'i'] = customColor[(unsigned char)'i'];
+  color[(unsigned char)'K'] = color[(unsigned char)'k'] = customColor[(unsigned char)'k'];
+  color[(unsigned char)'L'] = color[(unsigned char)'l'] = customColor[(unsigned char)'l'];
+  color[(unsigned char)'M'] = color[(unsigned char)'m'] = customColor[(unsigned char)'m'];
+  color[(unsigned char)'N'] = color[(unsigned char)'n'] = customColor[(unsigned char)'n'];
+  color[(unsigned char)'P'] = color[(unsigned char)'p'] = customColor[(unsigned char)'p'];
+  color[(unsigned char)'Q'] = color[(unsigned char)'q'] = customColor[(unsigned char)'q'];
+  color[(unsigned char)'R'] = color[(unsigned char)'r'] = customColor[(unsigned char)'r'];
+  color[(unsigned char)'S'] = color[(unsigned char)'s'] = customColor[(unsigned char)'s'];
+  color[(unsigned char)'T'] = color[(unsigned char)'t'] = customColor[(unsigned char)'t'];
+  color[(unsigned char)'V'] = color[(unsigned char)'v'] = customColor[(unsigned char)'v'];
+  color[(unsigned char)'W'] = color[(unsigned char)'w'] = customColor[(unsigned char)'w'];
+  color[(unsigned char)'Y'] = color[(unsigned char)'y'] = customColor[(unsigned char)'y'];
+  color[(unsigned char)'Z'] = color[(unsigned char)'z'] = customColor[(unsigned char)'z'];
 }
 
 
@@ -1814,42 +1814,42 @@ void setConsSchemeColors(BelvuContext *bc)
 
 void initMarkupColors(void)
 {
-  markupColor['0'] = DARKBLUE;
-  markupColor['1'] = BLUE;
-  markupColor['2'] = MIDBLUE;
-  markupColor['3'] = LIGHTBLUE;
-  markupColor['4'] = VIOLET;
-  markupColor['5'] = PALEBLUE;
-  markupColor['6'] = PALECYAN;
-  markupColor['7'] = CYAN;
-  markupColor['8'] = CYAN;
-  markupColor['9'] = CYAN;
-  markupColor['A'] = markupColor['a'] = WHITE;
-  markupColor['B'] = markupColor['b'] = RED;
-  markupColor['C'] = markupColor['c'] = PALEYELLOW;
-  markupColor['D'] = markupColor['d'] = WHITE;
-  markupColor['E'] = markupColor['e'] = RED;
-  markupColor['F'] = markupColor['f'] = WHITE;
-  markupColor['G'] = markupColor['g'] = DARKGREEN;
-  markupColor['H'] = markupColor['h'] = DARKGREEN;
-  markupColor['I'] = markupColor['i'] = DARKGREEN;
-  markupColor['J'] = markupColor['j'] = WHITE;
-  markupColor['K'] = markupColor['k'] = WHITE;
-  markupColor['L'] = markupColor['l'] = WHITE;
-  markupColor['M'] = markupColor['m'] = WHITE;
-  markupColor['N'] = markupColor['n'] = WHITE;
-  markupColor['O'] = markupColor['o'] = WHITE;
-  markupColor['P'] = markupColor['p'] = WHITE;
-  markupColor['Q'] = markupColor['q'] = WHITE;
-  markupColor['R'] = markupColor['r'] = WHITE;
-  markupColor['S'] = markupColor['s'] = YELLOW;
-  markupColor['T'] = markupColor['t'] = YELLOW;
-  markupColor['V'] = markupColor['v'] = WHITE;
-  markupColor['U'] = markupColor['u'] = WHITE;
-  markupColor['W'] = markupColor['w'] = WHITE;
-  markupColor['X'] = markupColor['x'] = WHITE;
-  markupColor['Y'] = markupColor['y'] = WHITE;
-  markupColor['Z'] = markupColor['z'] = NOCOLOR;
+  markupColor[(unsigned char)'0'] = DARKBLUE;
+  markupColor[(unsigned char)'1'] = BLUE;
+  markupColor[(unsigned char)'2'] = MIDBLUE;
+  markupColor[(unsigned char)'3'] = LIGHTBLUE;
+  markupColor[(unsigned char)'4'] = VIOLET;
+  markupColor[(unsigned char)'5'] = PALEBLUE;
+  markupColor[(unsigned char)'6'] = PALECYAN;
+  markupColor[(unsigned char)'7'] = CYAN;
+  markupColor[(unsigned char)'8'] = CYAN;
+  markupColor[(unsigned char)'9'] = CYAN;
+  markupColor[(unsigned char)'A'] = markupColor[(unsigned char)'a'] = WHITE;
+  markupColor[(unsigned char)'B'] = markupColor[(unsigned char)'b'] = RED;
+  markupColor[(unsigned char)'C'] = markupColor[(unsigned char)'c'] = PALEYELLOW;
+  markupColor[(unsigned char)'D'] = markupColor[(unsigned char)'d'] = WHITE;
+  markupColor[(unsigned char)'E'] = markupColor[(unsigned char)'e'] = RED;
+  markupColor[(unsigned char)'F'] = markupColor[(unsigned char)'f'] = WHITE;
+  markupColor[(unsigned char)'G'] = markupColor[(unsigned char)'g'] = DARKGREEN;
+  markupColor[(unsigned char)'H'] = markupColor[(unsigned char)'h'] = DARKGREEN;
+  markupColor[(unsigned char)'I'] = markupColor[(unsigned char)'i'] = DARKGREEN;
+  markupColor[(unsigned char)'J'] = markupColor[(unsigned char)'j'] = WHITE;
+  markupColor[(unsigned char)'K'] = markupColor[(unsigned char)'k'] = WHITE;
+  markupColor[(unsigned char)'L'] = markupColor[(unsigned char)'l'] = WHITE;
+  markupColor[(unsigned char)'M'] = markupColor[(unsigned char)'m'] = WHITE;
+  markupColor[(unsigned char)'N'] = markupColor[(unsigned char)'n'] = WHITE;
+  markupColor[(unsigned char)'O'] = markupColor[(unsigned char)'o'] = WHITE;
+  markupColor[(unsigned char)'P'] = markupColor[(unsigned char)'p'] = WHITE;
+  markupColor[(unsigned char)'Q'] = markupColor[(unsigned char)'q'] = WHITE;
+  markupColor[(unsigned char)'R'] = markupColor[(unsigned char)'r'] = WHITE;
+  markupColor[(unsigned char)'S'] = markupColor[(unsigned char)'s'] = YELLOW;
+  markupColor[(unsigned char)'T'] = markupColor[(unsigned char)'t'] = YELLOW;
+  markupColor[(unsigned char)'V'] = markupColor[(unsigned char)'v'] = WHITE;
+  markupColor[(unsigned char)'U'] = markupColor[(unsigned char)'u'] = WHITE;
+  markupColor[(unsigned char)'W'] = markupColor[(unsigned char)'w'] = WHITE;
+  markupColor[(unsigned char)'X'] = markupColor[(unsigned char)'x'] = WHITE;
+  markupColor[(unsigned char)'Y'] = markupColor[(unsigned char)'y'] = WHITE;
+  markupColor[(unsigned char)'Z'] = markupColor[(unsigned char)'z'] = NOCOLOR;
 }
 
 

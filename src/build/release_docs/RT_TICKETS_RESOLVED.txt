@@ -1,23 +1,13 @@
 
-Request Tracker Tickets Resolved from 10/03/2015 to 20/04/2015
+Request Tracker Tickets Resolved from 17/04/2015 to 23/06/2015
 
-ticket/456864
-id: ticket/456864
+ticket/247292
+id: ticket/247292
 Queue: seqtools
-Subject: Species identifier confusion in Blixem
-Requestors: erb@sanger.ac.uk
+Subject: Blixem handles murrine_style_draw_box assertion errors very badly
+Requestors: lw2@sanger.ac.uk
 Owner: gb10
-Resolved: Thu Mar 12 15:50:34 2015
-CF.{zmapace_gitcommit}: 
-CF.{zmapace_resolve_version}: 
-
-ticket/457103
-id: ticket/457103
-Queue: seqtools
-Subject: Make Blixem Variations Track Scrollable 
-Requestors: mms@sanger.ac.uk
-Owner: gb10
-Resolved: Fri Apr 10 11:57:24 2015
+Resolved: Mon Apr 20 15:19:33 2015
 CF.{zmapace_gitcommit}: 
 CF.{zmapace_resolve_version}: 
 
@@ -31,13 +21,43 @@ Resolved: Fri Apr 17 09:35:39 2015
 CF.{zmapace_gitcommit}: 
 CF.{zmapace_resolve_version}: 
 
-ticket/460733
-id: ticket/460733
+ticket/464145
+id: ticket/464145
 Queue: seqtools
-Subject: Re:  Resolved: Species identifier confusion in Blixem
-Requestors: erb@sanger.ac.uk
+Subject: blixem in otterlace test/.
+Requestors: mpk@sanger.ac.uk
 Owner: gb10
-Resolved: Tue Mar 31 15:19:05 2015
+Resolved: Mon Apr 20 15:18:33 2015
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
+
+ticket/467503
+id: ticket/467503
+Queue: seqtools
+Subject: pfetch problems again
+Requestors: clb@sanger.ac.uk
+Owner: gb10
+Resolved: Thu May 07 11:15:26 2015
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
+
+ticket/467905
+id: ticket/467905
+Queue: seqtools
+Subject: Cannot compile seqtools in parallel
+Requestors: mmokrejs@fold.natur.cuni.cz
+Owner: gb10
+Resolved: Wed May 13 10:20:56 2015
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
+
+ticket/473624
+id: ticket/473624
+Queue: seqtools
+Subject: Belvu -- Failure to sort the MSA according to the sequence identity of the first sequence
+Requestors: su.lam.13@ucl.ac.uk
+Owner: gb10
+Resolved: Thu Jun 11 09:43:08 2015
 CF.{zmapace_gitcommit}: 
 CF.{zmapace_resolve_version}: 
 
