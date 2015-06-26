@@ -1,3 +1,69 @@
+2015-06-23  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix compiler warnings and add logging for pfetch fix - TRIVIAL
+ src/libpfetch/libcurlobject.c |   19 +++++++++++++++++--
+ 1 files changed, 17 insertions(+), 2 deletions(-)
+
+2015-06-19  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix for http-pfetch on trusty - RT 474213
+ src/libpfetch/libcurlobject.c |   96 +++++++++++++++++++++++++----------------
+ 1 files changed, 59 insertions(+), 37 deletions(-)
+
+2015-06-19  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.7-22-ge741 - Update RT and git commit reports
+ src/ChangeLog                                  |    5 +++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 6 insertions(+), 1 deletions(-)
+
+2015-06-16  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.7-21-gb08b - Update RT and git commit reports
+ src/ChangeLog |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
+
+2015-06-16  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.7-20-gd9bc - Update RT and git commit reports
+ src/ChangeLog                                  |    6 ++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 7 insertions(+), 1 deletions(-)
+
+2015-06-15  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.7-19-g3430a - Update RT and git commit reports
+ src/ChangeLog                                  |    5 +++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 6 insertions(+), 1 deletions(-)
+
+2015-06-11  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.7-18-g1513 - Update RT and git commit reports
+ src/ChangeLog |   12 ++++++++++++
+ 1 files changed, 12 insertions(+), 0 deletions(-)
+
+2015-06-11  Steve Miller  <sm23@sanger.ac.uk>
+ edit of release notes - DOC
+ src/doc/User_doc/release_notes.html |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
+
+2015-06-11  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.7-16-gacf2 - Update RT and git commit reports
+ src/ChangeLog                                  |   16 ++++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   12 +++++++++++-
+ 3 files changed, 28 insertions(+), 1 deletions(-)
+
+2015-06-11  Steve Miller  <sm23@sanger.ac.uk>
+ Merge branch 'release/4.35' into develop
+2015-06-10  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'production' into develop
+2015-06-10  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'production' into release/4.35
+2015-06-10  Gemma Barson  <gb10@sanger.ac.uk>
+ Fix bug with sorting by similarity/identity to first sequence - RT 473624
+ src/belvuApp/belvuMain.cpp |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+2015-05-19  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.34.1-11-ge787 - Update RT and git commit reports
+ src/ChangeLog |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
+
 2015-05-19  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.34.1-10-g5aa6 - Update RT and git commit reports
  src/ChangeLog                                  |  698 ++----------------------
