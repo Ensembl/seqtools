@@ -1102,7 +1102,7 @@ static gboolean httpFetchList(GList *seqsToFetch,
 
           while (!(fetch_data.connection_closed) && status && fetch_data.fetchData.parserState != PARSING_CANCELLED)
             {
-              checkProgressBar(fetch_data.fetchData.bar, &fetch_data.fetchData.parserState, &status);
+              checkProgressBar(fetch_data.fetchData.bar, &fetch_data.fetchData.parserState, &fetch_data.fetchData.status);
               gtk_main_iteration() ;
             }
 
