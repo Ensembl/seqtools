@@ -4389,15 +4389,15 @@ static void detailViewCreateProperties(GtkWidget *detailView,
           GtkWidget *widget = GTK_WIDGET(fwdStrandTrees->data);
 
           GtkWidget *tree = widgetIsTree(widget) ? widget : treeContainerGetTree(GTK_CONTAINER(widget));
-          gtk_widget_realize(tree); /* must realize tree to pick up any overriden style properties */
+          //gtk_widget_realize(tree); /* must realize tree to pick up any overriden style properties */
             
           /* I can't get this to work properly using gtk_tree_view_get_cell_area etc. The cell
            * area and background area come out wrong - perhaps because I'm not using a real
            * row path. After a bit of experimentation it seems that the y padding is always
            * related to the vertical-separator as follows: ypad = trunc(vseparator / 2) + 1 */
-          gint vertical_separator, horizontal_separator;
-          gtk_widget_style_get (tree, "vertical-separator", &vertical_separator, NULL);
-          gtk_widget_style_get (tree, "horizontal-separator", &horizontal_separator, NULL);
+          gint vertical_separator = 0, horizontal_separator = 0;
+          //gtk_widget_style_get (tree, "vertical-separator", &vertical_separator, NULL);
+          //gtk_widget_style_get (tree, "horizontal-separator", &horizontal_separator, NULL);
           
           properties->cellXPadding = (horizontal_separator / 2) + 1;
           properties->cellYPadding = (vertical_separator / 2) + 1;
