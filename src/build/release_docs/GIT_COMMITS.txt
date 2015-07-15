@@ -1,9 +1,10 @@
 
-Git commits for  from commit "production" until commit "release/4.35"
+Git commits for  from commit "production" until commit "release/4.36"
 
-e314572 2015-06-19 Fix for http-pfetch on trusty - RT 474213
-bf3e421 2015-06-10 Fix bug with sorting by similarity/identity to first sequence - RT 473624
-7591d47 2015-05-11 Fix dependency problem when compiling with multiple threads - RT 467905
+6ed7d13 2015-06-24 Improve error reporting in http fetch - NEW FEATURE 'Error reporting'
+fd906c1 2015-06-19 Fix for http-pfetch on trusty - RT 474213
+bc97cb5 2015-06-18 Reduce max size of gdk window to help avoid crashing - BUG FIX
+bd19a11 2015-06-18 Attach error handlers for dotter and belvu - NEW FEATURE 'Error handling'
 
 
 End of git commits
