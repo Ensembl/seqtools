@@ -1,4 +1,16 @@
 2015-07-15  Gemma Guest  <gb10@sanger.ac.uk>
+ Update release notes - DOC
+ src/doc/User_doc/release_notes.html |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+2015-07-15  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.35-9-gfbc6 - Update RT and git commit reports
+ src/ChangeLog                                  |  154 +++++------------------
+ src/build/release_docs/GIT_COMMITS.txt         |    9 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   52 +--------
+ 3 files changed, 40 insertions(+), 175 deletions(-)
+
+2015-07-15  Gemma Guest  <gb10@sanger.ac.uk>
  Remove unnecessary realize step - TRIVIAL
  src/blixemApp/detailview.cpp |    8 ++++----
  1 files changed, 4 insertions(+), 4 deletions(-)

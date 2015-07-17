@@ -1,5 +1,5 @@
 
-Request Tracker Tickets Resolved from 11/06/2015 to 15/07/2015
+Request Tracker Tickets Resolved from 11/06/2015 to 17/07/2015
 
 ticket/473624
 id: ticket/473624
