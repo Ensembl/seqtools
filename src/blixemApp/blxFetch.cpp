@@ -1074,6 +1074,7 @@ static gboolean httpFetchList(GList *seqsToFetch,
                            "debug",      debug_pfetch,
                            "pfetch",     fetchMethod->location,
                            "cookie-jar", fetchMethod->cookie_jar,
+                           "proxy",      fetchMethod->proxy,
                            NULL);
     }
   else
@@ -1245,6 +1246,7 @@ static gboolean httpFetchSequence(const BlxSequence *blxSeq,
                                    "debug",      debug_pfetch,
                                    "pfetch",     fetchMethod->location,
                                    "cookie-jar", fetchMethod->cookie_jar,
+                                   "proxy",      fetchMethod->proxy,
                                    NULL);
             }
           else
@@ -2026,6 +2028,7 @@ static BlxFetchMethod* createBlxFetchMethod(const char *fetchName,
   result->node = NULL;
   result->port = 0;
   result->cookie_jar = NULL;
+  result->proxy = NULL;
   result->args = NULL;
   result->columns = NULL;
 
@@ -2155,6 +2158,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
           result->location = configGetString(key_file, group, HTTP_FETCH_LOCATION, &tmpError);
           result->port = configGetInteger(key_file, group, HTTP_FETCH_PORT, &tmpError);
           result->cookie_jar = configGetString(key_file, group, HTTP_FETCH_COOKIE_JAR, &tmpError);
+          result->proxy = configGetString(key_file, group, HTTP_FETCH_PROXY, NULL);
           result->args = configGetString(key_file, group, HTTP_FETCH_ARGS, NULL);
           result->errors = keyFileGetCsv(key_file, group, FETCH_ERRORS, NULL);
           result->separator = configGetString(key_file, group, FETCH_SEPARATOR, NULL);

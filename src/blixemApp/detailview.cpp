@@ -150,7 +150,6 @@ static gboolean                coordAffectedByPolyASite(const int dnaIdx,
                                                         const MSP **mspOut,
                                                         gboolean *multipleVariations);
 
-static GtkWidget*              detailViewContainerGetWidget(GtkContainer *container, const char *name);
 static GtkWidget*              detailViewContainerGetParentWidget(GtkContainer *container, GtkWidget *search_child, const char *parent_name);
 static gboolean                detailViewContainerIsParent(GtkContainer *container, GtkWidget *search_child);
 
@@ -574,40 +573,6 @@ static GtkWidget *treeContainerGetTree(GtkContainer *container)
           else if (GTK_IS_CONTAINER(childWidget))
            {
              result = treeContainerGetTree(GTK_CONTAINER(childWidget));
-           }
-        }
-    }
-
-  g_list_free(children);
-  
-  return result;
-}
-
-
-/* Given a container that contains a single widget with the given name in its child
- * hierarchy, return that widget (doesn't check if there's only one, just
- * returns the first one). */
-static GtkWidget *detailViewContainerGetWidget(GtkContainer *container, const char *name)
-{
-  GtkWidget *result = NULL;
-  
-  GList *children = gtk_container_get_children(container);
-  GList *child = children;
-  
-  for ( ; child && !result; child = child->next)
-    {
-      if (GTK_IS_WIDGET(child->data))
-        {
-          GtkWidget *childWidget = GTK_WIDGET(child->data);
-          
-          if (strcmp(gtk_widget_get_name(childWidget), name) == 0)
-            {
-              result = childWidget;
-              break;
-            }
-          else if (GTK_IS_CONTAINER(childWidget))
-           {
-             result = detailViewContainerGetWidget(GTK_CONTAINER(childWidget), name);
            }
         }
     }
@@ -4388,7 +4353,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
         {
           GtkWidget *widget = GTK_WIDGET(fwdStrandTrees->data);
 
-          GtkWidget *tree = widgetIsTree(widget) ? widget : treeContainerGetTree(GTK_CONTAINER(widget));
+          //GtkWidget *tree = widgetIsTree(widget) ? widget : treeContainerGetTree(GTK_CONTAINER(widget));
           //gtk_widget_realize(tree); /* must realize tree to pick up any overriden style properties */
             
           /* I can't get this to work properly using gtk_tree_view_get_cell_area etc. The cell

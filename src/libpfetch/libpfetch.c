@@ -1221,6 +1221,12 @@ static void pfetch_http_handle_class_init(PFetchHandleHttpClass pfetch_class)
 						      "netscape cookie jar",
 						      "", PFETCH_PARAM_STATIC_RW));
 
+  g_object_class_install_property(gobject_class,
+				  PFETCH_PROXY,
+				  g_param_spec_string("proxy", "proxy",
+						      "pfetch proxy",
+						      "", PFETCH_PARAM_STATIC_RW));
+
 
 #ifdef DEBUG_DONT_INCLUDE
   handle_class->reader = test_reader;
@@ -1263,6 +1269,11 @@ static void pfetch_http_handle_finalize(GObject *gobject)
 
   pfetch->cookie_jar_location = NULL;
 
+  if(pfetch->proxy)
+    g_free(pfetch->proxy);
+
+  pfetch->proxy = NULL;
+
   return ;
 }
 
@@ -1281,6 +1292,12 @@ static void pfetch_http_handle_set_property(GObject *gobject, guint param_id,
 	g_free(pfetch->cookie_jar_location);
       
       pfetch->cookie_jar_location = g_value_dup_string(value);
+      break;
+    case PFETCH_PROXY:
+      if(pfetch->proxy)
+	g_free(pfetch->proxy);
+      
+      pfetch->proxy = g_value_dup_string(value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID(gobject, param_id, pspec);
@@ -1302,6 +1319,9 @@ static void pfetch_http_handle_get_property(GObject *gobject, guint param_id,
       break;
     case PFETCH_COOKIE_JAR:
       g_value_set_string(value, pfetch->cookie_jar_location);
+      break;
+    case PFETCH_PROXY:
+      g_value_set_string(value, pfetch->proxy);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID(gobject, param_id, pspec);
@@ -1327,6 +1347,7 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError
 		    /* request */
 		    "postfields",  pfetch->post_data,   
 		    "cookiefile",  pfetch->cookie_jar_location,
+		    "proxy",  pfetch->proxy,
 		    /* functions */
 		    "writefunction",  http_curl_write_func,
 		    "writedata",      pfetch,
@@ -1384,6 +1405,7 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError
 		    /* request */
 		    "postfields",  pfetch->post_data,   
 		    "cookiefile",  pfetch->cookie_jar_location,
+		    "proxy",  pfetch->proxy,
 		    /* functions */
 		    "writefunction",  http_curl_write_func,
 		    "writedata",      pfetch,

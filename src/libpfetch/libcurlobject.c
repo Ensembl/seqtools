@@ -438,6 +438,10 @@ static void curl_object_class_init(CURLObjectClass curl_object_class)
 				  g_param_spec_long("cookiesession", "cookiesession",
 						    "Start a new cookie session",
 						    0, 1, 0, CURL_PARAM_STATIC_WO));
+  g_object_class_install_property(gobject_class, CURLOPT_PROXY,
+				  g_param_spec_string("proxy", "proxy",
+						      "proxy",
+						      "", CURL_PARAM_STATIC_WO));
 #ifdef COOKIELIST
   g_object_class_install_property(gobject_class, CURLOPT_COOKIELIST,
 				  g_param_spec_string("cookielist", "cookielist",
@@ -650,6 +654,7 @@ static void curl_object_set_property(GObject      *gobject,
     case CURLOPT_POST:
     case CURLOPT_HTTPGET:
     case CURLOPT_COOKIEFILE:
+    case CURLOPT_PROXY:
       if(G_IS_PARAM_SPEC_STRING(pspec))
 	{
 	  char *str;
