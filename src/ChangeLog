@@ -1,3 +1,19 @@
+2015-07-22  Gemma Guest  <gb10@sanger.ac.uk>
+ Add facility to set proxy from config file - WIP
+ src/blixemApp/blixem_.hpp     |    2 ++
+ src/blixemApp/blxFetch.cpp    |    4 ++++
+ src/blixemApp/detailview.cpp  |   37 +------------------------------------
+ src/libpfetch/libcurlobject.c |    5 +++++
+ src/libpfetch/libpfetch.c     |   22 ++++++++++++++++++++++
+ src/libpfetch/libpfetch_I.h   |    2 ++
+ 6 files changed, 36 insertions(+), 36 deletions(-)
+
+2015-07-17  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.35-11-g5cab - Update RT and git commit reports
+ src/ChangeLog                                  |   12 ++++++++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 13 insertions(+), 1 deletions(-)
+
 2015-07-15  Gemma Guest  <gb10@sanger.ac.uk>
  Update release notes - DOC
  src/doc/User_doc/release_notes.html |    5 +++++
