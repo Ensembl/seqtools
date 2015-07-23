@@ -66,6 +66,7 @@ enum
     PFETCH_BLIXEM_STYLE,
     /* http specific stuff */
     PFETCH_COOKIE_JAR,
+    PFETCH_PROXY,
     PFETCH_URL,			/* same as location */
     PFETCH_POST,
     PFETCH_WRITE_FUNC,
@@ -228,6 +229,7 @@ typedef struct _pfetchHandleHttpStruct
 
   char *post_data;
   char *cookie_jar_location;
+  char *proxy;
   unsigned int http_port;
 
   unsigned int request_counter;

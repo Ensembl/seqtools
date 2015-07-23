@@ -1,3 +1,56 @@
+2015-07-22  Gemma Guest  <gb10@sanger.ac.uk>
+ Add facility to set proxy from config file - WIP
+ src/blixemApp/blixem_.hpp     |    2 ++
+ src/blixemApp/blxFetch.cpp    |    4 ++++
+ src/blixemApp/detailview.cpp  |   37 +------------------------------------
+ src/libpfetch/libcurlobject.c |    5 +++++
+ src/libpfetch/libpfetch.c     |   22 ++++++++++++++++++++++
+ src/libpfetch/libpfetch_I.h   |    2 ++
+ 6 files changed, 36 insertions(+), 36 deletions(-)
+
+2015-07-17  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.35-11-g5cab - Update RT and git commit reports
+ src/ChangeLog                                  |   12 ++++++++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 13 insertions(+), 1 deletions(-)
+
+2015-07-15  Gemma Guest  <gb10@sanger.ac.uk>
+ Update release notes - DOC
+ src/doc/User_doc/release_notes.html |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+2015-07-15  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.35-9-gfbc6 - Update RT and git commit reports
+ src/ChangeLog                                  |  154 +++++------------------
+ src/build/release_docs/GIT_COMMITS.txt         |    9 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   52 +--------
+ 3 files changed, 40 insertions(+), 175 deletions(-)
+
+2015-07-15  Gemma Guest  <gb10@sanger.ac.uk>
+ Remove unnecessary realize step - TRIVIAL
+ src/blixemApp/detailview.cpp |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
+
+2015-07-15  Gemma Guest  <gb10@sanger.ac.uk>
+ fix incorrect return status in http fetch - TRIVIAL
+ src/blixemApp/blxFetch.cpp |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+2015-06-26  Steve Miller  <sm23@sanger.ac.uk>
+ Merge branch 'production' into develop
+2015-06-24  Gemma Guest  <gb10@sanger.ac.uk>
+ Minor change to error message format - TRIVIAL
+ src/blixemApp/blxFetch.cpp |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+2015-06-24  Gemma Guest  <gb10@sanger.ac.uk>
+ Improve error reporting in http fetch - NEW FEATURE 'Error reporting'
+ src/blixemApp/blxFetch.cpp  |  150 ++++++++++++++++++++++++++----------------
+ src/libpfetch/libpfetch.c   |   46 +++++++++-----
+ src/libpfetch/libpfetch.h   |    2 +-
+ src/libpfetch/libpfetch_I.h |    2 +-
+ 4 files changed, 125 insertions(+), 75 deletions(-)
+
 2015-06-23  Gemma Guest  <gb10@sanger.ac.uk>
  Fix compiler warnings and add logging for pfetch fix - TRIVIAL
  src/libpfetch/libcurlobject.c |   19 +++++++++++++++++--
@@ -8,124 +61,13 @@
  src/libpfetch/libcurlobject.c |   96 +++++++++++++++++++++++++----------------
  1 files changed, 59 insertions(+), 37 deletions(-)
 
-2015-06-19  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.34.7-22-ge741 - Update RT and git commit reports
- src/ChangeLog                                  |    5 +++++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 2 files changed, 6 insertions(+), 1 deletions(-)
+2015-06-18  Gemma Guest  <gb10@sanger.ac.uk>
+ Reduce max size of gdk window to help avoid crashing - BUG FIX
+ src/dotterApp/dotplot.cpp |   12 +++++++++++-
+ 1 files changed, 11 insertions(+), 1 deletions(-)
 
-2015-06-16  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.34.7-21-gb08b - Update RT and git commit reports
- src/ChangeLog |    6 ++++++
- 1 files changed, 6 insertions(+), 0 deletions(-)
-
-2015-06-16  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.34.7-20-gd9bc - Update RT and git commit reports
- src/ChangeLog                                  |    6 ++++++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 2 files changed, 7 insertions(+), 1 deletions(-)
-
-2015-06-15  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.34.7-19-g3430a - Update RT and git commit reports
- src/ChangeLog                                  |    5 +++++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 2 files changed, 6 insertions(+), 1 deletions(-)
-
-2015-06-11  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.34.7-18-g1513 - Update RT and git commit reports
- src/ChangeLog |   12 ++++++++++++
- 1 files changed, 12 insertions(+), 0 deletions(-)
-
-2015-06-11  Steve Miller  <sm23@sanger.ac.uk>
- edit of release notes - DOC
- src/doc/User_doc/release_notes.html |    9 +++++++++
- 1 files changed, 9 insertions(+), 0 deletions(-)
-
-2015-06-11  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.34.7-16-gacf2 - Update RT and git commit reports
- src/ChangeLog                                  |   16 ++++++++++++++++
- src/build/release_docs/GIT_COMMITS.txt         |    1 +
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |   12 +++++++++++-
- 3 files changed, 28 insertions(+), 1 deletions(-)
-
-2015-06-11  Steve Miller  <sm23@sanger.ac.uk>
- Merge branch 'release/4.35' into develop
-2015-06-10  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'production' into develop
-2015-06-10  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'production' into release/4.35
-2015-06-10  Gemma Barson  <gb10@sanger.ac.uk>
- Fix bug with sorting by similarity/identity to first sequence - RT 473624
- src/belvuApp/belvuMain.cpp |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
-
-2015-05-19  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.34.1-11-ge787 - Update RT and git commit reports
- src/ChangeLog |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
-
-2015-05-19  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.34.1-10-g5aa6 - Update RT and git commit reports
- src/ChangeLog                                  |  698 ++----------------------
- src/build/release_docs/GIT_COMMITS.txt         |   19 +-
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |   50 +-
- 3 files changed, 83 insertions(+), 684 deletions(-)
-
-2015-05-12  Gemma Barson  <gb10@sanger.ac.uk>
- Fix build problem from latest changes - REGRESSION FIX
- src/test/scripts/manual/Makefile.am |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-2015-05-12  Gemma Barson  <gb10@sanger.ac.uk>
- Fix missing makefiles from previous - BUILD
- src/configure.ac |   12 ++++++++++++
- 1 files changed, 12 insertions(+), 0 deletions(-)
-
-2015-05-12  Gemma Barson  <gb10@sanger.ac.uk>
- Add test and examples directories back into dist - BUILD
- src/Makefile.am                               |    2 +-
- src/examples/Makefile.am                      |   11 ++-
- src/test/Makefile.am                          |    4 +-
- src/test/data/Makefile.am                     |   35 ++++++++
- src/test/scripts/Makefile.am                  |    8 ++
- src/test/scripts/automated/Makefile.am        |    8 ++
- src/test/scripts/automated/belvu/Makefile.am  |  111 +++++++++++++++++++++++++
- src/test/scripts/automated/blixem/Makefile.am |   12 +++
- src/test/scripts/automated/dotter/Makefile.am |   15 ++++
- src/test/scripts/manual/Makefile.am           |    8 ++
- src/test/scripts/manual/belvu/Makefile.am     |    8 ++
- src/test/scripts/manual/blixem/Makefile.am    |    8 ++
- src/test/scripts/manual/dotter/Makefile.am    |    8 ++
- 13 files changed, 234 insertions(+), 4 deletions(-)
-
-2015-05-11  Gemma Barson  <gb10@sanger.ac.uk>
- Fix compiler warnings to do with signed char indices - BUILD
- src/belvuApp/belvu.cpp |  366 ++++++++++++++++++++++++------------------------
- 1 files changed, 183 insertions(+), 183 deletions(-)
-
-2015-05-11  Gemma Barson  <gb10@sanger.ac.uk>
- Fix dependency problem when compiling with multiple threads - RT 467905
- src/belvuApp/Makefile.am  |   10 ++--------
- src/blixemApp/Makefile.am |   10 ++--------
- src/dotterApp/Makefile.am |   10 ++--------
- 3 files changed, 6 insertions(+), 24 deletions(-)
-
-2015-05-01  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'production' into develop
-2015-05-01  Gemma Barson  <gb10@sanger.ac.uk>
- Merge branch 'production' into develop
-2015-04-28  Gemma Barson  <gb10@sanger.ac.uk>
- Fix minor typo in gbtools gitignore - TRIVIAL
- src/gbtools/.gitignore |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-2015-04-24  Gemma Barson  <gb10@sanger.ac.uk>
- Add gbtools README file - BUILD
- src/gbtools/.gitignore |    3 +++
- src/gbtools/README     |   14 ++++++++++++++
- 2 files changed, 17 insertions(+), 0 deletions(-)
-
-2015-04-23  Gemma Barson  <gb10@sanger.ac.uk>
- Make annoying popup a warning instead - TRIVIAL
- src/blixemApp/sequencecellrenderer.cpp |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+2015-06-18  Gemma Guest  <gb10@sanger.ac.uk>
+ Attach error handlers for dotter and belvu - NEW FEATURE 'Error handling'
+ src/belvuApp/belvuMain.cpp   |    4 ++++
+ src/dotterApp/dotterMain.cpp |    5 +++++
+ 2 files changed, 9 insertions(+), 0 deletions(-)
