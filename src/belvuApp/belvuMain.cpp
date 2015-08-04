@@ -517,6 +517,10 @@ static void readScores(char *filename, BelvuContext *bc)
 
 int main(int argc, char **argv)
 {
+  /* Install error handlers */
+  signal(SIGSEGV, errorHandler);
+  signal(SIGFPE, errorHandler);
+
   FILE    
   *file, *pipe;
   

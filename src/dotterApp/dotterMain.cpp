@@ -312,6 +312,11 @@ static void validateOptions(DotterOptions *options)
 int main(int argc, char **argv)
 {
   DEBUG_OUT("dotter main\n");
+
+  /* Install error handlers */
+  signal(SIGSEGV, errorHandler);
+  signal(SIGFPE, errorHandler);
+
   static DotterOptions options;
   setDefaultOptions(&options);
   

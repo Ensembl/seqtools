@@ -150,7 +150,6 @@ static gboolean                coordAffectedByPolyASite(const int dnaIdx,
                                                         const MSP **mspOut,
                                                         gboolean *multipleVariations);
 
-static GtkWidget*              detailViewContainerGetWidget(GtkContainer *container, const char *name);
 static GtkWidget*              detailViewContainerGetParentWidget(GtkContainer *container, GtkWidget *search_child, const char *parent_name);
 static gboolean                detailViewContainerIsParent(GtkContainer *container, GtkWidget *search_child);
 
@@ -574,40 +573,6 @@ static GtkWidget *treeContainerGetTree(GtkContainer *container)
           else if (GTK_IS_CONTAINER(childWidget))
            {
              result = treeContainerGetTree(GTK_CONTAINER(childWidget));
-           }
-        }
-    }
-
-  g_list_free(children);
-  
-  return result;
-}
-
-
-/* Given a container that contains a single widget with the given name in its child
- * hierarchy, return that widget (doesn't check if there's only one, just
- * returns the first one). */
-static GtkWidget *detailViewContainerGetWidget(GtkContainer *container, const char *name)
-{
-  GtkWidget *result = NULL;
-  
-  GList *children = gtk_container_get_children(container);
-  GList *child = children;
-  
-  for ( ; child && !result; child = child->next)
-    {
-      if (GTK_IS_WIDGET(child->data))
-        {
-          GtkWidget *childWidget = GTK_WIDGET(child->data);
-          
-          if (strcmp(gtk_widget_get_name(childWidget), name) == 0)
-            {
-              result = childWidget;
-              break;
-            }
-          else if (GTK_IS_CONTAINER(childWidget))
-           {
-             result = detailViewContainerGetWidget(GTK_CONTAINER(childWidget), name);
            }
         }
     }
@@ -4388,16 +4353,16 @@ static void detailViewCreateProperties(GtkWidget *detailView,
         {
           GtkWidget *widget = GTK_WIDGET(fwdStrandTrees->data);
 
-          GtkWidget *tree = widgetIsTree(widget) ? widget : treeContainerGetTree(GTK_CONTAINER(widget));
-          gtk_widget_realize(tree); /* must realize tree to pick up any overriden style properties */
+          //GtkWidget *tree = widgetIsTree(widget) ? widget : treeContainerGetTree(GTK_CONTAINER(widget));
+          //gtk_widget_realize(tree); /* must realize tree to pick up any overriden style properties */
             
           /* I can't get this to work properly using gtk_tree_view_get_cell_area etc. The cell
            * area and background area come out wrong - perhaps because I'm not using a real
            * row path. After a bit of experimentation it seems that the y padding is always
            * related to the vertical-separator as follows: ypad = trunc(vseparator / 2) + 1 */
-          gint vertical_separator, horizontal_separator;
-          gtk_widget_style_get (tree, "vertical-separator", &vertical_separator, NULL);
-          gtk_widget_style_get (tree, "horizontal-separator", &horizontal_separator, NULL);
+          gint vertical_separator = 0, horizontal_separator = 0;
+          //gtk_widget_style_get (tree, "vertical-separator", &vertical_separator, NULL);
+          //gtk_widget_style_get (tree, "horizontal-separator", &horizontal_separator, NULL);
           
           properties->cellXPadding = (horizontal_separator / 2) + 1;
           properties->cellYPadding = (vertical_separator / 2) + 1;

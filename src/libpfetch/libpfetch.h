@@ -100,7 +100,7 @@ GType PFetchHandleGetType(void);
 PFetchHandle  PFetchHandleNew            (GType type);
 PFetchStatus  PFetchHandleSettings       (PFetchHandle  pfetch, const gchar *first_arg_name, ...);
 PFetchStatus  PFetchHandleSettings_valist(PFetchHandle  pfetch, const gchar *first_arg_name, va_list args);
-PFetchStatus  PFetchHandleFetch          (PFetchHandle  pfetch, char *sequence);
+  PFetchStatus  PFetchHandleFetch          (PFetchHandle  pfetch, char *sequence, GError **error);
 PFetchHandle  PFetchHandleDestroy        (PFetchHandle  pfetch);
 
 

@@ -122,6 +122,7 @@ typedef enum
 #define HTTP_FETCH_PORT           "port"
 #define HTTP_FETCH_ARGS           "request"
 #define HTTP_FETCH_COOKIE_JAR     "cookie-jar"
+#define HTTP_FETCH_PROXY          "proxy"
 
 #define PIPE_FETCH_LOCATION       "command"
 #define PIPE_FETCH_ARGS           "args"
@@ -244,6 +245,7 @@ typedef struct _BlxFetchMethod
   char *node;                       /* for socket fetch mode */
   int port;                         /* for socket and http/pipe fetch modes */
   char *cookie_jar;                 /* for http/pipe fetch mode */
+  char *proxy;                      /* for http/pipe fetch mode */
   char *args;                       /* arguments/query/request */
   GArray *columns;                  /* for db-fetch, the list of columns the query will populate */
 

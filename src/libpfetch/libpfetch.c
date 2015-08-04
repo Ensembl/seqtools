@@ -117,7 +117,7 @@ PFetchStatus PFetchHandleSettings(PFetchHandle pfetch, const gchar *first_arg_na
   return status;
 }
 
-PFetchStatus PFetchHandleFetch(PFetchHandle pfetch, char *request)
+PFetchStatus PFetchHandleFetch(PFetchHandle pfetch, char *request, GError **error)
 {
   PFetchStatus status = PFETCH_STATUS_OK;
 
@@ -136,7 +136,7 @@ PFetchStatus PFetchHandleFetch(PFetchHandle pfetch, char *request)
     }
 
   if(status == PFETCH_STATUS_OK)
-    status   = (* PFETCH_HANDLE_GET_CLASS(pfetch)->fetch)(pfetch, request);
+    status   = (* PFETCH_HANDLE_GET_CLASS(pfetch)->fetch)(pfetch, request, error);
 
   return status;
 }
@@ -158,7 +158,7 @@ PFetchStatus PFetchHandleFetchMultiple(PFetchHandle pfetch, char **sequences, co
 	  g_string_append_printf(seq_string, "%s%s", *seq_ptr, separator);
 	}
 
-      status = PFetchHandleFetch(pfetch, seq_string->str);
+      status = PFetchHandleFetch(pfetch, seq_string->str, NULL);
 
       g_string_free(seq_string, TRUE);
     }
@@ -477,7 +477,7 @@ static void pfetch_pipe_handle_init(PFetchHandlePipe pfetch);
 static void pfetch_pipe_handle_dispose(GObject *gobject);
 static void pfetch_pipe_handle_finalize(GObject *gobject);
 
-static PFetchStatus pfetch_pipe_fetch(PFetchHandle handle, char *sequence);
+static PFetchStatus pfetch_pipe_fetch(PFetchHandle handle, char *sequence, GError **error);
 
 static gboolean pipe_stdout_func(GIOChannel *source, GIOCondition condition, gpointer user_data);
 static gboolean pipe_stderr_func(GIOChannel *source, GIOCondition condition, gpointer user_data);
@@ -569,12 +569,11 @@ static void pfetch_pipe_handle_init(PFetchHandlePipe pfetch)
 }
 
 
-static PFetchStatus pfetch_pipe_fetch(PFetchHandle handle, char *request)
+static PFetchStatus pfetch_pipe_fetch(PFetchHandle handle, char *request, GError **error)
 {
   PFetchHandlePipe pipe = PFETCH_PIPE_HANDLE(handle);
   ChildWatchData child_data = NULL;
   PFetchStatus status = PFETCH_STATUS_OK;
-  GError *error = NULL;
   gulong reader_id, writer_id, error_id;
   char *argv[256];
   gboolean result;
@@ -609,7 +608,7 @@ static PFetchStatus pfetch_pipe_fetch(PFetchHandle handle, char *request)
 					 (reader_id != 0 ? pipe_stdout_func : NULL),
 					 (error_id  != 0 ? pipe_stderr_func : NULL),
 					 (gpointer)pipe,
-					 NULL, &error, 
+					 NULL, error, 
 					 pfetch_child_watch_func, child_data,
 					 &(pipe->stdin_source_id),
 					 &(pipe->stdout_source_id),
@@ -1120,7 +1119,7 @@ static void pfetch_http_handle_get_property(GObject    *gobject,
 					    GValue     *value, 
 					    GParamSpec *pspec);
 
-static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request);
+static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError **error);
 
 static size_t http_curl_write_func (void *ptr, size_t size, size_t nmemb, void *stream);
 static size_t http_curl_header_func(void *ptr, size_t size, size_t nmemb, void *stream);
@@ -1222,6 +1221,12 @@ static void pfetch_http_handle_class_init(PFetchHandleHttpClass pfetch_class)
 						      "netscape cookie jar",
 						      "", PFETCH_PARAM_STATIC_RW));
 
+  g_object_class_install_property(gobject_class,
+				  PFETCH_PROXY,
+				  g_param_spec_string("proxy", "proxy",
+						      "pfetch proxy",
+						      "", PFETCH_PARAM_STATIC_RW));
+
 
 #ifdef DEBUG_DONT_INCLUDE
   handle_class->reader = test_reader;
@@ -1264,6 +1269,11 @@ static void pfetch_http_handle_finalize(GObject *gobject)
 
   pfetch->cookie_jar_location = NULL;
 
+  if(pfetch->proxy)
+    g_free(pfetch->proxy);
+
+  pfetch->proxy = NULL;
+
   return ;
 }
 
@@ -1282,6 +1292,12 @@ static void pfetch_http_handle_set_property(GObject *gobject, guint param_id,
 	g_free(pfetch->cookie_jar_location);
       
       pfetch->cookie_jar_location = g_value_dup_string(value);
+      break;
+    case PFETCH_PROXY:
+      if(pfetch->proxy)
+	g_free(pfetch->proxy);
+      
+      pfetch->proxy = g_value_dup_string(value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID(gobject, param_id, pspec);
@@ -1304,6 +1320,9 @@ static void pfetch_http_handle_get_property(GObject *gobject, guint param_id,
     case PFETCH_COOKIE_JAR:
       g_value_set_string(value, pfetch->cookie_jar_location);
       break;
+    case PFETCH_PROXY:
+      g_value_set_string(value, pfetch->proxy);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID(gobject, param_id, pspec);
       break;
@@ -1312,7 +1331,7 @@ static void pfetch_http_handle_get_property(GObject *gobject, guint param_id,
   return ;
 }
 
-static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request)
+static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError **error)
 {
   PFetchHandleHttp pfetch = PFETCH_HTTP_HANDLE(handle);
   PFetchStatus     status = PFETCH_STATUS_OK;
@@ -1328,6 +1347,7 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request)
 		    /* request */
 		    "postfields",  pfetch->post_data,   
 		    "cookiefile",  pfetch->cookie_jar_location,
+		    "proxy",  pfetch->proxy,
 		    /* functions */
 		    "writefunction",  http_curl_write_func,
 		    "writedata",      pfetch,
@@ -1340,20 +1360,35 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request)
       if(CURLObjectPerform(pfetch->curl_object, TRUE) == CURL_STATUS_FAILED)
 	{
 	  PFetchHandleClass handle_class = PFETCH_HANDLE_GET_CLASS(pfetch);
-	  GError *error = NULL;
+	  GError *g_error = NULL;
 	  char *curl_object_error = NULL;
 	  unsigned int error_size = 0;
 
 	  /* first get message */
 	  CURLObjectErrorMessage(pfetch->curl_object, &curl_object_error);
-	  error_size = strlen(curl_object_error);
 
-	  /* signal error handler... */
-	  emit_signal(PFETCH_HANDLE(pfetch), handle_class->handle_signals[HANDLE_ERROR_SIGNAL],
-		      0, curl_object_error, &error_size, error);
+	  if(curl_object_error)
+            {
+              error_size = strlen(curl_object_error);
+             
+              /* signal error handler... */
+              emit_signal(PFETCH_HANDLE(pfetch), handle_class->handle_signals[HANDLE_ERROR_SIGNAL],
+                          0, curl_object_error, &error_size, g_error);
 	  
-	  if(curl_object_error)	/* needs freeing */
-	    g_free(curl_object_error);
+              g_warning("%s\n", curl_object_error);
+              g_set_error(error, g_quark_from_string("libpfetch"), 1, curl_object_error);
+              g_free(curl_object_error);
+
+              if (g_error)
+                {
+                  g_warning("Error emitting curl error signal: %s\n", curl_object_error);
+                  g_error_free(g_error);
+                }
+            }
+          else
+            {
+              g_set_error(error, g_quark_from_string("libpfetch"), 1, "Error getting curl error message");
+            }
 
 	  /* set our return status */
 	  status = PFETCH_STATUS_FAILED;
@@ -1370,6 +1405,7 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request)
 		    /* request */
 		    "postfields",  pfetch->post_data,   
 		    "cookiefile",  pfetch->cookie_jar_location,
+		    "proxy",  pfetch->proxy,
 		    /* functions */
 		    "writefunction",  http_curl_write_func,
 		    "writedata",      pfetch,
