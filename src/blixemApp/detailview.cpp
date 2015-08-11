@@ -53,6 +53,7 @@
 #define DETAIL_VIEW_FEEDBACK_MATCH_COORD "DetailViewFeedbackMatchCoord"
 #define DETAIL_VIEW_FEEDBACK_MATCH_NAME "DetailViewFeedbackMatchName"
 #define DETAIL_VIEW_FEEDBACK_MATCH_LEN  "DetailViewFeedbackMatchLen"
+#define DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP "Currently selected feature name"
 #define DETAIL_VIEW_FEEDBACK_MIN_WIDTH  2
 #define DETAIL_VIEW_FEEDBACK_MAX_WIDTH  30
 #define SORT_BY_NAME_STRING             "Name"
@@ -944,8 +945,20 @@ static void entrySetContents(GtkWidget *widget, const char *value)
         len = DETAIL_VIEW_FEEDBACK_MIN_WIDTH;
 
       if (len > DETAIL_VIEW_FEEDBACK_MAX_WIDTH)
-        len = DETAIL_VIEW_FEEDBACK_MAX_WIDTH;
-      
+        {
+          len = DETAIL_VIEW_FEEDBACK_MAX_WIDTH;
+
+          /* For the Name box, if the name length has exceeded the box width then also set the
+           * name as the tooltip so that the user can easily see the full name. Otherwise, use
+           * the default tooltip text */
+          if (stringsEqual(gtk_widget_get_name(widget), DETAIL_VIEW_FEEDBACK_MATCH_NAME, TRUE))
+            gtk_widget_set_tooltip_text(widget, value);
+        }
+      else if (stringsEqual(gtk_widget_get_name(widget), DETAIL_VIEW_FEEDBACK_MATCH_NAME, TRUE))
+        {
+          gtk_widget_set_tooltip_text(widget, DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP);
+        }
+
       gtk_widget_set_size_request(widget, len * charWidth, -1) ;
     }
 }
@@ -5723,6 +5736,12 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
   gtk_widget_set_name(matchCoordEntry, DETAIL_VIEW_FEEDBACK_MATCH_COORD);
   gtk_widget_set_name(matchNameEntry, DETAIL_VIEW_FEEDBACK_MATCH_NAME);
   gtk_widget_set_name(matchLenEntry, DETAIL_VIEW_FEEDBACK_MATCH_LEN);
+
+  /* Set widget tooltips */
+  gtk_widget_set_tooltip_text(refCoordEntry, "Currently selected reference sequence coord");
+  gtk_widget_set_tooltip_text(matchCoordEntry, "Currently selected match sequence coord");
+  gtk_widget_set_tooltip_text(matchNameEntry, DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP);
+  gtk_widget_set_tooltip_text(matchLenEntry, "Currently selected match sequence length");
 
   /* User can copy text out but not edit contents */
   gtk_editable_set_editable(GTK_EDITABLE(refCoordEntry), FALSE);
