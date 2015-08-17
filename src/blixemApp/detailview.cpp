@@ -2191,7 +2191,7 @@ static BlxColorId getMspSpliceSiteColor(const MSP* const msp,
               break;
             }
         }
-      else if (!maybe_canonical) /* don't need to check if already set */
+      else if (bc->flags[BLXFLAG_SHOW_MAYBE_CANONICAL] && !maybe_canonical) /* don't need to check if already set */
         {
           /* Check if the revcomp would be canonical. Toggle the donor and revStrand flags - this gets
            * the expected bases as if it were the "other" splice site (i.e. donor vs acceptor)

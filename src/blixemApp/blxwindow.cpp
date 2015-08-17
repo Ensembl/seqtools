@@ -3925,7 +3925,9 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   GtkContainer *colinearityContainer = createParentCheckButton(optionsBox, detailView, bc, "Show _colinearity lines", BLXFLAG_SHOW_COLINEARITY, NULL, G_CALLBACK(onParentBtnToggled));
   createCheckButton(GTK_BOX(colinearityContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_COLINEARITY_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_COLINEARITY_SELECTED));
 
-  createCheckButton(GTK_BOX(optionsBox), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
+  /* Show splice-sites option and its sub-options */
+  GtkContainer *spliceSitesContainer = createParentCheckButton(optionsBox, detailView, bc, "Show Sp_lice Sites for selected seqs", BLXFLAG_SHOW_SPLICE_SITES, NULL, G_CALLBACK(onParentBtnToggled));
+  createCheckButton(GTK_BOX(spliceSitesContainer), "Highlight \"maybe canonical\" splice sites", bc->flags[BLXFLAG_SHOW_MAYBE_CANONICAL], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_MAYBE_CANONICAL));
 
   createCheckButton(GTK_BOX(optionsBox), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
   createCheckButton(GTK_BOX(optionsBox), "_Squash matches", squashMatches, G_CALLBACK(onSquashMatches), NULL);
@@ -5548,6 +5550,7 @@ static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *opti
   blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
   blxContext->flags[BLXFLAG_SHOW_SPLICE_SITES] = TRUE;
+  blxContext->flags[BLXFLAG_SHOW_MAYBE_CANONICAL] = TRUE;
   blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
   blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
   blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;

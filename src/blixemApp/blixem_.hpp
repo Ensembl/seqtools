@@ -346,6 +346,7 @@ typedef enum
     BLXFLAG_SHOW_POLYA_SIG,         /* Show polyA signals in the reference sequence */
     BLXFLAG_SHOW_POLYA_SIG_SELECTED,/* Only show polyA signals for the currently-selected sequence(s) */
     BLXFLAG_SHOW_SPLICE_SITES,      /* Highlights splice sites in the reference sequence for the currently-selected MSPs */
+    BLXFLAG_SHOW_MAYBE_CANONICAL,   /* Highlights "maybe canonical" splice sites */
     BLXFLAG_OPTIONAL_COLUMNS,       /* Gets set to true if the optional columns have been loaded */
     BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
     BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */
