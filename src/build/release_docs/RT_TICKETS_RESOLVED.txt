@@ -1,13 +1,23 @@
 
-Request Tracker Tickets Resolved from 11/06/2015 to 29/07/2015
+Request Tracker Tickets Resolved from 15/07/2015 to 17/08/2015
 
-ticket/473624
-id: ticket/473624
+ticket/466911
+id: ticket/466911
 Queue: seqtools
-Subject: Belvu -- Failure to sort the MSA according to the sequence identity of the first sequence
-Requestors: su.lam.13@ucl.ac.uk
+Subject: Blixem- murrine error messages
+Requestors: clb@sanger.ac.uk, erb@sanger.ac.uk
 Owner: gb10
-Resolved: Thu Jun 11 09:43:08 2015
+Resolved: Fri Aug 07 16:32:22 2015
+CF.{zmapace_gitcommit}: 
+CF.{zmapace_resolve_version}: 
+
+ticket/483779
+id: ticket/483779
+Queue: seqtools
+Subject: Blixem - position window is too small to show coordinates of pacbio reads
+Requestors: cas@sanger.ac.uk
+Owner: gb10
+Resolved: Tue Aug 11 17:11:55 2015
 CF.{zmapace_gitcommit}: 
 CF.{zmapace_resolve_version}: 
 
