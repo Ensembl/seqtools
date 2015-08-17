@@ -292,6 +292,9 @@ typedef enum
     BLXCOLOR_UNALIGNED_SEQ, /* color in which to show additional sequence in the match that is not part of the alignment */
     BLXCOLOR_CANONICAL,     /* background highlight color for canonical intron bases */
     BLXCOLOR_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
+    BLXCOLOR_MAYBE_CANONICAL,/* background highlight color for splice sites that are "maybe"
+                              * canonical, that is, that would be canonical if on the other
+                              * strand (helps to identify problems in data; common with BAM) */
     BLXCOLOR_POLYA_TAIL,    /* background color for polyA tails in the detail view */
     BLXCOLOR_POLYA_SIGNAL,  /* background color for non-annotated polyA signals in the detail view */
     BLXCOLOR_POLYA_SIGNAL_ANN,/* background color for annotated polyA signals in the detail view */
