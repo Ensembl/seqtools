@@ -168,6 +168,8 @@ static void                       copySelectedSeqRangeToClipboard(GtkWidget *blx
 static void                       copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
 static void                       copyRefSeqTranslationToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
 
+static void                       saveBlixemSettings(GtkWidget *blxWindow);
+
 
 /* MENU BUILDERS */
 
@@ -3860,6 +3862,13 @@ void onResponseSettingsDialog(GtkDialog *dialog, gint responseId, gpointer data)
     resetSettings(dialogChildGetBlxWindow(GTK_WIDGET(dialog)));
   else
     onResponseDialog(dialog, responseId, data); /* default handler */
+
+  /* If the save button was pressed, also save these settings to the config file */
+  if (responseId == GTK_RESPONSE_ACCEPT)
+    {
+      GtkWidget *blxWindow = dialogChildGetBlxWindow(GTK_WIDGET(dialog));
+      saveBlixemSettings(blxWindow);
+    }
 }
 
 
@@ -3882,11 +3891,11 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
 //                                           "Reset to defaults",
 //                                           BLX_RESPONSE_RESET,
-                                           GTK_STOCK_CANCEL,
+                                           GTK_STOCK_CLOSE,
                                            GTK_RESPONSE_REJECT,
                                            GTK_STOCK_APPLY,
                                            GTK_RESPONSE_APPLY,
-                                           GTK_STOCK_OK,
+                                           GTK_STOCK_SAVE,
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
 
@@ -5412,6 +5421,8 @@ static void saveBlixemSettingsFlags(BlxViewContext *bc, GKeyFile *key_file)
  * a config file. */
 static void saveBlixemSettings(GtkWidget *blxWindow)
 {
+  g_return_if_fail(blxWindow);
+
   char *filename = g_strdup_printf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
@@ -5443,8 +5454,6 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(widget);
   
-  saveBlixemSettings(widget);
-
   if (properties)
     {
       destroyBlxContext(&properties->blxContext);
