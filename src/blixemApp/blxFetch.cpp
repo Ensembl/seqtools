@@ -1241,13 +1241,21 @@ static gboolean httpFetchSequence(const BlxSequence *blxSeq,
           
           if (PFETCH_IS_HTTP_HANDLE(pfetch_data->pfetch))
             {
-              PFetchHandleSettings(pfetch_data->pfetch, 
-                                   "port",       fetchMethod->port,
-                                   "debug",      debug_pfetch,
-                                   "pfetch",     fetchMethod->location,
-                                   "cookie-jar", fetchMethod->cookie_jar,
-                                   "proxy",      fetchMethod->proxy,
-                                   NULL);
+              if (fetchMethod->proxy)
+                PFetchHandleSettings(pfetch_data->pfetch, 
+                                     "port",       fetchMethod->port,
+                                     "debug",      debug_pfetch,
+                                     "pfetch",     fetchMethod->location,
+                                     "cookie-jar", fetchMethod->cookie_jar,
+                                     "proxy",      fetchMethod->proxy,
+                                     NULL);
+              else
+                PFetchHandleSettings(pfetch_data->pfetch, 
+                                     "port",       fetchMethod->port,
+                                     "debug",      debug_pfetch,
+                                     "pfetch",     fetchMethod->location,
+                                     "cookie-jar", fetchMethod->cookie_jar,
+                                     NULL);
             }
           else
             {
