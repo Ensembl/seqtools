@@ -171,6 +171,7 @@ typedef enum
 #define SETTING_NAME_SHOW_POLYA_SIG "show-poly-sig"
 #define SETTING_NAME_SHOW_POLYA_SIG_SELECTED "show-polya-sig-selected-seq"
 #define SETTING_NAME_SHOW_SPLICE_SITES "show-splice-sites"
+#define SETTING_NAME_SHOW_MAYBE_CANONICAL "show-maybe-canonical"
 #define SETTING_NAME_SQUASH_MATCHES "squash-matches"
 #define SETTING_NAME_SHOW_COLINEARITY "show-colinearity"
 #define SETTING_NAME_SHOW_COLINEARITY_SELECTED "show-colinearity-selected"
