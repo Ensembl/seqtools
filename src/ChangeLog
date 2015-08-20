@@ -1,3 +1,10 @@
+2015-08-17  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.36-4-g79d7 - Update RT and git commit reports
+ src/ChangeLog                                  |   92 +++---------------------
+ src/build/release_docs/GIT_COMMITS.txt         |    7 +--
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   22 ++++--
+ 3 files changed, 29 insertions(+), 92 deletions(-)
+
 2015-08-11  Gemma Guest  <gb10@sanger.ac.uk>
  Add tooltips to feedback boxes - TRIVIAL
  src/blixemApp/detailview.cpp |   23 +++++++++++++++++++++--
