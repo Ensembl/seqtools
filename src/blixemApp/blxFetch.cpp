@@ -1993,9 +1993,9 @@ static void cancelCB(GtkWidget *widget, gpointer cb_data)
        * over http or when pfetch-http is cancelled. This can continue in the background even if
        * blixem then seems to start up ok. For now, make the Cancel button quit blixem
        * altogether so that it at least is easy to get out of this state. */
-      g_message("Cancelled http-fetch: quitting Blixem\n");
+      g_message("\nCancelled http-fetch: quitting Blixem\n");
 
-      gtk_main_quit() ;
+      exit(1);
     }
 #endif
 
