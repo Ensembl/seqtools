@@ -97,6 +97,7 @@ typedef struct
 
   gboolean cancelled ;
   int seq_total ;
+  BlxFetchMode fetch_mode ;
 } ProgressBarStruct, *ProgressBar ;
 
 
@@ -191,7 +192,7 @@ static gboolean                    httpFetchSequence(const BlxSequence *blxSeq, 
 static int                         socketConstruct(const char *ipAddress, int port, gboolean External, GError **error) ;
 static void                        socketSend(int sock, const char *text, GError **error) ;
 
-static ProgressBar                 makeProgressBar(int seq_total) ;
+static ProgressBar                 makeProgressBar(int seq_total, const BlxFetchMode fetch_mode) ;
 static void                        updateProgressBar(ProgressBar bar, const char *sequence, int numFetched, gboolean fetch_ok) ;
 static gboolean                    isCancelledProgressBar(ProgressBar bar) ;
 static void                        destroyProgressBar(ProgressBar bar) ;
@@ -1053,7 +1054,7 @@ static gboolean httpFetchList(GList *seqsToFetch,
   fetch_data.fetchData.numRequested = g_list_length(seqsToFetch);
   fetch_data.fetchData.numFetched = 0;
   fetch_data.fetchData.numSucceeded = 0;
-  fetch_data.fetchData.bar = makeProgressBar(fetch_data.fetchData.numRequested) ;
+  fetch_data.fetchData.bar = makeProgressBar(fetch_data.fetchData.numRequested, fetchMethod->mode) ;
   fetch_data.fetchData.curLine = g_string_new("");
   fetch_data.fetchData.sectionId[0] = ' ';
   fetch_data.fetchData.sectionId[1] = ' ';
@@ -1349,7 +1350,7 @@ gboolean socketFetchList(GList *seqsToFetch,
       char buffer[RCVBUFSIZE + 1];
       fetchData.buffer = buffer;
       fetchData.numRequested = g_list_length(seqsToFetch); /* total number of sequences requested */
-      fetchData.bar = makeProgressBar(fetchData.numRequested);
+      fetchData.bar = makeProgressBar(fetchData.numRequested, fetchMethod->mode);
       fetchData.numFetched = 0;
       fetchData.numSucceeded = 0;
       fetchData.parserState = PARSING_NEWLINE;
@@ -1866,13 +1867,14 @@ static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod,
 
 /* Functions to display, update, cancel and remove a progress meter. */
 
-static ProgressBar makeProgressBar(int seq_total)
+static ProgressBar makeProgressBar(int seq_total, const BlxFetchMode fetch_mode)
 {
   ProgressBar bar = g_new0(ProgressBarStruct, 1) ;
 
   bar->seq_total = seq_total ;
   bar->cancelled = FALSE;
   bar->widget_destroy_handler_id = 0;
+  bar->fetch_mode = fetch_mode;
   
   gdk_color_parse("blue", &(bar->blue_bar_fg)) ;
   gdk_color_parse("red", &(bar->red_bar_fg)) ;
@@ -1907,8 +1909,15 @@ static ProgressBar makeProgressBar(int seq_total)
 
   GtkWidget *cancel_button = gtk_button_new_with_label("Cancel") ;
   gtk_box_pack_start(GTK_BOX(hbox), cancel_button, TRUE, TRUE, 0) ;
-
   gtk_signal_connect(GTK_OBJECT(cancel_button), "clicked", GTK_SIGNAL_FUNC(cancelCB), (gpointer)bar) ;
+
+#ifdef PFETCH_HTML
+  /* We need to quit if the user cancels http-fetch due to a bug on the mac. See \note "Bad file descriptor" */
+  if (fetch_mode == BLXFETCH_MODE_HTTP)
+    gtk_widget_set_tooltip_text(cancel_button, "Cancel the current operation and exit the program");
+  else
+#endif
+    gtk_widget_set_tooltip_text(cancel_button, "Cancel the current operation and continue to start up the program");
 
   gtk_widget_show_all(bar->top_level) ;
   
@@ -1974,6 +1983,21 @@ static void cancelCB(GtkWidget *widget, gpointer cb_data)
   ProgressBar bar = (ProgressBar)cb_data ;
 
   bar->cancelled = TRUE ;
+
+#ifdef PFETCH_HTML
+  if (bar->fetch_mode == BLXFETCH_MODE_HTTP)
+    {
+      /*! \note "Bad file descriptor"
+       * There is a bug somewhere (in GTK or in our use of it) which means that on the mac GTK
+       * can get into an infinite loop of issuing "Bad file descriptor" error messages when pfetching
+       * over http or when pfetch-http is cancelled. This can continue in the background even if
+       * blixem then seems to start up ok. For now, make the Cancel button quit blixem
+       * altogether so that it at least is easy to get out of this state. */
+      g_message("Cancelled http-fetch: quitting Blixem\n");
+
+      gtk_main_quit() ;
+    }
+#endif
 
   return ;
 }
