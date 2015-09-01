@@ -49,6 +49,13 @@
 
 #define DETAIL_VIEW_TOOLBAR_NAME        "DetailViewToolbarName"
 #define DETAIL_VIEW_WIDGET_NAME         "DetailViewWidget"
+#define DETAIL_VIEW_FEEDBACK_REF_COORD  "DetailViewFeedbackRefCoord"
+#define DETAIL_VIEW_FEEDBACK_MATCH_COORD "DetailViewFeedbackMatchCoord"
+#define DETAIL_VIEW_FEEDBACK_MATCH_NAME "DetailViewFeedbackMatchName"
+#define DETAIL_VIEW_FEEDBACK_MATCH_LEN  "DetailViewFeedbackMatchLen"
+#define DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP "Currently selected feature name"
+#define DETAIL_VIEW_FEEDBACK_MIN_WIDTH  2
+#define DETAIL_VIEW_FEEDBACK_MAX_WIDTH  30
 #define SORT_BY_NAME_STRING             "Name"
 #define SORT_BY_SCORE_STRING            "Score"
 #define SORT_BY_ID_STRING               "Identity"
@@ -923,13 +930,88 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
   DEBUG_EXIT("zoomDetailView returning ");
 }
 
-
-/* Get the text displayed in the user feedback box based on the given MSPs sequence name
- * (if an MSP is given), and also the currently-selected base index (if there is one). 
- * The string returned by this function must be free'd with g_free. */
-static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, const int numSeqsSelected)
+  
+/* set the contents of a text entry box */
+static void entrySetContents(GtkWidget *widget, const char *value)
 {
-  DEBUG_ENTER("getFeedbackText()");
+  if (widget && GTK_IS_ENTRY(widget))
+    {
+      gtk_entry_set_text(GTK_ENTRY(widget), value);
+
+      int len = strlen(value) + 1;
+      const int charWidth = 8;
+
+      if (len < DETAIL_VIEW_FEEDBACK_MIN_WIDTH)
+        len = DETAIL_VIEW_FEEDBACK_MIN_WIDTH;
+
+      if (len > DETAIL_VIEW_FEEDBACK_MAX_WIDTH)
+        {
+          len = DETAIL_VIEW_FEEDBACK_MAX_WIDTH;
+
+          /* For the Name box, if the name length has exceeded the box width then also set the
+           * name as the tooltip so that the user can easily see the full name. Otherwise, use
+           * the default tooltip text */
+          if (stringsEqual(gtk_widget_get_name(widget), DETAIL_VIEW_FEEDBACK_MATCH_NAME, TRUE))
+            gtk_widget_set_tooltip_text(widget, value);
+        }
+      else if (stringsEqual(gtk_widget_get_name(widget), DETAIL_VIEW_FEEDBACK_MATCH_NAME, TRUE))
+        {
+          gtk_widget_set_tooltip_text(widget, DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP);
+        }
+
+      gtk_widget_set_size_request(widget, len * charWidth, -1) ;
+    }
+}
+
+
+/* Clear the contents of a text entry box */
+static void entryClearContents(GtkWidget *widget)
+{
+  entrySetContents(widget, "");
+}
+
+
+/* Clear the contents of all widgets in the feedback box */
+static void feedbackBoxClearValues(GtkWidget *feedbackBox)
+{
+  entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD));
+  entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD));
+  entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME));
+  entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_LEN));
+}
+
+
+/* Set the contents of the child text-entry widget with the given name to the given string value */
+static void feedbackBoxSetString(GtkWidget *feedbackBox, const char *widgetName, const char *value)
+{
+  GtkWidget *widget = getNamedChildWidget(feedbackBox, widgetName);
+  entrySetContents(widget, value);
+}
+
+
+/* Set the contents of the child text-entry widget with the given name to the given int value */
+static void feedbackBoxSetInt(GtkWidget *feedbackBox, const char *widgetName, const int value)
+{
+  GtkWidget *widget = getNamedChildWidget(feedbackBox, widgetName);
+  char *resultString = g_strdup_printf("%d", value);
+
+  entrySetContents(widget, resultString);
+
+  g_free(resultString);
+}
+
+
+/* Set the text displayed in the user feedback boxes based on the given MSPs sequence name
+ * (if an MSP is given), and also the currently-selected base index (if there is one). */
+static void setFeedbackText(GtkWidget *detailView, 
+                            const BlxSequence *seq, 
+                            const int numSeqsSelected, 
+                            GtkWidget *feedbackBox)
+{
+  DEBUG_ENTER("setFeedbackText()");
+
+  /* Clear existing values */
+  feedbackBoxClearValues(feedbackBox);
 
   /* The info we need to find... */
   int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
@@ -978,47 +1060,49 @@ static char* getFeedbackText(GtkWidget *detailView, const BlxSequence *seq, cons
             }
         }
     }
-
-  /* Add all the bits into a text string */
-  GString *resultString = g_string_sized_new(200); /* will be extended if we need more space */
   
   if (detailViewGetSelectedIdxSet(detailView))
     {
       /* Negate the coord for the display, if necessary */
       int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * qIdx : qIdx);
-      g_string_printf(resultString, "%d   ", coord);
+      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, coord);
     }
   
   if (seq)
     {
+      GString *resultString = g_string_sized_new(100);
+
       const char *seqName = blxSequenceGetName(seq);
       const char *sequence = blxSequenceGetSequence(seq);
 
       if (seqName)
         g_string_append_printf(resultString, "%s", seqName);
         
+      /* For variations, also include the variation data in the name box */
       if (seq->type == BLXSEQUENCE_VARIATION && sequence)
         g_string_append_printf(resultString, " : %s", sequence);
+
+      if (resultString->len > 0)
+        feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME, resultString->str);
+
+      g_string_free(resultString, TRUE);
     }
   else if (qIdx != UNSET_INT)
     {
-      g_string_append_printf(resultString, "%s", noSeqText); 
+      feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME, noSeqText);
     }
     
   if (sLen != UNSET_INT && (!seq || seq->type != BLXSEQUENCE_VARIATION))
     {
-      g_string_append_printf(resultString, "(%d)", sLen);
+      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_LEN, sLen);
     }
 
   if (found_sIdx && (!seq || seq->type != BLXSEQUENCE_VARIATION))
     {
-      g_string_append_printf(resultString, " : %d", sIdx);
+      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, sIdx);
     }
   
-  char *messageText = g_string_free(resultString, FALSE);
-  
-  DEBUG_EXIT("getFeedbackText returning %s", messageText);
-  return messageText;
+  DEBUG_EXIT("setFeedbackText returning ");
 }
 
 
@@ -1029,28 +1113,23 @@ void updateFeedbackBox(GtkWidget *detailView)
 {
   DEBUG_ENTER("updateFeedbackBox()");
 
-  char *messageText = NULL;
-
   BlxViewContext *bc = detailViewGetContext(detailView);
   const int numSeqsSelected = g_list_length(bc->selectedSeqs);
-  
-  if (numSeqsSelected == 1) /* currently we only properly handle single sequence selection */
+  const BlxSequence *seq = NULL;
+
+  /* currently we only properly handle single sequence selection so only pass the sequence if 1
+   * and only 1 sequence is selected */
+  if (numSeqsSelected == 1) 
     {
-      const BlxSequence *seq = (const BlxSequence*)(bc->selectedSeqs->data);
-      messageText = getFeedbackText(detailView, seq, numSeqsSelected);
-    }
-  else
-    {
-      /* 0 or multiple MSPs selected. Just see if a base index is selected. */
-      messageText = getFeedbackText(detailView, NULL, numSeqsSelected);
+      seq = (const BlxSequence*)(bc->selectedSeqs->data);
     }
   
   GtkWidget *feedbackBox = detailViewGetFeedbackBox(detailView);
-  gtk_entry_set_text(GTK_ENTRY(feedbackBox), messageText);
+
+  setFeedbackText(detailView, seq, numSeqsSelected, feedbackBox);
+
   gtk_widget_queue_draw(feedbackBox);
   
-  g_free(messageText);
-
   DEBUG_EXIT("updateFeedbackBox returning ");
 }
 
@@ -4351,7 +4430,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
        * that we don't have gaps between rows. */ 
       if (fwdStrandTrees)
         {
-          GtkWidget *widget = GTK_WIDGET(fwdStrandTrees->data);
+          //GtkWidget *widget = GTK_WIDGET(fwdStrandTrees->data);
 
           //GtkWidget *tree = widgetIsTree(widget) ? widget : treeContainerGetTree(GTK_CONTAINER(widget));
           //gtk_widget_realize(tree); /* must realize tree to pick up any overriden style properties */
@@ -5638,29 +5717,56 @@ static void createSeqColHeader(GtkWidget *detailView,
 }
 
 
-/* Create the feedback box. (This feeds back info to the user about the currently-
- * selected base/sequence.) */
+/* Create the feedback box. (This is actually a set of several boxes which feed
+ * back info to the user about the currently-selected base/sequence.) */
 static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
 {
-  GtkWidget *feedbackBox = gtk_entry_new() ;
-
+  /* Put all feedback boxes into a parent hbox */
+  GtkWidget *feedbackBox = gtk_hbox_new(FALSE, 0) ;
   blxSetWidgetColor(feedbackBox, windowColor);
 
-  /* User can copy text out but not edit contents */
-  gtk_editable_set_editable(GTK_EDITABLE(feedbackBox), FALSE);
+  /* Boxes for the ref/match seq coord, the match sequence name and the match sequence len */
+  GtkWidget *refCoordEntry = gtk_entry_new() ;
+  GtkWidget *matchCoordEntry = gtk_entry_new() ;
+  GtkWidget *matchNameEntry = gtk_entry_new() ;
+  GtkWidget *matchLenEntry = gtk_entry_new() ;
 
-  /* want fixed width because feedback area needs as much space as possible - 
-   * could do with a way to make sure this box is always wide enough though */
-  const int numChars = 36; /* guesstimate of max number of chars we'll need */
-  const int charWidth = 8; /* guesstimate of char width for default font */
-  
-  gtk_widget_set_size_request(feedbackBox, numChars * charWidth, -1) ;
-  //GtkToolItem *item = addToolbarWidget(toolbar, feedbackBox, 0) ;
-  //gtk_tool_item_set_expand(item, FALSE); 
+  /* Set widget names so that we can find the correct widget when we update values */
+  gtk_widget_set_name(refCoordEntry, DETAIL_VIEW_FEEDBACK_REF_COORD);
+  gtk_widget_set_name(matchCoordEntry, DETAIL_VIEW_FEEDBACK_MATCH_COORD);
+  gtk_widget_set_name(matchNameEntry, DETAIL_VIEW_FEEDBACK_MATCH_NAME);
+  gtk_widget_set_name(matchLenEntry, DETAIL_VIEW_FEEDBACK_MATCH_LEN);
+
+  /* Set widget tooltips */
+  gtk_widget_set_tooltip_text(refCoordEntry, "Currently selected reference sequence coord");
+  gtk_widget_set_tooltip_text(matchCoordEntry, "Currently selected match sequence coord");
+  gtk_widget_set_tooltip_text(matchNameEntry, DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP);
+  gtk_widget_set_tooltip_text(matchLenEntry, "Currently selected match sequence length");
+
+  /* User can copy text out but not edit contents */
+  gtk_editable_set_editable(GTK_EDITABLE(refCoordEntry), FALSE);
+  gtk_editable_set_editable(GTK_EDITABLE(matchCoordEntry), FALSE);
+  gtk_editable_set_editable(GTK_EDITABLE(matchNameEntry), FALSE);
+  gtk_editable_set_editable(GTK_EDITABLE(matchLenEntry), FALSE);
+
+  /* Set initial size, otherwise they're quite big empty boxes! */
+  const int charWidth = 8; /* guesstimate */
+  gtk_widget_set_size_request(refCoordEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
+  gtk_widget_set_size_request(matchCoordEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
+  gtk_widget_set_size_request(matchNameEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
+  gtk_widget_set_size_request(matchLenEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
+
+  gtk_box_pack_start(GTK_BOX(feedbackBox), refCoordEntry, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(feedbackBox), matchCoordEntry, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(feedbackBox), matchNameEntry, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(feedbackBox), matchLenEntry, FALSE, FALSE, 0);
   
   /* We want the box to be printed, so connect the expose function that will 
    * draw to a pixmap for printing */
-  g_signal_connect(G_OBJECT(feedbackBox), "expose-event", G_CALLBACK(onExposePrintable), NULL);
+  g_signal_connect(G_OBJECT(refCoordEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
+  g_signal_connect(G_OBJECT(matchCoordEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
+  g_signal_connect(G_OBJECT(matchNameEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
+  g_signal_connect(G_OBJECT(matchLenEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
   
   return feedbackBox;
 }

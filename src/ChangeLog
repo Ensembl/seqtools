@@ -1,84 +1,21 @@
-2015-07-23  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.35-14-g2d13 - Update RT and git commit reports
- src/ChangeLog |    6 ++++++
- 1 files changed, 6 insertions(+), 0 deletions(-)
+2015-08-17  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.36-4-g79d7 - Update RT and git commit reports
+ src/ChangeLog                                  |   92 +++---------------------
+ src/build/release_docs/GIT_COMMITS.txt         |    7 +--
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   22 ++++--
+ 3 files changed, 29 insertions(+), 92 deletions(-)
 
-2015-07-23  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.35-13-g2f52 - Update RT and git commit reports
- src/ChangeLog                                  |   16 ++++++++++++++++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 2 files changed, 17 insertions(+), 1 deletions(-)
+2015-08-11  Gemma Guest  <gb10@sanger.ac.uk>
+ Add tooltips to feedback boxes - TRIVIAL
+ src/blixemApp/detailview.cpp |   23 +++++++++++++++++++++--
+ 1 files changed, 21 insertions(+), 2 deletions(-)
 
-2015-07-22  Gemma Guest  <gb10@sanger.ac.uk>
- Add facility to set proxy from config file - WIP
- src/blixemApp/blixem_.hpp     |    2 ++
- src/blixemApp/blxFetch.cpp    |    4 ++++
- src/blixemApp/detailview.cpp  |   37 +------------------------------------
- src/libpfetch/libcurlobject.c |    5 +++++
- src/libpfetch/libpfetch.c     |   22 ++++++++++++++++++++++
- src/libpfetch/libpfetch_I.h   |    2 ++
- 6 files changed, 36 insertions(+), 36 deletions(-)
+2015-08-11  Gemma Guest  <gb10@sanger.ac.uk>
+ There are now separate feedback boxes for seq name and coords - NEW FEATURE 'Feedback box'
+ src/blixemApp/detailview.cpp |  179 +++++++++++++++++++++++++++++++-----------
+ 1 files changed, 133 insertions(+), 46 deletions(-)
 
-2015-07-17  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.35-11-g5cab - Update RT and git commit reports
- src/ChangeLog                                  |   12 ++++++++++++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 2 files changed, 13 insertions(+), 1 deletions(-)
-
-2015-07-15  Gemma Guest  <gb10@sanger.ac.uk>
- Update release notes - DOC
- src/doc/User_doc/release_notes.html |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
-
-2015-07-15  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.35-9-gfbc6 - Update RT and git commit reports
- src/ChangeLog                                  |  154 +++++------------------
- src/build/release_docs/GIT_COMMITS.txt         |    9 +-
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |   52 +--------
- 3 files changed, 40 insertions(+), 175 deletions(-)
-
-2015-07-15  Gemma Guest  <gb10@sanger.ac.uk>
- Remove unnecessary realize step - TRIVIAL
- src/blixemApp/detailview.cpp |    8 ++++----
- 1 files changed, 4 insertions(+), 4 deletions(-)
-
-2015-07-15  Gemma Guest  <gb10@sanger.ac.uk>
- fix incorrect return status in http fetch - TRIVIAL
- src/blixemApp/blxFetch.cpp |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-2015-06-26  Steve Miller  <sm23@sanger.ac.uk>
+2015-08-04  Gemma Guest  <gb10@sanger.ac.uk>
  Merge branch 'production' into develop
-2015-06-24  Gemma Guest  <gb10@sanger.ac.uk>
- Minor change to error message format - TRIVIAL
- src/blixemApp/blxFetch.cpp |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-2015-06-24  Gemma Guest  <gb10@sanger.ac.uk>
- Improve error reporting in http fetch - NEW FEATURE 'Error reporting'
- src/blixemApp/blxFetch.cpp  |  150 ++++++++++++++++++++++++++----------------
- src/libpfetch/libpfetch.c   |   46 +++++++++-----
- src/libpfetch/libpfetch.h   |    2 +-
- src/libpfetch/libpfetch_I.h |    2 +-
- 4 files changed, 125 insertions(+), 75 deletions(-)
-
-2015-06-23  Gemma Guest  <gb10@sanger.ac.uk>
- Fix compiler warnings and add logging for pfetch fix - TRIVIAL
- src/libpfetch/libcurlobject.c |   19 +++++++++++++++++--
- 1 files changed, 17 insertions(+), 2 deletions(-)
-
-2015-06-19  Gemma Guest  <gb10@sanger.ac.uk>
- Fix for http-pfetch on trusty - RT 474213
- src/libpfetch/libcurlobject.c |   96 +++++++++++++++++++++++++----------------
- 1 files changed, 59 insertions(+), 37 deletions(-)
-
-2015-06-18  Gemma Guest  <gb10@sanger.ac.uk>
- Reduce max size of gdk window to help avoid crashing - BUG FIX
- src/dotterApp/dotplot.cpp |   12 +++++++++++-
- 1 files changed, 11 insertions(+), 1 deletions(-)
-
-2015-06-18  Gemma Guest  <gb10@sanger.ac.uk>
- Attach error handlers for dotter and belvu - NEW FEATURE 'Error handling'
- src/belvuApp/belvuMain.cpp   |    4 ++++
- src/dotterApp/dotterMain.cpp |    5 +++++
- 2 files changed, 9 insertions(+), 0 deletions(-)
+2015-07-23  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'release/4.36' into develop
