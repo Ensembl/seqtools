@@ -1,10 +1,7 @@
 
-Git commits for  from commit "production" until commit "release/4.36"
+Git commits for  from commit "production" until commit "release/4.37"
 
-6ed7d13 2015-06-24 Improve error reporting in http fetch - NEW FEATURE 'Error reporting'
-fd906c1 2015-06-19 Fix for http-pfetch on trusty - RT 474213
-bc97cb5 2015-06-18 Reduce max size of gdk window to help avoid crashing - BUG FIX
-bd19a11 2015-06-18 Attach error handlers for dotter and belvu - NEW FEATURE 'Error handling'
+251cae7 2015-08-11 There are now separate feedback boxes for seq name and coords - NEW FEATURE 'Feedback box'
 
 
 End of git commits
