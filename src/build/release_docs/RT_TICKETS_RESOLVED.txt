@@ -1,13 +1,13 @@
 
-Request Tracker Tickets Resolved from 15/07/2015 to 20/08/2015
+Request Tracker Tickets Resolved from 11/08/2015 to 14/09/2015
 
-ticket/466911
-id: ticket/466911
+ticket/483136
+id: ticket/483136
 Queue: seqtools
-Subject: Blixem- murrine error messages
-Requestors: clb@sanger.ac.uk, erb@sanger.ac.uk
+Subject: pfetch
+Requestors: sb71945@gmail.com
 Owner: gb10
-Resolved: Fri Aug 07 16:32:22 2015
+Resolved: Mon Sep 07 11:45:34 2015
 CF.{zmapace_gitcommit}: 
 CF.{zmapace_resolve_version}: 
 
