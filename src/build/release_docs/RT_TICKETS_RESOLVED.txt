@@ -1,5 +1,5 @@
 
-Request Tracker Tickets Resolved from 11/08/2015 to 14/09/2015
+Request Tracker Tickets Resolved from 11/08/2015 to 16/09/2015
 
 ticket/483136
 id: ticket/483136

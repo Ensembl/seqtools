@@ -1,3 +1,10 @@
+2015-09-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.37.0-14-gb1fc - Update RT and git commit reports
+ src/ChangeLog                                  |   88 ++++++++++++++++++------
+ src/build/release_docs/GIT_COMMITS.txt         |    7 ++-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   12 ++--
+ 3 files changed, 79 insertions(+), 28 deletions(-)
+
 2015-09-01  Ed Griffiths  <edgrif@sanger.ac.uk>
  Merge branch 'production' into develop
 2015-08-24  Gemma Guest  <gb10@sanger.ac.uk>
