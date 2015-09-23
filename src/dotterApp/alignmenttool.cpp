@@ -159,9 +159,9 @@ static void onDestroySequenceWidget(GtkWidget *widget)
   
   if (properties)
     {
+      g_object_set_data(G_OBJECT(widget), "SequenceProperties", NULL);
       g_free(properties);
       properties = NULL;
-      g_object_set_data(G_OBJECT(widget), "SequenceProperties", NULL);
     }
 }
 
@@ -214,9 +214,9 @@ static void onDestroyAlignmentTool(GtkWidget *widget)
   
   if (properties)
     {
+      g_object_set_data(G_OBJECT(widget), "AlignmentToolProperties", NULL);
       g_free(properties);
       properties = NULL;
-      g_object_set_data(G_OBJECT(widget), "AlignmentToolProperties", NULL);
     }
 }
 
@@ -393,13 +393,17 @@ static gboolean onMouseMoveSequence(GtkWidget *sequenceWidget, GdkEventMotion *e
       GtkWidget *alignmentTool = GTK_WIDGET(data);
       
       AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
-      const int newCoord = getCoordAtPos(event->x, sequenceWidget, alignmentTool);
+
+      if (atProperties)
+        {
+          const int newCoord = getCoordAtPos(event->x, sequenceWidget, alignmentTool);
       
-      intrangeSetValues(&atProperties->selectionRange, atProperties->dragStart, newCoord);
-      widgetClearCachedDrawable(sequenceWidget, NULL);
-      gtk_widget_queue_draw(sequenceWidget);
+          intrangeSetValues(&atProperties->selectionRange, atProperties->dragStart, newCoord);
+          widgetClearCachedDrawable(sequenceWidget, NULL);
+          gtk_widget_queue_draw(sequenceWidget);
       
-      handled = TRUE;
+          handled = TRUE;
+        }
     }
   
   return handled;
@@ -445,7 +449,7 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
 {
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
 
-  if (properties)
+  if (properties && dwc && dwc->dotterCtx)
     {
       DotterContext *dc = dwc->dotterCtx;
 
@@ -485,6 +489,8 @@ static void createRefSeqWidget(GtkWidget *alignmentTool,
                                int *row,
                                GSList **refSeqList)
 {
+  g_return_if_fail(properties->dotterWinCtx && properties->dotterWinCtx->dotterCtx) ;
+
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   
   /* Create a label containing the name */
@@ -532,6 +538,8 @@ static void createDrawingAreaWidget(DotterContext *dc,
                                     const int ypad,
                                     int *row)
 {
+  g_return_if_fail(exposeFunc) ;
+
   GtkWidget *widget = gtk_drawing_area_new();
   gtk_widget_set_size_request(widget, -1, height);
   gtk_table_attach(table, widget, 2, 3, *row, *row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
@@ -547,6 +555,8 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
                                              GtkWidget *alignmentTool,
                                              AlignmentToolProperties *properties)
 {
+  g_return_val_if_fail(properties && properties->dotterWinCtx && properties->dotterWinCtx->dotterCtx, NULL) ;
+
   /* We'll pack everything into a table */
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   const int numRows = dc->numFrames + 3;  /* 2 rows for the headers, 1 for the sseq and 1 for each ref seq frame */
@@ -621,6 +631,8 @@ static GtkWidget* createAlignmentToolSection(BlxStrand strand,
 /* Create a window to hold the alignment tool when it is un-docked */
 static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, GtkWidget *alignmentTool)
 {
+  g_return_val_if_fail(dwc && alignmentTool, NULL) ;
+
   GtkWidget *alignmentWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size(GTK_WINDOW(alignmentWindow), 1160, -1);
 
@@ -638,6 +650,8 @@ static GtkWidget *createAlignmentToolWindow(DotterWindowContext *dwc, GtkWidget 
  * undocked into. */
 GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **alignmentWindow_out)
 {
+  g_return_val_if_fail(dotterWinCtx, NULL) ;
+
   DEBUG_ENTER("createAlignmentTool");
 
   /* We'll put everything in a vbox, inside a frame */  
@@ -653,32 +667,36 @@ GtkWidget* createAlignmentTool(DotterWindowContext *dotterWinCtx, GtkWidget **al
    * when the range updates since they contain the centre coord of the current display range. */
   alignmentToolCreateProperties(alignmentTool, alignmentWindow, dotterWinCtx);
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
-  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
 
-  /* Put the forward ref seq strand on top, unless the display is reversed */
-  BlxStrand qStrand = dc->hozScaleRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
-  GtkWidget *section1 = createAlignmentToolSection(qStrand, alignmentTool, properties);
-  gtk_box_pack_start(GTK_BOX(vbox), section1, FALSE, FALSE, 0);
-
-  /* Only show the other reference sequence strand if we're displaying sequences as nucleotides */
-  if (dc->displaySeqType == BLXSEQ_DNA)
+  if (properties && properties->dotterWinCtx && properties->dotterWinCtx->dotterCtx)
     {
-      qStrand = (qStrand == BLXSTRAND_FORWARD ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD);
-      GtkWidget *section2 = createAlignmentToolSection(qStrand, alignmentTool, properties);
-      gtk_box_pack_start(GTK_BOX(vbox), section2, FALSE, FALSE, 0);
+      DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+
+      /* Put the forward ref seq strand on top, unless the display is reversed */
+      BlxStrand qStrand = dc->hozScaleRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
+      GtkWidget *section1 = createAlignmentToolSection(qStrand, alignmentTool, properties);
+      gtk_box_pack_start(GTK_BOX(vbox), section1, FALSE, FALSE, 0);
+
+      /* Only show the other reference sequence strand if we're displaying sequences as nucleotides */
+      if (dc->displaySeqType == BLXSEQ_DNA)
+        {
+          qStrand = (qStrand == BLXSTRAND_FORWARD ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD);
+          GtkWidget *section2 = createAlignmentToolSection(qStrand, alignmentTool, properties);
+          gtk_box_pack_start(GTK_BOX(vbox), section2, FALSE, FALSE, 0);
+        }
+  
+      gtk_widget_add_events(alignmentTool, GDK_BUTTON_PRESS_MASK);
+      gtk_widget_add_events(alignmentTool, GDK_KEY_PRESS_MASK);
+
+      g_signal_connect(G_OBJECT(alignmentTool), "size-allocate", G_CALLBACK(onSizeAllocateAlignmentTool), NULL);
+      gtk_widget_show_all(alignmentTool);
+  
+      onAlignmentToolRangeChanged(alignmentTool);
+
+      if (alignmentWindow_out)
+        *alignmentWindow_out = alignmentWindow;
     }
-  
-  gtk_widget_add_events(alignmentTool, GDK_BUTTON_PRESS_MASK);
-  gtk_widget_add_events(alignmentTool, GDK_KEY_PRESS_MASK);
 
-  g_signal_connect(G_OBJECT(alignmentTool), "size-allocate", G_CALLBACK(onSizeAllocateAlignmentTool), NULL);
-  gtk_widget_show_all(alignmentTool);
-  
-  onAlignmentToolRangeChanged(alignmentTool);
-
-  if (alignmentWindow_out)
-    *alignmentWindow_out = alignmentWindow;
-    
   DEBUG_EXIT("createAlignmentTool returning ");
   return alignmentTool;
 }
@@ -697,7 +715,7 @@ static void drawSequenceSpliceSites(GdkDrawable *drawable,
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
 
-  if (!atProperties || !atProperties->spliceSitesOn)
+  if (!atProperties || !drawable || !gc || !seq1 || !atProperties->spliceSitesOn)
     return;
 
   DotterWindowContext *dwc = atProperties->dotterWinCtx;
@@ -780,16 +798,18 @@ static void setAlignmentLength(GtkWidget *widget, GtkWidget *alignmentTool, Alig
 static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *alignmentTool)
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+  SequenceProperties *seq1 = sequenceGetProperties(widget);
+
+  g_return_if_fail(atProperties && atProperties->dotterWinCtx && atProperties->dotterWinCtx->dotterCtx && seq1) ;
+
   DotterWindowContext *dwc = atProperties->dotterWinCtx;
   DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
-
-  GdkGC *gc = gdk_gc_new(drawable);
 
   /* Set the alignment length from the widget width */
   setAlignmentLength(widget, alignmentTool, atProperties);
 
-  /* Get the sequence info for this widget */
-  SequenceProperties *seq1 = sequenceGetProperties(widget);
+  GdkGC *gc = gdk_gc_new(drawable);
+
   const int seq1Len = strlen(seq1->sequence);
   
   /* If text on this widget is selected, then we'll highlight any bases within
@@ -841,6 +861,8 @@ static void drawSequence(GdkDrawable *drawable, GtkWidget *widget, GtkWidget *al
 /* Utility called by drawSequenceHeader to draw a marker line at the given coords */
 static void drawSequenceHeaderMarker(GdkDrawable *drawable, const int x, const int y, const gdouble charWidth)
 {
+  g_return_if_fail(drawable) ;
+
   /* Draw a marker line below where the text will go */
   const int x1 = x + roundNearest((charWidth / 2.0));
   
@@ -859,6 +881,8 @@ static void drawSequenceHeaderText(GtkWidget *widget,
                                    DotterContext *dc,
                                    const gboolean horizontal)
 {
+  g_return_if_fail(widget && drawable && dc) ;
+
   int coord = getDisplayCoord(coordIn, dc, horizontal);
   char *displayText = convertIntToString(coord);
   
@@ -888,6 +912,9 @@ static void drawSequenceHeader(GtkWidget *widget,
 {
   AlignmentToolProperties *properties = alignmentToolGetProperties(alignmentTool);
   DotterWindowContext *dwc = properties->dotterWinCtx;
+
+  g_return_if_fail(widget && properties && dwc && dwc->dotterCtx) ;
+  
   DotterContext *dc = dwc->dotterCtx;
 
   /* Make sure the alignment length is up to date */
@@ -940,6 +967,8 @@ static gboolean onDeleteAlignmentTool(GtkWidget *widget, GdkEvent *event, gpoint
  * and converted from dna to peptide coords if applicable). */
 static int getDisplayStart(SequenceProperties *properties, DotterContext *dc)
 {
+  g_return_val_if_fail(properties && dc, 0) ;
+
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
   int displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
 
@@ -953,6 +982,8 @@ static int getDisplayStart(SequenceProperties *properties, DotterContext *dc)
  * and converted from dna to peptide coords if applicable). */
 static int getDisplayEnd(SequenceProperties *properties, DotterContext *dc)
 {
+  g_return_val_if_fail(properties && dc, 0) ;
+
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
   int displayEnd = forward ? properties->displayRange->max : properties->displayRange->min;
 
@@ -968,6 +999,8 @@ static int getDisplayEnd(SequenceProperties *properties, DotterContext *dc)
  * if requested, otherwise returns the nucleotide coord. */
 static int getSequenceStart(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords)
 {
+  g_return_val_if_fail(properties && dc, 0) ;
+
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
 
   /* Get the start coord of the sequence data */
@@ -999,6 +1032,8 @@ static int getSequenceStart(SequenceProperties *properties, DotterContext *dc, c
  * if requested, otherwise returns the nucleotide coord. */
 static int getSequenceEnd(SequenceProperties *properties, DotterContext *dc, const gboolean convertToDisplayCoords)
 {
+  g_return_val_if_fail(properties && dc, 0) ;
+
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
 
   /* Get the end coord of the sequence data */
@@ -1025,6 +1060,8 @@ static int getSequenceOffset(SequenceProperties *properties, DotterContext *dc)
 {
   int result = 0;
   
+  g_return_val_if_fail(properties && dc, result) ;
+
   const int seqStart = getSequenceStart(properties, dc, TRUE);
   
   /* Calculate the offset. Note that this may be positive or negative because it
@@ -1045,6 +1082,9 @@ static int getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alig
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
   SequenceProperties *properties = sequenceGetProperties(sequenceWidget);
+
+  g_return_val_if_fail(atProperties && properties && atProperties->dotterWinCtx && atProperties->dotterWinCtx->dotterCtx, 0) ;
+
   DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
 
   /* Get the 0-based character index from the leftmost edge of the widget */
@@ -1071,10 +1111,12 @@ static int getCoordAtPos(const int x, GtkWidget *sequenceWidget, GtkWidget *alig
 /* Connect signals for a sequence widget */
 static void connectSequenceSignals(GtkWidget *widget, GtkWidget *alignmentTool)
 {
+  g_return_if_fail(widget && alignmentTool) ;
+
   gtk_widget_add_events(widget, GDK_EXPOSURE_MASK);
   gtk_widget_add_events(widget, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(widget, GDK_BUTTON_RELEASE_MASK);
-    gtk_widget_add_events(widget, GDK_BUTTON_MOTION_MASK);
+  gtk_widget_add_events(widget, GDK_BUTTON_MOTION_MASK);
   
   g_signal_connect(G_OBJECT(widget), "expose-event", G_CALLBACK(onExposeSequence), alignmentTool);
   g_signal_connect(G_OBJECT(widget), "button-press-event", G_CALLBACK(onButtonPressSequence), alignmentTool);
@@ -1092,8 +1134,10 @@ static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
                                       DotterWindowContext *dwc)
 {
   char *result = NULL;
-  
   SequenceProperties *properties = sequenceGetProperties(sequenceWidget);
+
+  g_return_val_if_fail(properties && dwc && dwc->dotterCtx, result) ;
+
   DotterContext *dc = dwc->dotterCtx;
 
   /* Get the 0-based index into the bit of sequence for this frame/strand */
@@ -1126,6 +1170,8 @@ static char *getSequenceBetweenCoords(GtkWidget *sequenceWidget,
 /* Set the widget that contains the current sequence selection. */
 static void setSelectionWidget(AlignmentToolProperties *atProperties, GtkWidget *selectionWidget)
 {
+  g_return_if_fail(atProperties) ;
+  
   atProperties->selectionWidget = selectionWidget;
   dotterEnableSelectionMenus(atProperties->dotterWinCtx, selectionWidget != NULL);
 }
@@ -1135,6 +1181,8 @@ static void setSelectionWidget(AlignmentToolProperties *atProperties, GtkWidget 
 void alignmentToolClearSequenceSelection(GtkWidget *alignmentTool)
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+  g_return_if_fail(atProperties) ;
 
   if (atProperties->selectionWidget)
     {
@@ -1150,6 +1198,8 @@ void alignmentToolCopySeln(GtkWidget* alignmentTool)
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
 
+  g_return_if_fail(atProperties) ;
+  
   if (atProperties->selectionWidget)
     {
       /* copy the selection to the clipboard */
@@ -1169,33 +1219,39 @@ void alignmentToolCopySelnCoords(GtkWidget *alignmentTool)
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
 
+  g_return_if_fail(atProperties && atProperties->dotterWinCtx) ;
+
   if (atProperties->selectionWidget)
     {
       SequenceProperties *properties = sequenceGetProperties(atProperties->selectionWidget);
-      DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
-
-      /* Convert the selected coords to dna coords */
-      int start = convertToDnaIdx(atProperties->selectionRange.min, properties->horizontal, dc, properties->frame, 1);
-      int end = convertToDnaIdx(atProperties->selectionRange.max, properties->horizontal, dc, properties->frame, dc->numFrames);
-
-      /* Negate the coords for display, if necessary */
-      start = getDisplayCoord(start, dc, properties->horizontal);
-      end = getDisplayCoord(end, dc, properties->horizontal);
-
-      /* Swap start and end if strand is reversed */
-      if (properties->strand == BLXSTRAND_REVERSE)
-        {
-          int tmp = start;
-          start = end;
-          end = tmp;
-        }    
-
-      char *text = g_strdup_printf("%d, %d", start, end);
-
-      setDefaultClipboardText(text);
-      setPrimaryClipboardText(text);
       
-      g_free(text);
+      if (properties)
+        {
+          DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
+
+          /* Convert the selected coords to dna coords */
+          int start = convertToDnaIdx(atProperties->selectionRange.min, properties->horizontal, dc, properties->frame, 1);
+          int end = convertToDnaIdx(atProperties->selectionRange.max, properties->horizontal, dc, properties->frame, dc->numFrames);
+
+          /* Negate the coords for display, if necessary */
+          start = getDisplayCoord(start, dc, properties->horizontal);
+          end = getDisplayCoord(end, dc, properties->horizontal);
+
+          /* Swap start and end if strand is reversed */
+          if (properties->strand == BLXSTRAND_REVERSE)
+            {
+              int tmp = start;
+              start = end;
+              end = tmp;
+            }    
+
+          char *text = g_strdup_printf("%d, %d", start, end);
+          
+          setDefaultClipboardText(text);
+          setPrimaryClipboardText(text);
+      
+          g_free(text);
+        }
     }
 }
 
@@ -1203,6 +1259,8 @@ void alignmentToolCopySelnCoords(GtkWidget *alignmentTool)
 static void sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *alignmentTool, const int x)
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+  g_return_if_fail(atProperties) ;  
 
   /* flag that we're dragging */
   atProperties->dragging = TRUE;
@@ -1223,6 +1281,8 @@ static void sequenceFinishDragging(GtkWidget *sequenceWidget, GtkWidget *alignme
 {
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
   DotterWindowContext *dwc = atProperties->dotterWinCtx;
+
+  g_return_if_fail(atProperties && dwc) ;
 
   if (atProperties->dragging)
     {
@@ -1254,6 +1314,9 @@ static void selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmen
 {
   SequenceProperties *properties = sequenceGetProperties(sequenceWidget);
   AlignmentToolProperties *atProperties = alignmentToolGetProperties(alignmentTool);
+
+  g_return_if_fail(properties && atProperties && atProperties->dotterWinCtx && atProperties->dotterWinCtx->dotterCtx) ;
+
   DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
   
   /* cancel any dragging operation */
@@ -1298,6 +1361,8 @@ static DotterColorId getBaseHighlightColor(SequenceProperties *seq1,
                                            const int seq1Idx,
                                            const int seq1DisplayStart)
 {
+  g_return_val_if_fail(seq1 && dc, DOTCOLOR_BACKGROUND) ;
+
   /* Compare the base in the current sequence to the base at the
    * same display position in all other sequences and find whether
    * any match. Exact matches take precedence over conserved matches.
@@ -1311,25 +1376,29 @@ static DotterColorId getBaseHighlightColor(SequenceProperties *seq1,
       /* Get info about the other sequence */
       GtkWidget *seq2Widget = GTK_WIDGET(item->data);
       SequenceProperties *seq2 = sequenceGetProperties(seq2Widget);
-      const int seq2Len = strlen(seq2->sequence);
 
-      /* Get the sequence coord at the start of the display (leftmost edge) */
-      const int seq2Offset = getSequenceOffset(seq2, dc);
-    
-      /* Get the zero-based index into the sequence and compare the bases to determine the highlight color */
-      const int seq2Idx = displayIdx - seq2Offset;
-      
-      if (seq2Idx >= 0 && seq2Idx < seq2Len)
+      if (seq2)
         {
-          if (seq1->sequence[seq1Idx] == seq2->sequence[seq2Idx])
+          const int seq2Len = strlen(seq2->sequence);
+
+          /* Get the sequence coord at the start of the display (leftmost edge) */
+          const int seq2Offset = getSequenceOffset(seq2, dc);
+    
+          /* Get the zero-based index into the sequence and compare the bases to determine the highlight color */
+          const int seq2Idx = displayIdx - seq2Offset;
+      
+          if (seq2Idx >= 0 && seq2Idx < seq2Len)
             {
-              colorId = DOTCOLOR_MATCH;
-              break;
-            }
-          else if (dc->blastMode != BLXMODE_BLASTN && 
-                   dc->matrix[atob[(unsigned int)seq1->sequence[seq1Idx]] - 1 ][atob[(unsigned int)seq2->sequence[seq2Idx]] - 1 ] > 0)
-            {
-              colorId = DOTCOLOR_CONS;
+              if (seq1->sequence[seq1Idx] == seq2->sequence[seq2Idx])
+                {
+                  colorId = DOTCOLOR_MATCH;
+                  break;
+                }
+              else if (dc->blastMode != BLXMODE_BLASTN && 
+                       dc->matrix[atob[(unsigned int)seq1->sequence[seq1Idx]] - 1 ][atob[(unsigned int)seq2->sequence[seq2Idx]] - 1 ] > 0)
+                {
+                  colorId = DOTCOLOR_CONS;
+                }
             }
         }
     }
@@ -1346,6 +1415,8 @@ static void highlightSpliceSite(SequenceProperties *seq1,
                                 GdkGC *gc,
                                 GdkDrawable *drawable)
 {
+  g_return_if_fail(seq1 && atProperties && dwc && dwc->dotterCtx && gc && drawable) ;
+  
   DotterContext *dc = dwc->dotterCtx;
 
   /* check if it's canonical (green if yes, red if not) */
@@ -1377,6 +1448,8 @@ static void highlightSequenceBase(SequenceProperties *seq1,
                                   GdkGC *gc,
                                   GdkDrawable *drawable)
 {
+  g_return_if_fail(seq1 && dwc && dwc->dotterCtx && atProperties && gc && drawable) ;
+
   DotterContext *dc = dwc->dotterCtx;
   DotterColorId colorId = getBaseHighlightColor(seq1, dc, displayIdx, seq1Idx, seq1Start);
 
