@@ -171,6 +171,7 @@ typedef enum
 #define SETTING_NAME_SHOW_POLYA_SIG "show-poly-sig"
 #define SETTING_NAME_SHOW_POLYA_SIG_SELECTED "show-polya-sig-selected-seq"
 #define SETTING_NAME_SHOW_SPLICE_SITES "show-splice-sites"
+#define SETTING_NAME_SHOW_MAYBE_CANONICAL "show-maybe-canonical"
 #define SETTING_NAME_SQUASH_MATCHES "squash-matches"
 #define SETTING_NAME_SHOW_COLINEARITY "show-colinearity"
 #define SETTING_NAME_SHOW_COLINEARITY_SELECTED "show-colinearity-selected"
@@ -292,6 +293,9 @@ typedef enum
     BLXCOLOR_UNALIGNED_SEQ, /* color in which to show additional sequence in the match that is not part of the alignment */
     BLXCOLOR_CANONICAL,     /* background highlight color for canonical intron bases */
     BLXCOLOR_NON_CANONICAL, /* background highlight color for non-canonical intron bases */
+    BLXCOLOR_MAYBE_CANONICAL,/* background highlight color for splice sites that are "maybe"
+                              * canonical, that is, that would be canonical if on the other
+                              * strand (helps to identify problems in data; common with BAM) */
     BLXCOLOR_POLYA_TAIL,    /* background color for polyA tails in the detail view */
     BLXCOLOR_POLYA_SIGNAL,  /* background color for non-annotated polyA signals in the detail view */
     BLXCOLOR_POLYA_SIGNAL_ANN,/* background color for annotated polyA signals in the detail view */
@@ -343,6 +347,7 @@ typedef enum
     BLXFLAG_SHOW_POLYA_SIG,         /* Show polyA signals in the reference sequence */
     BLXFLAG_SHOW_POLYA_SIG_SELECTED,/* Only show polyA signals for the currently-selected sequence(s) */
     BLXFLAG_SHOW_SPLICE_SITES,      /* Highlights splice sites in the reference sequence for the currently-selected MSPs */
+    BLXFLAG_SHOW_MAYBE_CANONICAL,   /* Highlights "maybe canonical" splice sites */
     BLXFLAG_OPTIONAL_COLUMNS,       /* Gets set to true if the optional columns have been loaded */
     BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
     BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */

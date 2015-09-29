@@ -1581,7 +1581,7 @@ static void copyBlxSequenceNamedCds(const BlxSequence *src,
       
       if (msp->type != BLXMSP_CDS || g_quark_from_string(msp->sname) == cdsQuark)
         {
-          MSP *newMsp = copyMsp(msp, featureLists, lastMsp, mspList, FALSE);
+          MSP *newMsp = copyMsp(msp, featureLists, lastMsp, mspList, FALSE, FALSE);
 
           /* Add the new msp to the new blx sequence (this creates it if it does not exist
            * i.e. the first time we get here for this idTag) */
@@ -2191,12 +2191,16 @@ MSP* createNewMsp(GArray* featureLists[],
 
 
 /* Make a copy of an MSP. If addToParent is true it also copies the pointer to the parent
- * BlxSequence and adds the new msp to that BlxSequence's mspList. Otherwise it's parent is null. */
+ * BlxSequence and adds the new msp to that BlxSequence's mspList. Otherwise it's parent is null.
+ * If added to the parent, it will be added in sorted order if 'sort' is true, or random order
+ * if 'sort' is false (this is to avoid having to sort it every time if the caller intends to
+ * re-sort the list later anyway) */
 MSP* copyMsp(const MSP* const src,
              GArray* featureLists[],             
              MSP **lastMsp, 
              MSP **mspList,
-             const gboolean addToParent)
+             const gboolean addToParent,
+             const gboolean sort)
 {
   MSP *msp = createEmptyMsp(lastMsp, mspList);
   
@@ -2219,7 +2223,11 @@ MSP* copyMsp(const MSP* const src,
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
   if (addToParent && src->sSequence)
     {
-      src->sSequence->mspList = g_list_insert_sorted(src->sSequence->mspList, msp, compareFuncMspPos);
+      if (sort)
+        src->sSequence->mspList = g_list_insert_sorted(src->sSequence->mspList, msp, compareFuncMspPos);
+      else
+        src->sSequence->mspList = g_list_prepend(src->sSequence->mspList, msp);
+
       msp->sSequence = src->sSequence;
     }
 
@@ -3299,7 +3307,7 @@ static void addBlxSequences(const char *name,
            * add to the next BlxSequence (because the msp points to its BlxSequence so can't
            * be added to multiple BlxSequences, at least at the moment) */
           if (usedMsp)
-            msp = copyMsp(msp, featureLists, lastMsp, mspList, FALSE);
+            msp = copyMsp(msp, featureLists, lastMsp, mspList, FALSE, FALSE);
 
           if (!tmpError)
             addBlxSequence(msp->sname, msp->sname_orig, *token, strand,

@@ -76,6 +76,12 @@ typedef struct _BlxSpliceSite
 
     char donorSiteRev[3];               /* Same as donorSite but reversed */
     char acceptorSiteRev[3];            /* Same as acceptorSite but reversed */
+
+    char donorSiteComp[3];              /* Same as donorSite but complemented */
+    char acceptorSiteComp[3];           /* Same as acceptorSite but complemented */
+
+    char donorSiteRevComp[3];           /* Same as donorSite but revcomp'd */
+    char acceptorSiteRevComp[3];        /* Same as acceptorSite but revcomp'd */
     
     gboolean bothReqd;                  /* Whether both donor and acceptor sites must match in order to be considered canonical */
   } BlxSpliceSite;

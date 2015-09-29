@@ -149,7 +149,7 @@ static void                       getSequencesThatMatch(gpointer listDataItem, g
 static GList*                     getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, GError **error);
 
 static void                       createSortBox(GtkBox *parent, GtkWidget *detailView, const BlxColumnId initSortColumn, GList *columnList, const char *labelText, const gboolean searchableOnly);
-static GtkWidget*                 createCheckButton(GtkBox *box, const char *mnemonic, const gboolean isActive, GCallback callback, gpointer data);
+static GtkWidget*                 createCheckButton(GtkBox *box, const char *mnemonic, const char *tooltip, const gboolean isActive, GCallback callback, gpointer data);
 static void                       blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors);
 static gboolean                   blxWindowGetUsePrintColors(GtkWidget *blxWindow);
 
@@ -167,6 +167,8 @@ static void                       copySelectedSeqDataToClipboard(GtkWidget *blxW
 static void                       copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int fromIdx, const int toIdx);
 static void                       copyRefSeqToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
 static void                       copyRefSeqTranslationToClipboard(GtkWidget *blxWindow, const int fromIdx_in, const int toIdx_in);
+
+static void                       saveBlixemSettings(GtkWidget *blxWindow);
 
 
 /* MENU BUILDERS */
@@ -1124,7 +1126,12 @@ static void createExonButtons(GtkWidget *exonView, const char *visLabel, const c
 
   /* Create a check button to control whether the exon view is expanded or compressed */
   const gboolean isBumped = exonViewGetExpanded(exonView);
-  createCheckButton(GTK_BOX(hbox), bumpLabel, isBumped, G_CALLBACK(onBumpExonView), exonView);
+  createCheckButton(GTK_BOX(hbox),
+                    bumpLabel,
+                    NULL,
+                    isBumped,
+                    G_CALLBACK(onBumpExonView),
+                    exonView);
 }
 
 
@@ -2970,6 +2977,7 @@ static void onShowVariationTrackToggled(GtkWidget *button, gpointer data)
  * Returns the new button. */
 static GtkWidget* createCheckButton(GtkBox *box, 
                                     const char *mnemonic, 
+                                    const char *tooltip,
                                     const gboolean isActive, 
                                     GCallback callback, 
                                     gpointer data)
@@ -2980,6 +2988,9 @@ static GtkWidget* createCheckButton(GtkBox *box,
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), isActive);
   
   g_signal_connect(G_OBJECT(button), "toggled", callback, data);
+
+  if (tooltip)
+    gtk_widget_set_tooltip_text(button, tooltip);
   
   return button;
 }
@@ -3173,13 +3184,16 @@ static void createColumnButton(BlxColumnInfo *columnInfo, GtkTable *table, int *
   GtkWidget *showColButton = gtk_check_button_new();
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(showColButton), columnInfo->showColumn);
   widgetSetCallbackData(showColButton, onColumnVisibilityChanged, (gpointer)columnInfo);
+  gtk_widget_set_tooltip_text(showColButton, "Whether to display this column");
 
   /* Tick-box controlling whether column is included in summary info */
   GtkWidget *showSummaryButton = gtk_check_button_new();
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(showSummaryButton), columnInfo->showSummary);
   widgetSetCallbackData(showSummaryButton, onSummaryColumnsChanged, (gpointer)columnInfo);
+  gtk_widget_set_tooltip_text(showSummaryButton, "Whether to include this data in the moused-over-item feedback area");
   
   GtkWidget *entry = gtk_entry_new();
+  gtk_widget_set_tooltip_text(label, "The column width, in pixels");
   
   if (columnInfo->columnId == BLXCOL_SEQUENCE)
     {
@@ -3230,14 +3244,17 @@ static void createColumnButtonHeaders(GtkTable *table, int *row)
   GtkWidget *label = gtk_label_new("Show\ncolumn");
   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 1.0);
   gtk_table_attach(table, label, 1, 2, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_widget_set_tooltip_text(label, "Whether to display this column");
 
   label = gtk_label_new("Show mouse-\nover details");
   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 1.0);
   gtk_table_attach(table, label, 2, 3, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_widget_set_tooltip_text(label, "Whether to include this data in the moused-over-item feedback area");
 
   label = gtk_label_new("Column width");
   gtk_misc_set_alignment(GTK_MISC(label), 0.0, 1.0);
   gtk_table_attach(table, label, 3, 4, *row, *row + 1, GTK_FILL, GTK_SHRINK, 4, 4);
+  gtk_widget_set_tooltip_text(label, "The column width, in pixels");
 
   *row += 1;
 }
@@ -3617,10 +3634,17 @@ static void createLimitUnalignedBasesButton(GtkContainer *parent, GtkWidget *det
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), bc->flags[BLXFLAG_LIMIT_UNALIGNED_BASES]);
   g_signal_connect(G_OBJECT(button), "toggled", G_CALLBACK(onLimitUnalignedBasesToggled), entry);
   
+  GtkWidget *label = gtk_label_new(" additional bases");
+
   /* Pack it all in the hbox */
   gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(hbox), entry, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(hbox), gtk_label_new(" additional bases"), FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+  const char *tooltip = "Specifies the maximum number of additional bases to display from unaligned sections of sequence.";
+  gtk_widget_set_tooltip_text(button, tooltip);
+  gtk_widget_set_tooltip_text(entry, tooltip);
+  gtk_widget_set_tooltip_text(label, tooltip);
 }
 
 
@@ -3631,6 +3655,7 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
                                              GtkWidget *detailView,
                                              BlxViewContext *bc,
                                              const char *label,
+                                             const char *tooltip,
                                              const BlxFlag flag,
                                              GtkWidget **buttonOut,
                                              GCallback callbackFunc)
@@ -3651,6 +3676,9 @@ static GtkContainer* createParentCheckButton(GtkWidget *parent,
   GtkWidget *btn = gtk_check_button_new_with_mnemonic(label);
   gtk_box_pack_start(GTK_BOX(vbox), btn, FALSE, FALSE, 0);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(btn), active);
+
+  if (tooltip)
+    gtk_widget_set_tooltip_text(btn, tooltip);
 
   /* Connect the toggleFlag callback first so that the flag is set correctly before the callbackFunc is called */
   g_signal_connect(G_OBJECT(btn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(flag));
@@ -3834,6 +3862,13 @@ void onResponseSettingsDialog(GtkDialog *dialog, gint responseId, gpointer data)
     resetSettings(dialogChildGetBlxWindow(GTK_WIDGET(dialog)));
   else
     onResponseDialog(dialog, responseId, data); /* default handler */
+
+  /* If the save button was pressed, also save these settings to the config file */
+  if (responseId == GTK_RESPONSE_ACCEPT)
+    {
+      GtkWidget *blxWindow = dialogChildGetBlxWindow(GTK_WIDGET(dialog));
+      saveBlixemSettings(blxWindow);
+    }
 }
 
 
@@ -3856,11 +3891,11 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
                                            GTK_DIALOG_DESTROY_WITH_PARENT,
 //                                           "Reset to defaults",
 //                                           BLX_RESPONSE_RESET,
-                                           GTK_STOCK_CANCEL,
+                                           GTK_STOCK_CLOSE,
                                            GTK_RESPONSE_REJECT,
                                            GTK_STOCK_APPLY,
                                            GTK_RESPONSE_APPLY,
-                                           GTK_STOCK_OK,
+                                           GTK_STOCK_SAVE,
                                            GTK_RESPONSE_ACCEPT,
                                            NULL);
 
@@ -3904,31 +3939,109 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), GTK_WIDGET(optionsBox));
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
-  GtkContainer *variationContainer = createParentCheckButton(optionsBox, detailView, bc, "Highlight _variations in reference sequence", BLXFLAG_HIGHLIGHT_VARIATIONS, NULL, G_CALLBACK(onParentBtnToggled));
-  createCheckButton(GTK_BOX(variationContainer), "Show variations trac_k", bc->flags[BLXFLAG_SHOW_VARIATION_TRACK], G_CALLBACK(onShowVariationTrackToggled), GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
+  GtkContainer *variationContainer = createParentCheckButton(optionsBox,
+                                                             detailView,
+                                                             bc,
+                                                             "Highlight _variations in reference sequence",
+                                                             "Any known variations will be highlighted in the reference sequence. Hover over them to see details or double-click to open the URL.",
+                                                             BLXFLAG_HIGHLIGHT_VARIATIONS,
+                                                             NULL,
+                                                             G_CALLBACK(onParentBtnToggled));
+  createCheckButton(GTK_BOX(variationContainer), 
+                    "Show variations trac_k",
+                    "Show a track above the reference sequence which shows the details of any variations that are highlighted in the reference sequence",
+                    bc->flags[BLXFLAG_SHOW_VARIATION_TRACK],
+                    G_CALLBACK(onShowVariationTrackToggled),
+                    GINT_TO_POINTER(BLXFLAG_SHOW_VARIATION_TRACK));
+
 
   /* show-polyA-tails option and its sub-options. Connect onToggleFlag twice to the 'when selected' button to also toggle the 'show signals when selected' button in unison. */
   GtkWidget *polyAParentBtn = NULL;
-  GtkContainer *polyAContainer = createParentCheckButton(optionsBox, detailView, bc, "Show polyA _tails", BLXFLAG_SHOW_POLYA_SITE, &polyAParentBtn, G_CALLBACK(onShowAdditionalSeqToggled));
-  GtkWidget *polyABtn = createCheckButton(GTK_BOX(polyAContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SITE_SELECTED));
+  GtkContainer *polyAContainer = createParentCheckButton(optionsBox,
+                                                         detailView,
+                                                         bc,
+                                                         "Show polyA _tails",
+                                                         "Show polyA tails; polyA signals are also highlighted in the reference sequence.",
+                                                         BLXFLAG_SHOW_POLYA_SITE,
+                                                         &polyAParentBtn,
+                                                         G_CALLBACK(onShowAdditionalSeqToggled));
+  GtkWidget *polyABtn = createCheckButton(GTK_BOX(polyAContainer),
+                                          "Selected sequences only",
+                                          "Only show polyA tails for the currently-selected sequence(s)",
+                                          bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED],
+                                          G_CALLBACK(onToggleFlag),
+                                          GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SITE_SELECTED));
+
   g_signal_connect(G_OBJECT(polyAParentBtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG));
   g_signal_connect(G_OBJECT(polyABtn), "toggled", G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_POLYA_SIG_SELECTED));
 
   const gboolean squashMatches = (bc->modelId == BLXMODEL_SQUASHED);
   
+
   /* show-unaligned-sequence option and its sub-options */
-  GtkContainer *unalignContainer = createParentCheckButton(optionsBox, detailView, bc, "Show _unaligned sequence", BLXFLAG_SHOW_UNALIGNED, NULL, G_CALLBACK(onShowAdditionalSeqToggled));
+  GtkContainer *unalignContainer = createParentCheckButton(optionsBox,
+                                                           detailView,
+                                                           bc,
+                                                           "Show _unaligned sequence",
+                                                           "Show unaligned sections of match sequences", 
+                                                           BLXFLAG_SHOW_UNALIGNED,
+                                                           NULL,
+                                                           G_CALLBACK(onShowAdditionalSeqToggled));
   createLimitUnalignedBasesButton(unalignContainer, detailView, bc);
-  createCheckButton(GTK_BOX(unalignContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED], G_CALLBACK(onToggleShowUnalignedSelected), detailView);
+  createCheckButton(GTK_BOX(unalignContainer),
+                    "Selected sequences only",
+                    "Only show unaligned sections of sequence for the currently-selected sequence(s)",
+                    bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED],
+                    G_CALLBACK(onToggleShowUnalignedSelected),
+                    detailView);
+
 
   /* show-colinearity-lines option and its sub-options */
-  GtkContainer *colinearityContainer = createParentCheckButton(optionsBox, detailView, bc, "Show _colinearity lines", BLXFLAG_SHOW_COLINEARITY, NULL, G_CALLBACK(onParentBtnToggled));
-  createCheckButton(GTK_BOX(colinearityContainer), "Selected sequences only", bc->flags[BLXFLAG_SHOW_COLINEARITY_SELECTED], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_COLINEARITY_SELECTED));
+  GtkContainer *colinearityContainer = createParentCheckButton(optionsBox,
+                                                               detailView,
+                                                               bc,
+                                                               "Show _colinearity lines",
+                                                               "Show \"traffic-light\" colinearity lines between alignment blocks: green for perfectly colinear, orange for imperfectly colinear, red for not colinear",
+                                                               BLXFLAG_SHOW_COLINEARITY,
+                                                               NULL,
+                                                               G_CALLBACK(onParentBtnToggled));
+  createCheckButton(GTK_BOX(colinearityContainer),
+                    "Selected sequences only",
+                    "Only show colinearity lines in the Detail section for the currently-selected sequence(s). (Note that in the Overview section they are only ever displayed for the selected sequence.)", 
+                    bc->flags[BLXFLAG_SHOW_COLINEARITY_SELECTED],
+                    G_CALLBACK(onToggleFlag),
+                    GINT_TO_POINTER(BLXFLAG_SHOW_COLINEARITY_SELECTED));
 
-  createCheckButton(GTK_BOX(optionsBox), "Show Sp_lice Sites for selected seqs", bc->flags[BLXFLAG_SHOW_SPLICE_SITES], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_SHOW_SPLICE_SITES));
 
-  createCheckButton(GTK_BOX(optionsBox), "_Highlight differences", bc->flags[BLXFLAG_HIGHLIGHT_DIFFS], G_CALLBACK(onToggleFlag), GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
-  createCheckButton(GTK_BOX(optionsBox), "_Squash matches", squashMatches, G_CALLBACK(onSquashMatches), NULL);
+  /* Show splice-sites option and its sub-options */
+  GtkContainer *spliceSitesContainer = createParentCheckButton(optionsBox,
+                                                               detailView,
+                                                               bc,
+                                                               "Show Sp_lice Sites for selected seqs",
+                                                               "Highlights splice sites in the reference sequence for the currently selected feature(s). Green means canonical and red non-canonical.", 
+                                                               BLXFLAG_SHOW_SPLICE_SITES,
+                                                               NULL,
+                                                               G_CALLBACK(onParentBtnToggled));
+  createCheckButton(GTK_BOX(spliceSitesContainer),
+                    "Highlight \"maybe canonical\" splice sites",
+                    "With this option enabled, splice sites that would be canonical if they were on the other strand are highlighted in orange, rather than in red for non-canonical. This option can help find problems with strand representation in the input data.", 
+                    bc->flags[BLXFLAG_SHOW_MAYBE_CANONICAL],
+                    G_CALLBACK(onToggleFlag),
+                    GINT_TO_POINTER(BLXFLAG_SHOW_MAYBE_CANONICAL));
+
+  createCheckButton(GTK_BOX(optionsBox),
+                    "_Highlight differences",
+                    "Only display bases in a match sequence that are different to the reference sequence.",
+                    bc->flags[BLXFLAG_HIGHLIGHT_DIFFS],
+                    G_CALLBACK(onToggleFlag),
+                    GINT_TO_POINTER(BLXFLAG_HIGHLIGHT_DIFFS));
+  createCheckButton(GTK_BOX(optionsBox),
+                    "_Squash matches",
+                    "Compress matches to save space. Depending on how the input sources are configured, this may place matches from the same alignment onto the same line, and/or may compress duplicate reads into the same space.",
+                    squashMatches,
+                    G_CALLBACK(onSquashMatches),
+                    NULL);
+
 
 
   /* DISPLAY PAGE */
@@ -3944,7 +4057,12 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   GtkWidget *settingsBox = createVBoxWithBorder(displayBox, borderWidth, TRUE, "General");
   const gboolean usePrintColours = blxWindowGetUsePrintColors(blxWindow);
-  createCheckButton(GTK_BOX(settingsBox), "Use _print colours", usePrintColours, G_CALLBACK(onTogglePrintColors), blxWindow);
+  createCheckButton(GTK_BOX(settingsBox),
+                    "Use _print colours",
+                    "Use black-and-white colours, suitable for printing",
+                    usePrintColours,
+                    G_CALLBACK(onTogglePrintColors),
+                    blxWindow);
   createFontSelectionButton(GTK_BOX(settingsBox), blxWindow);
 
   createGridSettingsButtons(displayBox, bigPicture);
@@ -5272,6 +5390,7 @@ static const char* getFlagName(const BlxFlag flag)
       names[BLXFLAG_SHOW_POLYA_SIG] = SETTING_NAME_SHOW_POLYA_SIG;
       names[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = SETTING_NAME_SHOW_POLYA_SIG_SELECTED;
       names[BLXFLAG_SHOW_SPLICE_SITES] = SETTING_NAME_SHOW_SPLICE_SITES;
+      names[BLXFLAG_SHOW_MAYBE_CANONICAL] = SETTING_NAME_SHOW_MAYBE_CANONICAL;
       names[BLXFLAG_SHOW_COLINEARITY] = SETTING_NAME_SHOW_COLINEARITY;
       names[BLXFLAG_SHOW_COLINEARITY_SELECTED] = SETTING_NAME_SHOW_COLINEARITY_SELECTED;
     }
@@ -5303,6 +5422,8 @@ static void saveBlixemSettingsFlags(BlxViewContext *bc, GKeyFile *key_file)
  * a config file. */
 static void saveBlixemSettings(GtkWidget *blxWindow)
 {
+  g_return_if_fail(blxWindow);
+
   char *filename = g_strdup_printf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
 
@@ -5334,8 +5455,6 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(widget);
   
-  saveBlixemSettings(widget);
-
   if (properties)
     {
       destroyBlxContext(&properties->blxContext);
@@ -5447,6 +5566,7 @@ static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
   createBlxColor(bc->defaultColors, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", "#FFC432", BLX_WHITE, "#FFE8AD", NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(bc->defaultColors, BLXCOLOR_MAYBE_CANONICAL, "\"Maybe\" canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they would be canonical if they were on the other strand", BLX_ORANGE, BLX_DARK_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_TREE_GRID_LINES, "Tree grid lines", "Tree grid lines", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY);
   createBlxColor(bc->defaultColors, BLXCOLOR_CLIP_MARKER, "Clipped-match indicator", "Marker to indicate a match has been clipped to the display range", BLX_RED, BLX_DARK_GREY, NULL, NULL);
   createBlxColor(bc->defaultColors, BLXCOLOR_COVERAGE_PLOT, "Coverage plot", "Coverage plot", BLX_ROYAL_BLUE, BLX_DARK_GREY, NULL, NULL);

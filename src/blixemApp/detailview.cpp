@@ -130,7 +130,7 @@ static gboolean               widgetIsTree(GtkWidget *widget);
 static gboolean               widgetIsTreeContainer(GtkWidget *widget);
 static void                   updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
 static void                   setDetailViewScrollPos(GtkAdjustment *adjustment, int value);
-static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse);
+static const char*            spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse, const gboolean revcomp);
 static int                    getNumSnpTrackRows(const BlxViewContext *bc, DetailViewProperties *properties, const BlxStrand strand, const int frame);
 static int                    getVariationRowNumber(const IntRange* const rangeIn, const int numRows, GSList **rows);
 static void                   freeRowsList(GSList *rows);
@@ -2019,6 +2019,7 @@ static gboolean mspIsSpliceSiteCanonicalOtherEnd(const MSP* const msp,
                                                  const gboolean isMinCoord, 
                                                  const gboolean revStrand,
                                                  const gboolean donor,
+                                                 const gboolean revcomp,
                                                  const BlxViewContext *bc,
                                                  const BlxSpliceSite *spliceSite)
 {
@@ -2035,7 +2036,7 @@ static gboolean mspIsSpliceSiteCanonicalOtherEnd(const MSP* const msp,
       mspGetAdjacentBases(nextMsp, bases, !isMinCoord, revStrand, bc);
       
       /* If the original site was a donor site, look for an acceptor site (or vice versa) */
-      const char *canonicalBases = spliceSiteGetBases(spliceSite, !donor, revStrand);
+      const char *canonicalBases = spliceSiteGetBases(spliceSite, !donor, revStrand, revcomp);
 
       if (stringsEqual(bases, canonicalBases, FALSE))
         {
@@ -2062,17 +2063,34 @@ static void addBlxSpliceSite(GSList **spliceSites, const char *donorSite, const 
   spliceSite->donorSite[1] = donorSite[1];
   spliceSite->donorSite[2] = '\0';
 
+  spliceSite->donorSiteComp[0] = complementChar(donorSite[0], NULL);
+  spliceSite->donorSiteComp[1] = complementChar(donorSite[1], NULL);
+  spliceSite->donorSiteComp[2] = '\0';
+
   spliceSite->donorSiteRev[0] = donorSite[1];
   spliceSite->donorSiteRev[1] = donorSite[0];
   spliceSite->donorSiteRev[2] = '\0';
+
+  spliceSite->donorSiteRevComp[0] = complementChar(donorSite[1], NULL);
+  spliceSite->donorSiteRevComp[1] = complementChar(donorSite[0], NULL);
+  spliceSite->donorSiteRevComp[2] = '\0';
+
 
   spliceSite->acceptorSite[0] = acceptorSite[0];
   spliceSite->acceptorSite[1] = acceptorSite[1];
   spliceSite->acceptorSite[2] = '\0';
   
+  spliceSite->acceptorSiteComp[0] = complementChar(acceptorSite[0], NULL);
+  spliceSite->acceptorSiteComp[1] = complementChar(acceptorSite[1], NULL);
+  spliceSite->acceptorSiteComp[2] = '\0';
+  
   spliceSite->acceptorSiteRev[0] = acceptorSite[1];
   spliceSite->acceptorSiteRev[1] = acceptorSite[0];
   spliceSite->acceptorSiteRev[2] = '\0';
+  
+  spliceSite->acceptorSiteRevComp[0] = complementChar(acceptorSite[1], NULL);
+  spliceSite->acceptorSiteRevComp[1] = complementChar(acceptorSite[0], NULL);
+  spliceSite->acceptorSiteRevComp[2] = '\0';
   
   spliceSite->bothReqd = bothReqd;
   
@@ -2093,35 +2111,53 @@ static void destroyBlxSpliceSite(gpointer listItemData, gpointer data)
 /* Return the canonical bases at the donor/acceptor end of the given BlxSpliceSite. Returns them in
  * reverse order if 'reverse' is true, e.g. for a GC-AG intron, the dono is GC and acceptor is AG.
  * If reverse is true the donor returns CG and acceptor returns GA. The result is a pointer to the
- * string in the splice site, which is owned by the Detail View properties. */
-static const char* spliceSiteGetBases(const BlxSpliceSite *spliceSite, const gboolean donor, const gboolean reverse)
+ * string in the splice site, which is owned by the Detail View properties. 
+ * If revcomp is true, then revcomp the result and swap whether it's a donor or acceptor. */
+static const char* spliceSiteGetBases(const BlxSpliceSite *spliceSite, 
+                                      const gboolean donor,
+                                      const gboolean reverse,
+                                      const gboolean revcomp)
 {
   const char *result = NULL;
-  
-  if (donor)
+
+  if (revcomp)
     {
-      result = reverse ? spliceSite->donorSiteRev : spliceSite->donorSite;
+      /* Reverse the logic for everything and use complement */
+      if (donor)
+        result = reverse ? spliceSite->acceptorSiteComp : spliceSite->acceptorSiteRevComp;
+      else
+        result = reverse ? spliceSite->donorSiteComp : spliceSite->donorSiteRevComp;
     }
   else
     {
-      result = reverse ? spliceSite->acceptorSiteRev : spliceSite->acceptorSite;
+      if (donor)
+        result = reverse ? spliceSite->donorSiteRev : spliceSite->donorSite;
+      else
+        result = reverse ? spliceSite->acceptorSiteRev : spliceSite->acceptorSite;
     }
-  
+
   return result;
 }
 
 
-/* Determines whether the intron splice sites for the given MSP are canonical or not.
- * We look for GC-AG or AT-AC introns. The latter must have both ends of the intron matching
- * to be canonical. GC is the donor site and AG is the acceptor site. */
-static gboolean isMspSpliceSiteCanonical(const MSP* const msp, 
-                                         const BlxSequence *blxSeq, 
-                                         const gboolean isMinCoord, 
-                                         const gboolean revStrand,
-                                         const BlxViewContext *bc,
-                                         GSList *spliceSites)
+/* Determines whether the intron splice sites for the given MSP are canonical or not and returns
+ * the relevant highlight color: green for canonical and red for non-canonical.
+ * We look for GT-AG, GC-AG or AT-AC introns. The latter must have both ends of the intron matching
+ * to be canonical. GC is the donor site and AG is the acceptor site.
+ * We may also return orange if a site is "maybe" canonical. This means it would be canonical if
+ * it were on the other strand (i.e its revcomp is canonical). This is useful for identifying
+ * errors in input data (common in BAM, which doesn't have comprehensive representation of all
+ * strand combinations). */
+static BlxColorId getMspSpliceSiteColor(const MSP* const msp, 
+                                        const BlxSequence *blxSeq, 
+                                        const gboolean isMinCoord, 
+                                        const gboolean revStrand,
+                                        const BlxViewContext *bc,
+                                        GSList *spliceSites)
 {
-  gboolean result = FALSE;
+  BlxColorId colorId = BLXCOLOR_NON_CANONICAL;
+  gboolean canonical = FALSE;
+  gboolean maybe_canonical = FALSE;
 
   GSList *item = spliceSites;
   for ( ; item; item = item->next)
@@ -2135,23 +2171,62 @@ static gboolean isMspSpliceSiteCanonical(const MSP* const msp,
       /* The min coord end of the MSP is the acceptor site of the intron and the max coord the 
        * donor site (or vice versa if the strand is reversed). */
       const gboolean donor = (isMinCoord == revStrand);
-      const char *canonicalBases = spliceSiteGetBases(spliceSite, donor, revStrand);
+      gboolean revcomp = FALSE;
+      const char *canonicalBases = spliceSiteGetBases(spliceSite, donor, revStrand, revcomp);
 
       if (stringsEqual(bases, canonicalBases, FALSE))
         {
           if (spliceSite->bothReqd)
             {
               /* Must also check if the other end of the intron matches */
-              result = mspIsSpliceSiteCanonicalOtherEnd(msp, blxSeq, isMinCoord, revStrand, donor, bc, spliceSite);
+              if (mspIsSpliceSiteCanonicalOtherEnd(msp, blxSeq, isMinCoord, revStrand, donor, revcomp, bc, spliceSite))
+                {
+                  canonical = TRUE;
+                  break;
+                }
             }
           else
             {
-              result = TRUE;
+              canonical = TRUE;
+              break;
+            }
+        }
+      else if (bc->flags[BLXFLAG_SHOW_MAYBE_CANONICAL] && !maybe_canonical) /* don't need to check if already set */
+        {
+          /* Check if the revcomp would be canonical. Toggle the donor and revStrand flags - this gets
+           * the expected bases as if it were the "other" splice site (i.e. donor vs acceptor)
+           * and reverses the order of the bases. We also need to complement them. */
+          revcomp = TRUE;
+          canonicalBases = spliceSiteGetBases(spliceSite, donor, revStrand, revcomp);
+
+          if (stringsEqual(bases, canonicalBases, FALSE))
+            {
+              if (spliceSite->bothReqd)
+                {
+                  /* Must also check if the other end of the intron matches */
+                  if (mspIsSpliceSiteCanonicalOtherEnd(msp, blxSeq, isMinCoord, revStrand, donor, revcomp, bc, spliceSite))
+                    {
+                      /* don't break because we need to continue to check in case it's definitely canonical */
+                      maybe_canonical = TRUE;
+                    }
+                }
+              else
+                {
+                  /* don't break because we need to continue to check in case it's definitely canonical */
+                  maybe_canonical = TRUE;
+                }
             }
         }
     }
 
-  return result;
+  if (canonical)
+    colorId = BLXCOLOR_CANONICAL;
+  else if (maybe_canonical)
+    colorId = BLXCOLOR_MAYBE_CANONICAL;
+  else
+    colorId = BLXCOLOR_NON_CANONICAL;
+
+  return colorId;
 }
 
 
@@ -2176,8 +2251,7 @@ static void mspGetSpliceSiteCoords(const MSP* const msp,
   if (getMin && valueWithinRange(msp->qRange.min, qRange) && msp->qRange.min >= bc->refSeqRange.min + 2)
     {
       /* Find out if the adjacent bases are canonical/non-canonical. */
-      const gboolean canonical = isMspSpliceSiteCanonical(msp, blxSeq, TRUE, revStrand, bc, spliceSites);
-      BlxColorId colorId = canonical ? BLXCOLOR_CANONICAL : BLXCOLOR_NON_CANONICAL;
+      BlxColorId colorId = getMspSpliceSiteColor(msp, blxSeq, TRUE, revStrand, bc, spliceSites);
 
       /* Insert the two coords into the hash table */
       g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min - 2), GINT_TO_POINTER(colorId));
@@ -2188,8 +2262,7 @@ static void mspGetSpliceSiteCoords(const MSP* const msp,
   if (getMax && valueWithinRange(msp->qRange.max, qRange) && msp->qRange.max <= bc->refSeqRange.max - 2)
     {
       /* Find out if they are canonical/non-canonical */
-      const gboolean canonical = isMspSpliceSiteCanonical(msp, blxSeq, FALSE, revStrand, bc, spliceSites);
-      BlxColorId colorId = canonical ? BLXCOLOR_CANONICAL : BLXCOLOR_NON_CANONICAL;
+      BlxColorId colorId = getMspSpliceSiteColor(msp, blxSeq, FALSE, revStrand, bc, spliceSites);
       
       /* Insert the two coords into the hash table */
       g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max + 1), GINT_TO_POINTER(colorId));

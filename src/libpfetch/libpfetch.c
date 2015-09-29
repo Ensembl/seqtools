@@ -1338,7 +1338,8 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError
 
   if((pfetch->post_data = request))
     {
-      CURLObjectSet(pfetch->curl_object,
+      if (pfetch->proxy)
+        CURLObjectSet(pfetch->curl_object,
 		    /* general settings */
 		    "debug", PFETCH_HANDLE(pfetch)->opts.debug,
 		    "post",  TRUE,
@@ -1355,6 +1356,24 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError
 		    "headerdata",     pfetch,
 		    /* end of options */
 		    NULL);
+      else
+        CURLObjectSet(pfetch->curl_object,
+		    /* general settings */
+		    "debug", PFETCH_HANDLE(pfetch)->opts.debug,
+		    "post",  TRUE,
+		    "url",   PFETCH_HANDLE(pfetch)->location,
+		    "port",  pfetch->http_port,
+		    /* request */
+		    "postfields",  pfetch->post_data,   
+		    "cookiefile",  pfetch->cookie_jar_location,
+		    /* functions */
+		    "writefunction",  http_curl_write_func,
+		    "writedata",      pfetch,
+		    "headerfunction", http_curl_header_func,
+		    "headerdata",     pfetch,
+		    /* end of options */
+		    NULL);
+        
       
       pfetch->request_counter++;
       if(CURLObjectPerform(pfetch->curl_object, TRUE) == CURL_STATUS_FAILED)

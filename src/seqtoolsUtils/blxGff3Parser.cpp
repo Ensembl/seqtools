@@ -625,6 +625,14 @@ static void createBlixemObject(BlxGffData *gffData,
 
 	  /* populate the gaps array */
 	  parseGapString(gffData->gapString, gffData->gapFormat, msp, resFactor, featureLists, lastMsp, mspList, seqList, &tmpError);
+
+          /* Parsing the gaps array may have separated the msp into multiple different msps if it
+           * contained introns. We need to make sure the parent BlxSequence's msp list is sorted
+           * correctly. We do this now, after it is complete, because it's more efficient so sort
+           * the list once rather than on each iteration. */
+          if (msp && msp->sSequence && msp->sSequence->mspList)
+            msp->sSequence->mspList = g_list_sort(msp->sSequence->mspList, compareFuncMspPos);
+          
 	}
     }
 
@@ -1299,9 +1307,10 @@ static void parseCigarStringMatch(GapStringData *data, const int numNucleotides,
 
 static void parseCigarStringIntron(GapStringData *data, const int numNucleotides, const int numPeptides)
 {
-  /* Intron. Create a separate msp under the same sequence. */
+  /* Intron. Create a separate msp under the same sequence. Add the new msp to the same parent
+   * BlxSequence but pass sort=FALSE because we'll sort the resulting msp list once we've finished. */
   MSP *msp = *data->msp;
-  MSP *newMsp = copyMsp(msp, data->featureLists, data->lastMsp, data->mspList, TRUE);
+  MSP *newMsp = copyMsp(msp, data->featureLists, data->lastMsp, data->mspList, TRUE, FALSE);
   
   /* end current msp at the current coords */
   if (data->qDirection > 0)

@@ -1,7 +1,10 @@
 
-Git commits for  from commit "production" until commit "release/4.37"
+Git commits for  from commit "production" until commit "release/4.38.0"
 
-251cae7 2015-08-11 There are now separate feedback boxes for seq name and coords - NEW FEATURE 'Feedback box'
+f1db7af 2015-08-24 Temp fix for problem with infinite 'Bad file descriptor' messages RT '485625'
+6790459 2015-08-18 Fix a bug with colinearity lines when cigar string contains introns - BUG FIX
+5226210 2015-08-17 Merge branch 'feature/settings' into develop
+0675b83 2015-08-17 Merge branch 'feature/splice_sites' into develop
 
 
 End of git commits

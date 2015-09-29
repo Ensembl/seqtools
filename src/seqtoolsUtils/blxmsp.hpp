@@ -426,7 +426,7 @@ MSP*                  createNewMsp(GArray* featureLists[],
                                    const char *sName, const char *const sName_orig, int sStart, const int sEnd, 
                                    const BlxStrand sStrand, char *sequence,
                                    const GQuark filename, GHashTable *lookupTable, BlxSequence *blxSeq, GError **error);  
-MSP*                  copyMsp(const MSP* const src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, const gboolean addToParent);
+MSP*                  copyMsp(const MSP* const src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, const gboolean addToParent, const gboolean sort);
 
 //void                  insertFS(MSP *msp, char *series);
 
