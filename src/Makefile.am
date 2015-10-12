@@ -15,5 +15,5 @@ endif
 
 SUBDIRS += seqtoolsUtils dotterApp blixemApp belvuApp doc test examples
 # these are included in the distribution, but are not installed
-EXTRA_DIST = INSTALL.windows 
+EXTRA_DIST = INSTALL.windows INSTALL.linux INSTALL.mac
 

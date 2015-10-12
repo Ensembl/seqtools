@@ -1,0 +1,100 @@
+
+BUILDING SEQTOOLS AS A DEVELOPER
+================================
+
+In common with many packages zmap has two different builds:
+
+- a developer build for working on seqtools
+
+- a distribution build for simply compiling and using seqtools.
+
+This file covers the former, see ./INSTALL for instructions about the latter.
+
+
+Build Script Dependencies
+-------------------------
+The seqtools build system makes use of the gnu autoconf system to prepare machine
+independent builds. You need to make sure that an up to date version of this
+system (including m4) is installed on your system. These tools will
+have been installed if you chose the 'developer' installs on linux but you may
+need to install them separately on other unix flavours.
+
+
+Standard Library Dependencies
+-----------------------------
+seqtools has some standard library dependencies and you should read the various
+INSTALL.XXXX machine-specific files to make sure you have installed them before
+you try to build seqtools. On the whole these dependencies should mostly be
+installed already as they are standard libraries on most linux-like/gnu-like
+distributions.
+
+
+Non-Standard Library Dependencies
+---------------------------------
+In addition to the standard libraries seqtools makes use of a separate library 
+called gbtools, which contains code shared by zmap and seqtools. This library
+is included in the distibution file making it self-contained but it is NOT
+included in the raw developer build tree. 
+
+The gbtools repository can be obtained from here:
+git.internal.sanger.ac.uk:/repos/git/annotools/gbtools.git
+
+There are two main options for building seqtools with gbtools:
+
+1) Clone the gbtools repository into the 'src/gbtools' subdirectory of the seqtools
+source tree. autogen.sh will check for this directory and build gbtools if it exists.
+
+2) Clone and build gbtools locally and set LDFLAGS and CPPFLAGS to inform ./runconfig
+where to find it, e.g.
+../../runconfig LDFLAGS="-L<INSTALL_DIR>/lib" CPPFLAGS="-I<INSTALL_DIR>/include
+
+
+Overview
+--------
+All building takes place in the src directory and its subdirectories.
+
+The build tree has been set up so that you can build on multiple architectures
+using the same source tree if you want to. You can build in the existing
+src/build/xxxx directories or add extra directories of your own in src/build.
+
+There are two custom scripts needed for building:
+
+src/autogen.sh	- bootstraps the build running autoconf etc.
+
+src/runconfig	- runs the configure script to prepare the makefile
+
+The following sections describe how to use these to build seqtools.
+
+
+Bootstrapping and building
+--------------------------
+
+> cd src
+
+> ./autogen.sh
+
+> cd build/xxxxx	# e.g. linux
+
+> ../../runconfig
+
+> make
+
+
+Testing
+-------
+
+If the build worked you will find you have blixem, blixemh, dotter and belvu 
+executables in the build/xxxx/xxxApp subdirectories that you can test by checking
+their version flag, e.g.:
+
+> ./blixemApp/blixemh --version
+SeqTools - 4.37.0-17-g6df6
+>
+
+
+
+
+
+
+
+
