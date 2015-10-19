@@ -1,5 +1,5 @@
 
-Request Tracker Tickets Resolved from 16/09/2015 to 14/10/2015
+Request Tracker Tickets Resolved from 16/09/2015 to 19/10/2015
 
 ticket/474395
 id: ticket/474395
