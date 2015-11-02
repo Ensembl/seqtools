@@ -1,76 +1,45 @@
-2015-09-14  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.37.0-14-gb1fc - Update RT and git commit reports
- src/ChangeLog                                  |   88 ++++++++++++++++++------
- src/build/release_docs/GIT_COMMITS.txt         |    7 ++-
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |   12 ++--
- 3 files changed, 79 insertions(+), 28 deletions(-)
+2015-10-19  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.38.0-8-g31bb - Update RT and git commit reports
+ src/ChangeLog |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
 
-2015-09-01  Ed Griffiths  <edgrif@sanger.ac.uk>
+2015-10-19  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.38.0-7-g731d - Update RT and git commit reports
+ src/ChangeLog |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
+
+2015-10-19  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.38.0-6-g370e - Update RT and git commit reports
+ src/ChangeLog                                  |    5 +++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 6 insertions(+), 1 deletions(-)
+
+2015-10-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.38.0-5-g03a9 - Update RT and git commit reports
+ src/ChangeLog |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
+
+2015-10-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.38.0-4-gae89 - Update RT and git commit reports
+ src/ChangeLog                                  |   89 ++++--------------------
+ src/build/release_docs/GIT_COMMITS.txt         |    7 +--
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   22 +++---
+ 3 files changed, 28 insertions(+), 90 deletions(-)
+
+2015-10-12  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix missing install docs - DOC
+ src/INSTALL.DEVELOPER |  100 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/Makefile.am       |    2 +-
+ 2 files changed, 101 insertions(+), 1 deletions(-)
+
+2015-10-09  Gemma Guest  <gb10@sanger.ac.uk>
  Merge branch 'production' into develop
-2015-08-24  Gemma Guest  <gb10@sanger.ac.uk>
- Fix to previous - gtk_main_quit was failing - WIP
- src/blixemApp/blxFetch.cpp |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+2015-10-09  Gemma Guest  <gb10@sanger.ac.uk>
+ Update release notes for 4.37.0 and 4.38.0 - DOC
+ src/doc/User_doc/release_notes.html |   17 +++++++++++++++++
+ 1 files changed, 17 insertions(+), 0 deletions(-)
 
-2015-08-24  Gemma Guest  <gb10@sanger.ac.uk>
- Temp fix for problem with infinite 'Bad file descriptor' messages RT '485625'
- src/blixemApp/blxFetch.cpp |   34 +++++++++++++++++++++++++++++-----
- 1 files changed, 29 insertions(+), 5 deletions(-)
-
-2015-08-18  Gemma Guest  <gb10@sanger.ac.uk>
- Fix an issue where maybe-canonical option wasn't being saved - WIP
- src/blixemApp/blixem_.hpp   |    1 +
- src/blixemApp/blxwindow.cpp |    1 +
- 2 files changed, 2 insertions(+), 0 deletions(-)
-
-2015-08-18  Gemma Guest  <gb10@sanger.ac.uk>
- Fix a bug with colinearity lines when cigar string contains introns - BUG FIX
- src/seqtoolsUtils/blxGff3Parser.cpp |   13 +++++++++++--
- src/seqtoolsUtils/blxmsp.cpp        |   18 +++++++++++++-----
- src/seqtoolsUtils/blxmsp.hpp        |    2 +-
- 3 files changed, 25 insertions(+), 8 deletions(-)
-
-2015-08-17  Gemma Guest  <gb10@sanger.ac.uk>
- Merge branch 'feature/settings' into develop
-2015-08-17  Gemma Guest  <gb10@sanger.ac.uk>
- Add a button to save settings rather than saving on exit - WIP
- src/blixemApp/blxwindow.cpp |   17 +++++++++++++----
- 1 files changed, 13 insertions(+), 4 deletions(-)
-
-2015-08-17  Gemma Guest  <gb10@sanger.ac.uk>
- Merge branch 'feature/splice_sites' into develop
-2015-08-17  Gemma Guest  <gb10@sanger.ac.uk>
- Disable highlighting of maybe-canonical splice sites by default - WIP
- src/blixemApp/blxwindow.cpp |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
-
-2015-08-17  Gemma Guest  <gb10@sanger.ac.uk>
- Add tooltip text for settings options - NEW FEATURE 'Tooltips'
- src/blixemApp/blxwindow.cpp |  139 ++++++++++++++++++++++++++++++++++++++-----
- 1 files changed, 123 insertions(+), 16 deletions(-)
-
-2015-08-17  Gemma Guest  <gb10@sanger.ac.uk>
- Make highlighting of maybe-canonical splice sites optional - WIP
- src/blixemApp/blixem_.hpp    |    1 +
- src/blixemApp/blxwindow.cpp  |    5 ++++-
- src/blixemApp/detailview.cpp |    2 +-
- 3 files changed, 6 insertions(+), 2 deletions(-)
-
-2015-08-17  Gemma Guest  <gb10@sanger.ac.uk>
- Implement highlighting for maybe-canonical splice sites - WIP
- src/blixemApp/blxwindow.cpp  |    2 +-
- src/blixemApp/detailview.cpp |  127 +++++++++++++++++++++++++++++++++---------
- src/blixemApp/detailview.hpp |    6 ++
- 3 files changed, 107 insertions(+), 28 deletions(-)
-
-2015-08-17  Gemma Guest  <gb10@sanger.ac.uk>
- Add colour for maybe-canonical highlighting - WIP
- src/blixemApp/blixem_.hpp   |    3 +++
- src/blixemApp/blxwindow.cpp |    1 +
- 2 files changed, 4 insertions(+), 0 deletions(-)
-
-2015-08-17  Gemma Guest  <gb10@sanger.ac.uk>
- Make sure we only set proxy from config if given - TRIVIAL
- src/blixemApp/blxFetch.cpp |   22 +++++++++++++++-------
- src/libpfetch/libpfetch.c  |   21 ++++++++++++++++++++-
- 2 files changed, 35 insertions(+), 8 deletions(-)
+2015-09-23  Gemma Guest  <gb10@sanger.ac.uk>
+ Avoid potential null accesses - TRIVIAL
+ src/dotterApp/alignmenttool.cpp |  213 ++++++++++++++++++++++++++-------------
+ 1 files changed, 143 insertions(+), 70 deletions(-)

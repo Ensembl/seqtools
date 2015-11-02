@@ -1,10 +1,7 @@
 
-Git commits for  from commit "production" until commit "release/4.38.0"
+Git commits for  from commit "production" until commit "release/4.39.0"
 
-f1db7af 2015-08-24 Temp fix for problem with infinite 'Bad file descriptor' messages RT '485625'
-6790459 2015-08-18 Fix a bug with colinearity lines when cigar string contains introns - BUG FIX
-5226210 2015-08-17 Merge branch 'feature/settings' into develop
-0675b83 2015-08-17 Merge branch 'feature/splice_sites' into develop
+ae898af 2015-10-12 Fix missing install docs - DOC
 
 
 End of git commits
