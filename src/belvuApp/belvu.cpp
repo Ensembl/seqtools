@@ -2378,7 +2378,7 @@ void columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcI
  ***********************************************************/
 
 /* Create the colors that belvu will use for various specific purposes */
-static void createBelvuColors(BelvuContext *bc)
+void createBelvuColors(BelvuContext *bc)
 {
   /* Initialise the array with empty BlxColor structs */
   bc->defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), BELCOLOR_NUM_COLORS);
@@ -2422,11 +2422,10 @@ BelvuContext* createBelvuContext()
   bc->orgsWindow = NULL;
   
   bc->defaultCursor = NULL; /* get from gdkwindow once it is shown */
-  bc->removeSeqsCursor = gdk_cursor_new(GDK_PIRATE);
-  bc->busyCursor = gdk_cursor_new(GDK_WATCH);
+  bc->removeSeqsCursor = NULL ;
+  bc->busyCursor = NULL ;
 
   bc->defaultColors = NULL;
-  createBelvuColors(bc);
   
   bc->alignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN*), 100);
   bc->organismArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN*), 100);
