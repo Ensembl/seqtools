@@ -571,4 +571,6 @@ void					  alncpy(ALN *dest, ALN *src);
 
 void                                      setBusyCursor(BelvuContext *bc, const gboolean busy);
 
+void                                      createBelvuColors(BelvuContext *bc) ;
+
 #endif /* DEF_BELVU_P_H */

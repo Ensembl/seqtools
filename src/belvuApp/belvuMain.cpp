@@ -544,9 +544,6 @@ int main(int argc, char **argv)
   
   
   
-  /* Initialise GTK - do this early so we can show any errors in a pop-up dialog */
-  gtk_init(&argc, &argv);
-  
   
   /* Set up the GLib message handlers
    * 
@@ -964,6 +961,14 @@ int main(int argc, char **argv)
       mksubfamilies(bc, bc->mksubfamilies_cutoff);
       exit(0);
     }
+
+  /* We've finished all of the command-line-only options so now initialise the GTK GUI */
+  gtk_init(&argc, &argv);
+
+  /* Update bits of the context that require the display to be initialised */
+  bc->removeSeqsCursor = gdk_cursor_new(GDK_PIRATE);
+  bc->busyCursor = gdk_cursor_new(GDK_WATCH);
+  createBelvuColors(bc);
 
   g_message_info("\n%d sequences, max len = %d\n", bc->alignArr->len, bc->maxLen);
   
