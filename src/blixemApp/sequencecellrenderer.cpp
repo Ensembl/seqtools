@@ -674,7 +674,18 @@ static void drawBoxFeature(SequenceCellRenderer *renderer,
        * is selected, but note we don't highlight the whole row if a coord range is also selected. */
       gboolean fill = TRUE;
       const gboolean highlightExon = data->seqSelected && (!data->selectionRange || getRangeLength(data->selectionRange) < 2);
-      const GdkColor *color = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, msp->sSequence, highlightExon, data->bc->usePrintColors, fill, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
+      const GdkColor *color = mspGetColor(msp, 
+                                          data->bc->defaultColors, 
+                                          BLXCOLOR_BACKGROUND, 
+                                          msp->sSequence, 
+                                          highlightExon, 
+                                          data->bc->usePrintColors, 
+                                          fill,
+                                          BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE,
+                                          BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE,
+                                          BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE,
+                                          FALSE);
+
       gdk_gc_set_foreground(data->gc, color);
       drawRectangle2(data->window, data->drawable, data->gc, fill, x, y, width, height);
       

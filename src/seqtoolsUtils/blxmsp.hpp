@@ -365,7 +365,8 @@ const GdkColor*       mspGetColor(const MSP* const msp,
                                   const int cdsFillColorId,
                                   const int cdsLineColorId,
                                   const int utrFillColorId,
-                                  const int utrLineColorId);
+                                  const int utrLineColorId,
+                                  const bool allowTransparency = TRUE);
 
 const char*           mspGetColumn(const MSP* const msp, const BlxColumnId columnId);
 const char*           mspGetOrganism(const MSP* const msp);

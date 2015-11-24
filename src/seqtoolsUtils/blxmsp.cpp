@@ -499,16 +499,11 @@ const char* mspGetSource(const MSP* const msp)
 }
 
 
-/* Return the color matching the given properties from the given style */
-static const GdkColor *styleGetColor(const BlxStyle *style, 
-                                     const gboolean selected, 
-                                     const gboolean usePrintColors,
-                                     const gboolean fill, 
-                                     const gboolean utr,
-                                     GArray *defaultColors,
-                                     const int defaultColorId)
+/* Utility to return a pointer to the style's BlxColor for the given flags */
+static const BlxColor *styleGetBlxColor(const BlxStyle *style,
+                                        const bool fill,
+                                        const bool utr)
 {
-  const GdkColor *result = NULL;
   const BlxColor *blxColor = NULL;
   
   if (fill)
@@ -526,12 +521,49 @@ static const GdkColor *styleGetColor(const BlxStyle *style,
         blxColor = &style->lineColor;
     }
 
+  return blxColor ;
+}
+
+
+/* Return the color matching the given properties from the given style. Returns null if not
+ * found. defaultColorId here is the color to use if transparent. */
+static const GdkColor *styleGetColor(const BlxStyle *style, 
+                                     const gboolean selected, 
+                                     const gboolean usePrintColors,
+                                     const gboolean fill, 
+                                     const gboolean utr,
+                                     GArray *defaultColors,
+                                     const int defaultColorId,
+                                     bool allowTransparency)
+{
+  const GdkColor *result = NULL;
+  
+  const BlxColor *blxColor = styleGetBlxColor(style, fill, utr);
+  
   /* If it's transparent, use the background color instead, unless 
    * selected is true in which case we need to use the highlight color */
   if (blxColor && blxColor->transparent && !selected)
-    result = getGdkColor(defaultColorId, defaultColors, selected, usePrintColors);
-  else if (blxColor)
-    result = blxColorGetColor(blxColor, selected, usePrintColors);
+    {
+      if (allowTransparency)
+        {
+          /* We don't really handle transparency. Instead we return the background color, 
+           * so that it appears transparent */
+          result = getGdkColor(defaultColorId, defaultColors, selected, usePrintColors);
+          blxColor = NULL ;
+        }
+      else
+        {
+          /* It's a bit ambiguous what to do here. We've been told not to make it transparent
+           * (probably because in the detail view empty boxes are not much use). For now, return
+           * null to indicate 'not found' so the caller can use a default color instead. */
+          blxColor = NULL ;
+        }
+    }
+
+  if (blxColor)
+    {
+      result = blxColorGetColor(blxColor, selected, usePrintColors);
+    }
 
   return result;
 }
@@ -539,7 +571,8 @@ static const GdkColor *styleGetColor(const BlxStyle *style,
 
 /* Get the color for drawing the given MSP (If 'selected' is true, returns
  * the color when the MSP is selected.). Returns the fill color if 'fill' is 
- * true, otherwise the line color */
+ * true, otherwise the line color. If allowTransparency is true then the returned color is the
+ * same as the background if transparent; otherwise it is replaced with one of the default colors. */
 const GdkColor* mspGetColor(const MSP* const msp, 
 			    GArray *defaultColors, 
                             const int defaultColorId,
@@ -552,13 +585,14 @@ const GdkColor* mspGetColor(const MSP* const msp,
 			    const int cdsFillColorId,
 			    const int cdsLineColorId,
 			    const int utrFillColorId,
-			    const int utrLineColorId)
+			    const int utrLineColorId,
+                            const bool allowTransparency)
 {
   const GdkColor *result = NULL;
   
   if (msp->style)
     {
-      result = styleGetColor(msp->style, selected, usePrintColors, fill, msp->type == BLXMSP_UTR, defaultColors, defaultColorId);
+      result = styleGetColor(msp->style, selected, usePrintColors, fill, msp->type == BLXMSP_UTR, defaultColors, defaultColorId, allowTransparency);
     }
   
   if (!result)
