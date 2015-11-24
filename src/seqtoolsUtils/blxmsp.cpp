@@ -554,9 +554,13 @@ static const GdkColor *styleGetColor(const BlxStyle *style,
       else
         {
           /* It's a bit ambiguous what to do here. We've been told not to make it transparent
-           * (probably because in the detail view empty boxes are not much use). For now, return
-           * null to indicate 'not found' so the caller can use a default color instead. */
-          blxColor = NULL ;
+           * (probably because in the detail view empty boxes are not much use). For now, 
+           * try using the fill color for the border and vice versa. */
+          blxColor = styleGetBlxColor(style, !fill, utr) ;
+
+          /* If that's transparent too, return null to indicate not found */
+          if (blxColor && blxColor->transparent)
+            blxColor = NULL ;
         }
     }
 
