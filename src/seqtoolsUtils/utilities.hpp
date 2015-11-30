@@ -190,8 +190,18 @@ typedef struct _BlxColor
   {
     char *name;                   /* meaningful name for the color e.g. "Match" */
     char *desc;                   /* meaningful description for what the color is used for e.g. "background color for exact matches" */
-    gboolean transparent;         /* if this is true, the colors below are not specified and the background color should be used instead */
-    
+
+    gboolean transparent;         /* If this is true, the colors are not specified and the
+                                   * background color should be used instead. */
+
+    /* If the overridden flags are true, transparency has been overridden and the 
+     * colors ARE set but should only be used where transparency is
+     * not allowed. */
+    gboolean normal_overridden;
+    gboolean selected_overridden;
+    gboolean print_overridden;
+    gboolean printSelected_overridden;
+
     GdkColor normal;              /* the color in normal operation */
     GdkColor selected;            /* the color in a selected state */
     GdkColor print;               /* the color used for printing */
@@ -500,7 +510,10 @@ void                  setStatusBarShadowStyle(GtkWidget *statusBar, const char *
 
 BlxColor*             getBlxColor(GArray *defaultColors, const int colorId);
 GdkColor*             getGdkColor(int colorId, GArray *defaultColors, const gboolean selected, const gboolean usePrintColors);
+GdkColor*             blxColorGetColor(BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors);
 const GdkColor*       blxColorGetColor(const BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors);
+gboolean              blxColorOverridden(const BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors);
+gboolean              blxColorOverrideTransparency(BlxColor *dest, const BlxColor *source, const gboolean lighten, const gboolean selected, const gboolean usePrintColors);
 char*                 convertColorToString(GdkColor *color);
 void                  destroyBlxColor(BlxColor *blxColor);
 gboolean              colorsEqual(GdkColor *color1, GdkColor *color2);

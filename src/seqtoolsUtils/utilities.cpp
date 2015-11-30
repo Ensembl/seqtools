@@ -107,6 +107,10 @@ static gboolean        onSetUseScrolledMessages(GtkWidget *button, const gint re
 static gboolean        onSetUsePopupMessages(GtkWidget *button, const gint responseId, gpointer data);
 static const char*     getDialogIcon(GLogLevelFlags log_level);
 static void            printMessageToStatusbar(const gchar *message, gpointer data);
+static void            blxColorOverrideColor(BlxColor *blxColor, 
+                                             const gboolean selected, 
+                                             const gboolean usePrintColors, 
+                                             const GdkColor *color) ;
 
 
 /***********************************************************
@@ -1350,6 +1354,147 @@ int getEndDnaCoord(const IntRange* const displayRange,
   const int baseNum = numFrames;
   result = convertDisplayIdxToDnaIdx(result, displaySeqType, frame, baseNum, numFrames, displayRev, refSeqRange);
   
+  return result;
+}
+
+
+/* Returns true if the given (transparent) color has been overridden */
+gboolean blxColorOverridden(const BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors)
+{
+  gboolean result = FALSE ;
+
+  if (usePrintColors)
+    {
+      if (selected)
+        {
+          result = blxColor->printSelected_overridden;
+        }
+      else
+        {
+          result = blxColor->print_overridden;
+        }
+    }
+  else
+    {
+      if (selected)
+        {
+          result = blxColor->selected_overridden;
+        }
+      else
+        {
+          result = blxColor->normal_overridden;
+        }
+    }
+
+  return result ;
+}
+
+
+/* Override a specific GdkColor in dest with a lighter/darker version of the same GdkColor in
+ * source. Returns true if successful, false otherwise. */
+gboolean blxColorOverrideTransparency(BlxColor *dest, 
+                                      const BlxColor *source, 
+                                      const gboolean lighten,
+                                      const gboolean selected,
+                                      const gboolean usePrintColors)
+{
+  gboolean success = FALSE ;
+
+  double factor = lighten ? 1.3 : 0.7;
+
+  /* Make a copy of the source color */
+  const GdkColor *sourceColor = blxColorGetColor(source, selected, usePrintColors) ;
+
+  if (sourceColor)
+    {
+      GdkColor *newColor = gdk_color_copy(sourceColor) ;
+
+      /* Adjust its brightness */
+      adjustColorBrightness(sourceColor, factor, newColor);
+
+      /* Set it in the destination blxcolor struct */
+      blxColorOverrideColor(dest, selected, usePrintColors, newColor);
+
+      /* The above does not take ownership of newColor so we have to free it */
+      gdk_color_free(newColor);
+
+      success = TRUE ;
+    }
+
+  return success ;
+}
+
+
+/* For the given BlxColor, set a pointer to the GdkColor that meets the given criteria */
+static void blxColorOverrideColor(BlxColor *blxColor, 
+                                  const gboolean selected, 
+                                  const gboolean usePrintColors, 
+                                  const GdkColor *source)
+{
+  GdkColor *color = NULL ;
+
+  if (usePrintColors)
+    {
+      if (selected)
+        {
+          color = &blxColor->printSelected;
+          blxColor->printSelected_overridden = TRUE ;
+        }
+      else
+        {
+          color = &blxColor->print;
+          blxColor->print_overridden = TRUE ;
+        }
+    }
+  else
+    {
+      if (selected)
+        {
+          color = &blxColor->selected;
+          blxColor->selected_overridden = TRUE ;
+        }
+      else
+        {
+          color = &blxColor->normal;
+          blxColor->normal_overridden = TRUE ;
+        }
+    }
+
+  gdk_color_parse(gdk_color_to_string(source), color);
+
+  gboolean failures[1];
+  gdk_colormap_alloc_colors(gdk_colormap_get_system(), color, 1, TRUE, TRUE, failures);
+}
+
+
+/* For the given BlxColor, return a pointer to the GdkColor that meets the given criteria */
+GdkColor *blxColorGetColor(BlxColor *blxColor, const gboolean selected, const gboolean usePrintColors)
+{
+  GdkColor *result = NULL;
+  
+  if (usePrintColors)
+    {
+      if (selected)
+        {
+          result = &blxColor->printSelected;
+        }
+      else
+        {
+          result = &blxColor->print;
+        }
+    }
+  else
+    {
+      if (selected)
+        {
+          result = &blxColor->selected;
+        }
+      else
+        {
+          result = &blxColor->normal;
+        }
+    }
+    
   return result;
 }
 
