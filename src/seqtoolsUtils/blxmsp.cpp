@@ -500,11 +500,11 @@ const char* mspGetSource(const MSP* const msp)
 
 
 /* Utility to return a pointer to the style's BlxColor for the given flags */
-static const BlxColor *styleGetBlxColor(const BlxStyle *style,
-                                        const bool fill,
-                                        const bool utr)
+static BlxColor *styleGetBlxColor(BlxStyle *style,
+                                  const bool fill,
+                                  const bool utr)
 {
-  const BlxColor *blxColor = NULL;
+  BlxColor *blxColor = NULL;
   
   if (fill)
     {
@@ -526,8 +526,11 @@ static const BlxColor *styleGetBlxColor(const BlxStyle *style,
 
 
 /* Return the color matching the given properties from the given style. Returns null if not
- * found. defaultColorId here is the color to use if transparent. */
-static const GdkColor *styleGetColor(const BlxStyle *style, 
+ * found. defaultColorId here is the color to use if transparent.
+ * Note that this function may alter BlxColor structs to override transparent colors with
+ * alternative colors if allowTransparency is false. It will only do this once for each BlxColor
+ * and will set the overridden flag in the color to indicate that a color has been set. */
+static const GdkColor *styleGetColor(BlxStyle *style, 
                                      const gboolean selected, 
                                      const gboolean usePrintColors,
                                      const gboolean fill, 
@@ -536,9 +539,9 @@ static const GdkColor *styleGetColor(const BlxStyle *style,
                                      const int defaultColorId,
                                      bool allowTransparency)
 {
-  const GdkColor *result = NULL;
+  GdkColor *result = NULL;
   
-  const BlxColor *blxColor = styleGetBlxColor(style, fill, utr);
+  BlxColor *blxColor = styleGetBlxColor(style, fill, utr);
   
   /* If it's transparent, use the background color instead, unless 
    * selected is true in which case we need to use the highlight color */
@@ -551,22 +554,30 @@ static const GdkColor *styleGetColor(const BlxStyle *style,
           result = getGdkColor(defaultColorId, defaultColors, selected, usePrintColors);
           blxColor = NULL ;
         }
+      else if (blxColorOverridden(blxColor, selected, usePrintColors))
+        {
+          /* The transparent color has already been overridden so we can use the override color
+           * which has already been set for it */
+        }
       else
         {
           /* It's a bit ambiguous what to do here. We've been told not to make it transparent
            * (probably because in the detail view empty boxes are not much use). For now, 
-           * try using the fill color for the border and vice versa. */
-          blxColor = styleGetBlxColor(style, !fill, utr) ;
+           * if the fill is transparent then replace it with a lighter version of the
+           * border colour. If the border is transparent then replace with a darker version of the
+           * fill colour. */
+          const BlxColor *source = styleGetBlxColor(style, !fill, utr) ;
 
-          /* If that's transparent too, return null to indicate not found */
-          if (blxColor && blxColor->transparent)
-            blxColor = NULL ;
+          if (!blxColorOverrideTransparency(blxColor, source, fill, selected, usePrintColors))
+            {
+              blxColor = NULL; // indicates not found if it failed
+            }
         }
     }
 
   if (blxColor)
     {
-      result = blxColorGetColor(blxColor, selected, usePrintColors);
+      result = blxColorGetColor(blxColor, selected, usePrintColors) ;
     }
 
   return result;
