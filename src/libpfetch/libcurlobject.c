@@ -807,21 +807,24 @@ static gboolean curl_object_watch_func(GIOChannel  *source,
 				       gpointer     user_data)
 {
   CURLObject curl_object = CURL_OBJECT(user_data);
+  int running_handles = 0 ;
   gboolean call_again = FALSE;
     
   if((condition & G_IO_OUT) ||
      (condition & G_IO_IN))
     {
-      if((curl_object->last_multi_status = 
-	     curl_multi_perform(curl_object->multi, 
-				&call_again)) == CURLM_CALL_MULTI_PERFORM)
-	{
-	  while((curl_object->last_multi_status = 
-		 curl_multi_perform(curl_object->multi, 
-				    &call_again)) == CURLM_CALL_MULTI_PERFORM);
-	}
-      else if(!call_again)
-	g_warning("%s\n", "multi_perform returned !call_again");	
+      while((curl_object->last_multi_status = curl_multi_perform(curl_object->multi, &running_handles))
+            == CURLM_CALL_MULTI_PERFORM)
+        {
+          if(running_handles < 1)
+            {
+              g_warning("%s\n", "curl_multi_perform requested to run again, but has no remaining handles");
+              break ;
+            }
+        }
+
+      if (running_handles > 0)
+        call_again = TRUE ;
     }
   else if((condition & G_IO_HUP) ||
 	  (condition & G_IO_ERR) ||
