@@ -203,6 +203,10 @@ CURLObjectStatus CURLObjectPerform(CURLObject curl_object, gboolean use_multi)
     {
       if(use_multi)
 	{
+#ifdef DEBUG
+          /* Enable verbose output from libcurl if debug output is enabled */
+	  curl_easy_setopt(curl_object->easy, CURLOPT_VERBOSE, 1);
+#endif
 #ifdef PROGRESS_INTERNAL
 	  curl_easy_setopt(curl_object->easy, CURLOPT_PROGRESSFUNCTION, curl_object_progress_func);
 
@@ -249,7 +253,7 @@ CURLObjectStatus CURLObjectErrorMessage(CURLObject curl_object, char **message)
   if(message)
     {
       *message = NULL;
-      if(curl_object->last_easy_status)
+      if(curl_object->error_message)
 	*message = g_strdup(curl_object->error_message);
     }
 

@@ -174,6 +174,19 @@ PFetchHandle PFetchHandleDestroy(PFetchHandle pfetch)
   return NULL;
 }
 
+/* Returns the error message in the curl object, if there is one. The result is a new string
+ * which should be free'd with g_free. Returns null if no error. */
+char* PFetchHandleHttpGetError(PFetchHandle *pfetch)
+{
+  char *result = NULL ;
+  PFetchHandleHttp http_handle = (PFetchHandleHttp)pfetch ;
+  
+  if (http_handle && http_handle->curl_object)
+    CURLObjectErrorMessage(http_handle->curl_object, &result) ;
+    
+  return result ;
+}
+
 /* INTERNAL Base class functions */
 
 static void pfetch_handle_class_init(PFetchHandleClass pfetch_class)
@@ -1340,39 +1353,39 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError
     {
       if (pfetch->proxy)
         CURLObjectSet(pfetch->curl_object,
-		    /* general settings */
-		    "debug", PFETCH_HANDLE(pfetch)->opts.debug,
-		    "post",  TRUE,
-		    "url",   PFETCH_HANDLE(pfetch)->location,
-		    "port",  pfetch->http_port,
-		    /* request */
-		    "postfields",  pfetch->post_data,   
-		    "cookiefile",  pfetch->cookie_jar_location,
-		    "proxy",  pfetch->proxy,
-		    /* functions */
-		    "writefunction",  http_curl_write_func,
-		    "writedata",      pfetch,
-		    "headerfunction", http_curl_header_func,
-		    "headerdata",     pfetch,
-		    /* end of options */
-		    NULL);
+                      /* general settings */
+                      "debug", PFETCH_HANDLE(pfetch)->opts.debug,
+                      "post",  TRUE,
+                      "url",   PFETCH_HANDLE(pfetch)->location,
+                      "port",  pfetch->http_port,
+                      /* request */
+                      "postfields",  pfetch->post_data,   
+                      "cookiefile",  pfetch->cookie_jar_location,
+                      "proxy",  pfetch->proxy,
+                      /* functions */
+                      "writefunction",  http_curl_write_func,
+                      "writedata",      pfetch,
+                      "headerfunction", http_curl_header_func,
+                      "headerdata",     pfetch,
+                      /* end of options */
+                      NULL);
       else
         CURLObjectSet(pfetch->curl_object,
-		    /* general settings */
-		    "debug", PFETCH_HANDLE(pfetch)->opts.debug,
-		    "post",  TRUE,
-		    "url",   PFETCH_HANDLE(pfetch)->location,
-		    "port",  pfetch->http_port,
-		    /* request */
-		    "postfields",  pfetch->post_data,   
-		    "cookiefile",  pfetch->cookie_jar_location,
-		    /* functions */
-		    "writefunction",  http_curl_write_func,
-		    "writedata",      pfetch,
-		    "headerfunction", http_curl_header_func,
-		    "headerdata",     pfetch,
-		    /* end of options */
-		    NULL);
+                      /* general settings */
+                      "debug", PFETCH_HANDLE(pfetch)->opts.debug,
+                      "post",  TRUE,
+                      "url",   PFETCH_HANDLE(pfetch)->location,
+                      "port",  pfetch->http_port,
+                      /* request */
+                      "postfields",  pfetch->post_data,   
+                      "cookiefile",  pfetch->cookie_jar_location,
+                      /* functions */
+                      "writefunction",  http_curl_write_func,
+                      "writedata",      pfetch,
+                      "headerfunction", http_curl_header_func,
+                      "headerdata",     pfetch,
+                      /* end of options */
+                      NULL);
         
       
       pfetch->request_counter++;
