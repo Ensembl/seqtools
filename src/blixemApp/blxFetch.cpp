@@ -1728,15 +1728,24 @@ static PFetchStatus pfetch_closed_func(PFetchHandle *handle, gpointer user_data)
           /* If we didn't get a response then report an error and try again with the next fetch method */
           gtk_text_buffer_set_text(text_buffer, "", 0);
 
-          std::string msg("Connection closed without a response");
-          
+          const char *locn = "" ;
+
           if (pfetch_data->fetchMethod && pfetch_data->fetchMethod->location)
             {
-              msg += ": ";
-              msg += pfetch_data->fetchMethod->location;
+              locn = pfetch_data->fetchMethod->location;
             }
 
-          gtk_text_buffer_insert_at_cursor(text_buffer, msg.c_str(), msg.size());
+          char *handle_err = PFetchHandleHttpGetError(handle) ;
+
+          char *err_msg = g_strdup_printf("Connection to '%s' closed without a response:\n%s\n",
+                                          locn, handle_err ? handle_err : "no error message");
+          
+          if (handle_err)
+            g_free(handle_err) ;
+
+          gtk_text_buffer_insert_at_cursor(text_buffer, err_msg, strlen(err_msg));
+
+          g_free(err_msg) ;
 
           fetchSequence(pfetch_data->blxSeq, TRUE, pfetch_data->attempt + 1, pfetch_data->blxWindow, pfetch_data->dialog, &pfetch_data->text_buffer);
         }
@@ -1855,7 +1864,13 @@ static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_d
       if (fetch_data && fetch_data->fetchData.fetchMethod && fetch_data->fetchData.fetchMethod->location)
         locn = fetch_data->fetchData.fetchMethod->location ;
 
-      g_warning("Connection closed without a response: %s\n", locn);
+      char *err_msg = PFetchHandleHttpGetError(handle) ;
+
+      g_warning("Connection to '%s' closed without a response:\n%s\n",
+                locn, err_msg ? err_msg : "no error message");
+
+      if (err_msg)
+        g_free(err_msg) ;
     }
 
   return status ;
