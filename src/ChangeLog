@@ -1,3 +1,10 @@
+2015-12-15  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-5-g053c - Update RT and git commit reports
+ src/ChangeLog                                  |   61 +++++++----------------
+ src/build/release_docs/GIT_COMMITS.txt         |    4 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   22 +--------
+ 3 files changed, 22 insertions(+), 65 deletions(-)
+
 2015-12-09  Gemma Guest  <gb10@sanger.ac.uk>
  Merge branch 'feature/pfetch' into develop - NEW FEATURE 'pfetch errors'
 2015-12-09  Gemma Guest  <gb10@sanger.ac.uk>
