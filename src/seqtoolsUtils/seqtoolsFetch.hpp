@@ -43,16 +43,16 @@
 /* These are the supported fetch modes. ***If you add anything here, also add it in fetchModeStr*** */
 typedef enum
   {
+#ifdef PFETCH_HTML 
+    BLXFETCH_MODE_HTTP,
+    BLXFETCH_MODE_PIPE,
+#endif
     BLXFETCH_MODE_SOCKET,
     BLXFETCH_MODE_WWW,
     BLXFETCH_MODE_SQLITE,
     BLXFETCH_MODE_COMMAND,
     BLXFETCH_MODE_INTERNAL,
     BLXFETCH_MODE_NONE,
-#ifdef PFETCH_HTML 
-    BLXFETCH_MODE_HTTP,
-    BLXFETCH_MODE_PIPE,
-#endif
 
     BLXFETCH_NUM_MODES /* must be last in list */
   } BlxFetchMode;
