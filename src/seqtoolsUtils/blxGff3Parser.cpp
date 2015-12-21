@@ -169,6 +169,8 @@ static void freeGffData(BlxGffData *gffData)
   freeAndNullString(&gffData->idTag);
   freeAndNullString(&gffData->parentIdTag);
   freeAndNullString(&gffData->gapString);
+  freeAndNullString(&gffData->fetchCommand);
+  freeAndNullString(&gffData->fetchArgs);
 }
 
 
@@ -1678,9 +1680,12 @@ static void destroyGffType(BlxGffType **gffType)
 {
   if (gffType && *gffType)
     {
-      g_free((*gffType)->name);
-      g_free((*gffType)->soId);
-      
+      if ((*gffType)->name)
+        g_free((*gffType)->name);
+
+      if ((*gffType)->soId)
+        g_free((*gffType)->soId);
+
       g_free(*gffType);
       *gffType = NULL;
     }
