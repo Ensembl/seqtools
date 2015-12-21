@@ -44,6 +44,9 @@
 #include <string.h>
 #include <ctype.h> /* for isspace etc. */
 #include <math.h>
+#include <algorithm>
+
+using namespace std;
 
 
 #define DEFAULT_TREE_WINDOW_WIDTH_FRACTION      0.6    /* default width of tree window (as fraction of screen width) */
@@ -1855,7 +1858,7 @@ static double treeDrawNode(BelvuContext *bc,
       char *tmpStr = g_strdup_printf("%.1f", node->branchlen);
 
       const int textWidth = getTextWidth(widget, tmpStr);
-      double pos = min(curX, x) + (abs(curX - x) / 2) - (textWidth * 0.5); /* centre text at middle of branch */
+      double pos = min((double)curX, x) + (abs(curX - x) / 2) - (textWidth * 0.5); /* centre text at middle of branch */
 
       drawText(widget, drawable, gc, pos, y, tmpStr, NULL, NULL);
       
@@ -2264,7 +2267,7 @@ static GtkWidget* createDoubleTextEntry(const char *labelText, double *value, Gt
   gtk_entry_set_text(GTK_ENTRY(entry), defaultInput);
 
   
-  const int defaultLen = min(strlen(defaultInput) * 8, 500);
+  const int defaultLen = min((int)strlen(defaultInput) * 8, 500);
   gtk_widget_set_size_request(entry, defaultLen, -1);
 
   g_free(defaultInput);

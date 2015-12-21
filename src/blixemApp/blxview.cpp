@@ -60,6 +60,7 @@ MSP score codes (for obsolete exblx file format):
 #include <unistd.h>
 #include <ctype.h>
 #include <gdk/gdkkeysyms.h>
+#include <algorithm>
 
 #include <blixemApp/blixem_.hpp>
 #include <blixemApp/blxwindow.hpp>
@@ -70,6 +71,8 @@ MSP score codes (for obsolete exblx file format):
 #include <seqtoolsUtils/blxparser.hpp>
 #include <seqtoolsUtils/utilities.hpp>
 #include <gbtools/gbtools.hpp>
+
+using namespace std;
 
 
 #define MAXALIGNLEN			      10000

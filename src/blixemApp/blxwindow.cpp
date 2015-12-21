@@ -49,6 +49,10 @@
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <ctype.h>
+#include <algorithm>
+
+using namespace std;
+
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      1    /* used to change the default border width around the blixem window */
 #define DEFAULT_COVERAGE_VIEW_BORDER     12   /* size of border to allow around the coverage view */

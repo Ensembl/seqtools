@@ -45,6 +45,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <algorithm>
+
+using namespace std;
+
 
 #define DEFAULT_DOTTER_RANGE_SELF	2000
 #define DEFAULT_WINDOW_WIDTH            500

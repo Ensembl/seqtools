@@ -63,6 +63,8 @@
 #endif
 
 
+using namespace std;
+
 
 /* States for parsing EMBL files */
 typedef enum
