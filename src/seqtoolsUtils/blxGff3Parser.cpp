@@ -45,6 +45,8 @@
 #include <string>
 #include <map>
 
+using namespace std;
+
 
 /* globals */
 static std::map<GQuark, BlxDataType*> g_dataTypes;
@@ -1193,6 +1195,45 @@ static void parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGf
 }
 
 
+/* A function to replace all occurances of substring 'from' with substring 'to' in the given
+ * string. Taken from http://stackoverflow.com/questions/3418231/replace-part-of-a-string-with-another-string */
+void stringReplace(string& str, const string& from, const string& to) 
+{
+  if(from.empty())
+    return;
+
+  size_t start_pos = 0;
+
+  while((start_pos = str.find(from, start_pos)) != string::npos) 
+    {
+      str.replace(start_pos, from.length(), to);
+      start_pos += to.length();
+    }
+}
+
+
+/* Unescape gff special characters from the given string. Returns a newly-allocated string which
+ * should be free'd using g_free */
+static char* unescapeGffString(const char *src)
+{
+  char *result = NULL;
+
+  if (src)
+    {
+      string dest(src);
+
+      stringReplace(dest, "%3D", "=");
+      stringReplace(dest, "%3B", ";");
+      stringReplace(dest, "%26", ",");
+      stringReplace(dest, "%2C", "&");
+
+      result = g_strdup(dest.c_str());
+    }
+
+  return result;
+}
+
+
 /* Parse the data from a 'command' tag */
 static void parseCommandTag(char *data, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error)
 {
@@ -1210,7 +1251,10 @@ static void parseCommandTag(char *data, const int lineNum, GList **seqList, BlxG
       gffData->fetchCommand[len] = '\0';
 
       if (cp)
-        gffData->fetchArgs = g_strdup(cp);
+        {
+          /* We need to unescape gff special characters */
+          gffData->fetchArgs = unescapeGffString(cp);
+        }
     }
 }
 
