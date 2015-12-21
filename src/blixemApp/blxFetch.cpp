@@ -2159,31 +2159,6 @@ static void readBlixemStanza(GKeyFile *key_file,
 }
 
 
-/* Create a fetch method struct */
-static BlxFetchMethod* createBlxFetchMethod(const char *fetchName, 
-                                            const GQuark fetchMode)
-{
-  BlxFetchMethod *result = (BlxFetchMethod*)g_malloc(sizeof *result);
-
-  result->name = g_quark_from_string(fetchName);
-  result->mode = BLXFETCH_MODE_NONE;
-
-  result->location = NULL;
-  result->node = NULL;
-  result->port = 0;
-  result->cookie_jar = NULL;
-  result->proxy = NULL;
-  result->args = NULL;
-  result->columns = NULL;
-
-  result->separator = NULL;
-  result->errors = NULL;
-  result->outputType = BLXFETCH_OUTPUT_INVALID;
-
-  return result;
-}
-
-
 /* Get the output type from the given fetch stanza. Returns BLXFETCH_OUTPUT_INVALID if
  * not found. The input error value can be non-null, in which case any new error message
  * will be appended. */
@@ -2278,7 +2253,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
   char *fetchMode = configGetString(key_file, group, FETCH_MODE_KEY, &tmpError);
 
   if (!tmpError)
-    result = createBlxFetchMethod(group, g_quark_from_string(fetchMode));
+    result = createBlxFetchMethod(group);
 
   /* Set the relevant properties for this type of fetch method. (Append a
    * warning to tmpError for mandatory arguments if they are not found.) */
@@ -3521,58 +3496,73 @@ static gboolean fetchList(GList *seqsToFetch,
     {
       if (fetchMethod)
         {
-          if (fetchMethod->mode == BLXFETCH_MODE_SOCKET)
-            {  
-              success = socketFetchList(seqsToFetch,
+          switch (fetchMethod->mode)
+            {
+            case BLXFETCH_MODE_SOCKET:
+              {  
+                success = socketFetchList(seqsToFetch,
+                                          fetchMethod,
+                                          *seqList,
+                                          columnList,
+                                          External,
+                                          seqType,
+                                          error);
+                break;
+              }
+
+#ifdef PFETCH_HTML 
+            case BLXFETCH_MODE_HTTP: // fall through
+            case BLXFETCH_MODE_PIPE:
+              {
+                success = httpFetchList(seqsToFetch,
                                         fetchMethod,
                                         *seqList,
                                         columnList,
-                                        External,
                                         seqType,
                                         error);
-            }
-#ifdef PFETCH_HTML 
-          else if (fetchMethod->mode == BLXFETCH_MODE_HTTP || fetchMethod->mode == BLXFETCH_MODE_PIPE)
-            {
-              success = httpFetchList(seqsToFetch,
-                                      fetchMethod,
-                                      *seqList,
-                                      columnList,
-                                      seqType,
-                                      error);
-            }
+                break;
+              }
 #endif
-          else if (fetchMethod->mode == BLXFETCH_MODE_SQLITE)
-            {
-              sqliteFetchSequences(seqsToFetch, fetchMethod, columnList, error);
-            }
-          else if (fetchMethod->mode == BLXFETCH_MODE_COMMAND)
-            {
-              commandFetchList(seqsToFetch, 
-                               seqList, 
-                               columnList,
-                               fetchMethod, 
-                               mspList,
-                               blastMode,
-                               featureLists,
-                               supportedTypes,
-                               styles,
-                               External,
-                               saveTempFiles,
-                               seqType,
-                               refSeqOffset,
-                               dataset,
-                               refSeqRange,
-                               lookupTable,
-                               error);
-            }
-          else if (fetchMethod->mode == BLXFETCH_MODE_NONE)
-            {
-              /* do nothing */
-            }
-          else
-            {
-              g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", g_quark_to_string(fetchMethod->name));
+
+            case BLXFETCH_MODE_SQLITE:
+              {
+                sqliteFetchSequences(seqsToFetch, fetchMethod, columnList, error);
+                break;
+              }
+
+            case BLXFETCH_MODE_COMMAND:
+              {
+                commandFetchList(seqsToFetch, 
+                                 seqList, 
+                                 columnList,
+                                 fetchMethod, 
+                                 mspList,
+                                 blastMode,
+                                 featureLists,
+                                 supportedTypes,
+                                 styles,
+                                 External,
+                                 saveTempFiles,
+                                 seqType,
+                                 refSeqOffset,
+                                 dataset,
+                                 refSeqRange,
+                                 lookupTable,
+                                 error);
+                break;
+              }
+
+            case BLXFETCH_MODE_NONE:
+              {
+                /* do nothing */
+                break;
+              }
+
+            default:
+              {
+                g_set_error(error, BLX_ERROR, 1, "Bulk fetch is not implemented yet in %s mode.\n", g_quark_to_string(fetchMethod->name));
+                break;
+              }
             }
         }
       else

@@ -1,6 +1,6 @@
-/*  File: blxparser.h
- *  Author: Gemma Barson, 2010-09-02
- *  Copyright (c) 2010 - 2012 Genome Research Ltd
+/*  File: seqtoolsFetch.cpp
+ *  Author: Gemma Guest, 2015-12-21
+ *  Copyright (c) 2015 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,17 +31,32 @@
  *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
- *  Description: Parser for Blixem and Dotter feature input files.
- *               
- *               GFF v3 is the preferred input file format. This parser also
- *               includes code to parse the old exblx or feature-series file
- *               types (e.g. as output from the MSPcrunch program). 
+ * Description: Utility methods for sequence-fetching code
  *----------------------------------------------------------------------------
  */
 
-void           parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode, GArray* featureLists[], GList **seqList, GList *columnList, GSList *supportedTypes, GSList *styles,
-		       char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, GKeyFile *keyFile, GHashTable *lookupTable, GHashTable *fetchMethods, GError **error) ;
+#include <seqtoolsUtils/seqtoolsFetch.hpp>
 
-void           parseBuffer(MSP **MSPlist, const char *buffer_in, BlxBlastMode *blastMode, GArray* featureLists[], GList **seqList, GList *columnList, GSList *supportedTypes, GSList *styles,
-                           char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, GKeyFile *keyFile, GHashTable *lookupTable, GError **error) ;
-gboolean       blxParseGaps(char **text, MSP *msp, const gboolean hasGapsTag);
+
+/* Create a fetch method struct */
+BlxFetchMethod* createBlxFetchMethod(const char *fetchName)
+{
+  BlxFetchMethod *result = (BlxFetchMethod*)g_malloc(sizeof *result);
+
+  result->name = g_quark_from_string(fetchName);
+  result->mode = BLXFETCH_MODE_NONE;
+
+  result->location = NULL;
+  result->node = NULL;
+  result->port = 0;
+  result->cookie_jar = NULL;
+  result->proxy = NULL;
+  result->args = NULL;
+  result->columns = NULL;
+
+  result->separator = NULL;
+  result->errors = NULL;
+  result->outputType = BLXFETCH_OUTPUT_INVALID;
+
+  return result;
+}

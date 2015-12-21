@@ -390,7 +390,7 @@ void loadNativeFile(const char *filename,
       else
         {
           parseFS(newMsps, file, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
-                  &dummyseq1, dummyseqname1, &toplevelRange, &dummyseq2, dummyseqname2, keyFile, lookupTable, error) ;      
+                  &dummyseq1, dummyseqname1, &toplevelRange, &dummyseq2, dummyseqname2, keyFile, lookupTable, NULL, error) ;
           
           fclose(file);
         }

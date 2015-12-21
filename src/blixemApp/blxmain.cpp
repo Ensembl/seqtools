@@ -793,7 +793,8 @@ int main(int argc, char **argv)
   if (FSfile)
     {
       parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
-              &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, inputConfigFile, lookupTable, &error) ;
+              &options.refSeq, options.refSeqName, &options.refSeqRange, &dummyseq, dummyseqname, inputConfigFile, lookupTable,
+              options.fetchMethods, &error) ;
     }
 
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);  
@@ -848,7 +849,7 @@ int main(int argc, char **argv)
         }
       
       parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
-              &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig(), lookupTable, &error) ;
+              &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig(), lookupTable, options.fetchMethods, &error) ;
 
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       fclose(xtra_file) ;
