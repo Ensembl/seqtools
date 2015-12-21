@@ -1858,7 +1858,7 @@ static double treeDrawNode(BelvuContext *bc,
       char *tmpStr = g_strdup_printf("%.1f", node->branchlen);
 
       const int textWidth = getTextWidth(widget, tmpStr);
-      double pos = min((double)curX, x) + (abs(curX - x) / 2) - (textWidth * 0.5); /* centre text at middle of branch */
+      double pos = min((double)curX, x) + (abs((int)(curX - x)) / 2) - (textWidth * 0.5); /* centre text at middle of branch */
 
       drawText(widget, drawable, gc, pos, y, tmpStr, NULL, NULL);
       
