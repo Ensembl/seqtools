@@ -84,7 +84,7 @@ static void	    parseBody(char *line, const int lineNum, BlxBlastMode blastMode,
                               char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
                               BlxParserState *parserState, GArray* featureLists[], MSP **mspList, GList **seqList, GList *columnList, 
                               GSList *supportedTypes, GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, 
-                              GKeyFile *keyFile, GHashTable *lookupTable);
+                              GKeyFile *keyFile, GHashTable *lookupTable, GHashTable *fetchMethods);
 
 static void	    parseEXBLXSEQBL(GArray* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, BlxBlastMode blastMode, GString *line_string, GList **seqList, GList *columnList, GHashTable *lookupTable);
 static void	    parseEXBLXSEQBLExtended(GArray* featureLists[], MSP **lastMsp, MSP **mspList, const BlxParserState parserState, BlxBlastMode blastMode, GString *line_string, GList **seqList, GList *columnList, GHashTable *lookupTable);
@@ -183,7 +183,8 @@ static int getResFactorFromMode(const BlxBlastMode blastMode)
 static void parseLine(char *line, const int lineNum, BlxBlastMode *blastMode, const int resFactor, MSP **msp, GString *line_string,
                       char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
                       BlxParserState *parserState, GArray *featureLists[], MSP **mspList, GList **seqList, GList *columnList, GSList *supportedTypes,
-                      GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, GKeyFile *keyFile, GHashTable *lookupTable, GError **error)
+                      GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, GKeyFile *keyFile, GHashTable *lookupTable, 
+                      GHashTable *fetchMethods, GError **error)
 {
   if (!line)
     return;
@@ -218,7 +219,7 @@ static void parseLine(char *line, const int lineNum, BlxBlastMode *blastMode, co
     {
       parseBody(line, lineNum, *blastMode, resFactor, msp, line_string, 
                 seq1, seq1name, seq1Range, seq2, seq2name, parserState, featureLists, mspList, seqList, columnList, supportedTypes,
-                styles, readSeq, readSeqLen, readSeqMaxLen, keyFile, lookupTable);
+                styles, readSeq, readSeqLen, readSeqMaxLen, keyFile, lookupTable, fetchMethods);
     }
 }
 
@@ -242,7 +243,7 @@ static gboolean endOfFileOrBuffer(FILE *file, const char *buffer)
 static void parseFileOrBuffer(MSP **MSPlist, FILE *file, const char *buffer_in, BlxBlastMode *blastMode,
                               GArray* featureLists[], GList **seqList, GList *columnList, GSList *supportedTypes, GSList *styles,
                               char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
-                              GKeyFile *keyFile, GHashTable *lookupTable, GError **error)
+                              GKeyFile *keyFile, GHashTable *lookupTable, GHashTable *fetchMethods, GError **error)
 {
   g_return_if_fail(file || buffer_in);
 
@@ -287,7 +288,7 @@ static void parseFileOrBuffer(MSP **MSPlist, FILE *file, const char *buffer_in, 
   
       parseLine(line, lineNum, blastMode, resFactor, &msp, line_string, 
                 seq1, seq1name, seq1Range, seq2, seq2name, &parserState, featureLists, MSPlist, seqList, columnList, supportedTypes,
-                styles, &readSeq, &readSeqLen, &readSeqMaxLen, keyFile, lookupTable, error);
+                styles, &readSeq, &readSeqLen, &readSeqMaxLen, keyFile, lookupTable, fetchMethods, error);
     }
 
   g_string_free(line_string, TRUE) ;			    /* free everything, buffer and all. */
@@ -332,10 +333,10 @@ static void parseFileOrBuffer(MSP **MSPlist, FILE *file, const char *buffer_in, 
 void parseFS(MSP **MSPlist, FILE *file, BlxBlastMode *blastMode,
              GArray* featureLists[], GList **seqList, GList *columnList, GSList *supportedTypes, GSList *styles,
 	     char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
-             GKeyFile *keyFile, GHashTable *lookupTable, GError **error)
+             GKeyFile *keyFile, GHashTable *lookupTable, GHashTable *fetchMethods, GError **error)
 {
   parseFileOrBuffer(MSPlist, file, NULL, blastMode, featureLists, seqList, columnList, supportedTypes,
-                    styles, seq1, seq1name, seq1Range, seq2, seq2name, keyFile, lookupTable, error);
+                    styles, seq1, seq1name, seq1Range, seq2, seq2name, keyFile, lookupTable, fetchMethods, error);
 }
 
 
@@ -346,7 +347,7 @@ void parseBuffer(MSP **MSPlist, const char *buffer, BlxBlastMode *blastMode,
                  GKeyFile *keyFile, GHashTable *lookupTable, GError **error)
 {
   parseFileOrBuffer(MSPlist, NULL, buffer, blastMode, featureLists, seqList, columnList, supportedTypes,
-                    styles, seq1, seq1name, seq1Range, seq2, seq2name, keyFile, lookupTable, error);
+                    styles, seq1, seq1name, seq1Range, seq2, seq2name, keyFile, lookupTable, NULL, error);
 }
 
 
@@ -1840,7 +1841,7 @@ static void parseSeqData(char *line, char ***readSeq, int *readSeqLen, int *read
 static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, const int resFactor, MSP **lastMsp, GString *line_string,
                       char **seq1, char *seq1name, IntRange *seq1Range, char **seq2, char *seq2name, 
                       BlxParserState *parserState, GArray *featureLists[], MSP **mspList, GList **seqList, GList *columnList, GSList *supportedTypes,
-                      GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, GKeyFile *keyFile, GHashTable *lookupTable)
+                      GSList *styles, char ***readSeq, int *readSeqLen, int *readSeqMaxLen, GKeyFile *keyFile, GHashTable *lookupTable, GHashTable *fetchMethods)
 {
   //DEBUG_ENTER("parseBody(parserState=%d, line=%d)", *parserState, lineNum);
 
@@ -1855,7 +1856,7 @@ static void parseBody(char *line, const int lineNum, BlxBlastMode blastMode, con
       
     case GFF_3_BODY:
       parseGff3Body(lineNum, featureLists, lastMsp, mspList, parserState, line_string, 
-                    seqList, columnList, supportedTypes, styles, resFactor, keyFile, seq1Range, lookupTable);
+                    seqList, columnList, supportedTypes, styles, resFactor, keyFile, seq1Range, lookupTable, fetchMethods);
       break;
 
     case SEQBL_BODY: /* fall through */

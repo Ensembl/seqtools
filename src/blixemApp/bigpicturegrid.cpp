@@ -44,6 +44,9 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include <algorithm>
+
+using namespace std;
 
 
 #define BIG_PICTURE_MSP_LINE_NAME	"BigPictureMspLine"

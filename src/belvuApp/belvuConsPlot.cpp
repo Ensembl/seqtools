@@ -40,6 +40,9 @@
 #include "seqtoolsUtils/utilities.hpp"
 #include <gtk/gtk.h>
 #include <gbtools/gbtools.hpp>
+#include <algorithm>
+
+using namespace std;
 
 
 #define DEFAULT_CONS_PLOT_SCALE_HEIGHT      200   /* default height of the conservation plot scale */
@@ -210,8 +213,8 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
   
   /* Get the start and end x coords of the plot. Note that we offset by the
    * minimum x coord so that the leftmost edge is 0 rather than xMin */
-  double xStart = max(xMin, properties->xScaleRect.x) - xMin;
-  const double xEnd = min(xMax, properties->xScaleRect.x + properties->xScaleRect.width) - xMin;
+  double xStart = max(xMin, (double)properties->xScaleRect.x) - xMin;
+  const double xEnd = min(xMax, (double)properties->xScaleRect.x + (double)properties->xScaleRect.width) - xMin;
   
   /* Draw the base line for the x scale */
   double y = properties->xScaleRect.y;
@@ -251,7 +254,7 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
   const double majorYTickInterval = 1.0;
   const double minorYTickInterval = 0.5;
 
-  x = max(xMin, properties->yScaleRect.x + properties->yScaleRect.width) - xMin;;
+  x = max(xMin, (double)properties->yScaleRect.x + (double)properties->yScaleRect.width) - xMin;
   const double yStart = properties->yScaleRect.y + properties->yScaleRect.height;
   const double yEnd = properties->yScaleRect.y;
   

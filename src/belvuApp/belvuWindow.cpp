@@ -45,6 +45,9 @@
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <unistd.h>
+#include <algorithm>
+
+using namespace std;
 
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      1    /* used to change the default border width around the blixem window */
@@ -3279,7 +3282,7 @@ static GtkWidget* createTextEntryWithLabel(const char *labelText,
   if (defaultInput)
     {
       gtk_entry_set_text(GTK_ENTRY(entry), defaultInput);
-      const int defaultLen = min(strlen(defaultInput) * 8, 500);
+      const int defaultLen = min((int)strlen(defaultInput) * 8, 500);
       gtk_widget_set_size_request(entry, defaultLen, -1);
     }
   
@@ -3428,8 +3431,8 @@ static void setOrgsWindowStyleProperties(GtkWidget *window, BelvuContext *bc)
   const int maxWidth = screenWidth * MAX_ORGS_WINDOW_WIDTH_FRACTION;
   const int maxHeight = screenHeight * MAX_ORGS_WINDOW_HEIGHT_FRACTION;
   
-  int width = min(maxWidth, charWidth * bc->maxNameLen + ORGS_WINDOW_XPAD * 2);
-  int height = min(maxHeight, charHeight * bc->organismArr->len + ORGS_WINDOW_YPAD * 2);
+  int width = min((gdouble)maxWidth, charWidth * bc->maxNameLen + ORGS_WINDOW_XPAD * 2);
+  int height = min((gdouble)maxHeight, charHeight * bc->organismArr->len + ORGS_WINDOW_YPAD * 2);
   gtk_window_set_default_size(GTK_WINDOW(window), width, height);
 }
 
