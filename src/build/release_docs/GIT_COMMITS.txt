@@ -1,7 +1,7 @@
 
-Git commits for  from commit "production" until commit "release/4.39.0"
+Git commits for  from commit "production" until commit "release/4.40.0"
 
-ae898af 2015-10-12 Fix missing install docs - DOC
+053c520 2015-12-09 Merge branch 'feature/pfetch' into develop - NEW FEATURE 'pfetch errors'
 
 
 End of git commits
