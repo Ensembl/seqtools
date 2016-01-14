@@ -1,4 +1,9 @@
 2016-01-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-23-g4fc7 - Update RT and git commit reports
+ src/ChangeLog |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+2016-01-14  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.39.3-22-g209e - Update RT and git commit reports
  src/ChangeLog |    5 +++++
  1 files changed, 5 insertions(+), 0 deletions(-)
