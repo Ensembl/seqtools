@@ -1,3 +1,9 @@
+2016-01-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-17-g89ca - Update RT and git commit reports
+ src/ChangeLog                                  |   72 ++++++++++++++++++++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 73 insertions(+), 1 deletions(-)
+
 2016-01-14  Gemma Guest  <gb10@sanger.ac.uk>
  Merge branch 'develop' into release/4.40.0
 2016-01-14  Gemma Guest  <gb10@sanger.ac.uk>
