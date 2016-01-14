@@ -130,7 +130,8 @@ void parseGff3Body(const int lineNum,
                    const int resFactor,
                    GKeyFile *keyFile,
                    const IntRange* const refSeqRange,
-                   GHashTable *lookupTable);
+                   GHashTable *lookupTable,
+                   GHashTable *fetchMethods);
 
 void parseFastaSeqHeader(char *line, const int lineNum,
                          char **refSeq, char *refSeqName, IntRange *refSeqRange,

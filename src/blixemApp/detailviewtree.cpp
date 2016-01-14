@@ -45,6 +45,9 @@
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <math.h>
+#include <algorithm>
+
+using namespace std;
 
 
 /* Global variables */

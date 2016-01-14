@@ -46,6 +46,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <algorithm>
+
+using namespace std;
+
 
 #define DETAIL_VIEW_TOOLBAR_NAME        "DetailViewToolbarName"
 #define DETAIL_VIEW_WIDGET_NAME         "DetailViewWidget"

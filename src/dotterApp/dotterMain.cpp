@@ -837,7 +837,7 @@ int main(int argc, char **argv)
       /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
       GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
 
-      parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, columnList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL, lookupTable, &error);
+      parseFS(&MSPlist, file, &blastMode, featureLists, &seqList, columnList, supportedTypes, NULL, &options.qseq, options.qname, NULL, &options.sseq, options.sname, NULL, lookupTable, NULL, &error);
 
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       

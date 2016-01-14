@@ -39,10 +39,14 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <algorithm>
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/utsname.h>
 #include <gbtools/gbtools.hpp>
+
+using namespace std;
+
 
 #ifdef HAVE_EXECINFO_H
 #include <execinfo.h>

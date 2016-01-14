@@ -43,6 +43,7 @@
 #include <seqtoolsUtils/utilities.hpp>
 #include <seqtoolsUtils/blxmsp.hpp>
 #include <seqtoolsUtils/version.hpp>
+#include <seqtoolsUtils/seqtoolsFetch.hpp>
 #include <gbtools/gbtools.hpp>
 
 
@@ -97,23 +98,6 @@
 
 /* Fetch settings */
 #define FETCH_MODE_KEY             "fetch-mode"  /* any group with this key is a fetch method, and this specifies what type of fetch to do */
-
-/* These are the supported fetch modes. ***If you add anything here, also add it in fetchModeStr*** */
-typedef enum
-  {
-#ifdef PFETCH_HTML 
-    BLXFETCH_MODE_HTTP,
-    BLXFETCH_MODE_PIPE,
-#endif
-    BLXFETCH_MODE_SOCKET,
-    BLXFETCH_MODE_WWW,
-    BLXFETCH_MODE_SQLITE,
-    BLXFETCH_MODE_COMMAND,
-    BLXFETCH_MODE_INTERNAL,
-    BLXFETCH_MODE_NONE,
-
-    BLXFETCH_NUM_MODES /* must be last in list */
-  } BlxFetchMode;
 
 
 /* Required keys for http-and pipe-fetch groups */
@@ -220,40 +204,6 @@ typedef enum
 
 /* Function pointer to a function that performs a fetch of a particular sequence */
 typedef void(*FetchFunc)(const char *seqName, gpointer fetchMethod, const gboolean bulk, GtkWidget *blxWindow);
-
-
-/* output types for fetch modes. *** if you add anything here, also add it in outputTypeStr *** */
-typedef enum
-{
-  BLXFETCH_OUTPUT_INVALID,
-  BLXFETCH_OUTPUT_RAW,      /* raw sequence data, separated by newlines */
-  BLXFETCH_OUTPUT_FASTA,    /* sequence data in FASTA format */
-  BLXFETCH_OUTPUT_EMBL,     /* the sequence's EMBL entry */
-  BLXFETCH_OUTPUT_LIST,     /* a list of named columns is returned */
-  BLXFETCH_OUTPUT_GFF,      /* a new gff for re-parsing is returned */
-
-  BLXFETCH_NUM_OUTPUT_TYPES
-} BlxFetchOutputType;
-
-
-/* struct to hold info about a fetch method */
-typedef struct _BlxFetchMethod
-{
-  GQuark name;                      /* fetch method name */
-  BlxFetchMode mode;                /* the type of fetch method */
-  
-  char *location;                   /* e.g. url, script, command, db location etc. */
-  char *node;                       /* for socket fetch mode */
-  int port;                         /* for socket and http/pipe fetch modes */
-  char *cookie_jar;                 /* for http/pipe fetch mode */
-  char *proxy;                      /* for http/pipe fetch mode */
-  char *args;                       /* arguments/query/request */
-  GArray *columns;                  /* for db-fetch, the list of columns the query will populate */
-
-  char *separator;                  /* separator when combining multiple sequence names into a list */
-  GArray *errors;                   /* array of messages (as GQuarks) that indicate that an error occurred, e.g. "no match" */
-  BlxFetchOutputType outputType;    /* the output format to expect from the fetch command */
-} BlxFetchMethod;
 
 
 /* The following are used to define default colors for certain types of features in Blixem.

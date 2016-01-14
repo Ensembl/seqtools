@@ -44,6 +44,10 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <algorithm>
+
+using namespace std;
+
 
 #define PIXELS_PER_MARK_X                           100   /* number of pixels between each major tick mark on the x scale */
 #define PIXELS_PER_MARK_Y                           50    /* number of pixels between each major tick mark on the y scale */

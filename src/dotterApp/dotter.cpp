@@ -78,6 +78,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <algorithm>
+
+using namespace std;
+
 
 /* tint stuff used to be in graph.h, now local - rd 960524
    NB colours as Erik liked them before Jean tinkered!
