@@ -457,13 +457,16 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
   
   if (dataType)
     {
-      /* look it up in the config file and if we find it then create a new BlxDataType struct for it. */
-      const gchar *typeName = g_quark_to_string(dataType);
+      /* Check if it's already cached */
+      std::map<GQuark, BlxDataType*>::iterator iter = g_dataTypes.find(dataType) ;
+      result = iter->second ;
 
-      if (g_key_file_has_group(keyFile, typeName))
+      if (!result)
         {
-          /* Nothing to do if the struct already exists */
-          if (!g_dataTypes[dataType])
+          /* look it up in the config file and if we find it then create a new BlxDataType struct for it. */
+          const gchar *typeName = g_quark_to_string(dataType);
+
+          if (g_key_file_has_group(keyFile, typeName))
             {
               result = createBlxDataType();
               result->name = dataType;
@@ -599,7 +602,7 @@ static void createBlixemObject(BlxGffData *gffData,
 
   /* Get the data type struct */
   BlxDataType *dataType = getBlxDataType(gffData->dataType, gffData->source, keyFile, &tmpError);
-  reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+  reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
 
   /* If no dataType is given then see if we can construct one from a given fetch command */
   if (!dataType && gffData->fetchCommand)
