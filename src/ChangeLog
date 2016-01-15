@@ -1,3 +1,13 @@
+2016-01-15  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix bug getting dataType config - REGRESSION FIX
+ src/seqtoolsUtils/blxGff3Parser.cpp |   15 +++++++++------
+ 1 files changed, 9 insertions(+), 6 deletions(-)
+
+2016-01-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-25-g7163 - Update RT and git commit reports
+ src/ChangeLog |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
 2016-01-14  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.39.3-24-gf54a - Update RT and git commit reports
  src/ChangeLog |    5 +++++
