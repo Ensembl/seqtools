@@ -1,3 +1,48 @@
+2016-01-15  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix bug getting dataType config - REGRESSION FIX
+ src/seqtoolsUtils/blxGff3Parser.cpp |   15 +++++++++------
+ 1 files changed, 9 insertions(+), 6 deletions(-)
+
+2016-01-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-25-g7163 - Update RT and git commit reports
+ src/ChangeLog |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+2016-01-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-24-gf54a - Update RT and git commit reports
+ src/ChangeLog |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+2016-01-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-23-g4fc7 - Update RT and git commit reports
+ src/ChangeLog |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+2016-01-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-22-g209e - Update RT and git commit reports
+ src/ChangeLog |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+2016-01-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-21-ge639 - Update RT and git commit reports
+ src/ChangeLog |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+2016-01-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-20-g9de16d - Update RT and git commit reports
+ src/ChangeLog |   10 ++++++++++
+ 1 files changed, 10 insertions(+), 0 deletions(-)
+
+2016-01-14  Gemma Guest  <gb10@sanger.ac.uk>
+ Update release notes - DOC
+ src/doc/User_doc/release_notes.html |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
+
+2016-01-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-18-gf028 - Update RT and git commit reports
+ src/ChangeLog |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
+
 2016-01-14  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.39.3-17-g89ca - Update RT and git commit reports
  src/ChangeLog                                  |   72 ++++++++++++++++++++++++
