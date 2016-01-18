@@ -16,7 +16,7 @@ BLX_LIBS = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a
 
 # If gbtools is in a subdirectory, add it; otherwise look for a local installation
 if USE_GBTOOLS
-BLX_LIBS += $(top_builddir)/gbtools/libgbtools.a
+BLX_LIBS += $(top_builddir)/gbtools/.libs/libgbtools.a
 else
 BLX_LIBS += -lgbtools
 endif
@@ -44,7 +44,13 @@ blixem_LDADD = $(BLX_LIBS)
 if USE_LIBCURL
 blixemh_SOURCES = $(blixem_SOURCES)
 blixemh_CPPFLAGS = $(blixem_CPPFLAGS) -DPFETCH_HTML
-blixemh_LDADD = $(top_builddir)/libpfetch/libpfetch.a $(BLX_LIBS) -lcurl
+
+# commented out for now....
+#blixemh_LDADD = $(top_builddir)/libpfetch/libpfetch.a $(BLX_LIBS) -lcurl
+
+# but I've commented it back in ....need to try a compile....
+blixemh_LDADD =  $(BLX_LIBS) -lcurl
+
 endif
 
 

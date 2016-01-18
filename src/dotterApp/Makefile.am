@@ -17,7 +17,7 @@ dotter_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a
 
 # If gbtools is in a subdirectory, add it; otherwise look for a local installation
 if USE_GBTOOLS
-dotter_LDADD += $(top_builddir)/gbtools/libgbtools.a            
+dotter_LDADD += $(top_builddir)/gbtools/.libs/libgbtools.a            
 else
 dotter_LDADD += -lgbtools
 endif

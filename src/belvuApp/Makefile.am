@@ -17,7 +17,7 @@ belvu_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a
 
 # If gbtools is in a subdirectory, add it; otherwise look for a local installation
 if USE_GBTOOLS
-belvu_LDADD += $(top_builddir)/gbtools/libgbtools.a        
+belvu_LDADD += $(top_builddir)/gbtools/.libs/libgbtools.a        
 else
 belvu_LDADD += -lgbtools
 endif
