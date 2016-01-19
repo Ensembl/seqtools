@@ -12,6 +12,7 @@ AC_CONFIG_HEADERS([config.h])
 
 # Set up calling of Makefiles in toplevel directory and subdirectories
 AC_CONFIG_FILES([Makefile
+libpfetch/Makefile
 blixemApp/Makefile
 dotterApp/Makefile
 belvuApp/Makefile
@@ -34,7 +35,7 @@ test/scripts/manual/blixem/Makefile
 test/scripts/manual/dotter/Makefile
 ])
 
-#libpfetch/Makefile - took this out of the above list....
+
 
 
 # Check if this is a Git repository and, if so, include info about the current

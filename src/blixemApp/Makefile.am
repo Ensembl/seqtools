@@ -12,7 +12,8 @@ endif
 X_LIB = -lX11 -lm
 
 blixem_CPPFLAGS = $(AM_CPPFLAGS)
-BLX_LIBS = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a
+#BLX_LIBS = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a
+BLX_LIBS = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a $(top_builddir)/libpfetch/libpfetch.a
 
 # If gbtools is in a subdirectory, add it; otherwise look for a local installation
 if USE_GBTOOLS

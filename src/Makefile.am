@@ -9,9 +9,9 @@ if USE_GBTOOLS
 SUBDIRS += gbtools
 endif
 
-#if USE_LIBCURL
-#SUBDIRS += libpfetch
-#endif
+if USE_LIBCURL
+SUBDIRS += libpfetch
+endif
 
 SUBDIRS += seqtoolsUtils dotterApp blixemApp belvuApp doc test examples
 
