@@ -9,10 +9,6 @@ if USE_GBTOOLS
 SUBDIRS += gbtools
 endif
 
-if USE_LIBCURL
-SUBDIRS += libpfetch
-endif
-
 SUBDIRS += seqtoolsUtils dotterApp blixemApp belvuApp doc test examples
 
 # these are included in the distribution, but are not installed
