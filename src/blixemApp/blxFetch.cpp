@@ -59,7 +59,7 @@
 #include <blixemApp/blixem_.hpp>
 
 #ifdef PFETCH_HTML 
-#include <libpfetch/libpfetch.h>
+#include <gbtools/gbtoolsPfetch.hpp>
 #endif
 
 
