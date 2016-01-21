@@ -1,12 +1,7 @@
 
 SUBDIRS = .
 
-AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir)
-
-# If gbtools is in a subdirectory, add it to the include path
-if USE_GBTOOLS
-AM_CPPFLAGS += -I$(top_srcdir)/gbtools/src/include
-endif
+include $(top_srcdir)/Makefile.am.common
 
 if USE_LIBCURL
 AM_CPPFLAGS += -DPFETCH_HTML

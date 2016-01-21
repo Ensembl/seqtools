@@ -1,12 +1,7 @@
 
 SUBDIRS = .
 
-AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir)
-
-# If gbtools is in a subdirectory, add it to the include path
-if USE_GBTOOLS
-AM_CPPFLAGS += -I$(top_srcdir)/gbtools/src/include
-endif
+include $(top_srcdir)/Makefile.am.common
 
 # there's a problem on ubuntu 14 with finding X11 so this is a hopefully temporary hack...
 X_LIB = -lX11 -lm

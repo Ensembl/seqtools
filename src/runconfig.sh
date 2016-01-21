@@ -17,7 +17,14 @@ pkgpath=""
 
 
 ldflags_args="$LDFLAGS"
-cppflags_args="-g -Wall $CPPFLAGS"
+
+# try commenting out....
+#cppflags_args="-g -Wall $CPPFLAGS"
+
+
+export CXXFLAGS=''
+
+
 
 case $opsys in
     Linux )
