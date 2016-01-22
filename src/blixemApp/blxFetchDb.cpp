@@ -57,9 +57,6 @@
 /* Error codes and domain */
 #define BLX_FETCH_ERROR g_quark_from_string("Blixem config")
 
-/* Function pointer for sqlite callback functions */
-typedef int (*SqliteFunc)(void*,int,char**,char**);
-
 
 typedef struct _SqliteFetchData
 {
@@ -111,7 +108,7 @@ static BlxSequence* findBlxSequence(const char *seqName, GList *seqList)
 
 /* Callback to display the results of an sql query in a pop-up dialog.
  * The parent window is passed in the user data. */
-static int displayResultsCB(void *data, int argc, char **argv, char **azColName)
+int sqliteDisplayResultsCB(void *data, int argc, char **argv, char **azColName)
 {
   GtkWidget *parent = NULL;
 
@@ -179,7 +176,7 @@ static int populateResultsListCB(void *data, int argc, char **argv, char **azCol
 
 
 /* Execute the given sql query and call the callback on the results. */
-static void sqliteRequest(const char *database, const char *query, SqliteFunc callbackFunc, void *callbackData, GError **error)
+void sqliteRequest(const char *database, const char *query, SqliteFunc callbackFunc, void *callbackData, GError **error)
 {
   DEBUG_ENTER("sqliteRequest");
 
@@ -216,7 +213,7 @@ static void sqliteRequest(const char *database, const char *query, SqliteFunc ca
 
 
 /* Check that the fetch method is non-null and has a db and query */
-static void validateFetchMethod(const BlxFetchMethod* const fetchMethod, GError **error)
+void sqliteValidateFetchMethod(const BlxFetchMethod* const fetchMethod, GError **error)
 {
   if (!fetchMethod)
     {
@@ -241,51 +238,6 @@ static void validateFetchMethod(const BlxFetchMethod* const fetchMethod, GError 
 /********************/
 
 
-/* Fetch a single sequence using sqlite. If displayResults is true, disply the
- * results in a pop-up window. If result_out is non-null, populate it with the result. */
-void sqliteFetchSequence(const BlxSequence* const blxSeq, 
-                         const BlxFetchMethod* const fetchMethod,
-                         const gboolean displayResults,
-                         const int attempt,
-                         GtkWidget *blxWindow)
-{
-  DEBUG_ENTER("sqliteFetchSequence");
-
-  GError *tmpError = NULL;
-  validateFetchMethod(fetchMethod, &tmpError);
-    
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  GString *query = NULL;
-  
-  if (!tmpError)
-    {
-      query = getFetchArgs(fetchMethod, blxSeq, NULL, 
-                           bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange,
-                           bc->dataset, &tmpError);
-    }
-  
-  if (query && !tmpError)
-    {
-      sqliteRequest(fetchMethod->location, 
-                    query->str,
-                    displayResultsCB,
-                    blxWindow,
-                    &tmpError);
-    }
-
-  g_string_free(query, TRUE);
-  
-
-  if (tmpError)
-    {
-      reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
-      fetchSequence(blxSeq, displayResults, attempt + 1, blxWindow, NULL, NULL);
-    }
-    
-  DEBUG_EXIT("sqliteFetchSequence");
-}
-
-
 /* Fetch multiple sequences using sqlite */
 void sqliteFetchSequences(GList *seqsToFetch, 
                           const BlxFetchMethod* const fetchMethod, 
@@ -295,7 +247,7 @@ void sqliteFetchSequences(GList *seqsToFetch,
   DEBUG_ENTER("sqliteFetchSequences");
 
   GError *tmpError = NULL;
-  validateFetchMethod(fetchMethod, &tmpError);
+  sqliteValidateFetchMethod(fetchMethod, &tmpError);
     
   GString *query = NULL;
 

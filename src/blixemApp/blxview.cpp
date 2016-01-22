@@ -496,12 +496,19 @@ gboolean blxview(CommandLineOptions *options,
   
   /* Find any assembly gaps (i.e. gaps in the reference sequence) */
   findAssemblyGaps(options->refSeq, featureLists, &options->mspList, &options->refSeqRange);
-  
-  gboolean status = bulkFetchSequences(
-    0, External, options->saveTempFiles, options->seqType, &seqList, options->columnList,
-    options->bulkFetchDefault, options->fetchMethods, &options->mspList, &options->blastMode, 
-    featureLists, supportedTypes, NULL, 0, &options->refSeqRange, 
-    options->dataset, FALSE, lookupTable); /* offset has not been applied yet, so pass offset=0 */
+
+  /* offset has not been applied yet, so pass offset=0 */
+  BulkFetch bulk_fetch(External, options->saveTempFiles, options->seqType,
+                       &seqList, options->columnList,
+                       options->bulkFetchDefault, options->fetchMethods, &options->mspList, &options->blastMode, 
+                       featureLists, supportedTypes, NULL, 0, &options->refSeqRange, 
+                       options->dataset, FALSE, lookupTable,
+#ifdef PFETCH_HTML
+                       options->ipresolve,
+#endif
+                       options->fetch_debug); 
+
+  gboolean status = bulk_fetch.performFetch();
 
   if (status)
     {

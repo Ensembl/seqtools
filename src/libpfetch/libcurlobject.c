@@ -203,10 +203,6 @@ CURLObjectStatus CURLObjectPerform(CURLObject curl_object, gboolean use_multi)
     {
       if(use_multi)
 	{
-#ifdef DEBUG
-          /* Enable verbose output from libcurl if debug output is enabled */
-	  curl_easy_setopt(curl_object->easy, CURLOPT_VERBOSE, 1);
-#endif
 #ifdef PROGRESS_INTERNAL
 	  curl_easy_setopt(curl_object->easy, CURLOPT_PROGRESSFUNCTION, curl_object_progress_func);
 
@@ -459,6 +455,11 @@ static void curl_object_class_init(CURLObjectClass curl_object_class)
   /* --- FTP options --- */
   
   /* --- Protocol options --- */
+  g_object_class_install_property(gobject_class, CURLOPT_IPRESOLVE,
+				  g_param_spec_long("ipresolve", "ipresolve",
+                                                    "Specify whether libcurl should use IPv4, IPv6, or either",
+                                                    0, 2, CURL_IPRESOLVE_WHATEVER,
+                                                    CURL_PARAM_STATIC_WO));
 
   /* --- Connection options --- */
   g_object_class_install_property(gobject_class, CURLOPT_TIMEOUT,
@@ -659,6 +660,7 @@ static void curl_object_set_property(GObject      *gobject,
     case CURLOPT_HTTPGET:
     case CURLOPT_COOKIEFILE:
     case CURLOPT_PROXY:
+    case CURLOPT_IPRESOLVE:
       if(G_IS_PARAM_SPEC_STRING(pspec))
 	{
 	  char *str;
@@ -675,7 +677,7 @@ static void curl_object_set_property(GObject      *gobject,
 	      curl_easy_setopt(curl_object->easy, param_id, str);
 
 	  if(curl_object->debug == 1)
-	    g_warning("Setting param '%d' to '%s'", param_id, str);
+	    g_message("Setting param '%d' to '%s'\n", param_id, str);
 	}
       else if(G_IS_PARAM_SPEC_POINTER(pspec))
 	curl_object->last_easy_status =

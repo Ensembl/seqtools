@@ -1566,11 +1566,6 @@ static char* getSelectedSequenceDNA(const BlxSequence *blxSeq, const BlxViewCont
    * a fetch here then we will need to look for a fetch method that
    * returns the fasta sequence (rather than the embl entry). */
   const BlxBlastMode blastMode = bc->blastMode;
-  /*  if (blastMode != BLXMODE_TBLASTN)
-    {
-      fetchSequence(blxSeq, FALSE, 0, blxWindow, &dotterSSeq);
-      }
-  */
 
   if (!dotterSSeq && blastMode != BLXMODE_TBLASTX)
     {

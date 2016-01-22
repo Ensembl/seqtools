@@ -1520,12 +1520,19 @@ static gboolean treePfetchRow(GtkWidget *tree)
 {
   /* Get the selected sequence (assumes that only one is selected) */
   GtkWidget *blxWindow = treeGetBlxWindow(tree);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
   
   if (selectedSeqs)
     {
       const BlxSequence *clickedSeq = (const BlxSequence*)selectedSeqs->data;
-      fetchSequence(clickedSeq, TRUE, 0, blxWindow, NULL, NULL);
+      UserFetch user_fetch(clickedSeq, TRUE, blxWindow, NULL, NULL,
+#ifdef PFETCH_HTML
+                           bc->ipresolve,
+#endif
+                           bc->fetch_debug);
+
+      user_fetch.performFetch();
     }
 
   return TRUE;

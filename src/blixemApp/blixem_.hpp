@@ -107,6 +107,7 @@
 #define HTTP_FETCH_ARGS           "request"
 #define HTTP_FETCH_COOKIE_JAR     "cookie-jar"
 #define HTTP_FETCH_PROXY          "proxy"
+#define HTTP_FETCH_IPRESOLVE      "ipresolve"
 
 #define PIPE_FETCH_LOCATION       "command"
 #define PIPE_FETCH_ARGS           "args"
@@ -136,6 +137,7 @@
 #define FETCH_OUTPUT       "output"      /* output format */
 #define FETCH_SEPARATOR    "separator"   /* separator, when combining multiple sequences */
 #define FETCH_ERRORS       "errors"      /* list of messages that indicate errors */
+#define FETCH_DEBUG        "curl-debug"  /* enable verbose debug output */
 
 
 /* For settings */
@@ -186,7 +188,8 @@ typedef enum
     BLX_CONFIG_ERROR_INVALID_FETCH_METHOD,  /* null fetch method */
     BLX_CONFIG_ERROR_NO_EXE,                /* fetch method executable does not exist */
     BLX_CONFIG_ERROR_NULL_FETCH,            /* fetch method is null */
-    BLX_CONFIG_ERROR_NO_ARGS               /* mandatory args weren't specified */
+    BLX_CONFIG_ERROR_NO_ARGS,               /* mandatory args weren't specified */
+    BLX_CONFIG_ERROR_INVALID_IPRESOLVE      /* mandatory args weren't specified */
   } BlxConfigError;
 
 
@@ -428,6 +431,9 @@ typedef struct _CommandLineOptions
   int mapCoordsFrom;              /* the coord to map from */
   int mapCoordsTo;                /* the coord to map to */
   char *windowColor;              /* if not null, set the main window background color to this */
+
+  bool fetch_debug;               /* whether to include verbose debug output for fetch */
+  long ipresolve;                 /* whether to make curl use ipv4 or ipv6 */
 } CommandLineOptions;
 
 
@@ -496,6 +502,9 @@ typedef struct _BlxViewContext
     int *depthArray;                        /* this array holds the depth (num alignments) at each coord of the ref seq */
     int minDepth;                           /* minimum value in the depthArray */
     int maxDepth;                           /* maximum value in the depthArray */
+
+    long ipresolve;                         /* specify whether curl should use ipv4/ipv6 */
+    bool fetch_debug;                       /* enable verbose debug output in fetch methods */
 } BlxViewContext;
 
 
@@ -520,6 +529,107 @@ typedef struct
   const char *source;
   const char *filename;
 } MatchSequenceData ;
+
+
+/* Class to perform a user-fetch operation */
+class UserFetch
+{
+
+public:
+  UserFetch();
+
+  UserFetch(const BlxSequence *blxSeq,
+            const gboolean displayResults,
+            GtkWidget *blxWindow,
+            GtkWidget *dialog,
+            GtkTextBuffer **text_buffer,
+#ifdef PFETCH_HTML
+            long ipresolve,
+#endif
+            bool debug);
+
+  void performFetch();
+
+#ifdef PFETCH_HTML
+  bool httpFetchSequence(const BlxFetchMethod *fetchMethod);
+#endif
+  void socketFetchSequence(const BlxFetchMethod *fetchMethod);
+  void commandFetchSequence(const BlxFetchMethod *fetchMethod);
+  void internalFetchSequence(const BlxFetchMethod *fetchMethod);
+  void wwwFetchSequence(const BlxFetchMethod *fetchMethod);
+  void sqliteFetchSequence(const BlxFetchMethod *fetchMethod);
+
+private:
+
+  const BlxSequence *blxSeq;
+  gboolean displayResults;
+  int attempt;
+  GtkWidget *blxWindow;
+  GtkWidget *dialog;
+  GtkTextBuffer **text_buffer;
+  bool debug;
+
+#ifdef PFETCH_HTML
+  long ipresolve;
+#endif
+};
+
+
+/* Class to perform a bulk-fetch operation */
+class BulkFetch
+{
+public:
+  BulkFetch(gboolean External,
+            gboolean saveTempFiles,
+            BlxSeqType seqType,
+            GList **seqList,
+            GList *columnList,
+            GArray *defaultFetchMethods,
+            GHashTable *fetchMethods,
+            MSP **mspList,
+            BlxBlastMode *blastMode,
+            GArray* featureLists[],
+            GSList *supportedTypes, 
+            GSList *styles,
+            int refSeqOffset,
+            IntRange* const refSeqRange,
+            char *dataset,
+            gboolean optionalColumns,
+            GHashTable *lookupTable,
+#ifdef PFETCH_HTML
+            long ipresolve,
+#endif
+            bool debug);
+
+  gboolean performFetch();
+
+private:
+
+  int attempt;
+  gboolean External;
+  gboolean saveTempFiles;
+  BlxSeqType seqType;
+  GList **seqList; /* list of BlxSequence structs for all required sequences */
+  GList *columnList;
+  GArray *defaultFetchMethods;
+  GHashTable *fetchMethods;
+  MSP **mspList;
+  BlxBlastMode *blastMode;
+  GArray** featureLists;
+  GSList *supportedTypes; 
+  GSList *styles;
+  int refSeqOffset;
+  IntRange* refSeqRange;
+  char *dataset;
+  gboolean optionalColumns;
+  GHashTable *lookupTable;
+  bool debug;
+
+#ifdef PFETCH_HTML
+  long ipresolve;
+#endif
+};
+
 
 
 /* blxview.c */
@@ -592,7 +702,6 @@ GString*                           getFetchCommand(const BlxFetchMethod* const f
 GString*                           doGetFetchCommand(const BlxFetchMethod* const fetchMethod,MatchSequenceData *match_data, GError **error);
 GString*                           getFetchArgs(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq,const MSP* const msp,const char *refSeqName,const int refSeqOffset,const IntRange* const refSeqRange,const char *dataset,GError **error);
 GString*                           getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, GError **error);
-void                               fetchSequence(const BlxSequence *blxSeq, const gboolean displayResults, const int attempt, GtkWidget *blxWindow, GtkWidget *dialog, GtkTextBuffer **text_buffer) ;
 void                               finaliseFetch(GList *seqList, GList *columnList);
 void                               sendFetchOutputToFile(GString *command, GKeyFile *keyFile, BlxBlastMode *blastMode,GArray* featureLists[],GSList *supportedTypes, GSList *styles, GList **seqList, MSP **mspListIn,const char *fetchName, const gboolean saveTempFiles, MSP **newMsps, GList **newSeqs, GList *columnList, GHashTable *lookupTable, const int refSeqOffset, const IntRange* const refSeqRange, GError **error);
 const char*                        outputTypeStr(const BlxFetchOutputType outputType);
@@ -616,25 +725,6 @@ void                               destroyBlxStyle(BlxStyle *style);
 
 void                               createPfetchDropDownBox(GtkBox *box, GtkWidget *blxWindow);
 
-gboolean                           bulkFetchSequences(const int attempt, 
-                                                      gboolean External, 
-                                                      const gboolean saveTempFiles,
-                                                      const BlxSeqType seqType,
-                                                      GList **seqList, /* list of BlxSequence structs for all required sequences */
-                                                      GList *columnList,
-                                                      const GArray *defaultFetchMethods,
-                                                      GHashTable *fetchMethods,
-                                                      MSP **mspList,
-                                                      BlxBlastMode *blastMode,
-                                                      GArray* featureLists[],
-                                                      GSList *supportedTypes, 
-                                                      GSList *styles,
-                                                      const int refSeqOffset,
-                                                      const IntRange* const refSeqRange,
-                                                      const char *dataset,
-                                                      const gboolean optionalColumns,
-                                                      GHashTable *lookupTable);
-
 
 /* Dotter/Blixem Package-wide variables...........MORE GLOBALS...... */
 extern char      *stdcode1[];      /* 1-letter amino acid translation code */
@@ -646,8 +736,15 @@ extern GtkWidget *blixemWindow;
 
 
 /* blxFetchDb.c */
+
+/* Function pointer for sqlite callback functions */
+typedef int (*SqliteFunc)(void*,int,char**,char**);
+
 void sqliteFetchSequences(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GList *columnList, GError **error);
 void sqliteFetchSequence(const BlxSequence* const blxSeq, const BlxFetchMethod* const fetchMethod,const gboolean displayResults, const int attempt,GtkWidget *blxWindow);
+void sqliteValidateFetchMethod(const BlxFetchMethod* const fetchMethod, GError **error);
+int sqliteDisplayResultsCB(void *data, int argc, char **argv, char **azColName);
+void sqliteRequest(const char *database, const char *query, SqliteFunc callbackFunc, void *callbackData, GError **error);
 
 
 #endif /*  !defined DEF_BLIXEM_P_H */
