@@ -602,8 +602,21 @@ public:
             bool debug);
 
   gboolean performFetch();
+  gboolean fetchList(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GError **error);
+  gboolean httpFetchList(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GError **error);
+  gboolean socketFetchList(GList *seqsToFetch, const BlxFetchMethod* const fetchMethod, GError **error);
+  void regionFetchList(GList *regionsToFetch, const BlxFetchMethod* const fetchMethod, GError **error);
+  void commandFetchList(GList *regionsToFetch, const BlxFetchMethod* const fetchMethod, GError **error);
+
 
 private:
+
+  void regionFetchFeature(const MSP* const msp, 
+                          const BlxFetchMethod* const fetchMethod,
+                          const char *script,
+                          const char *dataset,
+                          const char *tmpDir,
+                          GError **error);
 
   int attempt;
   gboolean External;

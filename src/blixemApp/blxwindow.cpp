@@ -5831,7 +5831,10 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   blxContext->modelId = options->squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
 
   blxContext->fetch_debug = options->fetch_debug;
-  
+
+#ifdef PFETCH_HTML
+  blxContext->ipresolve = options->ipresolve;
+#endif
 
   return blxContext;
 }

@@ -758,14 +758,9 @@ static void checkFetchMethodExecutable(const BlxFetchMethod* const fetchMethod, 
 /* Fetch the given list of sequences from an http proxy server. This enables
  * blixem to be run and get sequences from anywhere that can see the http 
  * proxy server. */
-static gboolean httpFetchList(GList *seqsToFetch, 
-                              const BlxFetchMethod* const fetchMethod,
-                              GList *seqList, 
-                              GList *columnList,
-                              const BlxSeqType seqType,
-                              long ipresolve,
-                              bool debug,
-                              GError **error)
+gboolean BulkFetch::httpFetchList(GList *seqsToFetch, 
+                                  const BlxFetchMethod* const fetchMethod,
+                                  GError **error)
 {
   gboolean status = FALSE ;
 
@@ -904,13 +899,9 @@ static gboolean httpFetchList(GList *seqsToFetch,
  *  - sequence data will also be ignored for sequences that do not 
  *    require sequence data
  */
-gboolean socketFetchList(GList *seqsToFetch, 
-                         const BlxFetchMethod* const fetchMethod,
-                         GList *seqList, 
-                         GList *columnList,
-                         gboolean External, 
-                         const BlxSeqType seqType, 
-                         GError **error)
+gboolean BulkFetch::socketFetchList(GList *seqsToFetch, 
+                                    const BlxFetchMethod* const fetchMethod,
+                                    GError **error)
 {
   /* Initialise and send the requests */
   int sock;
@@ -2935,24 +2926,12 @@ void sendFetchOutputToFile(GString *command,
  *   tmpDir is the directory in which to place the temporary files
  *   script is the script to call to do the fetch
  *   dataset will be passed as the -dataset argument to the script if it is not null */
-static void regionFetchFeature(const MSP* const msp, 
-                               const BlxSequence* const blxSeq,
-                               const BlxFetchMethod* const fetchMethod,
-                               const char *script,
-                               const char *dataset,
-                               const char *tmpDir,
-                               const int refSeqOffset,
-                               BlxBlastMode *blastMode,
-                               GList **seqList,
-                               GList *columnList,
-                               MSP **mspListIn,
-                               GArray* featureLists[],
-                               GSList *supportedTypes, 
-                               GSList *styles,
-                               const gboolean saveTempFiles,
-                               const IntRange* const refSeqRange,
-                               GHashTable *lookupTable,
-                               GError **error)
+void BulkFetch::regionFetchFeature(const MSP* const msp, 
+                                   const BlxFetchMethod* const fetchMethod,
+                                   const char *script,
+                                   const char *dataset,
+                                   const char *tmpDir,
+                                   GError **error)
 {
   GKeyFile *keyFile = blxGetConfig();
   const char *fetchName = g_quark_to_string(fetchMethod->name);
@@ -2974,10 +2953,10 @@ static void regionFetchFeature(const MSP* const msp,
       
       sendFetchOutputToFile(command, keyFile, blastMode, 
                             featureLists, supportedTypes, styles, 
-                            seqList, mspListIn, fetchName, saveTempFiles, 
+                            seqList, mspList, fetchName, saveTempFiles, 
                             &newMsps, &newSeqs, columnList, lookupTable, refSeqOffset, refSeqRange, &tmpError);
 
-      blxMergeFeatures(newMsps, newSeqs, mspListIn, seqList);
+      blxMergeFeatures(newMsps, newSeqs, mspList, seqList);
     }
   
   if (command)
@@ -2995,23 +2974,9 @@ static void regionFetchFeature(const MSP* const msp,
  * all sequences that lie within that region, and the results are placed in 
  * a temporary GFF file, which is then parsed to get the results. The GFF file
  * is deleted when finished, unless the saveTempFiles argument is true. */
-static void regionFetchList(GList *regionsToFetch, 
-                            GList **seqList, 
-                            GList *columnList,
-                            const BlxFetchMethod* const fetchMethod, 
-                            MSP **mspListIn,
-                            BlxBlastMode *blastMode,
-                            GArray* featureLists[],
-                            GSList *supportedTypes, 
-                            GSList *styles,
-                            gboolean External,
-                            const gboolean saveTempFiles,
-                            const BlxSeqType seqType,
-                            const int refSeqOffset,
-                            const char *dataset,
-                            const IntRange* const refSeqRange,
-                            GHashTable *lookupTable,
-                            GError **error)
+void BulkFetch::regionFetchList(GList *regionsToFetch, 
+                                const BlxFetchMethod* const fetchMethod,
+                                GError **error)
 {
   /* Get the command to run */
   const gchar *script = fetchMethod->location;
@@ -3041,9 +3006,7 @@ static void regionFetchList(GList *regionsToFetch,
           if (!rangesOverlap(&msp->qRange, refSeqRange))
             continue;
           
-          regionFetchFeature(msp, blxSeq, fetchMethod, script, dataset, tmpDir, refSeqOffset,
-                             blastMode, seqList, columnList, mspListIn, featureLists, supportedTypes,
-                             styles, saveTempFiles, refSeqRange, lookupTable, &tmpError);
+          regionFetchFeature(msp, fetchMethod, script, dataset, tmpDir, &tmpError);
         }
     }
 
@@ -3053,31 +3016,14 @@ static void regionFetchList(GList *regionsToFetch,
 
 
 /* Fetch sequences using a given command-line script */
-static void commandFetchList(GList *regionsToFetch, 
-                             GList **seqList, 
-                             GList *columnList,
-                             const BlxFetchMethod* const fetchMethod, 
-                             MSP **mspListIn,
-                             BlxBlastMode *blastMode,
-                             GArray* featureLists[],
-                             GSList *supportedTypes, 
-                             GSList *styles,
-                             gboolean External,
-                             const gboolean saveTempFiles,
-                             const BlxSeqType seqType,
-                             const int refSeqOffset,
-                             const char *dataset,
-                             const IntRange* const refSeqRange,
-                             GHashTable *lookupTable,
-                             GError **error)
+void BulkFetch::commandFetchList(GList *regionsToFetch, 
+                                 const BlxFetchMethod* const fetchMethod, 
+                                 GError **error)
 {
   /* Currently we only support an output type of gff */
   if (fetchMethod->outputType == BLXFETCH_OUTPUT_GFF)
     {
-      regionFetchList(regionsToFetch, seqList, columnList, fetchMethod, mspListIn,
-                      blastMode, featureLists, supportedTypes, styles, 
-                      External, saveTempFiles, seqType, refSeqOffset,
-                      dataset, refSeqRange, lookupTable, error);
+      regionFetchList(regionsToFetch, fetchMethod, error);
     }
   else
     {
@@ -3090,27 +3036,9 @@ static void commandFetchList(GList *regionsToFetch,
  * given list of features, based on the given fetch method.
  * The first argument is the list  of features to fetch and 
  * the second is the list of all features. */
-static gboolean fetchList(GList *seqsToFetch, 
-                          GList **seqList,
-                          GList *columnList,
-                          const BlxFetchMethod* const fetchMethod,
-                          const BlxSeqType seqType,
-                          const gboolean saveTempFiles,
-                          const gboolean External,
-                          MSP **mspList,
-                          BlxBlastMode *blastMode,
-                          GArray* featureLists[],
-                          GSList *supportedTypes, 
-                          GSList *styles,
-                          const int refSeqOffset,
-                          const IntRange* const refSeqRange,
-                          const char *dataset,
-                          GHashTable *lookupTable,
-#ifdef PFETCH_HTML
-                          long ipresolve,
-#endif
-                          bool debug,
-                          GError **error)
+gboolean BulkFetch::fetchList(GList *seqsToFetch, 
+                              const BlxFetchMethod* const fetchMethod,
+                              GError **error)
 {
   gboolean success = TRUE;
   
@@ -3122,13 +3050,7 @@ static gboolean fetchList(GList *seqsToFetch,
             {
             case BLXFETCH_MODE_SOCKET:
               {  
-                success = socketFetchList(seqsToFetch,
-                                          fetchMethod,
-                                          *seqList,
-                                          columnList,
-                                          External,
-                                          seqType,
-                                          error);
+                success = socketFetchList(seqsToFetch, fetchMethod, error);
                 break;
               }
 
@@ -3136,14 +3058,7 @@ static gboolean fetchList(GList *seqsToFetch,
             case BLXFETCH_MODE_HTTP: // fall through
             case BLXFETCH_MODE_PIPE:
               {
-                success = httpFetchList(seqsToFetch,
-                                        fetchMethod,
-                                        *seqList,
-                                        columnList,
-                                        seqType,
-                                        ipresolve,
-                                        debug,
-                                        error);
+                success = httpFetchList(seqsToFetch, fetchMethod, error);
                 break;
               }
 #endif
@@ -3156,23 +3071,7 @@ static gboolean fetchList(GList *seqsToFetch,
 
             case BLXFETCH_MODE_COMMAND:
               {
-                commandFetchList(seqsToFetch, 
-                                 seqList, 
-                                 columnList,
-                                 fetchMethod, 
-                                 mspList,
-                                 blastMode,
-                                 featureLists,
-                                 supportedTypes,
-                                 styles,
-                                 External,
-                                 saveTempFiles,
-                                 seqType,
-                                 refSeqOffset,
-                                 dataset,
-                                 refSeqRange,
-                                 lookupTable,
-                                 error);
+                commandFetchList(seqsToFetch, fetchMethod, error);
                 break;
               }
 
@@ -3764,13 +3663,7 @@ gboolean BulkFetch::performFetch()
           
           GError *tmpError = NULL;
           
-          if (fetchList(seqsToFetch, seqList, columnList, fetchMethod, 
-                        seqType, saveTempFiles, External, mspList, blastMode, 
-                        featureLists, supportedTypes, styles, refSeqOffset, refSeqRange, dataset, lookupTable,
-#ifdef PFETCH_HTML
-                        ipresolve,
-#endif
-                        debug, &tmpError))
+          if (fetchList(seqsToFetch, fetchMethod, &tmpError))
             {
               success = TRUE;
               

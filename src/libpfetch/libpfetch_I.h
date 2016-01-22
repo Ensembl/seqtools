@@ -68,7 +68,6 @@ enum
     PFETCH_COOKIE_JAR,
     PFETCH_PROXY,
     PFETCH_IPRESOLVE,
-    PFETCH_VERBOSE,
     PFETCH_URL,			/* same as location */
     PFETCH_POST,
     PFETCH_WRITE_FUNC,
@@ -164,6 +163,7 @@ typedef struct _pfetchHandleStruct
   GObject __parent__;
 
   char *location;
+  long ipresolve; /* ipv4 or ipv6 or either */
 
   struct
   {

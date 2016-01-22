@@ -250,6 +250,12 @@ static void pfetch_handle_class_init(PFetchHandleClass pfetch_class)
 						       "turn debugging on/off",
 						       FALSE, PFETCH_PARAM_STATIC_RW));
 
+  g_object_class_install_property(gobject_class,
+				  PFETCH_IPRESOLVE, 
+				  g_param_spec_long("ipresolve", "ipresolve", 
+                                                    "specify ipv4/ipv6/either",
+                                                    0, 2, CURL_IPRESOLVE_WHATEVER, PFETCH_PARAM_STATIC_RW));
+  
   /* Signals */
   handle_class->handle_signals[HANDLE_READER_SIGNAL] =
     g_signal_new("reader", 	/* signal_name */
@@ -341,6 +347,9 @@ static void pfetch_handle_set_property(GObject *gobject, guint param_id, const G
     case PFETCH_DEBUG:
       pfetch_handle->opts.debug = g_value_get_boolean(value);
       break;
+    case PFETCH_IPRESOLVE:
+      pfetch_handle->ipresolve = g_value_get_long(value);
+      break;
     case PFETCH_LOCATION:
       if(pfetch_handle->location)
 	g_free(pfetch_handle->location);
@@ -394,6 +403,9 @@ static void pfetch_handle_get_property(GObject *gobject, guint param_id, GValue 
       break;
     case PFETCH_DEBUG:
       g_value_set_boolean(value, pfetch_handle->opts.debug);
+      break;
+    case PFETCH_IPRESOLVE:
+      g_value_set_long(value, pfetch_handle->ipresolve);
       break;
     case PFETCH_LOCATION:
       g_value_set_string(value, pfetch_handle->location);
@@ -1248,7 +1260,7 @@ static void pfetch_http_handle_class_init(PFetchHandleHttpClass pfetch_class)
                                                     PFETCH_PARAM_STATIC_RW));
 
   g_object_class_install_property(gobject_class,
-				  PFETCH_VERBOSE,
+				  PFETCH_DEBUG,
 				  g_param_spec_boolean("verbose", "verbose",
                                                        "Verbose output",
                                                        FALSE, PFETCH_PARAM_STATIC_RW));
@@ -1328,7 +1340,7 @@ static void pfetch_http_handle_set_property(GObject *gobject, guint param_id,
     case PFETCH_IPRESOLVE:
       pfetch->ipresolve = g_value_get_long(value);
       break;
-    case PFETCH_VERBOSE:
+    case PFETCH_DEBUG:
       pfetch->debug = g_value_get_boolean(value);
       break;
     default:
@@ -1358,7 +1370,7 @@ static void pfetch_http_handle_get_property(GObject *gobject, guint param_id,
     case PFETCH_IPRESOLVE:
       g_value_set_long(value, pfetch->ipresolve);
       break;
-    case PFETCH_VERBOSE:
+    case PFETCH_DEBUG:
       g_value_set_boolean(value, pfetch->debug);
       break;
     default:
@@ -1383,7 +1395,6 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError
                     "url",   PFETCH_HANDLE(pfetch)->location,
                     "port",  pfetch->http_port,
                     "ipresolve", pfetch->ipresolve,
-                    "verbose", pfetch->debug,
                     /* request */
                     "postfields",  pfetch->post_data,   
                     "cookiefile",  pfetch->cookie_jar_location,
