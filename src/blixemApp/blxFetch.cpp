@@ -1264,7 +1264,7 @@ static PFetchStatus pfetch_error_func(PFetchHandle *handle,
                                        gpointer      user_data)
 {
   g_warning("pfetch 'error' signal received: %s", text ? text : "") ;
-  return PFETCH_STATUS_OK;
+  return PFETCH_STATUS_FAILED;
 }
 
 
@@ -1391,7 +1391,7 @@ static PFetchStatus sequence_pfetch_error(PFetchHandle *handle,
                                           gpointer      user_data)
 {
   g_warning("pfetch 'error' signal received: %s", text ? text : "") ;
-  return PFETCH_STATUS_OK;
+  return PFETCH_STATUS_FAILED;
 }
 
 static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_data)
