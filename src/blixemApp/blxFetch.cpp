@@ -144,14 +144,13 @@ typedef struct _GeneralFetchData
 
 typedef struct
 {
-  GtkWidget *dialog;
   char *title;
 
   gulong widget_destroy_handler_id;
   PFetchHandle pfetch;
   gboolean got_response;
   const BlxFetchMethod *fetchMethod;
-  UserFetch user_fetch;
+  UserFetch *user_fetch;
 } PFetchDataStruct, *PFetchData;
 
 
@@ -238,6 +237,7 @@ static gboolean                    pfetchFinishSequence(GeneralFetchData *fetchD
 static void                        pfetchGetParserStateFromTagName(GeneralFetchData *fetchData);
 
 static bool                        configGetBool(GKeyFile *key_file, const char *group, const char *key, GError **error);
+static char*                       configGetString(GKeyFile *key_file, const char *group, const char *key, GError **error);
 
 #ifdef PFETCH_HTML
 static long                        configGetIpresolve(GKeyFile *key_file, const char *group, const char *key, GError **error);
@@ -812,6 +812,7 @@ gboolean BulkFetch::httpFetchList(GList *seqsToFetch,
                            "cookie-jar", fetchMethod->cookie_jar,
                            "proxy",      fetchMethod->proxy,
                            "ipresolve",  ipresolve,
+                           "cainfo",     cainfo,
                            NULL);
     }
   else
@@ -1224,7 +1225,7 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
 
   if (actual_read && *actual_read > 0 && pfetch_data)
     {
-      GtkTextBuffer *text_buffer = pfetch_data->user_fetch.getTextBuffer();
+      GtkTextBuffer *text_buffer = pfetch_data->user_fetch->getTextBuffer();
 
       /* clear the buffer the first time... */
       if(pfetch_data->got_response == FALSE)
@@ -1239,7 +1240,7 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
        * with the next fetch method, if there is one */
       if (stringInArray(text, pfetch_data->fetchMethod->errors))
         {
-          pfetch_data->user_fetch.performFetch();
+          pfetch_data->user_fetch->performFetch();
         }
     }
 
@@ -1275,7 +1276,7 @@ static PFetchStatus pfetch_closed_func(PFetchHandle *handle, gpointer user_data)
 
   if (pfetch_data && handle)
     {
-      GtkTextBuffer *text_buffer = pfetch_data->user_fetch.getTextBuffer();
+      GtkTextBuffer *text_buffer = pfetch_data->user_fetch->getTextBuffer();
 
       if(pfetch_data->got_response)
         {
@@ -1305,7 +1306,7 @@ static PFetchStatus pfetch_closed_func(PFetchHandle *handle, gpointer user_data)
 
           g_free(err_msg) ;
 
-          pfetch_data->user_fetch.performFetch();
+          pfetch_data->user_fetch->performFetch();
         }
     }
 
@@ -1317,7 +1318,7 @@ static PFetchStatus pfetch_closed_func(PFetchHandle *handle, gpointer user_data)
 static void handle_dialog_close(GtkWidget *dialog, gpointer user_data)
 {
   PFetchData pfetch_data   = (PFetchData)user_data;
-  pfetch_data->user_fetch.setTextBuffer(NULL);
+  pfetch_data->user_fetch->setTextBuffer(NULL);
   pfetch_data->widget_destroy_handler_id = 0; /* can we get this more than once? */
 
   if(pfetch_data->pfetch)
@@ -1702,6 +1703,7 @@ static void readBlixemStanza(GKeyFile *key_file,
 
 #ifdef PFETCH_HTML
   options->ipresolve = configGetIpresolve(key_file, group, HTTP_FETCH_IPRESOLVE, NULL);
+  options->cainfo = configGetString(key_file, group, HTTP_FETCH_CAINFO, NULL);
 #endif
 
   options->fetch_debug = configGetBool(key_file, group, FETCH_DEBUG, NULL);
@@ -3105,6 +3107,7 @@ UserFetch::UserFetch(const BlxSequence *blxSeq_in,
                      GtkWidget *dialog_in,
 #ifdef PFETCH_HTML
                      long ipresolve_in,
+                     const char *cainfo_in,
 #endif
                      bool debug_in)
 {
@@ -3118,6 +3121,7 @@ UserFetch::UserFetch(const BlxSequence *blxSeq_in,
 
 #ifdef PFETCH_HTML
   ipresolve = ipresolve_in;
+  cainfo = cainfo_in;
 #endif
   
 }
@@ -3245,7 +3249,7 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
       pfetch_data->pfetch = PFetchHandleNew(pfetch_type);
       
       pfetch_data->fetchMethod = fetchMethod;
-      pfetch_data->user_fetch = *this; /* shallow copy */
+      pfetch_data->user_fetch = this;
       
       command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset, &tmpError);
     }
@@ -3277,17 +3281,15 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
       
       if (!dialog || !text_buffer)
         {
-          pfetch_data->dialog = displayFetchResults(pfetch_data->title, "pfetching...\n", blxWindow, dialog, &text_buffer);
-          dialog = pfetch_data->dialog;
+          dialog = displayFetchResults(pfetch_data->title, "pfetching...\n", blxWindow, dialog, &text_buffer);
         }
 
       if (dialog && text_buffer)
         {
           gtk_window_set_title(GTK_WINDOW(dialog), pfetch_data->title);
-          pfetch_data->dialog = dialog;
 
           pfetch_data->widget_destroy_handler_id = 
-            g_signal_connect(G_OBJECT(pfetch_data->dialog), "destroy", 
+            g_signal_connect(G_OBJECT(dialog), "destroy", 
                              G_CALLBACK(handle_dialog_close), pfetch_data); 
           
           if (PFETCH_IS_HTTP_HANDLE(pfetch_data->pfetch))
@@ -3300,6 +3302,7 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
                                      "cookie-jar", fetchMethod->cookie_jar,
                                      "proxy",      fetchMethod->proxy,
                                      "ipresolve",  ipresolve,
+                                     "cainfo",     cainfo,
                                      NULL);
               else
                 PFetchHandleSettings(pfetch_data->pfetch, 
@@ -3308,6 +3311,7 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
                                      "pfetch",     fetchMethod->location,
                                      "cookie-jar", fetchMethod->cookie_jar,
                                      "ipresolve",  ipresolve,
+                                     "cainfo",     cainfo,
                                      NULL);
             }
           else
@@ -3586,6 +3590,7 @@ BulkFetch::BulkFetch(gboolean External_in,
                      GHashTable *lookupTable_in,
 #ifdef PFETCH_HTML
                      long ipresolve_in,
+                     const char *cainfo_in,
 #endif
                      bool debug_in)
 {
@@ -3611,6 +3616,7 @@ BulkFetch::BulkFetch(gboolean External_in,
 
 #ifdef PFETCH_HTML
   ipresolve = ipresolve_in;
+  cainfo = cainfo_in;
 #endif
  
 }

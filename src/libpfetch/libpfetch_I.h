@@ -68,6 +68,7 @@ enum
     PFETCH_COOKIE_JAR,
     PFETCH_PROXY,
     PFETCH_IPRESOLVE,
+    PFETCH_CAINFO,
     PFETCH_URL,			/* same as location */
     PFETCH_POST,
     PFETCH_WRITE_FUNC,
@@ -164,6 +165,7 @@ typedef struct _pfetchHandleStruct
 
   char *location;
   long ipresolve; /* ipv4 or ipv6 or either */
+  const char *cainfo; /* location of curl cainfo file */
 
   struct
   {
@@ -235,6 +237,7 @@ typedef struct _pfetchHandleHttpStruct
   unsigned int http_port;
   gboolean debug;
   long ipresolve;
+  char *cainfo;
 
   unsigned int request_counter;
 } pfetchHandleHttpStruct;

@@ -505,6 +505,7 @@ gboolean blxview(CommandLineOptions *options,
                        options->dataset, FALSE, lookupTable,
 #ifdef PFETCH_HTML
                        options->ipresolve,
+                       options->cainfo,
 #endif
                        options->fetch_debug); 
 

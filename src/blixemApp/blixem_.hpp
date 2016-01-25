@@ -108,6 +108,7 @@
 #define HTTP_FETCH_COOKIE_JAR     "cookie-jar"
 #define HTTP_FETCH_PROXY          "proxy"
 #define HTTP_FETCH_IPRESOLVE      "ipresolve"
+#define HTTP_FETCH_CAINFO         "cainfo"
 
 #define PIPE_FETCH_LOCATION       "command"
 #define PIPE_FETCH_ARGS           "args"
@@ -189,7 +190,7 @@ typedef enum
     BLX_CONFIG_ERROR_NO_EXE,                /* fetch method executable does not exist */
     BLX_CONFIG_ERROR_NULL_FETCH,            /* fetch method is null */
     BLX_CONFIG_ERROR_NO_ARGS,               /* mandatory args weren't specified */
-    BLX_CONFIG_ERROR_INVALID_IPRESOLVE      /* mandatory args weren't specified */
+    BLX_CONFIG_ERROR_INVALID_IPRESOLVE      /* invalid value given for ipresolve config */
   } BlxConfigError;
 
 
@@ -434,6 +435,7 @@ typedef struct _CommandLineOptions
 
   bool fetch_debug;               /* whether to include verbose debug output for fetch */
   long ipresolve;                 /* whether to make curl use ipv4 or ipv6 */
+  const char *cainfo;             /* location of curl cainfo file */
 } CommandLineOptions;
 
 
@@ -504,6 +506,7 @@ typedef struct _BlxViewContext
     int maxDepth;                           /* maximum value in the depthArray */
 
     long ipresolve;                         /* specify whether curl should use ipv4/ipv6 */
+    const char *cainfo;                     /* specify location of curl cainfo file */
     bool fetch_debug;                       /* enable verbose debug output in fetch methods */
 } BlxViewContext;
 
@@ -544,6 +547,7 @@ public:
             GtkWidget *dialog,
 #ifdef PFETCH_HTML
             long ipresolve,
+            const char *cainfo,
 #endif
             bool debug);
 
@@ -573,6 +577,7 @@ private:
 
 #ifdef PFETCH_HTML
   long ipresolve;
+  const char *cainfo;
 #endif
 };
 
@@ -600,6 +605,7 @@ public:
             GHashTable *lookupTable,
 #ifdef PFETCH_HTML
             long ipresolve,
+            const char *cainfo,
 #endif
             bool debug);
 
@@ -642,6 +648,7 @@ private:
 
 #ifdef PFETCH_HTML
   long ipresolve;
+  const char *cainfo;
 #endif
 };
 

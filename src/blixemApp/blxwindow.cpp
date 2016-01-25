@@ -843,6 +843,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
                            &bc->refSeqRange, bc->dataset, FALSE, lookupTable,
 #ifdef PFETCH_HTML
                            bc->ipresolve,
+                           bc->cainfo,
 #endif
                            bc->fetch_debug);
 
@@ -3105,6 +3106,7 @@ static void onButtonClickedLoadOptional(GtkWidget *button, gpointer data)
                        &bc->refSeqRange, bc->dataset, TRUE, lookupTable,
 #ifdef PFETCH_HTML
                        bc->ipresolve,
+                       bc->cainfo,
 #endif
                        bc->fetch_debug);
   
@@ -5834,6 +5836,7 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
 
 #ifdef PFETCH_HTML
   blxContext->ipresolve = options->ipresolve;
+  blxContext->cainfo = options->cainfo;
 #endif
 
   return blxContext;

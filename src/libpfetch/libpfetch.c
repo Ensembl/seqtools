@@ -255,6 +255,11 @@ static void pfetch_handle_class_init(PFetchHandleClass pfetch_class)
 				  g_param_spec_long("ipresolve", "ipresolve", 
                                                     "specify ipv4/ipv6/either",
                                                     0, 2, CURL_IPRESOLVE_WHATEVER, PFETCH_PARAM_STATIC_RW));
+  g_object_class_install_property(gobject_class,
+				  PFETCH_CAINFO, 
+				  g_param_spec_string("cainfo", "cainfo", 
+                                                      "specify location of cainfo file",
+                                                      NULL, PFETCH_PARAM_STATIC_RW));
   
   /* Signals */
   handle_class->handle_signals[HANDLE_READER_SIGNAL] =
@@ -350,6 +355,9 @@ static void pfetch_handle_set_property(GObject *gobject, guint param_id, const G
     case PFETCH_IPRESOLVE:
       pfetch_handle->ipresolve = g_value_get_long(value);
       break;
+    case PFETCH_CAINFO:
+      pfetch_handle->cainfo = g_value_get_string(value);
+      break;
     case PFETCH_LOCATION:
       if(pfetch_handle->location)
 	g_free(pfetch_handle->location);
@@ -406,6 +414,9 @@ static void pfetch_handle_get_property(GObject *gobject, guint param_id, GValue 
       break;
     case PFETCH_IPRESOLVE:
       g_value_set_long(value, pfetch_handle->ipresolve);
+      break;
+    case PFETCH_CAINFO:
+      g_value_set_string(value, pfetch_handle->cainfo);
       break;
     case PFETCH_LOCATION:
       g_value_set_string(value, pfetch_handle->location);
@@ -1250,7 +1261,7 @@ static void pfetch_http_handle_class_init(PFetchHandleHttpClass pfetch_class)
 				  PFETCH_PROXY,
 				  g_param_spec_string("proxy", "proxy",
 						      "pfetch proxy",
-						      "", PFETCH_PARAM_STATIC_RW));
+						      NULL, PFETCH_PARAM_STATIC_RW));
 
   g_object_class_install_property(gobject_class,
 				  PFETCH_IPRESOLVE,
@@ -1258,6 +1269,11 @@ static void pfetch_http_handle_class_init(PFetchHandleHttpClass pfetch_class)
                                                     "Specify whether libcurl should use IPv4, IPv6, or either",
                                                     0, 2, CURL_IPRESOLVE_WHATEVER,
                                                     PFETCH_PARAM_STATIC_RW));
+  g_object_class_install_property(gobject_class,
+				  PFETCH_CAINFO,
+				  g_param_spec_string("cainfo", "cainfo",
+                                                      "Specify location of cainfo file",
+                                                      NULL, PFETCH_PARAM_STATIC_RW));
 
   g_object_class_install_property(gobject_class,
 				  PFETCH_DEBUG,
@@ -1312,6 +1328,11 @@ static void pfetch_http_handle_finalize(GObject *gobject)
 
   pfetch->proxy = NULL;
 
+  if(pfetch->cainfo)
+    g_free(pfetch->cainfo);
+
+  pfetch->cainfo = NULL;
+
   return ;
 }
 
@@ -1339,6 +1360,12 @@ static void pfetch_http_handle_set_property(GObject *gobject, guint param_id,
       break;
     case PFETCH_IPRESOLVE:
       pfetch->ipresolve = g_value_get_long(value);
+      break;
+    case PFETCH_CAINFO:
+      if(pfetch->cainfo)
+        g_free(pfetch->cainfo);
+
+      pfetch->cainfo = g_value_dup_string(value);
       break;
     case PFETCH_DEBUG:
       pfetch->debug = g_value_get_boolean(value);
@@ -1370,6 +1397,9 @@ static void pfetch_http_handle_get_property(GObject *gobject, guint param_id,
     case PFETCH_IPRESOLVE:
       g_value_set_long(value, pfetch->ipresolve);
       break;
+    case PFETCH_CAINFO:
+      g_value_set_string(value, pfetch->cainfo);
+      break;
     case PFETCH_DEBUG:
       g_value_set_boolean(value, pfetch->debug);
       break;
@@ -1395,6 +1425,7 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError
                     "url",   PFETCH_HANDLE(pfetch)->location,
                     "port",  pfetch->http_port,
                     "ipresolve", pfetch->ipresolve,
+                    "cainfo", pfetch->cainfo,
                     /* request */
                     "postfields",  pfetch->post_data,   
                     "cookiefile",  pfetch->cookie_jar_location,
@@ -1459,6 +1490,7 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError
 		    "postfields",  pfetch->post_data,   
 		    "cookiefile",  pfetch->cookie_jar_location,
 		    "proxy",  pfetch->proxy,
+		    "cainfo",  pfetch->cainfo,
 		    /* functions */
 		    "writefunction",  http_curl_write_func,
 		    "writedata",      pfetch,

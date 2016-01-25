@@ -1526,13 +1526,13 @@ static gboolean treePfetchRow(GtkWidget *tree)
   if (selectedSeqs)
     {
       const BlxSequence *clickedSeq = (const BlxSequence*)selectedSeqs->data;
-      UserFetch user_fetch(clickedSeq, TRUE, blxWindow, NULL,
+      UserFetch *user_fetch = new UserFetch(clickedSeq, TRUE, blxWindow, NULL,
 #ifdef PFETCH_HTML
-                           bc->ipresolve,
+                                            bc->ipresolve, bc->cainfo,
 #endif
-                           bc->fetch_debug);
+                                            bc->fetch_debug);
 
-      user_fetch.performFetch();
+      user_fetch->performFetch();
     }
 
   return TRUE;
