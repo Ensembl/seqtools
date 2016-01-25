@@ -145,7 +145,6 @@ typedef struct _GeneralFetchData
 typedef struct
 {
   GtkWidget *dialog;
-  GtkTextBuffer *text_buffer;
   char *title;
 
   gulong widget_destroy_handler_id;
@@ -1225,7 +1224,7 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
 
   if (actual_read && *actual_read > 0 && pfetch_data)
     {
-      GtkTextBuffer *text_buffer = pfetch_data->text_buffer;
+      GtkTextBuffer *text_buffer = pfetch_data->user_fetch.getTextBuffer();
 
       /* clear the buffer the first time... */
       if(pfetch_data->got_response == FALSE)
@@ -1276,7 +1275,7 @@ static PFetchStatus pfetch_closed_func(PFetchHandle *handle, gpointer user_data)
 
   if (pfetch_data && handle)
     {
-      GtkTextBuffer *text_buffer = pfetch_data->text_buffer;
+      GtkTextBuffer *text_buffer = pfetch_data->user_fetch.getTextBuffer();
 
       if(pfetch_data->got_response)
         {
@@ -1318,7 +1317,7 @@ static PFetchStatus pfetch_closed_func(PFetchHandle *handle, gpointer user_data)
 static void handle_dialog_close(GtkWidget *dialog, gpointer user_data)
 {
   PFetchData pfetch_data   = (PFetchData)user_data;
-  pfetch_data->text_buffer = NULL;
+  pfetch_data->user_fetch.setTextBuffer(NULL);
   pfetch_data->widget_destroy_handler_id = 0; /* can we get this more than once? */
 
   if(pfetch_data->pfetch)
@@ -3104,7 +3103,6 @@ UserFetch::UserFetch(const BlxSequence *blxSeq_in,
                      const gboolean displayResults_in,
                      GtkWidget *blxWindow_in,
                      GtkWidget *dialog_in,
-                     GtkTextBuffer **text_buffer_in,
 #ifdef PFETCH_HTML
                      long ipresolve_in,
 #endif
@@ -3115,7 +3113,7 @@ UserFetch::UserFetch(const BlxSequence *blxSeq_in,
   displayResults = displayResults_in;
   blxWindow = blxWindow_in;
   dialog = dialog_in;
-  text_buffer = text_buffer_in;
+  text_buffer = NULL;
   debug = debug_in;
 
 #ifdef PFETCH_HTML
@@ -3128,7 +3126,7 @@ UserFetch::UserFetch(const BlxSequence *blxSeq_in,
 /* Perform the fetch */
 /* Fetch the given sequence and optionally display the results. 
  * dialog and text_buffer are only used when recursing via httpFetchSequence;
- * they should be passed as NULL in all other cases. */
+ * they should remain as NULL in all other cases. */
 void UserFetch::performFetch()
 {
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
@@ -3193,6 +3191,17 @@ void UserFetch::performFetch()
       g_warning("Unknown fetch method: %s\n", g_quark_to_string(fetchMethod->name));
       performFetch();
     }
+}
+
+
+GtkTextBuffer* UserFetch::getTextBuffer()
+{
+  return text_buffer;
+}
+
+void UserFetch::setTextBuffer(GtkTextBuffer *text_buffer_in)
+{
+  text_buffer = text_buffer_in;
 }
 
 
@@ -3266,18 +3275,16 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
     {
       pfetch_data->title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), command->str);
       
-      if (!dialog || !text_buffer || *text_buffer == NULL)
+      if (!dialog || !text_buffer)
         {
-          pfetch_data->dialog = displayFetchResults(pfetch_data->title, "pfetching...\n", blxWindow, dialog, &pfetch_data->text_buffer);
+          pfetch_data->dialog = displayFetchResults(pfetch_data->title, "pfetching...\n", blxWindow, dialog, &text_buffer);
           dialog = pfetch_data->dialog;
-          text_buffer = &pfetch_data->text_buffer;
         }
 
-      if (dialog && text_buffer && *text_buffer)
+      if (dialog && text_buffer)
         {
           gtk_window_set_title(GTK_WINDOW(dialog), pfetch_data->title);
           pfetch_data->dialog = dialog;
-          pfetch_data->text_buffer = *text_buffer;
 
           pfetch_data->widget_destroy_handler_id = 
             g_signal_connect(G_OBJECT(pfetch_data->dialog), "destroy", 
@@ -3324,7 +3331,7 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
                                           command->str, 
                                           (error ? error->message : "no error"));
               g_warning(msg);
-              displayFetchResults(pfetch_data->title, msg, blxWindow, dialog, text_buffer);
+              displayFetchResults(pfetch_data->title, msg, blxWindow, dialog, &text_buffer);
               g_free(msg);
 
               performFetch();
@@ -3421,7 +3428,7 @@ void UserFetch::commandFetchSequence(const BlxFetchMethod *fetchMethod)
       if (displayResults && !error)
         {
           char *title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), command->str);
-          displayFetchResults(title, resultText->str, blxWindow, dialog, text_buffer);
+          displayFetchResults(title, resultText->str, blxWindow, dialog, &text_buffer);
           g_free(title);
         }
 
@@ -3456,7 +3463,7 @@ void UserFetch::internalFetchSequence(const BlxFetchMethod *fetchMethod)
         {
           BlxViewContext *bc = blxWindowGetContext(blxWindow);
           char *title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), seqName ? seqName : "");
-          displayFetchResults(title, result, blxWindow, dialog, text_buffer);
+          displayFetchResults(title, result, blxWindow, dialog, &text_buffer);
           g_free(title);
         }
 
@@ -3499,7 +3506,7 @@ void UserFetch::socketFetchSequence(const BlxFetchMethod *fetchMethod)
       if (displayResults)
         {
           char *title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), command->str);
-          displayFetchResults(title, resultText->str, blxWindow, dialog, text_buffer);
+          displayFetchResults(title, resultText->str, blxWindow, dialog, &text_buffer);
           g_free(title);
         }
 

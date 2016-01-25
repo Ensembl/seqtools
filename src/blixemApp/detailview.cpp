@@ -4886,7 +4886,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
             if (seqItem)
               {
                 BlxSequence *seq = (BlxSequence*)(seqItem->data);
-                UserFetch user_fetch(seq, TRUE, blxWindow, NULL, NULL,
+                UserFetch user_fetch(seq, TRUE, blxWindow, NULL,
 #ifdef PFETCH_HTML
                                      bc->ipresolve,
 #endif

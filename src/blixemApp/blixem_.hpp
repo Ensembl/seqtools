@@ -542,13 +542,15 @@ public:
             const gboolean displayResults,
             GtkWidget *blxWindow,
             GtkWidget *dialog,
-            GtkTextBuffer **text_buffer,
 #ifdef PFETCH_HTML
             long ipresolve,
 #endif
             bool debug);
 
   void performFetch();
+
+  GtkTextBuffer *getTextBuffer();
+  void setTextBuffer(GtkTextBuffer *text_buffer);
 
 #ifdef PFETCH_HTML
   bool httpFetchSequence(const BlxFetchMethod *fetchMethod);
@@ -566,7 +568,7 @@ private:
   int attempt;
   GtkWidget *blxWindow;
   GtkWidget *dialog;
-  GtkTextBuffer **text_buffer;
+  GtkTextBuffer *text_buffer;
   bool debug;
 
 #ifdef PFETCH_HTML
