@@ -152,7 +152,7 @@ typedef struct
   PFetchHandle pfetch;
   gboolean got_response;
   const BlxFetchMethod *fetchMethod;
-  UserFetch *user_fetch;
+  UserFetch user_fetch;
 } PFetchDataStruct, *PFetchData;
 
 
@@ -1238,9 +1238,9 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
 
       /* If we tried fetching the full entry and failed, try again
        * with the next fetch method, if there is one */
-      if (stringInArray(text, pfetch_data->fetchMethod->errors) && pfetch_data->user_fetch)
+      if (stringInArray(text, pfetch_data->fetchMethod->errors))
         {
-          pfetch_data->user_fetch->performFetch();
+          pfetch_data->user_fetch.performFetch();
         }
     }
 
@@ -1306,8 +1306,7 @@ static PFetchStatus pfetch_closed_func(PFetchHandle *handle, gpointer user_data)
 
           g_free(err_msg) ;
 
-          if (pfetch_data->user_fetch)
-            pfetch_data->user_fetch->performFetch();
+          pfetch_data->user_fetch.performFetch();
         }
     }
 
@@ -3132,12 +3131,12 @@ UserFetch::UserFetch(const BlxSequence *blxSeq_in,
  * they should be passed as NULL in all other cases. */
 void UserFetch::performFetch()
 {
-  g_assert(blxSeq);
+  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  g_return_if_fail(blxSeq && bc);
  
   ++attempt;
 
   /* Look up the fetch method for this sequence */
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
   GQuark fetchMethodQuark = blxSequenceGetFetchMethod(blxSeq, FALSE, FALSE, attempt, bc->userFetchDefault);
   const BlxFetchMethod* const fetchMethod = getFetchMethodDetails(fetchMethodQuark, bc->fetchMethods);
 
@@ -3237,7 +3236,7 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
       pfetch_data->pfetch = PFetchHandleNew(pfetch_type);
       
       pfetch_data->fetchMethod = fetchMethod;
-      pfetch_data->user_fetch = this;
+      pfetch_data->user_fetch = *this; /* shallow copy */
       
       command = getFetchCommand(fetchMethod, blxSeq, NULL, bc->refSeqName, bc->refSeqOffset, &bc->refSeqRange, bc->dataset, &tmpError);
     }
