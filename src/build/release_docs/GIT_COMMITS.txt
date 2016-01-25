@@ -1,6 +1,7 @@
 
 Git commits for  from commit "production" until commit "release/4.40.0"
 
+2ffc405 2016-01-25 Fix crash following libcurl error - REGRESSION FIX
 33fae1e 2016-01-15 Fix bug getting dataType config - REGRESSION FIX
 053c520 2015-12-09 Merge branch 'feature/pfetch' into develop - NEW FEATURE 'pfetch errors'
 

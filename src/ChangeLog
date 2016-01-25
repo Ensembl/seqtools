@@ -1,3 +1,18 @@
+2016-01-25  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix crash following libcurl error - REGRESSION FIX
+ src/blixemApp/blxFetch.cpp |   15 +++++++--------
+ 1 files changed, 7 insertions(+), 8 deletions(-)
+
+2016-01-25  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix minor error in runconfig script - BUILD
+ src/runconfig.sh |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+2016-01-22  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-32-ged92 - Update RT and git commit reports
+ src/ChangeLog |   36 ++++++++++++++++++++++++++++++++++++
+ 1 files changed, 36 insertions(+), 0 deletions(-)
+
 2016-01-22  Gemma Guest  <gb10@sanger.ac.uk>
  Minor fix to return status - WIP
  src/blixemApp/blxFetch.cpp |    4 ++--
