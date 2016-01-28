@@ -98,7 +98,7 @@ echo "SeqTools version is: $SEQTOOLS_VERSION"
 
 
 # Should gbtools be installed ?
-if [ -n gbtools_install ] ; then
+if [ -z gbtools_install ] ; then
 
   clean_lib 'gbtools' ./gbtools
 
