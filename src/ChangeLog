@@ -1,3 +1,89 @@
+2016-01-25  Gemma Guest  <gb10@sanger.ac.uk>
+ Add config option to set cainfo file location for curl - WIP
+ src/blixemApp/blixem_.hpp        |    9 ++++++++-
+ src/blixemApp/blxFetch.cpp       |   30 ++++++++++++++++++------------
+ src/blixemApp/blxview.cpp        |    1 +
+ src/blixemApp/blxwindow.cpp      |    3 +++
+ src/blixemApp/detailview.cpp     |    9 +++++----
+ src/blixemApp/detailviewtree.cpp |    8 ++++----
+ src/libpfetch/libcurlobject.c    |    6 ++++++
+ src/libpfetch/libpfetch.c        |   34 +++++++++++++++++++++++++++++++++-
+ src/libpfetch/libpfetch_I.h      |    3 +++
+ 9 files changed, 81 insertions(+), 22 deletions(-)
+
+2016-01-25  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix bug where multiple pfetch windows open - REGRESSION FIX
+ src/blixemApp/blixem_.hpp        |    6 +++-
+ src/blixemApp/blxFetch.cpp       |   39 ++++++++++++++++++++++---------------
+ src/blixemApp/detailview.cpp     |    2 +-
+ src/blixemApp/detailviewtree.cpp |    2 +-
+ 4 files changed, 29 insertions(+), 20 deletions(-)
+
+2016-01-25  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-35-g2ffc4 - Update RT and git commit reports
+ src/ChangeLog                                  |   15 +++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 3 files changed, 17 insertions(+), 1 deletions(-)
+
+2016-01-25  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix crash following libcurl error - REGRESSION FIX
+ src/blixemApp/blxFetch.cpp |   15 +++++++--------
+ 1 files changed, 7 insertions(+), 8 deletions(-)
+
+2016-01-25  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix minor error in runconfig script - BUILD
+ src/runconfig.sh |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+2016-01-22  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-32-ged92 - Update RT and git commit reports
+ src/ChangeLog |   36 ++++++++++++++++++++++++++++++++++++
+ 1 files changed, 36 insertions(+), 0 deletions(-)
+
+2016-01-22  Gemma Guest  <gb10@sanger.ac.uk>
+ Minor fix to return status - WIP
+ src/blixemApp/blxFetch.cpp |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+2016-01-22  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix problem with previous - WIP
+ src/blixemApp/blixem_.hpp   |   13 ++++
+ src/blixemApp/blxFetch.cpp  |  165 ++++++++-----------------------------------
+ src/blixemApp/blxwindow.cpp |    5 +-
+ src/libpfetch/libpfetch.c   |   19 ++++-
+ src/libpfetch/libpfetch_I.h |    2 +-
+ 5 files changed, 62 insertions(+), 142 deletions(-)
+
+2016-01-22  Gemma Guest  <gb10@sanger.ac.uk>
+ Add config for curl IP mode and debug - WIP
+ src/blixemApp/blixem_.hpp           |  139 ++++-
+ src/blixemApp/blxFetch.cpp          | 1078 ++++++++++++++++++++---------------
+ src/blixemApp/blxFetchDb.cpp        |   56 +--
+ src/blixemApp/blxdotter.cpp         |    5 -
+ src/blixemApp/blxview.cpp           |   19 +-
+ src/blixemApp/blxwindow.cpp         |   32 +-
+ src/blixemApp/detailview.cpp        |    8 +-
+ src/blixemApp/detailviewtree.cpp    |    9 +-
+ src/libpfetch/libcurlobject.c       |   12 +-
+ src/libpfetch/libpfetch.c           |   80 ++--
+ src/libpfetch/libpfetch_I.h         |    4 +
+ src/seqtoolsUtils/seqtoolsFetch.hpp |    4 +-
+ 12 files changed, 838 insertions(+), 608 deletions(-)
+
+2016-01-22  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-28-g7203 - Update RT and git commit reports
+ src/ChangeLog                                  |    7 +++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 2 files changed, 8 insertions(+), 1 deletions(-)
+
+2016-01-15  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.39.3-27-g33fa - Update RT and git commit reports
+ src/ChangeLog                                  |   10 ++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |    1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
+ 3 files changed, 12 insertions(+), 1 deletions(-)
+
 2016-01-15  Gemma Guest  <gb10@sanger.ac.uk>
  Fix bug getting dataType config - REGRESSION FIX
  src/seqtoolsUtils/blxGff3Parser.cpp |   15 +++++++++------

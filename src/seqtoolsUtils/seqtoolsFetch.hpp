@@ -72,6 +72,8 @@ typedef enum
 } BlxFetchOutputType;
 
 
+
+
 /* struct to hold info about a fetch method */
 typedef struct _BlxFetchMethod
 {
@@ -94,4 +96,4 @@ typedef struct _BlxFetchMethod
 #endif /* DEF_SEQTOOLS_FETCH_HPP */
 
 
-BlxFetchMethod* createBlxFetchMethod(const char *fetchName) ;
+BlxFetchMethod* createBlxFetchMethod(const char *fetchName);

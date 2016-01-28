@@ -4861,6 +4861,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
     case 1:
       {
         GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
+        BlxViewContext *bc = blxWindowGetContext(blxWindow);
         GList *columnList = detailViewGetColumnList(detailView);
         
         if (event->type == GDK_BUTTON_PRESS) /* first click */
@@ -4885,7 +4886,13 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
             if (seqItem)
               {
                 BlxSequence *seq = (BlxSequence*)(seqItem->data);
-                fetchSequence(seq, TRUE, 0, blxWindow, NULL, NULL);
+                UserFetch *user_fetch = new UserFetch(seq, TRUE, blxWindow, NULL,
+#ifdef PFETCH_HTML
+                                                      bc->ipresolve, bc->cainfo,
+#endif
+                                                      bc->fetch_debug);
+
+                user_fetch->performFetch();
               }
           }
 

@@ -56,7 +56,7 @@ script_exe="$run_dir/$script_name"
 
 echo "Running $script_exe PKG_CONFIG_PATH='$pkgpath' LDFLAGS='$ldflags_args' CPPFLAGS='$cppflags_args' $@"
 
-if [ $#argv -lt 1 ] ; then
+if [[ $#argv < 1 ]] ; then
   $script_exe PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags_args" CPPFLAGS="$cppflags_args"  USE_GBTOOLS="yes" 
 else
   $script_exe PKG_CONFIG_PATH="$pkgpath" LDFLAGS="$ldflags_args" CPPFLAGS="$cppflags_args" "$@"
