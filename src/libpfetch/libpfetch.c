@@ -174,6 +174,19 @@ PFetchHandle PFetchHandleDestroy(PFetchHandle pfetch)
   return NULL;
 }
 
+/* Returns the error message in the curl object, if there is one. The result is a new string
+ * which should be free'd with g_free. Returns null if no error. */
+char* PFetchHandleHttpGetError(PFetchHandle *pfetch)
+{
+  char *result = NULL ;
+  PFetchHandleHttp http_handle = (PFetchHandleHttp)pfetch ;
+  
+  if (http_handle && http_handle->curl_object)
+    CURLObjectErrorMessage(http_handle->curl_object, &result) ;
+    
+  return result ;
+}
+
 /* INTERNAL Base class functions */
 
 static void pfetch_handle_class_init(PFetchHandleClass pfetch_class)
@@ -237,6 +250,17 @@ static void pfetch_handle_class_init(PFetchHandleClass pfetch_class)
 						       "turn debugging on/off",
 						       FALSE, PFETCH_PARAM_STATIC_RW));
 
+  g_object_class_install_property(gobject_class,
+				  PFETCH_IPRESOLVE, 
+				  g_param_spec_long("ipresolve", "ipresolve", 
+                                                    "specify ipv4/ipv6/either",
+                                                    0, 2, CURL_IPRESOLVE_WHATEVER, PFETCH_PARAM_STATIC_RW));
+  g_object_class_install_property(gobject_class,
+				  PFETCH_CAINFO, 
+				  g_param_spec_string("cainfo", "cainfo", 
+                                                      "specify location of cainfo file",
+                                                      NULL, PFETCH_PARAM_STATIC_RW));
+  
   /* Signals */
   handle_class->handle_signals[HANDLE_READER_SIGNAL] =
     g_signal_new("reader", 	/* signal_name */
@@ -328,6 +352,12 @@ static void pfetch_handle_set_property(GObject *gobject, guint param_id, const G
     case PFETCH_DEBUG:
       pfetch_handle->opts.debug = g_value_get_boolean(value);
       break;
+    case PFETCH_IPRESOLVE:
+      pfetch_handle->ipresolve = g_value_get_long(value);
+      break;
+    case PFETCH_CAINFO:
+      pfetch_handle->cainfo = g_value_get_string(value);
+      break;
     case PFETCH_LOCATION:
       if(pfetch_handle->location)
 	g_free(pfetch_handle->location);
@@ -381,6 +411,12 @@ static void pfetch_handle_get_property(GObject *gobject, guint param_id, GValue 
       break;
     case PFETCH_DEBUG:
       g_value_set_boolean(value, pfetch_handle->opts.debug);
+      break;
+    case PFETCH_IPRESOLVE:
+      g_value_set_long(value, pfetch_handle->ipresolve);
+      break;
+    case PFETCH_CAINFO:
+      g_value_set_string(value, pfetch_handle->cainfo);
       break;
     case PFETCH_LOCATION:
       g_value_set_string(value, pfetch_handle->location);
@@ -1225,7 +1261,25 @@ static void pfetch_http_handle_class_init(PFetchHandleHttpClass pfetch_class)
 				  PFETCH_PROXY,
 				  g_param_spec_string("proxy", "proxy",
 						      "pfetch proxy",
-						      "", PFETCH_PARAM_STATIC_RW));
+						      NULL, PFETCH_PARAM_STATIC_RW));
+
+  g_object_class_install_property(gobject_class,
+				  PFETCH_IPRESOLVE,
+				  g_param_spec_long("ipresolve", "ipresolve",
+                                                    "Specify whether libcurl should use IPv4, IPv6, or either",
+                                                    0, 2, CURL_IPRESOLVE_WHATEVER,
+                                                    PFETCH_PARAM_STATIC_RW));
+  g_object_class_install_property(gobject_class,
+				  PFETCH_CAINFO,
+				  g_param_spec_string("cainfo", "cainfo",
+                                                      "Specify location of cainfo file",
+                                                      NULL, PFETCH_PARAM_STATIC_RW));
+
+  g_object_class_install_property(gobject_class,
+				  PFETCH_DEBUG,
+				  g_param_spec_boolean("verbose", "verbose",
+                                                       "Verbose output",
+                                                       FALSE, PFETCH_PARAM_STATIC_RW));
 
 
 #ifdef DEBUG_DONT_INCLUDE
@@ -1274,6 +1328,11 @@ static void pfetch_http_handle_finalize(GObject *gobject)
 
   pfetch->proxy = NULL;
 
+  if(pfetch->cainfo)
+    g_free(pfetch->cainfo);
+
+  pfetch->cainfo = NULL;
+
   return ;
 }
 
@@ -1299,6 +1358,18 @@ static void pfetch_http_handle_set_property(GObject *gobject, guint param_id,
       
       pfetch->proxy = g_value_dup_string(value);
       break;
+    case PFETCH_IPRESOLVE:
+      pfetch->ipresolve = g_value_get_long(value);
+      break;
+    case PFETCH_CAINFO:
+      if(pfetch->cainfo)
+        g_free(pfetch->cainfo);
+
+      pfetch->cainfo = g_value_dup_string(value);
+      break;
+    case PFETCH_DEBUG:
+      pfetch->debug = g_value_get_boolean(value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID(gobject, param_id, pspec);
       break;
@@ -1323,6 +1394,15 @@ static void pfetch_http_handle_get_property(GObject *gobject, guint param_id,
     case PFETCH_PROXY:
       g_value_set_string(value, pfetch->proxy);
       break;
+    case PFETCH_IPRESOLVE:
+      g_value_set_long(value, pfetch->ipresolve);
+      break;
+    case PFETCH_CAINFO:
+      g_value_set_string(value, pfetch->cainfo);
+      break;
+    case PFETCH_DEBUG:
+      g_value_set_boolean(value, pfetch->debug);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID(gobject, param_id, pspec);
       break;
@@ -1338,42 +1418,27 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError
 
   if((pfetch->post_data = request))
     {
+      CURLObjectSet(pfetch->curl_object,
+                    /* general settings */
+                    "debug", PFETCH_HANDLE(pfetch)->opts.debug,
+                    "post",  TRUE,
+                    "url",   PFETCH_HANDLE(pfetch)->location,
+                    "port",  pfetch->http_port,
+                    "ipresolve", pfetch->ipresolve,
+                    "cainfo", pfetch->cainfo,
+                    /* request */
+                    "postfields",  pfetch->post_data,   
+                    "cookiefile",  pfetch->cookie_jar_location,
+                    /* functions */
+                    "writefunction",  http_curl_write_func,
+                    "writedata",      pfetch,
+                    "headerfunction", http_curl_header_func,
+                    "headerdata",     pfetch,
+                    /* end of options */
+                    NULL);
+
       if (pfetch->proxy)
-        CURLObjectSet(pfetch->curl_object,
-		    /* general settings */
-		    "debug", PFETCH_HANDLE(pfetch)->opts.debug,
-		    "post",  TRUE,
-		    "url",   PFETCH_HANDLE(pfetch)->location,
-		    "port",  pfetch->http_port,
-		    /* request */
-		    "postfields",  pfetch->post_data,   
-		    "cookiefile",  pfetch->cookie_jar_location,
-		    "proxy",  pfetch->proxy,
-		    /* functions */
-		    "writefunction",  http_curl_write_func,
-		    "writedata",      pfetch,
-		    "headerfunction", http_curl_header_func,
-		    "headerdata",     pfetch,
-		    /* end of options */
-		    NULL);
-      else
-        CURLObjectSet(pfetch->curl_object,
-		    /* general settings */
-		    "debug", PFETCH_HANDLE(pfetch)->opts.debug,
-		    "post",  TRUE,
-		    "url",   PFETCH_HANDLE(pfetch)->location,
-		    "port",  pfetch->http_port,
-		    /* request */
-		    "postfields",  pfetch->post_data,   
-		    "cookiefile",  pfetch->cookie_jar_location,
-		    /* functions */
-		    "writefunction",  http_curl_write_func,
-		    "writedata",      pfetch,
-		    "headerfunction", http_curl_header_func,
-		    "headerdata",     pfetch,
-		    /* end of options */
-		    NULL);
-        
+        CURLObjectSet(pfetch->curl_object, "proxy",  pfetch->proxy, NULL);
       
       pfetch->request_counter++;
       if(CURLObjectPerform(pfetch->curl_object, TRUE) == CURL_STATUS_FAILED)
@@ -1425,6 +1490,7 @@ static PFetchStatus pfetch_http_fetch(PFetchHandle handle, char *request, GError
 		    "postfields",  pfetch->post_data,   
 		    "cookiefile",  pfetch->cookie_jar_location,
 		    "proxy",  pfetch->proxy,
+		    "cainfo",  pfetch->cainfo,
 		    /* functions */
 		    "writefunction",  http_curl_write_func,
 		    "writedata",      pfetch,

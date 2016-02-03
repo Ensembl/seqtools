@@ -38,6 +38,9 @@
 #include <seqtoolsUtils/blxmsp.hpp>
 #include <seqtoolsUtils/utilities.hpp>
 #include <string.h>
+#include <algorithm>
+
+using namespace std;
 
 
 #define POLYA_TAIL_BASES_TO_CHECK -1 /* number of bases to check when looking for a polyA tail (-1

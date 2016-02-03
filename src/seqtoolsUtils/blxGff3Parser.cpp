@@ -39,8 +39,17 @@
 #include <seqtoolsUtils/blxparser.hpp>
 #include <seqtoolsUtils/utilities.hpp>
 #include <seqtoolsUtils/blxmsp.hpp>
+#include <seqtoolsUtils/seqtoolsFetch.hpp>
 #include <string.h>
 #include <ctype.h>
+#include <string>
+#include <map>
+
+using namespace std;
+
+
+/* globals */
+static std::map<GQuark, BlxDataType*> g_dataTypes;
 
 
 #define SOURCE_DATA_TYPES_GROUP "source-data-types" /* group name for stanza where default data types are specified for sources */
@@ -102,6 +111,8 @@ typedef struct _BlxGffData
     BlxGapFormat gapFormat;    /* the format of the gap string */
     GQuark dataType;    /* represents a string that should correspond to a data type in the config file */
     GQuark filename;    /* optional filename e.g. for fetching data from a bam file */
+    char *fetchCommand; /* optional command which will be used for fetching sequence data */
+    char *fetchArgs;    /* optional command which will be used for fetching sequence data */
   } BlxGffData;
 
 
@@ -128,6 +139,7 @@ static void           parseAttributes(char *attributes, GList **seqList, const i
 static void           parseTagDataPair(char *text, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseNameTag(char *data, char **sName, const int lineNum, GError **error);
 static void           parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
+static void           parseCommandTag(char *data, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error);
 static void           parseSequenceTag(const char *text, const int lineNum, BlxGffData *gffData, GError **error);
 static void           parseGapString(char *text, BlxGapFormat gapFormat, MSP *msp, const int resFactor, GArray* featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, GError **error);
 
@@ -157,6 +169,8 @@ static void freeGffData(BlxGffData *gffData)
   freeAndNullString(&gffData->idTag);
   freeAndNullString(&gffData->parentIdTag);
   freeAndNullString(&gffData->gapString);
+  freeAndNullString(&gffData->fetchCommand);
+  freeAndNullString(&gffData->fetchArgs);
 }
 
 
@@ -441,20 +455,15 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
   if (!keyFile || !dataType)
     return result;
   
-  static GHashTable *dataTypes = NULL;
-
-  if (!dataTypes)
-    dataTypes = g_hash_table_new(g_direct_hash, g_direct_equal);
-
   if (dataType)
     {
-      /* See if we've already got a struct for this data-type */
-      result = (BlxDataType*)g_hash_table_lookup(dataTypes, GINT_TO_POINTER(dataType));
+      /* Check if it's already cached */
+      std::map<GQuark, BlxDataType*>::iterator iter = g_dataTypes.find(dataType) ;
+      result = iter->second ;
 
       if (!result)
         {
-          /* We haven't requested this datatype before; look it up in the config file
-           * and if we find it then create a new BlxDataType struct for it. */
+          /* look it up in the config file and if we find it then create a new BlxDataType struct for it. */
           const gchar *typeName = g_quark_to_string(dataType);
 
           if (g_key_file_has_group(keyFile, typeName))
@@ -476,7 +485,7 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
                 }              
               
               /* Insert it into the table of data types */
-              g_hash_table_insert(dataTypes, GINT_TO_POINTER(dataType), result);
+              g_dataTypes[dataType] = result ;
             }
           else
             {
@@ -486,6 +495,61 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
         }
     }
   
+  return result;
+}
+
+
+BlxDataType* constructBlxDataType(BlxGffData *gffData, GHashTable *fetchMethods, GError **error)
+{
+  BlxDataType *result = NULL;
+  
+  /* If no data type is specified then try to construct one from the given fetch method */
+  if (gffData && !gffData->dataType && gffData->fetchCommand)
+    {
+      /* Create a name for the new data type. Try using the source and fetchCommand */
+      std::string name("");
+
+      if (gffData->source)
+        {
+          name += gffData->source;
+          name += "_";
+        }
+
+      name += gffData->fetchCommand;
+
+      gffData->dataType = g_quark_from_string(name.c_str());
+
+      /* Ok, now create the data type struct (only if it doesn't exist). */
+      if (!g_dataTypes[gffData->dataType])
+        {
+          /* We'll set the bulk fetch method to a new fetch method based on the given
+           * fetch command. */
+          BlxFetchMethod *fetchMethod = createBlxFetchMethod(name.c_str());
+
+          fetchMethod->name = gffData->dataType;  /// for now, use the same name as the datatype
+          fetchMethod->mode = BLXFETCH_MODE_COMMAND;
+          fetchMethod->separator = g_strdup(" ");
+          fetchMethod->outputType = BLXFETCH_OUTPUT_GFF;
+          fetchMethod->location = g_strdup(gffData->fetchCommand);
+                                                
+          if (gffData->fetchArgs)
+            fetchMethod->args = g_strdup(gffData->fetchArgs);
+
+          /* Add the fetch method to the output list of fetch methods */
+          g_hash_table_insert(fetchMethods, GINT_TO_POINTER(fetchMethod->name), fetchMethod);
+
+          /* Now create the new datatype */
+          result = createBlxDataType();
+
+          result->name = gffData->dataType;
+          result->bulkFetch = g_array_sized_new(FALSE, TRUE, sizeof(GQuark), 1);
+          g_array_append_val(result->bulkFetch, fetchMethod->name);
+
+          /* Add the new datatype to the table of datatypes */
+          g_dataTypes[gffData->dataType] = result;
+        }
+    }
+
   return result;
 }
 
@@ -526,6 +590,7 @@ static void createBlixemObject(BlxGffData *gffData,
                                const int resFactor,
                                GKeyFile *keyFile,
                                GHashTable *lookupTable, 
+                               GHashTable *fetchMethods,
 			       GError **error)
 {
   if (!gffData)
@@ -537,7 +602,14 @@ static void createBlixemObject(BlxGffData *gffData,
 
   /* Get the data type struct */
   BlxDataType *dataType = getBlxDataType(gffData->dataType, gffData->source, keyFile, &tmpError);
-  reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+  reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
+
+  /* If no dataType is given then see if we can construct one from a given fetch command */
+  if (!dataType && gffData->fetchCommand)
+    {
+      dataType = constructBlxDataType(gffData, fetchMethods, &tmpError);
+      reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
+    }
 
   GQuark filename = getFeatureFilename(gffData, keyFile, NULL);
 
@@ -659,7 +731,8 @@ void parseGff3Body(const int lineNum,
                    const int resFactor, 
                    GKeyFile *keyFile,
                    const IntRange* const refSeqRange,
-                   GHashTable *lookupTable)
+                   GHashTable *lookupTable,
+                   GHashTable *fetchMethods)
 {
   //DEBUG_ENTER("parseGff3Body [line=%d]", lineNum);
 
@@ -671,7 +744,7 @@ void parseGff3Body(const int lineNum,
   BlxGffData gffData = {NULL, NULL, BLXMSP_NONE,
                         UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT, BLXSTRAND_NONE, UNSET_INT,
 			NULL, NULL, BLXSTRAND_NONE,
-                        UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, BLX_GAP_STRING_INVALID, 0, 0};
+                        UNSET_INT, UNSET_INT, NULL, NULL, NULL, NULL, BLX_GAP_STRING_INVALID, 0, 0, NULL, NULL};
 		      
   GError *error = NULL;
   parseGffColumns(line_string, lineNum, seqList, supportedTypes, refSeqRange, &gffData, &error);
@@ -679,7 +752,7 @@ void parseGff3Body(const int lineNum,
   /* Create a blixem object based on the parsed data */
   if (!error)
     {
-      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, columnList, styles, resFactor, keyFile, lookupTable, &error);
+      createBlixemObject(&gffData, featureLists, lastMsp, mspList, seqList, columnList, styles, resFactor, keyFile, lookupTable, fetchMethods, &error);
     }
   
   if (error)
@@ -981,6 +1054,10 @@ static void parseTagDataPair(char *text,
         {
           parseTargetTag(tokens[1], lineNum, seqList, gffData, &tmpError);
         }
+      else if (!strcmp(tokens[0], "command"))
+        {
+          parseCommandTag(tokens[1], lineNum, seqList, gffData, &tmpError);
+        }
       else if (!strcmp(tokens[0], "Gap"))
         {
           /* This might have already been set if we have more than one type of gap string */
@@ -1120,6 +1197,70 @@ static void parseTargetTag(char *data, const int lineNum, GList **seqList, BlxGf
      }
   
   g_strfreev(tokens);
+}
+
+
+/* A function to replace all occurances of substring 'from' with substring 'to' in the given
+ * string. Taken from http://stackoverflow.com/questions/3418231/replace-part-of-a-string-with-another-string */
+void stringReplace(string& str, const string& from, const string& to) 
+{
+  if(from.empty())
+    return;
+
+  size_t start_pos = 0;
+
+  while((start_pos = str.find(from, start_pos)) != string::npos) 
+    {
+      str.replace(start_pos, from.length(), to);
+      start_pos += to.length();
+    }
+}
+
+
+/* Unescape gff special characters from the given string. Returns a newly-allocated string which
+ * should be free'd using g_free */
+static char* unescapeGffString(const char *src)
+{
+  char *result = NULL;
+
+  if (src)
+    {
+      string dest(src);
+
+      stringReplace(dest, "%3D", "=");
+      stringReplace(dest, "%3B", ";");
+      stringReplace(dest, "%26", ",");
+      stringReplace(dest, "%2C", "&");
+
+      result = g_strdup(dest.c_str());
+    }
+
+  return result;
+}
+
+
+/* Parse the data from a 'command' tag */
+static void parseCommandTag(char *data, const int lineNum, GList **seqList, BlxGffData *gffData, GError **error)
+{
+  if (data && !gffData->fetchCommand)
+    {
+      /* Text up to first space is the executable. Anything after that is the args. */
+      int len = strlen(data);
+      char *cp = strchr(data, ' ');
+
+      if (cp)
+        len = cp - data;
+
+      gffData->fetchCommand = (char*)g_malloc(sizeof(char) * (len + 1));
+      strncpy(gffData->fetchCommand, data, len);
+      gffData->fetchCommand[len] = '\0';
+
+      if (cp)
+        {
+          /* We need to unescape gff special characters */
+          gffData->fetchArgs = unescapeGffString(cp);
+        }
+    }
 }
 
 
@@ -1542,9 +1683,12 @@ static void destroyGffType(BlxGffType **gffType)
 {
   if (gffType && *gffType)
     {
-      g_free((*gffType)->name);
-      g_free((*gffType)->soId);
-      
+      if ((*gffType)->name)
+        g_free((*gffType)->name);
+
+      if ((*gffType)->soId)
+        g_free((*gffType)->soId);
+
       g_free(*gffType);
       *gffType = NULL;
     }

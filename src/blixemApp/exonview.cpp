@@ -45,6 +45,10 @@
 #include <seqtoolsUtils/blxmsp.hpp>
 #include <string.h>
 #include <stdlib.h>
+#include <algorithm>
+
+using namespace std;
+
 
 #define DEFAULT_EXON_HEIGHT			 10
 #define DEFAULT_EXON_HEIGHT_BUMPED		 7

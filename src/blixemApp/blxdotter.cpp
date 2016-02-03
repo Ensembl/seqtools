@@ -45,6 +45,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <algorithm>
+
+using namespace std;
+
 
 #define DEFAULT_DOTTER_RANGE_SELF	2000
 #define DEFAULT_WINDOW_WIDTH            500
@@ -1562,11 +1566,6 @@ static char* getSelectedSequenceDNA(const BlxSequence *blxSeq, const BlxViewCont
    * a fetch here then we will need to look for a fetch method that
    * returns the fasta sequence (rather than the embl entry). */
   const BlxBlastMode blastMode = bc->blastMode;
-  /*  if (blastMode != BLXMODE_TBLASTN)
-    {
-      fetchSequence(blxSeq, FALSE, 0, blxWindow, &dotterSSeq);
-      }
-  */
 
   if (!dotterSSeq && blastMode != BLXMODE_TBLASTX)
     {

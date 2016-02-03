@@ -1,7 +1,10 @@
 
-Git commits for  from commit "production" until commit "release/4.39.0"
+Git commits for  from commit "production" until commit "release/4.40.0"
 
-ae898af 2015-10-12 Fix missing install docs - DOC
+08b4354 2016-01-25 Fix bug where multiple pfetch windows open - REGRESSION FIX
+2ffc405 2016-01-25 Fix crash following libcurl error - REGRESSION FIX
+33fae1e 2016-01-15 Fix bug getting dataType config - REGRESSION FIX
+053c520 2015-12-09 Merge branch 'feature/pfetch' into develop - NEW FEATURE 'pfetch errors'
 
 
 End of git commits

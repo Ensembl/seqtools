@@ -49,6 +49,10 @@
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 #include <ctype.h>
+#include <algorithm>
+
+using namespace std;
+
 
 #define DEFAULT_WINDOW_BORDER_WIDTH      1    /* used to change the default border width around the blixem window */
 #define DEFAULT_COVERAGE_VIEW_BORDER     12   /* size of border to allow around the coverage view */
@@ -833,10 +837,17 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
       numAdded = g_list_length(newSeqs);
 
       /* Fetch any missing sequence data and finalise the new sequences */
-      bulkFetchSequences(0, FALSE, bc->saveTempFiles, bc->seqType, &newSeqs, bc->columnList,
-                         bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
-                         bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
-                         &bc->refSeqRange, bc->dataset, FALSE, lookupTable);
+      BulkFetch bulk_fetch(FALSE, bc->saveTempFiles, bc->seqType, &newSeqs, bc->columnList,
+                           bc->bulkFetchDefault, bc->fetchMethods, &newMsps, &bc->blastMode,
+                           bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
+                           &bc->refSeqRange, bc->dataset, FALSE, lookupTable,
+#ifdef PFETCH_HTML
+                           bc->ipresolve,
+                           bc->cainfo,
+#endif
+                           bc->fetch_debug);
+
+      bulk_fetch.performFetch();
     }
 
   if (newMsps)
@@ -3089,12 +3100,18 @@ static void onButtonClickedLoadOptional(GtkWidget *button, gpointer data)
   GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
   
   GError *error = NULL;
-  gboolean success = bulkFetchSequences(
-    0, bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
-    bc->seqType, &bc->matchSeqs, bc->columnList, bc->optionalFetchDefault, bc->fetchMethods, &bc->mspList,
-    &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
-    &bc->refSeqRange, bc->dataset, TRUE, lookupTable);
+  BulkFetch bulk_fetch(bc->external, bc->flags[BLXFLAG_SAVE_TEMP_FILES],
+                       bc->seqType, &bc->matchSeqs, bc->columnList, bc->optionalFetchDefault, bc->fetchMethods, &bc->mspList,
+                       &bc->blastMode, bc->featureLists, bc->supportedTypes, NULL, bc->refSeqOffset,
+                       &bc->refSeqRange, bc->dataset, TRUE, lookupTable,
+#ifdef PFETCH_HTML
+                       bc->ipresolve,
+                       bc->cainfo,
+#endif
+                       bc->fetch_debug);
   
+  gboolean success = bulk_fetch.performFetch();
+
   finaliseFetch(bc->matchSeqs, bc->columnList);
 
   if (error)
@@ -5814,6 +5831,13 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   /* do this after loading settings because the passed-in squashed 
    * matches option should override the saved option in the settings */
   blxContext->modelId = options->squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
+
+  blxContext->fetch_debug = options->fetch_debug;
+
+#ifdef PFETCH_HTML
+  blxContext->ipresolve = options->ipresolve;
+  blxContext->cainfo = options->cainfo;
+#endif
 
   return blxContext;
 }

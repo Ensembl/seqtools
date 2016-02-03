@@ -40,6 +40,10 @@
 #include <seqtoolsUtils/blxmsp.hpp>
 #include <string.h>
 #include <stdlib.h>
+#include <algorithm>
+
+using namespace std;
+
 
 typedef struct _ExonViewProperties
   {

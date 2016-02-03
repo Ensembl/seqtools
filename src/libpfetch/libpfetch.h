@@ -102,6 +102,7 @@ PFetchStatus  PFetchHandleSettings       (PFetchHandle  pfetch, const gchar *fir
 PFetchStatus  PFetchHandleSettings_valist(PFetchHandle  pfetch, const gchar *first_arg_name, va_list args);
   PFetchStatus  PFetchHandleFetch          (PFetchHandle  pfetch, char *sequence, GError **error);
 PFetchHandle  PFetchHandleDestroy        (PFetchHandle  pfetch);
+char* PFetchHandleHttpGetError(PFetchHandle *pfetch) ;
 
 
 

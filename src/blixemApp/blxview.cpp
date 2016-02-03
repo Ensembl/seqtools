@@ -60,6 +60,7 @@ MSP score codes (for obsolete exblx file format):
 #include <unistd.h>
 #include <ctype.h>
 #include <gdk/gdkkeysyms.h>
+#include <algorithm>
 
 #include <blixemApp/blixem_.hpp>
 #include <blixemApp/blxwindow.hpp>
@@ -70,6 +71,8 @@ MSP score codes (for obsolete exblx file format):
 #include <seqtoolsUtils/blxparser.hpp>
 #include <seqtoolsUtils/utilities.hpp>
 #include <gbtools/gbtools.hpp>
+
+using namespace std;
 
 
 #define MAXALIGNLEN			      10000
@@ -387,7 +390,7 @@ void loadNativeFile(const char *filename,
       else
         {
           parseFS(newMsps, file, blastMode, featureLists, newSeqs, columnList, supportedTypes, styles,
-                  &dummyseq1, dummyseqname1, &toplevelRange, &dummyseq2, dummyseqname2, keyFile, lookupTable, error) ;      
+                  &dummyseq1, dummyseqname1, &toplevelRange, &dummyseq2, dummyseqname2, keyFile, lookupTable, NULL, error) ;
           
           fclose(file);
         }
@@ -493,12 +496,20 @@ gboolean blxview(CommandLineOptions *options,
   
   /* Find any assembly gaps (i.e. gaps in the reference sequence) */
   findAssemblyGaps(options->refSeq, featureLists, &options->mspList, &options->refSeqRange);
-  
-  gboolean status = bulkFetchSequences(
-    0, External, options->saveTempFiles, options->seqType, &seqList, options->columnList,
-    options->bulkFetchDefault, options->fetchMethods, &options->mspList, &options->blastMode, 
-    featureLists, supportedTypes, NULL, 0, &options->refSeqRange, 
-    options->dataset, FALSE, lookupTable); /* offset has not been applied yet, so pass offset=0 */
+
+  /* offset has not been applied yet, so pass offset=0 */
+  BulkFetch bulk_fetch(External, options->saveTempFiles, options->seqType,
+                       &seqList, options->columnList,
+                       options->bulkFetchDefault, options->fetchMethods, &options->mspList, &options->blastMode, 
+                       featureLists, supportedTypes, NULL, 0, &options->refSeqRange, 
+                       options->dataset, FALSE, lookupTable,
+#ifdef PFETCH_HTML
+                       options->ipresolve,
+                       options->cainfo,
+#endif
+                       options->fetch_debug); 
+
+  gboolean status = bulk_fetch.performFetch();
 
   if (status)
     {

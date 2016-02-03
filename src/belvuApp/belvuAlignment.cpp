@@ -38,6 +38,9 @@
 #include "belvuApp/belvuAlignment.hpp"
 #include "belvuApp/belvuWindow.hpp"
 #include <math.h>
+#include <algorithm>
+
+using namespace std;
 
 
 #define DEFAULT_XPAD                            2
@@ -438,7 +441,7 @@ static void drawSingleSequence(GtkWidget *widget,
   /* Loop through each column in the current display range and color
    * the according to the relevant highlight color */
   int colIdx = hAdjustment->value;
-  int iMax = min(properties->bc->maxLen, hAdjustment->value + hAdjustment->page_size);
+  int iMax = min(properties->bc->maxLen, (int)hAdjustment->value + (int)hAdjustment->page_size);
   const gboolean rowHighlighted = alignmentSelected(properties->bc, alnp);
   
   if (properties->bc->displayColors)
@@ -782,7 +785,7 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
   
   int i = vAdjustment->value;
   int lineNum = 0;
-  const int iMax = min(bc->alignArr->len, vAdjustment->value + vAdjustment->page_size);
+  const int iMax = min((int)bc->alignArr->len, (int)vAdjustment->value + (int)vAdjustment->page_size);
   
   for ( ; i < iMax; ++i)
     {
@@ -802,7 +805,7 @@ static void drawBelvuSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, Be
 {
   /* The range starts at the current adjustment value (add one to make it a 1-based column number) */
   IntRange displayRange = {(int)(properties->hAdjustment->value + 1),
-                           (int)min(properties->bc->maxLen, properties->hAdjustment->value + properties->hAdjustment->page_size)};
+                           (int)min(properties->bc->maxLen, (int)properties->hAdjustment->value + (int)properties->hAdjustment->page_size)};
   
   drawHScale(widget, 
              drawable,
@@ -829,7 +832,7 @@ static void drawSelectedColumn(GtkWidget *widget, GdkDrawable *drawable, BelvuAl
   GtkAdjustment *hAdjustment = properties->hAdjustment;
   
   const int iMin = properties->hAdjustment->value + 1;
-  const int iMax = min(bc->maxLen, hAdjustment->value + hAdjustment->page_size + 1);
+  const int iMax = min(bc->maxLen, (int)hAdjustment->value + (int)hAdjustment->page_size + 1);
 
   /* Quit if the selected column is not in the visible range */
   if (bc->highlightedCol < iMin || bc->highlightedCol > iMax)
@@ -872,7 +875,7 @@ static void drawBelvuSequence(GtkWidget *widget, GdkDrawable *drawable, BelvuAli
   
   int i = vAdjustment->value;
   int lineNum = 0;
-  const int iMax = min(bc->alignArr->len, vAdjustment->value + vAdjustment->page_size);
+  const int iMax = min((int)bc->alignArr->len, (int)vAdjustment->value + (int)vAdjustment->page_size);
   
   for ( ; i < iMax; ++i)
     {
