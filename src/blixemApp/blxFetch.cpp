@@ -65,7 +65,7 @@
 
 
 using namespace std;
-
+using namespace gbtools ;
 
 /* States for parsing EMBL files */
 typedef enum
@@ -3334,7 +3334,7 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
               char *msg = g_strdup_printf("Error performing http fetch request:\n  Request: %s\n  Error: %s\n", 
                                           command->str, 
                                           (error ? error->message : "no error"));
-              g_warning(msg);
+              g_warning("%s", msg);
               displayFetchResults(pfetch_data->title, msg, blxWindow, dialog, &text_buffer);
               g_free(msg);
 
