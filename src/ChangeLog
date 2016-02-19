@@ -1,3 +1,10 @@
+2016-02-18  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.40.0-23-gd13eb - Update RT and git commit reports
+ src/ChangeLog                                  | 368 +++++++++----------------
+ src/build/release_docs/GIT_COMMITS.txt         |   8 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   2 +-
+ 3 files changed, 129 insertions(+), 249 deletions(-)
+
 2016-02-10  Ed Griffiths  <edgrif@sanger.ac.uk>
  Fxi gbtoools namespace - WIP
  src/blixemApp/blxFetch.cpp | 4 ++--
