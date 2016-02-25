@@ -550,7 +550,7 @@ gboolean                                  alnArrayFind(GArray *a, void *s, int *
 gboolean                                  bsArrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointer, gconstpointer));
 GArray*                                   copyAlignArray(GArray *inputArr);
 void                                      columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcIdx);
-double                                    identity(char *s1, char *s2, const gboolean penalize_gaps);
+double                                    percentIdentity(char *s1, char *s2, const gboolean penalize_gaps);
 
 void                                      convertColorNumToGdkColor(const int colorNum, const gboolean isSelected, GdkColor *result);
 void                                      drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text, int *textWidth, int *textHeight);
