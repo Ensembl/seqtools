@@ -1016,23 +1016,16 @@ static gboolean negateCoords(BlxViewContext *bc)
 
 static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
                                    GtkWidget *detailView,
-                                   const BlxSequence *seq,
-                                   int &qIdx)
+                                   const BlxSequence *seq)
 {
   BlxViewContext *bc = detailViewGetContext(detailView);
-
-  if (detailViewGetSelectedIdxSet(detailView))
-    qIdx = detailViewGetSelectedDnaIdx(detailView);
-
-  bool done = FALSE;
   
   if (detailViewGetSelectedIdxRangeSet(detailView))
     {
       /* A range of coordinates is selected */
       IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
 
-      /* If the range length is 1 then skip this and just show the single coord */
-      if (range && getRangeLength(range) > 1)
+      if (range)
         {
           string resultStr("");
           resultStr += to_string(range->start(bc->displayRev, negateCoords(bc)));
@@ -1042,14 +1035,12 @@ static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
           feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, resultStr.c_str());
 
           g_free(range);
-
-          done = TRUE;
         }
     }
-
-  if (!done && detailViewGetSelectedIdxSet(detailView))
+  else if (detailViewGetSelectedIdxSet(detailView))
     {
       /* A single coord is selected */
+      int qIdx = detailViewGetSelectedDnaIdx(detailView);
 
       /* Negate the coord for the display, if necessary */
       int coord = qIdx;
@@ -1061,14 +1052,39 @@ static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
     }
 }
 
-/* Get the match coord for the feedback box. Returns true and sets sIdx if found. */
-static bool feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
-                                     GtkWidget *detailView,
+static bool getMatchCoordForRefCoord(GtkWidget *detailView, 
                                      const BlxSequence *seq,
-                                     const int qIdx)
+                                     const int qIdx,
+                                     int &sIdx)
 {
-  bool found = FALSE ;
+  bool found = FALSE;
 
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  g_return_val_if_fail(bc && seq, found);
+
+  GList *mspListItem = seq->mspList;
+  const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
+              
+  for ( ; mspListItem; mspListItem = mspListItem->next)
+    {
+      MSP *msp = (MSP*)(mspListItem->data);
+      BlxViewContext *bc = detailViewGetContext(detailView);
+                  
+      if (mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
+        {
+          found = TRUE;
+          break;
+        }
+    }
+
+  return found;
+}
+
+/* Get the match coord for the feedback box. Returns true and sets sIdx if found. */
+static void feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
+                                     GtkWidget *detailView,
+                                     const BlxSequence *seq)
+{
   if (seq && seq->type != BLXSEQUENCE_VARIATION)
     {
       if (g_list_length(seq->mspList) > 0)
@@ -1081,30 +1097,42 @@ static bool feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
               feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_LEN, sLen);
             }
 
-          /* If a q index is selected, see if there is a valid base at that index 
+          /* If a q index/range is selected, see if there is a valid base at that coord(s)
            * for any of the MSPs for the selected sequence. */
-          if (detailViewGetSelectedIdxSet(detailView))
+          if (detailViewGetSelectedIdxRangeSet(detailView))
             {
-              GList *mspListItem = seq->mspList;
-              const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
-              
-              for ( ; mspListItem; mspListItem = mspListItem->next)
+              BlxViewContext *bc = detailViewGetContext(detailView);
+              IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
+              int start = UNSET_INT;
+              int end = UNSET_INT;
+
+              if (range && 
+                  getMatchCoordForRefCoord(detailView, seq, range->start(bc->displayRev), start) &&
+                  getMatchCoordForRefCoord(detailView, seq, range->end(bc->displayRev), end))
                 {
-                  MSP *msp = (MSP*)(mspListItem->data);
-                  BlxViewContext *bc = detailViewGetContext(detailView);
-                  int sIdx = UNSET_INT;
-                  
-                  if (mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
-                    {
-                      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, sIdx);
-                      break;
-                    }
+                  string resultStr("");
+                  resultStr += to_string(start);
+                  resultStr += "..";
+                  resultStr += to_string(end);
+
+                  feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, resultStr.c_str());
+                }
+
+              if (range)
+                g_free(range);
+            }
+          else if (detailViewGetSelectedIdxSet(detailView))
+            {
+              int qIdx = detailViewGetSelectedDnaIdx(detailView);
+              int sIdx = UNSET_INT;
+              
+              if (getMatchCoordForRefCoord(detailView, seq, qIdx, sIdx))
+                {
+                  feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, sIdx);
                 }
             }
         }
     }
-
-  return found ;
 }
 
 
@@ -1154,14 +1182,13 @@ static void setFeedbackText(GtkWidget *detailView,
   feedbackBoxClearValues(feedbackBox);
 
   /* Reference coord */
-  int qIdx = UNSET_INT; // need this again when finding match seq coord
-  feedbackBoxSetRefCoord(feedbackBox, detailView, seq, qIdx) ;
+  feedbackBoxSetRefCoord(feedbackBox, detailView, seq) ;
   
   /* Match name */
   feedbackBoxSetMatchName(feedbackBox, seq, numSeqsSelected) ;
 
   /* Match coord */
-  feedbackBoxSetMatchCoord(feedbackBox, detailView, seq, qIdx) ;
+  feedbackBoxSetMatchCoord(feedbackBox, detailView, seq) ;
   
   DEBUG_EXIT("setFeedbackText returning ");
 }
@@ -4027,14 +4054,19 @@ int detailViewGetSelectedDnaIdx(GtkWidget *detailView)
   return properties && properties->selectedIndex && properties->selectedIndex->isSet ? properties->selectedIndex->dnaIdx : UNSET_INT;
 }
 
-/* Return true if a range of coords is selected */
+/* Return true if a range of coords is selected (rather than a single coord) */
 gboolean detailViewGetSelectedIdxRangeSet(GtkWidget *detailView)
 {
   gboolean result = FALSE;
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
-  if (properties && properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
-    result = TRUE;
+  if (properties && 
+      properties->selectedRangeStart.isSet && 
+      properties->selectedRangeEnd.isSet &&
+      properties->selectedRangeStart.dnaIdx != properties->selectedRangeEnd.dnaIdx)
+    {
+      result = TRUE;
+    }
 
   return result;
 }
