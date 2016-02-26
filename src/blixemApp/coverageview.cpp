@@ -296,7 +296,7 @@ static void drawCoveragePlot(GtkWidget *coverageView, GdkDrawable *drawable)
        * display range, for indexing the depth array. Note that we need to
        * un-invert the display coord if the display is reversed. */
       const int idx = invertCoord(coord, &bc->fullDisplayRange, bc->displayRev);
-      const int depth = bc->depthArray[idx - bc->fullDisplayRange.min];
+      const int depth = blxContextGetDepth(bc, idx);
 
       /* Calculate the y position based on the depth */
       const double height = (pixelsPerVal * (double)depth);

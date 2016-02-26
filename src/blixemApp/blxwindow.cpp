@@ -6043,6 +6043,21 @@ BlxColumnInfo *getColumnInfo(GList *columnList, const BlxColumnId columnId)
   return result;
 }
 
+/* Return the read depth at the given display coord */
+int blxContextGetDepth(BlxViewContext *bc, const int coord)
+{
+  int result = UNSET_INT;
+  g_return_val_if_fail(bc && 
+                       bc->depthArray && 
+                       coord >= bc->fullDisplayRange.min &&
+                       coord <= bc->fullDisplayRange.max, 
+                       result);
+
+  result = bc->depthArray[coord - bc->fullDisplayRange.min];
+
+  return result;
+}
+
 /* Returns the list of all sequence groups */
 GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
 {
