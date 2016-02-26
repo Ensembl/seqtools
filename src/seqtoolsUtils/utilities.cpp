@@ -41,6 +41,7 @@
 #include <math.h>
 #include <algorithm>
 #include <stdlib.h>
+#include <stdio.h>
 #include <errno.h>
 #include <sys/utsname.h>
 #include <gbtools/gbtools.hpp>
