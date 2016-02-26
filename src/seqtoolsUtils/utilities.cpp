@@ -363,7 +363,7 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
 
 
 /* Set the given widget's background to the given color, if given (does nothing otherwise) */
-void blxSetWidgetColor(GtkWidget* widget, char *colorName)
+void blxSetWidgetColor(GtkWidget* widget, const char *colorName)
 {
   if (widget && colorName)
     {
@@ -489,6 +489,28 @@ GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GEr
 /***********************************************************
  *                       Ranges/values                     * 
  ***********************************************************/
+
+/* Utilities to return the "start" which is the minimum coord if !rev or the max if rev. The result
+ * is negated if "negate" is true. */
+int IntRange::start(const bool rev, const bool negate)
+{
+  int result = rev ? max : min;
+
+  if (negate)
+    result *= -1;
+
+  return result;
+}
+
+int IntRange::end(const bool rev, const bool negate)
+{
+  int result = rev ? min : max;
+
+  if (negate)
+    result *= -1;
+
+  return result;
+}
 
 /* Utility to return the length of the given range */
 int getRangeLength(const IntRange* const range)
