@@ -238,6 +238,9 @@ typedef struct _IntRange
   {
     int min;
     int max;
+
+    int start(const bool rev = FALSE, const bool negate = FALSE);
+    int end(const bool rev = FALSE, const bool negate = FALSE);
   } IntRange ;
 
 typedef struct _DoubleRange

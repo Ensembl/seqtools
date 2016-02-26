@@ -1007,20 +1007,56 @@ static void feedbackBoxSetInt(GtkWidget *feedbackBox, const char *widgetName, co
 }
 
 
+/* Simple utility to return true if we should negate coords for the display */
+static gboolean negateCoords(BlxViewContext *bc)
+{
+  return (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS]);
+}
+
+
 static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
                                    GtkWidget *detailView,
                                    const BlxSequence *seq,
                                    int &qIdx)
 {
-  if (detailViewGetSelectedIdxSet(detailView))
-    {
-      DetailViewProperties *properties = detailViewGetProperties(detailView);
-      BlxViewContext *bc = detailViewGetContext(detailView);
+  BlxViewContext *bc = detailViewGetContext(detailView);
 
-      qIdx = properties->selectedIndex->dnaIdx;
+  if (detailViewGetSelectedIdxSet(detailView))
+    qIdx = detailViewGetSelectedDnaIdx(detailView);
+
+  bool done = FALSE;
+  
+  if (detailViewGetSelectedIdxRangeSet(detailView))
+    {
+      /* A range of coordinates is selected */
+      IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
+
+      /* If the range length is 1 then skip this and just show the single coord */
+      if (range && getRangeLength(range) > 1)
+        {
+          string resultStr("");
+          resultStr += to_string(range->start(bc->displayRev, negateCoords(bc)));
+          resultStr += "..";
+          resultStr += to_string(range->end(bc->displayRev, negateCoords(bc)));
+
+          feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, resultStr.c_str());
+
+          g_free(range);
+
+          done = TRUE;
+        }
+    }
+
+  if (!done && detailViewGetSelectedIdxSet(detailView))
+    {
+      /* A single coord is selected */
 
       /* Negate the coord for the display, if necessary */
-      int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * qIdx : qIdx);
+      int coord = qIdx;
+
+      if (negateCoords(bc))
+        coord *= -1;
+
       feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, coord);
     }
 }
@@ -1207,7 +1243,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
               char *displayText = NULL;
               
               /* If we're displaying coords negated, negate it now */
-              int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * dnaIdx : dnaIdx);
+              int coord = (negateCoords(bc) ? -1 * dnaIdx : dnaIdx);
 
               /* If there are multiple variations on this coord, display some summary text.
                * Otherwise, check we've got the sequence info to display. We should have, but 
@@ -1229,7 +1265,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
           char *displayText = NULL;
 
           /* If we're displaying coords negated, negate it now */
-          const int negate = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 : 1);
+          const int negate = (negateCoords(bc) ? -1 : 1);
           int coord = negate * dnaIdx;
 
           /* If there are multiple signals on this coord, display some summary text.
@@ -1255,7 +1291,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
           char *displayText = NULL;
 
           /* If we're displaying coords negated, negate it now */
-          const int negate = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 : 1);
+          const int negate = (negateCoords(bc) ? -1 : 1);
           int coord = negate * dnaIdx;
 
           /* If there are multiple sites on this coord, display some summary text.
@@ -3991,6 +4027,18 @@ int detailViewGetSelectedDnaIdx(GtkWidget *detailView)
   return properties && properties->selectedIndex && properties->selectedIndex->isSet ? properties->selectedIndex->dnaIdx : UNSET_INT;
 }
 
+/* Return true if a range of coords is selected */
+gboolean detailViewGetSelectedIdxRangeSet(GtkWidget *detailView)
+{
+  gboolean result = FALSE;
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+
+  if (properties && properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
+    result = TRUE;
+
+  return result;
+}
+
 /* Return the selection range in display coords. Allocates a  new IntRange* which should be
  * free'd by the caller with g_free() */
 IntRange *detailViewGetSelectedDisplayIdxRange(GtkWidget *detailView)
@@ -5446,7 +5494,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
           
           /* If display coords are negated, assume the user has entered a 
            * negative coord too, and un-negate it. */
-          const gboolean negate = bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS];
+          const gboolean negate = negateCoords(bc);
           
           if (negate)
             {
