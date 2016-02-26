@@ -4,7 +4,9 @@
 #AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir)
 AM_CPPFLAGS = $(DEPS_CFLAGS) -I$(top_srcdir)
 
-AM_CXXFLAGS = -std=c++0x -g -Wall -Wno-deprecated-register
+# gb10: Added -U__STRICT_ANSI__ because otherwise popen is not found on cygwin
+# (see http://stackoverflow.com/questions/22166633/mingw-function-not-found-when-compiled-with-std-c11)
+AM_CXXFLAGS = -std=c++0x -U__STRICT_ANSI__ -g -Wall -Wno-deprecated-register
 
 
 
