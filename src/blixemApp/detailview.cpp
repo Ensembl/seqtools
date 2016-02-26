@@ -59,7 +59,7 @@ using namespace std;
 #define DETAIL_VIEW_FEEDBACK_MATCH_COORD "DetailViewFeedbackMatchCoord"
 #define DETAIL_VIEW_FEEDBACK_MATCH_NAME "DetailViewFeedbackMatchName"
 #define DETAIL_VIEW_FEEDBACK_MATCH_LEN  "DetailViewFeedbackMatchLen"
-#define DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP "Currently selected feature name"
+#define DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP "Selected feature name"
 #define DETAIL_VIEW_FEEDBACK_MIN_WIDTH  2
 #define DETAIL_VIEW_FEEDBACK_MAX_WIDTH  30
 #define SORT_BY_NAME_STRING             "Name"
@@ -5936,7 +5936,7 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
   blxSetWidgetColor(feedbackBox, windowColor);
 
   /* Reference sequence coord */
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_REF_COORD, "Currently selected reference sequence coord",
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_REF_COORD, "Reference sequence coord(s)",
                          G_CALLBACK(onExposePrintable), NULL);
 
   gtk_box_pack_start(box, gtk_label_new("  "), FALSE, FALSE, 0);
@@ -5947,12 +5947,12 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
 
   gtk_box_pack_start(box, gtk_label_new(":"), FALSE, FALSE, 0);
 
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_COORD, "Currently selected match sequence coord", 
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_COORD, "Match sequence coord(s)", 
                          G_CALLBACK(onExposePrintable), NULL);
 
   gtk_box_pack_start(box, gtk_label_new("/"), FALSE, FALSE, 0);
 
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_LEN, "Currently selected match sequence length", 
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_LEN, "Match sequence length", 
                          G_CALLBACK(onExposePrintable), NULL);
   
   return feedbackBox;
