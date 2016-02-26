@@ -4,7 +4,7 @@
 #AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir)
 AM_CPPFLAGS = $(DEPS_CFLAGS) -I$(top_srcdir)
 
-AM_CXXFLAGS = -std=c++0x -g -Wall
+AM_CXXFLAGS = -std=c++0x -g -Wall -Wno-deprecated-register
 
 
 
