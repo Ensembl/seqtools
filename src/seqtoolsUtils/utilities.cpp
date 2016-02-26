@@ -363,7 +363,7 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
 
 
 /* Set the given widget's background to the given color, if given (does nothing otherwise) */
-void blxSetWidgetColor(GtkWidget* widget, char *colorName)
+void blxSetWidgetColor(GtkWidget* widget, const char *colorName)
 {
   if (widget && colorName)
     {

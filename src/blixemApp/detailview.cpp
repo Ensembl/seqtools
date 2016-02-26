@@ -5821,56 +5821,58 @@ static void createSeqColHeader(GtkWidget *detailView,
 }
 
 
+static void createFeedbackBoxEntry(GtkBox *parent,
+                                   const char *widget_name,
+                                   const char *tooltip,
+                                   GCallback cb_func,
+                                   gpointer cb_data)
+{
+  const int charWidth = 8; /* guesstimate */
+
+  GtkWidget *entry = gtk_entry_new() ;
+
+  gtk_widget_set_name(entry, widget_name);
+  gtk_widget_set_tooltip_text(entry, tooltip);
+  gtk_editable_set_editable(GTK_EDITABLE(entry), FALSE);
+  gtk_widget_set_size_request(entry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
+
+  gtk_box_pack_start(GTK_BOX(parent), entry, FALSE, FALSE, 0);
+
+  /* We want the box to be printed, so connect the expose function that will 
+   * draw to a pixmap for printing */
+  g_signal_connect(G_OBJECT(entry), "expose-event", cb_func, cb_data);
+}
+
+
 /* Create the feedback box. (This is actually a set of several boxes which feed
  * back info to the user about the currently-selected base/sequence.) */
 static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
 {
   /* Put all feedback boxes into a parent hbox */
-  GtkWidget *feedbackBox = gtk_hbox_new(FALSE, 0) ;
+  GtkWidget *feedbackBox = gtk_hbox_new(FALSE, 0);
+  GtkBox *box = GTK_BOX(feedbackBox);
+
   blxSetWidgetColor(feedbackBox, windowColor);
 
-  /* Boxes for the ref/match seq coord, the match sequence name and the match sequence len */
-  GtkWidget *refCoordEntry = gtk_entry_new() ;
-  GtkWidget *matchCoordEntry = gtk_entry_new() ;
-  GtkWidget *matchNameEntry = gtk_entry_new() ;
-  GtkWidget *matchLenEntry = gtk_entry_new() ;
+  /* Reference sequence coord */
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_REF_COORD, "Currently selected reference sequence coord",
+                         G_CALLBACK(onExposePrintable), NULL);
 
-  /* Set widget names so that we can find the correct widget when we update values */
-  gtk_widget_set_name(refCoordEntry, DETAIL_VIEW_FEEDBACK_REF_COORD);
-  gtk_widget_set_name(matchCoordEntry, DETAIL_VIEW_FEEDBACK_MATCH_COORD);
-  gtk_widget_set_name(matchNameEntry, DETAIL_VIEW_FEEDBACK_MATCH_NAME);
-  gtk_widget_set_name(matchLenEntry, DETAIL_VIEW_FEEDBACK_MATCH_LEN);
+  gtk_box_pack_start(box, gtk_label_new("  "), FALSE, FALSE, 0);
 
-  /* Set widget tooltips */
-  gtk_widget_set_tooltip_text(refCoordEntry, "Currently selected reference sequence coord");
-  gtk_widget_set_tooltip_text(matchCoordEntry, "Currently selected match sequence coord");
-  gtk_widget_set_tooltip_text(matchNameEntry, DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP);
-  gtk_widget_set_tooltip_text(matchLenEntry, "Currently selected match sequence length");
+  /* Match sequence "name:coord/len" */
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_NAME, DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP, 
+                         G_CALLBACK(onExposePrintable), NULL);
 
-  /* User can copy text out but not edit contents */
-  gtk_editable_set_editable(GTK_EDITABLE(refCoordEntry), FALSE);
-  gtk_editable_set_editable(GTK_EDITABLE(matchCoordEntry), FALSE);
-  gtk_editable_set_editable(GTK_EDITABLE(matchNameEntry), FALSE);
-  gtk_editable_set_editable(GTK_EDITABLE(matchLenEntry), FALSE);
+  gtk_box_pack_start(box, gtk_label_new(":"), FALSE, FALSE, 0);
 
-  /* Set initial size, otherwise they're quite big empty boxes! */
-  const int charWidth = 8; /* guesstimate */
-  gtk_widget_set_size_request(refCoordEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
-  gtk_widget_set_size_request(matchCoordEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
-  gtk_widget_set_size_request(matchNameEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
-  gtk_widget_set_size_request(matchLenEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_COORD, "Currently selected match sequence coord", 
+                         G_CALLBACK(onExposePrintable), NULL);
 
-  gtk_box_pack_start(GTK_BOX(feedbackBox), refCoordEntry, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(feedbackBox), matchCoordEntry, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(feedbackBox), matchNameEntry, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(feedbackBox), matchLenEntry, FALSE, FALSE, 0);
-  
-  /* We want the box to be printed, so connect the expose function that will 
-   * draw to a pixmap for printing */
-  g_signal_connect(G_OBJECT(refCoordEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
-  g_signal_connect(G_OBJECT(matchCoordEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
-  g_signal_connect(G_OBJECT(matchNameEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
-  g_signal_connect(G_OBJECT(matchLenEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
+  gtk_box_pack_start(box, gtk_label_new("/"), FALSE, FALSE, 0);
+
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_LEN, "Currently selected match sequence length", 
+                         G_CALLBACK(onExposePrintable), NULL);
   
   return feedbackBox;
 }
