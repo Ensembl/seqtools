@@ -59,6 +59,7 @@ using namespace std;
 #define DETAIL_VIEW_FEEDBACK_MATCH_COORD "DetailViewFeedbackMatchCoord"
 #define DETAIL_VIEW_FEEDBACK_MATCH_NAME "DetailViewFeedbackMatchName"
 #define DETAIL_VIEW_FEEDBACK_MATCH_LEN  "DetailViewFeedbackMatchLen"
+#define DETAIL_VIEW_FEEDBACK_DEPTH      "DetailViewFeedbackDepth"
 #define DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP "Selected feature name"
 #define DETAIL_VIEW_FEEDBACK_MIN_WIDTH  2
 #define DETAIL_VIEW_FEEDBACK_MAX_WIDTH  30
@@ -984,6 +985,7 @@ static void feedbackBoxClearValues(GtkWidget *feedbackBox)
   entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD));
   entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME));
   entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_LEN));
+  entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH));
 }
 
 
@@ -1169,6 +1171,34 @@ static void feedbackBoxSetMatchName(GtkWidget *feedbackBox,
 }
 
 
+static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
+                                GtkWidget *detailView,
+                                const BlxSequence *seq)
+{
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  
+  if (detailViewGetSelectedIdxRangeSet(detailView))
+    {
+      /* A range of coordinates is selected. Sum the read depth over the range. */
+      IntRange *range = detailViewGetSelectedDisplayIdxRange(detailView);
+
+      if (range)
+        {
+          int depth = blxContextCalculateTotalDepth(bc, range);
+          feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, depth);
+          g_free(range);
+        }
+    }
+  else if (detailViewGetSelectedIdxSet(detailView))
+    {
+      /* A single coord is selected */
+      const int coord = detailViewGetSelectedDisplayIdx(detailView);
+      const int depth = blxContextGetDepth(bc, coord);
+      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, depth);
+    }
+}
+
+
 /* Set the text displayed in the user feedback boxes based on the given MSPs sequence name
  * (if an MSP is given), and also the currently-selected base index (if there is one). */
 static void setFeedbackText(GtkWidget *detailView, 
@@ -1181,14 +1211,10 @@ static void setFeedbackText(GtkWidget *detailView,
   /* Clear existing values */
   feedbackBoxClearValues(feedbackBox);
 
-  /* Reference coord */
   feedbackBoxSetRefCoord(feedbackBox, detailView, seq) ;
-  
-  /* Match name */
   feedbackBoxSetMatchName(feedbackBox, seq, numSeqsSelected) ;
-
-  /* Match coord */
-  feedbackBoxSetMatchCoord(feedbackBox, detailView, seq) ;
+  feedbackBoxSetMatchCoord(feedbackBox, detailView, seq) ; // also sets match length
+  feedbackBoxSetDepth(feedbackBox, detailView, seq) ;
   
   DEBUG_EXIT("setFeedbackText returning ");
 }
@@ -5939,9 +5965,9 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
   createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_REF_COORD, "Reference sequence coord(s)",
                          G_CALLBACK(onExposePrintable), NULL);
 
+  /* Match sequence "name:coord/len" */
   gtk_box_pack_start(box, gtk_label_new("  "), FALSE, FALSE, 0);
 
-  /* Match sequence "name:coord/len" */
   createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_NAME, DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP, 
                          G_CALLBACK(onExposePrintable), NULL);
 
@@ -5953,6 +5979,12 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
   gtk_box_pack_start(box, gtk_label_new("/"), FALSE, FALSE, 0);
 
   createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_LEN, "Match sequence length", 
+                         G_CALLBACK(onExposePrintable), NULL);
+
+  /* Read depth at selected coord(s) */
+  gtk_box_pack_start(box, gtk_label_new("  "), FALSE, FALSE, 0);
+  
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_DEPTH, "Read depth at selected coord(s)", 
                          G_CALLBACK(onExposePrintable), NULL);
   
   return feedbackBox;
