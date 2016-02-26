@@ -47,6 +47,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <algorithm>
+#include <string>
+
 
 using namespace std;
 
@@ -1005,34 +1007,15 @@ static void feedbackBoxSetInt(GtkWidget *feedbackBox, const char *widgetName, co
 }
 
 
-/* Set the text displayed in the user feedback boxes based on the given MSPs sequence name
- * (if an MSP is given), and also the currently-selected base index (if there is one). */
-static void setFeedbackText(GtkWidget *detailView, 
-                            const BlxSequence *seq, 
-                            const int numSeqsSelected, 
-                            GtkWidget *feedbackBox)
+/* Get the match coord for the feedback box. Returns true and sets sIdx if found. */
+static bool feedbackBoxGetMatchCoord(GtkWidget *detailView,
+                                     const BlxSequence *seq,
+                                     const int qIdx,
+                                     int &sIdx,
+                                     int &sLen)
 {
-  DEBUG_ENTER("setFeedbackText()");
+  bool found = FALSE ;
 
-  /* Clear existing values */
-  feedbackBoxClearValues(feedbackBox);
-
-  /* The info we need to find... */
-  int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
-  int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
-  int sLen = UNSET_INT; /* the length of the match sequence */
-  gboolean found_sIdx = FALSE;
-
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  BlxViewContext *bc = detailViewGetContext(detailView);
-  
-  /* Get the selected base index. */
-  if (detailViewGetSelectedIdxSet(detailView))
-    qIdx = properties->selectedIndex->dnaIdx;
-  
-  /* Find the sequence name text (or some default text to indicate that a sequence is not selected) */
-  const char *noSeqText = numSeqsSelected > 0 ? MULTIPLE_SUBJECTS_SELECTED_TEXT : NO_SUBJECT_SELECTED_TEXT;
-  
   if (seq)
     {
       if (g_list_length(seq->mspList) > 0)
@@ -1054,57 +1037,94 @@ static void setFeedbackText(GtkWidget *detailView,
               for ( ; mspListItem; mspListItem = mspListItem->next)
                 {
                   MSP *msp = (MSP*)(mspListItem->data);
-                  found_sIdx = mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx);
+                  BlxViewContext *bc = detailViewGetContext(detailView);
 
-                  if (found_sIdx)
+                  if (mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
                     {
+                      found = TRUE ;
                       break;
                     }
                 }
             }
         }
     }
+
+  return found ;
+}
+
+
+static string feedbackBoxGetMatchName(const BlxSequence *seq, const int numSeqsSelected)
+{
+  string resultString("");
   
+  /* Find the sequence name text (or some default text to indicate that a sequence is not selected) */
+  const char *noSeqText = numSeqsSelected > 0 ? MULTIPLE_SUBJECTS_SELECTED_TEXT : NO_SUBJECT_SELECTED_TEXT;
+
+  if (seq)
+    {
+      const char *seqName = blxSequenceGetName(seq);
+      const char *sequence = blxSequenceGetSequence(seq);
+
+      if (seqName)
+        resultString += seqName;
+        
+      /* For variations, also include the variation data in the name box */
+      if (seq->type == BLXSEQUENCE_VARIATION && sequence)
+        {
+          resultString += " : ";
+          resultString += sequence;
+        }
+    }
+  else
+    {
+      resultString += noSeqText;
+    }
+
+  return resultString;
+}
+
+
+/* Set the text displayed in the user feedback boxes based on the given MSPs sequence name
+ * (if an MSP is given), and also the currently-selected base index (if there is one). */
+static void setFeedbackText(GtkWidget *detailView, 
+                            const BlxSequence *seq, 
+                            const int numSeqsSelected, 
+                            GtkWidget *feedbackBox)
+{
+  DEBUG_ENTER("setFeedbackText()");
+
+  /* Clear existing values */
+  feedbackBoxClearValues(feedbackBox);
+
+  /* The info we need to find... */
+  int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
+  int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
+  int sLen = UNSET_INT; /* the length of the match sequence */
+
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  
+  /* Reference coord */
   if (detailViewGetSelectedIdxSet(detailView))
     {
+      qIdx = properties->selectedIndex->dnaIdx;
+      
       /* Negate the coord for the display, if necessary */
       int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * qIdx : qIdx);
       feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, coord);
     }
   
-  if (seq)
-    {
-      GString *resultString = g_string_sized_new(100);
-
-      const char *seqName = blxSequenceGetName(seq);
-      const char *sequence = blxSequenceGetSequence(seq);
-
-      if (seqName)
-        g_string_append_printf(resultString, "%s", seqName);
-        
-      /* For variations, also include the variation data in the name box */
-      if (seq->type == BLXSEQUENCE_VARIATION && sequence)
-        g_string_append_printf(resultString, " : %s", sequence);
-
-      if (resultString->len > 0)
-        feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME, resultString->str);
-
-      g_string_free(resultString, TRUE);
-    }
-  else if (qIdx != UNSET_INT)
-    {
-      feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME, noSeqText);
-    }
+  /* Match name */
+  string matchName = feedbackBoxGetMatchName(seq, numSeqsSelected) ;
+  feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME, matchName.c_str());
     
-  if (sLen != UNSET_INT && (!seq || seq->type != BLXSEQUENCE_VARIATION))
-    {
-      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_LEN, sLen);
-    }
+  /* Match coord */
+  if (feedbackBoxGetMatchCoord(detailView, seq, qIdx, sIdx, sLen) && (!seq || seq->type != BLXSEQUENCE_VARIATION))
+    feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, sIdx);
 
-  if (found_sIdx && (!seq || seq->type != BLXSEQUENCE_VARIATION))
-    {
-      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, sIdx);
-    }
+  /* Match len */
+  if (sLen != UNSET_INT && (!seq || seq->type != BLXSEQUENCE_VARIATION))
+    feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_LEN, sLen);
   
   DEBUG_EXIT("setFeedbackText returning ");
 }
