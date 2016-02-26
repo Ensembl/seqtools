@@ -1007,16 +1007,33 @@ static void feedbackBoxSetInt(GtkWidget *feedbackBox, const char *widgetName, co
 }
 
 
+static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
+                                   GtkWidget *detailView,
+                                   const BlxSequence *seq,
+                                   int &qIdx)
+{
+  if (detailViewGetSelectedIdxSet(detailView))
+    {
+      DetailViewProperties *properties = detailViewGetProperties(detailView);
+      BlxViewContext *bc = detailViewGetContext(detailView);
+
+      qIdx = properties->selectedIndex->dnaIdx;
+
+      /* Negate the coord for the display, if necessary */
+      int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * qIdx : qIdx);
+      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, coord);
+    }
+}
+
 /* Get the match coord for the feedback box. Returns true and sets sIdx if found. */
-static bool feedbackBoxGetMatchCoord(GtkWidget *detailView,
+static bool feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
+                                     GtkWidget *detailView,
                                      const BlxSequence *seq,
-                                     const int qIdx,
-                                     int &sIdx,
-                                     int &sLen)
+                                     const int qIdx)
 {
   bool found = FALSE ;
 
-  if (seq)
+  if (seq && seq->type != BLXSEQUENCE_VARIATION)
     {
       if (g_list_length(seq->mspList) > 0)
         {
@@ -1024,7 +1041,8 @@ static bool feedbackBoxGetMatchCoord(GtkWidget *detailView,
           
           if (mspGetMatchSeq(firstMsp))
             {
-              sLen = strlen(mspGetMatchSeq(firstMsp));
+              const int sLen = strlen(mspGetMatchSeq(firstMsp));
+              feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_LEN, sLen);
             }
 
           /* If a q index is selected, see if there is a valid base at that index 
@@ -1038,10 +1056,11 @@ static bool feedbackBoxGetMatchCoord(GtkWidget *detailView,
                 {
                   MSP *msp = (MSP*)(mspListItem->data);
                   BlxViewContext *bc = detailViewGetContext(detailView);
-
+                  int sIdx = UNSET_INT;
+                  
                   if (mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
                     {
-                      found = TRUE ;
+                      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, sIdx);
                       break;
                     }
                 }
@@ -1053,7 +1072,9 @@ static bool feedbackBoxGetMatchCoord(GtkWidget *detailView,
 }
 
 
-static string feedbackBoxGetMatchName(const BlxSequence *seq, const int numSeqsSelected)
+static void feedbackBoxSetMatchName(GtkWidget *feedbackBox,
+                                    const BlxSequence *seq, 
+                                    const int numSeqsSelected)
 {
   string resultString("");
   
@@ -1080,7 +1101,7 @@ static string feedbackBoxGetMatchName(const BlxSequence *seq, const int numSeqsS
       resultString += noSeqText;
     }
 
-  return resultString;
+  feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME, resultString.c_str());
 }
 
 
@@ -1096,35 +1117,15 @@ static void setFeedbackText(GtkWidget *detailView,
   /* Clear existing values */
   feedbackBoxClearValues(feedbackBox);
 
-  /* The info we need to find... */
-  int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
-  int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
-  int sLen = UNSET_INT; /* the length of the match sequence */
-
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  BlxViewContext *bc = detailViewGetContext(detailView);
-  
   /* Reference coord */
-  if (detailViewGetSelectedIdxSet(detailView))
-    {
-      qIdx = properties->selectedIndex->dnaIdx;
-      
-      /* Negate the coord for the display, if necessary */
-      int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * qIdx : qIdx);
-      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, coord);
-    }
+  int qIdx = UNSET_INT; // need this again when finding match seq coord
+  feedbackBoxSetRefCoord(feedbackBox, detailView, seq, qIdx) ;
   
   /* Match name */
-  string matchName = feedbackBoxGetMatchName(seq, numSeqsSelected) ;
-  feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME, matchName.c_str());
-    
-  /* Match coord */
-  if (feedbackBoxGetMatchCoord(detailView, seq, qIdx, sIdx, sLen) && (!seq || seq->type != BLXSEQUENCE_VARIATION))
-    feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, sIdx);
+  feedbackBoxSetMatchName(feedbackBox, seq, numSeqsSelected) ;
 
-  /* Match len */
-  if (sLen != UNSET_INT && (!seq || seq->type != BLXSEQUENCE_VARIATION))
-    feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_LEN, sLen);
+  /* Match coord */
+  feedbackBoxSetMatchCoord(feedbackBox, detailView, seq, qIdx) ;
   
   DEBUG_EXIT("setFeedbackText returning ");
 }
