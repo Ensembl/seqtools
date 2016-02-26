@@ -299,7 +299,7 @@
  setenv BELVU_STATUSBAR_SIZE to specify statusbar font size (0 => hide statusbar).\n\
 \n\
 -----\n\
-"AUTHOR_TEXT_FULL" \n\
+" AUTHOR_TEXT_FULL " \n\
 \n\
  Reference: Scoredist: A simple and robust protein sequence distance estimator.\n\
             Erik LL Sonnhammer and Volker Hollich.\n\
@@ -307,15 +307,15 @@
 \n\
  See http://www.sanger.ac.uk/resources/software/seqtools/ for more info.\n\
 \n\
- "BELVU_COPYRIGHT_STRING"\n\
- "BELVU_LICENSE_STRING"\n\
+ " BELVU_COPYRIGHT_STRING "\n\
+ " BELVU_LICENSE_STRING "\n\
 \n\
- Version "BELVU_VERSION_COMPILE"\n\
+ Version " BELVU_VERSION_COMPILE "\n\
 \n\
 "
 
 /* Text to show the version */
-#define VERSION_TEXT BELVU_PACKAGE_VERSION"\n"
+#define VERSION_TEXT BELVU_PACKAGE_VERSION "\n"
 
 
 
