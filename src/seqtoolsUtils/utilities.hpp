@@ -238,6 +238,9 @@ typedef struct _IntRange
   {
     int min;
     int max;
+
+    int start(const bool rev = FALSE, const bool negate = FALSE);
+    int end(const bool rev = FALSE, const bool negate = FALSE);
   } IntRange ;
 
 typedef struct _DoubleRange
@@ -330,7 +333,7 @@ void                  hideUserHiddenWidget(GtkWidget *widget, gpointer data);
 void                  widgetClearCachedDrawable(GtkWidget *widget, gpointer data);
 void                  callFuncOnAllChildWidgets(GtkWidget *widget, gpointer data);
 
-void                  blxSetWidgetColor(GtkWidget* widget, char *colorName);
+void                  blxSetWidgetColor(GtkWidget* widget, const char *colorName);
 gboolean              onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer data);
 GtkWidget*            createLabel(const char *text, const gdouble xalign, const gdouble yalign, const gboolean ellipsize, const gboolean enableCopyPaste, const gboolean showWhenPrinting);
 GtkWidget*            getLabelWidget(GtkWidget *widget);

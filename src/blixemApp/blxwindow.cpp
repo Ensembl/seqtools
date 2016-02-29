@@ -5667,6 +5667,36 @@ static void calculateDepth(BlxViewContext *bc)
 }
 
 
+/* Calculate the total depth of coverage of short-reads for the given range of ref seq coords.
+ * depthArray must be the same length as displayRange. */
+int blxContextCalculateTotalDepth(BlxViewContext *bc, const IntRange *range)
+{
+  int depth = 0;
+
+  /* Loop through all MSP lists */
+  for (int mspType = 0 ; mspType < BLXMSP_NUM_TYPES; ++mspType)
+    {
+      /* Only include MSPs of relevant types */
+      if (!includeTypeInCoverage((BlxMspType)mspType))
+        continue;
+      
+      /* Loop through all MSPs in this list */
+      GArray *mspArray = bc->featureLists[mspType];
+      const int fullDisplayLen = getRangeLength(&bc->fullDisplayRange);
+    
+      int i = 0;
+      for (const MSP *msp = mspArrayIdx(mspArray, i); msp; msp = mspArrayIdx(mspArray, ++i))
+        {
+          /* If the alignment is in our range, increment the depth */
+          if (rangesOverlap(range, &msp->displayRange))
+            ++depth;
+        }
+    } 
+
+  return depth;
+}
+
+
 /* Called on startup to set the initial state of the flags. Gets the state for
  * the settings from the config file if specified, otherwises uses hard-coded
  * defaults. */
@@ -6040,6 +6070,21 @@ BlxColumnInfo *getColumnInfo(GList *columnList, const BlxColumnId columnId)
       }
   }
   
+  return result;
+}
+
+/* Return the read depth at the given display coord */
+int blxContextGetDepth(BlxViewContext *bc, const int coord)
+{
+  int result = UNSET_INT;
+  g_return_val_if_fail(bc && 
+                       bc->depthArray && 
+                       coord >= bc->fullDisplayRange.min &&
+                       coord <= bc->fullDisplayRange.max, 
+                       result);
+
+  result = bc->depthArray[coord - bc->fullDisplayRange.min];
+
   return result;
 }
 
