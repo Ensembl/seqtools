@@ -47,8 +47,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <algorithm>
-#include <string>
-
 
 using namespace std;
 
@@ -59,8 +57,7 @@ using namespace std;
 #define DETAIL_VIEW_FEEDBACK_MATCH_COORD "DetailViewFeedbackMatchCoord"
 #define DETAIL_VIEW_FEEDBACK_MATCH_NAME "DetailViewFeedbackMatchName"
 #define DETAIL_VIEW_FEEDBACK_MATCH_LEN  "DetailViewFeedbackMatchLen"
-#define DETAIL_VIEW_FEEDBACK_DEPTH      "DetailViewFeedbackDepth"
-#define DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP "Selected feature name"
+#define DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP "Currently selected feature name"
 #define DETAIL_VIEW_FEEDBACK_MIN_WIDTH  2
 #define DETAIL_VIEW_FEEDBACK_MAX_WIDTH  30
 #define SORT_BY_NAME_STRING             "Name"
@@ -985,7 +982,6 @@ static void feedbackBoxClearValues(GtkWidget *feedbackBox)
   entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD));
   entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME));
   entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_LEN));
-  entryClearContents(getNamedChildWidget(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH));
 }
 
 
@@ -1009,196 +1005,6 @@ static void feedbackBoxSetInt(GtkWidget *feedbackBox, const char *widgetName, co
 }
 
 
-/* Simple utility to return true if we should negate coords for the display */
-static gboolean negateCoords(BlxViewContext *bc)
-{
-  return (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS]);
-}
-
-
-static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
-                                   GtkWidget *detailView,
-                                   const BlxSequence *seq)
-{
-  BlxViewContext *bc = detailViewGetContext(detailView);
-  
-  if (detailViewGetSelectedIdxRangeSet(detailView))
-    {
-      /* A range of coordinates is selected */
-      IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
-
-      if (range)
-        {
-          string resultStr("");
-          resultStr += to_string(range->start(bc->displayRev, negateCoords(bc)));
-          resultStr += "..";
-          resultStr += to_string(range->end(bc->displayRev, negateCoords(bc)));
-
-          feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, resultStr.c_str());
-
-          g_free(range);
-        }
-    }
-  else if (detailViewGetSelectedIdxSet(detailView))
-    {
-      /* A single coord is selected */
-      int qIdx = detailViewGetSelectedDnaIdx(detailView);
-
-      /* Negate the coord for the display, if necessary */
-      int coord = qIdx;
-
-      if (negateCoords(bc))
-        coord *= -1;
-
-      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, coord);
-    }
-}
-
-static bool getMatchCoordForRefCoord(GtkWidget *detailView, 
-                                     const BlxSequence *seq,
-                                     const int qIdx,
-                                     int &sIdx)
-{
-  bool found = FALSE;
-
-  BlxViewContext *bc = detailViewGetContext(detailView);
-  g_return_val_if_fail(bc && seq, found);
-
-  GList *mspListItem = seq->mspList;
-  const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
-              
-  for ( ; mspListItem; mspListItem = mspListItem->next)
-    {
-      MSP *msp = (MSP*)(mspListItem->data);
-      BlxViewContext *bc = detailViewGetContext(detailView);
-                  
-      if (mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
-        {
-          found = TRUE;
-          break;
-        }
-    }
-
-  return found;
-}
-
-/* Get the match coord for the feedback box. Returns true and sets sIdx if found. */
-static void feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
-                                     GtkWidget *detailView,
-                                     const BlxSequence *seq)
-{
-  if (seq && seq->type != BLXSEQUENCE_VARIATION)
-    {
-      if (g_list_length(seq->mspList) > 0)
-        {
-          MSP *firstMsp = (MSP*)(seq->mspList->data);
-          
-          if (mspGetMatchSeq(firstMsp))
-            {
-              const int sLen = strlen(mspGetMatchSeq(firstMsp));
-              feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_LEN, sLen);
-            }
-
-          /* If a q index/range is selected, see if there is a valid base at that coord(s)
-           * for any of the MSPs for the selected sequence. */
-          if (detailViewGetSelectedIdxRangeSet(detailView))
-            {
-              BlxViewContext *bc = detailViewGetContext(detailView);
-              IntRange *range = detailViewGetSelectedDnaIdxRange(detailView);
-              int start = UNSET_INT;
-              int end = UNSET_INT;
-
-              if (range && 
-                  getMatchCoordForRefCoord(detailView, seq, range->start(bc->displayRev), start) &&
-                  getMatchCoordForRefCoord(detailView, seq, range->end(bc->displayRev), end))
-                {
-                  string resultStr("");
-                  resultStr += to_string(start);
-                  resultStr += "..";
-                  resultStr += to_string(end);
-
-                  feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, resultStr.c_str());
-                }
-
-              if (range)
-                g_free(range);
-            }
-          else if (detailViewGetSelectedIdxSet(detailView))
-            {
-              int qIdx = detailViewGetSelectedDnaIdx(detailView);
-              int sIdx = UNSET_INT;
-              
-              if (getMatchCoordForRefCoord(detailView, seq, qIdx, sIdx))
-                {
-                  feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, sIdx);
-                }
-            }
-        }
-    }
-}
-
-
-static void feedbackBoxSetMatchName(GtkWidget *feedbackBox,
-                                    const BlxSequence *seq, 
-                                    const int numSeqsSelected)
-{
-  string resultString("");
-  
-  /* Find the sequence name text (or some default text to indicate that a sequence is not selected) */
-  const char *noSeqText = numSeqsSelected > 0 ? MULTIPLE_SUBJECTS_SELECTED_TEXT : NO_SUBJECT_SELECTED_TEXT;
-
-  if (seq)
-    {
-      const char *seqName = blxSequenceGetName(seq);
-      const char *sequence = blxSequenceGetSequence(seq);
-
-      if (seqName)
-        resultString += seqName;
-        
-      /* For variations, also include the variation data in the name box */
-      if (seq->type == BLXSEQUENCE_VARIATION && sequence)
-        {
-          resultString += " : ";
-          resultString += sequence;
-        }
-    }
-  else
-    {
-      resultString += noSeqText;
-    }
-
-  feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME, resultString.c_str());
-}
-
-
-static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
-                                GtkWidget *detailView,
-                                const BlxSequence *seq)
-{
-  BlxViewContext *bc = detailViewGetContext(detailView);
-  
-  if (detailViewGetSelectedIdxRangeSet(detailView))
-    {
-      /* A range of coordinates is selected. Sum the read depth over the range. */
-      IntRange *range = detailViewGetSelectedDisplayIdxRange(detailView);
-
-      if (range)
-        {
-          int depth = blxContextCalculateTotalDepth(bc, range);
-          feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, depth);
-          g_free(range);
-        }
-    }
-  else if (detailViewGetSelectedIdxSet(detailView))
-    {
-      /* A single coord is selected */
-      const int coord = detailViewGetSelectedDisplayIdx(detailView);
-      const int depth = blxContextGetDepth(bc, coord);
-      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, depth);
-    }
-}
-
-
 /* Set the text displayed in the user feedback boxes based on the given MSPs sequence name
  * (if an MSP is given), and also the currently-selected base index (if there is one). */
 static void setFeedbackText(GtkWidget *detailView, 
@@ -1211,10 +1017,94 @@ static void setFeedbackText(GtkWidget *detailView,
   /* Clear existing values */
   feedbackBoxClearValues(feedbackBox);
 
-  feedbackBoxSetRefCoord(feedbackBox, detailView, seq) ;
-  feedbackBoxSetMatchName(feedbackBox, seq, numSeqsSelected) ;
-  feedbackBoxSetMatchCoord(feedbackBox, detailView, seq) ; // also sets match length
-  feedbackBoxSetDepth(feedbackBox, detailView, seq) ;
+  /* The info we need to find... */
+  int qIdx = UNSET_INT; /* index into the ref sequence. Ref seq is always a DNA seq */
+  int sIdx = UNSET_INT; /* index into the match sequence. Will be coords into the peptide sequence if showing peptide matches */
+  int sLen = UNSET_INT; /* the length of the match sequence */
+  gboolean found_sIdx = FALSE;
+
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  BlxViewContext *bc = detailViewGetContext(detailView);
+  
+  /* Get the selected base index. */
+  if (detailViewGetSelectedIdxSet(detailView))
+    qIdx = properties->selectedIndex->dnaIdx;
+  
+  /* Find the sequence name text (or some default text to indicate that a sequence is not selected) */
+  const char *noSeqText = numSeqsSelected > 0 ? MULTIPLE_SUBJECTS_SELECTED_TEXT : NO_SUBJECT_SELECTED_TEXT;
+  
+  if (seq)
+    {
+      if (g_list_length(seq->mspList) > 0)
+        {
+          MSP *firstMsp = (MSP*)(seq->mspList->data);
+          
+          if (mspGetMatchSeq(firstMsp))
+            {
+              sLen = strlen(mspGetMatchSeq(firstMsp));
+            }
+
+          /* If a q index is selected, see if there is a valid base at that index 
+           * for any of the MSPs for the selected sequence. */
+          if (detailViewGetSelectedIdxSet(detailView))
+            {
+              GList *mspListItem = seq->mspList;
+              const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
+              
+              for ( ; mspListItem; mspListItem = mspListItem->next)
+                {
+                  MSP *msp = (MSP*)(mspListItem->data);
+                  found_sIdx = mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx);
+
+                  if (found_sIdx)
+                    {
+                      break;
+                    }
+                }
+            }
+        }
+    }
+  
+  if (detailViewGetSelectedIdxSet(detailView))
+    {
+      /* Negate the coord for the display, if necessary */
+      int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * qIdx : qIdx);
+      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, coord);
+    }
+  
+  if (seq)
+    {
+      GString *resultString = g_string_sized_new(100);
+
+      const char *seqName = blxSequenceGetName(seq);
+      const char *sequence = blxSequenceGetSequence(seq);
+
+      if (seqName)
+        g_string_append_printf(resultString, "%s", seqName);
+        
+      /* For variations, also include the variation data in the name box */
+      if (seq->type == BLXSEQUENCE_VARIATION && sequence)
+        g_string_append_printf(resultString, " : %s", sequence);
+
+      if (resultString->len > 0)
+        feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME, resultString->str);
+
+      g_string_free(resultString, TRUE);
+    }
+  else if (qIdx != UNSET_INT)
+    {
+      feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_NAME, noSeqText);
+    }
+    
+  if (sLen != UNSET_INT && (!seq || seq->type != BLXSEQUENCE_VARIATION))
+    {
+      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_LEN, sLen);
+    }
+
+  if (found_sIdx && (!seq || seq->type != BLXSEQUENCE_VARIATION))
+    {
+      feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, sIdx);
+    }
   
   DEBUG_EXIT("setFeedbackText returning ");
 }
@@ -1296,7 +1186,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
               char *displayText = NULL;
               
               /* If we're displaying coords negated, negate it now */
-              int coord = (negateCoords(bc) ? -1 * dnaIdx : dnaIdx);
+              int coord = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 * dnaIdx : dnaIdx);
 
               /* If there are multiple variations on this coord, display some summary text.
                * Otherwise, check we've got the sequence info to display. We should have, but 
@@ -1318,7 +1208,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
           char *displayText = NULL;
 
           /* If we're displaying coords negated, negate it now */
-          const int negate = (negateCoords(bc) ? -1 : 1);
+          const int negate = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 : 1);
           int coord = negate * dnaIdx;
 
           /* If there are multiple signals on this coord, display some summary text.
@@ -1344,7 +1234,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
           char *displayText = NULL;
 
           /* If we're displaying coords negated, negate it now */
-          const int negate = (negateCoords(bc) ? -1 : 1);
+          const int negate = (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS] ? -1 : 1);
           int coord = negate * dnaIdx;
 
           /* If there are multiple sites on this coord, display some summary text.
@@ -4080,23 +3970,6 @@ int detailViewGetSelectedDnaIdx(GtkWidget *detailView)
   return properties && properties->selectedIndex && properties->selectedIndex->isSet ? properties->selectedIndex->dnaIdx : UNSET_INT;
 }
 
-/* Return true if a range of coords is selected (rather than a single coord) */
-gboolean detailViewGetSelectedIdxRangeSet(GtkWidget *detailView)
-{
-  gboolean result = FALSE;
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-
-  if (properties && 
-      properties->selectedRangeStart.isSet && 
-      properties->selectedRangeEnd.isSet &&
-      properties->selectedRangeStart.dnaIdx != properties->selectedRangeEnd.dnaIdx)
-    {
-      result = TRUE;
-    }
-
-  return result;
-}
-
 /* Return the selection range in display coords. Allocates a  new IntRange* which should be
  * free'd by the caller with g_free() */
 IntRange *detailViewGetSelectedDisplayIdxRange(GtkWidget *detailView)
@@ -5552,7 +5425,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
           
           /* If display coords are negated, assume the user has entered a 
            * negative coord too, and un-negate it. */
-          const gboolean negate = negateCoords(bc);
+          const gboolean negate = bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS];
           
           if (negate)
             {
@@ -5928,64 +5801,56 @@ static void createSeqColHeader(GtkWidget *detailView,
 }
 
 
-static void createFeedbackBoxEntry(GtkBox *parent,
-                                   const char *widget_name,
-                                   const char *tooltip,
-                                   GCallback cb_func,
-                                   gpointer cb_data)
-{
-  const int charWidth = 8; /* guesstimate */
-
-  GtkWidget *entry = gtk_entry_new() ;
-
-  gtk_widget_set_name(entry, widget_name);
-  gtk_widget_set_tooltip_text(entry, tooltip);
-  gtk_editable_set_editable(GTK_EDITABLE(entry), FALSE);
-  gtk_widget_set_size_request(entry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
-
-  gtk_box_pack_start(GTK_BOX(parent), entry, FALSE, FALSE, 0);
-
-  /* We want the box to be printed, so connect the expose function that will 
-   * draw to a pixmap for printing */
-  g_signal_connect(G_OBJECT(entry), "expose-event", cb_func, cb_data);
-}
-
-
 /* Create the feedback box. (This is actually a set of several boxes which feed
  * back info to the user about the currently-selected base/sequence.) */
 static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
 {
   /* Put all feedback boxes into a parent hbox */
-  GtkWidget *feedbackBox = gtk_hbox_new(FALSE, 0);
-  GtkBox *box = GTK_BOX(feedbackBox);
-
+  GtkWidget *feedbackBox = gtk_hbox_new(FALSE, 0) ;
   blxSetWidgetColor(feedbackBox, windowColor);
 
-  /* Reference sequence coord */
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_REF_COORD, "Reference sequence coord(s)",
-                         G_CALLBACK(onExposePrintable), NULL);
+  /* Boxes for the ref/match seq coord, the match sequence name and the match sequence len */
+  GtkWidget *refCoordEntry = gtk_entry_new() ;
+  GtkWidget *matchCoordEntry = gtk_entry_new() ;
+  GtkWidget *matchNameEntry = gtk_entry_new() ;
+  GtkWidget *matchLenEntry = gtk_entry_new() ;
 
-  /* Match sequence "name:coord/len" */
-  gtk_box_pack_start(box, gtk_label_new("  "), FALSE, FALSE, 0);
+  /* Set widget names so that we can find the correct widget when we update values */
+  gtk_widget_set_name(refCoordEntry, DETAIL_VIEW_FEEDBACK_REF_COORD);
+  gtk_widget_set_name(matchCoordEntry, DETAIL_VIEW_FEEDBACK_MATCH_COORD);
+  gtk_widget_set_name(matchNameEntry, DETAIL_VIEW_FEEDBACK_MATCH_NAME);
+  gtk_widget_set_name(matchLenEntry, DETAIL_VIEW_FEEDBACK_MATCH_LEN);
 
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_NAME, DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP, 
-                         G_CALLBACK(onExposePrintable), NULL);
+  /* Set widget tooltips */
+  gtk_widget_set_tooltip_text(refCoordEntry, "Currently selected reference sequence coord");
+  gtk_widget_set_tooltip_text(matchCoordEntry, "Currently selected match sequence coord");
+  gtk_widget_set_tooltip_text(matchNameEntry, DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP);
+  gtk_widget_set_tooltip_text(matchLenEntry, "Currently selected match sequence length");
 
-  gtk_box_pack_start(box, gtk_label_new(":"), FALSE, FALSE, 0);
+  /* User can copy text out but not edit contents */
+  gtk_editable_set_editable(GTK_EDITABLE(refCoordEntry), FALSE);
+  gtk_editable_set_editable(GTK_EDITABLE(matchCoordEntry), FALSE);
+  gtk_editable_set_editable(GTK_EDITABLE(matchNameEntry), FALSE);
+  gtk_editable_set_editable(GTK_EDITABLE(matchLenEntry), FALSE);
 
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_COORD, "Match sequence coord(s)", 
-                         G_CALLBACK(onExposePrintable), NULL);
+  /* Set initial size, otherwise they're quite big empty boxes! */
+  const int charWidth = 8; /* guesstimate */
+  gtk_widget_set_size_request(refCoordEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
+  gtk_widget_set_size_request(matchCoordEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
+  gtk_widget_set_size_request(matchNameEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
+  gtk_widget_set_size_request(matchLenEntry, DETAIL_VIEW_FEEDBACK_MIN_WIDTH * charWidth, -1) ;
 
-  gtk_box_pack_start(box, gtk_label_new("/"), FALSE, FALSE, 0);
-
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_LEN, "Match sequence length", 
-                         G_CALLBACK(onExposePrintable), NULL);
-
-  /* Read depth at selected coord(s) */
-  gtk_box_pack_start(box, gtk_label_new("  "), FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(feedbackBox), refCoordEntry, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(feedbackBox), matchCoordEntry, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(feedbackBox), matchNameEntry, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(feedbackBox), matchLenEntry, FALSE, FALSE, 0);
   
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_DEPTH, "Read depth at selected coord(s)", 
-                         G_CALLBACK(onExposePrintable), NULL);
+  /* We want the box to be printed, so connect the expose function that will 
+   * draw to a pixmap for printing */
+  g_signal_connect(G_OBJECT(refCoordEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
+  g_signal_connect(G_OBJECT(matchCoordEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
+  g_signal_connect(G_OBJECT(matchNameEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
+  g_signal_connect(G_OBJECT(matchLenEntry), "expose-event", G_CALLBACK(onExposePrintable), NULL);
   
   return feedbackBox;
 }

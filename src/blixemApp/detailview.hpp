@@ -176,7 +176,6 @@ int                     detailViewGetClickedBaseIdx(GtkWidget *detailView);
 gboolean                detailViewGetSelectedIdxSet(GtkWidget *detailView);
 int                     detailViewGetSelectedDisplayIdx(GtkWidget *detailView);
 int                     detailViewGetSelectedDnaIdx(GtkWidget *detailView);
-gboolean                detailViewGetSelectedIdxRangeSet(GtkWidget *detailView);
 IntRange*               detailViewGetSelectedDisplayIdxRange(GtkWidget *detailView);
 IntRange*               detailViewGetSelectedDnaIdxRange(GtkWidget *detailView);
 int                     detailViewGetOldSelectedBaseIdx(GtkWidget *detailView);
