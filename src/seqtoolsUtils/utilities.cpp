@@ -4566,39 +4566,32 @@ GtkWidget* externalCommand (const char *command, const char *progName, GtkWidget
 GString* getExternalCommandOutput(const char *command, GError **error)
 {
   GString *resultText = g_string_new(NULL) ;
-  char lineText[MAXLINE+1];
+  gboolean ok = TRUE;
+  char *standardOutput = NULL;
+  GError *tmpError = NULL;
 
   g_message_info("Calling external command: %s\n", command);
-  FILE *pipe = popen (command, "r") ;
-  
-  if (pipe && !feof(pipe) && fgets (lineText, MAXLINE, pipe))
+
+  ok = g_spawn_command_line_sync(command,
+                                 &standardOutput,
+                                 NULL,
+                                 NULL,
+                                 &tmpError);
+
+  if (tmpError)
     {
-      while (!feof (pipe))
-        { 
-          int len = strlen(lineText);
-          
-          if (len > 0)
-            { 
-              if (lineText[len-1] == '\n') 
-                {
-                  lineText[len-1] = '\0';
-                }
-              
-              g_string_append_printf(resultText, "%s\n", lineText) ;
-            }
-          
-          if (!fgets (lineText, MAXLINE, pipe))
-            {
-              break;
-            }
-        }
+      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_EXECUTING_CMD, "Error executing command: %s\n\n%s", 
+                  command, tmpError->message);
+
+      g_error_free(tmpError);
     }
   else
     {
-      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_EXECUTING_CMD, "Error executing command: %s\n", command);
+      g_string_append(resultText, standardOutput);
     }
 
-  pclose (pipe);
+  if (standardOutput)
+    g_free(standardOutput);
 
   return resultText;
 }
