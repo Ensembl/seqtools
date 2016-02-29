@@ -4556,17 +4556,18 @@ GString* getExternalCommandOutput(const char *command, GError **error)
                                  NULL,
                                  &tmpError);
 
-  if (tmpError)
+  if (!ok || tmpError)
     {
       g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_EXECUTING_CMD, "Error executing command: %s\n\n%s", 
-                  command, tmpError->message);
-
-      g_error_free(tmpError);
+                  command, (tmpError ? tmpError->message : "<no error message>"));
     }
   else
     {
       g_string_append(resultText, standardOutput);
     }
+
+  if (tmpError)
+    g_error_free(tmpError);
 
   if (standardOutput)
     g_free(standardOutput);
