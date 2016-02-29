@@ -1030,9 +1030,9 @@ static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
       if (range)
         {
           string resultStr("");
-          resultStr += to_string((long long int)range->start(bc->displayRev, negateCoords(bc)));
+          resultStr += to_string(range->start(bc->displayRev, negateCoords(bc)));
           resultStr += "..";
-          resultStr += to_string((long long int)range->end(bc->displayRev, negateCoords(bc)));
+          resultStr += to_string(range->end(bc->displayRev, negateCoords(bc)));
 
           feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, resultStr.c_str());
 
@@ -1113,9 +1113,9 @@ static void feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
                   getMatchCoordForRefCoord(detailView, seq, range->end(bc->displayRev), end))
                 {
                   string resultStr("");
-                  resultStr += to_string((long long int)start);
+                  resultStr += to_string(start);
                   resultStr += "..";
-                  resultStr += to_string((long long int)end);
+                  resultStr += to_string(end);
 
                   feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, resultStr.c_str());
                 }
