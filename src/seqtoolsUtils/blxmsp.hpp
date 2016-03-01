@@ -408,10 +408,10 @@ ColinearityType       mspIsColinear(const MSP* const msp1, const MSP* const msp2
 int                   getMaxMspLen();
 void                  setMaxMspLen(const int len);
 
-void                  writeTranscriptToOutput(FILE *pipe, const BlxSequence* const blxSeq, IntRange *range, const IntRange* const refSeqRange);
-void                  writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *range1, IntRange *range2);
+void                  writeTranscriptToOutput(GIOChannel *ioChannel, const BlxSequence* const blxSeq, IntRange *range, const IntRange* const refSeqRange, GError **error);
+void                  writeBlxSequenceToOutput(GIOChannel *ioChannel, const BlxSequence *blxSeq, IntRange *range1, IntRange *range2, GError **error);
 BlxSequence*          readBlxSequenceFromText(char *text, int *numMsps);
-void                  writeMspToOutput(FILE *pipe, const MSP* const msp);
+void                  writeMspToOutput(GIOChannel *ioChannel, const MSP* const msp, GError **error);
 void                  readMspFromText(MSP *msp, char *text);
 
 void                  destroyMspList(MSP **mspList);

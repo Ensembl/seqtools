@@ -1796,24 +1796,26 @@ static void textViewGetSeqDetails(GtkWidget *textView, char **sequence, char **s
  *******************************************************************/
 
 /* This actually executes the dotter child process */
-static void callDotterChildProcess(GtkWidget *blxWindow,
-                                   const char *dotterBinary, 
-				   const int dotterZoom,
-                                   const gboolean hspsOnly,
-                                   const gboolean sleep,
-                                   const char *seq1Name,
-                                   const IntRange* const seq1Range,
-                                   const BlxStrand seq1Strand,
-				   const gboolean seq1DisplayRev,
-                                   const char *seq2Name,
-                                   const IntRange* const seq2Range,
-                                   const BlxStrand seq2Strand,
-				   const gboolean seq2DisplayRev,
-				   int *pipes, 
-                                   BlxViewContext *bc)
+static GIOChannel* callDotterChildProcess(GtkWidget *blxWindow,
+                                          const char *dotterBinary, 
+                                          const int dotterZoom,
+                                          const gboolean hspsOnly,
+                                          const gboolean sleep,
+                                          const char *seq1Name,
+                                          const IntRange* const seq1Range,
+                                          const BlxStrand seq1Strand,
+                                          const gboolean seq1DisplayRev,
+                                          const char *seq2Name,
+                                          const IntRange* const seq2Range,
+                                          const BlxStrand seq2Strand,
+                                          const gboolean seq2DisplayRev,
+                                          BlxViewContext *bc,
+                                          GPid *childPid,
+                                          GError **error)
 {
   DEBUG_OUT("callDotterChildProcess\n");
 
+  GIOChannel *ioChannel = NULL;
   char *seq1OffsetStr = convertIntToString(seq1Range->min - 1);
   char *seq2OffsetStr = convertIntToString(seq2Range->min - 1);
   char *seq1LenStr = convertIntToString(getRangeLength(seq1Range));
@@ -1882,25 +1884,39 @@ static void callDotterChildProcess(GtkWidget *blxWindow,
 
   /* Convert the list to an array */
   DEBUG_OUT("Args = ");
-  char *args[g_slist_length(argList)];
+  char *argv[g_slist_length(argList)];
   GSList *item = argList;
   int i = 0;
   
   for ( ; item; item = item->next)
     {
       char *arg = (char*)(item->data);
-      args[i] = arg;
+      argv[i] = arg;
       ++i;
       DEBUG_OUT(", %s", arg  );
     }
   DEBUG_OUT("\n");
     
   DEBUG_OUT("Executing dotter\n");
-  dup2(pipes[0], 0);
-  close(pipes[0]);
-  execv(args[0], args);
-  
-  exit(1);
+
+  int standard_input = 0;
+
+  gboolean ok = g_spawn_async_with_pipes(NULL, //inherit parent' working directory
+                                         argv,
+                                         NULL, //inherit parent's environment
+                                         (GSpawnFlags)0,
+                                         NULL, 
+                                         NULL,
+                                         childPid,
+                                         &standard_input,
+                                         NULL,
+                                         NULL,
+                                         error);
+
+  if (ok)
+    ioChannel = g_io_channel_unix_new(standard_input);
+
+  return ioChannel;
 }
 
 
@@ -1925,17 +1941,6 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
                             const BlxSequence *transcriptSeq,
                             GError **error)
 {
-#if !defined(NO_POPEN)
-
-  static gboolean child_in_progress = FALSE;
-  static gboolean pipes_in_progress = FALSE;
-
-  while (child_in_progress || pipes_in_progress)
-    {
-      /* wait until any previous fork/pipe operations are fully
-       * complete before starting another fork */
-    }
-
   if (clipRange)
     boundsLimitRange(seq1Range, &bc->refSeqRange, FALSE);
 
@@ -1956,64 +1961,52 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
     }
   
   g_debug("Calling %s with region: %d,%d - %d,%d\n", dotterBinary, seq1Range->min, seq2Range->min, seq1Range->max, seq2Range->max);
-  fflush(stdout);
-
-  /* Pass on the features via pipes. */
-  int pipes[2];
-  if (pipe (pipes))
-    {
-      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_PIPE, "Error opening pipe to Dotter.\n");
-      return FALSE;
-    }
 
   /* Create the child process */
-  pid_t pid = fork();
-  bc->spawnedProcesses = g_slist_append(bc->spawnedProcesses, GINT_TO_POINTER(pid));
+  GPid childPid = 0;
+  GIOStatus status = G_IO_STATUS_NORMAL;
+  gsize bytes_written = 0;
+  GError *tmpError = NULL;
   
-  if (pid < 0)
+  GIOChannel *ioChannel = callDotterChildProcess(blxWindow, dotterBinary, dotterZoom, hspsOnly, sleep,
+                                                 seq1Name, seq1Range, seq1Strand, seq1DisplayRev,
+                                                 seq2Name, seq2Range, seq2Strand, seq2DisplayRev,
+                                                 bc, &childPid, &tmpError);
+
+  if (ioChannel)
     {
-      g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_FORK, "Error forking process for Dotter.\n");
-      return FALSE;
-    }
-  else if (pid == 0)
-    {
-      child_in_progress = TRUE;
-
-      /* Child process. Execute dotter. First, close the write end of the pipe */
-      close(pipes[1]);
-
-      DEBUG_OUT("Calling dotter child process\n");
-      callDotterChildProcess(blxWindow, dotterBinary, dotterZoom, hspsOnly, sleep,
-                             seq1Name, seq1Range, seq1Strand, seq1DisplayRev,
-                             seq2Name, seq2Range, seq2Strand, seq2DisplayRev,
-                             pipes, bc);
-
-      child_in_progress = FALSE;
+      g_debug("Spawned process %d\n", childPid);
+      bc->spawnedProcesses = g_slist_append(bc->spawnedProcesses, GINT_TO_POINTER((int)childPid));
     }
   else
     {
-      pipes_in_progress = TRUE;
+      if (tmpError)
+        prefixError(tmpError, "Error creating child process for Dotter: ");
+      else
+        g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_EXE, "Error creating child process for Dotter.\n");
+    }
 
-      /* Parent process. Pipe sequences and MSPs to dotter. First, close the read end of the pipe. */
-      close(pipes[0]);
-
-      g_debug("Spawned process %d\n", pid);
-      DEBUG_OUT("Piping sequences to dotter...\n");
-      
-      fflush(stdout);
-      FILE *pipe = fdopen(pipes[1], "w");
-
+  if (!tmpError)
+    {
       /* Pass the sequences */
-      fwrite(seq1, 1, getRangeLength(seq1Range), pipe);
-      fwrite(seq2, 1, getRangeLength(seq2Range), pipe);
-      
+      DEBUG_OUT("Piping sequences to dotter...\n");
+
+      status = g_io_channel_write_chars(ioChannel, seq1, getRangeLength(seq1Range), &bytes_written, &tmpError);
+
+      if (!tmpError)
+        status = g_io_channel_write_chars(ioChannel, seq2, getRangeLength(seq2Range), &bytes_written, &tmpError);
+
       DEBUG_OUT("...done\n");
-      
+    }
+
+  if (!tmpError)
+    {
       /* Pass the features */
       DEBUG_OUT("Piping features to dotter...\n");
+
       if (transcriptSeq)
         {
-          writeTranscriptToOutput(pipe, transcriptSeq, seq1Range, refSeqRange);
+          writeTranscriptToOutput(ioChannel, transcriptSeq, seq1Range, refSeqRange, &tmpError);
         }
       else
         {
@@ -2021,19 +2014,19 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
           for ( ; seqItem; seqItem = seqItem->next) 
             {
               BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
-              writeBlxSequenceToOutput(pipe, blxSeq, seq1Range, seq2Range);
+              writeBlxSequenceToOutput(ioChannel, blxSeq, seq1Range, seq2Range, &tmpError);
             }
         }
       
-      fprintf(pipe, "%c\n", EOF);
-      fflush(pipe);
-      
       DEBUG_OUT("...done\n");
-
-      pipes_in_progress = FALSE;
     }
-#endif
-  
+      
+  /* Close the channel */
+  g_io_channel_shutdown(ioChannel, TRUE, NULL);
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
+
   return TRUE;
 }
 

@@ -1762,24 +1762,41 @@ GtkWidget* getNamedChildWidget(GtkWidget *widget, const gchar *searchName)
 }
 
 
-/* Send a string to a file, "protecting" it by placing quotes around it and escaping quotes
+/* Send a string to a GIOChannel, "protecting" it by placing quotes around it and escaping quotes
  * inside it. */
-void stringProtect(FILE *file, const char *string)
+void stringProtect(GIOChannel *ioChannel, const char *string, GError **error)
 {
+  /* We pass in the same error from previous calls to stringProtect because it's convenient to
+   * check it here and quit rather than checking each time from the calling function */
+  if (error && *error != NULL)
+    return;
+
   const char *cp;
+  GError *tmpError = NULL;
  
-  fputc(' ', file);
-  fputc('"', file);
-  if (string)
-    for(cp = string; *cp; ++cp)
-      {
-        /* Escape any internal quotes (or the escape char itself) by placing '$' in front */
-        if (*cp == '"' || *cp == '$')
-          fputc('$', file);
-        fputc(*cp, file);
-      }
-  fputc('"', file);
-  
+  g_io_channel_write_unichar(ioChannel, ' ', &tmpError);
+
+  if (!tmpError)
+    g_io_channel_write_unichar(ioChannel, '"', &tmpError);
+
+  if (string && !tmpError)
+    {
+      for(cp = string; *cp && !tmpError; ++cp)
+        {
+          /* Escape any internal quotes (or the escape char itself) by placing '$' in front */
+          if (*cp == '"' || *cp == '$')
+            g_io_channel_write_unichar(ioChannel, '$', &tmpError);
+
+          if (!tmpError)
+            g_io_channel_write_unichar(ioChannel, *cp, &tmpError);
+        }
+    }
+
+  if (!tmpError)
+    g_io_channel_write_unichar(ioChannel, '"', &tmpError);
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
 }
 
 
@@ -4578,17 +4595,18 @@ GString* getExternalCommandOutput(const char *command, GError **error)
                                  NULL,
                                  &tmpError);
 
-  if (tmpError)
+  if (!ok || tmpError)
     {
       g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_EXECUTING_CMD, "Error executing command: %s\n\n%s", 
-                  command, tmpError->message);
-
-      g_error_free(tmpError);
+                  command, (tmpError ? tmpError->message : "<no error message>"));
     }
   else
     {
       g_string_append(resultText, standardOutput);
     }
+
+  if (tmpError)
+    g_error_free(tmpError);
 
   if (standardOutput)
     g_free(standardOutput);

@@ -2822,7 +2822,7 @@ void sendFetchOutputToFile(GString *command,
   /* Create a temp file for the results */
   const char *tmpDir = getSystemTempDir();
   char *fileName = g_strdup_printf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS_GFF, MKSTEMP_REPLACEMENT_CHARS);
-  int fileDesc = mkstemp(fileName);
+  int fileDesc = g_mkstemp(fileName);
   GError *tmpError = NULL;
   
   if (!fileName || fileDesc == -1)
