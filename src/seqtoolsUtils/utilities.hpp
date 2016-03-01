@@ -435,7 +435,7 @@ gboolean              isNewlineChar(const char curChar);
 char*                 abbreviateText(const char *inputStr, const int maxLen);
 gboolean              stringsEqual(const char *str1, const char *str2, const gboolean caseSensitive);
 gboolean              isValidIupacChar(const char inputChar, const BlxSeqType seqType);
-void                  stringProtect(FILE *file, const char *string);
+void                  stringProtect(GIOChannel *ioChannel, const char *string, GError **error);
 char*                 stringUnprotect(char **textp, char *target);
 
 int                   invertCoord(const int coord, const IntRange* const range, const gboolean invert);
