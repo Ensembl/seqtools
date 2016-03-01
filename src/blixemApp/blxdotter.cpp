@@ -1904,7 +1904,7 @@ static GIOChannel* callDotterChildProcess(GtkWidget *blxWindow,
   gboolean ok = g_spawn_async_with_pipes(NULL, //inherit parent' working directory
                                          argv,
                                          NULL, //inherit parent's environment
-                                         G_SPAWN_DEFAULT,
+                                         (GSpawnFlags)0,
                                          NULL, 
                                          NULL,
                                          childPid,
