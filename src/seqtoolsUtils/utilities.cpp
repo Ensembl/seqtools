@@ -2181,7 +2181,7 @@ int wildcardSearch(const char *textToSearch, const char *searchStr)
   
   char *textChar = (char*)textToSearch; /* to do: don't cast away const! */
   char *searchChar = (char*)searchStr;  /* to do: don't cast away const! */
-  char *ts, *cs, *s = 0 ;
+  char *ts = 0, *cs = 0, *s = 0 ;
   int star=0;
 
   while (1)

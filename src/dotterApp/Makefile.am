@@ -1,12 +1,7 @@
 
 SUBDIRS = .
 
-AM_CPPFLAGS = -g -Wall $(DEPS_CFLAGS) -I$(top_srcdir)
-
-# If gbtools is in a subdirectory, add it to the include path
-if USE_GBTOOLS
-AM_CPPFLAGS += -I$(top_srcdir)/gbtools/src/include
-endif
+include $(top_srcdir)/Makefile.am.common
 
 # there's a problem on ubuntu 14 with finding X11 so this is a hopefully temporary hack...
 X_LIB = -lX11 -lm
@@ -17,7 +12,7 @@ dotter_LDADD = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a
 
 # If gbtools is in a subdirectory, add it; otherwise look for a local installation
 if USE_GBTOOLS
-dotter_LDADD += $(top_builddir)/gbtools/libgbtools.a            
+dotter_LDADD += $(top_builddir)/gbtools/.libs/libgbtools.a            
 else
 dotter_LDADD += -lgbtools
 endif

@@ -16,7 +16,6 @@ blixemApp/Makefile
 dotterApp/Makefile
 belvuApp/Makefile
 seqtoolsUtils/Makefile
-libpfetch/Makefile
 doc/Makefile
 doc/User_doc/Makefile
 doc/Design_notes/Makefile
@@ -34,6 +33,9 @@ test/scripts/manual/belvu/Makefile
 test/scripts/manual/blixem/Makefile
 test/scripts/manual/dotter/Makefile
 ])
+
+# removed from the above: libpfetch/Makefile
+
 
 # Check if this is a Git repository and, if so, include info about the current
 # status in the version info. Otherwise use PACKAGE_VERSION (which will get

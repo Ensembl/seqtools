@@ -1,9 +1,20 @@
 
+--------------------------------------------------------------------------------
+This file is part of the SeqTools distribution and not part of the external
+library package installed here. It is a decriptive placeholder for our git
+repository.
+--------------------------------------------------------------------------------
+
 SeqTools now has a dependency on the gbtools common library code used for all of
 our applications.
 
 The SeqTools build expects to find the gbtools code/makefiles etc, either installed
 locally or in the subdirectory src/gbtools. The build will fail unless this is so.
+
+You can either copy the files/subdirectories of gbtools into src/gbtools
+yourself or you can run SeqTools's autogen.sh bootstrap script with the "-g"
+flag. The latter will copy the current develop branch of gbtools into
+src/gbtools.
 
 Alternatively, if you have a checkout of gbtools that you have installed
 locally then you can point the seqtools build to use that by setting these flags
