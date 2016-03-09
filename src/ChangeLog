@@ -1,244 +1,139 @@
-2016-01-25  Gemma Guest  <gb10@sanger.ac.uk>
- Add config option to set cainfo file location for curl - WIP
- src/blixemApp/blixem_.hpp        |    9 ++++++++-
- src/blixemApp/blxFetch.cpp       |   30 ++++++++++++++++++------------
- src/blixemApp/blxview.cpp        |    1 +
- src/blixemApp/blxwindow.cpp      |    3 +++
- src/blixemApp/detailview.cpp     |    9 +++++----
- src/blixemApp/detailviewtree.cpp |    8 ++++----
- src/libpfetch/libcurlobject.c    |    6 ++++++
- src/libpfetch/libpfetch.c        |   34 +++++++++++++++++++++++++++++++++-
- src/libpfetch/libpfetch_I.h      |    3 +++
- 9 files changed, 81 insertions(+), 22 deletions(-)
+2016-02-19  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.40.0-24-g382e - Update RT and git commit reports
+ src/ChangeLog                                  | 7 +++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)
 
-2016-01-25  Gemma Guest  <gb10@sanger.ac.uk>
- Fix bug where multiple pfetch windows open - REGRESSION FIX
- src/blixemApp/blixem_.hpp        |    6 +++-
- src/blixemApp/blxFetch.cpp       |   39 ++++++++++++++++++++++---------------
- src/blixemApp/detailview.cpp     |    2 +-
- src/blixemApp/detailviewtree.cpp |    2 +-
- 4 files changed, 29 insertions(+), 20 deletions(-)
+2016-02-18  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.40.0-23-gd13eb - Update RT and git commit reports
+ src/ChangeLog                                  | 368 +++++++++----------------
+ src/build/release_docs/GIT_COMMITS.txt         |   8 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |   2 +-
+ 3 files changed, 129 insertions(+), 249 deletions(-)
 
-2016-01-25  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-35-g2ffc4 - Update RT and git commit reports
- src/ChangeLog                                  |   15 +++++++++++++++
- src/build/release_docs/GIT_COMMITS.txt         |    1 +
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 17 insertions(+), 1 deletions(-)
+2016-02-10  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Fxi gbtoools namespace - WIP
+ src/blixemApp/blxFetch.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-2016-01-25  Gemma Guest  <gb10@sanger.ac.uk>
- Fix crash following libcurl error - REGRESSION FIX
- src/blixemApp/blxFetch.cpp |   15 +++++++--------
- 1 files changed, 7 insertions(+), 8 deletions(-)
+2016-02-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Remove obsolete gitignore placeholder - BUILD
+ src/gbtools/.gitignore | 3 ---
+ 1 file changed, 3 deletions(-)
 
-2016-01-25  Gemma Guest  <gb10@sanger.ac.uk>
- Fix minor error in runconfig script - BUILD
- src/runconfig.sh |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+2016-02-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix gitignore and missing readme file for gbtools - BUILD
+ src/.gitignore              |  2 ++
+ src/autogen.sh              | 10 +++++-----
+ src/gbtools/README_SEQTOOLS | 25 +++++++++++++++++++++++++
+ 3 files changed, 32 insertions(+), 5 deletions(-)
 
-2016-01-22  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-32-ged92 - Update RT and git commit reports
- src/ChangeLog |   36 ++++++++++++++++++++++++++++++++++++
- 1 files changed, 36 insertions(+), 0 deletions(-)
+2016-02-04  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'production' into develop
+2016-01-28  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix to previous - REGRESSION FIX
+ src/autogen.sh | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-2016-01-22  Gemma Guest  <gb10@sanger.ac.uk>
- Minor fix to return status - WIP
- src/blixemApp/blxFetch.cpp |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+2016-01-28  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix a bug with conditional clone of gbtools - BUILD
+ src/autogen.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-2016-01-22  Gemma Guest  <gb10@sanger.ac.uk>
- Fix problem with previous - WIP
- src/blixemApp/blixem_.hpp   |   13 ++++
- src/blixemApp/blxFetch.cpp  |  165 ++++++++-----------------------------------
- src/blixemApp/blxwindow.cpp |    5 +-
- src/libpfetch/libpfetch.c   |   19 ++++-
- src/libpfetch/libpfetch_I.h |    2 +-
- 5 files changed, 62 insertions(+), 142 deletions(-)
+2016-01-28  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'release/4.40.0' into develop
+2016-01-21  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Fix compiler includes as per gbtools - BUILD
+ src/Makefile.am.common        | 14 ++++++++++++++
+ src/belvuApp/Makefile.am      | 10 ++++++----
+ src/blixemApp/Makefile.am     |  7 +------
+ src/dotterApp/Makefile.am     |  7 +------
+ src/runconfig.sh              |  9 ++++++++-
+ src/seqtoolsUtils/Makefile.am |  7 +------
+ 6 files changed, 31 insertions(+), 23 deletions(-)
 
-2016-01-22  Gemma Guest  <gb10@sanger.ac.uk>
- Add config for curl IP mode and debug - WIP
- src/blixemApp/blixem_.hpp           |  139 ++++-
- src/blixemApp/blxFetch.cpp          | 1078 ++++++++++++++++++++---------------
- src/blixemApp/blxFetchDb.cpp        |   56 +--
- src/blixemApp/blxdotter.cpp         |    5 -
- src/blixemApp/blxview.cpp           |   19 +-
- src/blixemApp/blxwindow.cpp         |   32 +-
- src/blixemApp/detailview.cpp        |    8 +-
- src/blixemApp/detailviewtree.cpp    |    9 +-
- src/libpfetch/libcurlobject.c       |   12 +-
- src/libpfetch/libpfetch.c           |   80 ++--
- src/libpfetch/libpfetch_I.h         |    4 +
- src/seqtoolsUtils/seqtoolsFetch.hpp |    4 +-
- 12 files changed, 838 insertions(+), 608 deletions(-)
+2016-01-20  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Fix small include slip up. - TRIVIAL
+ src/blixemApp/blxFetch.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-2016-01-22  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-28-g7203 - Update RT and git commit reports
- src/ChangeLog                                  |    7 +++++++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 2 files changed, 8 insertions(+), 1 deletions(-)
+2016-01-20  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Merge branch 'feature/New_pfetch' into develop
+2016-01-20  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Remove libpfetch itself from build. - BUILD
+ src/libpfetch/Makefile.am             |   50 --
+ src/libpfetch/libcurlobject.c         | 1095 ------------------------
+ src/libpfetch/libcurlobject.h         |   87 --
+ src/libpfetch/libcurlobject_I.h       |   98 ---
+ src/libpfetch/libpfetch-cmarshal.c    |  131 ---
+ src/libpfetch/libpfetch-cmarshal.h    |   35 -
+ src/libpfetch/libpfetch-cmarshal.list |    2 -
+ src/libpfetch/libpfetch-utils.c       |  114 ---
+ src/libpfetch/libpfetch.c             | 1514 ---------------------------------
+ src/libpfetch/libpfetch.h             |  165 ----
+ src/libpfetch/libpfetch_I.h           |  249 ------
+ src/libpfetch/libpfetch_P.h           |  133 ---
+ 12 files changed, 3673 deletions(-)
 
-2016-01-15  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-27-g33fa - Update RT and git commit reports
- src/ChangeLog                                  |   10 ++++++++++
- src/build/release_docs/GIT_COMMITS.txt         |    1 +
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 3 files changed, 12 insertions(+), 1 deletions(-)
+2016-01-20  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Fix stupid compiler warning. - TRIVIAL
+ src/dotterApp/dotter.cpp | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-2016-01-15  Gemma Guest  <gb10@sanger.ac.uk>
- Fix bug getting dataType config - REGRESSION FIX
- src/seqtoolsUtils/blxGff3Parser.cpp |   15 +++++++++------
- 1 files changed, 9 insertions(+), 6 deletions(-)
+2016-01-20  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Remove local libpfetch from build. - BUILD
+ src/blixemApp/Makefile.am | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-2016-01-14  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-25-g7163 - Update RT and git commit reports
- src/ChangeLog |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+2016-01-20  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Remove local libpfetch from build. - BUILD
+ src/Makefile.am  | 4 ----
+ src/configure.ac | 3 +--
+ 2 files changed, 1 insertion(+), 6 deletions(-)
 
-2016-01-14  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-24-gf54a - Update RT and git commit reports
- src/ChangeLog |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+2016-01-19  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Put build back to use local pfetch until I convert gbtools code to C++ - BUILD
+ src/Makefile.am           | 6 +++---
+ src/blixemApp/Makefile.am | 3 ++-
+ src/configure.ac          | 3 ++-
+ 3 files changed, 7 insertions(+), 5 deletions(-)
 
-2016-01-14  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-23-g4fc7 - Update RT and git commit reports
- src/ChangeLog |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+2016-01-18  Ed Griffiths  <edgrif@sanger.ac.uk>
+ add new gbtools build stuff. - BUILD
+ src/Makefile.am           | 28 +++++++++++++++++++++++++---
+ src/belvuApp/Makefile.am  |  2 +-
+ src/blixemApp/Makefile.am | 10 ++++++++--
+ src/configure.ac          |  4 +++-
+ src/dotterApp/Makefile.am |  2 +-
+ src/runconfig.sh          |  2 +-
+ 6 files changed, 39 insertions(+), 9 deletions(-)
 
-2016-01-14  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-22-g209e - Update RT and git commit reports
- src/ChangeLog |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+2016-01-18  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Fix up gbtools stuff. - BUILD
+ src/autogen.sh | 80 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 78 insertions(+), 2 deletions(-)
 
-2016-01-14  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-21-ge639 - Update RT and git commit reports
- src/ChangeLog |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+2016-01-18  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Minor include change. - TRIVIAL
+ src/blixemApp/blxmain.cpp | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
 
-2016-01-14  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-20-g9de16d - Update RT and git commit reports
- src/ChangeLog |   10 ++++++++++
- 1 files changed, 10 insertions(+), 0 deletions(-)
+2016-01-18  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Fix trivial compile bug. - TRIVIAL
+ src/blixemApp/blxFetch.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-2016-01-14  Gemma Guest  <gb10@sanger.ac.uk>
- Update release notes - DOC
- src/doc/User_doc/release_notes.html |    6 ++++++
- 1 files changed, 6 insertions(+), 0 deletions(-)
+2016-01-18  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Small README for lib. - TRIVIAL
+ src/gbtools/README | 14 --------------
+ 1 file changed, 14 deletions(-)
 
-2016-01-14  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-18-gf028 - Update RT and git commit reports
- src/ChangeLog |    6 ++++++
- 1 files changed, 6 insertions(+), 0 deletions(-)
+2016-01-18  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Fix small compiler warning. - TRIVIAL
+ src/seqtoolsUtils/utilities.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-2016-01-14  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-17-g89ca - Update RT and git commit reports
- src/ChangeLog                                  |   72 ++++++++++++++++++++++++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 2 files changed, 73 insertions(+), 1 deletions(-)
-
-2016-01-14  Gemma Guest  <gb10@sanger.ac.uk>
- Merge branch 'develop' into release/4.40.0
+2016-01-18  Gemma Barson  <gb10@sanger.ac.uk>
+ Merge branch 'release/4.40.0' into develop
 2016-01-14  Gemma Guest  <gb10@sanger.ac.uk>
  Merge branch 'release/4.40.0' into develop
-2015-12-22  Gemma Guest  <gb10@sanger.ac.uk>
- Merge branch 'feature/bam' into develop - NEW FEATURE 'bam fetch'
-2015-12-21  Gemma Guest  <gb10@sanger.ac.uk>
- Avoid memory leak - WIP
- src/seqtoolsUtils/blxGff3Parser.cpp |   11 ++++++++---
- 1 files changed, 8 insertions(+), 3 deletions(-)
-
-2015-12-21  Gemma Guest  <gb10@sanger.ac.uk>
- Unescape gff chars - WIP
- src/seqtoolsUtils/blxGff3Parser.cpp |   46 ++++++++++++++++++++++++++++++++++-
- 1 files changed, 45 insertions(+), 1 deletions(-)
-
-2015-12-21  Gemma Guest  <gb10@sanger.ac.uk>
- Fix compile error on linux - REGRESSION FIX
- src/belvuApp/belvuTree.cpp |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-2015-12-21  Gemma Guest  <gb10@sanger.ac.uk>
- Fix error conditionally compiling html code - BUILD
- src/seqtoolsUtils/Makefile.am       |    4 ++++
- src/seqtoolsUtils/seqtoolsFetch.hpp |    8 ++++----
- 2 files changed, 8 insertions(+), 4 deletions(-)
-
-2015-12-21  Gemma Guest  <gb10@sanger.ac.uk>
- Pass fetch command in gff tag - WIP
- src/blixemApp/blixem_.hpp           |   52 +-------------
- src/blixemApp/blxFetch.cpp          |  134 ++++++++++++++++-------------------
- src/blixemApp/blxmain.cpp           |    5 +-
- src/blixemApp/blxview.cpp           |    2 +-
- src/dotterApp/dotterMain.cpp        |    2 +-
- src/seqtoolsUtils/Makefile.am       |    2 +-
- src/seqtoolsUtils/blxGff3Parser.cpp |  126 ++++++++++++++++++++++++++++-----
- src/seqtoolsUtils/blxGff3Parser.hpp |    3 +-
- src/seqtoolsUtils/blxparser.cpp     |   21 +++---
- src/seqtoolsUtils/blxparser.hpp     |    2 +-
- src/seqtoolsUtils/seqtoolsFetch.cpp |   62 ++++++++++++++++
- src/seqtoolsUtils/seqtoolsFetch.hpp |   97 +++++++++++++++++++++++++
- 12 files changed, 351 insertions(+), 157 deletions(-)
-
-2015-12-21  Gemma Guest  <gb10@sanger.ac.uk>
- Fix compiler error with min/max macros - BUILD
- src/belvuApp/belvuAlignment.cpp    |   13 ++++++++-----
- src/belvuApp/belvuConsPlot.cpp     |    9 ++++++---
- src/belvuApp/belvuTree.cpp         |    7 +++++--
- src/belvuApp/belvuWindow.cpp       |    9 ++++++---
- src/blixemApp/bigpicture.cpp       |    4 ++++
- src/blixemApp/bigpicturegrid.cpp   |    3 +++
- src/blixemApp/blxFetch.cpp         |    2 ++
- src/blixemApp/blxdotter.cpp        |    4 ++++
- src/blixemApp/blxview.cpp          |    3 +++
- src/blixemApp/blxwindow.cpp        |    4 ++++
- src/blixemApp/detailview.cpp       |    4 ++++
- src/blixemApp/detailviewtree.cpp   |    3 +++
- src/blixemApp/exonview.cpp         |    4 ++++
- src/dotterApp/dotplot.cpp          |    4 ++++
- src/dotterApp/dotter.cpp           |    4 ++++
- src/dotterApp/seqtoolsExonView.cpp |    4 ++++
- src/seqtoolsUtils/blxmsp.cpp       |    3 +++
- src/seqtoolsUtils/utilities.cpp    |    4 ++++
- src/seqtoolsUtils/utilities.hpp    |    3 ---
- 19 files changed, 75 insertions(+), 16 deletions(-)
-
-2015-12-18  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-7-gca231 - Update RT and git commit reports
- src/ChangeLog                                  |    6 ++++++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 2 files changed, 7 insertions(+), 1 deletions(-)
-
-2015-12-17  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-6-g80aa - Update RT and git commit reports
- src/ChangeLog                                  |    7 +++++++
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |    2 +-
- 2 files changed, 8 insertions(+), 1 deletions(-)
-
-2015-12-15  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.39.3-5-g053c - Update RT and git commit reports
- src/ChangeLog                                  |   61 +++++++----------------
- src/build/release_docs/GIT_COMMITS.txt         |    4 +-
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |   22 +--------
- 3 files changed, 22 insertions(+), 65 deletions(-)
-
-2015-12-09  Gemma Guest  <gb10@sanger.ac.uk>
- Merge branch 'feature/pfetch' into develop - NEW FEATURE 'pfetch errors'
-2015-12-09  Gemma Guest  <gb10@sanger.ac.uk>
- Report libcurl errors - WIP
- src/blixemApp/blxFetch.cpp |   27 +++++++++++++++++++++------
- 1 files changed, 21 insertions(+), 6 deletions(-)
-
-2015-12-09  Gemma Guest  <gb10@sanger.ac.uk>
- Add function to return curl error - WIP
- src/libpfetch/libcurlobject.c |    6 +++-
- src/libpfetch/libpfetch.c     |   75 ++++++++++++++++++++++++-----------------
- src/libpfetch/libpfetch.h     |    1 +
- 3 files changed, 50 insertions(+), 32 deletions(-)
-
-2015-12-07  Gemma Guest  <gb10@sanger.ac.uk>
- Warn if connection closed without response - WIP
- src/blixemApp/blxFetch.cpp    |  107 ++++++++++++++++++++++++++++++++++++++--
- src/libpfetch/libcurlobject.c |   23 +++++----
- 2 files changed, 114 insertions(+), 16 deletions(-)
-
-2015-11-30  Gemma Guest  <gb10@sanger.ac.uk>
- Merge branch 'production' into develop
