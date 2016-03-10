@@ -1,0 +1,4 @@
+The files in this directory (GIT_COMMITS.txt and RT_TICKETS_RESOLVED.txt)
+are created automatically by our build system for each new test release
+version. These files are used as a reference by developers to manually 
+update the release notes in src/doc/User_doc/release_notes.html

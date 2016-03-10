@@ -6,17 +6,18 @@ Although these instructions are for Linux systems they will apply to most unix
 systems that have the standard system libraries in the standard places and in
 particular come with X Windows and GTK installed.
 
-
 Install the following pre-requisites. This is most easily done using your system
 package manager (e.g. synaptic on Ubuntu, available from the
 System/Administration menu). Depending on your system, packages may be named
 differently or additional packages may be required. In this case the ./configure
 step below will fail and you will need to install the required package before
-running it again.
+running it again. If you cannot find a package it can be useful to search for
+just the main part of the name excluding numbers/dashes, e.g. "gtk" or "libgtk"
+rather than "libgtk2.0-dev". 
 
     libcurl4-gnutls-dev   (optional)
-    libgtk-2.0-dev
-    libglib-2.0-dev
+    libgtk2.0-dev
+    libglib2.0-dev
     libreadline6-dev
     libsqlite3-dev        (optional)
 
