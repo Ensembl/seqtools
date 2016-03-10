@@ -60,6 +60,7 @@ using namespace std;
 #define DETAIL_VIEW_FEEDBACK_MATCH_NAME "DetailViewFeedbackMatchName"
 #define DETAIL_VIEW_FEEDBACK_MATCH_LEN  "DetailViewFeedbackMatchLen"
 #define DETAIL_VIEW_FEEDBACK_DEPTH      "DetailViewFeedbackDepth"
+#define DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP "Read depth at selected coord(s)"
 #define DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP "Selected feature name"
 #define DETAIL_VIEW_FEEDBACK_MIN_WIDTH  2
 #define DETAIL_VIEW_FEEDBACK_MAX_WIDTH  30
@@ -1009,6 +1010,15 @@ static void feedbackBoxSetInt(GtkWidget *feedbackBox, const char *widgetName, co
 }
 
 
+/* Set the tooltip of the child text-entry widget with the given name */
+static void feedbackBoxSetTooltip(GtkWidget *feedbackBox, const char *widgetName, const char* tooltip)
+{
+  GtkWidget *widget = getNamedChildWidget(feedbackBox, widgetName);
+
+  gtk_widget_set_tooltip_text(widget, tooltip);
+}
+
+
 /* Simple utility to return true if we should negate coords for the display */
 static gboolean negateCoords(BlxViewContext *bc)
 {
@@ -1195,6 +1205,25 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
       const int coord = detailViewGetSelectedDisplayIdx(detailView);
       const int depth = blxContextGetDepth(bc, coord);
       feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, depth);
+
+      if (bc->seqType == BLXSEQ_DNA)
+        {
+          /* Show the specific base support of the reads at this coord, i.e. how many a's, t's, g's
+           * and c's. Show this in the tooltip for now to avoid clutter (we could perhaps add this to
+           * the main box but only show the box if coverage is enabled, or have its own option). */
+          string tmpStr("");
+          tmpStr += DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP;
+          tmpStr += "\nA: " + to_string(blxContextGetDepth(bc, coord, DEPTHCOUNTER_A));
+          tmpStr += "\nC: " + to_string(blxContextGetDepth(bc, coord, DEPTHCOUNTER_C));
+          tmpStr += "\nG: " + to_string(blxContextGetDepth(bc, coord, DEPTHCOUNTER_G));
+          tmpStr += "\nT: " + to_string(blxContextGetDepth(bc, coord, DEPTHCOUNTER_T));
+
+          feedbackBoxSetTooltip(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, tmpStr.c_str());
+        }
+    }
+  else
+    {
+      feedbackBoxSetTooltip(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP);
     }
 }
 
@@ -5984,7 +6013,7 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
   /* Read depth at selected coord(s) */
   gtk_box_pack_start(box, gtk_label_new("  "), FALSE, FALSE, 0);
   
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_DEPTH, "Read depth at selected coord(s)", 
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_DEPTH, DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP, 
                          G_CALLBACK(onExposePrintable), NULL);
   
   return feedbackBox;

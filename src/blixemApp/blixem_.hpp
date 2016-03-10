@@ -386,6 +386,21 @@ typedef enum
   } DotterRefType;
 
 
+/* This enum gives access into the depthArray for the specific counter (i.e. per-base or all) */
+typedef enum 
+  {
+    DEPTHCOUNTER_NONE,
+
+    DEPTHCOUNTER_ALL,
+    DEPTHCOUNTER_A,
+    DEPTHCOUNTER_C,
+    DEPTHCOUNTER_G,
+    DEPTHCOUNTER_T,
+
+    DEPTHCOUNTER_NUM_ITEMS /*must be last*/
+} DepthCounter;
+
+
 /* Struct to hold all the settings that come from the command line options */
 typedef struct _CommandLineOptions
 {
@@ -501,7 +516,8 @@ typedef struct _BlxViewContext
     GSList *spawnedProcesses;                       /* List of processes spawned by Blixem */
     BlxModelId modelId;                             /* which tree model to use (i.e. normal or squashed) */
   
-    int *depthArray;                        /* this array holds the depth (num alignments) at each coord of the ref seq */
+    /* This array holds the depth (num alignments) at each coord of the ref seq for different types of counter */
+    int *depthArray[DEPTHCOUNTER_NUM_ITEMS];
     int minDepth;                           /* minimum value in the depthArray */
     int maxDepth;                           /* maximum value in the depthArray */
 
