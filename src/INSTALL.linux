@@ -33,11 +33,14 @@ To install in the default location (usually /usr/bin):
     make 
     make install 
 
-To install in a different location, or for help with dependencies, see the tips
-section.
+
+To install in a different location, or for help with dependencies or for more
+detailed instructions on configure see the tips below and also the INSTALL file
+in this directory.
 
 
 Tips
+----
 
 You may need to run make install using sudo if you do not have root privileges,
 i.e.:
