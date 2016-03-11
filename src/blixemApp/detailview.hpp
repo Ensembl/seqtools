@@ -100,8 +100,9 @@ typedef struct _DetailViewIndex
 
 
 /* Essential info required by the the detail view */
-typedef struct _DetailViewProperties
+class DetailViewProperties
 {
+public:
   GtkWidget *blxWindow;                /* The main blixem window that this view belongs to */
   GtkCellRenderer *renderer;           /* The cell renderer that renders the sequences */
   GtkAdjustment *adjustment;           /* The scroll adjustment control for the detail view */
@@ -141,7 +142,7 @@ typedef struct _DetailViewProperties
   GdkLineStyle exonBoundaryLineStylePartial; /* line style for exon boundaries (where the boundary is part-way through a codon) */
     
   GSList *spliceSites;           /* List of splice sites that can be found and highlighted by Blixem */
-} DetailViewProperties;
+};
 
 
 typedef struct _DrawBaseData

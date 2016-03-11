@@ -52,23 +52,24 @@
 #define BIG_PICTURE_GRID_NAME		"BigPictureGrid"
 
 
-typedef struct _GridProperties
-  {
-    GtkWidget *bigPicture;   /* The big picture that this grid belongs to */
+class GridProperties
+{
+public:
+  GtkWidget *bigPicture;   /* The big picture that this grid belongs to */
     
-    BlxStrand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */
+  BlxStrand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */
     
-    int mspLineHeight;	     /* The height of the msp lines */
+  int mspLineHeight;	     /* The height of the msp lines */
     
-    int gridYPadding;	     /* The y padding around the grid */
+  int gridYPadding;	     /* The y padding around the grid */
     
-    gulong exposeHandlerId;  /* The handler ID for the expose event */
-    gboolean ignoreSizeAlloc; /* Flag to indicate that we should ignore size allocation events */
+  gulong exposeHandlerId;  /* The handler ID for the expose event */
+  gboolean ignoreSizeAlloc; /* Flag to indicate that we should ignore size allocation events */
     
-    GdkRectangle gridRect;
-    GdkRectangle displayRect;
-    GdkRectangle highlightRect;
-  } GridProperties;
+  GdkRectangle gridRect;
+  GdkRectangle displayRect;
+  GdkRectangle highlightRect;
+};
 
 
 /* Public function declarations */

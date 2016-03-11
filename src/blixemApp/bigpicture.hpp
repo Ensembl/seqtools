@@ -51,52 +51,54 @@
 #include <blixemApp/blixem_.hpp>
 
 
-typedef struct _BigPictureProperties
-  {
-    GtkWidget *blxWindow;	/* The main blixem window that this grid belongs to */
-    GtkWidget *header;		/* The grid header */
-    GtkWidget *coverageView;    /* The depth-coverage view */
-    GtkWidget *fwdStrandGrid;	/* The grid that displays the forward ref seq strand */
-    GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
-    GtkWidget *fwdExonView;	/* The section showing the exons for the forward ref seq strand */
-    GtkWidget *revExonView;	/* The section showing the exons for the reverse ref seq strand */
+class BigPictureProperties
+{
+public:
+  GtkWidget *blxWindow;	/* The main blixem window that this grid belongs to */
+  GtkWidget *header;		/* The grid header */
+  GtkWidget *coverageView;    /* The depth-coverage view */
+  GtkWidget *fwdStrandGrid;	/* The grid that displays the forward ref seq strand */
+  GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
+  GtkWidget *fwdExonView;	/* The section showing the exons for the forward ref seq strand */
+  GtkWidget *revExonView;	/* The section showing the exons for the reverse ref seq strand */
     
-    GSList *roundValues;	/* List of "nice" values to round to, for the display values in the grid header */
-    int initialZoom;		/* Multiple to multiply the detail view display range by to get the initial big picture display range */
+  GSList *roundValues;	/* List of "nice" values to round to, for the display values in the grid header */
+  int initialZoom;		/* Multiple to multiply the detail view display range by to get the initial big picture display range */
     
-    IntRange displayRange;	/* The currently-displayed range in the big picture */
+  IntRange displayRange;	/* The currently-displayed range in the big picture */
     
-    int numHCells;		/* The number of cells in the grid horizontally */
-    int basesPerCell;		/* The number of bases show per horizontal cell */
-    int roundTo;		/* The number of bases to round grid lines to the nearest multiple of */
+  int numHCells;		/* The number of cells in the grid horizontally */
+  int basesPerCell;		/* The number of bases show per horizontal cell */
+  int roundTo;		/* The number of bases to round grid lines to the nearest multiple of */
 
-    int numVCells;		/* The number of cells in the grid vertically */
-    gdouble idPerCell;		/* The percent ID to show per vertical cell */
-    DoubleRange percentIdRange;	/* The max and min %ID values displayed */
+  int numVCells;		/* The number of cells in the grid vertically */
+  gdouble idPerCell;		/* The percent ID to show per vertical cell */
+  DoubleRange percentIdRange;	/* The max and min %ID values displayed */
 
-    gboolean displayPreviewBox; /* Whether to display the preview box */
-    int previewBoxCentre;	/* The base that the preview box is centered on */
-    int previewBoxOffset;       /* Can be used to offset the actual preview box position from previewBoxCentre */
+  gboolean displayPreviewBox; /* Whether to display the preview box */
+  int previewBoxCentre;	/* The base that the preview box is centered on */
+  int previewBoxOffset;       /* Can be used to offset the actual preview box position from previewBoxCentre */
 
-    int leftBorderChars;	/* The number of characters in the left border of the big picture grids */
-    gdouble charWidth;		/* The width of the characters in the big picture grids */
-    gdouble charHeight;		/* The height of the characters in the big picture grids */
+  int leftBorderChars;	/* The number of characters in the left border of the big picture grids */
+  gdouble charWidth;		/* The width of the characters in the big picture grids */
+  gdouble charHeight;		/* The height of the characters in the big picture grids */
     
-    int highlightBoxMinWidth;
-    int previewBoxLineWidth;
-    int highlightBoxYPad;       /* Vertical padding between the highlight box and the grid */
-  } BigPictureProperties;
+  int highlightBoxMinWidth;
+  int previewBoxLineWidth;
+  int highlightBoxYPad;       /* Vertical padding between the highlight box and the grid */
+};
 
-typedef struct _GridHeaderProperties
-  {
-    GtkWidget *bigPicture;  /* The big picture view that this header belongs to */
-    GtkWidget *refButton;   /* A reference button, so we can query properties like its height */
+class GridHeaderProperties
+{
+public:
+  GtkWidget *bigPicture;  /* The big picture view that this header belongs to */
+  GtkWidget *refButton;   /* A reference button, so we can query properties like its height */
     
-    GdkRectangle headerRect; /* The actual drawing area where we'll draw the labels */
-    int numHeaderLines;	    /* The number of lines of text in the header labels */
-    int markerHeight;	    /* The height of the marker lines between the grid and the header labels */
-    int headerYPad;	    /* Y padding around the header buttons */
-  } GridHeaderProperties;
+  GdkRectangle headerRect; /* The actual drawing area where we'll draw the labels */
+  int numHeaderLines;	    /* The number of lines of text in the header labels */
+  int markerHeight;	    /* The height of the marker lines between the grid and the header labels */
+  int headerYPad;	    /* Y padding around the header buttons */
+};
 
 
 /* Public function declarations */

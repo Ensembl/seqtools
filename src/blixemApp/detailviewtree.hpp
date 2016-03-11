@@ -74,17 +74,18 @@ typedef struct _TreeColumnHeaderInfo
 
 
 /* This struct holds info about a detail-view tree pane */
-typedef struct _TreeProperties 
-  {
-    GtkWidget *grid;		    /* The grid that this tree corresponds to */
-    GtkWidget *detailView;	    /* The detail view that this tree belongs to */
+class TreeProperties 
+{
+public:
+  GtkWidget *grid;		    /* The grid that this tree corresponds to */
+  GtkWidget *detailView;	    /* The detail view that this tree belongs to */
 
-    int readingFrame;		    /* Which reading frame this tree displays */
-    GList *treeColumnHeaderList;    /* List of info about the tree column headers */
-    gboolean hasSnpHeader;	    /* Whether a SNP track is shown above this tree */
+  int readingFrame;		    /* Which reading frame this tree displays */
+  GList *treeColumnHeaderList;    /* List of info about the tree column headers */
+  gboolean hasSnpHeader;	    /* Whether a SNP track is shown above this tree */
 
-    GtkTreeModel *treeModels[BLXMODEL_NUM_MODELS];  /* The tree data store(s) */
-  } TreeProperties;
+  GtkTreeModel *treeModels[BLXMODEL_NUM_MODELS];  /* The tree data store(s) */
+};
 
 
 /* Public function declarations */
