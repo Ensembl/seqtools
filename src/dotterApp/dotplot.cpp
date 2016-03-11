@@ -234,7 +234,8 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
                                                   const char *exportFileName)
 {
   DotplotProperties *properties = (DotplotProperties*)g_malloc(sizeof *properties);
-  
+
+  properties->widget = widget;
   properties->dotterWinCtx = dwc;
   properties->hozExons1 = NULL;
   properties->hozExons2 = NULL;

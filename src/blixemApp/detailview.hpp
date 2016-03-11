@@ -103,6 +103,7 @@ typedef struct _DetailViewIndex
 class DetailViewProperties
 {
 public:
+  GtkWidget *widget;                   /* The detail view widget */
   GtkWidget *blxWindow;                /* The main blixem window that this view belongs to */
   GtkCellRenderer *renderer;           /* The cell renderer that renders the sequences */
   GtkAdjustment *adjustment;           /* The scroll adjustment control for the detail view */

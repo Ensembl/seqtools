@@ -55,20 +55,22 @@ using namespace std;
 #define	DEFAULT_EXON_YPAD			 4
 #define	DEFAULT_EXON_YPAD_BUMPED		 4
 
-typedef struct _ExonViewProperties
-  {
-    GtkWidget *bigPicture;	      /* The big picture that this view belongs to */
-    BlxStrand currentStrand;	      /* Which strand of the ref seq this view displays exons for */
+class ExonViewProperties
+{
+public:
+  GtkWidget *widget;                  /* The exon view */
+  GtkWidget *bigPicture;	      /* The big picture that this view belongs to */
+  BlxStrand currentStrand;	      /* Which strand of the ref seq this view displays exons for */
     
-    gboolean expanded;		      /* Whether the exon view is expanded or compressed */
+  gboolean expanded;		      /* Whether the exon view is expanded or compressed */
     
-    int yPad;			      /* y padding */
+  int yPad;			      /* y padding */
     
-    GdkRectangle exonViewRect;	      /* The drawing area for the exon view */
-    GdkRectangle highlightRect;       /* The area that the highlight box will cover (indicating the current detail-view display range) */
+  GdkRectangle exonViewRect;	      /* The drawing area for the exon view */
+  GdkRectangle highlightRect;       /* The area that the highlight box will cover (indicating the current detail-view display range) */
     
-    int exonHeight;                   /* the height of an individual exon */ 
-  } ExonViewProperties;
+  int exonHeight;                   /* the height of an individual exon */ 
+};
 
 
 /* Utility struct to pass around data required for drawing exons */
@@ -697,6 +699,7 @@ static void exonViewCreateProperties(GtkWidget *exonView,
     {
       ExonViewProperties *properties = (ExonViewProperties*)g_malloc(sizeof *properties);
       
+      properties->widget              = exonView;
       properties->bigPicture	      = bigPicture;
       properties->currentStrand	      = currentStrand;
       

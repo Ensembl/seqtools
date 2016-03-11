@@ -82,19 +82,21 @@ typedef struct _CompareSeqData
 
 
 /* Properties specific to the blixem window */
-typedef struct _BlxWindowProperties
-  {
-    GtkWidget *bigPicture;          /* The top section of the view, showing a "big picture" overview of the alignments */
-    GtkWidget *detailView;          /* The bottom section of the view, showing a detailed list of the alignments */
-    GtkWidget *mainmenu;            /* The main menu */
-    GtkWidget *seqHeaderMenu;      /* The context menu for tree headers */
-    GtkActionGroup *actionGroup;    /* The action-group for the menus */
+class BlxWindowProperties
+{
+public:
+  GtkWidget *widget;
+  GtkWidget *bigPicture;          /* The top section of the view, showing a "big picture" overview of the alignments */
+  GtkWidget *detailView;          /* The bottom section of the view, showing a detailed list of the alignments */
+  GtkWidget *mainmenu;            /* The main menu */
+  GtkWidget *seqHeaderMenu;      /* The context menu for tree headers */
+  GtkActionGroup *actionGroup;    /* The action-group for the menus */
 
-    BlxViewContext *blxContext;       /* The blixem view context */
+  BlxViewContext *blxContext;       /* The blixem view context */
 
-    GtkPageSetup *pageSetup;          /* Page setup for printing */
-    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
-  } BlxWindowProperties;
+  GtkPageSetup *pageSetup;          /* Page setup for printing */
+  GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
+};
 
 
 /* Local function declarations */
@@ -6015,6 +6017,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
     {
       BlxWindowProperties *properties = (BlxWindowProperties*)g_malloc(sizeof *properties);
       
+      properties->widget = widget;
       properties->blxContext = blxContext;
 
       properties->bigPicture = bigPicture;

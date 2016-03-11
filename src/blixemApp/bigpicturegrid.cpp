@@ -782,7 +782,8 @@ static void gridCreateProperties(GtkWidget *widget,
        * Add a fudge factor to give more space to allow for the fact that 
        * the calculated char width is approximate and may not give enough space */
       GridProperties *properties = (GridProperties*)g_malloc(sizeof *properties);
-      
+
+      properties->widget = widget;
       properties->bigPicture = bigPicture;
       properties->strand = strand;
       

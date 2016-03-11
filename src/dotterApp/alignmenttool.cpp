@@ -81,8 +81,10 @@ NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
 typedef gboolean (*ExposeFunc)(GtkWidget *widget, GdkEventExpose *event, gpointer data);
 
 
-typedef struct _SequenceProperties
+class SequenceProperties
 {
+public:
+  GtkWidget *widget;
   const char *seqName;
   const char *sequence;
   BlxSeqType seqType;               /* whether this sequence is in nucleotide or peptide coords */
@@ -94,11 +96,13 @@ typedef struct _SequenceProperties
   gboolean scaleReversed;           /* whether the scale for this sequence is shown reversed (i.e. high-to-low rather than low-to-high) */
   GSList *compSeqs;                 /* list of other sequence widgets that this sequence will be compared against */
   gboolean horizontal;              /* true if this is the horizontal (ref) seq, false if it's the vertical (match) seq */
-} SequenceProperties;
+};
 
 
-typedef struct _AlignmentToolProperties
+class AlignmentToolProperties
 {
+public:
+  GtkWidget *widget;
   GtkWidget *alignmentWindow;      /* the toplevel window the greyrampTool will be in IF
                                     * undocked from the main window */
   int alignmentLen;                 /* the number of coords wide the alignment too displays */
@@ -114,7 +118,7 @@ typedef struct _AlignmentToolProperties
   DotterWindowContext *dotterWinCtx;
 
   gboolean spliceSitesOn;
-} AlignmentToolProperties;
+};
 
 
 
@@ -181,7 +185,8 @@ static void sequenceCreateProperties(GtkWidget *widget,
   if (widget)
     {
       SequenceProperties *properties = (SequenceProperties*)g_malloc(sizeof *properties);
-      
+
+      properties->widget = widget;
       properties->seqName = seqName;
       properties->sequence = sequence;
       properties->seqType = seqType;
@@ -228,6 +233,7 @@ static void alignmentToolCreateProperties(GtkWidget *widget,
     {
       AlignmentToolProperties *properties = (AlignmentToolProperties*)g_malloc(sizeof *properties);
     
+      properties->widget = widget;
       properties->alignmentWindow = alignmentWindow;
       properties->dotterWinCtx = dotterWinCtx;
       properties->alignmentLen = DEFAULT_ALIGNMENT_LENGTH;

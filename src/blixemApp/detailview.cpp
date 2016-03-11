@@ -102,10 +102,12 @@ typedef struct
 
 /* We need to store some info about the paned window for the SNP track so that we can cache and
  * reinstate the splitter position when the user toggles the display off and on again. */
-typedef struct _PanedWindowProperties
+class PanedWindowProperties
 {
+public:
+  GtkWidget *widget; /* the paned window */
   int splitterPos; /* -1 for unset. If >=0 then it is a cached position ready for re-instating */
-} PanedWindowProperties;
+};
 
 
 /* Utility struct to pass data to a recursive function */
@@ -4801,6 +4803,7 @@ static void panedWindowCreateProperties(GtkWidget *widget, const int splitterPos
     { 
       PanedWindowProperties *properties = (PanedWindowProperties*)g_malloc(sizeof *properties);
 
+      properties->widget = widget;
       properties->splitterPos = splitterPos;
       
       g_object_set_data(G_OBJECT(widget), "PanedWindowProperties", properties);

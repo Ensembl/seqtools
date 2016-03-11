@@ -1263,6 +1263,7 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
     { 
       BigPictureProperties *properties = (BigPictureProperties*)g_malloc(sizeof *properties);
       
+      properties->widget = bigPicture;
       properties->blxWindow = blxWindow;
       properties->header = header;
       properties->coverageView = coverageView;
@@ -1338,7 +1339,8 @@ static void gridHeaderCreateProperties(GtkWidget *gridHeader, GtkWidget *bigPict
   if (gridHeader)
     {
       GridHeaderProperties *properties =(GridHeaderProperties*)g_malloc(sizeof *properties);
-      
+
+      properties->widget = gridHeader;
       properties->bigPicture = bigPicture;
       properties->refButton = refButton;
       properties->numHeaderLines = DEFAULT_GRID_NUM_HEADER_LINES;

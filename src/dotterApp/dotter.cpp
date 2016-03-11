@@ -127,8 +127,10 @@ using namespace std;
 
 
 /* Struct containing properties for a dotter window */
-typedef struct _DotterProperties
+class DotterProperties
 {
+public:
+  GtkWidget *widget;
   GtkWidget *greyrampTool;                  /* the greyramp tool */
   GtkWidget *greyrampWindow;                /* the window containing the greyramp too when undocked */
   GtkWidget *greyrampContainer;             /* the container containing the greyramp tool when docked */
@@ -141,7 +143,7 @@ typedef struct _DotterProperties
   gboolean windowsDocked;                   /* if true, all tools are docked into a single window */
   DotterWindowContext *dotterWinCtx;
   const char *exportFileName;
-} DotterProperties;
+};
 
 
 /* Local function declarations */
@@ -1008,6 +1010,7 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
     {
       DotterProperties *properties = (DotterProperties*)g_malloc(sizeof *properties);
 
+      properties->widget = dotterWindow;
       properties->greyrampTool = greyrampTool;
       properties->greyrampWindow = greyrampWindow;
       properties->greyrampContainer = greyrampContainer;

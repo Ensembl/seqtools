@@ -1032,7 +1032,8 @@ static void treeCreateProperties(GtkWidget *widget,
   if (widget)
     { 
       TreeProperties *properties = (TreeProperties*)g_malloc(sizeof *properties);
-      
+
+      properties->widget = widget;
       properties->grid = grid;
       properties->detailView = detailView;
       properties->readingFrame = frame;

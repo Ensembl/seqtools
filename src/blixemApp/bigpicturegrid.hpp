@@ -55,6 +55,7 @@
 class GridProperties
 {
 public:
+  GtkWidget *widget;       /* The grid widget */
   GtkWidget *bigPicture;   /* The big picture that this grid belongs to */
     
   BlxStrand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */

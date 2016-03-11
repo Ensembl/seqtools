@@ -54,22 +54,23 @@
 class BigPictureProperties
 {
 public:
-  GtkWidget *blxWindow;	/* The main blixem window that this grid belongs to */
+  GtkWidget *widget;            /* The big picture widget*/
+  GtkWidget *blxWindow;         /* The main blixem window that this grid belongs to */
   GtkWidget *header;		/* The grid header */
-  GtkWidget *coverageView;    /* The depth-coverage view */
+  GtkWidget *coverageView;      /* The depth-coverage view */
   GtkWidget *fwdStrandGrid;	/* The grid that displays the forward ref seq strand */
   GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
   GtkWidget *fwdExonView;	/* The section showing the exons for the forward ref seq strand */
   GtkWidget *revExonView;	/* The section showing the exons for the reverse ref seq strand */
     
-  GSList *roundValues;	/* List of "nice" values to round to, for the display values in the grid header */
+  GSList *roundValues;	        /* List of "nice" values to round to, for the display values in the grid header */
   int initialZoom;		/* Multiple to multiply the detail view display range by to get the initial big picture display range */
     
   IntRange displayRange;	/* The currently-displayed range in the big picture */
     
   int numHCells;		/* The number of cells in the grid horizontally */
   int basesPerCell;		/* The number of bases show per horizontal cell */
-  int roundTo;		/* The number of bases to round grid lines to the nearest multiple of */
+  int roundTo;	           	/* The number of bases to round grid lines to the nearest multiple of */
 
   int numVCells;		/* The number of cells in the grid vertically */
   gdouble idPerCell;		/* The percent ID to show per vertical cell */
@@ -91,6 +92,7 @@ public:
 class GridHeaderProperties
 {
 public:
+  GtkWidget *widget;      /* The grid header widget */
   GtkWidget *bigPicture;  /* The big picture view that this header belongs to */
   GtkWidget *refButton;   /* A reference button, so we can query properties like its height */
     

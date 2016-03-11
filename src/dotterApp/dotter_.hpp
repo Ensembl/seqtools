@@ -227,6 +227,7 @@ typedef struct _DotterWindowContext
 class DotplotScaleProperties
 {
 public:
+  GtkWidget *widget;                  /* The dotplot scale widget */
   int basesPerMark;                   /* how many bases per major tickmark */
   int basesPerSubmark;                /* how many bases per minor tickmark */
   int numMarks;                       /* how many major tickmarks there are */
@@ -242,6 +243,7 @@ public:
 class DotplotProperties
 {
 public:
+  GtkWidget *widget;                  /* The dotplot widget */
   DotterWindowContext *dotterWinCtx;  /* pointer to the dotter context for the window that this tool belongs to */
   GdkRectangle plotRect;              /* the space where the dot plot will be */
   GtkWidget *hozExons1;               /* shows main strand exons for horizontal sequence */

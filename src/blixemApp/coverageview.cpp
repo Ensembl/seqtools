@@ -50,18 +50,20 @@
 #define COVERAGE_VIEW_NAME                      "CoverageView"
 
 
-typedef struct _CoverageViewProperties
-  {
-    GtkWidget *blxWindow;   /* The main blixem window */
+class CoverageViewProperties
+{
+public:
+  GtkWidget *widget;      /* The coverage view */
+  GtkWidget *blxWindow;   /* The main blixem window */
 
-    int viewYPadding;	     /* The y padding around the view rect */
-    double numVCells;	     /* The number of cells to show vertically */
-    gdouble rangePerCell;    /* The range of depth values shown per grid cell on the plot */
+  int viewYPadding;	     /* The y padding around the view rect */
+  double numVCells;	     /* The number of cells to show vertically */
+  gdouble rangePerCell;    /* The range of depth values shown per grid cell on the plot */
     
-    GdkRectangle viewRect;   /* The rectangle we draw in */
-    GdkRectangle displayRect; /* The total display area */
-    GdkRectangle highlightRect; /* The area that is highlighted (which indicates the detail-view range) */
-  } CoverageViewProperties;
+  GdkRectangle viewRect;   /* The rectangle we draw in */
+  GdkRectangle displayRect; /* The total display area */
+  GdkRectangle highlightRect; /* The area that is highlighted (which indicates the detail-view range) */
+};
 
 
 
@@ -100,7 +102,8 @@ static void coverageViewCreateProperties(GtkWidget *widget,
   if (widget)
     { 
       CoverageViewProperties *properties = (CoverageViewProperties*)g_malloc(sizeof *properties);
-      
+
+      properties->widget = widget;
       properties->blxWindow = blxWindow;
       properties->viewYPadding = DEFAULT_COVERAGE_VIEW_Y_PADDING;
       properties->numVCells = DEFAULT_NUM_V_CELLS;
