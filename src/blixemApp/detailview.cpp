@@ -1228,19 +1228,19 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
           /* Always show ACGT, even if 0, for consistency. We could change this however we like,
            * e.g. it might be good to show them in descending order */
           tmpStr +=
-            "\nA: " + to_string(depth_a) + "\nC: " + to_string(depth_c) +
-            "\nG: " + to_string(depth_g) + "\nT: " + to_string(depth_t);
+            "\nA: " + to_string((long long int)depth_a) + "\nC: " + to_string((long long int)depth_c) +
+            "\nG: " + to_string((long long int)depth_g) + "\nT: " + to_string((long long int)depth_t);
 
           /* Only show N, Gaps and Unknown if they are non-zero because most of the time they're
            * not relevant */
           if (depth_n > 0)
-            tmpStr += "\nN: " + to_string(depth_n);
+            tmpStr += "\nN: " + to_string((long long int)depth_n);
 
           if (depth_gaps > 0)
-            tmpStr += "\nGaps: " + to_string(depth_gaps);
+            tmpStr += "\nGaps: " + to_string((long long int)depth_gaps);
 
           if (total_bases < depth)
-            tmpStr += "\nUnknown: " + to_string(depth - total_bases);
+            tmpStr += "\nUnknown: " + to_string((long long int)(depth - total_bases));
 
           feedbackBoxSetTooltip(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, tmpStr.c_str());
         }
