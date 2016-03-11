@@ -392,16 +392,20 @@ typedef enum
     DEPTHCOUNTER_NONE,
 
     DEPTHCOUNTER_ALL_F, // all reads at this coord on + strand
+    DEPTHCOUNTER_GAP_F, // all reads at this coord on + strand
     DEPTHCOUNTER_A_F,   // all reads with 'a' at this coord on forward strand
     DEPTHCOUNTER_C_F,   // all reads with 'c' at this coord on forward strand
     DEPTHCOUNTER_G_F,   // all reads with 'g' at this coord on forward strand
-    DEPTHCOUNTER_T_F,   // all reads with 't' at this coord on forward strand
+    DEPTHCOUNTER_T_F,   // all reads with 't' or 'u' at this coord on forward strand
+    DEPTHCOUNTER_N_F,   // all reads with 'n' at this coord on forward strand
 
     DEPTHCOUNTER_ALL_R, // all reads at this coord on - strand
+    DEPTHCOUNTER_GAP_R, // all reads at this coord on - strand
     DEPTHCOUNTER_A_R,   // all reads with 'a' at this coord on reverse strand
     DEPTHCOUNTER_C_R,   // all reads with 'c' at this coord on reverse strand
     DEPTHCOUNTER_G_R,   // all reads with 'g' at this coord on reverse strand
-    DEPTHCOUNTER_T_R,   // all reads with 't' at this coord on reverse strand
+    DEPTHCOUNTER_T_R,   // all reads with 't' or 'u' at this coord on reverse strand
+    DEPTHCOUNTER_N_R,   // all reads with 'n' at this coord on reverse strand
 
     DEPTHCOUNTER_NUM_ITEMS /*must be last*/
 } DepthCounter;

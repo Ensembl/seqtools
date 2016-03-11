@@ -5630,6 +5630,8 @@ static DepthCounter getDepthCounterForChar(const char c, const BlxStrand strand)
       else
         result = DEPTHCOUNTER_G_F; 
       break;
+    case 'u':  //fall through
+    case 'U':   //fall through
     case 't':  //fall through
     case 'T': 
       if (strand == BLXSTRAND_REVERSE)
@@ -5637,7 +5639,21 @@ static DepthCounter getDepthCounterForChar(const char c, const BlxStrand strand)
       else
         result = DEPTHCOUNTER_T_F; 
       break;
-    default: break;
+    case 'n':  //fall through
+    case 'N': 
+      if (strand == BLXSTRAND_REVERSE)
+        result = DEPTHCOUNTER_N_R; 
+      else
+        result = DEPTHCOUNTER_N_F; 
+      break;
+    case '.': // indicates a gap
+      if (strand == BLXSTRAND_REVERSE)
+        result = DEPTHCOUNTER_GAP_R; 
+      else
+        result = DEPTHCOUNTER_GAP_F; 
+      break;
+    default:
+      break;
     }
 
   return result;
@@ -5655,32 +5671,40 @@ static void calculateDepth(BlxViewContext *bc, const int numUnalignedBases)
     return; 
   
   bc->depthArray[DEPTHCOUNTER_ALL_F] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_GAP_F] = (int*)g_malloc0(sizeof(int) * displayLen);
   bc->depthArray[DEPTHCOUNTER_A_F] = (int*)g_malloc0(sizeof(int) * displayLen);
   bc->depthArray[DEPTHCOUNTER_C_F] = (int*)g_malloc0(sizeof(int) * displayLen);
   bc->depthArray[DEPTHCOUNTER_G_F] = (int*)g_malloc0(sizeof(int) * displayLen);
   bc->depthArray[DEPTHCOUNTER_T_F] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_N_F] = (int*)g_malloc0(sizeof(int) * displayLen);
   
   bc->depthArray[DEPTHCOUNTER_ALL_R] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_GAP_R] = (int*)g_malloc0(sizeof(int) * displayLen);
   bc->depthArray[DEPTHCOUNTER_A_R] = (int*)g_malloc0(sizeof(int) * displayLen);
   bc->depthArray[DEPTHCOUNTER_C_R] = (int*)g_malloc0(sizeof(int) * displayLen);
   bc->depthArray[DEPTHCOUNTER_G_R] = (int*)g_malloc0(sizeof(int) * displayLen);
   bc->depthArray[DEPTHCOUNTER_T_R] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_N_R] = (int*)g_malloc0(sizeof(int) * displayLen);
   
   /* Initialise each entry to zero */  
   int i = 0;
   for ( ; i < displayLen; ++i)
     {
       bc->depthArray[DEPTHCOUNTER_ALL_F][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_GAP_F][i] = 0;
       bc->depthArray[DEPTHCOUNTER_A_F][i] = 0;
       bc->depthArray[DEPTHCOUNTER_C_F][i] = 0;
       bc->depthArray[DEPTHCOUNTER_G_F][i] = 0;
       bc->depthArray[DEPTHCOUNTER_T_F][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_N_F][i] = 0;
 
       bc->depthArray[DEPTHCOUNTER_ALL_R][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_GAP_R][i] = 0;
       bc->depthArray[DEPTHCOUNTER_A_R][i] = 0;
       bc->depthArray[DEPTHCOUNTER_C_R][i] = 0;
       bc->depthArray[DEPTHCOUNTER_G_R][i] = 0;
       bc->depthArray[DEPTHCOUNTER_T_R][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_N_R][i] = 0;
     }
   
   /* Loop through all MSP lists */
@@ -5719,16 +5743,29 @@ static void calculateDepth(BlxViewContext *bc, const int numUnalignedBases)
                   else
                     bc->depthArray[DEPTHCOUNTER_ALL_F][displayIdx] += 1;
 
-                  /* Increment the relevant per-base counter */
+                  /* Find the match sequence base at this coord */
                   int sIdx = 0;
                   const char *seq = mspGetMatchSeq(msp);
 
-                  if (seq && mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
+                  if (mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
                     {
-                      DepthCounter counter = getDepthCounterForChar(seq[sIdx - 1], msp->qStrand); // sIdx is 1-based
+                      /* Check we have the sequence. If not then don't do anything (this will
+                       * show up as "unknown" in the read depth display) */
+                      if (seq)
+                        {
+                          DepthCounter counter = getDepthCounterForChar(seq[sIdx - 1], msp->qStrand); // sIdx is 1-based
 
-                      if (counter != DEPTHCOUNTER_NONE)
-                        bc->depthArray[counter][displayIdx] += 1;
+                          if (counter != DEPTHCOUNTER_NONE)
+                            bc->depthArray[counter][displayIdx] += 1;
+                        }
+                    }
+                  else
+                    {
+                      /* No base here so it must be a gap in the match sequence */
+                      if (msp->qStrand == BLXSTRAND_REVERSE)
+                        bc->depthArray[DEPTHCOUNTER_GAP_R][displayIdx] += 1;
+                      else
+                        bc->depthArray[DEPTHCOUNTER_GAP_F][displayIdx] += 1;
                     }
                 }
             }

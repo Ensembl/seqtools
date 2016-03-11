@@ -1215,12 +1215,32 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
           /* Show the specific base support of the reads at this coord, i.e. how many a's, t's, g's
            * and c's. Show this in the tooltip for now to avoid clutter (we could perhaps add this to
            * the main box but only show the box if coverage is enabled, or have its own option). */
-          string tmpStr("");
-          tmpStr += DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP;
-          tmpStr += "\nA: " + to_string(blxContextGetDepth(bc, coord, "a", strand));
-          tmpStr += "\nC: " + to_string(blxContextGetDepth(bc, coord, "c", strand));
-          tmpStr += "\nG: " + to_string(blxContextGetDepth(bc, coord, "g", strand));
-          tmpStr += "\nT: " + to_string(blxContextGetDepth(bc, coord, "t", strand));
+          const int depth_a = blxContextGetDepth(bc, coord, "a", strand);
+          const int depth_c = blxContextGetDepth(bc, coord, "c", strand);
+          const int depth_g = blxContextGetDepth(bc, coord, "g", strand);
+          const int depth_t = blxContextGetDepth(bc, coord, "t", strand);
+          const int depth_n = blxContextGetDepth(bc, coord, "n", strand);
+          const int depth_gaps = blxContextGetDepth(bc, coord, ".", strand);
+          const int total_bases = depth_a + depth_c + depth_g + depth_t + depth_n + depth_gaps;
+
+          string tmpStr(DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP);
+
+          /* Always show ACGT, even if 0, for consistency. We could change this however we like,
+           * e.g. it might be good to show them in descending order */
+          tmpStr +=
+            "\nA: " + to_string(depth_a) + "\nC: " + to_string(depth_c) +
+            "\nG: " + to_string(depth_g) + "\nT: " + to_string(depth_t);
+
+          /* Only show N, Gaps and Unknown if they are non-zero because most of the time they're
+           * not relevant */
+          if (depth_n > 0)
+            tmpStr += "\nN: " + to_string(depth_n);
+
+          if (depth_gaps > 0)
+            tmpStr += "\nGaps: " + to_string(depth_gaps);
+
+          if (total_bases < depth)
+            tmpStr += "\nUnknown: " + to_string(depth - total_bases);
 
           feedbackBoxSetTooltip(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, tmpStr.c_str());
         }
