@@ -468,7 +468,7 @@ void gridPrepareForPrinting(GtkWidget *grid)
 void calculateGridHighlightBoxBorders(GtkWidget *grid)
 {
   GridProperties *properties = gridGetProperties(grid);
-  calculateHighlightBoxBorders(&properties->gridRect, &properties->highlightRect, properties->bigPicture, properties->mspLineHeight);
+  bigPictureCalculateHighlightBoxBorders(&properties->gridRect, &properties->highlightRect, properties->bigPicture, properties->mspLineHeight);
 }
 
 

@@ -794,6 +794,36 @@ static void loadNonNativeFile(const char *filename,
 }
 
 
+/* Utility to call the updateDepth functions for any coverage views we have */
+static void updateCoverageDepth(GtkWidget *blxWindow)
+{
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+
+  if (properties)
+    {
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+
+      if (bpProperties && bpProperties->coverageViewProperties())
+        bpProperties->coverageViewProperties()->updateDepth();
+    }
+}
+
+
+/* Utility to hide any coverage views we have */
+static void coverageSetHidden(GtkWidget *blxWindow, const bool hide)
+{
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+
+  if (properties)
+    {
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+
+      if (bpProperties && bpProperties->coverageViewProperties())
+        widgetSetHidden(bpProperties->coverageViewProperties()->widget(), hide);
+    }
+}
+
+
 /* Dynamically load in additional features from a file. (should be called after
  * blixem's GUI has already started up, rather than during start-up where normal
  * feature-loading happens) */
@@ -878,7 +908,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
 
       /* Recalculate the coverage */
       calculateDepth(bc, numUnalignedBases);
-      updateCoverageDepth(blxWindowGetCoverageView(blxWindow), bc);
+      updateCoverageDepth(blxWindow);
   
       /* Re-calculate the height of the exon views */
       GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
@@ -1216,7 +1246,7 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
     }
   
   /* Coverage view */
-  GtkWidget *coverageView = bigPictureGetCoverageView(bp);
+  GtkWidget *coverageView = blxWindowGetCoverageView(blxWindow);
   GtkWidget *coverageVbox = createVBoxWithBorder(contentArea, borderWidth, TRUE, "Coverage view");
   createVisibilityButton(coverageView, "Show _coverage view", coverageVbox);
 
@@ -3346,10 +3376,10 @@ static gboolean onMinPercentIdChanged(GtkWidget *widget, const gint responseId, 
 /* Callback to be called when the user has changed the depth-per-cell on the coverage view */
 static gboolean onDepthPerCellChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
-  GtkWidget *coverageView = GTK_WIDGET(data);  
+  CoverageViewProperties *coverageViewP = (CoverageViewProperties*)data;  
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
   const gdouble newValue = g_strtod(text, NULL);
-  return coverageViewSetDepthPerCell(coverageView, newValue);
+  return coverageViewP->setDepthPerCell(newValue);
 }
 
 
@@ -3441,9 +3471,9 @@ static void createCoverageSettingsButtons(GtkWidget *parent, GtkWidget *bigPictu
   
   /* Arrange the widgets horizontally */
   GtkWidget *hbox = createHBoxWithBorder(frame, 12, FALSE, NULL);
-  const double rangePerCell = coverageViewGetDepthPerCell(properties->coverageView);
+  const double rangePerCell = properties->coverageViewProperties()->depthPerCell();
   
-  createTextEntry(hbox, "Depth per cell", rangePerCell, onDepthPerCellChanged, properties->coverageView);
+  createTextEntry(hbox, "Depth per cell", rangePerCell, onDepthPerCellChanged, properties->coverageViewProperties());
 }
 
 
@@ -6059,8 +6089,18 @@ GtkWidget* blxWindowGetDetailView(GtkWidget *blxWindow)
 
 GtkWidget* blxWindowGetCoverageView(GtkWidget *blxWindow)
 {
+  GtkWidget *coverageView = NULL;
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? bigPictureGetCoverageView(properties->bigPicture) : NULL;
+
+  if (properties && properties->bigPicture)
+    {
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      
+      if (bpProperties)
+        coverageView = bpProperties->coverageView();
+    }
+
+  return coverageView;
 }
 
 GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
@@ -7445,12 +7485,10 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Create the two main sections - the big picture and detail view - in a paned window */
   GtkWidget *panedWin = gtk_vpaned_new();
   gtk_box_pack_start(GTK_BOX(vbox), panedWin, TRUE, TRUE, 0);
-
-  GtkWidget *coverageView = createCoverageView(window, blxContext);
   
   GtkWidget *bigPicture = createBigPicture(window,
+                                           blxContext,
                                            GTK_CONTAINER(panedWin),
-                                           coverageView,
                                            &fwdStrandGrid, 
                                            &revStrandGrid,
                                            &options->bigPictRange,
@@ -7475,10 +7513,6 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 					   options->initSortColumn,
                                            options->optionalColumns,
                                            options->windowColor);
-
-  
-  /* Add the coverage view underneath the main panes */
-  gtk_box_pack_start(GTK_BOX(vbox), coverageView, FALSE, FALSE, DEFAULT_COVERAGE_VIEW_BORDER);
 
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
@@ -7518,7 +7552,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
   cacheMspDisplayRanges(blxContext, numUnalignedBases);
   calculateDepth(blxContext, numUnalignedBases);
-  updateCoverageDepth(coverageView, blxContext);
+  updateCoverageDepth(window);
   
   /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);
@@ -7538,7 +7572,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 
   /* Hide the coverage view by default (unless told to display it) */
   if (!options->coverageOn)
-    widgetSetHidden(coverageView, TRUE);
+    coverageSetHidden(window, TRUE);
   
   /* The trees use the normal model by default, so if we're starting in 
    * 'squash matches' mode we need to change the model */

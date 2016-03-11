@@ -51,13 +51,33 @@
 #include <blixemApp/blixem_.hpp>
 
 
+class CoverageViewProperties;
+
+
 class BigPictureProperties
 {
 public:
+  BigPictureProperties(GtkWidget *bigPicture_in, 
+                       GtkWidget *blxWindow_in, 
+                       CoverageViewProperties *coverageViewP_in, 
+                       GtkWidget *header_in, 
+                       GtkWidget *fwdStrandGrid_in,
+                       GtkWidget *revStrandGrid_in,
+                       GtkWidget *fwdExonView_in,
+                       GtkWidget *revExonView_in,
+                       int previewBoxCentre_in,
+                       const IntRange* const initRange_in,
+                       const IntRange* const fullRange_in,
+                       const int initialZoom_in,
+                       const gdouble lowestId_in);
+
+  GtkWidget* coverageView();
+  CoverageViewProperties *coverageViewProperties();
+  void setCoverageView(CoverageViewProperties *coverageViewP);
+
   GtkWidget *widget;            /* The big picture widget*/
   GtkWidget *blxWindow;         /* The main blixem window that this grid belongs to */
   GtkWidget *header;		/* The grid header */
-  GtkWidget *coverageView;      /* The depth-coverage view */
   GtkWidget *fwdStrandGrid;	/* The grid that displays the forward ref seq strand */
   GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
   GtkWidget *fwdExonView;	/* The section showing the exons for the forward ref seq strand */
@@ -87,6 +107,9 @@ public:
   int highlightBoxMinWidth;
   int previewBoxLineWidth;
   int highlightBoxYPad;       /* Vertical padding between the highlight box and the grid */
+
+private:
+  CoverageViewProperties *coverageViewP;
 };
 
 class GridHeaderProperties
@@ -117,7 +140,6 @@ GtkWidget*		      bigPictureGetActiveGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetInactiveGrid(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetFwdExonView(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetRevExonView(GtkWidget *bigPicture);
-GtkWidget*		      bigPictureGetCoverageView(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetActiveExonView(GtkWidget *bigPicture);
 GtkWidget*		      bigPictureGetInactiveExonView(GtkWidget *bigPicture);
 gboolean		      bigPictureGetDisplayRev(GtkWidget *bigPicture);
@@ -160,8 +182,8 @@ void			      drawHorizontalGridLines(GtkWidget *widget, GtkWidget *bigPicture,
 						      const gint numCells, const gdouble rangePerCell, 
 						      const gdouble maxVal, const gboolean abbrev, const char *unit);
 
-void			      calculateHighlightBoxBorders(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
-							   GtkWidget *bigPicture, const int yPadding);
+void			      bigPictureCalculateHighlightBoxBorders(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
+                                                                     GtkWidget *bigPicture, const int yPadding);
 
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
 void			      zoomWholeBigPicture(GtkWidget *bigPicture);
@@ -177,8 +199,8 @@ int			      getRightCoordFromCentre(const int centreCoord,
 void			      refreshGridOrder(GtkWidget *bigPicture);
 
 GtkWidget*		      createBigPicture(GtkWidget *blxWindow,
+                                               BlxViewContext *bc,
 					       GtkContainer *parent,
-					       GtkWidget *coverageView,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid,
                                                const IntRange* const initRange,
