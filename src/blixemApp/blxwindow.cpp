@@ -5603,7 +5603,7 @@ static gboolean includeTypeInCoverage(BlxMspType mspType)
 
 
 /* Utility to get the depth-counter enum from the given character */
-static DepthCounter getDepthCounterForChar(const char c)
+static DepthCounter getDepthCounterForChar(const char c, const BlxStrand strand)
 {
   DepthCounter result = DEPTHCOUNTER_NONE;
 
@@ -5611,19 +5611,31 @@ static DepthCounter getDepthCounterForChar(const char c)
     {
     case 'a': //fall through
     case 'A': 
-      result = DEPTHCOUNTER_A;
+      if (strand == BLXSTRAND_REVERSE)
+        result = DEPTHCOUNTER_A_R;
+      else
+        result = DEPTHCOUNTER_A_F;
       break;
     case 'c': //fall through 
     case 'C': 
-      result = DEPTHCOUNTER_C; 
+      if (strand == BLXSTRAND_REVERSE)
+        result = DEPTHCOUNTER_C_R;
+      else
+        result = DEPTHCOUNTER_C_F;
       break;
     case 'g':  //fall through
     case 'G': 
-      result = DEPTHCOUNTER_G; 
+      if (strand == BLXSTRAND_REVERSE)
+        result = DEPTHCOUNTER_G_R; 
+      else
+        result = DEPTHCOUNTER_G_F; 
       break;
     case 't':  //fall through
     case 'T': 
-      result = DEPTHCOUNTER_T; 
+      if (strand == BLXSTRAND_REVERSE)
+        result = DEPTHCOUNTER_T_R; 
+      else
+        result = DEPTHCOUNTER_T_F; 
       break;
     default: break;
     }
@@ -5642,21 +5654,33 @@ static void calculateDepth(BlxViewContext *bc, const int numUnalignedBases)
   if (displayLen < 1)
     return; 
   
-  bc->depthArray[DEPTHCOUNTER_ALL] = (int*)g_malloc(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_A] = (int*)g_malloc(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_C] = (int*)g_malloc(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_G] = (int*)g_malloc(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_T] = (int*)g_malloc(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_ALL_F] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_A_F] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_C_F] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_G_F] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_T_F] = (int*)g_malloc0(sizeof(int) * displayLen);
+  
+  bc->depthArray[DEPTHCOUNTER_ALL_R] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_A_R] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_C_R] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_G_R] = (int*)g_malloc0(sizeof(int) * displayLen);
+  bc->depthArray[DEPTHCOUNTER_T_R] = (int*)g_malloc0(sizeof(int) * displayLen);
   
   /* Initialise each entry to zero */  
   int i = 0;
   for ( ; i < displayLen; ++i)
     {
-      bc->depthArray[DEPTHCOUNTER_ALL][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_A][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_C][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_G][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_T][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_ALL_F][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_A_F][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_C_F][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_G_F][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_T_F][i] = 0;
+
+      bc->depthArray[DEPTHCOUNTER_ALL_R][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_A_R][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_C_R][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_G_R][i] = 0;
+      bc->depthArray[DEPTHCOUNTER_T_R][i] = 0;
     }
   
   /* Loop through all MSP lists */
@@ -5690,15 +5714,18 @@ static void calculateDepth(BlxViewContext *bc, const int numUnalignedBases)
               if (displayIdx >= 0 && displayIdx < fullDisplayLen)
                 {
                   /* Increment the main counter */
-                  bc->depthArray[DEPTHCOUNTER_ALL][displayIdx] += 1;
+                  if (msp->qStrand == BLXSTRAND_REVERSE)
+                    bc->depthArray[DEPTHCOUNTER_ALL_R][displayIdx] += 1;
+                  else
+                    bc->depthArray[DEPTHCOUNTER_ALL_F][displayIdx] += 1;
 
-                  /* Incrememnt the relevant per-base counter */
+                  /* Increment the relevant per-base counter */
                   int sIdx = 0;
                   const char *seq = mspGetMatchSeq(msp);
 
                   if (seq && mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
                     {
-                      DepthCounter counter = getDepthCounterForChar(seq[sIdx - 1]); // sIdx is 1-based
+                      DepthCounter counter = getDepthCounterForChar(seq[sIdx - 1], msp->qStrand); // sIdx is 1-based
 
                       if (counter != DEPTHCOUNTER_NONE)
                         bc->depthArray[counter][displayIdx] += 1;
@@ -5708,24 +5735,26 @@ static void calculateDepth(BlxViewContext *bc, const int numUnalignedBases)
         }
     } 
   
-  /* Find the max and min depth */
-  bc->minDepth = bc->depthArray[DEPTHCOUNTER_ALL][0];
-  bc->maxDepth = bc->depthArray[DEPTHCOUNTER_ALL][0];
+  /* Find the max and min depth (total depth over both strands) */
+  bc->minDepth = bc->depthArray[DEPTHCOUNTER_ALL_F][0] + bc->depthArray[DEPTHCOUNTER_ALL_R][0];
+  bc->maxDepth = bc->minDepth;
   
   for (i = 1 ; i < displayLen; ++i)
     {
-      if (bc->depthArray[DEPTHCOUNTER_ALL][i] < bc->minDepth)
-        bc->minDepth = bc->depthArray[DEPTHCOUNTER_ALL][i];
+      const int cur_depth = bc->depthArray[DEPTHCOUNTER_ALL_F][i] + bc->depthArray[DEPTHCOUNTER_ALL_R][i];
+
+      if (cur_depth < bc->minDepth)
+        bc->minDepth = cur_depth;
       
-      if (bc->depthArray[DEPTHCOUNTER_ALL][i] > bc->maxDepth)
-        bc->maxDepth = bc->depthArray[DEPTHCOUNTER_ALL][i];
+      if (cur_depth > bc->maxDepth)
+        bc->maxDepth = cur_depth;
     }  
 }
 
 
 /* Calculate the total depth of coverage of short-reads for the given range of ref seq coords.
  * depthArray must be the same length as displayRange. */
-int blxContextCalculateTotalDepth(BlxViewContext *bc, const IntRange *range)
+int blxContextCalculateTotalDepth(BlxViewContext *bc, const IntRange *range, const BlxStrand strand)
 {
   int depth = 0;
 
@@ -5742,8 +5771,10 @@ int blxContextCalculateTotalDepth(BlxViewContext *bc, const IntRange *range)
       int i = 0;
       for (const MSP *msp = mspArrayIdx(mspArray, i); msp; msp = mspArrayIdx(mspArray, ++i))
         {
-          /* If the alignment is in our range, increment the depth */
-          if (rangesOverlap(range, &msp->displayRange))
+          /* If the alignment is in our range, increment the depth. Only include msps on the
+           * given strand (or both strands if given strand is "none") */
+          if ((strand == BLXSTRAND_NONE || msp->qStrand == strand) &&
+              rangesOverlap(range, &msp->displayRange))
             ++depth;
         }
     } 
@@ -6130,17 +6161,90 @@ BlxColumnInfo *getColumnInfo(GList *columnList, const BlxColumnId columnId)
   return result;
 }
 
-/* Return the read depth at the given display coord */
-int blxContextGetDepth(BlxViewContext *bc, const int coord, const DepthCounter counter)
+
+BlxStrand blxContextGetActiveStrand(BlxViewContext *bc)
 {
-  int result = UNSET_INT;
+  BlxStrand result = BLXSTRAND_NONE;
+
+  if (bc)
+    result = bc->displayRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
+  
+  return result;
+}
+
+
+/* Utility to get the value from the depth array at the given coord for the given
+ * counter. Validates the coord and counter are valid. The coord should be in display coords. */
+static int getDepth(BlxViewContext *bc, const int coord, const DepthCounter counter)
+{
+  int result = 0;
+
   g_return_val_if_fail(bc && 
-                       bc->depthArray[counter] && 
+                       valueWithinRange(coord, &bc->fullDisplayRange) &&
+                       counter > DEPTHCOUNTER_NONE &&
+                       counter < DEPTHCOUNTER_NUM_ITEMS &&
+                       bc->depthArray[counter] != NULL,
+                       result);
+
+  int idx = invertCoord(coord, &bc->fullDisplayRange, bc->displayRev); // invert if display reversed
+  idx -= bc->fullDisplayRange.min; // make 0-based
+
+  result = bc->depthArray[counter][idx];
+
+  return result;
+}
+
+
+/* Return the read depth at the given display coord */
+int blxContextGetDepth(BlxViewContext *bc, 
+                       const int coord, 
+                       const char *base_char,
+                       const BlxStrand strand)
+{
+  int result = 0;
+  g_return_val_if_fail(bc && 
                        coord >= bc->fullDisplayRange.min &&
                        coord <= bc->fullDisplayRange.max, 
                        result);
 
-  result = bc->depthArray[counter][coord - bc->fullDisplayRange.min];
+  if (base_char && strand == BLXSTRAND_NONE)
+    {
+      /* Get the depth for the specific base for both strands */
+      DepthCounter counter_f = getDepthCounterForChar(*base_char, BLXSTRAND_FORWARD);
+      DepthCounter counter_r = getDepthCounterForChar(*base_char, BLXSTRAND_REVERSE);
+      
+      result = 
+        getDepth(bc, coord, counter_f) +
+        getDepth(bc, coord, counter_r);
+    }
+  else if (base_char && strand != BLXSTRAND_NONE)
+    {
+      /* Get the depth for the specific base and given strand */
+      DepthCounter counter = getDepthCounterForChar(*base_char, strand);
+      result = getDepth(bc, coord, counter);
+    }
+  else if (strand == BLXSTRAND_NONE)
+    {
+      /* Get the depth for all reads for both strands */
+      result = 
+        getDepth(bc, coord, DEPTHCOUNTER_ALL_F) + 
+        getDepth(bc, coord, DEPTHCOUNTER_ALL_R);
+    }
+  else if (strand == BLXSTRAND_FORWARD)
+    {
+      /* Get the depth for all reads for the forward strand */
+      result = getDepth(bc, coord, DEPTHCOUNTER_ALL_F);
+    }
+  else if (strand == BLXSTRAND_REVERSE)
+    {
+      /* Get the depth for all reads for the reverse strand */
+      result = getDepth(bc, coord, DEPTHCOUNTER_ALL_R);
+    }
+  else
+    {
+      /* All possible conditions should be covered above */
+      g_warn_if_reached();
+    }
 
   return result;
 }

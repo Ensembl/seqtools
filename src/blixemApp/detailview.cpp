@@ -60,7 +60,7 @@ using namespace std;
 #define DETAIL_VIEW_FEEDBACK_MATCH_NAME "DetailViewFeedbackMatchName"
 #define DETAIL_VIEW_FEEDBACK_MATCH_LEN  "DetailViewFeedbackMatchLen"
 #define DETAIL_VIEW_FEEDBACK_DEPTH      "DetailViewFeedbackDepth"
-#define DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP "Read depth at selected coord(s)"
+#define DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP "Read depth at selected coord(s) for active strand"
 #define DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP "Selected feature name"
 #define DETAIL_VIEW_FEEDBACK_MIN_WIDTH  2
 #define DETAIL_VIEW_FEEDBACK_MAX_WIDTH  30
@@ -1186,6 +1186,7 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
                                 const BlxSequence *seq)
 {
   BlxViewContext *bc = detailViewGetContext(detailView);
+  const BlxStrand strand = blxContextGetActiveStrand(bc);
   
   if (detailViewGetSelectedIdxRangeSet(detailView))
     {
@@ -1194,16 +1195,19 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
 
       if (range)
         {
-          int depth = blxContextCalculateTotalDepth(bc, range);
+          int depth = blxContextCalculateTotalDepth(bc, range, strand);
           feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, depth);
           g_free(range);
         }
+
+      feedbackBoxSetTooltip(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP);
     }
   else if (detailViewGetSelectedIdxSet(detailView))
     {
       /* A single coord is selected */
       const int coord = detailViewGetSelectedDisplayIdx(detailView);
-      const int depth = blxContextGetDepth(bc, coord);
+      const int depth = blxContextGetDepth(bc, coord, NULL, strand);
+
       feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, depth);
 
       if (bc->seqType == BLXSEQ_DNA)
@@ -1213,10 +1217,10 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
            * the main box but only show the box if coverage is enabled, or have its own option). */
           string tmpStr("");
           tmpStr += DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP;
-          tmpStr += "\nA: " + to_string(blxContextGetDepth(bc, coord, DEPTHCOUNTER_A));
-          tmpStr += "\nC: " + to_string(blxContextGetDepth(bc, coord, DEPTHCOUNTER_C));
-          tmpStr += "\nG: " + to_string(blxContextGetDepth(bc, coord, DEPTHCOUNTER_G));
-          tmpStr += "\nT: " + to_string(blxContextGetDepth(bc, coord, DEPTHCOUNTER_T));
+          tmpStr += "\nA: " + to_string(blxContextGetDepth(bc, coord, "a", strand));
+          tmpStr += "\nC: " + to_string(blxContextGetDepth(bc, coord, "c", strand));
+          tmpStr += "\nG: " + to_string(blxContextGetDepth(bc, coord, "g", strand));
+          tmpStr += "\nT: " + to_string(blxContextGetDepth(bc, coord, "t", strand));
 
           feedbackBoxSetTooltip(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, tmpStr.c_str());
         }
@@ -5493,6 +5497,9 @@ void toggleStrand(GtkWidget *detailView)
  
   /* Re-calculate the cached display ranges for the MSPs */
   cacheMspDisplayRanges(blxContext, properties->numUnalignedBases);
+  
+  /* Update the feedback box */
+  updateFeedbackBox(detailView);
   
   /* If one grid/tree is hidden and the other visible, toggle which is hidden */
   swapTreeVisibility(detailView);
