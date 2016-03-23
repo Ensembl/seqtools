@@ -1,3 +1,10 @@
+2016-03-17  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.41.1-45-gb1f4 - Update RT and git commit reports
+ src/ChangeLog                                  | 368 ++++++++++++++++---------
+ src/build/release_docs/GIT_COMMITS.txt         |  14 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |  12 +-
+ 3 files changed, 264 insertions(+), 130 deletions(-)
+
 2016-03-11  Gemma Guest  <gb10@sanger.ac.uk>
  Merge branch 'feature/read_depth' into develop
 2016-03-11  Gemma Guest  <gb10@sanger.ac.uk>
