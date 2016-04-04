@@ -1111,7 +1111,7 @@ static void calcPairwiseDistMatrix(BelvuContext *bc, double **pairmtx)
           ALN *aln_j = g_array_index(bc->alignArr, ALN*, j);
           char *alnjSeq = alnGetSeq(aln_j);
           
-          pairmtx[i][j] = 100.0 - identity(alniSeq, alnjSeq, bc->penalize_gaps);
+          pairmtx[i][j] = 100.0 - percentIdentity(alniSeq, alnjSeq, bc->penalize_gaps);
           
           if (bc->treeDistCorr == KIMURA) 
             pairmtx[i][j] = treeKimura(pairmtx[i][j]);

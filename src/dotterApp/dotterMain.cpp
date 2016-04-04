@@ -155,7 +155,7 @@
 /* Text to show the authors, version and compile date */
 #define FOOTER_TEXT "\
 -----\n\
-"AUTHOR_TEXT_FULL" \n\
+" AUTHOR_TEXT_FULL " \n\
 \n\
  Reference: Sonnhammer ELL & Durbin R (1995). A dot-matrix program\n\
  	    with dynamic threshold control suited for genomic DNA and protein\n\
@@ -163,10 +163,10 @@
 \n\
  See http://www.sanger.ac.uk/resources/software/seqtools/ for more info.\n\
 \n\
- "DOTTER_COPYRIGHT_STRING"\n\
- "DOTTER_LICENSE_STRING"\n\
+ " DOTTER_COPYRIGHT_STRING "\n\
+ " DOTTER_LICENSE_STRING "\n\
 \n\
- Version "DOTTER_VERSION_COMPILE"\n\
+ Version " DOTTER_VERSION_COMPILE "\n\
 \n\
 "
 

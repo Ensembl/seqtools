@@ -1769,10 +1769,11 @@ static int countMspsToOutput(const BlxSequence* const blxSeq, IntRange *range1, 
 
 
 /* write data for the given transcript to the given output pipe. */
-void writeTranscriptToOutput(FILE *pipe, 
+void writeTranscriptToOutput(GIOChannel *ioChannel,
                              const BlxSequence* const blxSeq, 
                              IntRange *range, 
-                             const IntRange* const refSeqRange)
+                             const IntRange* const refSeqRange,
+                             GError **error)
 {
   g_return_if_fail(blxSeq && blxSeq->type == BLXSEQUENCE_TRANSCRIPT);
 
@@ -1799,21 +1800,27 @@ void writeTranscriptToOutput(FILE *pipe,
   if (numMsps < 1)
     return;
 
-  fprintf(pipe, "%d %d %d",
-          blxSeq->type,
-          blxSeq->strand,
-          numMsps); /* output number of msps so we know how many to read in */
+  char *tmpStr = g_strdup_printf("%d %d %d",
+                                 blxSeq->type,
+                                 blxSeq->strand,
+                                 numMsps); /* output number of msps so we know how many to read in */
+
+  gsize bytes_written = 0;
+  GError *tmpError = NULL;
+  g_io_channel_write_chars(ioChannel, tmpStr, -1, &bytes_written, &tmpError);
+  g_free(tmpStr);
 
   const char* transcriptName = blxSequenceGetName(blxSeq);
-  stringProtect(pipe, transcriptName);
-  stringProtect(pipe, blxSeq->idTag);
+  stringProtect(ioChannel, transcriptName, &tmpError);
+  stringProtect(ioChannel, blxSeq->idTag, &tmpError);
       
-  fputc('\n', pipe);
+  if (!tmpError)
+    g_io_channel_write_unichar(ioChannel, '\n', &tmpError);
   
   mspItem = blxSeq->mspList;
   int i = 0; /* keeps track of current transcript coord */
   
-  for ( ; mspItem; mspItem = mspItem->next)
+  for ( ; mspItem && !tmpError; mspItem = mspItem->next)
     {
       const MSP* msp = (const MSP*)(mspItem->data);
       
@@ -1829,33 +1836,48 @@ void writeTranscriptToOutput(FILE *pipe,
               const int start = i + 1;
               const int end = start + getRangeLength(&msp->qRange) - 1;
 
-              fprintf(pipe, "%d %f %f %d %d %d %d %d %d %d", 
-                      msp->type,
-                      msp->score, 
-                      msp->id,
-                      msp->phase,
-                      //          msp->fsColor, 
-                      start,
-                      end,
-                      msp->sRange.min,
-                      msp->sRange.max,
-                      msp->qStrand,
-                      msp->qFrame);
-              stringProtect(pipe, transcriptName);
-              stringProtect(pipe, msp->sname);
-              stringProtect(pipe, msp->desc);
-              fputc('\n', pipe);
+              char *tmpStr = g_strdup_printf("%d %f %f %d %d %d %d %d %d %d", 
+                                             msp->type,
+                                             msp->score, 
+                                             msp->id,
+                                             msp->phase,
+                                             //          msp->fsColor, 
+                                             start,
+                                             end,
+                                             msp->sRange.min,
+                                             msp->sRange.max,
+                                             msp->qStrand,
+                                             msp->qFrame);
+
+              g_io_channel_write_chars(ioChannel, tmpStr, -1, NULL, &tmpError);
+              g_free(tmpStr);
+
+              stringProtect(ioChannel, transcriptName, &tmpError);
+              stringProtect(ioChannel, msp->sname, &tmpError);
+              stringProtect(ioChannel, msp->desc, &tmpError);
+
+              if (!tmpError)
+                g_io_channel_write_unichar(ioChannel, '\n', &tmpError);
 
               i = end;
             }
         }
     }
+
+  if (tmpError)
+    {
+      prefixError(tmpError, "Error piping transcript to dotter: ");
+      g_propagate_error(error, tmpError);
+    }
 }
 
 /* write data from the given blxsequence to the given output pipe. if the ranges
  * are given, only outputs blxsequences that overlap either range */
-void writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *range1, IntRange *range2)
+void writeBlxSequenceToOutput(GIOChannel *ioChannel, const BlxSequence *blxSeq, 
+                              IntRange *range1, IntRange *range2, 
+                              GError **error)
 {
+  GError *tmpError = NULL;
   gboolean outputSeq = (blxSeq && (blxSeq->type == BLXSEQUENCE_TRANSCRIPT || blxSeq->type == BLXSEQUENCE_MATCH));
   
   int numMsps = countMspsToOutput(blxSeq, range1, range2);
@@ -1863,28 +1885,34 @@ void writeBlxSequenceToOutput(FILE *pipe, const BlxSequence *blxSeq, IntRange *r
   
   if (outputSeq)
     {
-      fprintf(pipe, "%d %d %d",
-              blxSeq->type,
-              blxSeq->strand,
-              numMsps); /* output number of msps so we know how many to read in */
-      
-      stringProtect(pipe, blxSequenceGetName(blxSeq));
-      stringProtect(pipe, blxSeq->idTag);
-      
-      fputc('\n', pipe);
+      char *tmpStr = g_strdup_printf("%d %d %d",
+                                     blxSeq->type,
+                                     blxSeq->strand,
+                                     numMsps); /* output number of msps so we know how many to read in */
+      g_io_channel_write_chars(ioChannel, tmpStr, -1, NULL, &tmpError);
+      g_free(tmpStr);
+
+      stringProtect(ioChannel, blxSequenceGetName(blxSeq), &tmpError);
+      stringProtect(ioChannel, blxSeq->idTag, &tmpError);
+
+      if (!tmpError)
+        g_io_channel_write_unichar(ioChannel, '\n', &tmpError);
       
       /* now output the msps */
       GList *mspItem = blxSeq->mspList;
-      for ( ; mspItem; mspItem = mspItem->next)
+      for ( ; mspItem && !tmpError; mspItem = mspItem->next)
         {
           const MSP* const msp = (const MSP*)(mspItem->data);
           
           if (outputMsp(msp, range1, range2))
             {
-              writeMspToOutput(pipe, msp);
+              writeMspToOutput(ioChannel, msp, &tmpError);
             }
         }
     }
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
 }
 
 
@@ -1936,24 +1964,35 @@ BlxSequence* readBlxSequenceFromText(char *text, int *numMsps)
 
 
 /* write data from the given msp to the given output pipe. */
-void writeMspToOutput(FILE *pipe, const MSP* const msp)
+void writeMspToOutput(GIOChannel *ioChannel, const MSP* const msp, GError **error)
 {
-  fprintf(pipe, "%d %f %f %d %d %d %d %d %d %d", 
-          msp->type,
-          msp->score, 
-          msp->id,
-          msp->phase,
-//          msp->fsColor, 
-          msp->qRange.min,
-          msp->qRange.max,
-          msp->sRange.min,
-          msp->sRange.max,
-          msp->qStrand,
-          msp->qFrame);
-  stringProtect(pipe, msp->qname);
-  stringProtect(pipe, msp->sname);
-  stringProtect(pipe, msp->desc);
-  fputc('\n', pipe);
+  GError *tmpError = NULL;
+
+  char *tmpStr = g_strdup_printf("%d %f %f %d %d %d %d %d %d %d", 
+                  msp->type,
+                  msp->score, 
+                  msp->id,
+                  msp->phase,
+                  //          msp->fsColor, 
+                  msp->qRange.min,
+                  msp->qRange.max,
+                  msp->sRange.min,
+                  msp->sRange.max,
+                  msp->qStrand,
+                  msp->qFrame);
+
+  g_io_channel_write_chars(ioChannel, tmpStr, -1, NULL, &tmpError);
+  g_free(tmpStr);
+
+  stringProtect(ioChannel, msp->qname, &tmpError);
+  stringProtect(ioChannel, msp->sname, &tmpError);
+  stringProtect(ioChannel, msp->desc, &tmpError);
+
+  if (!tmpError)
+    g_io_channel_write_unichar(ioChannel, '\n', &tmpError);
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
 }
 
 

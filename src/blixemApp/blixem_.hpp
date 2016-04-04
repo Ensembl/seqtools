@@ -386,6 +386,31 @@ typedef enum
   } DotterRefType;
 
 
+/* This enum gives access into the depthArray for the specific counter (i.e. per-base or all) */
+typedef enum 
+  {
+    DEPTHCOUNTER_NONE,
+
+    DEPTHCOUNTER_ALL_F, // all reads at this coord on + strand
+    DEPTHCOUNTER_GAP_F, // all reads at this coord on + strand
+    DEPTHCOUNTER_A_F,   // all reads with 'a' at this coord on forward strand
+    DEPTHCOUNTER_C_F,   // all reads with 'c' at this coord on forward strand
+    DEPTHCOUNTER_G_F,   // all reads with 'g' at this coord on forward strand
+    DEPTHCOUNTER_T_F,   // all reads with 't' or 'u' at this coord on forward strand
+    DEPTHCOUNTER_N_F,   // all reads with 'n' at this coord on forward strand
+
+    DEPTHCOUNTER_ALL_R, // all reads at this coord on - strand
+    DEPTHCOUNTER_GAP_R, // all reads at this coord on - strand
+    DEPTHCOUNTER_A_R,   // all reads with 'a' at this coord on reverse strand
+    DEPTHCOUNTER_C_R,   // all reads with 'c' at this coord on reverse strand
+    DEPTHCOUNTER_G_R,   // all reads with 'g' at this coord on reverse strand
+    DEPTHCOUNTER_T_R,   // all reads with 't' or 'u' at this coord on reverse strand
+    DEPTHCOUNTER_N_R,   // all reads with 'n' at this coord on reverse strand
+
+    DEPTHCOUNTER_NUM_ITEMS /*must be last*/
+} DepthCounter;
+
+
 /* Struct to hold all the settings that come from the command line options */
 typedef struct _CommandLineOptions
 {
@@ -501,7 +526,12 @@ typedef struct _BlxViewContext
     GSList *spawnedProcesses;                       /* List of processes spawned by Blixem */
     BlxModelId modelId;                             /* which tree model to use (i.e. normal or squashed) */
   
-    int *depthArray;                        /* this array holds the depth (num alignments) at each coord of the ref seq */
+    /* This array holds the depth (num alignments) at each coord of the ref seq for
+     * different types of counter. For each counter there is an array the same lenth as the
+     * reference sequence. This could cause memory problems with a large region. Generally
+     * though the length of the reference sequence is not that great and we are more concerned with
+     * fast access as the user interacts with the display.*/
+    int *depthArray[DEPTHCOUNTER_NUM_ITEMS];
     int minDepth;                           /* minimum value in the depthArray */
     int maxDepth;                           /* maximum value in the depthArray */
 

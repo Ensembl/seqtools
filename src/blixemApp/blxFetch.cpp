@@ -108,7 +108,7 @@ typedef struct
 enum {RCVBUFSIZE = 256} ;               /* size of receive buffer for socket fetch */
 
 /* This struct holds general info about a fetch that is in progress */
-typedef struct _GeneralFetchData
+typedef struct GeneralFetchDataStructType
 {
   const BlxFetchMethod* fetchMethod;      /* details about the fetch method */
   GList *columnList;                      /* list of BlxColumnInfo structs */ 
@@ -133,7 +133,7 @@ typedef struct _GeneralFetchData
   BlxSeqType seqType;
   BlxSeqParserState parserState;
   gboolean status;                        /* gets set to false if there is a problem */
-} GeneralFetchData;
+} GeneralFetchDataStruct, *GeneralFetchData ;
 
 
 
@@ -142,16 +142,19 @@ typedef struct _GeneralFetchData
 #define PFETCH_FAILED_PREFIX "PFetch failed:"
 
 
-typedef struct
+typedef struct PFetchDataStructType
 {
   char *title;
 
   gulong widget_destroy_handler_id;
-  PFetchHandle pfetch;
+
+  Pfetch *pfetch ;
+
   gboolean got_response;
   const BlxFetchMethod *fetchMethod;
   UserFetch *user_fetch;
-} PFetchDataStruct, *PFetchData;
+
+} PFetchDataStruct, *PFetchData ;
 
 
 /* this holds info about an http fetch that is in progress */
@@ -161,11 +164,13 @@ typedef struct
   char *err_txt ;                                           /* if !status then err message here. */
   gboolean stats ;                                          /* TRUE means record and output stats. */
   int min_bytes, max_bytes, total_bytes, total_reads ;      /* Stats. */
-  PFetchHandle pfetch ;
+
+  Pfetch *pfetch ;
+
   GList *seqList ;                                          /* List of sequences to fetch */
   gboolean got_response;
 
-  GeneralFetchData fetchData ;                              /* general info about a fetch in progress*/
+  GeneralFetchDataStruct fetchData ;                              /* general info about a fetch in progress*/
 } PFetchSequenceStruct, *PFetchSequence ;
 
 #endif
@@ -173,32 +178,19 @@ typedef struct
 
 /* Local function declarations */
 #ifdef PFETCH_HTML 
-static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
-                                       char         *text,
-                                       guint        *actual_read,
-                                       GError       *error,
-                                       gpointer      user_data) ;
-static PFetchStatus pfetch_writer_func(PFetchHandle *handle,
-                                       char         *text,
-                                       guint        *actual_read,
-                                       GError       *error,
-                                       gpointer      user_data) ;
-static PFetchStatus pfetch_error_func(PFetchHandle *handle,
-                                       char         *text,
-                                       guint        *actual_read,
-                                       GError       *error,
-                                       gpointer      user_data) ;
+
+static bool pfetch_reader_func(char *text, guint *actual_read, char **error, gpointer user_data) ;
+static bool pfetch_error_func(char *text, guint *actual_read, char **error, gpointer user_data) ;
+static void pfetch_closed_func(gpointer user_data) ;
 static void handle_dialog_close(GtkWidget *dialog, gpointer user_data);
-static PFetchStatus pfetch_closed_func(PFetchHandle *handle, 
-                                       gpointer user_data) ;
 
+static bool sequence_pfetch_reader(char *text, guint *actual_read, char * *error, gpointer user_data) ;
+static bool sequence_pfetch_error(char *text, guint *actual_read, char * *error, gpointer user_data) ;
+static void sequence_pfetch_closed(gpointer user_data) ;
+static void sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
 
-static PFetchStatus                sequence_pfetch_reader(PFetchHandle *handle, char *text, guint *actual_read, GError *error, gpointer user_data) ;
-static PFetchStatus                sequence_pfetch_writer(PFetchHandle *handle, char *text, guint *actual_read, GError *error, gpointer user_data) ;
-static PFetchStatus                sequence_pfetch_error(PFetchHandle *handle, char *text, guint *actual_read, GError *error, gpointer user_data) ;
-static PFetchStatus                sequence_pfetch_closed(PFetchHandle *handle, gpointer user_data) ;
-static void                        sequence_dialog_closed(GtkWidget *dialog, gpointer user_data) ;
-static gboolean                    parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod, char *read_text, int length, PFetchSequence fetch_data) ;
+static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod,
+                                      char *read_text, int length, PFetchSequence fetch_data) ;
 #endif
 
 static int                         socketConstruct(const char *ipAddress, int port, gboolean External, GError **error) ;
@@ -222,19 +214,19 @@ static void                        appendCharToQuotedString(const char curChar, 
 static void                        socketFetchInit(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, gboolean External, int *sock, GError **error);
 static void                        checkProgressBar(ProgressBar bar, BlxSeqParserState *parserState, gboolean *status);
 
-static int                         socketFetchReceiveBuffer(GeneralFetchData *fetchData, const int bufferSize, const int sock);
+static int                         socketFetchReceiveBuffer(GeneralFetchData fetchData, const int bufferSize, const int sock);
 
-static void                        pfetchGetNextSequence(GeneralFetchData *fetchData, const gboolean pfetch_ok);
+static void                        pfetchGetNextSequence(GeneralFetchData fetchData, const gboolean pfetch_ok);
 
-static void                        parseRawSequenceBuffer(GeneralFetchData *fetchData, GError **error);
+static void                        parseRawSequenceBuffer(GeneralFetchData fetchData, GError **error);
 
-static void                        pfetchGetParserStateFromId(GeneralFetchData *fetchData);
+static void                        pfetchGetParserStateFromId(GeneralFetchData fetchData);
 
-static void                        parseEmblBuffer(GeneralFetchData *fetchData, GError **error);
+static void                        parseEmblBuffer(GeneralFetchData fetchData, GError **error);
 
-static gboolean                    pfetchFinishSequence(GeneralFetchData *fetchData);
+static gboolean                    pfetchFinishSequence(GeneralFetchData fetchData);
 
-static void                        pfetchGetParserStateFromTagName(GeneralFetchData *fetchData);
+static void                        pfetchGetParserStateFromTagName(GeneralFetchData fetchData);
 
 static bool                        configGetBool(GKeyFile *key_file, const char *group, const char *key, GError **error);
 static char*                       configGetString(GKeyFile *key_file, const char *group, const char *key, GError **error);
@@ -754,21 +746,20 @@ static void checkFetchMethodExecutable(const BlxFetchMethod* const fetchMethod, 
 
 
 #ifdef PFETCH_HTML 
-/* Fetch the given list of sequences from an http proxy server. This enables
- * blixem to be run and get sequences from anywhere that can see the http 
- * proxy server. */
+// Fetch the given list of sequences from an http proxy server. This enables
+// blixem to be run and get sequences from anywhere that can see the http 
+// proxy server
+//
+// NOTE, this function blocks until the sequences have been fetched which 
+// means fetch_data can be on the stack and that we can clear up at the end
+// of this function instead of some callback routine.
+// 
 gboolean BulkFetch::httpFetchList(GList *seqsToFetch, 
                                   const BlxFetchMethod* const fetchMethod,
                                   GError **error)
 {
   gboolean status = FALSE ;
-
-  GType pfetch_type = PFETCH_TYPE_HTTP_HANDLE ;
-
-  if (fetchMethod->mode == BLXFETCH_MODE_PIPE)
-    pfetch_type = PFETCH_TYPE_PIPE_HANDLE ;
-
-  PFetchSequenceStruct fetch_data = {FALSE} ;
+  PFetchSequenceStruct fetch_data = {FALSE} ;               // n.b. struct is on the stack.
 
   fetch_data.connection_closed = FALSE;
   fetch_data.err_txt = NULL;
@@ -778,8 +769,6 @@ gboolean BulkFetch::httpFetchList(GList *seqsToFetch,
   fetch_data.total_bytes = 0 ;
   fetch_data.total_reads = 0 ;
   fetch_data.seqList = seqsToFetch;
-  fetch_data.pfetch = PFetchHandleNew(pfetch_type);
-
   fetch_data.fetchData.fetchMethod = fetchMethod;
   fetch_data.fetchData.columnList = columnList;
   fetch_data.fetchData.currentColumn = NULL;
@@ -789,7 +778,6 @@ gboolean BulkFetch::httpFetchList(GList *seqsToFetch,
   fetch_data.fetchData.numRequested = g_list_length(seqsToFetch);
   fetch_data.fetchData.numFetched = 0;
   fetch_data.fetchData.numSucceeded = 0;
-  fetch_data.fetchData.bar = makeProgressBar(fetch_data.fetchData.numRequested, fetchMethod->mode) ;
   fetch_data.fetchData.curLine = g_string_new("");
   fetch_data.fetchData.sectionId[0] = ' ';
   fetch_data.fetchData.sectionId[1] = ' ';
@@ -799,50 +787,49 @@ gboolean BulkFetch::httpFetchList(GList *seqsToFetch,
   fetch_data.fetchData.seqType = seqType ;
   fetch_data.fetchData.parserState = PARSING_NEWLINE;
   fetch_data.fetchData.status = TRUE ;
-  
+
+
+  // progress bar is popped up to give user feedback that something is happening.
+  fetch_data.fetchData.bar = makeProgressBar(fetch_data.fetchData.numRequested, fetchMethod->mode) ;  
   g_signal_connect(G_OBJECT(fetch_data.fetchData.bar->top_level), "destroy",
-               G_CALLBACK(sequence_dialog_closed), &fetch_data) ;
+                   G_CALLBACK(sequence_dialog_closed), &fetch_data) ;
   
-  if (PFETCH_IS_HTTP_HANDLE(fetch_data.pfetch))
+  // Make the pfetch object, pipe or html.
+  if (fetchMethod->mode == BLXFETCH_MODE_PIPE)
     {
-      PFetchHandleSettings(fetch_data.pfetch, 
-                           "port",       fetchMethod->port,
-                           "debug",      debug,
-                           "pfetch",     fetchMethod->location,
-                           "cookie-jar", fetchMethod->cookie_jar,
-                           "proxy",      fetchMethod->proxy,
-                           "ipresolve",  ipresolve,
-                           "cainfo",     cainfo,
-                           NULL);
+      fetch_data.pfetch =  new PfetchPipe(fetchMethod->location,
+                                          sequence_pfetch_reader, sequence_pfetch_error, sequence_pfetch_closed,
+                                          &fetch_data) ;
     }
   else
     {
-      PFetchHandleSettings(fetch_data.pfetch, 
-                           "pfetch",     fetchMethod->location,
-                           NULL);
+      fetch_data.pfetch = new PfetchHttp(fetchMethod->location, fetchMethod->port,
+                                         fetchMethod->cookie_jar, ipresolve,
+                                         cainfo, fetchMethod->proxy,
+                                         sequence_pfetch_reader, sequence_pfetch_error, sequence_pfetch_closed,
+                                         &fetch_data) ;
     }
-  
-  g_signal_connect(G_OBJECT(fetch_data.pfetch), "reader", G_CALLBACK(sequence_pfetch_reader), &fetch_data) ;
-  g_signal_connect(G_OBJECT(fetch_data.pfetch), "writer", G_CALLBACK(sequence_pfetch_writer), &fetch_data) ;
-  g_signal_connect(G_OBJECT(fetch_data.pfetch), "error", G_CALLBACK(sequence_pfetch_error), &fetch_data) ;
-  g_signal_connect(G_OBJECT(fetch_data.pfetch), "closed", G_CALLBACK(sequence_pfetch_closed), &fetch_data) ;
 
+  fetch_data.pfetch->setDebug(debug) ;
+
+  // SORT OUT ERROR MESSAGE STUFF HERE.....
   GError *g_error = NULL;
   GString *request = getFetchArgsMultiple(fetchMethod, seqsToFetch, &g_error);
 
   if (!g_error)
     {
+      char *err_msg = NULL ;
+
       /* Set up pfetch/curl connection routines, this is non-blocking so if connection
        * is successful we block using our own flag. */
-      PFetchStatus pfetch_status = PFetchHandleFetch(fetch_data.pfetch, request->str, &g_error);
-
-      if (pfetch_status == PFETCH_STATUS_OK)
+      if ((fetch_data.pfetch->fetch(request->str, &err_msg)))
         {
           status = TRUE ;
 
           while (!(fetch_data.connection_closed) && status && fetch_data.fetchData.parserState != PARSING_CANCELLED)
             {
-              checkProgressBar(fetch_data.fetchData.bar, &fetch_data.fetchData.parserState, &fetch_data.fetchData.status);
+              checkProgressBar(fetch_data.fetchData.bar,
+                               &fetch_data.fetchData.parserState, &fetch_data.fetchData.status);
               gtk_main_iteration() ;
             }
 
@@ -852,7 +839,8 @@ gboolean BulkFetch::httpFetchList(GList *seqsToFetch,
             {
               if (fetch_data.fetchData.parserState != PARSING_CANCELLED)
                 {
-                  g_critical("Sequence fetch from http server failed: %s\n", (fetch_data.err_txt ? fetch_data.err_txt : "no error")) ;
+                  g_critical("Sequence fetch from http server failed: %s\n",
+                             (fetch_data.err_txt ? fetch_data.err_txt : "no error")) ;
                   
                   if (fetch_data.err_txt)
                     { 
@@ -871,20 +859,30 @@ gboolean BulkFetch::httpFetchList(GList *seqsToFetch,
     {
       g_propagate_error(error, g_error);
     }
-  
+
+  if (request)
+    g_string_free(request, FALSE);
+
+
+
+  // Get rid of the progress bar.
   destroyProgressBar(fetch_data.fetchData.bar) ;
+
+
+  // Clear up fetch_data
   g_string_free(fetch_data.fetchData.currentResult, TRUE);
   g_string_free(fetch_data.fetchData.tagName, TRUE);
   g_string_free(fetch_data.fetchData.curLine, TRUE);
 
-  if (request)
-    g_string_free(request, FALSE);
+  delete fetch_data.pfetch ;
+
   
   return status ;
 }
-
-
 #endif
+
+
+
 
 
 /* Fetch a list of sequences using sockets.
@@ -910,7 +908,7 @@ gboolean BulkFetch::socketFetchList(GList *seqsToFetch,
   socketFetchInit(fetchMethod, seqsToFetch, External, &sock, &tmpError);
 
   /* Create a struct to pass around data releated to the fetch */
-  GeneralFetchData fetchData;
+  GeneralFetchDataStruct fetchData;
   fetchData.fetchMethod = fetchMethod;
   fetchData.columnList = columnList;
   fetchData.currentColumn = NULL;
@@ -1212,16 +1210,19 @@ static void socketSend (int sock, const char *text, GError **error)
 }
 
 
+
 #ifdef PFETCH_HTML 
 
-static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
-                                       char         *text,
-                                       guint        *actual_read,
-                                       GError       *error,
-                                       gpointer      user_data)
+// Callbacks for user-triggered single pfetch - called from UserFetch::httpFetchSequence()
+//
+
+static bool pfetch_reader_func(char         *text,
+                               guint        *actual_read,
+                               char **error,
+                               gpointer      user_data)
 {
   PFetchData pfetch_data = (PFetchData)user_data;
-  PFetchStatus status    = PFETCH_STATUS_OK;
+  bool status = true ;
 
   if (actual_read && *actual_read > 0 && pfetch_data)
     {
@@ -1247,42 +1248,27 @@ static PFetchStatus pfetch_reader_func(PFetchHandle *handle,
   return status;
 }
 
-static PFetchStatus pfetch_writer_func(PFetchHandle *handle,
-                                       char         *text,
-                                       guint        *actual_read,
-                                       GError       *error,
-                                       gpointer      user_data)
-{
-  g_warning("Unexpected pfetch 'writer' signal received: %s", text ? text : "") ;
-  return PFETCH_STATUS_OK;
-}
-
-static PFetchStatus pfetch_error_func(PFetchHandle *handle,
-                                       char         *text,
-                                       guint        *actual_read,
-                                       GError       *error,
-                                       gpointer      user_data)
+static bool pfetch_error_func(char         *text,
+                              guint        *actual_read,
+                              char **error,
+                              gpointer      user_data)
 {
   g_warning("pfetch 'error' signal received: %s", text ? text : "") ;
-  return PFETCH_STATUS_FAILED;
+
+  return true;
 }
 
 
-static PFetchStatus pfetch_closed_func(PFetchHandle *handle, gpointer user_data)
+static void pfetch_closed_func(gpointer user_data)
 {
   DEBUG_OUT("pfetch closed\n");
   PFetchData pfetch_data = (PFetchData)user_data;
-  PFetchStatus status    = PFETCH_STATUS_FAILED;
 
-  if (pfetch_data && handle)
+  if (pfetch_data && pfetch_data->pfetch)
     {
       GtkTextBuffer *text_buffer = pfetch_data->user_fetch->getTextBuffer();
 
-      if(pfetch_data->got_response)
-        {
-          status = PFETCH_STATUS_OK;
-        }
-      else
+      if(!(pfetch_data->got_response))
         {
           /* If we didn't get a response then report an error and try again with the next fetch method */
           gtk_text_buffer_set_text(text_buffer, "", 0);
@@ -1294,13 +1280,10 @@ static PFetchStatus pfetch_closed_func(PFetchHandle *handle, gpointer user_data)
               locn = pfetch_data->fetchMethod->location;
             }
 
-          char *handle_err = PFetchHandleHttpGetError(handle) ;
+          char *handle_err = (static_cast<PfetchHttp *>(pfetch_data->pfetch))->getError() ;
 
           char *err_msg = g_strdup_printf("Connection to '%s' closed without a response:\n%s\n",
                                           locn, handle_err ? handle_err : "no error message");
-          
-          if (handle_err)
-            g_free(handle_err) ;
 
           gtk_text_buffer_insert_at_cursor(text_buffer, err_msg, strlen(err_msg));
 
@@ -1310,7 +1293,7 @@ static PFetchStatus pfetch_closed_func(PFetchHandle *handle, gpointer user_data)
         }
     }
 
-  return status;
+  return;
 }
 
 
@@ -1318,28 +1301,27 @@ static PFetchStatus pfetch_closed_func(PFetchHandle *handle, gpointer user_data)
 static void handle_dialog_close(GtkWidget *dialog, gpointer user_data)
 {
   PFetchData pfetch_data   = (PFetchData)user_data;
+
   pfetch_data->user_fetch->setTextBuffer(NULL);
   pfetch_data->widget_destroy_handler_id = 0; /* can we get this more than once? */
 
-  if(pfetch_data->pfetch)
-    pfetch_data->pfetch = PFetchHandleDestroy(pfetch_data->pfetch);
+  if (pfetch_data->pfetch)
+    delete pfetch_data->pfetch ;
+
+  g_free(pfetch_data) ;
 
   return ;
 }
 
 
 
-/* 
- *             Multiple sequence fetch callbacks.
- */
+// Callbacks for multiple pfetch requests triggered by config/blixem start up options
+// - called from BulkFetch::httpFetchList()
+//
 
-static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
-                                           char         *text,
-                                           guint        *actual_read,
-                                           GError       *error,
-                                           gpointer      user_data)
+static bool sequence_pfetch_reader(char *text, guint *actual_read, char **error, gpointer user_data)
 {
-  PFetchStatus status = PFETCH_STATUS_OK ;
+  bool status = true ;
   PFetchSequence fetch_data = (PFetchSequence)user_data ;
   ProgressBar bar = fetch_data->fetchData.bar ;
 
@@ -1361,11 +1343,11 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
               fetch_data->fetchData.status = FALSE ;
               fetch_data->fetchData.parserState = PARSING_CANCELLED ;
       
-              status = PFETCH_STATUS_FAILED ;
+              status = false ;
             }
           else if (!parsePfetchHtmlBuffer(fetch_data->fetchData.fetchMethod, text, *actual_read, fetch_data))
             {
-              status = PFETCH_STATUS_FAILED ;
+              status = false ;
             }
         }
     }
@@ -1373,40 +1355,22 @@ static PFetchStatus sequence_pfetch_reader(PFetchHandle *handle,
   return status ;
 }
 
-static PFetchStatus sequence_pfetch_writer(PFetchHandle *handle,
-                                           char         *text,
-                                           guint        *actual_read,
-                                           GError       *error,
-                                           gpointer      user_data)
-{
-  g_warning("Unexpected pfetch 'writer' signal received: %s", text ? text : "") ;
-  return PFETCH_STATUS_OK;
-}
-
-static PFetchStatus sequence_pfetch_error(PFetchHandle *handle,
-                                          char         *text,
-                                          guint        *actual_read,
-                                          GError       *error,
-                                          gpointer      user_data)
+static bool sequence_pfetch_error(char *text, guint *actual_read, char **error, gpointer user_data)
 {
   g_warning("pfetch 'error' signal received: %s", text ? text : "") ;
-  return PFETCH_STATUS_FAILED;
+
+  return true ;
 }
 
-static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_data)
+
+static void sequence_pfetch_closed(gpointer user_data)
 {
-  PFetchStatus status = PFETCH_STATUS_OK;
   PFetchSequence fetch_data = (PFetchSequence)user_data ;
 
   DEBUG_OUT("pfetch closed\n");
 
-
   fetch_data->fetchData.parserState = PARSING_FINISHED ;
   fetch_data->connection_closed = TRUE;
-
-#ifdef ED_G_NEVER_INCLUDE_THIS_CODE
-  destroyProgressBar(fetch_data->bar) ;
-#endif /* ED_G_NEVER_INCLUDE_THIS_CODE */
 
   if (fetch_data->stats)
     {
@@ -1423,7 +1387,7 @@ static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_d
       if (fetch_data && fetch_data->fetchData.fetchMethod && fetch_data->fetchData.fetchMethod->location)
         locn = fetch_data->fetchData.fetchMethod->location ;
 
-      char *err_msg = PFetchHandleHttpGetError(handle) ;
+      char *err_msg = (static_cast<PfetchHttp *>(fetch_data->pfetch))->getError() ;
 
       g_warning("Connection to '%s' closed without a response:\n%s\n",
                 locn, err_msg ? err_msg : "no error message");
@@ -1432,7 +1396,7 @@ static PFetchStatus sequence_pfetch_closed(PFetchHandle *handle, gpointer user_d
         g_free(err_msg) ;
     }
 
-  return status ;
+  return ;
 }
 
 
@@ -1441,10 +1405,12 @@ static void sequence_dialog_closed(GtkWidget *dialog, gpointer user_data)
 {
   PFetchSequence fetch_data = (PFetchSequence)user_data ;
 
-  fetch_data->pfetch = PFetchHandleDestroy(fetch_data->pfetch) ;
+  fetch_data->fetchData.bar = NULL ;
 
   return ;
 }
+
+
 
 
 /* Utility to record the stats for the current read buffer, if stats are enabled */
@@ -1471,6 +1437,8 @@ static void pfetchHtmlRecordStats(const char *read_text, const int length, PFetc
           g_free(str) ;
         }
     }
+
+  return ;
 }
 
 
@@ -2113,7 +2081,7 @@ static void checkProgressBar(ProgressBar bar, BlxSeqParserState *parserState, gb
 /* Receive the next buffer back from a socket server. Only does anything if the status is ok
  * (i.e. true). Checks the length etc and sets the state to finished if there is no more data
  * to receive. Sets 'status' to false if there was an error. Returns the number of chars received. */
-static int socketFetchReceiveBuffer(GeneralFetchData *fetchData, const int bufferSize, const int sock)
+static int socketFetchReceiveBuffer(GeneralFetchData fetchData, const int bufferSize, const int sock)
 {
   int lenReceived = 0;
   
@@ -2146,7 +2114,7 @@ static int socketFetchReceiveBuffer(GeneralFetchData *fetchData, const int buffe
 /* Update the given sequence and sequence item to the next item in the list (unless the state is
  * 'finished' in which case there is nothing to do). Sets status to false if there was an
  * error (i.e. if we ran out of sequences). */
-static void pfetchGetNextSequence(GeneralFetchData *fetchData, const gboolean pfetch_ok)
+static void pfetchGetNextSequence(GeneralFetchData fetchData, const gboolean pfetch_ok)
 {
   if (fetchData->parserState != PARSING_FINISHED)
     {
@@ -2173,7 +2141,7 @@ static void pfetchGetNextSequence(GeneralFetchData *fetchData, const gboolean pf
  * fasta files). The parserState indicates on entry what 
  * state we are in and is updated on exit with the new state,
  * if it has changed. */
-static void parseRawSequenceBuffer(GeneralFetchData *fetchData, GError **error)
+static void parseRawSequenceBuffer(GeneralFetchData fetchData, GError **error)
 {
   if (fetchData->status == FALSE || fetchData->parserState == PARSING_FINISHED || fetchData->parserState == PARSING_CANCELLED)
     {
@@ -2224,7 +2192,7 @@ static gboolean isEmblTerminator(GQuark value)
 
 
 /* Get the parser state from the given two-letter at at the start of an EMBL file line. */
-static void pfetchGetParserStateFromId(GeneralFetchData *fetchData)
+static void pfetchGetParserStateFromId(GeneralFetchData fetchData)
 {
   GQuark sectionId = g_quark_from_string(fetchData->sectionId);
 
@@ -2285,7 +2253,7 @@ static void pfetchGetParserStateFromId(GeneralFetchData *fetchData)
 /* Process the current character in the current buffer of EMBL data. The char might be read into
  * various data locations depending on the current parser state, or might cause the parser state
  * to change. */
-static void pfetchProcessEmblBufferChar(GeneralFetchData *fetchData, const char curChar)
+static void pfetchProcessEmblBufferChar(GeneralFetchData fetchData, const char curChar)
 {
   switch (fetchData->parserState)
     {
@@ -2376,7 +2344,7 @@ static void pfetchProcessEmblBufferChar(GeneralFetchData *fetchData, const char 
 }
 
 
-static void checkParserState(GeneralFetchData *fetchData, BlxSeqParserState origState)
+static void checkParserState(GeneralFetchData fetchData, BlxSeqParserState origState)
 {
   /* If we were parsing data for a column but the parser state has now changed to
    * something else, then we've finished parsing the string, so save it in the 
@@ -2409,7 +2377,7 @@ static void checkParserState(GeneralFetchData *fetchData, BlxSeqParserState orig
  * data from an EMBL entry (or combination of multiple embl entries).
  * The parserState indicates what state we are in on entry, and gets
  * updated with the new state on exit. */
-static void parseEmblBuffer(GeneralFetchData *fetchData, GError **error)
+static void parseEmblBuffer(GeneralFetchData fetchData, GError **error)
 {
   if (fetchData->status == FALSE || 
       fetchData->parserState == PARSING_FINISHED || 
@@ -2484,7 +2452,7 @@ static void parseEmblBuffer(GeneralFetchData *fetchData, GError **error)
 /* Check the given tag name to see if it contains data for a column we're interested
  * in, and update the parser state accordingly. Sets the parser state to PARSING_IGNORE 
  * if this is not a tag we care about. */
-static void pfetchGetParserStateFromTagName(GeneralFetchData *fetchData)
+static void pfetchGetParserStateFromTagName(GeneralFetchData fetchData)
 {
   if (!fetchData->tagName || !fetchData->tagName->str)
     return;
@@ -2585,7 +2553,7 @@ static void appendCharToString(const char curChar, GString *result)
  * data is valid (i.e. not an error message) and complements it if necessary. It updates the parser
  * state to finished if we've got all the sequences we requested. Returns true if the pfetch
  * was successful, false if not */
-static gboolean pfetchFinishSequence(GeneralFetchData *fetchData)
+static gboolean pfetchFinishSequence(GeneralFetchData fetchData)
 {
   /* We issue warnings if a sequence fetch failed but set a limit on the number so we don't end
    * up with pages and pages of terminal output */
@@ -2654,6 +2622,10 @@ static gboolean pfetchFinishSequence(GeneralFetchData *fetchData)
   
   return pfetch_ok;
 }
+
+
+
+
 
 
 /*******************************************************************
@@ -2850,7 +2822,7 @@ void sendFetchOutputToFile(GString *command,
   /* Create a temp file for the results */
   const char *tmpDir = getSystemTempDir();
   char *fileName = g_strdup_printf("%s/%s_%s", tmpDir, MKSTEMP_CONST_CHARS_GFF, MKSTEMP_REPLACEMENT_CHARS);
-  int fileDesc = mkstemp(fileName);
+  int fileDesc = g_mkstemp(fileName);
   GError *tmpError = NULL;
   
   if (!fileName || fileDesc == -1)
@@ -3220,34 +3192,27 @@ void UserFetch::setTextBuffer(GtkTextBuffer *text_buffer_in)
 bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
 {
   gboolean ok = 0;
-
-  if (!displayResults)
-    {
-      g_warning("Program error: http-fetch expected to display results but displayResults is false.\n");
-      return ok;
-    }
-
   BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  
   PFetchData pfetch_data = NULL ;
   GError *tmpError = NULL;
   GString *command = NULL;
   GString *request = NULL;
+
+
+  if (!displayResults)
+    {
+      g_warning("Program error: http-fetch expected to display results but displayResults is false.\n");
+
+      return ok;
+    }
 
   if (fetchMethod->location == NULL)
     g_set_error(&tmpError, BLX_ERROR, 1, "%s", "Failed to obtain preferences specifying how to pfetch.\n");
   
   if (!tmpError)
     {
-      GType pfetch_type = PFETCH_TYPE_HTTP_HANDLE ;
-
-      if (fetchMethod->mode == BLXFETCH_MODE_PIPE)
-        pfetch_type = PFETCH_TYPE_PIPE_HANDLE ;
-        
       pfetch_data = g_new0(PFetchDataStruct, 1);
 
-      pfetch_data->pfetch = PFetchHandleNew(pfetch_type);
-      
       pfetch_data->fetchMethod = fetchMethod;
       pfetch_data->user_fetch = this;
       
@@ -3292,59 +3257,40 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
             g_signal_connect(G_OBJECT(dialog), "destroy", 
                              G_CALLBACK(handle_dialog_close), pfetch_data); 
           
-          if (PFETCH_IS_HTTP_HANDLE(pfetch_data->pfetch))
+          if (fetchMethod->mode == BLXFETCH_MODE_PIPE)
             {
-              if (fetchMethod->proxy)
-                PFetchHandleSettings(pfetch_data->pfetch, 
-                                     "port",       fetchMethod->port,
-                                     "debug",      debug,
-                                     "pfetch",     fetchMethod->location,
-                                     "cookie-jar", fetchMethod->cookie_jar,
-                                     "proxy",      fetchMethod->proxy,
-                                     "ipresolve",  ipresolve,
-                                     "cainfo",     cainfo,
-                                     NULL);
-              else
-                PFetchHandleSettings(pfetch_data->pfetch, 
-                                     "port",       fetchMethod->port,
-                                     "debug",      debug,
-                                     "pfetch",     fetchMethod->location,
-                                     "cookie-jar", fetchMethod->cookie_jar,
-                                     "ipresolve",  ipresolve,
-                                     "cainfo",     cainfo,
-                                     NULL);
+              pfetch_data->pfetch =  new PfetchPipe(fetchMethod->location,
+                                                    pfetch_reader_func,
+                                                    pfetch_error_func, pfetch_closed_func,
+                                                    pfetch_data) ;
             }
           else
             {
-              PFetchHandleSettings(pfetch_data->pfetch, 
-                                   "pfetch",     fetchMethod->location,
-                                   NULL);
+              pfetch_data->pfetch = new PfetchHttp(fetchMethod->location, fetchMethod->port,
+                                                   fetchMethod->cookie_jar, ipresolve,
+                                                   cainfo, fetchMethod->proxy,
+                                                   pfetch_reader_func,
+                                                   pfetch_error_func, pfetch_closed_func,
+                                                   pfetch_data) ;
             }
-      
-          g_signal_connect(G_OBJECT(pfetch_data->pfetch), "reader", G_CALLBACK(pfetch_reader_func), pfetch_data);
-          g_signal_connect(G_OBJECT(pfetch_data->pfetch), "writer", G_CALLBACK(pfetch_writer_func), pfetch_data);
-          g_signal_connect(G_OBJECT(pfetch_data->pfetch), "error", G_CALLBACK(pfetch_error_func), pfetch_data);
-          g_signal_connect(G_OBJECT(pfetch_data->pfetch), "closed", G_CALLBACK(pfetch_closed_func), pfetch_data);
 
-          GError *error = NULL;
-          ok = (PFetchHandleFetch(pfetch_data->pfetch, request->str, &error) == PFETCH_STATUS_OK) ;
+          pfetch_data->pfetch->setDebug(debug) ;
 
-          if (!ok)
+          char *err_msg = NULL ;
+
+          if (!(pfetch_data->pfetch->fetch(request->str, &err_msg)))
             {
               char *msg = g_strdup_printf("Error performing http fetch request:\n  Request: %s\n  Error: %s\n", 
                                           command->str, 
-                                          (error ? error->message : "no error"));
+                                          (err_msg ? err_msg : "no error"));
               g_warning("%s", msg);
               displayFetchResults(pfetch_data->title, msg, blxWindow, dialog, &text_buffer);
               g_free(msg);
 
               performFetch();
             }
-          else if (error)
-            {
-              reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
-              g_error_free(error);
-            }
+
+
         }
       else
         {

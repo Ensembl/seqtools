@@ -34,15 +34,44 @@ commands, replacing XXX with the version of SeqTools you want to download:
     make
     make install
 
-Before you can run the programs, you will need to run the following commands:
+You need to start an "xterm" terminal to run the SeqTools programs from. This can be done
+by typing the following command in the Cygwin terminal:
 
-    export DISPLAY=:0
-    startxwin -- -emulate3buttons &
+    export DISPLAY=:0; startxwin -- -emulate3buttons &
 
-To run these automatically each time Cygwin starts, edit the following file
-using the nano editor and paste the commands at the bottom:
+Alternatively, to start the xterm automatically each time you open the Cygwin terminal, 
+you can add these commands to your bash profile. To do this, type the following command
+in the Cygwin terminal (you only need to do this once):
 
-    nano ~/.bash_profile
+    echo "DISPLAY=:0; startxwin -- -emulate3buttons &" >> ~/.bash_profile
+
+
+To install in a different location, or for help with dependencies or for more
+detailed instructions on configure see the tips below and also the INSTALL file
+in this directory.
+
+
+Tips
+----
+
+You may need to run make install using sudo if you do not have root privileges,
+i.e.:
+
+    sudo make install
+
+Alternatively, to install to a different location (e.g. one not requiring root
+privileges), use the --prefix argument when you run ./configure. For example,
+the following command would set the install location to foo/bar in your home
+directory:
+
+    ./configure --prefix=~/foo/bar
+
+If GTK+ is not in the default location then you may need to pass its location to
+the configure script. GTK+ is usually installed in /usr/lib, /usr/local/lib,
+/opt/lib or /opt/local/lib. If GTK+ is in e.g. /opt/local/lib then you would
+call configure with the following arguments:
+
+    ./configure PKG_CONFIG_PATH=/opt/local/lib/pkgconfig LDFLAGS="-Xlinker -rpath -Xlinker /opt/local/lib"
 
 
 Notes on Drives

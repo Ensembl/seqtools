@@ -115,7 +115,7 @@ __TIME__ " " __DATE__
 
 /* Make a version-info string (has the package name and version string) */
 #define UT_MAKE_VERSION_INFO_STRING(PACKAGE_NAME, VERSION_STRING) \
-PACKAGE_NAME" - "VERSION_STRING
+PACKAGE_NAME " - " VERSION_STRING
 
 
 /* Make a licence string */
@@ -156,10 +156,10 @@ TITLE" is distributed under the GNU Public License; see http://www.gnu.org/copyl
  *    and    copyright_years is of the form  "2010", "2008-2010", "2008, 2010" etc.
  */
 #define UT_COPYRIGHT(YEARS_STRING)                                                   \
-"@(#) "UT_MAKE_COPYRIGHT_STRING(YEARS_STRING)"\n"                                    \
+"@(#) " UT_MAKE_COPYRIGHT_STRING(YEARS_STRING) "\n"                                  \
 "@(#) \n"                                                                            \
 "@(#) This file contains the above Sanger Informatics Group library, \n"             \
-"@(#) "AUTHOR_TEXT"\n\n"                                                             \
+"@(#) " AUTHOR_TEXT "\n\n"                                                           \
 "@(#) You may redistribute this software subject to the conditions in the \n"        \
 "@(#) accompanying copyright file. Anyone interested in obtaining an up to date \n"  \
 "@(#) version should contact one of the authors at the above email addresses. \n"
@@ -168,9 +168,9 @@ TITLE" is distributed under the GNU Public License; see http://www.gnu.org/copyl
 #define UT_COPYRIGHT_STRING(TITLE, VERSION, DESCRIPTION_STRING, COPYRIGHT_YEARS)     \
 "@(#) \n"                                                                            \
 "@(#) --------------------------------------------------------------------------\n"  \
-"@(#) Title/Version:  "UT_MAKE_TITLE_STRING(TITLE, VERSION)"\n"                      \
-"@(#)      Compiled:  "UT_MAKE_COMPILE_DATE"\n"                                      \
-"@(#)   Description:  "DESCRIPTION_STRING"\n\n"                                        \
+"@(#) Title/Version:  " UT_MAKE_TITLE_STRING(TITLE, VERSION) "\n"                    \
+"@(#)      Compiled:  " UT_MAKE_COMPILE_DATE "\n"                                    \
+"@(#)   Description:  " DESCRIPTION_STRING "\n\n"                                    \
 UT_COPYRIGHT()                                                                       \
 "@(#) --------------------------------------------------------------------------\n"  \
 "@(#) \n" ;

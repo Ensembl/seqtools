@@ -41,6 +41,7 @@
 #include <math.h>
 #include <algorithm>
 #include <stdlib.h>
+#include <stdio.h>
 #include <errno.h>
 #include <sys/utsname.h>
 #include <gbtools/gbtools.hpp>
@@ -362,7 +363,7 @@ gboolean onExposePrintable(GtkWidget *widget, GdkEventExpose *event, gpointer ca
 
 
 /* Set the given widget's background to the given color, if given (does nothing otherwise) */
-void blxSetWidgetColor(GtkWidget* widget, char *colorName)
+void blxSetWidgetColor(GtkWidget* widget, const char *colorName)
 {
   if (widget && colorName)
     {
@@ -488,6 +489,28 @@ GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GEr
 /***********************************************************
  *                       Ranges/values                     * 
  ***********************************************************/
+
+/* Utilities to return the "start" which is the minimum coord if !rev or the max if rev. The result
+ * is negated if "negate" is true. */
+int IntRange::start(const bool rev, const bool negate)
+{
+  int result = rev ? max : min;
+
+  if (negate)
+    result *= -1;
+
+  return result;
+}
+
+int IntRange::end(const bool rev, const bool negate)
+{
+  int result = rev ? min : max;
+
+  if (negate)
+    result *= -1;
+
+  return result;
+}
 
 /* Utility to return the length of the given range */
 int getRangeLength(const IntRange* const range)
@@ -1739,24 +1762,41 @@ GtkWidget* getNamedChildWidget(GtkWidget *widget, const gchar *searchName)
 }
 
 
-/* Send a string to a file, "protecting" it by placing quotes around it and escaping quotes
+/* Send a string to a GIOChannel, "protecting" it by placing quotes around it and escaping quotes
  * inside it. */
-void stringProtect(FILE *file, const char *string)
+void stringProtect(GIOChannel *ioChannel, const char *string, GError **error)
 {
+  /* We pass in the same error from previous calls to stringProtect because it's convenient to
+   * check it here and quit rather than checking each time from the calling function */
+  if (error && *error != NULL)
+    return;
+
   const char *cp;
+  GError *tmpError = NULL;
  
-  fputc(' ', file);
-  fputc('"', file);
-  if (string)
-    for(cp = string; *cp; ++cp)
-      {
-        /* Escape any internal quotes (or the escape char itself) by placing '$' in front */
-        if (*cp == '"' || *cp == '$')
-          fputc('$', file);
-        fputc(*cp, file);
-      }
-  fputc('"', file);
-  
+  g_io_channel_write_unichar(ioChannel, ' ', &tmpError);
+
+  if (!tmpError)
+    g_io_channel_write_unichar(ioChannel, '"', &tmpError);
+
+  if (string && !tmpError)
+    {
+      for(cp = string; *cp && !tmpError; ++cp)
+        {
+          /* Escape any internal quotes (or the escape char itself) by placing '$' in front */
+          if (*cp == '"' || *cp == '$')
+            g_io_channel_write_unichar(ioChannel, '$', &tmpError);
+
+          if (!tmpError)
+            g_io_channel_write_unichar(ioChannel, *cp, &tmpError);
+        }
+    }
+
+  if (!tmpError)
+    g_io_channel_write_unichar(ioChannel, '"', &tmpError);
+
+  if (tmpError)
+    g_propagate_error(error, tmpError);
 }
 
 
@@ -4543,39 +4583,33 @@ GtkWidget* externalCommand (const char *command, const char *progName, GtkWidget
 GString* getExternalCommandOutput(const char *command, GError **error)
 {
   GString *resultText = g_string_new(NULL) ;
-  char lineText[MAXLINE+1];
+  gboolean ok = TRUE;
+  char *standardOutput = NULL;
+  GError *tmpError = NULL;
 
   g_message_info("Calling external command: %s\n", command);
-  FILE *pipe = popen (command, "r") ;
-  
-  if (pipe && !feof(pipe) && fgets (lineText, MAXLINE, pipe))
+
+  ok = g_spawn_command_line_sync(command,
+                                 &standardOutput,
+                                 NULL,
+                                 NULL,
+                                 &tmpError);
+
+  if (!ok || tmpError)
     {
-      while (!feof (pipe))
-        { 
-          int len = strlen(lineText);
-          
-          if (len > 0)
-            { 
-              if (lineText[len-1] == '\n') 
-                {
-                  lineText[len-1] = '\0';
-                }
-              
-              g_string_append_printf(resultText, "%s\n", lineText) ;
-            }
-          
-          if (!fgets (lineText, MAXLINE, pipe))
-            {
-              break;
-            }
-        }
+      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_EXECUTING_CMD, "Error executing command: %s\n\n%s", 
+                  command, (tmpError ? tmpError->message : "<no error message>"));
     }
   else
     {
-      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_EXECUTING_CMD, "Error executing command: %s\n", command);
+      g_string_append(resultText, standardOutput);
     }
 
-  pclose (pipe);
+  if (tmpError)
+    g_error_free(tmpError);
+
+  if (standardOutput)
+    g_free(standardOutput);
 
   return resultText;
 }

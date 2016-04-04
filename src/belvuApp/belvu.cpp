@@ -731,7 +731,7 @@ void highlightScoreSort(char mode, BelvuContext *bc)
 	}
       else if (mode == 'I')
 	{
-	  curAln->score = identity(alnGetSeq(bc->selectedAln), alnGetSeq(curAln), bc->penalize_gaps);
+	  curAln->score = percentIdentity(alnGetSeq(bc->selectedAln), alnGetSeq(curAln), bc->penalize_gaps);
 	}
       
       char *scoreStr = g_strdup_printf("%.1f", curAln->score);
@@ -2711,7 +2711,7 @@ void drawDoubleAsText(GtkWidget *widget,
 
 
 /* Calculate percent identity of two strings */
-double identity(char *s1, char *s2, const gboolean penalize_gaps)
+double percentIdentity(char *s1, char *s2, const gboolean penalize_gaps)
 {
     int n, id;
 
@@ -3785,7 +3785,7 @@ void mkNonRedundant(BelvuContext *bc, const double cutoff)
           char *alnjSeq = alnGetSeq(alnj);
 	    
           overhang = alnOverhang(alnjSeq, alniSeq);
-          id = identity(alniSeq, alnjSeq, bc->penalize_gaps);
+          id = percentIdentity(alniSeq, alnjSeq, bc->penalize_gaps);
 
           if (!overhang && id > cutoff)
 	    {
@@ -3839,7 +3839,7 @@ void rmOutliers(BelvuContext *bc, const double cutoff)
 	    continue;
 	
 	  alnj = g_array_index(bc->alignArr, ALN*, j);
-	  double id = identity(alnGetSeq(alni), alnGetSeq(alnj), bc->penalize_gaps);
+	  double id = percentIdentity(alnGetSeq(alni), alnGetSeq(alnj), bc->penalize_gaps);
 	
 	  if (id > maxid) 
 	    maxid = id;
@@ -4810,7 +4810,7 @@ void listIdentity(BelvuContext *bc)
           if (alnj->markup > 0) /* ignore markup lines */
             continue;
 
-          double id = identity(alnGetSeq(alni), alnGetSeq(alnj), bc->penalize_gaps);
+          double id = percentIdentity(alnGetSeq(alni), alnGetSeq(alnj), bc->penalize_gaps);
           totid += id;
 
           if (id > maxid) 
