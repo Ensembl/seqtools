@@ -289,12 +289,7 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
       /* Get the x position for this coord (always pass displayRev as false because
        * display coords are already inverted if the display is reversed). */
       const double x = convertBaseIdxToRectPos(coord, &m_viewRect, displayRange, TRUE, FALSE, TRUE);
-      
-      /* Convert the display coord to a zero-based coord in the full ref seq
-       * display range, for indexing the depth array. Note that we need to
-       * un-invert the display coord if the display is reversed. */
-      const int idx = invertCoord(coord, &bc->fullDisplayRange, bc->displayRev);
-      const int depth = blxContextGetDepth(bc, idx);
+      const int depth = blxContextGetDepth(bc, coord);
 
       /* Calculate the y position based on the depth */
       const double height = (pixelsPerVal * (double)depth);
@@ -311,12 +306,17 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
       else if (y != prevY || coord == displayRange->max)
         {
           /* If we had multiple positions where y was the same, draw a horizontal
-           * line at that y position. */
-          if (prevX != startX)
-	    drawCoverageBar(startX, prevX, prevY, bottomBorder, cr);
-	    
-          /* Now draw the sloped line from the previous y to the new y. */
-	  drawCoverageBar(prevX, x, y, bottomBorder, cr);
+           * line at that y position. If there was only one position at the previous y value then
+           * this will draw a single column in the bar chart (i.e. startX==prevX). */
+          drawCoverageBar(startX, x, prevY, bottomBorder, cr);
+          
+          /* If it's the last coord, also draw the current column, because there won't be another
+           * loop to take care of this */
+          if (coord == displayRange->max)
+            {
+              const int endX = convertBaseIdxToRectPos(coord + 1, &m_viewRect, displayRange, TRUE, FALSE, TRUE);
+              drawCoverageBar(x, endX, y, bottomBorder, cr);
+            }
 
           /* Reset the starting point */
           startX = x;
