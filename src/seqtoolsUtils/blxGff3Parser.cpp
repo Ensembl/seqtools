@@ -339,17 +339,17 @@ void parseGff3Header(const int lineNum,
       
       if (!tmpError && refSeqRange)
         {
-          if (refSeqRange->min == UNSET_INT && refSeqRange->max == UNSET_INT)
+          if (refSeqRange->min() == UNSET_INT && refSeqRange->max() == UNSET_INT)
             {
               /* Range is currently unset, so set it */
               intrangeSetValues(refSeqRange, qStart, qEnd);
             }
-          else if (qStart > refSeqRange->max || qEnd < refSeqRange->min)
+          else if (qStart > refSeqRange->max() || qEnd < refSeqRange->min())
             {
               /* GFF file range does not overlap the existing range, so we can't load this file */
               g_set_error(&tmpError, BLX_GFF3_ERROR, BLX_GFF3_ERROR_OUT_OF_RANGE, 
                           "GFF file range [%d,%d] does not overlap the reference sequence range [%d,%d]",
-                          qStart, qEnd, refSeqRange->min, refSeqRange->max);
+                          qStart, qEnd, refSeqRange->min(), refSeqRange->max());
             }
         }
     }
@@ -942,7 +942,7 @@ static void parseGffColumns(GString *line_string,
 
       /* We can only check the range if the refseqrange is set... */
       if (!typeIsExon(gffData->mspType) && !typeIsIntron(gffData->mspType) && !typeIsTranscript(gffData->mspType) &&
-          refSeqRange && (refSeqRange->min != UNSET_INT || refSeqRange->max != UNSET_INT))
+          refSeqRange && (refSeqRange->min() != UNSET_INT || refSeqRange->max() != UNSET_INT))
         {
           IntRange featureRange;
           intrangeSetValues(&featureRange, gffData->qStart, gffData->qEnd); /* makes sure min < max */
@@ -1326,8 +1326,8 @@ static void parseGapString(char *text,
 
   /* Start at one beyond the edge of the range, because it will be incremented (or decremented if
    * direction is reverse) when we construct the first range. */
-  int q = qForward ? msp->qRange.min - 1 : msp->qRange.max + 1;
-  int s = sForward ? msp->sRange.min - 1 : msp->sRange.max + 1;
+  int q = qForward ? msp->qRange.min() - 1 : msp->qRange.max() + 1;
+  int s = sForward ? msp->sRange.min() - 1 : msp->sRange.max() + 1;
   
   GError *tmpError = NULL;
 
@@ -1455,27 +1455,27 @@ static void parseCigarStringIntron(GapStringData *data, const int numNucleotides
   
   /* end current msp at the current coords */
   if (data->qDirection > 0)
-    msp->qRange.max = *data->q;
+    msp->qRange.setMax(*data->q);
   else
-    msp->qRange.min = *data->q;
+    msp->qRange.setMin(*data->q);
   
   if (data->sDirection > 0)
-    msp->sRange.max = *data->s;
+    msp->sRange.setMax(*data->s);
   else
-    msp->sRange.min = *data->s;
+    msp->sRange.setMin(*data->s);
   
   /* start new msp at new coords */
   *data->q += data->qDirection * numNucleotides;
   
   if (data->qDirection > 0)
-    newMsp->qRange.min = *data->q + 1;
+    newMsp->qRange.setMin(*data->q + 1);
   else
-    newMsp->qRange.max = *data->q - 1;
+    newMsp->qRange.setMax(*data->q - 1);
   
   if (data->sDirection > 0)
-    newMsp->sRange.min = *data->s + 1;
+    newMsp->sRange.setMin(*data->s + 1);
   else
-    newMsp->sRange.max = *data->s - 1;
+    newMsp->sRange.setMax(*data->s - 1);
   
   *data->msp = newMsp;
 }

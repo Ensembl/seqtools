@@ -135,32 +135,32 @@ static void calculateMspLineDimensions(GtkWidget *grid,
   convertDisplayRangeToDnaRange(gridGetDisplayRange(grid), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
 
   /* The grid pos for coords gives the left edge of the coord, so draw to max + 1 to be inclusive */
-  const int x1 = convertBaseIdxToRectPos(msp->qRange.min, &gridProperties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
-  const int x2 = convertBaseIdxToRectPos(msp->qRange.max + 1, &gridProperties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
+  int mspMin = msp->qRange.min();
+  int mspMax = msp->qRange.max();
+  
+  if (bc->displayRev)
+    --mspMin;
+  else
+    ++mspMax;
+
+  const int x1 = convertBaseIdxToRectPos(mspMin, &gridProperties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
+  const int x2 = convertBaseIdxToRectPos(mspMax, &gridProperties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
   
   const int xMin = min(x1, x2);
   const int xMax = max(x1, x2);
   
   if (x)
-    {
-      *x = xMin;
-    }
+    *x = xMin;
     
   if (width)
-    {
-      *width = max((xMax - xMin), MIN_MSP_LINE_WIDTH);
-    }
+    *width = max((xMax - xMin), MIN_MSP_LINE_WIDTH);
   
   /* Find where in the y axis we should draw the line, based on the %ID value */
   if (y)
-    {
-      *y = convertValueToGridPos(grid, msp->id);
-    }
+    *y = convertValueToGridPos(grid, msp->id);
     
   if (height)
-    {
-      *height = gridProperties->mspLineHeight;
-    }
+    *height = gridProperties->mspLineHeight;
 }
 
 
@@ -278,8 +278,8 @@ static void drawColinearityLines(GList *mspListItem, DrawGridData *drawData)
         }
 
       /* Check that the line will lie within the visible range */
-      if ((msp1->displayRange.max < displayRange->max && msp2->displayRange.min > displayRange->min) ||
-          (msp1->displayRange.max > displayRange->max && msp2->displayRange.min < displayRange->min))
+      if ((msp1->displayRange.max() < displayRange->max() && msp2->displayRange.min() > displayRange->min()) ||
+          (msp1->displayRange.max() > displayRange->max() && msp2->displayRange.min() < displayRange->min()))
         {
           ColinearityType colinearityType = COLINEAR_INVALID;
 
@@ -309,11 +309,11 @@ static void drawColinearityLines(GList *mspListItem, DrawGridData *drawData)
               calculateMspLineDimensions(drawData->grid, msp2, FALSE, &x2, &y2, &width2, &height2);
 
               /* get coords of line to draw */
-              IntRange lineXRange = {x1 + width1, x2};
-              IntRange lineYRange = {y1 + height1 / 2, y2 + height2 / 2};
+              IntRange lineXRange(x1 + width1, x2);
+              IntRange lineYRange(y1 + height1 / 2, y2 + height2 / 2);
 
               gdk_draw_line(drawData->drawable, drawData->gc, 
-                            lineXRange.min, lineYRange.min, lineXRange.max, lineYRange.max);
+                            lineXRange.min(), lineYRange.min(), lineXRange.max(), lineYRange.max());
             }
         }
     }

@@ -148,9 +148,14 @@ static gboolean calculateExonIntronDimensions(const MSP* const msp,
                                     &bc->refSeqRange, &dnaDispRange);
       
       /* The grid pos for coords gives the left edge of the coord, so draw to max + 1 to be inclusive */
-      const int qStart = msp->qRange.min;
-      const int qEnd = msp->qRange.max + 1;
-      
+      int qStart = msp->qRange.min();
+      int qEnd = msp->qRange.max();
+  
+      if (bc->displayRev)
+        --qStart;
+      else
+        ++qEnd;
+
       const gint x1 = convertBaseIdxToRectPos(qStart, exonViewRect, &dnaDispRange,
                                               TRUE, bc->displayRev, FALSE);
       const gint x2 = convertBaseIdxToRectPos(qEnd, exonViewRect, &dnaDispRange, 
@@ -368,8 +373,8 @@ void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
   convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
   
   /* Calculate how many pixels from the left edge of the widget to the first base in the range. */
-  const int x1 = convertBaseIdxToRectPos(dvRange.min, &properties->exonViewRect, &bpRange, TRUE, bc->displayRev, TRUE);
-  const int x2 = convertBaseIdxToRectPos(dvRange.max + 1, &properties->exonViewRect, &bpRange, TRUE, bc->displayRev, TRUE);
+  const int x1 = convertBaseIdxToRectPos(dvRange.min(), &properties->exonViewRect, &bpRange, TRUE, bc->displayRev, TRUE);
+  const int x2 = convertBaseIdxToRectPos(dvRange.max() + 1, &properties->exonViewRect, &bpRange, TRUE, bc->displayRev, TRUE);
   
   properties->highlightRect.x = min(x1, x2);
   properties->highlightRect.y = 0;

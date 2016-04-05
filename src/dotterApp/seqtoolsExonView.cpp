@@ -261,8 +261,8 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
       drawn = TRUE;
 
       /* The grid pos for coords gives the left/top edge of the coord, so draw to max + 1 to be inclusive */
-      const int qStart = msp->qRange.min;
-      const int qEnd = msp->qRange.max + 1;
+      const int qStart = msp->qRange.min();
+      const int qEnd = msp->qRange.max() + 1;
 
       /* Get the length-ways position (technically this will actually be y for the vertical sequence) */
       const gint x1 = convertBaseIdxToRectPos(qStart, data->exonViewRect, data->qRange, data->horizontal, data->dc->hozScaleRev, FALSE);

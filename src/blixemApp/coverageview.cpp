@@ -282,9 +282,9 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
   double startX = -1.0;
   double prevX = -1.0;
   double prevY = -1.0;
-  int coord = displayRange->min;
+  int coord = displayRange->min();
   
-  for ( ; coord <= displayRange->max; ++coord)
+  for ( ; coord <= displayRange->max(); ++coord)
     {
       /* Get the x position for this coord (always pass displayRev as false because
        * display coords are already inverted if the display is reversed). */
@@ -303,7 +303,7 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
         {
           startX = x;
         }
-      else if (y != prevY || coord == displayRange->max)
+      else if (y != prevY || coord == displayRange->max())
         {
           /* If we had multiple positions where y was the same, draw a horizontal
            * line at that y position. If there was only one position at the previous y value then
@@ -312,7 +312,7 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
           
           /* If it's the last coord, also draw the current column, because there won't be another
            * loop to take care of this */
-          if (coord == displayRange->max)
+          if (coord == displayRange->max())
             {
               const int endX = convertBaseIdxToRectPos(coord + 1, &m_viewRect, displayRange, TRUE, FALSE, TRUE);
               drawCoverageBar(x, endX, y, bottomBorder, cr);

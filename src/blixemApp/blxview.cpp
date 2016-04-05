@@ -370,12 +370,12 @@ void loadNativeFile(const char *filename,
   /* The range passed to the parser must be in the original parsed coords, so subtract the
    * offset. (It is used to validate that the range in the GFF file we're reading in is within 
    * blixem's known range.)  */
-  IntRange toplevelRange = {UNSET_INT, UNSET_INT};
+  IntRange toplevelRange(UNSET_INT, UNSET_INT);
   
   if (refSeqRange)
     {
-      toplevelRange.min = refSeqRange->min - refSeqOffset;
-      toplevelRange.max = refSeqRange->max - refSeqOffset;
+      toplevelRange.setMin(refSeqRange->min() - refSeqOffset);
+      toplevelRange.setMax(refSeqRange->max() - refSeqOffset);
     }
   
   if (filename)
@@ -440,13 +440,13 @@ static void findAssemblyGaps(const char *refSeq, GArray *featureLists[], MSP **m
   while (cp && *cp)
     {
       /* Found the start of a gap; remember the start coord */
-      const int startCoord = cp - refSeq + refSeqRange->min;
+      const int startCoord = cp - refSeq + refSeqRange->min();
     
       /* Loop until we find a non-gap character (or the end of the string) */
       while (cp && *cp == SEQUENCE_CHAR_GAP)
 	++cp;
     
-      const int endCoord = cp - refSeq - 1 + refSeqRange->min;
+      const int endCoord = cp - refSeq - 1 + refSeqRange->min();
     
       MSP *msp = createEmptyMsp(&lastMsp, mspList);
       msp->type = BLXMSP_GAP;
@@ -834,8 +834,8 @@ static void mspCalcFullSRange(const MSP* const msp,
 			      IntRange *result)
 {
   /* Normally we just display the part of the sequence in the alignment */
-  result->min = msp->sRange.min;
-  result->max = msp->sRange.max;
+  result->setMin(msp->sRange.min());
+  result->setMax(msp->sRange.max());
   
   if (mspIsBlastMatch(msp))
     {
@@ -843,15 +843,15 @@ static void mspCalcFullSRange(const MSP* const msp,
 	{
 	  /* We're displaying additional unaligned sequence outside the alignment range. Get 
 	   * the full range of the match sequence */
-	  result->min = 1;
-	  result->max = mspGetMatchSeqLen(msp);
+	  result->setMin(1);
+	  result->setMax(mspGetMatchSeqLen(msp));
 	  
 	  if (flags[BLXFLAG_LIMIT_UNALIGNED_BASES])
 	    {
 	      /* Only include up to 'numUnalignedBases' each side of the MSP range (still limited
 	       * to the range we found above, though). */
-	      result->min = max(result->min, msp->sRange.min - numUnalignedBases);
-	      result->max = min(result->max, msp->sRange.max + numUnalignedBases);
+	      result->setMin(max(result->min(), msp->sRange.min() - numUnalignedBases));
+	      result->setMax(min(result->max(), msp->sRange.max() + numUnalignedBases));
 	    }
 	}
       
@@ -864,11 +864,11 @@ static void mspCalcFullSRange(const MSP* const msp,
 	  
 	  if (sameDirection)
 	    {
-	      result->max = mspGetMatchSeqLen(msp);
+	      result->setMax(mspGetMatchSeqLen(msp));
 	    }
 	  else
 	    {
-	      result->min = 1;
+	      result->setMin(1);
 	    }
 	}
     }
@@ -887,20 +887,20 @@ static void mspCalcFullQRange(const MSP* const msp,
 			      IntRange *result)
 {
   /* Default to the alignment range so we can exit quickly if there are no special cases */
-  result->min = msp->qRange.min;
-  result->max = msp->qRange.max;
+  result->setMin(msp->qRange.min());
+  result->setMax(msp->qRange.max());
   
   if (mspIsBlastMatch(msp) && (flags[BLXFLAG_SHOW_UNALIGNED] || flags[BLXFLAG_SHOW_POLYA_SITE]))
     {
       /* Find the offset of the start and end of the full range compared to the alignment range and
        * offset the ref seq range by the same amount. We need to multiply by the number of reading
        * frames because q coords are in nucleotides and s coords are in peptides. */
-      const int startOffset = (msp->sRange.min - fullSRange->min) * numFrames;
-      const int endOffset = (fullSRange->max - msp->sRange.max) * numFrames;
+      const int startOffset = (msp->sRange.min() - fullSRange->min()) * numFrames;
+      const int endOffset = (fullSRange->max() - msp->sRange.max()) * numFrames;
       
       const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
-      result->min -= sameDirection ? startOffset : endOffset;
-      result->max += sameDirection ? endOffset : startOffset;
+      result->m_min -= sameDirection ? startOffset : endOffset;
+      result->m_max += sameDirection ? endOffset : startOffset;
     }
 }
 
@@ -915,14 +915,14 @@ void mspCalculateFullExtents(MSP *msp, const BlxViewContext* const bc, const int
  
   /* convert the Q range to display coords */
   const int frame = mspGetRefFrame(msp, bc->seqType);
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->fullRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->fullRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->fullRange.min(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->fullRange.max(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   intrangeSetValues(&msp->fullRange, coord1, coord2);
   
   /* Remember the max len of all the MSPs in the detail-view */
-  if (typeShownInDetailView(msp->type) && getRangeLength(&msp->fullRange) > getMaxMspLen())
+  if (typeShownInDetailView(msp->type) && msp->fullRange.length() > getMaxMspLen())
     {
-      setMaxMspLen(getRangeLength(&msp->fullRange));
+      setMaxMspLen(msp->fullRange.length());
     }
 }
 
@@ -931,8 +931,8 @@ void mspCalculateFullExtents(MSP *msp, const BlxViewContext* const bc, const int
 static void mspCalculateDisplayRange(MSP *msp, const BlxViewContext* const bc)
 {
   const int frame = mspGetRefFrame(msp, bc->seqType);
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   intrangeSetValues(&msp->displayRange, coord1, coord2);  
 }
 
@@ -1013,12 +1013,12 @@ static gboolean mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, con
    * sRange.min. If strands are in opposite directions, find the offset from qRange.min and
    * subtract it from sRange.max. Note that the offset could be negative if we're outside
    * the alignment range. */
-  int offset = (qIdx - msp->qRange.min) / bc->numFrames ;
+  int offset = (qIdx - msp->qRange.min()) / bc->numFrames ;
   const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
 
-  result = (sameDirection) ? msp->sRange.min + offset : msp->sRange.max - offset ;
+  result = (sameDirection) ? msp->sRange.min() + offset : msp->sRange.max() - offset ;
   
-  if (result < msp->sRange.min || result > msp->sRange.max)
+  if (result < msp->sRange.min() || result > msp->sRange.max())
     {
       result = UNSET_INT;
       success = FALSE;
@@ -1059,21 +1059,21 @@ static gboolean mspGetUnalignedCoord(const MSP *msp,
   const gboolean sameDirection = (mspGetMatchStrand(msp) == mspGetRefStrand(msp));
   const gboolean sForward = (sameDirection != bc->displayRev);
   
-  if (displayIdx < mspRange->min)
+  if (displayIdx < mspRange->min())
     {
       /* Find the offset backwards from the low coord and subtract it from the low end
        * of the s coord range (or add it to the high end, if the directions are opposite).
        * We're working in display coords here. */
-      const int offset = mspRange->min - displayIdx;
-      result = sForward ? msp->sRange.min - offset : msp->sRange.max + offset;
+      const int offset = mspRange->min() - displayIdx;
+      result = sForward ? msp->sRange.min() - offset : msp->sRange.max() + offset;
       success = TRUE;
     }
   else
     {
       /* Find the offset forwards from the high coord and add it to the high end of the
        * s coord range (or subtract it from the low end, if the directions are opposite). */
-      const int offset = displayIdx - mspRange->max;
-      result = sForward ? msp->sRange.max + offset : msp->sRange.min - offset;
+      const int offset = displayIdx - mspRange->max();
+      result = sForward ? msp->sRange.max() + offset : msp->sRange.min() - offset;
       success = TRUE;
     }
   
@@ -1300,8 +1300,8 @@ void drawAssemblyGaps(GtkWidget *widget,
       if (rangesOverlap(&gap->qRange, dnaRange))
         {
 	  /* Draw to max coord plus one (or min coord minus one if reversed) to be inclusive */
-	  const int x1 = convertBaseIdxToRectPos(displayRev ? gap->qRange.min - 1 : gap->qRange.min, rect, dnaRange, TRUE, displayRev, TRUE);
-	  const int x2 = convertBaseIdxToRectPos(gap->qRange.max + 1, rect, dnaRange, TRUE, displayRev, TRUE);
+	  const int x1 = convertBaseIdxToRectPos(displayRev ? gap->qRange.min() - 1 : gap->qRange.min(), rect, dnaRange, TRUE, displayRev, TRUE);
+	  const int x2 = convertBaseIdxToRectPos(gap->qRange.max() + 1, rect, dnaRange, TRUE, displayRev, TRUE);
           
 	  const int width = max(MIN_GAP_HIGHLIGHT_WIDTH, abs(x2 - x1));
 	
@@ -1873,8 +1873,8 @@ const char* getColumnTitle(GList *columnList, const BlxColumnId columnId)
  * return argument. */
 void getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *xRange)
 {
-  xRange->min = 0;
-  xRange->max = 0;
+  xRange->setMin(0);
+  xRange->setMax(0);
   
   /* Loop through all visible columns up to the given column, summing their widths. */
   GList *columnItem = columnList;
@@ -1886,16 +1886,16 @@ void getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *x
       if (columnInfo->columnId != columnId)
         {
           if (showColumn(columnInfo))
-            xRange->min += columnInfo->width;
+            xRange->setMin(xRange->min() + columnInfo->width);
         }
       else
         {
           /* We've got to the required column. Calculate the x coord at the end
            * of this column and then break. */
           if (showColumn(columnInfo))
-            xRange->max = xRange->min + columnInfo->width;
+            xRange->setMax(xRange->min() + columnInfo->width);
           else
-            xRange->max = xRange->min; /* return zero-width if column is not visible */
+            xRange->setMax(xRange->min()); /* return zero-width if column is not visible */
           
           break;
         }

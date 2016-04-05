@@ -600,10 +600,10 @@ static DotterContext* createDotterContext(DotterOptions *options,
   result->matchSeqType = (blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
   result->matchSeqStrand = matchSeqStrand;
   
-  result->refSeqFullRange.min = options->qoffset + 1;
-  result->refSeqFullRange.max = options->qoffset + strlen(options->qseq);
-  result->matchSeqFullRange.min = options->soffset + 1;
-  result->matchSeqFullRange.max = options->soffset + strlen(options->sseq);
+  result->refSeqFullRange.setMin(options->qoffset + 1);
+  result->refSeqFullRange.setMax(options->qoffset + strlen(options->qseq));
+  result->matchSeqFullRange.setMin(options->soffset + 1);
+  result->matchSeqFullRange.setMax(options->soffset + strlen(options->sseq));
   
   result->hozScaleRev = options->hozScaleRev;
   result->vertScaleRev = options->vertScaleRev;
@@ -646,7 +646,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
         {
           /* Get the start coord at this index and calculate which reading frame it really is
            * (because the first coord in the sequence might not be base 1 in frame 1). */
-          const int startCoord = rev ? result->refSeqFullRange.max - i : result->refSeqFullRange.min + i;
+          const int startCoord = rev ? result->refSeqFullRange.max() - i : result->refSeqFullRange.min() + i;
         
           int frame = UNSET_INT;
           convertToDisplayIdx(startCoord, TRUE, result, 1, &frame);
@@ -672,7 +672,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
     }
   
   /* Calculate the height and width of the horizontal and vertical scales */
-  const int leftBorderChars = max(numDigitsInInt(result->matchSeqFullRange.min), numDigitsInInt(result->matchSeqFullRange.max)) + 1;
+  const int leftBorderChars = max(numDigitsInInt(result->matchSeqFullRange.min()), numDigitsInInt(result->matchSeqFullRange.max())) + 1;
   result->scaleWidth = DEFAULT_MAJOR_TICK_HEIGHT * 2 + (roundNearest)((gdouble)leftBorderChars * result->charWidth) + SCALE_LINE_WIDTH;
   result->scaleHeight = DEFAULT_MAJOR_TICK_HEIGHT + roundNearest(result->charHeight) + SCALE_LINE_WIDTH;
   
@@ -947,19 +947,19 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
   
   result->dotterCtx = dotterCtx;
   
-  result->refSeqRange.min = refSeqRange->min;
-  result->refSeqRange.max = refSeqRange->max;
-  result->matchSeqRange.min = matchSeqRange->min;
-  result->matchSeqRange.max = matchSeqRange->max;
+  result->refSeqRange.setMin(refSeqRange->min());
+  result->refSeqRange.setMax(refSeqRange->max());
+  result->matchSeqRange.setMin(matchSeqRange->min());
+  result->matchSeqRange.setMax(matchSeqRange->max());
 
   result->refCoord = UNSET_INT;
   result->matchCoord = UNSET_INT;
   
-  result->zoomFactor = getInitZoomFactor(dotterCtx, zoomFacIn, getRangeLength(refSeqRange), getRangeLength(matchSeqRange));
+  result->zoomFactor = getInitZoomFactor(dotterCtx, zoomFacIn, refSeqRange->length(), matchSeqRange->length());
 
   /* See if we're comparing the same portion of sequence against itself */
-  result->selfComp = (refSeqRange->min == matchSeqRange->min && 
-                      refSeqRange->max == matchSeqRange->max &&
+  result->selfComp = (refSeqRange->min() == matchSeqRange->min() && 
+                      refSeqRange->max() == matchSeqRange->max() &&
                       stringsEqual(dotterCtx->refSeq, dotterCtx->matchSeq, FALSE));
 
   result->usePrintColors = FALSE;
@@ -1070,12 +1070,12 @@ static void setInitSelectedCoords(GtkWidget *dotterWindow, const int refCoord, c
   if (valueWithinRange(refCoord, &dwc->refSeqRange))
     dwc->refCoord = refCoord;
   else
-    dwc->refCoord = getRangeCentre(&dwc->refSeqRange);
+    dwc->refCoord = dwc->refSeqRange.centre();
 
   if (valueWithinRange(matchCoord, &dwc->matchSeqRange))
     dwc->matchCoord = matchCoord;
   else
-    dwc->matchCoord = getRangeCentre(&dwc->matchSeqRange);
+    dwc->matchCoord = dwc->matchSeqRange.centre();
   
   updateOnSelectedCoordsChanged(dotterWindow);
   
@@ -2347,7 +2347,7 @@ static gboolean onQStartChanged(GtkWidget *widget, const gint responseId, gpoint
     newValue *= -1;
   
   if (!valueWithinRange(newValue, &dwc->dotterCtx->refSeqFullRange))
-    g_warning("Limiting reference sequence start to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
+    g_warning("Limiting reference sequence start to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min(), dwc->dotterCtx->refSeqFullRange.max());
   
   boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
   
@@ -2380,7 +2380,7 @@ static gboolean onQEndChanged(GtkWidget *widget, const gint responseId, gpointer
     newValue *= -1;
   
   if (!valueWithinRange(newValue, &dwc->dotterCtx->refSeqFullRange))
-    g_warning("Limiting reference sequence end to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min, dwc->dotterCtx->refSeqFullRange.max);
+    g_warning("Limiting reference sequence end to range %d -> %d.\n", dwc->dotterCtx->refSeqFullRange.min(), dwc->dotterCtx->refSeqFullRange.max());
 
   boundsLimitValue(&newValue, &dwc->dotterCtx->refSeqFullRange);
 
@@ -2413,7 +2413,7 @@ static gboolean onSStartChanged(GtkWidget *widget, const gint responseId, gpoint
     newValue *= -1;
   
   if (!valueWithinRange(newValue, &dwc->dotterCtx->matchSeqFullRange))
-    g_warning("Limiting vertical sequence start to range %d -> %d.\n", dwc->dotterCtx->matchSeqFullRange.min, dwc->dotterCtx->matchSeqFullRange.max);
+    g_warning("Limiting vertical sequence start to range %d -> %d.\n", dwc->dotterCtx->matchSeqFullRange.min(), dwc->dotterCtx->matchSeqFullRange.max());
 
   boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
   
@@ -2442,7 +2442,7 @@ static gboolean onSEndChanged(GtkWidget *widget, const gint responseId, gpointer
     newValue *= -1;
   
   if (!valueWithinRange(newValue, &dwc->dotterCtx->matchSeqFullRange))
-    g_warning("Limiting vertical sequence end to range %d -> %d.\n", dwc->dotterCtx->matchSeqFullRange.min, dwc->dotterCtx->matchSeqFullRange.max);
+    g_warning("Limiting vertical sequence end to range %d -> %d.\n", dwc->dotterCtx->matchSeqFullRange.min(), dwc->dotterCtx->matchSeqFullRange.max());
 
   boundsLimitValue(&newValue, &dwc->dotterCtx->matchSeqFullRange);
   
@@ -2746,8 +2746,8 @@ static void redrawAll(GtkWidget *dotterWindow, gpointer data)
   DotterWindowContext *dwc = properties->dotterWinCtx;
 
   /* Check the range values are the correct way round. */
-  sortValues(&dwc->refSeqRange.min, &dwc->refSeqRange.max, TRUE);
-  sortValues(&dwc->matchSeqRange.min, &dwc->matchSeqRange.max, TRUE);
+  dwc->refSeqRange.sort();
+  dwc->matchSeqRange.sort();
   
   if (properties)
     {
@@ -3465,9 +3465,9 @@ int getStartCoord(DotterWindowContext *dwc, const gboolean horizontal)
   int result = UNSET_INT;
   
   if (horizontal)
-    result = dwc->dotterCtx->hozScaleRev ? dwc->refSeqRange.max : dwc->refSeqRange.min;
+    result = dwc->dotterCtx->hozScaleRev ? dwc->refSeqRange.max() : dwc->refSeqRange.min();
   else
-    result = dwc->dotterCtx->vertScaleRev ? dwc->matchSeqRange.max : dwc->matchSeqRange.min;
+    result = dwc->dotterCtx->vertScaleRev ? dwc->matchSeqRange.max() : dwc->matchSeqRange.min();
   
   return result;
 }
@@ -3478,9 +3478,9 @@ int getEndCoord(DotterWindowContext *dwc, const gboolean horizontal)
   int result = UNSET_INT;
   
   if (horizontal)
-    result = dwc->dotterCtx->hozScaleRev ? dwc->refSeqRange.min : dwc->refSeqRange.max;
+    result = dwc->dotterCtx->hozScaleRev ? dwc->refSeqRange.min() : dwc->refSeqRange.max();
   else
-    result = dwc->dotterCtx->vertScaleRev ? dwc->matchSeqRange.min : dwc->matchSeqRange.max;
+    result = dwc->dotterCtx->vertScaleRev ? dwc->matchSeqRange.min() : dwc->matchSeqRange.max();
   
   return result;
 }
@@ -3494,9 +3494,9 @@ static gboolean setStartCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc,
   int *valueToUpdate = NULL;
   
   if (horizontal)
-    valueToUpdate = (dwc->dotterCtx->hozScaleRev ? &dwc->refSeqRange.max : &dwc->refSeqRange.min);
+    valueToUpdate = (dwc->dotterCtx->hozScaleRev ? &dwc->refSeqRange.m_max : &dwc->refSeqRange.m_min);
   else
-    valueToUpdate = (dwc->dotterCtx->vertScaleRev ? &dwc->matchSeqRange.max : &dwc->matchSeqRange.min);
+    valueToUpdate = (dwc->dotterCtx->vertScaleRev ? &dwc->matchSeqRange.m_max : &dwc->matchSeqRange.m_min);
 
   if (valueToUpdate && *valueToUpdate != newValue)
     {
@@ -3514,9 +3514,9 @@ static gboolean setEndCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, c
   int *valueToUpdate = NULL;
   
   if (horizontal)
-    valueToUpdate = (dwc->dotterCtx->hozScaleRev ? &dwc->refSeqRange.min : &dwc->refSeqRange.max);
+    valueToUpdate = (dwc->dotterCtx->hozScaleRev ? &dwc->refSeqRange.m_min : &dwc->refSeqRange.m_max);
   else
-    valueToUpdate = (dwc->dotterCtx->vertScaleRev ? &dwc->matchSeqRange.min : &dwc->matchSeqRange.max);
+    valueToUpdate = (dwc->dotterCtx->vertScaleRev ? &dwc->matchSeqRange.m_min : &dwc->matchSeqRange.m_max);
   
   if (valueToUpdate && *valueToUpdate != newValue)
     {

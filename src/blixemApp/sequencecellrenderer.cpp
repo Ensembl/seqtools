@@ -553,7 +553,7 @@ static void highlightSelectedBase(const int selectedBaseIdx,
   if (selectedBaseIdx != UNSET_INT && valueWithinRange(selectedBaseIdx, data->displayRange))
     {
       /* Convert the display-range index to a 0-based index for the section of sequence displayed */
-      const int segmentIdx = selectedBaseIdx - data->displayRange->min;
+      const int segmentIdx = selectedBaseIdx - data->displayRange->min();
       
       int x, y;
       segmentGetCoordsForBaseIdx(segmentIdx, data->displayRange, data, &x, &y);
@@ -574,7 +574,7 @@ static gboolean exonCoordIsPartialCodon(const MSP* const msp, const gboolean sta
   const int reqdBase = (start != data->bc->displayRev) ? 1 : data->bc->numFrames;
   
   /* Calculate the actual base number of the start/end coord */
-  const int dnaIdx = start ? msp->qRange.min : msp->qRange.max;
+  const int dnaIdx = start ? msp->qRange.min() : msp->qRange.max();
   
   int baseNum = UNSET_INT;
   const int frame = mspGetRefFrame(msp, data->bc->seqType);
@@ -599,7 +599,7 @@ static gboolean coordIsSelected(RenderData *data, const int coord)
   if (data->selectionRange && valueWithinRange(coord, data->selectionRange))
     coordSelected = TRUE;
 
-  if (data->selectionRange && getRangeLength(data->selectionRange) > 1)
+  if (data->selectionRange && data->selectionRange->length() > 1)
     {
       /* There is a range of selected coords. We highlight the base if it's in this range.
        * We only highlight selection-range coords for the currently selected sequence(s), unless 
@@ -656,14 +656,14 @@ static void drawBoxFeature(SequenceCellRenderer *renderer,
 {
   if (mspLayerIsVisible(msp))
     {
-      IntRange segmentRange = {UNSET_INT, UNSET_INT};
+      IntRange segmentRange(UNSET_INT, UNSET_INT);
       
       if (!mspGetVisibleRange(msp, data, &segmentRange))
         {
           return;
         }
 
-      const int segmentLen = segmentRange.max - segmentRange.min + 1;
+      const int segmentLen = segmentRange.max() - segmentRange.min() + 1;
 
       int x, y;
       segmentGetCoordsForBaseIdx(0, &segmentRange, data, &x, &y);
@@ -673,7 +673,7 @@ static void drawBoxFeature(SequenceCellRenderer *renderer,
       /* Just draw one big rectangle the same color for the whole thing. Color depends if row
        * is selected, but note we don't highlight the whole row if a coord range is also selected. */
       gboolean fill = TRUE;
-      const gboolean highlightExon = data->seqSelected && (!data->selectionRange || getRangeLength(data->selectionRange) < 2);
+      const gboolean highlightExon = data->seqSelected && (!data->selectionRange || data->selectionRange->length() < 2);
       const GdkColor *color = mspGetColor(msp, 
                                           data->bc->defaultColors, 
                                           BLXCOLOR_BACKGROUND, 
@@ -693,7 +693,7 @@ static void drawBoxFeature(SequenceCellRenderer *renderer,
       if (data->selectionRange)
         {
           int i = 0;
-          for (i = data->selectionRange->min; i <= data->selectionRange->max; ++i)
+          for (i = data->selectionRange->min(); i <= data->selectionRange->max(); ++i)
             {
               if (i != UNSET_INT && valueWithinRange(i, &segmentRange))
                 {
@@ -758,7 +758,7 @@ static void mspDrawBaseBg(MSP *msp,
   GdkColor *baseBgColor = NULL;
   
   /* From the segment index, find the display index and the ref seq coord */
-  const int displayIdx = segmentRange->min + segmentIdx;
+  const int displayIdx = segmentRange->min() + segmentIdx;
   *qIdx = convertDisplayIdxToDnaIdx(displayIdx, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
   
   /* Find the match-sequence coord at this ref-seq coord */
@@ -861,7 +861,7 @@ static void segmentGetCoordsForBaseIdx(const int segmentIdx,
                                        int* y)
 {
   /* Find the start of the segment with respect to the display range */
-  const int startPos = segmentRange->min - data->displayRange->min;
+  const int startPos = segmentRange->min() - data->displayRange->min();
   
   /* Find the position of the character within the segment */
   int charIdx = startPos + segmentIdx;
@@ -881,7 +881,7 @@ static gboolean exonDrawBoundary(const MSP *msp, RenderData *rd)
       /* Get the msp's start/end in terms of the display coords */
       const IntRange* const mspRange = mspGetDisplayRange(msp);
       
-      if (valueWithinRange(mspRange->min, rd->displayRange))
+      if (valueWithinRange(mspRange->min(), rd->displayRange))
 	{
 	  /* Draw the lower index. The color and line style depend on whether it's the start or end index. */
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorEnd : rd->exonBoundaryColorStart;
@@ -893,7 +893,7 @@ static gboolean exonDrawBoundary(const MSP *msp, RenderData *rd)
 	  GdkLineStyle lineStyle = isPartial ? rd->exonBoundaryStylePartial : rd->exonBoundaryStyle;
           gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 
-          const int idx = mspRange->min - rd->displayRange->min;
+          const int idx = mspRange->min() - rd->displayRange->min();
           
 	  int x = UNSET_INT, y = UNSET_INT;
 	  segmentGetCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
@@ -901,7 +901,7 @@ static gboolean exonDrawBoundary(const MSP *msp, RenderData *rd)
           drawLine2(rd->window, rd->drawable, rd->gc, x, y, x, y + roundNearest(rd->charHeight));
 	}
       
-      if (valueWithinRange(mspRange->max, rd->displayRange))
+      if (valueWithinRange(mspRange->max(), rd->displayRange))
 	{
 	  /* Draw the upper index. The color and line style depend on whether it's the start or end index. */
 	  GdkColor *color = rd->bc->displayRev ? rd->exonBoundaryColorStart : rd->exonBoundaryColorEnd;
@@ -913,7 +913,7 @@ static gboolean exonDrawBoundary(const MSP *msp, RenderData *rd)
 	  GdkLineStyle lineStyle = isPartial ? rd->exonBoundaryStylePartial : rd->exonBoundaryStyle;
           gdk_gc_set_line_attributes(rd->gc, rd->exonBoundaryWidth, lineStyle, GDK_CAP_BUTT, GDK_JOIN_MITER);
 	  
-	  const int idx = mspRange->max + 1 - rd->displayRange->min;
+	  const int idx = mspRange->max() + 1 - rd->displayRange->min();
 
 	  int x = UNSET_INT, y = UNSET_INT;
 	  segmentGetCoordsForBaseIdx(idx, rd->displayRange, rd, &x, &y);
@@ -1017,20 +1017,20 @@ static gboolean mspGetVisibleRange(MSP *msp, RenderData *data, IntRange *result)
   
   /* Get the full display range of the MSP (including any portions of unaligned sequence etc.) */
   const IntRange *fullRange = mspGetFullDisplayRange(msp, data->seqSelected, data->bc);
-  result->min = fullRange->min;
-  result->max = fullRange->max;
+  result->setMin(fullRange->min());
+  result->setMax(fullRange->max());
   
   if (rangesOverlap(result, data->displayRange))
     {
       /* Limit the returned range to the display range. */
-      boundsLimitRange(result, data->displayRange, FALSE);
+      result->boundsLimit(data->displayRange, FALSE);
       found = TRUE;
     }
   else
     {
       /* No portion of the MSP range is in the display range, so return UNSET_INTs */
-      result->min = UNSET_INT;
-      result->max = UNSET_INT;
+      result->setMin(UNSET_INT);
+      result->setMax(UNSET_INT);
     }
 
   return found;
@@ -1052,7 +1052,7 @@ static void mspDrawClippedMarker(const MSP* const msp,
   gboolean clipEnd = FALSE;
   
   /* Check if we're at the very first/last index in the reference sequence range */
-  if (qIdx == data->bc->refSeqRange.min && msp->qRange.min < qIdx)
+  if (qIdx == data->bc->refSeqRange.min() && msp->qRange.min() < qIdx)
     {
       if (data->bc->displayRev)
         {
@@ -1063,7 +1063,7 @@ static void mspDrawClippedMarker(const MSP* const msp,
           clipStart = TRUE;
         }
     }
-  else if (qIdx == data->bc->refSeqRange.max && msp->qRange.max > qIdx)
+  else if (qIdx == data->bc->refSeqRange.max() && msp->qRange.max() > qIdx)
     {
       if (data->bc->displayRev)
         {
@@ -1104,8 +1104,8 @@ static void drawMsp(SequenceCellRenderer *renderer,
     }
 
   /* The ref seq is in nucleotide coords, so convert the segment coords to nucleotide coords */
-  const int coord1 = convertDisplayIdxToDnaIdx(segmentRange.min, data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
-  const int coord2 = convertDisplayIdxToDnaIdx(segmentRange.max, data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
+  const int coord1 = convertDisplayIdxToDnaIdx(segmentRange.min(), data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
+  const int coord2 = convertDisplayIdxToDnaIdx(segmentRange.max(), data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
 
   IntRange qRange;
   intrangeSetValues(&qRange, coord1, coord2);
@@ -1218,8 +1218,8 @@ static void mspDrawColinearityLine(const MSP* msp1, const MSP* msp2, const gbool
 
           /* Get the coords of the line */
           const int y = data->cell_area->y + (data->charHeight / 2);
-          int x1 = data->cell_area->x + ((msp1->displayRange.max + 1 - data->displayRange->min) * data->charWidth); /* +1 to get rightmost edge of char */
-          int x2 = data->cell_area->x + ((msp2->displayRange.min - data->displayRange->min) * data->charWidth) - 1; /* -1 offset by 1 pixel so we don't overdraw the char */
+          int x1 = data->cell_area->x + ((msp1->displayRange.max() + 1 - data->displayRange->min()) * data->charWidth); /* +1 to get rightmost edge of char */
+          int x2 = data->cell_area->x + ((msp2->displayRange.min() - data->displayRange->min()) * data->charWidth) - 1; /* -1 offset by 1 pixel so we don't overdraw the char */
 
           if (x1 < data->cell_area->x + data->cell_area->width && x2 > data->cell_area->x)
             {
@@ -1397,7 +1397,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
   if (data.selectionRange)
     {
       int i = 0;
-      for (i = data.selectionRange->min; i <= data.selectionRange->max; ++i)
+      for (i = data.selectionRange->min(); i <= data.selectionRange->max(); ++i)
         {
           if (coordIsSelected(&data, i))
             highlightSelectedBase(i, backgroundColorSelected, &data);

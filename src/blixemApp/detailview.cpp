@@ -263,7 +263,7 @@ void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coor
 
   /* Get the new start coord */
   const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
-  const int displayLen = getRangeLength(displayRange);
+  const int displayLen = displayRange->length();
   int newStart = coord - displayLen + 1;
 
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
@@ -431,7 +431,7 @@ void updateDetailViewRange(GtkWidget *detailView)
 //        
 //        if (displayRange->min != displayRange->max)
 //          {
-//            int centre = getRangeCentre(displayRange);
+//            int centre = displayRange->centre();
 //            int offset = roundNearest((double)properties->adjustment->page_size / 2.0);
 //            newStart = centre - offset;
 //          }
@@ -1385,9 +1385,9 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
           else
             {
               if (bc->displayRev) /* swap coords and negage if applicable */
-                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", negate * msp->qRange.max, negate * msp->qRange.min);
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", negate * msp->qRange.max(), negate * msp->qRange.min());
               else
-                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", msp->qRange.min, msp->qRange.max);
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", msp->qRange.min(), msp->qRange.max());
             }
               
           /* Send the message to the status bar */
@@ -1411,9 +1411,9 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
           else
             {
               if (bc->displayRev) /* swap coords and negate if applicable */
-                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", negate * msp->qRange.max, negate * msp->qRange.min);
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", negate * msp->qRange.max(), negate * msp->qRange.min());
               else
-                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", msp->qRange.min, msp->qRange.max);
+                displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", msp->qRange.min(), msp->qRange.max());
             }
               
           /* Send the message to the status bar */
@@ -1432,13 +1432,13 @@ void detailViewScrollToKeepInRange(GtkWidget *detailView, const IntRange* const 
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   const BlxSeqType seqType = detailViewGetSeqType(detailView);
       
-  if (displayRange->min < range->min)
+  if (displayRange->min() < range->min())
     {
-      setDetailViewStartIdx(detailView, range->min, seqType);
+      setDetailViewStartIdx(detailView, range->min(), seqType);
     }
-  else if (displayRange->max > range->max)
+  else if (displayRange->max() > range->max())
     {
-      setDetailViewEndIdx(detailView, range->max, seqType);
+      setDetailViewEndIdx(detailView, range->max(), seqType);
     }
 
   DEBUG_EXIT("detailViewScrollToKeepInRange returning ");
@@ -1462,18 +1462,18 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
       
       if (scrollMinimum)
         {
-          if (selectedBaseIdx < displayRange->min)
+          if (selectedBaseIdx < displayRange->min())
             {
               setDetailViewStartIdx(detailView, selectedBaseIdx, seqType);
             }
-          else if (selectedBaseIdx > displayRange->max)
+          else if (selectedBaseIdx > displayRange->max())
             {
               setDetailViewEndIdx(detailView, selectedBaseIdx, seqType);
             }
         }
       else
         {
-          const int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
+          const int newStart = selectedBaseIdx - (displayRange->length() / 2);
           setDetailViewStartIdx(detailView, newStart, seqType);
         }
     }
@@ -1548,18 +1548,18 @@ static gint sortByStartCompareFunc(const MSP *msp1, const MSP *msp2, const gbool
     {
       /* Display is reversed (i.e. numbers shown descending) so use compare on the max coord
        * and look for the max */
-      result = msp2->qRange.max - msp1->qRange.max;
+      result = msp2->qRange.max() - msp1->qRange.max();
     }
   else 
     {
-      result = msp1->qRange.min - msp2->qRange.min;
+      result = msp1->qRange.min() - msp2->qRange.min();
     }
   
   if (result == 0)
     {
       /* If the MSPs have the same start coord, do a secondary sort 
        * by alignment length */
-      result = getRangeLength(&msp1->qRange) - getRangeLength(&msp2->qRange);
+      result = msp1->qRange.length() - msp2->qRange.length();
     }
 
   return result;
@@ -1884,7 +1884,7 @@ int getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, c
       result = (int)(((gdouble)x - leftEdge) / charWidth);
     }
   
-  result += displayRange->min;
+  result += displayRange->min();
   
   return result;
 }
@@ -2031,7 +2031,7 @@ void selectClickedSnp(GtkWidget *snpTrack,
               /* We clicked inside this MSP on the variation track. Select the first coord in
                * the MSP. */
               found = TRUE;
-              dnaIdxToSelect = msp->qRange.min;
+              dnaIdxToSelect = msp->qRange.min();
             }
           else if (!expandSnps && valueWithinRange(clickedDnaIdx, &msp->qRange))
             {
@@ -2102,14 +2102,14 @@ static void mspGetAdjacentBases(const MSP* const msp, char *bases, const gboolea
 {
   if (start)
     {
-      bases[0] = getSequenceIndex(bc->refSeq, msp->qRange.min - 2, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
-      bases[1] = getSequenceIndex(bc->refSeq, msp->qRange.min - 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[0] = getSequenceIndex(bc->refSeq, msp->qRange.min() - 2, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[1] = getSequenceIndex(bc->refSeq, msp->qRange.min() - 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
       bases[2] = '\0';
     }  
   else
     {
-      bases[0] = getSequenceIndex(bc->refSeq, msp->qRange.max + 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
-      bases[1] = getSequenceIndex(bc->refSeq, msp->qRange.max + 2, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[0] = getSequenceIndex(bc->refSeq, msp->qRange.max() + 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
+      bases[1] = getSequenceIndex(bc->refSeq, msp->qRange.max() + 2, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
       bases[2] = '\0';
     }
 }
@@ -2413,29 +2413,29 @@ static void mspGetSpliceSiteCoords(const MSP* const msp,
   const gboolean revStrand = (mspGetRefStrand(msp) != BLXSTRAND_FORWARD);
   
   /* Ignore the termini (i.e. 5' end of first exon and 3' end of last exon) */
-  const gboolean getMin = (msp->sSequence && msp->qRange.min != blxSequenceGetStart(msp->sSequence, msp->qStrand));
-  const gboolean getMax = (msp->sSequence && msp->qRange.max != blxSequenceGetEnd(msp->sSequence, msp->qStrand));
+  const gboolean getMin = (msp->sSequence && msp->qRange.min() != blxSequenceGetStart(msp->sSequence, msp->qStrand));
+  const gboolean getMax = (msp->sSequence && msp->qRange.max() != blxSequenceGetEnd(msp->sSequence, msp->qStrand));
   
   /* See if the min coord is within the given range */
-  if (getMin && valueWithinRange(msp->qRange.min, qRange) && msp->qRange.min >= bc->refSeqRange.min + 2)
+  if (getMin && valueWithinRange(msp->qRange.min(), qRange) && msp->qRange.min() >= bc->refSeqRange.min() + 2)
     {
       /* Find out if the adjacent bases are canonical/non-canonical. */
       BlxColorId colorId = getMspSpliceSiteColor(msp, blxSeq, TRUE, revStrand, bc, spliceSites);
 
       /* Insert the two coords into the hash table */
-      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min - 2), GINT_TO_POINTER(colorId));
-      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min - 1), GINT_TO_POINTER(colorId));
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min() - 2), GINT_TO_POINTER(colorId));
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min() - 1), GINT_TO_POINTER(colorId));
     }
   
   /* See if the max coord is within the given range */
-  if (getMax && valueWithinRange(msp->qRange.max, qRange) && msp->qRange.max <= bc->refSeqRange.max - 2)
+  if (getMax && valueWithinRange(msp->qRange.max(), qRange) && msp->qRange.max() <= bc->refSeqRange.max() - 2)
     {
       /* Find out if they are canonical/non-canonical */
       BlxColorId colorId = getMspSpliceSiteColor(msp, blxSeq, FALSE, revStrand, bc, spliceSites);
       
       /* Insert the two coords into the hash table */
-      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max + 1), GINT_TO_POINTER(colorId));
-      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max + 2), GINT_TO_POINTER(colorId));
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max() + 1), GINT_TO_POINTER(colorId));
+      g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max() + 2), GINT_TO_POINTER(colorId));
     }
 }
 
@@ -2476,7 +2476,7 @@ static void getAnnotatedPolyASignalBasesToHighlight(const BlxViewContext *bc,
                   for ( ; item && !addSignal; item = item->next)
                     {
                       const MSP* const tailMsp = (const MSP*)(item->data);
-                      const int qEnd = tailMsp->qRange.max;
+                      const int qEnd = tailMsp->qRange.max();
                       const int qStart = qEnd - POLYA_SIG_BASES_UPSTREAM;
                       
                       IntRange upstreamRange;
@@ -2495,8 +2495,8 @@ static void getAnnotatedPolyASignalBasesToHighlight(const BlxViewContext *bc,
                 {
                   /* Add each base in the polyA signal range to the hash table. This may overwrite
                    * splice site bases that we previously found, which is fine (something has to take priority). */
-                  int i = sigMsp->qRange.min;
-                  for ( ; i <= sigMsp->qRange.max; ++i)
+                  int i = sigMsp->qRange.min();
+                  for ( ; i <= sigMsp->qRange.max(); ++i)
                     {
                       g_hash_table_insert(result, GINT_TO_POINTER(i), GINT_TO_POINTER(colorId));
                     }
@@ -2525,8 +2525,8 @@ static void getPolyASignalBasesToHighlight(GtkWidget *detailView,
 
       /* Loop through each base in the visible range */
       const char *seq = bc->refSeq;
-      int idx = qRange->min - bc->refSeqRange.min; /* convert to 0-based */
-      const int max_idx = qRange->max - bc->refSeqRange.min; /* convert to 0-based */
+      int idx = qRange->min() - bc->refSeqRange.min(); /* convert to 0-based */
+      const int max_idx = qRange->max() - bc->refSeqRange.min(); /* convert to 0-based */
       const char *comparison = POLYA_SIGNAL;
       const int comparison_len = strlen(comparison);
       const char *cp = NULL;
@@ -2545,7 +2545,7 @@ static void getPolyASignalBasesToHighlight(GtkWidget *detailView,
             {
               /* Add each base in the polyA signal range to the hash table. This may overwrite
                * splice site bases that we previously found, which is fine (something has to take priority). */
-              int i = idx + bc->refSeqRange.min; /* convert back to coords */
+              int i = idx + bc->refSeqRange.min(); /* convert back to coords */
               const int max = i + comparison_len;
 
               for ( ; i < max; ++i)
@@ -2582,7 +2582,7 @@ static void getAnnotatedPolyASiteBasesToHighlight(const BlxViewContext *bc,
             {
               /* Add just the first base in the polyA signal range to the hash table (because the
                * site is between the two bases in the range and we only want to draw it once). */
-              g_hash_table_insert(result, GINT_TO_POINTER(siteMsp->qRange.min), GINT_TO_POINTER(colorId));
+              g_hash_table_insert(result, GINT_TO_POINTER(siteMsp->qRange.min()), GINT_TO_POINTER(colorId));
             }
         }
     }
@@ -2660,8 +2660,8 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
    * coords are in nucleotides, so convert display range to nucleotide coords. */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   
-  const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);         /* 1st base in frame */
-  const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); /* last base in frame */
+  const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min(), bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);         /* 1st base in frame */
+  const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max(), bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); /* last base in frame */
   IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
   
   GError *error = NULL;
@@ -2709,11 +2709,11 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   
   /* We'll loop forward/backward through the display range depending on which strand we're viewing */
   int incrementValue = bc->displayRev ? -bc->numFrames : bc->numFrames;
-  int displayLen = qRange.max - qRange.min + 1;
+  int displayLen = qRange.max() - qRange.min() + 1;
   char displayText[displayLen + 1];
   int displayTextPos = 0;
   
-  int qIdx = bc->displayRev ? qRange.max : qRange.min;
+  int qIdx = bc->displayRev ? qRange.max() : qRange.min();
   int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, activeFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   const int y = 0;
   DrawBaseData baseData = {qIdx,
@@ -2736,7 +2736,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
                            FALSE,
                            detailViewGetSelectedDnaIdxRange(detailView)};
   
-  while (qIdx >= qRange.min && qIdx <= qRange.max)
+  while (qIdx >= qRange.min() && qIdx <= qRange.max())
     {
       /* Get the character to display at this index, and its position */
       displayText[displayTextPos] = getSequenceIndex(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
@@ -2797,13 +2797,13 @@ static void getVariationDisplayRange(const MSP *msp,
   const IntRange* const mspRange = mspGetDisplayRange(msp);
 
   if (displayRange)
-    intrangeSetValues(displayRange, mspRange->min, mspRange->max);
+    intrangeSetValues(displayRange, mspRange->min(), mspRange->max());
   
   if (!expandedRange)
     return;
 
   /* Work out the expanded range (it will be the same as the MSP range if unexpanded) */
-  intrangeSetValues(expandedRange, mspRange->min, mspRange->max);
+  intrangeSetValues(expandedRange, mspRange->min(), mspRange->max());
   
   if (expand && mspGetMatchSeq(msp))
     {
@@ -2820,8 +2820,8 @@ static void getVariationDisplayRange(const MSP *msp,
           --offset;
         }
   
-      expandedRange->min = getRangeCentre(expandedRange) - offset;
-      expandedRange->max = expandedRange->min + numChars - 1;
+      expandedRange->setMin(expandedRange->centre() - offset);
+      expandedRange->setMax(expandedRange->min() + numChars - 1);
     }
 }
 
@@ -2873,8 +2873,8 @@ static gboolean coordAffectedByVariation(const int dnaIdx,
            * and the end boundary if it's the last, unless it's a zero-length feature, i.e. an insertion
            * site; in this case we draw a line to the right of the coord in the direction of the
            * reference sequence (i.e. to give just a vertical line at the site, not an outline around the bases) */
-          const gboolean isFirst = (dnaIdx == msp->qRange.min);
-          const gboolean isLast = (dnaIdx == msp->qRange.max);
+          const gboolean isFirst = (dnaIdx == msp->qRange.min());
+          const gboolean isLast = (dnaIdx == msp->qRange.max());
           const gboolean isZeroLen = mspIsZeroLenVariation(msp);
 
           /* Note that if any of the boundaries are already set to be drawn (by a previous snp
@@ -3127,7 +3127,7 @@ void drawHeaderChar(BlxViewContext *bc,
                     GHashTable *basesToHighlight,
                     DrawBaseData *data)
 {
-  if (!data->selectionRange || (data->selectionRange && getRangeLength(data->selectionRange) == 1))
+  if (!data->selectionRange || (data->selectionRange && data->selectionRange->length() == 1))
     {
       /* Shade the background if the base is selected XOR if the base is within the range of a 
        * selected sequence. (If both conditions are true we don't shade, to give the effect of an
@@ -3269,8 +3269,8 @@ static int getVariationRowNumber(const IntRange* const rangeIn, const int numRow
         {
           /* Doesn't overlap anything in this row; add it to the row and exit */
           IntRange *range = (IntRange*)g_malloc(sizeof *range);
-          range->min = rangeIn->min;
-          range->max = rangeIn->max;
+          range->setMin(rangeIn->min());
+          range->setMax(rangeIn->max());
           ranges = g_slist_append(ranges, range);
           
           row->data = ranges;
@@ -3285,8 +3285,8 @@ static int getVariationRowNumber(const IntRange* const rangeIn, const int numRow
   /* If we get here, we didn't find a row that we don't overlap, so add a new row */
   GSList *ranges = NULL;
   IntRange *range = (IntRange*)g_malloc(sizeof *range);
-  range->min = rangeIn->min;
-  range->max = rangeIn->max;
+  range->setMin(rangeIn->min());
+  range->setMax(rangeIn->max());
   ranges = g_slist_append(ranges, range);
   *rows = g_slist_append(*rows, ranges);
 
@@ -3431,7 +3431,7 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
               const int rowNum = getVariationRowNumber(&mspExpandedRange, numRows, &rows);
               const int rowIdx = rowNum - 1;
               
-              int x = leftMargin + (int)((gdouble)(mspExpandedRange.min - properties->displayRange.min) * properties->charWidth);
+              int x = leftMargin + (int)((gdouble)(mspExpandedRange.min() - properties->displayRange.min()) * properties->charWidth);
               const int width = ceil((gdouble)strlen(mspGetMatchSeq(msp)) * properties->charWidth);
               const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
               
@@ -3482,7 +3482,7 @@ static void detailViewCentreOnSelection(GtkWidget *detailView)
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
       const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
       
-      int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
+      int newStart = selectedBaseIdx - (displayRange->length() / 2);
       setDetailViewStartIdx(detailView, newStart, seqType);
     }
 
@@ -3503,11 +3503,11 @@ static int getBaseIndexAtDetailViewCoords(GtkWidget *detailView, const int x, co
   getColumnXCoords(columnList, BLXCOL_SEQUENCE, &xRange);
   
   /* See if our x coord lies inside the sequence column */
-  if (x >= xRange.min && x <= xRange.max)
+  if (x >= xRange.min() && x <= xRange.max())
     {
       /* Get the 0-based char index at x */
       gdouble charWidth = properties->charWidth;
-      int charIdx = (int)(((gdouble)x - xRange.min) / charWidth);
+      int charIdx = (int)(((gdouble)x - xRange.min()) / charWidth);
 
       /* Add the start of the scroll range to convert this to the display index */
       GtkAdjustment *adjustment = properties->adjustment;
@@ -3536,7 +3536,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
    * the detail-view range*/
   if (adjustment->value == UNSET_INT)
     {
-      adjustment->value = getRangeCentre(displayRange) - (adjustment->page_size / 2);
+      adjustment->value = displayRange->centre() - (adjustment->page_size / 2);
 
       if (adjustment->value < adjustment->lower)
         adjustment->value = adjustment->lower;
@@ -3548,12 +3548,12 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
   int newEnd = newStart + adjustment->page_size - 1;
   
   /* Only update if something has changed */
-  if (displayRange->min != newStart || displayRange->max != newEnd)
+  if (displayRange->min() != newStart || displayRange->max() != newEnd)
     {
-      IntRange oldRange = {displayRange->min, displayRange->max};
+      IntRange oldRange = {displayRange->min(), displayRange->max()};
 
-      displayRange->min = newStart;
-      displayRange->max = newEnd;
+      displayRange->setMin(newStart);
+      displayRange->setMax(newEnd);
       
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
       refilterDetailView(detailView, &oldRange);
@@ -3590,12 +3590,12 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   IntRange *displayRange = &properties->displayRange;
   
-  if (displayRange->min != newStart || displayRange->max != newEnd)
+  if (displayRange->min() != newStart || displayRange->max() != newEnd)
     {
-      IntRange oldRange = {displayRange->min, displayRange->max};
+      IntRange oldRange(displayRange->min(), displayRange->max());
 
-      displayRange->min = newStart;
-      displayRange->max = newEnd;
+      displayRange->setMin(newStart);
+      displayRange->setMax(newEnd);
 
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
       refilterDetailView(detailView, &oldRange);
@@ -3682,9 +3682,9 @@ static gboolean startValueWithinRange(const IntRange* const range1,
   gboolean result = FALSE;
   
   if (rev)
-    result = valueWithinRange(range1->max, range2);
+    result = valueWithinRange(range1->max(), range2);
   else 
-    result = valueWithinRange(range1->min, range2);
+    result = valueWithinRange(range1->min(), range2);
   
   return result;
 }
@@ -3723,7 +3723,7 @@ static gboolean getAnyMspInRange(GArray *mspArray,
       if (iMax - iMin < 1)
         break;
     
-      if ((msp->displayRange.min < range->min) != displayRev)
+      if ((msp->displayRange.min() < range->min()) != displayRev)
         {
           iMin = i + 1;
         }
@@ -3817,13 +3817,11 @@ static void refilterMspArrayByRange(BlxMspType mspType,
   
   if (bc->displayRev)
     {
-      extendedRange.min = displayRange->min;
-      extendedRange.max = displayRange->max + maxLen;
+      extendedRange.set(displayRange->min(), displayRange->max() + maxLen);
     }
   else
     {
-      extendedRange.min = displayRange->min - maxLen;
-      extendedRange.max = displayRange->max;
+      extendedRange.set(displayRange->min() - maxLen, displayRange->max());
     }
   
   int startIdx = 0;
@@ -4681,8 +4679,7 @@ static void detailViewCreateProperties(GtkWidget *detailView,
        * on the start coord. Set the adjustment value to be unset so that we know
        * we need to calculated it first time round. */
       properties->adjustment->value = UNSET_INT;
-      properties->displayRange.min = startCoord - 1;
-      properties->displayRange.max = startCoord + 1;
+      properties->displayRange.set(startCoord - 1, startCoord + 1);
       
       /* Find the padding between the background area of the tree cells and the actual
        * drawing area. This is used to render the full height of the background area, so
@@ -5247,7 +5244,7 @@ static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton 
               const BlxSeqType seqType = detailViewGetSeqType(detailView);
               const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
               
-              int newStart = selectedBaseIdx - (getRangeLength(displayRange) / 2);
+              int newStart = selectedBaseIdx - (displayRange->length() / 2);
               setDetailViewStartIdx(detailView, newStart, seqType);
             }
         }
@@ -5505,12 +5502,12 @@ void toggleStrand(GtkWidget *detailView)
   /* Invert the display range for both detail view and big picture */
   IntRange *bpRange = bigPictureGetDisplayRange(bigPicture);
   const IntRange* const fullRange = &blxContext->fullDisplayRange;
-  const int bpStart = fullRange->max - bpRange->min + fullRange->min;
-  const int bpEnd = fullRange->max - bpRange->max + fullRange->min;
+  const int bpStart = fullRange->max() - bpRange->min() + fullRange->min();
+  const int bpEnd = fullRange->max() - bpRange->max() + fullRange->min();
   intrangeSetValues(bpRange, bpStart, bpEnd);
 
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  const int newStart = fullRange->max - displayRange->max + fullRange->min;
+  const int newStart = fullRange->max() - displayRange->max() + fullRange->min();
   setDetailViewStartIdx(detailView, newStart, blxContext->seqType);
 
   /* Re-select the currently-selected index/range, if set, because the display coords
@@ -5628,7 +5625,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
            * entered the wrong sign */
           if (!valueWithinRange(coord, &bc->refSeqRange))
             {
-              g_debug("Coord '%d' does not lie within the reference sequence range [%d %d]; trying '%d'\n", requestedCoord, negate ? bc->refSeqRange.max * -1 : bc->refSeqRange.min, negate ? bc->refSeqRange.min * -1 : bc->refSeqRange.max, requestedCoord * -1);
+              g_debug("Coord '%d' does not lie within the reference sequence range [%d %d]; trying '%d'\n", requestedCoord, negate ? bc->refSeqRange.max() * -1 : bc->refSeqRange.min(), negate ? bc->refSeqRange.min() * -1 : bc->refSeqRange.max(), requestedCoord * -1);
               coord *= -1;
             }
           
@@ -5640,8 +5637,8 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
             }
           else
             {
-              g_debug("Coord '%d' does not lie within the reference sequence range [%d %d]\n", negate ? coord * -1 : coord, negate? bc->refSeqRange.max * -1 : bc->refSeqRange.min, negate ? bc->refSeqRange.min * -1 : bc->refSeqRange.max);
-              g_critical("Coord was not in the reference sequence range [%d %d]\n", negate ? bc->refSeqRange.max * -1 : bc->refSeqRange.min, negate ? bc->refSeqRange.min * -1 : bc->refSeqRange.max);
+              g_debug("Coord '%d' does not lie within the reference sequence range [%d %d]\n", negate ? coord * -1 : coord, negate? bc->refSeqRange.max() * -1 : bc->refSeqRange.min(), negate ? bc->refSeqRange.min() * -1 : bc->refSeqRange.max());
+              g_critical("Coord was not in the reference sequence range [%d %d]\n", negate ? bc->refSeqRange.max() * -1 : bc->refSeqRange.min(), negate ? bc->refSeqRange.min() * -1 : bc->refSeqRange.max());
             }
         }
     }
@@ -5690,8 +5687,8 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
         {
           /* Get the offset of the msp coords from the given start coord and find the smallest,
            * ignorning zero and negative offsets (negative means its the wrong direction) */
-          const int offset1 = (msp->qRange.min - searchData->startDnaIdx) * searchData->searchDirection;
-          const int offset2 = (msp->qRange.max - searchData->startDnaIdx) * searchData->searchDirection;
+          const int offset1 = (msp->qRange.min() - searchData->startDnaIdx) * searchData->searchDirection;
+          const int offset2 = (msp->qRange.max() - searchData->startDnaIdx) * searchData->searchDirection;
           
           int currentFrame = mspGetRefFrame(msp, searchData->seqType);
           int currentBest = UNSET_INT;
@@ -5808,7 +5805,7 @@ MSP* prevMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
   
   if (!valueWithinRange(startCoord, displayRange))
     {
-      startCoord = getRangeCentre(displayRange);
+      startCoord = displayRange->centre();
       
       /* Use base 1 within the currently selected frame for this display coord */
       int frame = detailViewGetActiveFrame(detailView);
@@ -5831,7 +5828,7 @@ MSP* nextMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
   
   if (!valueWithinRange(startCoord, displayRange))
     {
-      startCoord = getRangeCentre(displayRange);
+      startCoord = displayRange->centre();
       
       /* Use base 1 within the currently selected frame for this display coord */
       int frame = detailViewGetActiveFrame(detailView);
@@ -5848,7 +5845,7 @@ MSP* firstMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
 {
   /* Jump to the nearest match to the start of the ref seq */
   const IntRange* const refSeqRange = detailViewGetRefSeqRange(detailView);
-  const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->max : refSeqRange->min;
+  const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->max() : refSeqRange->min();
   
   return goToNextMatch(detailView, startIdx, TRUE, seqList, extend);
 }
@@ -5859,7 +5856,7 @@ MSP* lastMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
 {
   /* Jump to the nearest match to the end of the reference sequence */
   const IntRange* const refSeqRange = detailViewGetRefSeqRange(detailView);
-  const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->min : refSeqRange->max;
+  const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->min() : refSeqRange->max();
 
   return goToNextMatch(detailView,
                        startIdx, FALSE, seqList, extend);
@@ -6255,7 +6252,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
             }
           else
             {
-              g_warning("Could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d])\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
+              g_warning("Could not determine alignment list. Sequence may not be shown. (sequence = '%s', q range [%d-%d], s range [%d-%d])\n", mspGetSName(msp), msp->qRange.min(), msp->qRange.max(), msp->sRange.min(), msp->sRange.max());
             }
         }
     }

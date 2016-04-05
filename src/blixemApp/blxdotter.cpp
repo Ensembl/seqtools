@@ -435,8 +435,8 @@ static void onFullRangeButtonClicked(GtkWidget *button, gpointer data)
   DotterDialogData *dialogData = (DotterDialogData*)data;
   BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
-  const int startCoord = (bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min);
-  const int endCoord = (bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max);
+  const int startCoord = (bc->displayRev ? bc->refSeqRange.max() : bc->refSeqRange.min());
+  const int endCoord = (bc->displayRev ? bc->refSeqRange.min() : bc->refSeqRange.max());
   
   char *startString = convertIntToString(getDisplayCoord(startCoord, bc));
   char *endString = convertIntToString(getDisplayCoord(endCoord, bc));
@@ -461,8 +461,8 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
   GtkWidget *bigPicture = blxWindowGetBigPicture(dialogData->blxWindow);
   const IntRange* const displayRange = bigPictureGetDisplayRange(bigPicture);
 
-  int qStart = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  int qEnd = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, bc->numFrames, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  int qStart = convertDisplayIdxToDnaIdx(displayRange->min(), bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  int qEnd = convertDisplayIdxToDnaIdx(displayRange->max(), bc->seqType, bc->numFrames, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange);
 
   boundsLimitValue(&qStart, &bc->refSeqRange);
   boundsLimitValue(&qEnd, &bc->refSeqRange);
@@ -543,8 +543,8 @@ static void onRefTypeToggled(GtkWidget *button, gpointer data)
 
       if (autoStart == UNSET_INT && autoEnd == UNSET_INT)
         {
-          autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
-          autoEnd = bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max;
+          autoStart = bc->displayRev ? bc->refSeqRange.max() : bc->refSeqRange.min();
+          autoEnd = bc->displayRev ? bc->refSeqRange.min() : bc->refSeqRange.max();
         }
       
       char *startString = convertIntToString(getDisplayCoord(autoStart, bc));
@@ -604,10 +604,10 @@ static void onMatchTypeToggled(GtkWidget *button, gpointer data)
       getDotterRange(dialogData->blxWindow, dialogData->matchType, dialogData->refType, &autoStart, &autoEnd, NULL, NULL);
 
       if (autoStart == UNSET_INT)
-        autoStart = bc->displayRev ? bc->refSeqRange.max : bc->refSeqRange.min;
+        autoStart = bc->displayRev ? bc->refSeqRange.max() : bc->refSeqRange.min();
   
       if (autoEnd == UNSET_INT)
-        autoEnd = bc->displayRev ? bc->refSeqRange.min : bc->refSeqRange.max;
+        autoEnd = bc->displayRev ? bc->refSeqRange.min() : bc->refSeqRange.max();
   
       char *startString = convertIntToString(getDisplayCoord(autoStart, bc));
       char *endString = convertIntToString(getDisplayCoord(autoEnd, bc));
@@ -1226,8 +1226,8 @@ static gboolean boundsCheckDotterCoord(int *coordIn, BlxViewContext *bc, GError 
           g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_OUT_OF_RANGE,
                       "Coord '%d' is outside reference sequence range [%d -> %d].\n", 
                       *coordIn, 
-                      (negate ? bc->refSeqRange.max * -1 : bc->refSeqRange.min),
-                      (negate ? bc->refSeqRange.min * -1 : bc->refSeqRange.max));
+                      (negate ? bc->refSeqRange.max() * -1 : bc->refSeqRange.min()),
+                      (negate ? bc->refSeqRange.min() * -1 : bc->refSeqRange.max()));
         }
     }
   
@@ -1286,10 +1286,10 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
       if (transcriptSeq)
         {
           if (dotterStart)
-            *dotterStart = transcriptSeq->qRangeFwd.min;
+            *dotterStart = transcriptSeq->qRangeFwd.min();
 
           if (dotterEnd)
-            *dotterEnd = transcriptSeq->qRangeFwd.max;
+            *dotterEnd = transcriptSeq->qRangeFwd.max();
         }
     }
   else if (refType == BLXDOTTER_REF_MANUAL)
@@ -1338,7 +1338,7 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
               const MSP *msp = (MSP*)(mspItem->data);
               
               if ((msp->qStrand == activeStrand || bc->blastMode == BLXMODE_BLASTN) &&
-                  msp->qRange.min <= qMax && msp->qRange.max >= qMin)
+                  msp->qRange.min() <= qMax && msp->qRange.max() >= qMin)
                 {
                   found = TRUE;
                   break;
@@ -1379,8 +1379,8 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   const IntRange* const displayRange = bigPictureGetDisplayRange(bigPicture);
   
   /* Convert to DNA coords */
-  int start = convertDisplayIdxToDnaIdx(displayRange->min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  int end = convertDisplayIdxToDnaIdx(displayRange->max, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  int start = convertDisplayIdxToDnaIdx(displayRange->min(), bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  int end = convertDisplayIdxToDnaIdx(displayRange->max(), bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   
   if (dotter_start_out)
     *dotter_start_out = start;
@@ -1816,10 +1816,10 @@ static GIOChannel* callDotterChildProcess(GtkWidget *blxWindow,
   DEBUG_OUT("callDotterChildProcess\n");
 
   GIOChannel *ioChannel = NULL;
-  char *seq1OffsetStr = convertIntToString(seq1Range->min - 1);
-  char *seq2OffsetStr = convertIntToString(seq2Range->min - 1);
-  char *seq1LenStr = convertIntToString(getRangeLength(seq1Range));
-  char *seq2LenStr = convertIntToString(getRangeLength(seq2Range));
+  char *seq1OffsetStr = convertIntToString(seq1Range->min() - 1);
+  char *seq2OffsetStr = convertIntToString(seq2Range->min() - 1);
+  char *seq1LenStr = convertIntToString(seq1Range->length());
+  char *seq2LenStr = convertIntToString(seq2Range->length());
   
   /* Create the argument list - start with any options we want to pass */
   GSList *argList = NULL;
@@ -1942,7 +1942,7 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
                             GError **error)
 {
   if (clipRange)
-    boundsLimitRange(seq1Range, &bc->refSeqRange, FALSE);
+    seq1Range->boundsLimit(&bc->refSeqRange, FALSE);
 
   static char *dotterBinary = NULL;
 
@@ -1960,7 +1960,7 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
         }
     }
   
-  g_debug("Calling %s with region: %d,%d - %d,%d\n", dotterBinary, seq1Range->min, seq2Range->min, seq1Range->max, seq2Range->max);
+  g_debug("Calling %s with region: %d,%d - %d,%d\n", dotterBinary, seq1Range->min(), seq2Range->min(), seq1Range->max(), seq2Range->max());
 
   /* Create the child process */
   GPid childPid = 0;
@@ -1991,10 +1991,10 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
       /* Pass the sequences */
       DEBUG_OUT("Piping sequences to dotter...\n");
 
-      status = g_io_channel_write_chars(ioChannel, seq1, getRangeLength(seq1Range), &bytes_written, &tmpError);
+      status = g_io_channel_write_chars(ioChannel, seq1, seq1Range->length(), &bytes_written, &tmpError);
 
       if (!tmpError)
-        status = g_io_channel_write_chars(ioChannel, seq2, getRangeLength(seq2Range), &bytes_written, &tmpError);
+        status = g_io_channel_write_chars(ioChannel, seq2, seq2Range->length(), &bytes_written, &tmpError);
 
       DEBUG_OUT("...done\n");
     }
@@ -2145,7 +2145,7 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow,
 
   IntRange sRange = {1, (int)strlen(dotterSSeq)};
   
-  const int offset = dotterRange.min - 1;
+  const int offset = dotterRange.min() - 1;
   const BlxStrand refSeqStrand = blxWindowGetActiveStrand(blxWindow);
   
   if (transcript)
@@ -2292,7 +2292,7 @@ gboolean callDotterOnAdhocSeq(DotterDialogData *dialogData, GError **error)
 
   IntRange sRange = {1, (int)strlen(dotterSSeq)};
   
-  const int offset = dotterRange.min - 1;
+  const int offset = dotterRange.min() - 1;
   const BlxStrand refSeqStrand = blxWindowGetActiveStrand(blxWindow);
   
   if (transcript)

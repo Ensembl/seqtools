@@ -269,8 +269,8 @@ static void addSequenceMspsToSingleRow(BlxSequence *blxSeq, GtkWidget *tree, Gtk
       /* Add the hard-coded column data */
       const double score = msp ? msp->score : 0.0;
       const double id = msp ? msp->id : 0.0;
-      const int start = msp ? msp->sRange.min : blxSequenceGetStart(blxSeq, treeStrand);
-      const int end = msp ? msp->sRange.max : blxSequenceGetEnd(blxSeq, treeStrand);
+      const int start = msp ? msp->sRange.min() : blxSequenceGetStart(blxSeq, treeStrand);
+      const int end = msp ? msp->sRange.max() : blxSequenceGetEnd(blxSeq, treeStrand);
 
       /* Loop through the rest of the columns */
       GList *item = columnList;
@@ -373,12 +373,12 @@ static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
 
   if (msp1HasSeq && msp2HasSeq)
     {
-      result = msp1->qRange.min - msp2->qRange.min;
+      result = msp1->qRange.min() - msp2->qRange.min();
 
-      if (result == 0) result = getRangeLength(&msp1->sRange) - getRangeLength(&msp2->sRange);
+      if (result == 0) result = msp1->sRange.length() - msp2->sRange.length();
       if (result == 0) result = msp1->score - msp2->score;
       if (result == 0) result = msp1->id - msp2->id;
-      if (result == 0) result = strncmp(sequence1 + msp1->sRange.min - 1, sequence2 + msp2->sRange.min - 1, getRangeLength(&msp1->sRange));
+      if (result == 0) result = strncmp(sequence1 + msp1->sRange.min() - 1, sequence2 + msp2->sRange.min() - 1, msp1->sRange.length());
     }
   else if (!msp1HasSeq && !msp2HasSeq)
     {
@@ -465,11 +465,11 @@ static void addFeaturesToCompactTree(GtkWidget *tree, GtkListStore *store, GtkWi
                   else if (columnInfo->columnId == BLXCOL_ID)
                     gtk_list_store_set(store, &iter, columnInfo->columnIdx, prevMsp->id, -1);
                   else if (columnInfo->columnId == BLXCOL_START)
-                    gtk_list_store_set(store, &iter, columnInfo->columnIdx, prevMsp->sRange.min, -1);
+                    gtk_list_store_set(store, &iter, columnInfo->columnIdx, prevMsp->sRange.min(), -1);
                   else if (columnInfo->columnId == BLXCOL_SEQUENCE)
                     gtk_list_store_set(store, &iter, columnInfo->columnIdx, mspsToAdd, -1);
                   else if (columnInfo->columnId == BLXCOL_END)
-                    gtk_list_store_set(store, &iter, columnInfo->columnIdx, prevMsp->sRange.max, -1);
+                    gtk_list_store_set(store, &iter, columnInfo->columnIdx, prevMsp->sRange.max(), -1);
                   else
                     {
                       GValue *val = blxSequenceGetValue(prevMsp->sSequence, columnInfo->columnId);
@@ -1098,9 +1098,9 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   
   /* Find the segment of the ref seq to display. Ref seq is in nucleotide coords so convert the 
    * display range to nucleotide coords. */
-  const int qIdx1 = convertDisplayIdxToDnaIdx(properties->displayRange.min, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int qIdx2 = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); 
-  IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
+  const int qIdx1 = convertDisplayIdxToDnaIdx(properties->displayRange.min(), bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int qIdx2 = convertDisplayIdxToDnaIdx(properties->displayRange.max(), bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); 
+  IntRange qRange(qIdx1, qIdx2);
 
   /* The q range may be outside the ref seq range if we are at the start/end and we have included
    * "missing" bases to make up complete codons. Adjust to within the range, but maintain the same
@@ -1108,15 +1108,15 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   int offsetMin = 0;
   int offsetMax = 0;
   
-  while (qRange.min < bc->refSeqRange.min)
+  while (qRange.min() < bc->refSeqRange.min())
     {
-      qRange.min += bc->numFrames;
+      qRange.setMin(qRange.min() + bc->numFrames);
       ++offsetMin;
     }
 
-  while (qRange.max > bc->refSeqRange.max)
+  while (qRange.max() > bc->refSeqRange.max())
     {
-      qRange.max -= bc->numFrames;
+      qRange.setMax(qRange.max() - bc->numFrames);
       ++offsetMax;
     }
   
@@ -1161,7 +1161,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
   GHashTable *basesToHighlight = getRefSeqBasesToHighlight(detailView, &qRange, bc->seqType, strand);
 
   const int incrementValue = bc->displayRev ? -1 * bc->numFrames : bc->numFrames;
-  int displayIdx = properties->displayRange.min;
+  int displayIdx = properties->displayRange.min();
 
   DrawBaseData baseData = {qIdx1,
                            0,
@@ -1183,13 +1183,13 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
                            FALSE,
                            detailViewGetSelectedDnaIdxRange(detailView)};
 
-  while (displayIdx >= properties->displayRange.min && displayIdx <= properties->displayRange.max)
+  while (displayIdx >= properties->displayRange.min() && displayIdx <= properties->displayRange.max())
     {
       baseData.displayIdxSelected = detailViewIsDisplayIdxSelected(detailView, displayIdx + offset);
       baseData.dnaIdxSelected = baseData.displayIdxSelected;
-      baseData.baseChar = segmentToDisplay[displayIdx - properties->displayRange.min];
+      baseData.baseChar = segmentToDisplay[displayIdx - properties->displayRange.min()];
       
-      const int x = (int)((gdouble)xStart + (gdouble)(displayIdx - properties->displayRange.min) * properties->charWidth);
+      const int x = (int)((gdouble)xStart + (gdouble)(displayIdx - properties->displayRange.min()) * properties->charWidth);
 
       /* Draw the character, seting the background color and outline depending on whether this base is selected or
        * is affected by a SNP or polyA signal etc. */
@@ -1270,8 +1270,8 @@ static void treeHighlightSelectedBase(GtkWidget *tree, GdkDrawable *drawable)
 
       if (range)
         {
-          start = range->min;
-          end = range->max;
+          start = range->min();
+          end = range->max();
           ok = TRUE;
           g_free(range);
         }
@@ -1290,13 +1290,13 @@ static void treeHighlightSelectedBase(GtkWidget *tree, GdkDrawable *drawable)
           if (valueWithinRange(coord, &properties->displayRange))
             {
               /* Convert the display-range index to a 0-based index in the display range */
-              const int charIdx = coord - properties->displayRange.min;
+              const int charIdx = coord - properties->displayRange.min();
       
               /* Get the x coords for the start and end of the sequence column */
               IntRange xRange;
               getColumnXCoords(columnList, BLXCOL_SEQUENCE, &xRange);
       
-              const int x = xRange.min + (charIdx * properties->charWidth);
+              const int x = xRange.min() + (charIdx * properties->charWidth);
               const int y = 0;
       
               BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
@@ -1947,7 +1947,7 @@ static gboolean onMouseMoveTreeHeader(GtkWidget *header, GdkEventMotion *event, 
       GtkWidget *detailView = treeGetDetailView(tree);
       IntRange xRange;
       getColumnXCoords(detailViewGetColumnList(detailView), BLXCOL_SEQUENCE, &xRange);
-      event->x += xRange.min;
+      event->x += xRange.min();
 
       propagateEventMotion(tree, treeGetDetailView(tree), event);
       handled = FALSE;
@@ -2078,11 +2078,11 @@ void addMspToTree(MSP *msp, GtkWidget *tree, GtkListStore *store)
           else if (columnInfo->columnId == BLXCOL_ID)
             gtk_list_store_set(store, &iter, columnInfo->columnIdx, msp->id, -1);
           else if (columnInfo->columnId == BLXCOL_START)
-            gtk_list_store_set(store, &iter, columnInfo->columnIdx, msp->sRange.min, -1);
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, msp->sRange.min(), -1);
           else if (columnInfo->columnId == BLXCOL_SEQUENCE)
             gtk_list_store_set(store, &iter, columnInfo->columnIdx, mspGList, -1);
           else if (columnInfo->columnId == BLXCOL_END)
-            gtk_list_store_set(store, &iter, columnInfo->columnIdx, msp->sRange.max, -1);
+            gtk_list_store_set(store, &iter, columnInfo->columnIdx, msp->sRange.max(), -1);
           else
             {
               GValue *val = blxSequenceGetValue(msp->sSequence, columnInfo->columnId);

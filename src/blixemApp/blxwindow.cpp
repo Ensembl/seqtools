@@ -421,9 +421,9 @@ static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, con
       const IntRange* const fullRange = blxWindowGetFullRange(blxWindow);
 
       if (moveLeft)
-        setDetailViewStartIdx(detailView, fullRange->min, seqType);
+        setDetailViewStartIdx(detailView, fullRange->min(), seqType);
       else
-        setDetailViewEndIdx(detailView, fullRange->max, seqType);
+        setDetailViewEndIdx(detailView, fullRange->max(), seqType);
     }
 }
 
@@ -670,8 +670,8 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
   
   GtkWidget *sourceEntry = createTextEntryString("");
   GtkWidget *label2 = gtk_label_new("\n\nRegion to fetch data for:");
-  GtkWidget *startEntry = createTextEntryInt(bc->refSeqRange.min);
-  GtkWidget *endEntry = createTextEntryInt(bc->refSeqRange.max);
+  GtkWidget *startEntry = createTextEntryInt(bc->refSeqRange.min());
+  GtkWidget *endEntry = createTextEntryInt(bc->refSeqRange.max());
   
   GtkTable *table = GTK_TABLE(gtk_table_new(5, 2, FALSE));
   gtk_container_add(contentArea, GTK_WIDGET(table));
@@ -729,7 +729,7 @@ static void loadNonNativeFile(const char *filename,
   GKeyFile *keyFile = blxGetConfig();
 
   GString *source = NULL;
-  int start = bc->refSeqRange.min, end = bc->refSeqRange.max;
+  int start = bc->refSeqRange.min(), end = bc->refSeqRange.max();
   
   if (!showNonNativeFileDialog(blxWindow, filename, &source, &start, &end))
     return;
@@ -1558,7 +1558,7 @@ static void blxWindowFindDnaString(GtkWidget *blxWindow,
   int searchStrIdx = searchStart;
   int matchStart = UNSET_INT;
   
-  while (refSeqIdx >= bc->refSeqRange.min && refSeqIdx <= bc->refSeqRange.max && searchStrIdx >= 0 && searchStrIdx <= searchStrMax)
+  while (refSeqIdx >= bc->refSeqRange.min() && refSeqIdx <= bc->refSeqRange.max() && searchStrIdx >= 0 && searchStrIdx <= searchStrMax)
     {
       const char refSeqBase = getSequenceIndex(bc->refSeq, refSeqIdx, complement, &bc->refSeqRange, BLXSEQ_DNA);
       char searchStrBase = convertBaseToCorrectCase(searchStr[searchStrIdx], BLXSEQ_DNA);      
@@ -1635,7 +1635,7 @@ static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginni
   
   if (startBeginning)
     {
-      result = (searchLeft == bc->displayRev) ? bc->refSeqRange.min : bc->refSeqRange.max;
+      result = (searchLeft == bc->displayRev) ? bc->refSeqRange.min() : bc->refSeqRange.max();
     }
   else  
     {
@@ -1659,7 +1659,7 @@ static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginni
         {
           /* The start display coord is the min coord if we're searching left and the max if searching right. */
           const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
-          result = searchLeft ? displayRange->max : displayRange->min;
+          result = searchLeft ? displayRange->max() : displayRange->min();
         }
 
       /* Convert the display coord to a nucleotide coord */
@@ -4868,8 +4868,8 @@ static void onCopySeqDataMarkMenu(GtkAction *action, gpointer data)
 
   if (range)
     {
-      const int fromIdx = range->min;
-      const int toIdx = range->max;
+      const int fromIdx = range->min();
+      const int toIdx = range->max();
 
       copySelectedSeqRangeToClipboard(blxWindow, fromIdx, toIdx);
 
@@ -4894,8 +4894,8 @@ static void onCopyRefSeqDnaMenu(GtkAction *action, gpointer data)
 
   if (range)
     {
-      const int fromIdx = range->min;
-      const int toIdx = range->max;
+      const int fromIdx = range->min();
+      const int toIdx = range->max();
 
       copyRefSeqToClipboard(blxWindow, fromIdx, toIdx);
 
@@ -4921,8 +4921,8 @@ static void onCopyRefSeqDisplayMenu(GtkAction *action, gpointer data)
 
   if (range)
     {
-      const int fromIdx = range->min;
-      const int toIdx = range->max;
+      const int fromIdx = range->min();
+      const int toIdx = range->max();
 
       copyRefSeqTranslationToClipboard(blxWindow, fromIdx, toIdx);
 
@@ -5697,7 +5697,7 @@ static DepthCounter getDepthCounterForChar(const char c, const BlxStrand strand)
 static void calculateDepth(BlxViewContext *bc, const int numUnalignedBases)
 {
   /* Allocate the depth array, if null */
-  const int displayLen = getRangeLength(&bc->fullDisplayRange);
+  const int displayLen = bc->fullDisplayRange.length();
   
   if (displayLen < 1)
     return; 
@@ -5750,7 +5750,7 @@ static void calculateDepth(BlxViewContext *bc, const int numUnalignedBases)
       
       /* Loop through all MSPs in this list */
       GArray *mspArray = bc->featureLists[mspType];
-      const int fullDisplayLen = getRangeLength(&bc->fullDisplayRange);
+      const int fullDisplayLen = bc->fullDisplayRange.length();
     
       i = 0;
       const MSP *msp = mspArrayIdx(mspArray, i);
@@ -5758,14 +5758,14 @@ static void calculateDepth(BlxViewContext *bc, const int numUnalignedBases)
       for ( ; msp; msp = mspArrayIdx(mspArray, ++i))
         {
           /* For each ref-seq coord that this alignment spans, increment the depth */
-          int alignIdx = msp->displayRange.min;
-          int qIdx = msp->qRange.min;
+          int alignIdx = msp->displayRange.min();
+          int qIdx = msp->qRange.min();
 
-          for ( ; alignIdx <= msp->displayRange.max; ++alignIdx, ++qIdx)
+          for ( ; alignIdx <= msp->displayRange.max(); ++alignIdx, ++qIdx)
             {
               /* Convert the msp coord to a zero-based coord. Note that parts of the
                * msp range may be outside the ref seq range. */
-              const int displayIdx = alignIdx - bc->fullDisplayRange.min;
+              const int displayIdx = alignIdx - bc->fullDisplayRange.min();
 
               if (displayIdx >= 0 && displayIdx < fullDisplayLen)
                 {
@@ -5945,10 +5945,10 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   blxContext->refSeq = options->refSeq;
   blxContext->refSeqName = options->refSeqName ? g_strdup(options->refSeqName) : g_strdup("Blixem-seq");
-  blxContext->refSeqRange.min = refSeqRange->min;
-  blxContext->refSeqRange.max = refSeqRange->max;
-  blxContext->fullDisplayRange.min = fullDisplayRange->min;
-  blxContext->fullDisplayRange.max = fullDisplayRange->max;
+  blxContext->refSeqRange.setMin(refSeqRange->min());
+  blxContext->refSeqRange.setMax(refSeqRange->max());
+  blxContext->fullDisplayRange.setMin(fullDisplayRange->min());
+  blxContext->fullDisplayRange.setMax(fullDisplayRange->max());
   blxContext->refSeqOffset = options->refSeqOffset;
   blxContext->optionalColumns = options->optionalColumns;
 
@@ -6267,7 +6267,7 @@ static int getDepth(BlxViewContext *bc, const int coord, const DepthCounter coun
                        result);
 
   int idx = invertCoord(coord, &bc->fullDisplayRange, bc->displayRev); // invert if display reversed
-  idx -= bc->fullDisplayRange.min; // make 0-based
+  idx -= bc->fullDisplayRange.min(); // make 0-based
 
   result = bc->depthArray[counter][idx];
 
@@ -6283,8 +6283,8 @@ int blxContextGetDepth(BlxViewContext *bc,
 {
   int result = 0;
   g_return_val_if_fail(bc && 
-                       coord >= bc->fullDisplayRange.min &&
-                       coord <= bc->fullDisplayRange.max, 
+                       coord >= bc->fullDisplayRange.min() &&
+                       coord <= bc->fullDisplayRange.max(), 
                        result);
 
   if (base_char && strand == BLXSTRAND_NONE)
@@ -6739,8 +6739,8 @@ static char* getRefSeqSegment(GtkWidget *blxWindow, const int fromIdx_in, const 
       /* Need to get 0-based indices */
       const IntRange* const refSeqRange = blxWindowGetRefSeqRange(blxWindow);
       
-      const int fromIdx = min(fromIdx_in, toIdx_in) - refSeqRange->min;
-      const int toIdx = max(fromIdx_in, toIdx_in) - refSeqRange->min;
+      const int fromIdx = min(fromIdx_in, toIdx_in) - refSeqRange->min();
+      const int toIdx = max(fromIdx_in, toIdx_in) - refSeqRange->min();
       const int len = toIdx - fromIdx + 1;
 
       /* Warn user if they're about to copy a large sequence */
@@ -7165,7 +7165,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
            * as coordinates can be ignored and the two sequences just whipped through. */
           GError *error = NULL;
           IntRange qRange;
-          intrangeSetValues(&qRange, msp->qRange.min, msp->qRange.max); /* make a copy because it will be updated */
+          intrangeSetValues(&qRange, msp->qRange.min(), msp->qRange.max()); /* make a copy because it will be updated */
           
           char *refSeqSegment = getSequenceSegment(bc->refSeq,
                                                    &qRange,
@@ -7184,7 +7184,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           
           if (!refSeqSegment)
             {
-              prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", mspGetSName(msp), msp->sRange.min, msp->sRange.max);
+              prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", mspGetSName(msp), msp->sRange.min(), msp->sRange.max());
               reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
               return;
             }
@@ -7217,7 +7217,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           if (numGaps == 0)
             {
               /* Ungapped alignments. */
-              totalNumChars = (qRange.max - qRange.min + 1) / bc->numFrames;
+              totalNumChars = (qRange.max() - qRange.min() + 1) / bc->numFrames;
 
               if (bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
                 {
@@ -7235,7 +7235,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                   int i = 0;
                   for ( ; i < totalNumChars; i++)
                     {
-                      int sIndex = sForward ? msp->sRange.min + i - 1 : msp->sRange.max - i - 1;
+                      int sIndex = sForward ? msp->sRange.min() + i - 1 : msp->sRange.max() - i - 1;
                       if (toupper(matchSeq[sIndex]) == toupper(refSeqSegment[i]))
                         {
                           numMatchingChars++;
@@ -7275,7 +7275,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                       /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
                        * We need to translate the first coord in the range (which is in terms of the full
                        * reference sequence) into coords in the cut-down ref sequence. */
-                      int q_start = qForward ? (qRangeMin - qRange.min) / bc->numFrames : (qRange.max - qRangeMax) / bc->numFrames;
+                      int q_start = qForward ? (qRangeMin - qRange.min()) / bc->numFrames : (qRange.max() - qRangeMax) / bc->numFrames;
                       const int qLen = strlen(refSeqSegment);
                       
                       /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
@@ -7352,11 +7352,11 @@ static void calculateRefSeqRange(CommandLineOptions *options,
 {
   
   /* Offset the reference sequence range, if an offset was specified. */ 
-  refSeqRange->min = options->refSeqRange.min + options->refSeqOffset;
-  refSeqRange->max = options->refSeqRange.max + options->refSeqOffset;
+  refSeqRange->setMin(options->refSeqRange.min() + options->refSeqOffset);
+  refSeqRange->setMax(options->refSeqRange.max() + options->refSeqOffset);
   
-  fullDisplayRange->min = refSeqRange->min;
-  fullDisplayRange->max = refSeqRange->max;
+  fullDisplayRange->setMin(refSeqRange->min());
+  fullDisplayRange->setMax(refSeqRange->max());
   
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
@@ -7364,29 +7364,29 @@ static void calculateRefSeqRange(CommandLineOptions *options,
         * base 1 in frame 1. This makes the display easier because we can always just
         * start drawing from the 1st base in the reference sequence. */
       int base = UNSET_INT;
-      convertDnaIdxToDisplayIdx(refSeqRange->min, options->seqType, 1, options->numFrames, FALSE, refSeqRange, &base);
+      convertDnaIdxToDisplayIdx(refSeqRange->min(), options->seqType, 1, options->numFrames, FALSE, refSeqRange, &base);
       
       int offset = (options->numFrames - base + 1);
       
       if (offset >= options->numFrames)
           offset -= options->numFrames;
       
-      refSeqRange->min += offset;
+      refSeqRange->setMin(refSeqRange->min() + offset);
       options->refSeq = options->refSeq + offset;
       
       /* Now do the same for when the ref seq is reversed */
-      convertDnaIdxToDisplayIdx(refSeqRange->max, options->seqType, 1, options->numFrames, TRUE, refSeqRange, &base);
+      convertDnaIdxToDisplayIdx(refSeqRange->max(), options->seqType, 1, options->numFrames, TRUE, refSeqRange, &base);
       offset = (options->numFrames - base + 1);
       
       if (offset >= options->numFrames) 
           offset -= options->numFrames;
       
-      refSeqRange->max -= offset;
-      options->refSeq[refSeqRange->max - refSeqRange->min + 1] = '\0';
+      refSeqRange->setMax(refSeqRange->max() - offset);
+      options->refSeq[refSeqRange->max() - refSeqRange->min() + 1] = '\0';
       
       /* Now calculate the full display range in display coords */
-      fullDisplayRange->min = convertDnaIdxToDisplayIdx(refSeqRange->min, options->seqType, 1, options->numFrames, FALSE, refSeqRange, NULL);
-      fullDisplayRange->max = convertDnaIdxToDisplayIdx(refSeqRange->max, options->seqType, 1, options->numFrames, FALSE, refSeqRange, NULL);
+      fullDisplayRange->setMin(convertDnaIdxToDisplayIdx(refSeqRange->min(), options->seqType, 1, options->numFrames, FALSE, refSeqRange, NULL));
+      fullDisplayRange->setMax(convertDnaIdxToDisplayIdx(refSeqRange->max(), options->seqType, 1, options->numFrames, FALSE, refSeqRange, NULL));
     }  
 }
 
@@ -7406,27 +7406,26 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   calculateRefSeqRange(options, &refSeqRange, &fullDisplayRange);
   
   g_message("Reference sequence [%d - %d], display range [%d - %d]\n", 
-            refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
+            refSeqRange.min(), refSeqRange.max(), fullDisplayRange.min(), fullDisplayRange.max());
   
   /* Offset the start coords, if applicable, and convert it to display coords */
   int startCoord = options->startCoord + options->refSeqOffset;
   if (options->seqType == BLXSEQ_PEPTIDE)
     startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
 
-  if (options->bigPictRange.min != UNSET_INT && options->bigPictRange.max != UNSET_INT)
+  if (options->bigPictRange.min() != UNSET_INT && options->bigPictRange.max() != UNSET_INT)
     {
       /* Apply any offset */
-      options->bigPictRange.min += options->refSeqOffset;
-      options->bigPictRange.max += options->refSeqOffset;
+      options->bigPictRange += options->refSeqOffset;
 
       /* Make sure the big picture range is not outside our ref seq range */
-      boundsLimitRange(&options->bigPictRange, &refSeqRange, FALSE);
+      options->bigPictRange.boundsLimit(&refSeqRange, FALSE);
 
       if (options->seqType == BLXSEQ_PEPTIDE)
         {
           /* Convert to peptide coords */
-          options->bigPictRange.min = convertDnaIdxToDisplayIdx(options->bigPictRange.min, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
-          options->bigPictRange.max = convertDnaIdxToDisplayIdx(options->bigPictRange.max, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
+          options->bigPictRange.setMin(convertDnaIdxToDisplayIdx(options->bigPictRange.min(), options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL));
+          options->bigPictRange.setMax(convertDnaIdxToDisplayIdx(options->bigPictRange.max(), options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL));
         }
     }
   
@@ -7453,8 +7452,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */
   GtkAdjustment *detailAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, /* initial value = 0 */
-                                                                      fullDisplayRange.min, /* lower value */
-                                                                      fullDisplayRange.max, /* upper value */
+                                                                      fullDisplayRange.min(), /* lower value */
+                                                                      fullDisplayRange.max(), /* upper value */
                                                                       DEFAULT_SCROLL_STEP_INCREMENT, /* step increment used for mouse wheel scrolling */
                                                                       0,   /* page increment dynamically set based on display range */
                                                                       0)); /* page size dunamically set based on display range */

@@ -237,16 +237,16 @@ static void alignmentToolCreateProperties(GtkWidget *widget,
       properties->alignmentWindow = alignmentWindow;
       properties->dotterWinCtx = dotterWinCtx;
       properties->alignmentLen = DEFAULT_ALIGNMENT_LENGTH;
-      properties->refDisplayRange.min = 0;
-      properties->refDisplayRange.max = 20;
-      properties->matchDisplayRange.min = 0;
-      properties->matchDisplayRange.max = 20; /* to do: put real values in here for the ranges */
+      properties->refDisplayRange.setMin(0);
+      properties->refDisplayRange.setMax(20);
+      properties->matchDisplayRange.setMin(0);
+      properties->matchDisplayRange.setMax(20); /* to do: put real values in here for the ranges */
 
       properties->dragging = FALSE;
       properties->dragStart = 0;
       properties->selectionWidget = NULL;
-      properties->selectionRange.min = UNSET_INT;
-      properties->selectionRange.max = UNSET_INT;
+      properties->selectionRange.setMin(UNSET_INT);
+      properties->selectionRange.setMax(UNSET_INT);
       
       properties->spliceSitesOn = TRUE;
 
@@ -465,13 +465,13 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
        * will be correct whether we're displaying nucleotides or peptides.) */
       int len = properties->alignmentLen * getResFactor(dc, TRUE);
       int offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, TRUE);
-      properties->refDisplayRange.min = dwc->refCoord - offset;
-      properties->refDisplayRange.max = properties->refDisplayRange.min + len;
+      properties->refDisplayRange.setMin(dwc->refCoord - offset);
+      properties->refDisplayRange.setMax(properties->refDisplayRange.min() + len);
 
       len = properties->alignmentLen * getResFactor(dc, FALSE);
       offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, FALSE);
-      properties->matchDisplayRange.min = dwc->matchCoord - offset;
-      properties->matchDisplayRange.max = properties->matchDisplayRange.min + len;
+      properties->matchDisplayRange.setMin(dwc->matchCoord - offset);
+      properties->matchDisplayRange.setMax(properties->matchDisplayRange.min() + len);
     }
 }
 
@@ -753,21 +753,21 @@ static void drawSequenceSpliceSites(GdkDrawable *drawable,
         }
 
       /* If the splice site adjacent to the start coord is within range then highlight it */
-      if (valueWithinRange(msp->qRange.min - 1, seq1->displayRange) || 
-          valueWithinRange(msp->qRange.min - 2, seq1->displayRange))
+      if (valueWithinRange(msp->qRange.min() - 1, seq1->displayRange) || 
+          valueWithinRange(msp->qRange.min() - 2, seq1->displayRange))
         {
           /* Get the leftmost coord (for rev strand this is the max of the two coords) */
-          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.min - 1 : msp->qRange.min - 2;
+          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.min() - 1 : msp->qRange.min() - 2;
           gboolean isStart = (seq1->strand == BLXSTRAND_FORWARD);
           highlightSpliceSite(seq1, atProperties, dwc, coord, isStart, gc, drawable);
         }
 
       /* If the splice site adjacent to the end coord is within range then highlight it */
-      if (valueWithinRange(msp->qRange.max + 1, seq1->displayRange) || 
-          valueWithinRange(msp->qRange.max + 2, seq1->displayRange))
+      if (valueWithinRange(msp->qRange.max() + 1, seq1->displayRange) || 
+          valueWithinRange(msp->qRange.max() + 2, seq1->displayRange))
         {
           /* Get the leftmost coord (for rev strand this is the max of the two coords) */
-          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.max + 2 : msp->qRange.max + 1;
+          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.max() + 2 : msp->qRange.max() + 1;
           gboolean isEnd = (seq1->strand == BLXSTRAND_FORWARD);
           highlightSpliceSite(seq1, atProperties, dwc, coord, !isEnd, gc, drawable);
         }
@@ -932,7 +932,7 @@ static void drawSequenceHeader(GtkWidget *widget,
   const IntRange* const displayRange = horizontal ? &properties->refDisplayRange : &properties->matchDisplayRange;
   
   /* Find the position to display at. Find the position of the char at this coord */
-  const int displayIdx = convertToDisplayIdx(coord - displayRange->min, horizontal, dc, 1, NULL) - 1;
+  const int displayIdx = convertToDisplayIdx(coord - displayRange->min(), horizontal, dc, 1, NULL) - 1;
   int x = (int)((gdouble)displayIdx * dc->charWidth);
   int y = 0;
 
@@ -976,7 +976,7 @@ static int getDisplayStart(SequenceProperties *properties, DotterContext *dc)
   g_return_val_if_fail(properties && dc, 0) ;
 
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
-  int displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
+  int displayStart = forward ? properties->displayRange->min() : properties->displayRange->max();
 
   displayStart = convertToDisplayIdx(displayStart, properties->horizontal, dc, properties->frame, NULL);
 
@@ -991,7 +991,7 @@ static int getDisplayEnd(SequenceProperties *properties, DotterContext *dc)
   g_return_val_if_fail(properties && dc, 0) ;
 
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
-  int displayEnd = forward ? properties->displayRange->max : properties->displayRange->min;
+  int displayEnd = forward ? properties->displayRange->max() : properties->displayRange->min();
 
   displayEnd = convertToDisplayIdx(displayEnd, properties->horizontal, dc, properties->frame, NULL);
 
@@ -1010,7 +1010,7 @@ static int getSequenceStart(SequenceProperties *properties, DotterContext *dc, c
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
 
   /* Get the start coord of the sequence data */
-  int seqStart = forward ? properties->fullRange->min : properties->fullRange->max;
+  int seqStart = forward ? properties->fullRange->min() : properties->fullRange->max();
   
   /* Offset this coord so that we have the first coord that starts our reading frame */
   int reqdFrame = properties->frame;
@@ -1043,7 +1043,7 @@ static int getSequenceEnd(SequenceProperties *properties, DotterContext *dc, con
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
 
   /* Get the end coord of the sequence data */
-  int seqEnd = forward ? properties->fullRange->max : properties->fullRange->min;
+  int seqEnd = forward ? properties->fullRange->max() : properties->fullRange->min();
   
   /* Offset this coord so that we have the last coord that ends our reading frame */
   int reqdFrame = properties->frame;
@@ -1210,8 +1210,8 @@ void alignmentToolCopySeln(GtkWidget* alignmentTool)
     {
       /* copy the selection to the clipboard */
       char *text = getSequenceBetweenCoords(atProperties->selectionWidget,
-                                            atProperties->selectionRange.min,
-                                            atProperties->selectionRange.max,
+                                            atProperties->selectionRange.min(),
+                                            atProperties->selectionRange.max(),
                                             atProperties->dotterWinCtx);
 
       setDefaultClipboardText(text);
@@ -1236,8 +1236,8 @@ void alignmentToolCopySelnCoords(GtkWidget *alignmentTool)
           DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
 
           /* Convert the selected coords to dna coords */
-          int start = convertToDnaIdx(atProperties->selectionRange.min, properties->horizontal, dc, properties->frame, 1);
-          int end = convertToDnaIdx(atProperties->selectionRange.max, properties->horizontal, dc, properties->frame, dc->numFrames);
+          int start = convertToDnaIdx(atProperties->selectionRange.min(), properties->horizontal, dc, properties->frame, 1);
+          int end = convertToDnaIdx(atProperties->selectionRange.max(), properties->horizontal, dc, properties->frame, dc->numFrames);
 
           /* Negate the coords for display, if necessary */
           start = getDisplayCoord(start, dc, properties->horizontal);
@@ -1275,8 +1275,8 @@ static void sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *align
   /* flag that we should highlight the selected sequence (clear any current selection first) */
   alignmentToolClearSequenceSelection(alignmentTool);
   
-  atProperties->selectionRange.min = atProperties->dragStart;
-  atProperties->selectionRange.max = atProperties->dragStart;
+  atProperties->selectionRange.setMin(atProperties->dragStart);
+  atProperties->selectionRange.setMax(atProperties->dragStart);
 
   setSelectionWidget(atProperties, sequenceWidget);
 }
@@ -1349,8 +1349,8 @@ static void selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmen
 
   /* copy the selection to the primary clipboard */
   char *result = getSequenceBetweenCoords(sequenceWidget,
-                                          atProperties->selectionRange.min,
-                                          atProperties->selectionRange.max,
+                                          atProperties->selectionRange.min(),
+                                          atProperties->selectionRange.max(),
                                           atProperties->dotterWinCtx);
   
   setPrimaryClipboardText(result);
@@ -1428,7 +1428,7 @@ static void highlightSpliceSite(SequenceProperties *seq1,
   /* check if it's canonical (green if yes, red if not) */
   DotterColorId colorId = DOTCOLOR_NON_CANONICAL;
 
-  int seqIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->fullRange->max - coord : coord - seq1->fullRange->min);
+  int seqIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->fullRange->max() - coord : coord - seq1->fullRange->min());
 
   if (isStart && strncasecmp(&seq1->sequence[seqIdx], "ag", 2) == 0)
     colorId = DOTCOLOR_CANONICAL;
@@ -1438,7 +1438,7 @@ static void highlightSpliceSite(SequenceProperties *seq1,
   GdkColor *color = getGdkColor(colorId, dc->defaultColors, FALSE, dwc->usePrintColors);
   gdk_gc_set_foreground(gc, color);
 
-  int displayIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->displayRange->max - coord : coord - seq1->displayRange->min - 1);
+  int displayIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->displayRange->max() - coord : coord - seq1->displayRange->min() - 1);
   const int x = (int)((gdouble)displayIdx * dc->charWidth);
   gdk_draw_rectangle(drawable, gc, TRUE, x, 0, ceil(dc->charWidth * 2), roundNearest(dc->charHeight));
 }

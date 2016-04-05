@@ -119,8 +119,8 @@ void calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *pr
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
   
   /* Calculate the number of bases per cell and round it to a "nice" value from our stored list */
-  const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int displayEnd = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min(), bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int displayEnd = convertDisplayIdxToDnaIdx(properties->displayRange.max(), bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   const int displayWidth = abs(displayEnd - displayStart); /* use abs because can be negative if display reversed */
   
   const int defaultBasesPerCell = ceil((double)(displayWidth) / DEFAULT_GRID_NUM_HOZ_CELLS);
@@ -213,7 +213,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
   
   /* Get the first base index and round it to a nice round number. We'll offset all of the gridlines 
    * by the distance between this and the real start coord. */
-  const int firstBaseIdx = roundToValue(bc->displayRev ? dnaDispRange.max : dnaDispRange.min, bpProperties->roundTo);
+  const int firstBaseIdx = roundToValue(bc->displayRev ? dnaDispRange.max() : dnaDispRange.min(), bpProperties->roundTo);
   
   /* Calculate the top and bottom heights for the lines. */
   const gint bottomBorder = headerProperties->headerRect.y + headerProperties->headerRect.height;
@@ -271,7 +271,7 @@ void drawVerticalGridLines(GdkRectangle *drawingRect,
   
   /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
    * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
-  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min(), bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
   
   /* Calculate the top and bottom heights for the lines. */
@@ -473,8 +473,8 @@ void bigPictureCalculateHighlightBoxBorders(GdkRectangle *drawingRect,
       convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
       
       /* Get the x coords for the start and end of the detail view display range */
-      const int x1 = convertBaseIdxToRectPos(dvRange.min, drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
-      const int x2 = convertBaseIdxToRectPos(dvRange.max + 1, drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
+      const int x1 = convertBaseIdxToRectPos(dvRange.min(), drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
+      const int x2 = convertBaseIdxToRectPos(dvRange.max() + 1, drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
       
       highlightRect->x = min(x1, x2);
       highlightRect->y = 0;
@@ -605,37 +605,37 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
   IntRange *displayRange = &properties->displayRange;
   IntRange *fullRange = blxWindowGetFullRange(properties->blxWindow);
   
-  int detailViewWidth = detailViewRange->max - detailViewRange->min;
-  int maxWidth = fullRange->max - fullRange->min;
+  int detailViewWidth = detailViewRange->max() - detailViewRange->min();
+  int maxWidth = fullRange->max() - fullRange->min();
   
   gboolean changedRange = FALSE;
 
   if (width < detailViewWidth)
     {
       /* Don't display less than the detail view range */
-      displayRange->min = detailViewRange->min;
-      displayRange->max = detailViewRange->max;
-      width = displayRange->max - displayRange->min;
+      displayRange->setMin(detailViewRange->min());
+      displayRange->setMax(detailViewRange->max());
+      width = displayRange->max() - displayRange->min();
       changedRange = TRUE;
     }
   else if (width >= maxWidth)
     {
       /* Don't display more than the full range of the reference sequence */
-      changedRange = displayRange->min != fullRange->min || displayRange->max != fullRange->max;
+      changedRange = displayRange->min() != fullRange->min() || displayRange->max() != fullRange->max();
       
-      displayRange->min = fullRange->min;
-      displayRange->max = fullRange->max;
+      displayRange->setMin(fullRange->min());
+      displayRange->setMax(fullRange->max());
     }
   else if (keepCentered)
     {
       /* Keep the view centred on what's visible in the detail view */
-      const int newcentre = getRangeCentre(detailViewRange);
+      const int newcentre = detailViewRange->centre();
 
       /* Try to display an equal amount either side of the centre */
       const int offset = roundNearest((double)width / 2.0);
 
-      displayRange->min = newcentre - offset;
-      displayRange->max = displayRange->min + width;
+      displayRange->setMin(newcentre - offset);
+      displayRange->setMax(displayRange->min() + width);
       
       changedRange = TRUE;
     }
@@ -650,33 +650,33 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
        * the original range. NOTE: disabled the border because it messes up the
        * initial big picture range when it is specified using the zoom-range arg */
       const gdouble borderFraction = 0.0;
-      int border = getRangeLength(displayRange) * borderFraction;
+      int border = displayRange->length() * borderFraction;
 
-      if (getRangeLength(detailViewRange) > width - (2 * border))
+      if (detailViewRange->length() > width - (2 * border))
         border = 0;
       
-      int offset = (displayRange->min + border) - detailViewRange->min;
+      int offset = (displayRange->min() + border) - detailViewRange->min();
       
       if (offset > 0)
         {
-          displayRange->min -= offset;
-          displayRange->max = displayRange->min + width;
+          displayRange->setMin(displayRange->min() - offset);
+          displayRange->setMax(displayRange->min() + width);
           changedRange = TRUE;
         }
       
-      offset = detailViewRange->max - (displayRange->max - border);
+      offset = detailViewRange->max() - (displayRange->max() - border);
       
       if (offset > 0)
         {
-          displayRange->max += offset;
-          displayRange->min = displayRange->max - width;
+          displayRange->setMax(displayRange->max() + offset);
+          displayRange->setMin(displayRange->max() - width);
           changedRange = TRUE;
         }
     }
 
   if (changedRange)
     {
-      boundsLimitRange(displayRange, fullRange, TRUE);
+      displayRange->boundsLimit(fullRange, TRUE);
       onBigPictureRangeChanged(bigPicture, properties);
     }
   
@@ -700,17 +700,17 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean keepCen
   GtkWidget *detailView = blxWindowGetDetailView(properties->blxWindow);
   IntRange *dvRange = detailViewGetDisplayRange(detailView);
   
-  if (bpRange->min == UNSET_INT && bpRange->max == UNSET_INT) /* check both in case UNSET_INT is a real coord for one end! */
+  if (bpRange->min() == UNSET_INT && bpRange->max() == UNSET_INT) /* check both in case UNSET_INT is a real coord for one end! */
     {
       /* This is the first time we've refreshed the detail view range. Set the
        * initial big picture range width to be a ratio of the detail view range width. */
-      const int width = (dvRange->max - dvRange->min) * bigPictureGetInitialZoom(bigPicture);
+      const int width = (dvRange->max() - dvRange->min()) * bigPictureGetInitialZoom(bigPicture);
       setBigPictureDisplayRange(bigPicture, properties, width, TRUE);
     }
   else
     {
       /* Call set-width (but just use the existing width) to force the required updates. */
-      const int width = bpRange->max - bpRange->min;
+      const int width = bpRange->max() - bpRange->min();
       setBigPictureDisplayRange(bigPicture, properties, width, keepCentered);
     }
   
@@ -779,11 +779,11 @@ void zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn)
   
   if (zoomIn)
     {
-      newWidth = roundNearest(((double)(displayRange->max - displayRange->min)) / 2.0);
+      newWidth = roundNearest(((double)(displayRange->max() - displayRange->min())) / 2.0);
     }
   else
     {
-      newWidth = (displayRange->max - displayRange->min) * 2;
+      newWidth = (displayRange->max() - displayRange->min()) * 2;
     }
 
   setBigPictureDisplayRange(bigPicture, properties, newWidth, TRUE);
@@ -799,9 +799,9 @@ void zoomWholeBigPicture(GtkWidget *bigPicture)
   IntRange *fullRange = blxWindowGetFullRange(properties->blxWindow);
   
   /* Check we're not already showing the whole range */
-  if (displayRange->min != fullRange->min || displayRange->max != fullRange->max)
+  if (displayRange->min() != fullRange->min() || displayRange->max() != fullRange->max())
     {
-      setBigPictureDisplayRange(bigPicture, properties, fullRange->max - fullRange->min, TRUE);
+      setBigPictureDisplayRange(bigPicture, properties, fullRange->max() - fullRange->min(), TRUE);
       calculateBigPictureCellSize(bigPicture, properties);
     }
 }
@@ -928,17 +928,17 @@ void scrollBigPictureLeftStep(GtkWidget *bigPicture)
   
   IntRange *displayRange = &properties->displayRange;
   
-  if (displayRange->min > bc->fullDisplayRange.min)
+  if (displayRange->min() > bc->fullDisplayRange.min())
     {
       /* Check we can scroll the full increment amount. If not, scroll to the end of the full range */
-      int diff = getRangeLength(displayRange) / BLX_SCROLL_INCREMENT_RATIO;
+      int diff = displayRange->length() / BLX_SCROLL_INCREMENT_RATIO;
 
-      if (displayRange->min - diff < bc->fullDisplayRange.min)
-        diff = displayRange->min - bc->fullDisplayRange.min;
+      if (displayRange->min() - diff < bc->fullDisplayRange.min())
+        diff = displayRange->min() - bc->fullDisplayRange.min();
 
       /* Update the range */
-      displayRange->min -= diff;
-      displayRange->max -= diff;
+      displayRange->setMin(displayRange->min() - diff);
+      displayRange->setMax(displayRange->max() - diff);
 
       /* Update */
       onBigPictureRangeChanged(bigPicture, properties);
@@ -960,17 +960,17 @@ void scrollBigPictureRightStep(GtkWidget *bigPicture)
   IntRange *displayRange = &properties->displayRange;
   
   /* Check we're not already at the max of the full range. */
-  if (displayRange->max < bc->fullDisplayRange.max)
+  if (displayRange->max() < bc->fullDisplayRange.max())
     {
       /* Check we can scroll the full increment amount. If not, scroll to the end of the full range */
-      int diff = getRangeLength(displayRange) / BLX_SCROLL_INCREMENT_RATIO;
+      int diff = displayRange->length() / BLX_SCROLL_INCREMENT_RATIO;
 
-      if (displayRange->max + diff > bc->fullDisplayRange.max)
-        diff = bc->fullDisplayRange.max - displayRange->max;
+      if (displayRange->max() + diff > bc->fullDisplayRange.max())
+        diff = bc->fullDisplayRange.max() - displayRange->max();
 
       /* Adjust the range */
-      displayRange->min += diff;
-      displayRange->max += diff;
+      displayRange->setMin(displayRange->min() + diff);
+      displayRange->setMax(displayRange->max() + diff);
 
       /* Update */
       onBigPictureRangeChanged(bigPicture, properties);
@@ -996,11 +996,11 @@ static gint convertRectPosToBaseIdx(const gint x,
 
   if (displayRev)
     {
-      result = dnaDispRange->max - basesFromEdge;
+      result = dnaDispRange->max() - basesFromEdge;
     }
   else
     {
-      result = dnaDispRange->min + basesFromEdge;
+      result = dnaDispRange->min() + basesFromEdge;
     }
   
   return result;
@@ -1250,8 +1250,8 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
    * intput range may be UNSE_INTs, in which case these values will be
    * initialized when the detail view size is first allocated, based on
    * the "initial zoom level" which is a ratio of the detail view range. */
-  displayRange.min = initRange_in->min;
-  displayRange.max = initRange_in->max;
+  displayRange.setMin(initRange_in->min());
+  displayRange.setMax(initRange_in->max());
 
   /* Calculate the font size */
   getFontCharSize(bigPicture_in, bigPicture_in->style->font_desc, &charWidth, &charHeight);

@@ -273,8 +273,8 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
 {
   options->refSeq = NULL;
   options->refSeqName = refSeqName;
-  options->refSeqRange.min = UNSET_INT;
-  options->refSeqRange.max = UNSET_INT;
+  options->refSeqRange.setMin(UNSET_INT);
+  options->refSeqRange.setMax(UNSET_INT);
   options->refSeqOffset = 0;
   options->startCoord = 1;
   options->startCoordSet = FALSE;
@@ -283,8 +283,8 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->geneticCode = stdcode1;
   options->activeStrand = BLXSTRAND_FORWARD;
   options->bigPictZoom = 10;          
-  options->bigPictRange.min = UNSET_INT;
-  options->bigPictRange.max = UNSET_INT;
+  options->bigPictRange.setMin(UNSET_INT);
+  options->bigPictRange.setMax(UNSET_INT);
   
   options->zoomWhole = FALSE;
   options->bigPictON = TRUE;          
@@ -649,7 +649,7 @@ int main(int argc, char **argv)
                  * big picture range (can still be overridden if start coord
                  * arg is found later) */
                 if (!options.startCoordSet)
-                  options.startCoord = getRangeCentre(&options.bigPictRange);
+                  options.startCoord = options.bigPictRange.centre();
               }
             else
               {
@@ -830,10 +830,10 @@ int main(int argc, char **argv)
     g_error("No reference sequence supplied.");
   
   /* If the ref seq range still has not been set, use 1-based coords */
-  if (options.refSeqRange.min == UNSET_INT && options.refSeqRange.max == UNSET_INT)
+  if (options.refSeqRange.min() == UNSET_INT && options.refSeqRange.max() == UNSET_INT)
     {
-      options.refSeqRange.min = 1;
-      options.refSeqRange.max = strlen(options.refSeq);
+      options.refSeqRange.setMin(1);
+      options.refSeqRange.setMax(strlen(options.refSeq));
     }
 
   if (FSfile && FSfile != stdin)

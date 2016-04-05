@@ -295,24 +295,24 @@ static void parseFileOrBuffer(MSP **MSPlist, FILE *file, const char *buffer_in, 
 
   if (seq1Range)
     {
-      if (seq1Range->min == UNSET_INT && seq1Range->max == UNSET_INT && *seq1)
+      if (seq1Range->min() == UNSET_INT && seq1Range->max() == UNSET_INT && *seq1)
 	{
 	  /* The seq1 range was not parsed from the file; set the default range to be 1 -> strlen */
-	  seq1Range->min = 1;
-	  seq1Range->max = strlen(*seq1);
+	  seq1Range->setMin(1);
+	  seq1Range->setMax(strlen(*seq1));
 	}
       else if (*seq1)
 	{
 	  /* Check that the range is the same length as the sequence */
 	  int len = strlen(*seq1);
-	  if (getRangeLength(seq1Range) > len)
+	  if (seq1Range->length() > len)
 	    {
-	      g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d. Limiting end of sequence range to %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len, seq1Range->min + len - 1);
-	      seq1Range->max = seq1Range->min + len - 1;
+	      g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d. Limiting end of sequence range to %d.\n", seq1Range->min(), seq1Range->max(), seq1Range->length(), len, seq1Range->min() + len - 1);
+	      seq1Range->setMax(seq1Range->min() + len - 1);
 	    }
-	  else if (getRangeLength(seq1Range) < len)
+	  else if (seq1Range->length() < len)
 	    {
-	      g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len);
+	      g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d.\n", seq1Range->min(), seq1Range->max(), seq1Range->length(), len);
 	    }
 	}
     }
@@ -814,7 +814,7 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
     {
       if (!blxParseGaps(&seq_pos, msp, FALSE))
         {
-          g_error("Incomplete MSP gap data for MSP '%s' [%d - %d]\n", msp->sname, msp->sRange.min, msp->sRange.max) ;
+          g_error("Incomplete MSP gap data for MSP '%s' [%d - %d]\n", msp->sname, msp->sRange.min(), msp->sRange.max()) ;
         }
     }
   

@@ -490,11 +490,33 @@ GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GEr
  *                       Ranges/values                     * 
  ***********************************************************/
 
+IntRange::IntRange(const int val1, const int val2)
+{
+  if (val1 < val2)
+    {
+      m_min = val1;
+      m_max = val2;
+    }
+  else
+    {
+      m_min = val2;
+      m_max = val1;
+    }
+}
+
+/* Add an offset to both values in the range */
+void IntRange::operator+=(const int offset)
+{
+  m_min += offset;
+  m_max += offset;
+}
+
+
 /* Utilities to return the "start" which is the minimum coord if !rev or the max if rev. The result
  * is negated if "negate" is true. */
 int IntRange::start(const bool rev, const bool negate)
 {
-  int result = rev ? max : min;
+  int result = rev ? m_max : m_min;
 
   if (negate)
     result *= -1;
@@ -504,7 +526,7 @@ int IntRange::start(const bool rev, const bool negate)
 
 int IntRange::end(const bool rev, const bool negate)
 {
-  int result = rev ? min : max;
+  int result = rev ? m_min : m_max;
 
   if (negate)
     result *= -1;
@@ -512,23 +534,101 @@ int IntRange::end(const bool rev, const bool negate)
   return result;
 }
 
-/* Utility to return the length of the given range */
-int getRangeLength(const IntRange* const range)
+/* Utilities to return the min and max values. If inclusive is true then return the max value
+ * plus one if forward or the low value minus one if reversed (this is used when drawing from 
+ * left to right to draw to the left edge of the next base) */
+int IntRange::min(const bool inclusive, const bool rev) const
 {
-  return (range->max - range->min + 1);
+  int result = rev ? m_min - 1 : m_min;
+  return result;
+}
+
+int IntRange::max(const bool inclusive, const bool rev) const
+{
+  int result = rev ? m_max : m_max + 1;
+  return result;
+}
+
+void IntRange::set(const int val1, const int val2)
+{
+  if (val1 < val2)
+    {
+      m_min = val1;
+      m_max = val2;
+    }
+  else
+    {
+      m_min = val2;
+      m_max = val1;
+    }
+}
+
+void IntRange::setMin(const int val)
+{
+  m_min = val;
+}
+
+void IntRange::setMax(const int val)
+{
+  m_max = val;
+}
+
+/* Utility to bounds-limit this range to within the given range. If maintainLen is true, maintains
+ * the length of the range if possible by shifting the range. */
+void IntRange::boundsLimit(const IntRange* const limit, const gboolean maintainLen)
+{
+  const int len = length();
+  
+  if (m_min < limit->min())
+    {
+      setMin(limit->min());
+      
+      if (maintainLen)
+        {
+          setMax(m_min + len);
+        }
+    }
+  
+  if (m_max > limit->max())
+    {
+      setMax(limit->max());
+      
+      if (maintainLen)
+        {
+          setMin(m_max - len);
+
+          /* If limit is shorter than range, we'll have gone lower than the min again */
+          boundsLimitValue(&m_min, limit);
+       }
+    }
+  
+  boundsLimitValue(&m_max, limit);
+}
+
+
+/* Utility to return the length of the given range */
+int IntRange::length() const
+{
+  return (m_max - m_min + 1);
 }
 
 /* Utility to return the centre value of the given range (rounded down if an odd number) */
-int getRangeCentre(const IntRange* const range)
+int IntRange::centre() const
 {
-  return range->min + ((range->max - range->min) / 2);
+  return m_min + ((m_max - m_min) / 2);
+}
+
+/* Make sure max and min are the correct way round */
+void IntRange::sort(const bool forwards)
+{
+  sortValues(&m_min, &m_max, forwards);
 }
 
 /* Utility to set the given range to the given length, centred on the given coord */
 void centreRangeOnCoord(IntRange *range, const int coord, const int length)
 {
-  range->min = coord - (length / 2);
-  range->max = range->min + length;
+  range->setMin(coord - (length / 2));
+  range->setMax(range->min() + length);
 }
 
 
@@ -536,75 +636,41 @@ void centreRangeOnCoord(IntRange *range, const int coord, const int length)
  * Returns false if the given value is an unset int or the given range is null */
 gboolean valueWithinRange(const int value, const IntRange* const range)
 {
-  return (range != NULL && value >= range->min && value <= range->max);
+  return (range != NULL && value >= range->min() && value <= range->max());
 }
 
 
 /* Return true if two IntRanges overlap */
 gboolean rangesOverlap(const IntRange* const range1, const IntRange* const range2)
 {
-  return (range1->min <= range2->max && range1->max >= range2->min);
+  return (range1->min() <= range2->max() && range1->max() >= range2->min());
 }
 
 /* Return true if two IntRanges are adjacent */
 gboolean rangesAdjacent(const IntRange* const range1, const IntRange* const range2)
 {
-  return (range1->min == range2->max + 1 || range2->min == range1->max + 1);
+  return (range1->min() == range2->max() + 1 || range2->min() == range1->max() + 1);
 }
 
 /* Return true if two IntRanges are equal */
 gboolean rangesEqual(const IntRange* const range1, const IntRange* const range2)
 {
-  return (range1->min == range2->min && range1->max == range2->max);
+  return (range1->min() == range2->min() && range1->max() == range2->max());
 }
 
 
 /* Utility to bounds-limit the given value to within the given range */
 void boundsLimitValue(int *value, const IntRange* const range)
 {
-  if (*value < range->min)
+  if (*value < range->min())
     {
-      *value = range->min;
+      *value = range->min();
     }
   
-  if (*value > range->max)
+  if (*value > range->max())
     {
-      *value = range->max;
+      *value = range->max();
     }
-}
-
-
-/* Utility to bounds-limit the first range to within the second. If maintainLen is true, maintains
- * the length of the range if possible by shifting the range. */
-void boundsLimitRange(IntRange *range, const IntRange* const limit, const gboolean maintainLen)
-{
-  const int len = getRangeLength(range);
-  
-  if (range->min < limit->min)
-    {
-      range->min = limit->min;
-      
-      if (maintainLen)
-        {
-          range->max = range->min + len;
-        }
-    }
-  
-  if (range->max > limit->max)
-    {
-      range->max = limit->max;
-      
-      if (maintainLen)
-        {
-          range->min = range->max - len;
-
-          /* If limit is shorter than range, we'll have gone lower than the min again */
-          boundsLimitValue(&range->min, limit);
-       }
-    }
-  
-  
-  boundsLimitValue(&range->max, limit);
 }
 
 
@@ -1129,7 +1195,7 @@ void createBlxColor(GArray *defaultColors,
 /* Calculate how many pixels wide a base is */
 gdouble pixelsPerBase(const gint displayWidth, const IntRange* const displayRange)
 {
-  gdouble displayLen = (gdouble)(displayRange->max - displayRange->min) + 1;
+  gdouble displayLen = (gdouble)(displayRange->max() - displayRange->min()) + 1;
   return ((gdouble)displayWidth / displayLen);
 }
 
@@ -1152,7 +1218,7 @@ gdouble convertBaseIdxToRectPos(const gint dnaIdx,
 {
   int baseIdx = invertCoord(dnaIdx, dnaDispRange, displayRev);
   
-  gdouble numBasesFromEdge = (gdouble)(baseIdx - dnaDispRange->min); /* 0-based index from edge */
+  gdouble numBasesFromEdge = (gdouble)(baseIdx - dnaDispRange->min()); /* 0-based index from edge */
   
   if (clip && numBasesFromEdge < 0)
     {
@@ -1223,9 +1289,9 @@ char getSequenceIndex(char *seq,
 {
   char result = ' ';
   
-  if (qIdx >= seqRange->min && qIdx <= seqRange->max)
+  if (qIdx >= seqRange->min() && qIdx <= seqRange->max())
     {
-      char base = seq[qIdx - seqRange->min];
+      char base = seq[qIdx - seqRange->min()];
       base = convertBaseToCorrectCase(base, seqType);
       
       if (!complement || seqType == BLXSEQ_PEPTIDE)
@@ -1246,8 +1312,8 @@ void convertDisplayRangeToDnaRange(const IntRange* const displayRange,
                                    const IntRange* const refSeqRange,
                                    IntRange *result)
 {
-  const int q1 = convertDisplayIdxToDnaIdx(displayRange->min, displaySeqType, 1, 1, numFrames, displayRev, refSeqRange); /* 1st base in 1st reading frame */
-  const int q2 = convertDisplayIdxToDnaIdx(displayRange->max, displaySeqType, numFrames, numFrames, numFrames, displayRev, refSeqRange); /* last base in last frame */
+  const int q1 = convertDisplayIdxToDnaIdx(displayRange->min(), displaySeqType, 1, 1, numFrames, displayRev, refSeqRange); /* 1st base in 1st reading frame */
+  const int q2 = convertDisplayIdxToDnaIdx(displayRange->max(), displaySeqType, numFrames, numFrames, numFrames, displayRev, refSeqRange); /* last base in last frame */
   intrangeSetValues(result, q1, q2);
 }
 
@@ -1287,7 +1353,7 @@ int convertDisplayIdxToDnaIdx(const int displayIdx,
       /* If the display is reversed, we need to invert the result. For example, if the 
        * result is index '2' out of the range '12345', then we convert it to '4', which is the
        * equivalent position in the range '54321'. */
-      dnaIdx = refSeqRange->max - dnaIdx + refSeqRange->min;
+      dnaIdx = refSeqRange->max() - dnaIdx + refSeqRange->min();
     }
 
   return dnaIdx;
@@ -1324,7 +1390,7 @@ int convertDnaIdxToDisplayIdx(const int dnaIdx,
   if (displayRev)
     {
       /* Invert the coord and base */
-      displayIdx = dnaIdxRange->max - dnaIdx + dnaIdxRange->min;
+      displayIdx = dnaIdxRange->max() - dnaIdx + dnaIdxRange->min();
       base = numFrames - base + 1;
     }
 
@@ -1353,7 +1419,7 @@ int getStartDnaCoord(const IntRange* const displayRange,
                      const int numFrames,
                      const IntRange* const refSeqRange)
 {
-  int result = displayRange->min;
+  int result = displayRange->min();
   
   /* Convert the display coord to coords into the ref seq, which is a DNA sequence. We want
    * the first base in the codon, if this is a peptide sequence. */
@@ -1374,7 +1440,7 @@ int getEndDnaCoord(const IntRange* const displayRange,
                    const int numFrames,
                    const IntRange* const refSeqRange)
 {
-  int result = displayRange->max;
+  int result = displayRange->max();
   
   /* Convert the display coord to coords into the ref seq, which is a DNA sequence. We want
    * the last base in the codon, if this is a peptide sequence. */
@@ -2763,8 +2829,8 @@ void reportAndClearIfError(GError **error, GLogLevelFlags log_level)
 /* Set the values in an IntRange. */
 void intrangeSetValues(IntRange *range, const int val1, const int val2)
 {
-  range->min = val1 < val2 ? val1 : val2;
-  range->max = val1 < val2 ? val2 : val1;
+  range->setMin(val1 < val2 ? val1 : val2);
+  range->setMax(val1 < val2 ? val2 : val1);
 }
 
 
@@ -2946,9 +3012,9 @@ gchar *getSequenceSegment(const char* const dnaSequence,
       return result;
     }
   
-  IntRange qRange = {qRangeIn->min, qRangeIn->max};
+  IntRange qRange(qRangeIn->min(), qRangeIn->max());
   
-  if (qRange.min < refSeqRange->min || qRange.max > refSeqRange->max)
+  if (qRange.min() < refSeqRange->min() || qRange.max() > refSeqRange->max())
     {
       /* We might request up to 3 bases beyond the end of the range if we want to 
        * show a partial triplet at the start/end. (It's a bit tricky for the caller to
@@ -2959,25 +3025,25 @@ gchar *getSequenceSegment(const char* const dnaSequence,
       if (!rangesOverlap(qRangeIn, refSeqRange))
         return NULL;
 
-      if (qRange.min < refSeqRange->min - (numFrames + 1) || qRange.max > refSeqRange->max + (numFrames + 1))
+      if (qRange.min() < refSeqRange->min() - (numFrames + 1) || qRange.max() > refSeqRange->max() + (numFrames + 1))
         {
-          g_set_error(&tmpError, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT, "Requested query sequence %d - %d out of available range: %d - %d.\n", qRange.min, qRange.max, refSeqRange->min, refSeqRange->max);
+          g_set_error(&tmpError, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT, "Requested query sequence %d - %d out of available range: %d - %d.\n", qRange.min(), qRange.max(), refSeqRange->min(), refSeqRange->max());
         }
       
-      if (qRange.min < refSeqRange->min)
+      if (qRange.min() < refSeqRange->min())
         {
-          qRange.min = refSeqRange->min;
+          qRange.setMin(refSeqRange->min());
         }
       
-      if (qRange.max > refSeqRange->max)
+      if (qRange.max() > refSeqRange->max())
         {
-          qRange.max = refSeqRange->max;
+          qRange.setMax(refSeqRange->max());
         }
     }
   
   /* Get 0-based indices into the sequence */
-  const int idx1 = qRange.min - refSeqRange->min;
-  const int idx2 = qRange.max - refSeqRange->min;
+  const int idx1 = qRange.min() - refSeqRange->min();
+  const int idx2 = qRange.max() - refSeqRange->min();
 
   /* Copy the required segment from the ref seq. Must pass 0-based indices into the sequence */
   result = copySeqSegment(dnaSequence, idx1, idx2);
@@ -2990,7 +3056,7 @@ gchar *getSequenceSegment(const char* const dnaSequence,
       
       if (!result)
         {
-          g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT, "Error getting sequence segment: Failed to complement the reference sequence for the range %d - %d.\n", qRange.min, qRange.max);
+          g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT, "Error getting sequence segment: Failed to complement the reference sequence for the range %d - %d.\n", qRange.min(), qRange.max());
           g_free(result);
           return NULL;
         }
@@ -3014,7 +3080,7 @@ gchar *getSequenceSegment(const char* const dnaSequence,
         {
           g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT,
                       "Error getting the sequence segment: Failed to translate the DNA sequence for the reference sequence range %d - %d\n", 
-                      qRange.min, qRange.max) ;
+                      qRange.min(), qRange.max()) ;
           
           return NULL;
         }
@@ -3022,7 +3088,7 @@ gchar *getSequenceSegment(const char* const dnaSequence,
   
   if (!result)
     {
-      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT, "Failed to find sequence segment for the range %d - %d\n", qRange.min, qRange.max);
+      g_set_error(error, SEQTOOLS_ERROR, SEQTOOLS_ERROR_SEQ_SEGMENT, "Failed to find sequence segment for the range %d - %d\n", qRange.min(), qRange.max());
     }
   
   if (tmpError && *error != NULL)
@@ -3042,7 +3108,7 @@ gchar *getSequenceSegment(const char* const dnaSequence,
  * returns the original coord */
 int invertCoord(const int coord, const IntRange* const range, const gboolean invert)
 {
-  int result = invert ? range->max - coord + range->min : coord;
+  int result = invert ? range->max() - coord + range->min() : coord;
   return result;
 }
 
@@ -4991,9 +5057,9 @@ void drawHScale(GtkWidget *widget,
   const int yTopMinor = yBottom - minorTickHeight; /* top position of major tickmarks */
   
   int x = rect->x + widthPerVal / 2;
-  int tickmarkVal = range->min;
+  int tickmarkVal = range->min();
 
-  for ( ; tickmarkVal <= range->max; ++tickmarkVal, x += widthPerVal)
+  for ( ; tickmarkVal <= range->max(); ++tickmarkVal, x += widthPerVal)
     {
       const gboolean major = (tickmarkVal % majorTickInterval == 0);
       const gboolean drawLabel = (tickmarkVal % labelInterval == 0);
