@@ -4615,6 +4615,105 @@ static void onDestroyDetailView(GtkWidget *widget)
 }
 
 
+DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
+                                           GtkWidget *blxWindow_in,
+                                           GtkCellRenderer *renderer_in,
+                                           GList *fwdStrandTrees_in,
+                                           GList *revStrandTrees_in,
+                                           GtkWidget *feedbackBox_in,
+                                           GtkWidget *statusBar_in,
+                                           GList *columnList_in,
+                                           GtkAdjustment *adjustment_in, 
+                                           const int startCoord_in,
+                                           const BlxColumnId sortColumn_in)
+{
+  /* Find a fixed-width font */
+  const char *fontFamily = findFixedWidthFont(detailView_in);
+  PangoFontDescription *fontDesc_in = pango_font_description_from_string(fontFamily);
+  pango_font_description_set_size(fontDesc_in, pango_font_description_get_size(detailView_in->style->font_desc));
+
+  widget = detailView_in;
+  blxWindow = blxWindow_in;
+  renderer = renderer_in;
+  fwdStrandTrees = fwdStrandTrees_in;
+  revStrandTrees = revStrandTrees_in;
+  feedbackBox = feedbackBox_in;
+  statusBar = statusBar_in;
+  adjustment = adjustment_in;
+  fontDesc = fontDesc_in;
+  charWidth = 0.0;
+  charHeight = 0.0;
+  snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
+  numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
+
+  selectedIndex = NULL;
+  setDetailViewIndex(&selectedRangeInit, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
+  setDetailViewIndex(&selectedRangeStart, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
+  setDetailViewIndex(&selectedRangeEnd, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
+      
+  /* The numunalignedbases may be set in the config file; if so, override the default */
+  GKeyFile *key_file = blxGetConfig();
+  if (key_file)
+    {
+      GError *error = NULL;
+      int numUnaligned = g_key_file_get_integer(key_file, SETTINGS_GROUP, SETTING_NAME_NUM_UNALIGNED_BASES, &error);
+          
+      if (!error) /* we don't care if it wasn't found */
+        numUnalignedBases = numUnaligned;
+    }
+
+  /* Add the splice sites that we want Blixem to identify as canonical */
+  spliceSites = NULL;
+  addBlxSpliceSite(&spliceSites, "GT", "AG", FALSE);
+  addBlxSpliceSite(&spliceSites, "GC", "AG", FALSE);
+  addBlxSpliceSite(&spliceSites, "AT", "AC", TRUE);
+
+  /* We don't know the display range yet, so set an arbitrary range centred
+   * on the start coord. Set the adjustment value to be unset so that we know
+   * we need to calculated it first time round. */
+  adjustment->value = UNSET_INT;
+  displayRange.set(startCoord_in - 1, startCoord_in + 1);
+      
+  /* Find the padding between the background area of the tree cells and the actual
+   * drawing area. This is used to render the full height of the background area, so
+   * that we don't have gaps between rows. */ 
+  if (fwdStrandTrees)
+    {
+      //GtkWidget *widget = GTK_WIDGET(fwdStrandTrees->data);
+
+      //GtkWidget *tree = widgetIsTree(widget) ? widget : treeContainerGetTree(GTK_CONTAINER(widget));
+      //gtk_widget_realize(tree); /* must realize tree to pick up any overriden style properties */
+            
+      /* I can't get this to work properly using gtk_tree_view_get_cell_area etc. The cell
+       * area and background area come out wrong - perhaps because I'm not using a real
+       * row path. After a bit of experimentation it seems that the y padding is always
+       * related to the vertical-separator as follows: ypad = trunc(vseparator / 2) + 1 */
+      gint vertical_separator = 0, horizontal_separator = 0;
+      //gtk_widget_style_get (tree, "vertical-separator", &vertical_separator, NULL);
+      //gtk_widget_style_get (tree, "horizontal-separator", &horizontal_separator, NULL);
+          
+      cellXPadding = (horizontal_separator / 2) + 1;
+      cellYPadding = (vertical_separator / 2) + 1;
+    }
+  exonBoundaryLineWidth   = 1;
+  exonBoundaryLineStyle = GDK_LINE_SOLID;
+  exonBoundaryLineStylePartial = GDK_LINE_ON_OFF_DASH;
+      
+  /* Allocate sortColumns array to be same length as columnList */
+  const int numColumns = g_list_length(columnList_in);
+  sortColumns = (BlxColumnId*)g_malloc(numColumns * sizeof(BlxColumnId));
+      
+  int i = 0;
+  for ( ; i < numColumns; ++i)
+    sortColumns[i] = BLXCOL_NONE;
+
+  /* Sort by the default/input column, and then by name and then position */
+  sortColumns[0] = sortColumn_in;
+  sortColumns[1] = BLXCOL_SEQNAME;
+  sortColumns[2] = BLXCOL_START;
+}
+
+
 static void detailViewCreateProperties(GtkWidget *detailView,
                                        GtkWidget *blxWindow,
                                        GtkCellRenderer *renderer,
@@ -4629,92 +4728,18 @@ static void detailViewCreateProperties(GtkWidget *detailView,
 {
   if (detailView)
     { 
-      DetailViewProperties *properties = (DetailViewProperties*)g_malloc(sizeof *properties);
-
-      /* Find a fixed-width font */
-      const char *fontFamily = findFixedWidthFont(detailView);
-      PangoFontDescription *fontDesc = pango_font_description_from_string(fontFamily);
-      pango_font_description_set_size(fontDesc, pango_font_description_get_size(detailView->style->font_desc));
-      
-      properties->blxWindow = blxWindow;
-      properties->renderer = renderer;
-      properties->fwdStrandTrees = fwdStrandTrees;
-      properties->revStrandTrees = revStrandTrees;
-      properties->feedbackBox = feedbackBox;
-      properties->statusBar = statusBar;
-      properties->adjustment = adjustment;
-      properties->fontDesc = fontDesc;
-      properties->charWidth = 0.0;
-      properties->charHeight = 0.0;
-      properties->snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
-      properties->numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
-
-      properties->selectedIndex = NULL;
-      setDetailViewIndex(&properties->selectedRangeInit, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
-      setDetailViewIndex(&properties->selectedRangeStart, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
-      setDetailViewIndex(&properties->selectedRangeEnd, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
-      
-      /* The numunalignedbases may be set in the config file; if so, override the default */
-      GKeyFile *key_file = blxGetConfig();
-      if (key_file)
-        {
-          GError *error = NULL;
-          int numUnaligned = g_key_file_get_integer(key_file, SETTINGS_GROUP, SETTING_NAME_NUM_UNALIGNED_BASES, &error);
-          
-          if (!error) /* we don't care if it wasn't found */
-            properties->numUnalignedBases = numUnaligned;
-        }
-
-      /* Add the splice sites that we want Blixem to identify as canonical */
-      properties->spliceSites = NULL;
-      addBlxSpliceSite(&properties->spliceSites, "GT", "AG", FALSE);
-      addBlxSpliceSite(&properties->spliceSites, "GC", "AG", FALSE);
-      addBlxSpliceSite(&properties->spliceSites, "AT", "AC", TRUE);
-
-      /* We don't know the display range yet, so set an arbitrary range centred
-       * on the start coord. Set the adjustment value to be unset so that we know
-       * we need to calculated it first time round. */
-      properties->adjustment->value = UNSET_INT;
-      properties->displayRange.set(startCoord - 1, startCoord + 1);
-      
-      /* Find the padding between the background area of the tree cells and the actual
-       * drawing area. This is used to render the full height of the background area, so
-       * that we don't have gaps between rows. */ 
-      if (fwdStrandTrees)
-        {
-          //GtkWidget *widget = GTK_WIDGET(fwdStrandTrees->data);
-
-          //GtkWidget *tree = widgetIsTree(widget) ? widget : treeContainerGetTree(GTK_CONTAINER(widget));
-          //gtk_widget_realize(tree); /* must realize tree to pick up any overriden style properties */
-            
-          /* I can't get this to work properly using gtk_tree_view_get_cell_area etc. The cell
-           * area and background area come out wrong - perhaps because I'm not using a real
-           * row path. After a bit of experimentation it seems that the y padding is always
-           * related to the vertical-separator as follows: ypad = trunc(vseparator / 2) + 1 */
-          gint vertical_separator = 0, horizontal_separator = 0;
-          //gtk_widget_style_get (tree, "vertical-separator", &vertical_separator, NULL);
-          //gtk_widget_style_get (tree, "horizontal-separator", &horizontal_separator, NULL);
-          
-          properties->cellXPadding = (horizontal_separator / 2) + 1;
-          properties->cellYPadding = (vertical_separator / 2) + 1;
-        }
-      properties->exonBoundaryLineWidth   = 1;
-      properties->exonBoundaryLineStyle = GDK_LINE_SOLID;
-      properties->exonBoundaryLineStylePartial = GDK_LINE_ON_OFF_DASH;
-      
-      /* Allocate sortColumns array to be same length as columnList */
-      const int numColumns = g_list_length(columnList);
-      properties->sortColumns = (BlxColumnId*)g_malloc(numColumns * sizeof(BlxColumnId));
-      
-      int i = 0;
-      for ( ; i < numColumns; ++i)
-        properties->sortColumns[i] = BLXCOL_NONE;
-
-      /* Sort by the default/input column, and then by name and then position */
-      properties->sortColumns[0] = sortColumn;
-      properties->sortColumns[1] = BLXCOL_SEQNAME;
-      properties->sortColumns[2] = BLXCOL_START;
-      
+      DetailViewProperties *properties = new DetailViewProperties(detailView,
+                                                                  blxWindow,
+                                                                  renderer,
+                                                                  fwdStrandTrees,
+                                                                  revStrandTrees,
+                                                                  feedbackBox,
+                                                                  statusBar,
+                                                                  columnList,
+                                                                  adjustment, 
+                                                                  startCoord,
+                                                                  sortColumn);
+ 
       g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
       g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
     }

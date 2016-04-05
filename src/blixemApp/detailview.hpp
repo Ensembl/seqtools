@@ -52,6 +52,7 @@
 #include <gtk/gtk.h>
 #include <seqtoolsUtils/utilities.hpp>
 #include <blixemApp/blxwindow.hpp>
+#include <blixemApp/coverageview.hpp>
 
 
 #define SNP_TRACK_HEADER_NAME           "SNP track header"
@@ -103,6 +104,22 @@ typedef struct _DetailViewIndex
 class DetailViewProperties
 {
 public:
+  DetailViewProperties(GtkWidget *detailView_in,
+                       GtkWidget *blxWindow_in,
+                       GtkCellRenderer *renderer_in,
+                       GList *fwdStrandTrees_in,
+                       GList *revStrandTrees_in,
+                       GtkWidget *feedbackBox_in,
+                       GtkWidget *statusBar_in,
+                       GList *columnList_in,
+                       GtkAdjustment *adjustment_in, 
+                       const int startCoord_in,
+                       const BlxColumnId sortColumn_in);
+
+  GtkWidget* coverageView();
+  CoverageViewProperties *coverageViewProperties();
+  void setCoverageView(CoverageViewProperties *coverageViewP);
+
   GtkWidget *widget;                   /* The detail view widget */
   GtkWidget *blxWindow;                /* The main blixem window that this view belongs to */
   GtkCellRenderer *renderer;           /* The cell renderer that renders the sequences */
