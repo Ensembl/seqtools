@@ -591,11 +591,14 @@ void IntRange::set(const int val1, const int val2)
 
 void IntRange::set(const IntRange &range)
 {
-  m_min = range.min();
-  m_max = range.max();
+  if (range.isSet())
+    {
+      m_min = range.min();
+      m_max = range.max();
 
-  m_min_is_set = true;
-  m_max_is_set = true;
+      m_min_is_set = true;
+      m_max_is_set = true;
+    }
 }
 
 void IntRange::set(const IntRange *range)
