@@ -298,8 +298,7 @@ static void parseFileOrBuffer(MSP **MSPlist, FILE *file, const char *buffer_in, 
       if (seq1Range->min() == UNSET_INT && seq1Range->max() == UNSET_INT && *seq1)
 	{
 	  /* The seq1 range was not parsed from the file; set the default range to be 1 -> strlen */
-	  seq1Range->setMin(1);
-	  seq1Range->setMax(strlen(*seq1));
+	  seq1Range->set(1, strlen(*seq1));
 	}
       else if (*seq1)
 	{

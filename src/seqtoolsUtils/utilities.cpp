@@ -563,6 +563,18 @@ void IntRange::set(const int val1, const int val2)
     }
 }
 
+void IntRange::set(const IntRange &range)
+{
+  m_min = range.min();
+  m_max = range.max();
+}
+
+void IntRange::set(const IntRange *range)
+{
+  if (range)
+    set(*range);
+}
+
 void IntRange::setMin(const int val)
 {
   m_min = val;
@@ -627,8 +639,7 @@ void IntRange::sort(const bool forwards)
 /* Utility to set the given range to the given length, centred on the given coord */
 void centreRangeOnCoord(IntRange *range, const int coord, const int length)
 {
-  range->setMin(coord - (length / 2));
-  range->setMax(range->min() + length);
+  range->set(coord - (length / 2), range->min() + length);
 }
 
 
@@ -2829,8 +2840,7 @@ void reportAndClearIfError(GError **error, GLogLevelFlags log_level)
 /* Set the values in an IntRange. */
 void intrangeSetValues(IntRange *range, const int val1, const int val2)
 {
-  range->setMin(val1 < val2 ? val1 : val2);
-  range->setMax(val1 < val2 ? val2 : val1);
+  range->set(val1 < val2 ? val1 : val2, val1 < val2 ? val2 : val1);
 }
 
 

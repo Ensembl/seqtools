@@ -237,16 +237,13 @@ static void alignmentToolCreateProperties(GtkWidget *widget,
       properties->alignmentWindow = alignmentWindow;
       properties->dotterWinCtx = dotterWinCtx;
       properties->alignmentLen = DEFAULT_ALIGNMENT_LENGTH;
-      properties->refDisplayRange.setMin(0);
-      properties->refDisplayRange.setMax(20);
-      properties->matchDisplayRange.setMin(0);
-      properties->matchDisplayRange.setMax(20); /* to do: put real values in here for the ranges */
+      properties->refDisplayRange.set(0, 20);
+      properties->matchDisplayRange.set(0, 20); /* to do: put real values in here for the ranges */
 
       properties->dragging = FALSE;
       properties->dragStart = 0;
       properties->selectionWidget = NULL;
-      properties->selectionRange.setMin(UNSET_INT);
-      properties->selectionRange.setMax(UNSET_INT);
+      properties->selectionRange.set(UNSET_INT, UNSET_INT);
       
       properties->spliceSitesOn = TRUE;
 
@@ -465,13 +462,11 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
        * will be correct whether we're displaying nucleotides or peptides.) */
       int len = properties->alignmentLen * getResFactor(dc, TRUE);
       int offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, TRUE);
-      properties->refDisplayRange.setMin(dwc->refCoord - offset);
-      properties->refDisplayRange.setMax(properties->refDisplayRange.min() + len);
+      properties->refDisplayRange.set(dwc->refCoord - offset, properties->refDisplayRange.min() + len);
 
       len = properties->alignmentLen * getResFactor(dc, FALSE);
       offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, FALSE);
-      properties->matchDisplayRange.setMin(dwc->matchCoord - offset);
-      properties->matchDisplayRange.setMax(properties->matchDisplayRange.min() + len);
+      properties->matchDisplayRange.set(dwc->matchCoord - offset, properties->matchDisplayRange.min() + len);
     }
 }
 
@@ -1275,8 +1270,7 @@ static void sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *align
   /* flag that we should highlight the selected sequence (clear any current selection first) */
   alignmentToolClearSequenceSelection(alignmentTool);
   
-  atProperties->selectionRange.setMin(atProperties->dragStart);
-  atProperties->selectionRange.setMax(atProperties->dragStart);
+  atProperties->selectionRange.set(atProperties->dragStart, atProperties->dragStart);
 
   setSelectionWidget(atProperties, sequenceWidget);
 }

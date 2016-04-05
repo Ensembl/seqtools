@@ -1342,8 +1342,8 @@ static void doCalculateImage(const BlxStrand qStrand,
   /* Get the range of valid calculations (excluding the initial sliding window size, where we don't have enough 
    * info to calculate the average properly - exclude the winsize at the start if fwd or the end if reverse) */
   IntRange validRange;
-  validRange.setMin(qStrand == BLXSTRAND_REVERSE ? 0 : properties->slidingWinSize);
-  validRange.setMax(qStrand == BLXSTRAND_REVERSE ? slen - properties->slidingWinSize : slen);
+  validRange.set(qStrand == BLXSTRAND_REVERSE ? 0 : properties->slidingWinSize,
+                 qStrand == BLXSTRAND_REVERSE ? slen - properties->slidingWinSize : slen);
   
   /* Re-populate the score vector for this reading frame */
   populateScoreVec(dwc, vecLen, pepQSeqLen, frame, pepQSeqOffset, getTranslationTable(dc->displaySeqType, qStrand), scoreVec);

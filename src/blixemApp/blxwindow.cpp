@@ -5945,10 +5945,8 @@ static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
   
   blxContext->refSeq = options->refSeq;
   blxContext->refSeqName = options->refSeqName ? g_strdup(options->refSeqName) : g_strdup("Blixem-seq");
-  blxContext->refSeqRange.setMin(refSeqRange->min());
-  blxContext->refSeqRange.setMax(refSeqRange->max());
-  blxContext->fullDisplayRange.setMin(fullDisplayRange->min());
-  blxContext->fullDisplayRange.setMax(fullDisplayRange->max());
+  blxContext->refSeqRange.set(refSeqRange);
+  blxContext->fullDisplayRange.set(fullDisplayRange);
   blxContext->refSeqOffset = options->refSeqOffset;
   blxContext->optionalColumns = options->optionalColumns;
 
@@ -7352,11 +7350,10 @@ static void calculateRefSeqRange(CommandLineOptions *options,
 {
   
   /* Offset the reference sequence range, if an offset was specified. */ 
-  refSeqRange->setMin(options->refSeqRange.min() + options->refSeqOffset);
-  refSeqRange->setMax(options->refSeqRange.max() + options->refSeqOffset);
+  refSeqRange->set(options->refSeqRange);
+  refSeqRange += options->refSeqOffset;
   
-  fullDisplayRange->setMin(refSeqRange->min());
-  fullDisplayRange->setMax(refSeqRange->max());
+  fullDisplayRange->set(refSeqRange);
   
   if (options->seqType == BLXSEQ_PEPTIDE)
     {

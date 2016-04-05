@@ -1017,8 +1017,7 @@ static gboolean mspGetVisibleRange(MSP *msp, RenderData *data, IntRange *result)
   
   /* Get the full display range of the MSP (including any portions of unaligned sequence etc.) */
   const IntRange *fullRange = mspGetFullDisplayRange(msp, data->seqSelected, data->bc);
-  result->setMin(fullRange->min());
-  result->setMax(fullRange->max());
+  result->set(fullRange);
   
   if (rangesOverlap(result, data->displayRange))
     {
@@ -1029,8 +1028,7 @@ static gboolean mspGetVisibleRange(MSP *msp, RenderData *data, IntRange *result)
   else
     {
       /* No portion of the MSP range is in the display range, so return UNSET_INTs */
-      result->setMin(UNSET_INT);
-      result->setMax(UNSET_INT);
+      result->set(UNSET_INT, UNSET_INT);
     }
 
   return found;

@@ -253,6 +253,8 @@ public:
   int centre() const;
 
   void set(const int val1, const int val2);
+  void set(const IntRange &range);
+  void set(const IntRange *range);
   void setMin(const int val);
   void setMax(const int val);
 

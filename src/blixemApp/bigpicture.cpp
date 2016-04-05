@@ -613,8 +613,7 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
   if (width < detailViewWidth)
     {
       /* Don't display less than the detail view range */
-      displayRange->setMin(detailViewRange->min());
-      displayRange->setMax(detailViewRange->max());
+      displayRange->set(detailViewRange);
       width = displayRange->max() - displayRange->min();
       changedRange = TRUE;
     }
@@ -622,9 +621,7 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
     {
       /* Don't display more than the full range of the reference sequence */
       changedRange = displayRange->min() != fullRange->min() || displayRange->max() != fullRange->max();
-      
-      displayRange->setMin(fullRange->min());
-      displayRange->setMax(fullRange->max());
+      displayRange->set(fullRange);
     }
   else if (keepCentered)
     {
@@ -634,8 +631,7 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
       /* Try to display an equal amount either side of the centre */
       const int offset = roundNearest((double)width / 2.0);
 
-      displayRange->setMin(newcentre - offset);
-      displayRange->setMax(displayRange->min() + width);
+      displayRange->set(newcentre - offset, displayRange->min() + width);
       
       changedRange = TRUE;
     }
@@ -659,8 +655,7 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
       
       if (offset > 0)
         {
-          displayRange->setMin(displayRange->min() - offset);
-          displayRange->setMax(displayRange->min() + width);
+          displayRange->set(displayRange->min() - offset, displayRange->min() + width);
           changedRange = TRUE;
         }
       
@@ -668,8 +663,7 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
       
       if (offset > 0)
         {
-          displayRange->setMax(displayRange->max() + offset);
-          displayRange->setMin(displayRange->max() - width);
+          displayRange->set(displayRange->max() - width, displayRange->max() + offset);
           changedRange = TRUE;
         }
     }
@@ -937,8 +931,7 @@ void scrollBigPictureLeftStep(GtkWidget *bigPicture)
         diff = displayRange->min() - bc->fullDisplayRange.min();
 
       /* Update the range */
-      displayRange->setMin(displayRange->min() - diff);
-      displayRange->setMax(displayRange->max() - diff);
+      displayRange->set(displayRange->min() - diff, displayRange->max() - diff);
 
       /* Update */
       onBigPictureRangeChanged(bigPicture, properties);
@@ -969,8 +962,7 @@ void scrollBigPictureRightStep(GtkWidget *bigPicture)
         diff = bc->fullDisplayRange.max() - displayRange->max();
 
       /* Adjust the range */
-      displayRange->setMin(displayRange->min() + diff);
-      displayRange->setMax(displayRange->max() + diff);
+      displayRange->set(displayRange->min() + diff, displayRange->max() + diff);
 
       /* Update */
       onBigPictureRangeChanged(bigPicture, properties);
@@ -1250,8 +1242,7 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
    * intput range may be UNSE_INTs, in which case these values will be
    * initialized when the detail view size is first allocated, based on
    * the "initial zoom level" which is a ratio of the detail view range. */
-  displayRange.setMin(initRange_in->min());
-  displayRange.setMax(initRange_in->max());
+  displayRange.set(initRange_in);
 
   /* Calculate the font size */
   getFontCharSize(bigPicture_in, bigPicture_in->style->font_desc, &charWidth, &charHeight);

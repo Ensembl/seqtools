@@ -2820,8 +2820,8 @@ static void getVariationDisplayRange(const MSP *msp,
           --offset;
         }
   
-      expandedRange->setMin(expandedRange->centre() - offset);
-      expandedRange->setMax(expandedRange->min() + numChars - 1);
+      expandedRange->set(expandedRange->centre() - offset, 
+                         expandedRange->min() + numChars - 1);
     }
 }
 
@@ -3269,8 +3269,7 @@ static int getVariationRowNumber(const IntRange* const rangeIn, const int numRow
         {
           /* Doesn't overlap anything in this row; add it to the row and exit */
           IntRange *range = (IntRange*)g_malloc(sizeof *range);
-          range->setMin(rangeIn->min());
-          range->setMax(rangeIn->max());
+          range->set(rangeIn);
           ranges = g_slist_append(ranges, range);
           
           row->data = ranges;
@@ -3285,8 +3284,7 @@ static int getVariationRowNumber(const IntRange* const rangeIn, const int numRow
   /* If we get here, we didn't find a row that we don't overlap, so add a new row */
   GSList *ranges = NULL;
   IntRange *range = (IntRange*)g_malloc(sizeof *range);
-  range->setMin(rangeIn->min());
-  range->setMax(rangeIn->max());
+  range->set(rangeIn);
   ranges = g_slist_append(ranges, range);
   *rows = g_slist_append(*rows, ranges);
 
@@ -3552,8 +3550,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
     {
       IntRange oldRange = {displayRange->min(), displayRange->max()};
 
-      displayRange->setMin(newStart);
-      displayRange->setMax(newEnd);
+      displayRange->set(newStart, newEnd);
       
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
       refilterDetailView(detailView, &oldRange);
@@ -3594,8 +3591,7 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
     {
       IntRange oldRange(displayRange->min(), displayRange->max());
 
-      displayRange->setMin(newStart);
-      displayRange->setMax(newEnd);
+      displayRange->set(newStart, newEnd);
 
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
       refilterDetailView(detailView, &oldRange);

@@ -374,8 +374,7 @@ void loadNativeFile(const char *filename,
   
   if (refSeqRange)
     {
-      toplevelRange.setMin(refSeqRange->min() - refSeqOffset);
-      toplevelRange.setMax(refSeqRange->max() - refSeqOffset);
+      toplevelRange.set(refSeqRange->min() - refSeqOffset, refSeqRange->max() - refSeqOffset);
     }
   
   if (filename)
@@ -834,8 +833,7 @@ static void mspCalcFullSRange(const MSP* const msp,
 			      IntRange *result)
 {
   /* Normally we just display the part of the sequence in the alignment */
-  result->setMin(msp->sRange.min());
-  result->setMax(msp->sRange.max());
+  result->set(msp->sRange);
   
   if (mspIsBlastMatch(msp))
     {
@@ -843,15 +841,14 @@ static void mspCalcFullSRange(const MSP* const msp,
 	{
 	  /* We're displaying additional unaligned sequence outside the alignment range. Get 
 	   * the full range of the match sequence */
-	  result->setMin(1);
-	  result->setMax(mspGetMatchSeqLen(msp));
+	  result->set(1, mspGetMatchSeqLen(msp));
 	  
 	  if (flags[BLXFLAG_LIMIT_UNALIGNED_BASES])
 	    {
 	      /* Only include up to 'numUnalignedBases' each side of the MSP range (still limited
 	       * to the range we found above, though). */
-	      result->setMin(max(result->min(), msp->sRange.min() - numUnalignedBases));
-	      result->setMax(min(result->max(), msp->sRange.max() + numUnalignedBases));
+	      result->set(max(result->min(), msp->sRange.min() - numUnalignedBases), 
+                          min(result->max(), msp->sRange.max() + numUnalignedBases));
 	    }
 	}
       
@@ -887,8 +884,7 @@ static void mspCalcFullQRange(const MSP* const msp,
 			      IntRange *result)
 {
   /* Default to the alignment range so we can exit quickly if there are no special cases */
-  result->setMin(msp->qRange.min());
-  result->setMax(msp->qRange.max());
+  result->set(msp->qRange);
   
   if (mspIsBlastMatch(msp) && (flags[BLXFLAG_SHOW_UNALIGNED] || flags[BLXFLAG_SHOW_POLYA_SITE]))
     {
@@ -1873,8 +1869,7 @@ const char* getColumnTitle(GList *columnList, const BlxColumnId columnId)
  * return argument. */
 void getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *xRange)
 {
-  xRange->setMin(0);
-  xRange->setMax(0);
+  xRange->set(0, 0);
   
   /* Loop through all visible columns up to the given column, summing their widths. */
   GList *columnItem = columnList;

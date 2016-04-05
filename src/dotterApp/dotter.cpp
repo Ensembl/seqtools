@@ -600,10 +600,8 @@ static DotterContext* createDotterContext(DotterOptions *options,
   result->matchSeqType = (blastMode == BLXMODE_BLASTN ? BLXSEQ_DNA : BLXSEQ_PEPTIDE);
   result->matchSeqStrand = matchSeqStrand;
   
-  result->refSeqFullRange.setMin(options->qoffset + 1);
-  result->refSeqFullRange.setMax(options->qoffset + strlen(options->qseq));
-  result->matchSeqFullRange.setMin(options->soffset + 1);
-  result->matchSeqFullRange.setMax(options->soffset + strlen(options->sseq));
+  result->refSeqFullRange.set(options->qoffset + 1, options->qoffset + strlen(options->qseq));
+  result->matchSeqFullRange.set(options->soffset + 1, options->soffset + strlen(options->sseq));
   
   result->hozScaleRev = options->hozScaleRev;
   result->vertScaleRev = options->vertScaleRev;
@@ -947,10 +945,8 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
   
   result->dotterCtx = dotterCtx;
   
-  result->refSeqRange.setMin(refSeqRange->min());
-  result->refSeqRange.setMax(refSeqRange->max());
-  result->matchSeqRange.setMin(matchSeqRange->min());
-  result->matchSeqRange.setMax(matchSeqRange->max());
+  result->refSeqRange.set(refSeqRange);
+  result->matchSeqRange.set(matchSeqRange);
 
   result->refCoord = UNSET_INT;
   result->matchCoord = UNSET_INT;

@@ -2091,20 +2091,15 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->qname = NULL;
   msp->qFrame = UNSET_INT;
   
-  msp->qRange.setMin(0);
-  msp->qRange.setMax(0);
-  msp->displayRange.setMin(0);
-  msp->displayRange.setMax(0);
-  msp->fullRange.setMin(0);
-  msp->fullRange.setMax(0);
+  msp->qRange.set(0, 0);
+  msp->displayRange.set(0, 0);
+  msp->fullRange.set(0, 0);
   
   msp->sSequence = NULL;
   msp->sname = msp->sname_orig = NULL;
   
-  msp->sRange.setMin(0);
-  msp->sRange.setMax(0);
-  msp->fullSRange.setMin(0);
-  msp->fullSRange.setMax(0);
+  msp->sRange.set(0, 0);
+  msp->fullSRange.set(0, 0);
   
   msp->desc = NULL;
   
@@ -2635,22 +2630,19 @@ static void constructExonData(BlxSequence *blxSeq,
               if (prevExon && curExon && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
                   /* Create an intron to span the gap */
-                  newRange.setMin(prevExon->qRange.max() + 1);
-                  newRange.setMax(curExon->qRange.min() - 1);
+                  newRange.set(prevExon->qRange.max() + 1, curExon->qRange.min() - 1);
                 }
               else if (!prevExon && curExon && blxSequenceGetStart(blxSeq, blxSeq->strand) < curExon->qRange.min() && 
 		       !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
                   /* Create an intron at the start */
-                  newRange.setMin(blxSequenceGetStart(blxSeq, blxSeq->strand));
-                  newRange.setMax(curExon->qRange.min() - 1);
+                  newRange.set(blxSequenceGetStart(blxSeq, blxSeq->strand), curExon->qRange.min() - 1);
                 }
               else if (msp == NULL && curExon && blxSequenceGetEnd(blxSeq, blxSeq->strand) > curExon->qRange.max() &&
 		       !mspIsIntron(prevMsp))
                 {
                   /* Create an intron at the end */
-                  newRange.setMin(curExon->qRange.max() + 1);
-                  newRange.setMax(blxSequenceGetEnd(blxSeq, blxSeq->strand));
+                  newRange.set(curExon->qRange.max() + 1, blxSequenceGetEnd(blxSeq, blxSeq->strand));
                 }
               
               if (curExon && newRange.min() != UNSET_INT && newRange.max() != UNSET_INT)
@@ -2785,8 +2777,7 @@ static void adjustMspCoordsByOffset(MSP *msp, const int offset)
     {
       /* Convert the input coords (which are 1-based within the ref sequence section
        * that we're dealing with) to "real" coords (i.e. coords that the user will see). */
-      msp->qRange.setMin(msp->qRange.min() + offset);
-      msp->qRange.setMax(msp->qRange.max() + offset);
+      msp->qRange += offset;
       
       /* Gap coords are also 1-based, so convert those too */
       GSList *rangeItem = msp->gaps;
@@ -2806,10 +2797,10 @@ static void adjustMspCoordsByOffset(MSP *msp, const int offset)
  * of the first/last MSP in the sequence */
 static void findSequenceExtents(BlxSequence *blxSeq)
 {
-  blxSeq->qRangeFwd.setMin(findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_FORWARD));
-  blxSeq->qRangeFwd.setMax(findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_FORWARD));
-  blxSeq->qRangeRev.setMin(findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_REVERSE));
-  blxSeq->qRangeRev.setMax(findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_REVERSE));
+  blxSeq->qRangeFwd.set(findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_FORWARD),
+                        findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_FORWARD));
+  blxSeq->qRangeRev.set(findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_REVERSE),
+                        findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_REVERSE));
 }
 
 
