@@ -663,7 +663,7 @@ static void drawBoxFeature(SequenceCellRenderer *renderer,
           return;
         }
 
-      const int segmentLen = segmentRange.max() - segmentRange.min() + 1;
+      const int segmentLen = segmentRange.length();
 
       int x, y;
       segmentGetCoordsForBaseIdx(0, &segmentRange, data, &x, &y);
@@ -1215,8 +1215,8 @@ static void mspDrawColinearityLine(const MSP* msp1, const MSP* msp2, const gbool
 
           /* Get the coords of the line */
           const int y = data->cell_area->y + (data->charHeight / 2);
-          int x1 = data->cell_area->x + ((msp1->displayRange.max() + 1 - data->displayRange->min()) * data->charWidth); /* +1 to get rightmost edge of char */
-          int x2 = data->cell_area->x + ((msp2->displayRange.min() - data->displayRange->min()) * data->charWidth) - 1; /* -1 offset by 1 pixel so we don't overdraw the char */
+          int x1 = data->cell_area->x + ((msp1->displayRange.max(true, data->bc->displayRev) - data->displayRange->min()) * data->charWidth); /* +1 to get rightmost edge of char */
+          int x2 = data->cell_area->x + ((msp2->displayRange.min(true, data->bc->displayRev) - data->displayRange->min()) * data->charWidth) - 1; /* -1 offset by 1 pixel so we don't overdraw the char */
 
           if (x1 < data->cell_area->x + data->cell_area->width && x2 > data->cell_area->x)
             {

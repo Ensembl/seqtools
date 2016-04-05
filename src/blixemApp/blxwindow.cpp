@@ -7214,7 +7214,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           if (numGaps == 0)
             {
               /* Ungapped alignments. */
-              totalNumChars = (qRange.max() - qRange.min() + 1) / bc->numFrames;
+              totalNumChars = qRange.length() / bc->numFrames;
 
               if (bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
                 {
@@ -7378,7 +7378,7 @@ static void calculateRefSeqRange(CommandLineOptions *options,
           offset -= options->numFrames;
       
       refSeqRange->setMax(refSeqRange->max() - offset);
-      options->refSeq[refSeqRange->max() - refSeqRange->min() + 1] = '\0';
+      options->refSeq[refSeqRange->length()] = '\0';
       
       /* Now calculate the full display range in display coords */
       fullDisplayRange->setMin(convertDnaIdxToDisplayIdx(refSeqRange->min(), options->seqType, 1, options->numFrames, FALSE, refSeqRange, NULL));

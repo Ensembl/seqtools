@@ -357,13 +357,13 @@ const IntRange* mspGetMatchCoords(const MSP* const msp)
 /* Return the length of the range of alignment coords on the ref seq */
 int mspGetQRangeLen(const MSP* const msp)
 {
-  return msp->qRange.max() - msp->qRange.min() + 1;
+  return msp->qRange.length();
 }
 
 /* Return the length of the range of alignment coords on the match seq */
 int mspGetSRangeLen(const MSP* const msp)
 {
-  return msp->sRange.max() - msp->sRange.min() + 1;
+  return msp->sRange.length();
 }
 
 /* Get the start (5 prime) coord of the alignment on the reference sequence. This is
@@ -1073,12 +1073,9 @@ int blxSequenceGetLength(const BlxSequence *seq)
 
 /* Get the start extent of the alignments from this match sequence on the
  * given reference sequence strand */
-int blxSequenceGetStart(BlxSequence *seq, const BlxStrand strand)
+int blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand)
 {
   int result = UNSET_INT;
-
-  if (!seq->qRangeFwd.isSet() || !seq->qRangeRev.isSet())
-    findSequenceExtents(seq);
 
   if (strand == BLXSTRAND_REVERSE && seq->qRangeRev.isSet())
     result = seq->qRangeRev.min();
@@ -1089,12 +1086,9 @@ int blxSequenceGetStart(BlxSequence *seq, const BlxStrand strand)
 }
 
 /* Get the end extend of the sequence on the ref sequence */
-int blxSequenceGetEnd(BlxSequence *seq, const BlxStrand strand)
+int blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand)
 {
   int result = UNSET_INT;
-
-  if (!seq->qRangeFwd.isSet() || !seq->qRangeRev.isSet())
-    findSequenceExtents(seq);
 
   if (strand == BLXSTRAND_REVERSE && seq->qRangeRev.isSet())
     result = seq->qRangeRev.max();

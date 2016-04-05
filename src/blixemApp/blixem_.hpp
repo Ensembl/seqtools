@@ -571,7 +571,7 @@ class UserFetch
 public:
   UserFetch();
 
-  UserFetch(BlxSequence *blxSeq,
+  UserFetch(const BlxSequence *blxSeq,
             const gboolean displayResults,
             GtkWidget *blxWindow,
             GtkWidget *dialog,
@@ -597,7 +597,7 @@ public:
 
 private:
 
-  BlxSequence *blxSeq;
+  const BlxSequence *blxSeq;
   gboolean displayResults;
   int attempt;
   GtkWidget *blxWindow;
@@ -750,7 +750,7 @@ char*                              readFastaSeq(FILE *seqfile, char *qname, int 
 
 /* blxFetch.c */
 BlxFetchMethod*                    getFetchMethodDetails(GQuark fetchMethodQuark, GHashTable *fetchMethods);
-GString*                           getFetchCommand(const BlxFetchMethod* const fetchMethod, BlxSequence *blxSeq, const MSP* const msp, const char *refSeqName, const int refSeqOffset, const IntRange* const refSeqRange, const char *dataset, GError **error);
+GString*                           getFetchCommand(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq, const MSP* const msp, const char *refSeqName, const int refSeqOffset, const IntRange* const refSeqRange, const char *dataset, GError **error);
 GString*                           doGetFetchCommand(const BlxFetchMethod* const fetchMethod,MatchSequenceData *match_data, GError **error);
 GString*                           getFetchArgs(const BlxFetchMethod* const fetchMethod, const BlxSequence *blxSeq,const MSP* const msp,const char *refSeqName,const int refSeqOffset,const IntRange* const refSeqRange,const char *dataset,GError **error);
 GString*                           getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *seqsToFetch, GError **error);

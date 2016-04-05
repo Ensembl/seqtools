@@ -2709,7 +2709,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   
   /* We'll loop forward/backward through the display range depending on which strand we're viewing */
   int incrementValue = bc->displayRev ? -bc->numFrames : bc->numFrames;
-  int displayLen = qRange.max() - qRange.min() + 1;
+  int displayLen = qRange.length();
   char displayText[displayLen + 1];
   int displayTextPos = 0;
   

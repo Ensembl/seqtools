@@ -473,8 +473,8 @@ void bigPictureCalculateHighlightBoxBorders(GdkRectangle *drawingRect,
       convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
       
       /* Get the x coords for the start and end of the detail view display range */
-      const int x1 = convertBaseIdxToRectPos(dvRange.min(), drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
-      const int x2 = convertBaseIdxToRectPos(dvRange.max() + 1, drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
+      const int x1 = convertBaseIdxToRectPos(dvRange.min(true, bc->displayRev), drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
+      const int x2 = convertBaseIdxToRectPos(dvRange.max(true, bc->displayRev), drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
       
       highlightRect->x = min(x1, x2);
       highlightRect->y = 0;

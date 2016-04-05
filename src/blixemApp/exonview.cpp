@@ -368,8 +368,8 @@ void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
   convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
   
   /* Calculate how many pixels from the left edge of the widget to the first base in the range. */
-  const int x1 = convertBaseIdxToRectPos(dvRange.min(), &properties->exonViewRect, &bpRange, TRUE, bc->displayRev, TRUE);
-  const int x2 = convertBaseIdxToRectPos(dvRange.max() + 1, &properties->exonViewRect, &bpRange, TRUE, bc->displayRev, TRUE);
+  const int x1 = convertBaseIdxToRectPos(dvRange.min(true, bc->displayRev), &properties->exonViewRect, &bpRange, TRUE, bc->displayRev, TRUE);
+  const int x2 = convertBaseIdxToRectPos(dvRange.max(true, bc->displayRev), &properties->exonViewRect, &bpRange, TRUE, bc->displayRev, TRUE);
   
   properties->highlightRect.x = min(x1, x2);
   properties->highlightRect.y = 0;
