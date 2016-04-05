@@ -45,26 +45,34 @@
 class CoverageViewProperties
 {
 public:
-  CoverageViewProperties(GtkWidget *widget_in, GtkWidget *blxWindow_in, BlxViewContext *bc);
+  CoverageViewProperties(GtkWidget *widget_in, 
+                         GtkWidget *blxWindow_in, 
+                         BlxViewContext *bc);
+
+  /* Access */
+  GtkWidget* widget();
+  double depthPerCell();
+  int maxLabeledDepth();
+
+  /* Modify */
+  gboolean setDepthPerCell(const double depthPerCell);
+  void setDisplayRange(const IntRange *displayRange);
 
   /* Events */
   gboolean expose(GdkEventExpose *event, gpointer data);
   gboolean buttonPress(GdkEventButton *event, gpointer data);
   gboolean buttonRelease(GdkEventButton *event, gpointer data);
+  gboolean mouseMove(GdkEventMotion *event, gpointer data);
   gboolean scroll(GdkEventScroll *event, gpointer data);
 
-  GtkWidget* widget();
-  double depthPerCell();
-
-  gboolean setDepthPerCell(const double depthPerCell);
-  int maxLabeledDepth();
-  GtkWidget* bigPicture();
-
-  void draw(GdkDrawable *drawable);
-  void redraw();
+  /* Updates */
   void updateDepth();
   void calculateBorders();
   void calculateHighlightBoxBorders();
+
+  /* Drawing */
+  void draw(GdkDrawable *drawable);
+  void redraw();
   void prepareForPrinting();
 
 private:
@@ -73,6 +81,8 @@ private:
 
   GtkWidget *m_widget;      /* The coverage view widget */
   GtkWidget *m_blxWindow;   /* The main blixem window */
+  BlxViewContext *m_bc;
+  const IntRange *m_displayRange; /* The current range to display */
 
   int m_viewYPadding;	     /* The y padding around the view rect */
   double m_numVCells;	     /* The number of cells to show vertically */

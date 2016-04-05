@@ -248,7 +248,11 @@ DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
    * we need to calculated it first time round. */
   adjustment->value = UNSET_INT;
   displayRange.set(startCoord_in - 1, startCoord_in + 1);
-      
+
+  /* Set a reference to our display range in the coverage view */
+  if (coverageViewP)
+    coverageViewP->setDisplayRange(&displayRange);
+
   /* Find the padding between the background area of the tree cells and the actual
    * drawing area. This is used to render the full height of the background area, so
    * that we don't have gaps between rows. */ 

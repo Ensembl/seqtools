@@ -37,8 +37,8 @@
  */
 
 #include "blixemApp/coverageview.hpp"
+#include "blixemApp/blxwindow.hpp"
 #include "blixemApp/bigpicture.hpp"
-#include "blixemApp/detailview.hpp"
 #include "blixemApp/blixem_.hpp"
 #include <gtk/gtk.h>
 #include <math.h>
@@ -61,6 +61,7 @@ CoverageViewProperties::CoverageViewProperties(GtkWidget *widget_in,
 {
   m_widget = widget_in;
   m_blxWindow = blxWindow_in;
+  m_bc = bc_in;
 
   m_viewYPadding = DEFAULT_COVERAGE_VIEW_Y_PADDING;
   m_numVCells = DEFAULT_NUM_V_CELLS;
@@ -179,12 +180,6 @@ void CoverageViewProperties::updateDepth()
   recalculate();
 }
 
-
-GtkWidget* CoverageViewProperties::bigPicture()
-{
-  return blxWindowGetBigPicture(m_blxWindow);
-}
-
 double CoverageViewProperties::depthPerCell()
 {
   return m_rangePerCell;
@@ -199,6 +194,11 @@ gboolean CoverageViewProperties::setDepthPerCell(const double depthPerCell_in)
   updateDepth();
 
   return TRUE;
+}
+
+void CoverageViewProperties::setDisplayRange(const IntRange *displayRange)
+{
+  m_displayRange = displayRange;
 }
 
 /***********************************************************
@@ -264,34 +264,29 @@ int CoverageViewProperties::maxLabeledDepth()
 /* Draw the actual coverage data as a bar chart */
 void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
 {
-  BlxViewContext *bc = blxWindowGetContext(m_blxWindow);
-  GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
-  
-  if (!bc || bc->maxDepth <= 0)
-    return;
+  g_return_if_fail(m_bc && m_bc->maxDepth > 0 && m_displayRange);
 
   cairo_t *cr = gdk_cairo_create(drawable);
 
-  const GdkColor *color = getGdkColor(BLXCOLOR_COVERAGE_PLOT, bc->defaultColors, FALSE, bc->usePrintColors);
+  const GdkColor *color = getGdkColor(BLXCOLOR_COVERAGE_PLOT, m_bc->defaultColors, FALSE, m_bc->usePrintColors);
   gdk_cairo_set_source_color(cr, color);
   
   const double pixelsPerVal = (double)m_viewRect.height / (double)*m_maxDepth;
   const int bottomBorder = m_viewRect.y + m_viewRect.height;
   
   /* Loop through each coord in the display range */
-  const IntRange* const displayRange = bigPictureGetDisplayRange(bigPicture);
   
   double startX = -1.0;
   double prevX = -1.0;
   double prevY = -1.0;
-  int coord = displayRange->min();
+  int coord = m_displayRange->min();
   
-  for ( ; coord <= displayRange->max(); ++coord)
+  for ( ; coord <= m_displayRange->max(); ++coord)
     {
       /* Get the x position for this coord (always pass displayRev as false because
        * display coords are already inverted if the display is reversed). */
-      const double x = convertBaseIdxToRectPos(coord, &m_viewRect, displayRange, TRUE, FALSE, TRUE);
-      const int depth = blxContextGetDepth(bc, coord);
+      const double x = convertBaseIdxToRectPos(coord, &m_viewRect, m_displayRange, TRUE, FALSE, TRUE);
+      const int depth = blxContextGetDepth(m_bc, coord);
 
       /* Calculate the y position based on the depth */
       const double height = (pixelsPerVal * (double)depth);
@@ -305,7 +300,7 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
         {
           startX = x;
         }
-      else if (y != prevY || coord == displayRange->max())
+      else if (y != prevY || coord == m_displayRange->max())
         {
           /* If we had multiple positions where y was the same, draw a horizontal
            * line at that y position. If there was only one position at the previous y value then
@@ -314,9 +309,9 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
           
           /* If it's the last coord, also draw the current column, because there won't be another
            * loop to take care of this */
-          if (coord == displayRange->max())
+          if (coord == m_displayRange->max())
             {
-              const int endX = convertBaseIdxToRectPos(coord + 1, &m_viewRect, displayRange, TRUE, FALSE, TRUE);
+              const int endX = convertBaseIdxToRectPos(coord + 1, &m_viewRect, m_displayRange, TRUE, FALSE, TRUE);
               drawCoverageBar(x, endX, y, bottomBorder, cr);
             }
 
@@ -335,14 +330,13 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
 /* Main function for drawing the coverage view */
 void CoverageViewProperties::draw(GdkDrawable *drawable)
 {
-  BlxViewContext *bc = blxWindowGetContext(m_blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
 
   drawVerticalGridLines(&m_viewRect, &m_highlightRect, 
-			m_viewYPadding, bc, bpProperties, drawable);
+			m_viewYPadding, m_bc, bpProperties, drawable);
   
-  drawHorizontalGridLines(m_widget, bigPicture, &m_viewRect, bc, bpProperties, drawable,
+  drawHorizontalGridLines(m_widget, bigPicture, &m_viewRect, m_bc, bpProperties, drawable,
 			  (int)(m_numVCells), m_rangePerCell, (gdouble)*m_maxDepth, TRUE, "");
   
   drawPlot(drawable);
@@ -400,10 +394,9 @@ void CoverageViewProperties::prepareForPrinting()
   if (drawable)
     {
       GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
-      BlxViewContext *bc = blxWindowGetContext(m_blxWindow);
       BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
       
-      GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+      GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, m_bc->defaultColors, FALSE, m_bc->usePrintColors);
       drawHighlightBox(drawable, &m_highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
     }
 }
@@ -452,10 +445,9 @@ gboolean CoverageViewProperties::expose(GdkEventExpose *event, gpointer data)
           
           /* Draw the highlight box on top of it */
           GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
-          BlxViewContext *bc = blxWindowGetContext(m_blxWindow);
           BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
           
-          GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
+          GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, m_bc->defaultColors, FALSE, m_bc->usePrintColors);
           drawHighlightBox(window, &m_highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
           
           /* Draw the preview box too, if set */
@@ -497,7 +489,7 @@ gboolean CoverageViewProperties::buttonPress(GdkEventButton *event, gpointer dat
 {
   gboolean handled = FALSE;
   
-  BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture());
+  BigPictureProperties *bpProperties = bigPictureGetProperties(blxWindowGetBigPicture(m_blxWindow));
   
   if (event->button == 2 ||
       (event->button == 1 && !handled && 
@@ -510,7 +502,7 @@ gboolean CoverageViewProperties::buttonPress(GdkEventButton *event, gpointer dat
       if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
         x = m_highlightRect.x + m_highlightRect.width / 2;
       
-      showPreviewBox(bigPicture(), event->x, TRUE, x - event->x);
+      showPreviewBox(blxWindowGetBigPicture(m_blxWindow), event->x, TRUE, x - event->x);
       handled = TRUE;
     }
   
@@ -533,7 +525,7 @@ gboolean CoverageViewProperties::buttonRelease(GdkEventButton *event, gpointer d
 {
   if (event->button == 1 || event->button == 2) /* left or middle button */
     {
-      acceptAndClearPreviewBox(bigPicture(), event->x, &m_viewRect, &m_highlightRect);
+      acceptAndClearPreviewBox(blxWindowGetBigPicture(m_blxWindow), event->x, &m_viewRect, &m_highlightRect);
     }
   
   return TRUE;
@@ -564,14 +556,14 @@ gboolean CoverageViewProperties::scroll(GdkEventScroll *event, gpointer data)
   {
     case GDK_SCROLL_LEFT:
     {
-      scrollBigPictureLeftStep(bigPicture());
+      scrollBigPictureLeftStep(blxWindowGetBigPicture(m_blxWindow));
       handled = TRUE;
       break;
     }
       
     case GDK_SCROLL_RIGHT:
     {
-      scrollBigPictureRightStep(bigPicture());
+      scrollBigPictureRightStep(blxWindowGetBigPicture(m_blxWindow));
       handled = TRUE;
       break;
     }
@@ -587,25 +579,37 @@ gboolean CoverageViewProperties::scroll(GdkEventScroll *event, gpointer data)
 }
 
 
-static gboolean onMouseMoveCoverageView(GtkWidget *coverageView, GdkEventMotion *event, gpointer data)
+gboolean CoverageViewProperties::mouseMove(GdkEventMotion *event, gpointer data)
 {
   if ((event->state & GDK_BUTTON1_MASK) || /* left or middle button */
       (event->state & GDK_BUTTON2_MASK))
     {
       /* Draw a preview box at the mouse pointer location */
-      CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
-      showPreviewBox(properties->bigPicture(), event->x, FALSE, 0);
+      showPreviewBox(blxWindowGetBigPicture(m_blxWindow), event->x, FALSE, 0);
     }
   
   return TRUE;
 }
+
+static gboolean onMouseMoveCoverageView(GtkWidget *coverageView, GdkEventMotion *event, gpointer data)
+{
+  gboolean handled = FALSE;
+  CoverageViewProperties *properties = coverageViewGetProperties(coverageView);
+
+  if (properties)
+    handled = properties->mouseMove(event, data);
+
+  return handled;
+}
+
 
 
 /***********************************************************
  *                     Initialisation                      *
  ***********************************************************/
 
-CoverageViewProperties* createCoverageView(GtkWidget *blxWindow, BlxViewContext *bc)
+CoverageViewProperties* createCoverageView(GtkWidget *blxWindow, 
+                                           BlxViewContext *bc)
 {
   GtkWidget *coverageView = gtk_layout_new(NULL, NULL);
 

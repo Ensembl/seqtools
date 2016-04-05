@@ -1246,6 +1246,10 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
   else
     displayRange.set(fullRange_in);
 
+  /* Set a reference to our display range in the coverage view */
+  if (coverageViewP)
+    coverageViewP->setDisplayRange(&displayRange);
+
   /* Calculate the font size */
   getFontCharSize(bigPicture_in, bigPicture_in->style->font_desc, &charWidth, &charHeight);
       
