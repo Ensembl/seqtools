@@ -542,17 +542,25 @@ int IntRange::end(const bool rev, const bool negate) const
 }
 
 /* Utilities to return the min and max values. If inclusive is true then return the max value
- * plus one if forward or the low value minus one if reversed (this is used when drawing from 
+ * plus one if forward or the min value minus one if reversed (this is used when drawing from 
  * left to right to draw to the left edge of the next base) */
 int IntRange::min(const bool inclusive, const bool rev) const
 {
-  int result = rev ? m_min - 1 : m_min;
+  int result = m_min;
+
+  if (inclusive && rev)
+    result = m_min - 1;
+
   return result;
 }
 
 int IntRange::max(const bool inclusive, const bool rev) const
 {
-  int result = rev ? m_max : m_max + 1;
+  int result = m_max;
+
+  if (inclusive && !rev)
+    result = m_max + 1;
+
   return result;
 }
 
