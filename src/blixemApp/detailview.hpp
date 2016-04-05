@@ -120,7 +120,6 @@ public:
 
   GtkWidget* coverageView();
   CoverageViewProperties *coverageViewProperties();
-  void setCoverageView(CoverageViewProperties *coverageViewP);
 
   GtkWidget *widget;                   /* The detail view widget */
   GtkWidget *blxWindow;                /* The main blixem window that this view belongs to */

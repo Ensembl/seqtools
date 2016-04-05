@@ -1267,12 +1267,6 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
 }
 
 
-void BigPictureProperties::setCoverageView(CoverageViewProperties *coverageViewP_in)
-{
-  coverageViewP = coverageViewP_in;
-}
-
-
 CoverageViewProperties* BigPictureProperties::coverageViewProperties()
 {
   return coverageViewP;

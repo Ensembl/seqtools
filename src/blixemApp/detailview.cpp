@@ -289,12 +289,6 @@ DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
 }
 
 
-void DetailViewProperties::setCoverageView(CoverageViewProperties *coverageViewP_in)
-{
-  coverageViewP = coverageViewP_in;
-}
-
-
 CoverageViewProperties* DetailViewProperties::coverageViewProperties()
 {
   return coverageViewP;

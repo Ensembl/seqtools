@@ -73,7 +73,6 @@ public:
 
   GtkWidget* coverageView();
   CoverageViewProperties *coverageViewProperties();
-  void setCoverageView(CoverageViewProperties *coverageViewP);
 
   GtkWidget *widget;            /* The big picture widget*/
   GtkWidget *blxWindow;         /* The main blixem window that this grid belongs to */
