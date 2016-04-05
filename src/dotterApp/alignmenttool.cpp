@@ -460,11 +460,13 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
        * will be correct whether we're displaying nucleotides or peptides.) */
       int len = properties->alignmentLen * getResFactor(dc, TRUE);
       int offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, TRUE);
-      properties->refDisplayRange.set(dwc->refCoord - offset, properties->refDisplayRange.min() + len);
+      properties->refDisplayRange.setMin(dwc->refCoord - offset);
+      properties->refDisplayRange.setMax(properties->refDisplayRange.min() + len); //uses updated min
 
       len = properties->alignmentLen * getResFactor(dc, FALSE);
       offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, FALSE);
-      properties->matchDisplayRange.set(dwc->matchCoord - offset, properties->matchDisplayRange.min() + len);
+      properties->matchDisplayRange.setMin(dwc->matchCoord - offset);
+      properties->matchDisplayRange.setMax(properties->matchDisplayRange.min() + len); //uses updated min
     }
 }
 

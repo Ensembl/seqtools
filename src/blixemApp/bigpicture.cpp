@@ -631,7 +631,8 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
       /* Try to display an equal amount either side of the centre */
       const int offset = roundNearest((double)width / 2.0);
 
-      displayRange->set(newcentre - offset, displayRange->min() + width);
+      displayRange->setMin(newcentre - offset);
+      displayRange->setMax(displayRange->min() + width); // uses updated min
       
       changedRange = TRUE;
     }

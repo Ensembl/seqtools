@@ -2310,8 +2310,8 @@ MSP* copyMsp(const MSP* const src,
   msp->sname = src->sname ? g_strdup(src->sname) : NULL;
   msp->sname_orig = src->sname_orig ? g_strdup(src->sname_orig) : NULL;
   
-  msp->qRange.set(src->qRange.min(), src->qRange.max());  
-  msp->sRange.set(src->sRange.min(), src->sRange.max());
+  msp->qRange.set(src->qRange);  
+  msp->sRange.set(src->sRange);
   
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
   if (addToParent && src->sSequence)

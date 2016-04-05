@@ -2820,8 +2820,8 @@ static void getVariationDisplayRange(const MSP *msp,
           --offset;
         }
   
-      expandedRange->set(expandedRange->centre() - offset, 
-                         expandedRange->min() + numChars - 1);
+      expandedRange->setMin(expandedRange->centre() - offset);
+      expandedRange->setMax(expandedRange->min() + numChars - 1); // uses updated min
     }
 }
 
