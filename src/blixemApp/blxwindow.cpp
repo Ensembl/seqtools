@@ -7492,6 +7492,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                            lowestId);
 
   GtkWidget *detailView = createDetailView(window,
+                                           blxContext,
                                            GTK_CONTAINER(panedWin),
                                            toolbar,
 					   detailAdjustment, 

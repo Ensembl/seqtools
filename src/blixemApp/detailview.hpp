@@ -52,7 +52,8 @@
 #include <gtk/gtk.h>
 #include <seqtoolsUtils/utilities.hpp>
 #include <blixemApp/blxwindow.hpp>
-#include <blixemApp/coverageview.hpp>
+
+class CoverageViewProperties;
 
 
 #define SNP_TRACK_HEADER_NAME           "SNP track header"
@@ -106,6 +107,7 @@ class DetailViewProperties
 public:
   DetailViewProperties(GtkWidget *detailView_in,
                        GtkWidget *blxWindow_in,
+                       CoverageViewProperties *coverageViewP_in, 
                        GtkCellRenderer *renderer_in,
                        GList *fwdStrandTrees_in,
                        GList *revStrandTrees_in,
@@ -159,7 +161,11 @@ public:
   GdkLineStyle exonBoundaryLineStyle;        /* line style for exon boundaries */
   GdkLineStyle exonBoundaryLineStylePartial; /* line style for exon boundaries (where the boundary is part-way through a codon) */
     
-  GSList *spliceSites;           /* List of splice sites that can be found and highlighted by Blixem */
+  GSList *spliceSites;           /* List of splice sites that can be found and highlighted by
+                                    Blixem */
+
+private:
+  CoverageViewProperties *coverageViewP;
 };
 
 
@@ -333,6 +339,7 @@ void                    drawHeaderChar(BlxViewContext *bc,
                                        DrawBaseData *baseData);
 
 GtkWidget*              createDetailView(GtkWidget *blxWindow,
+                                         BlxViewContext *bc,
                                          GtkContainer *parent,
                                          GtkWidget *toolbar,
                                          GtkAdjustment *adjustment, 
