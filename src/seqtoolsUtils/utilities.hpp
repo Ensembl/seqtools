@@ -246,10 +246,10 @@ public:
 
   // Access functions
   bool isSet() const;
-  int start(const bool rev = FALSE, const bool negate = FALSE) const;
-  int end(const bool rev = FALSE, const bool negate = FALSE) const;
-  int min(const bool inclusive = FALSE, const bool rev = FALSE) const;
-  int max(const bool inclusive = FALSE, const bool rev = FALSE) const;
+  int start(const bool rev = false, const bool negate = false) const;
+  int end(const bool rev = false, const bool negate = false) const;
+  int min(const bool inclusive = false, const bool rev = false) const;
+  int max(const bool inclusive = false, const bool rev = false) const;
 
   int length() const;
   int centre() const;
@@ -262,7 +262,7 @@ public:
   bool setMin(const int val);
   bool setMax(const int val);
 
-  void sort(const bool forwards = TRUE);
+  void sort(const bool forwards = false);
   void boundsLimit(const IntRange* const limit, const gboolean maintainLen);
 
 private:
