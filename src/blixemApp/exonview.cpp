@@ -148,14 +148,9 @@ static gboolean calculateExonIntronDimensions(const MSP* const msp,
                                     &bc->refSeqRange, &dnaDispRange);
       
       /* The grid pos for coords gives the left edge of the coord, so draw to max + 1 to be inclusive */
-      int qStart = msp->qRange.min();
-      int qEnd = msp->qRange.max();
+      const int qStart = msp->qRange.min(true, bc->displayRev);
+      const int qEnd = msp->qRange.max(true, bc->displayRev);
   
-      if (bc->displayRev)
-        --qStart;
-      else
-        ++qEnd;
-
       const gint x1 = convertBaseIdxToRectPos(qStart, exonViewRect, &dnaDispRange,
                                               TRUE, bc->displayRev, FALSE);
       const gint x2 = convertBaseIdxToRectPos(qEnd, exonViewRect, &dnaDispRange, 

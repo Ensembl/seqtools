@@ -655,7 +655,8 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
       
       if (offset > 0)
         {
-          displayRange->set(displayRange->min() - offset, displayRange->min() + width);
+          displayRange->setMin(displayRange->min() - offset);
+          displayRange->setMax(displayRange->min() + width); //uses the updated min
           changedRange = TRUE;
         }
       
@@ -663,7 +664,8 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
       
       if (offset > 0)
         {
-          displayRange->set(displayRange->max() - width, displayRange->max() + offset);
+          displayRange->setMax(displayRange->max() + offset);
+          displayRange->setMin(displayRange->max() - width); //uses the updated max
           changedRange = TRUE;
         }
     }

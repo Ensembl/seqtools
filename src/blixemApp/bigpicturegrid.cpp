@@ -135,14 +135,9 @@ static void calculateMspLineDimensions(GtkWidget *grid,
   convertDisplayRangeToDnaRange(gridGetDisplayRange(grid), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
 
   /* The grid pos for coords gives the left edge of the coord, so draw to max + 1 to be inclusive */
-  int mspMin = msp->qRange.min();
-  int mspMax = msp->qRange.max();
+  const int mspMin = msp->qRange.min(true, bc->displayRev);
+  const int mspMax = msp->qRange.max(true, bc->displayRev);
   
-  if (bc->displayRev)
-    --mspMin;
-  else
-    ++mspMax;
-
   const int x1 = convertBaseIdxToRectPos(mspMin, &gridProperties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
   const int x2 = convertBaseIdxToRectPos(mspMax, &gridProperties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
   

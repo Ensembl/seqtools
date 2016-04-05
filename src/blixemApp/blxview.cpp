@@ -1305,8 +1305,11 @@ void drawAssemblyGaps(GtkWidget *widget,
       if (rangesOverlap(&gap->qRange, dnaRange))
         {
 	  /* Draw to max coord plus one (or min coord minus one if reversed) to be inclusive */
-	  const int x1 = convertBaseIdxToRectPos(displayRev ? gap->qRange.min() - 1 : gap->qRange.min(), rect, dnaRange, TRUE, displayRev, TRUE);
-	  const int x2 = convertBaseIdxToRectPos(gap->qRange.max() + 1, rect, dnaRange, TRUE, displayRev, TRUE);
+          const int gapMin = gap->qRange.min(true, displayRev);
+          const int gapMax = gap->qRange.max(true, displayRev);
+
+	  const int x1 = convertBaseIdxToRectPos(gapMin, rect, dnaRange, TRUE, displayRev, TRUE);
+	  const int x2 = convertBaseIdxToRectPos(gapMax, rect, dnaRange, TRUE, displayRev, TRUE);
           
 	  const int width = max(MIN_GAP_HIGHLIGHT_WIDTH, abs(x2 - x1));
 	
