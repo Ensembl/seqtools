@@ -1526,7 +1526,7 @@ static gboolean treePfetchRow(GtkWidget *tree)
   
   if (selectedSeqs)
     {
-      const BlxSequence *clickedSeq = (const BlxSequence*)selectedSeqs->data;
+      BlxSequence *clickedSeq = (BlxSequence*)selectedSeqs->data;
       UserFetch *user_fetch = new UserFetch(clickedSeq, TRUE, blxWindow, NULL,
 #ifdef PFETCH_HTML
                                             bc->ipresolve, bc->cainfo,

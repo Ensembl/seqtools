@@ -7162,8 +7162,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
            * strand. This means that where there is no gaps array the comparison is trivial
            * as coordinates can be ignored and the two sequences just whipped through. */
           GError *error = NULL;
-          IntRange qRange;
-          intrangeSetValues(&qRange, msp->qRange.min(), msp->qRange.max()); /* make a copy because it will be updated */
+          IntRange qRange(msp->qRange); /* make a copy because it will be updated */
           
           char *refSeqSegment = getSequenceSegment(bc->refSeq,
                                                    &qRange,
@@ -7539,14 +7538,15 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressBlxWindow), NULL);
   
   
+  const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
+  cacheMspDisplayRanges(blxContext, numUnalignedBases);
+
   /* Add the MSP's to the trees and sort them by the initial sort mode. This must
    * be done after all widgets have been created, because it accesses their properties.*/
   detailViewAddMspData(detailView, options->mspList, seqList);
-  
+  detailViewUpdateMspLengths(detailView, numUnalignedBases);
+
   /* Updated the cached display range and full extents of the MSPs */
-  detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
-  const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
-  cacheMspDisplayRanges(blxContext, numUnalignedBases);
   calculateDepth(blxContext, numUnalignedBases);
   updateCoverageDepth(window);
   

@@ -466,8 +466,8 @@ gboolean              blxSequenceRequiresOptionalData(const BlxSequence *seq);
 gboolean              blxSequenceRequiresColumnData(const BlxSequence *seq, const BlxColumnId columnId);
 BlxSequence*          blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs);
 char*                 blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, GList *columnList);
-int                   blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand);
-int                   blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand);
+int                   blxSequenceGetStart(BlxSequence *seq, const BlxStrand strand);
+int                   blxSequenceGetEnd(BlxSequence *seq, const BlxStrand strand);
 const char*           blxSequenceGetSource(const BlxSequence *seq);
 gboolean              blxSequenceGetLinkFeatures(const BlxSequence *seq, const gboolean defaultLinkFeatures);
 

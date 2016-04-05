@@ -1073,15 +1073,35 @@ int blxSequenceGetLength(const BlxSequence *seq)
 
 /* Get the start extent of the alignments from this match sequence on the
  * given reference sequence strand */
-int blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand)
+int blxSequenceGetStart(BlxSequence *seq, const BlxStrand strand)
 {
-  return (strand == BLXSTRAND_REVERSE ? seq->qRangeRev.min() : seq->qRangeFwd.min());
+  int result = UNSET_INT;
+
+  if (!seq->qRangeFwd.isSet() || !seq->qRangeRev.isSet())
+    findSequenceExtents(seq);
+
+  if (strand == BLXSTRAND_REVERSE && seq->qRangeRev.isSet())
+    result = seq->qRangeRev.min();
+  else if (seq->qRangeFwd.isSet())
+    result = seq->qRangeFwd.min();
+
+  return result;
 }
 
 /* Get the end extend of the sequence on the ref sequence */
-int blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand)
+int blxSequenceGetEnd(BlxSequence *seq, const BlxStrand strand)
 {
-  return (strand == BLXSTRAND_FORWARD ? seq->qRangeRev.max() : seq->qRangeFwd.max());
+  int result = UNSET_INT;
+
+  if (!seq->qRangeFwd.isSet() || !seq->qRangeRev.isSet())
+    findSequenceExtents(seq);
+
+  if (strand == BLXSTRAND_REVERSE && seq->qRangeRev.isSet())
+    result = seq->qRangeRev.max();
+  else if (seq->qRangeFwd.isSet())
+    result = seq->qRangeFwd.max();
+
+  return result;
 }
 
 /* Get the sequence data for the given blxsequence */
@@ -2023,14 +2043,14 @@ void readMspFromText(MSP *msp, char *text)
   const int qStart = strtol(curChar, &curChar, 10); 
   nextChar(&curChar);
   const int qEnd = strtol(curChar, &curChar, 10); 
-  intrangeSetValues(&msp->qRange, qStart, qEnd);
+  msp->qRange.set(qStart, qEnd);
 
   /* match seq range */
   nextChar(&curChar);
   const int sStart = strtol(curChar, &curChar, 10); 
   nextChar(&curChar);
   const int sEnd = strtol(curChar, &curChar, 10); 
-  intrangeSetValues(&msp->sRange, sStart, sEnd);
+  msp->sRange.set(sStart, sEnd);
   
   nextChar(&curChar);
   msp->qStrand = (BlxStrand)strtol(curChar, &curChar, 10);
@@ -2091,15 +2111,8 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->qname = NULL;
   msp->qFrame = UNSET_INT;
   
-  msp->qRange.set(0, 0);
-  msp->displayRange.set(0, 0);
-  msp->fullRange.set(0, 0);
-  
   msp->sSequence = NULL;
   msp->sname = msp->sname_orig = NULL;
-  
-  msp->sRange.set(0, 0);
-  msp->fullSRange.set(0, 0);
   
   msp->desc = NULL;
   
@@ -2239,8 +2252,8 @@ MSP* createNewMsp(GArray* featureLists[],
   msp->sname_orig = sName_orig ? g_strdup(sName_orig) : NULL;
 
   
-  intrangeSetValues(&msp->qRange, qStart, qEnd);  
-  intrangeSetValues(&msp->sRange, sStart, sEnd);
+  msp->qRange.set(qStart, qEnd);  
+  msp->sRange.set(sStart, sEnd);
 
   /* For exons, introns and basic features, the s strand is not applicable. We always want the exon
    * to be in the same direction as the ref sequence, so set the match seq strand to be 
@@ -2303,8 +2316,8 @@ MSP* copyMsp(const MSP* const src,
   msp->sname = src->sname ? g_strdup(src->sname) : NULL;
   msp->sname_orig = src->sname_orig ? g_strdup(src->sname_orig) : NULL;
   
-  intrangeSetValues(&msp->qRange, src->qRange.min(), src->qRange.max());  
-  intrangeSetValues(&msp->sRange, src->sRange.min(), src->sRange.max());
+  msp->qRange.set(src->qRange.min(), src->qRange.max());  
+  msp->sRange.set(src->sRange.min(), src->sRange.max());
   
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
   if (addToParent && src->sSequence)
@@ -2797,10 +2810,17 @@ static void adjustMspCoordsByOffset(MSP *msp, const int offset)
  * of the first/last MSP in the sequence */
 static void findSequenceExtents(BlxSequence *blxSeq)
 {
-  blxSeq->qRangeFwd.set(findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_FORWARD),
-                        findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_FORWARD));
-  blxSeq->qRangeRev.set(findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_REVERSE),
-                        findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_REVERSE));
+  int start = findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_FORWARD);
+  int end = findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_FORWARD);
+
+  //if (start != UNSET_INT && end != UNSET_INT)
+  blxSeq->qRangeFwd.set(start, end);
+
+  start = findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_REVERSE);
+  end = findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_REVERSE);
+
+  //if (start != UNSET_INT && end != UNSET_INT)
+  blxSeq->qRangeRev.set(start, end);
 }
 
 

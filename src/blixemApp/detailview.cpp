@@ -35,6 +35,7 @@
  *----------------------------------------------------------------------------
  */
 
+#include <blixemApp/blixem_.hpp>
 #include <blixemApp/detailview.hpp>
 #include <blixemApp/detailviewtree.hpp>
 #include <blixemApp/blxwindow.hpp>
@@ -2479,8 +2480,7 @@ static void getAnnotatedPolyASignalBasesToHighlight(const BlxViewContext *bc,
                       const int qEnd = tailMsp->qRange.max();
                       const int qStart = qEnd - POLYA_SIG_BASES_UPSTREAM;
                       
-                      IntRange upstreamRange;
-                      intrangeSetValues(&upstreamRange, qStart, qEnd); /* sorts out which is min and which is max */
+                      IntRange upstreamRange(qStart, qEnd); /* sorts out which is min and which is max */
                                         
                       addSignal = rangesOverlap(&sigMsp->qRange, &upstreamRange);
                     }
@@ -2797,13 +2797,13 @@ static void getVariationDisplayRange(const MSP *msp,
   const IntRange* const mspRange = mspGetDisplayRange(msp);
 
   if (displayRange)
-    intrangeSetValues(displayRange, mspRange->min(), mspRange->max());
+    displayRange->set(mspRange);
   
   if (!expandedRange)
     return;
 
   /* Work out the expanded range (it will be the same as the MSP range if unexpanded) */
-  intrangeSetValues(expandedRange, mspRange->min(), mspRange->max());
+  expandedRange->set(mspRange);
   
   if (expand && mspGetMatchSeq(msp))
     {
@@ -4156,7 +4156,7 @@ IntRange *detailViewGetSelectedDisplayIdxRange(GtkWidget *detailView)
   if (properties && properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
     {
       result = (IntRange*)g_malloc(sizeof *result);
-      intrangeSetValues(result, properties->selectedRangeStart.displayIdx, properties->selectedRangeEnd.displayIdx);
+      result->set(properties->selectedRangeStart.displayIdx, properties->selectedRangeEnd.displayIdx);
     }
 
   return result;
@@ -4172,7 +4172,7 @@ IntRange *detailViewGetSelectedDnaIdxRange(GtkWidget *detailView)
   if (properties && properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
     {
       result = (IntRange*)g_malloc(sizeof *result);
-      intrangeSetValues(result, properties->selectedRangeStart.dnaIdx, properties->selectedRangeEnd.dnaIdx);
+      result->set(properties->selectedRangeStart.dnaIdx, properties->selectedRangeEnd.dnaIdx);
     }
 
   return result;
@@ -5500,7 +5500,7 @@ void toggleStrand(GtkWidget *detailView)
   const IntRange* const fullRange = &blxContext->fullDisplayRange;
   const int bpStart = fullRange->max() - bpRange->min() + fullRange->min();
   const int bpEnd = fullRange->max() - bpRange->max() + fullRange->min();
-  intrangeSetValues(bpRange, bpStart, bpEnd);
+  bpRange->set(bpStart, bpEnd);
 
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   const int newStart = fullRange->max() - displayRange->max() + fullRange->min();

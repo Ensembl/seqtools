@@ -449,7 +449,7 @@ static void findAssemblyGaps(const char *refSeq, GArray *featureLists[], MSP **m
     
       MSP *msp = createEmptyMsp(&lastMsp, mspList);
       msp->type = BLXMSP_GAP;
-      intrangeSetValues(&msp->qRange, startCoord, endCoord);
+      msp->qRange.set(startCoord, endCoord);
       
       featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
     
@@ -787,6 +787,9 @@ const IntRange* mspGetFullSRange(const MSP* const msp, const gboolean seqSelecte
     result = &msp->fullSRange;
   else
     result = &msp->sRange;
+
+  if (!result->isSet())
+    g_warn_if_reached();
   
   return result;
 }
@@ -811,7 +814,10 @@ const IntRange* mspGetFullDisplayRange(const MSP* const msp, const gboolean seqS
     {
       result = &msp->displayRange;
     }
-  
+
+  if (!result->isSet())
+    g_warn_if_reached();
+
   return result;
 }
 
@@ -898,13 +904,11 @@ static void mspCalcFullQRange(const MSP* const msp,
 
       if (sameDirection)
         {
-          result->setMin(result->min() - startOffset);
-          result->setMax(result->min() + endOffset);
+          result->set(result->min() - startOffset, result->max() + endOffset);
         }
       else
         {
-          result->setMin(result->min() - endOffset);
-          result->setMax(result->min() + startOffset);
+          result->set(result->min() - endOffset, result->max() + startOffset);
         }
     }
 }
@@ -922,7 +926,7 @@ void mspCalculateFullExtents(MSP *msp, const BlxViewContext* const bc, const int
   const int frame = mspGetRefFrame(msp, bc->seqType);
   const int coord1 = convertDnaIdxToDisplayIdx(msp->fullRange.min(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   const int coord2 = convertDnaIdxToDisplayIdx(msp->fullRange.max(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  intrangeSetValues(&msp->fullRange, coord1, coord2);
+  msp->fullRange.set(coord1, coord2);
   
   /* Remember the max len of all the MSPs in the detail-view */
   if (typeShownInDetailView(msp->type) && msp->fullRange.length() > getMaxMspLen())
@@ -938,7 +942,7 @@ static void mspCalculateDisplayRange(MSP *msp, const BlxViewContext* const bc)
   const int frame = mspGetRefFrame(msp, bc->seqType);
   const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  intrangeSetValues(&msp->displayRange, coord1, coord2);  
+  msp->displayRange.set(coord1, coord2);  
 }
 
 

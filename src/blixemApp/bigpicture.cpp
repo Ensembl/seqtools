@@ -1240,11 +1240,10 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
   highlightBoxYPad = DEFAULT_HIGHLIGHT_BOX_Y_PAD;
   initialZoom = initialZoom_in;
       
-  /* Set the initial big picture range from that requested. Note that the
-   * intput range may be UNSE_INTs, in which case these values will be
-   * initialized when the detail view size is first allocated, based on
-   * the "initial zoom level" which is a ratio of the detail view range. */
-  displayRange.set(initRange_in);
+  if (initRange_in->isSet())
+    displayRange.set(initRange_in);
+  else
+    displayRange.set(fullRange_in);
 
   /* Calculate the font size */
   getFontCharSize(bigPicture_in, bigPicture_in->style->font_desc, &charWidth, &charHeight);

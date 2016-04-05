@@ -606,7 +606,7 @@ GString* getFetchArgsMultiple(const BlxFetchMethod* const fetchMethod, GList *se
  * Returns an empty string if the command/args are empty.
 */
 GString* getFetchCommand(const BlxFetchMethod* const fetchMethod,
-                         const BlxSequence *blxSeq_in,
+                         BlxSequence *blxSeq_in,
                          const MSP* const msp,
                          const char *refSeqName,
                          const int refSeqOffset,
@@ -614,7 +614,7 @@ GString* getFetchCommand(const BlxFetchMethod* const fetchMethod,
                          const char *dataset,
                          GError **error)
 {
-  const BlxSequence *blxSeq = blxSeq_in;
+  BlxSequence *blxSeq = blxSeq_in;
 
   if (!blxSeq && msp)
     blxSeq = msp->sSequence;
@@ -645,7 +645,7 @@ GString* getFetchCommand(const BlxFetchMethod* const fetchMethod,
  * any substitution characters with the correct values for the given
  * sequence) */
 GString* getFetchArgs(const BlxFetchMethod* const fetchMethod,
-                      const BlxSequence *blxSeq,
+                      BlxSequence *blxSeq,
                       const MSP* const msp,
                       const char *refSeqName,
                       const int refSeqOffset,
@@ -3073,7 +3073,7 @@ gboolean BulkFetch::fetchList(GList *seqsToFetch,
 
 
 
-UserFetch::UserFetch(const BlxSequence *blxSeq_in,
+UserFetch::UserFetch(BlxSequence *blxSeq_in,
                      const gboolean displayResults_in,
                      GtkWidget *blxWindow_in,
                      GtkWidget *dialog_in,

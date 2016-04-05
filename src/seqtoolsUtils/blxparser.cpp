@@ -1448,7 +1448,7 @@ static gboolean parseHeaderLine(char *line, BlxBlastMode *blastMode, MSP *msp, I
             }
           else
             {
-              intrangeSetValues(seq1Range, qStart, qEnd);
+              seq1Range->set(qStart, qEnd);
             }
         }
 	

@@ -675,8 +675,8 @@ static gboolean onButtonReleaseDotplot(GtkWidget *dotplot, GdkEventButton *event
 	  getCoordsFromPos(dotplot, properties->dragEnd.x, properties->dragEnd.y, &qEnd, &sEnd);
 
 	  IntRange qRange, sRange;
-	  intrangeSetValues(&qRange, qStart, qEnd);
-	  intrangeSetValues(&sRange, sStart, sEnd);
+	  qRange.set(qStart, qEnd);
+	  sRange.set(sStart, sEnd);
 	
           /* Ignore small mouse moves as they are likely to be accidental or cancelled clicks */
           if (qRange.max() - qRange.min() > 10 && sRange.max() - sRange.min() > 10)

@@ -342,7 +342,7 @@ void parseGff3Header(const int lineNum,
           if (!refSeqRange->isSet())
             {
               /* Range is currently unset, so set it */
-              intrangeSetValues(refSeqRange, qStart, qEnd);
+              refSeqRange->set(qStart, qEnd);
             }
           else if (qStart > refSeqRange->max() || qEnd < refSeqRange->min())
             {
@@ -832,7 +832,7 @@ void parseFastaSeqHeader(char *line, const int lineNum,
    * items if so) */
   if (status && numFound == 3 && refSeqRange)
     {
-      intrangeSetValues(refSeqRange, startCoord, endCoord);
+      refSeqRange->set(startCoord, endCoord);
     }
 
   /* Now allocate memory for the sequence data (if the sequence is not already populated) */
@@ -944,8 +944,7 @@ static void parseGffColumns(GString *line_string,
       if (!typeIsExon(gffData->mspType) && !typeIsIntron(gffData->mspType) && !typeIsTranscript(gffData->mspType) &&
           refSeqRange && refSeqRange->isSet())
         {
-          IntRange featureRange;
-          intrangeSetValues(&featureRange, gffData->qStart, gffData->qEnd); /* makes sure min < max */
+          IntRange featureRange(gffData->qStart, gffData->qEnd); /* make sure min < max */
           
           if (!rangesOverlap(&featureRange, refSeqRange))
             g_set_error(&tmpError, BLX_GFF3_ERROR, BLX_GFF3_ERROR_OUT_OF_RANGE, "Feature is outside the reference sequence range.\n");

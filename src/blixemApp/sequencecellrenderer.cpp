@@ -1105,8 +1105,7 @@ static void drawMsp(SequenceCellRenderer *renderer,
   const int coord1 = convertDisplayIdxToDnaIdx(segmentRange.min(), data->bc->seqType, data->qFrame, 1, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
   const int coord2 = convertDisplayIdxToDnaIdx(segmentRange.max(), data->bc->seqType, data->qFrame, data->bc->numFrames, data->bc->numFrames, data->bc->displayRev, &data->bc->refSeqRange);
 
-  IntRange qRange;
-  intrangeSetValues(&qRange, coord1, coord2);
+  IntRange qRange(coord1, coord2);
 
   GError *error = NULL;
   gchar *refSeqSegment = getSequenceSegment(data->bc->refSeq,

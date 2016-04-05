@@ -239,6 +239,8 @@ class IntRange
 public:
   // Constructors
   IntRange() : m_min(0), m_max(0), m_min_is_set(false), m_max_is_set(false) {};
+  IntRange(const IntRange &range);
+  IntRange(const IntRange *range);
   IntRange(const int val1, const int val2);
 
   // Operator overloads
@@ -522,8 +524,6 @@ gint                  runConfirmationBox(GtkWidget *blxWindow, const char *title
 void                  prefixError(GError *error, const char *prefixStr, ...);
 void                  postfixError(GError *error, const char *formatStr, ...);
 void                  reportAndClearIfError(GError **error, GLogLevelFlags log_level);
-
-void                  intrangeSetValues(IntRange *range, const int val1, const int val2);
 
 #ifdef DEBUG
 void                  debugLogLevel(const int increaseAmt);

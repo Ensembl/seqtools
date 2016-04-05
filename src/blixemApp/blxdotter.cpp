@@ -1662,7 +1662,7 @@ static char* getDotterRefSeq(GtkWidget *blxWindow,
       
       /* Set the range of coords of the result. */
       if (result)
-        intrangeSetValues(dotterRange, 1, strlen(result));
+        dotterRange->set(1, strlen(result));
     }
   else
     {
@@ -2114,7 +2114,7 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow,
   /* Get the section of reference sequence that we're interested in */
   const int frame = mspGetRefFrame(firstMsp, bc->seqType);
   IntRange dotterRange;
-  intrangeSetValues(&dotterRange, dotterStart, dotterEnd);
+  dotterRange.set(dotterStart, dotterEnd);
   GError *seqError = NULL;
   const char *refSeqName = NULL;
   const gboolean transcript = (refType == BLXDOTTER_REF_TRANSCRIPT);
@@ -2273,7 +2273,7 @@ gboolean callDotterOnAdhocSeq(DotterDialogData *dialogData, GError **error)
   /* Get the section of reference sequence that we're interested in */
   const int frame = 1;
   IntRange dotterRange;
-  intrangeSetValues(&dotterRange, dotterStart, dotterEnd);
+  dotterRange.set(dotterStart, dotterEnd);
   GError *seqError = NULL;
   const char *refSeqName = NULL;
 
@@ -2359,7 +2359,7 @@ static gboolean callDotterOnSelf(DotterDialogData *dialogData, GError **error)
   const BlxStrand qStrand = blxWindowGetActiveStrand(blxWindow);
   const int frame = 1;
   IntRange qRange;
-  intrangeSetValues(&qRange, dotterStart, dotterEnd);
+  qRange.set(dotterStart, dotterEnd);
   const char *refSeqName = NULL;
     
   const gboolean transcript = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->transcriptButton));

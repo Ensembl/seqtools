@@ -198,9 +198,8 @@ static void sequenceCreateProperties(GtkWidget *widget,
       properties->compSeqs = compSeqs;
       properties->horizontal = horizontal;
 
-      intrangeSetValues(&properties->fullRangeDisplayCoords,
-                        getSequenceStart(properties, dc, TRUE),
-                        getSequenceEnd(properties, dc, TRUE));
+      properties->fullRangeDisplayCoords.set(getSequenceStart(properties, dc, TRUE),
+                                             getSequenceEnd(properties, dc, TRUE));
       
       g_object_set_data(G_OBJECT(widget), "SequenceProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroySequenceWidget), NULL); 
@@ -400,7 +399,7 @@ static gboolean onMouseMoveSequence(GtkWidget *sequenceWidget, GdkEventMotion *e
         {
           const int newCoord = getCoordAtPos(event->x, sequenceWidget, alignmentTool);
       
-          intrangeSetValues(&atProperties->selectionRange, atProperties->dragStart, newCoord);
+          atProperties->selectionRange.set(atProperties->dragStart, newCoord);
           widgetClearCachedDrawable(sequenceWidget, NULL);
           gtk_widget_queue_draw(sequenceWidget);
       
@@ -1337,7 +1336,7 @@ static void selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmen
   boundsLimitValue(&start, &properties->fullRangeDisplayCoords);
   boundsLimitValue(&end, &properties->fullRangeDisplayCoords);
   
-  intrangeSetValues(&atProperties->selectionRange, start, end);
+  atProperties->selectionRange.set(start, end);
   setSelectionWidget(atProperties, sequenceWidget);
 
   /* copy the selection to the primary clipboard */

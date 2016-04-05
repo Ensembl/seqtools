@@ -490,6 +490,28 @@ GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GEr
  *                       Ranges/values                     * 
  ***********************************************************/
 
+IntRange::IntRange(const IntRange &range)
+{
+  if (range.isSet())
+    {
+      m_min = range.min();
+      m_max = range.max();
+      m_min_is_set = true;
+      m_max_is_set = true;
+    }
+}
+
+IntRange::IntRange(const IntRange *range)
+{
+  if (range && range->isSet())
+    {
+      m_min = range->min();
+      m_max = range->max();
+      m_min_is_set = true;
+      m_max_is_set = true;
+    }
+}
+
 IntRange::IntRange(const int val1, const int val2) : m_min_is_set(true), m_max_is_set(true)
 {
   if (val1 < val2)
@@ -523,20 +545,40 @@ bool IntRange::isSet() const
  * is negated if "negate" is true. */
 int IntRange::start(const bool rev, const bool negate) const
 {
-  int result = rev ? m_max : m_min;
+  int result = 0;
 
-  if (negate)
-    result *= -1;
+  if (rev && m_max_is_set)
+    {
+      result = negate ? m_max * -1 : m_max;
+    }
+  else if (m_min_is_set)
+    {
+      result = negate ? m_min * -1 : m_min;
+    }
+  else
+    {
+      g_warn_if_reached();
+    }
 
   return result;
 }
 
 int IntRange::end(const bool rev, const bool negate) const
 {
-  int result = rev ? m_min : m_max;
+  int result = 0;
 
-  if (negate)
-    result *= -1;
+  if (rev && m_min_is_set)
+    {
+      result = negate ? m_min * -1 : m_min;
+    }
+  else if (m_max_is_set)
+    {
+      result = negate ? m_max * -1 : m_max;
+    }
+  else
+    {
+      g_warn_if_reached();
+    }
 
   return result;
 }
@@ -546,20 +588,38 @@ int IntRange::end(const bool rev, const bool negate) const
  * left to right to draw to the left edge of the next base) */
 int IntRange::min(const bool inclusive, const bool rev) const
 {
-  int result = m_min;
+  int result = 0;
 
-  if (inclusive && rev)
-    result = m_min - 1;
+  if (m_min_is_set)
+    {
+      result = m_min;
+
+      if (inclusive && rev)
+        result = m_min - 1;
+    }
+  else
+    {
+      g_warn_if_reached();
+    }
 
   return result;
 }
 
 int IntRange::max(const bool inclusive, const bool rev) const
 {
-  int result = m_max;
+  int result = 0;
 
-  if (inclusive && !rev)
-    result = m_max + 1;
+  if (m_max_is_set)
+    {
+      result = m_max;
+
+      if (inclusive && !rev)
+        result = m_max + 1;
+    }
+  else
+    {
+      g_warn_if_reached();
+    }
 
   return result;
 }
@@ -1375,7 +1435,7 @@ void convertDisplayRangeToDnaRange(const IntRange* const displayRange,
 {
   const int q1 = convertDisplayIdxToDnaIdx(displayRange->min(), displaySeqType, 1, 1, numFrames, displayRev, refSeqRange); /* 1st base in 1st reading frame */
   const int q2 = convertDisplayIdxToDnaIdx(displayRange->max(), displaySeqType, numFrames, numFrames, numFrames, displayRev, refSeqRange); /* last base in last frame */
-  intrangeSetValues(result, q1, q2);
+  result->set(q1, q2);
 }
 
 
@@ -2884,13 +2944,6 @@ void reportAndClearIfError(GError **error, GLogLevelFlags log_level)
       g_error_free(*error);
       *error = NULL;
     }
-}
-
-
-/* Set the values in an IntRange. */
-void intrangeSetValues(IntRange *range, const int val1, const int val2)
-{
-  range->set(val1 < val2 ? val1 : val2, val1 < val2 ? val2 : val1);
 }
 
 

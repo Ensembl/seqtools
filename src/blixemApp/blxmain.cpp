@@ -638,7 +638,7 @@ int main(int argc, char **argv)
             if (cp)
               {
                 int coord2 = atoi(cp + 1);
-                intrangeSetValues(&options.bigPictRange, coord1, coord2);
+                options.bigPictRange.set(coord1, coord2);
                 
                 /* If the start coord hasn't already been specified on the
                  * command line, base the default start on the centre of the
@@ -816,7 +816,7 @@ int main(int argc, char **argv)
       options.refSeq = readFastaSeq(seqfile, options.refSeqName, &startCoord, &endCoord, options.seqType);
       
       if (startCoord != UNSET_INT && endCoord != UNSET_INT)
-        intrangeSetValues(&options.refSeqRange, startCoord, endCoord);
+        options.refSeqRange.set(startCoord, endCoord);
       
       if (seqfile != stdin)
         fclose(seqfile);
