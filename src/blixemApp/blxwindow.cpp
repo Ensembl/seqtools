@@ -805,6 +805,11 @@ static void updateCoverageDepth(GtkWidget *blxWindow)
 
       if (bpProperties && bpProperties->coverageViewProperties())
         bpProperties->coverageViewProperties()->updateDepth();
+
+      DetailViewProperties *dvProperties = detailViewGetProperties(properties->detailView);
+
+      if (dvProperties && dvProperties->coverageViewProperties())
+        dvProperties->coverageViewProperties()->updateDepth();
     }
 }
 

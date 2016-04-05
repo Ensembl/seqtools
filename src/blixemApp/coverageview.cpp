@@ -83,10 +83,9 @@ GtkWidget* CoverageViewProperties::widget()
 
 CoverageViewProperties* coverageViewGetProperties(GtkWidget *widget)
 {
-  /* optimisation: cache result, because we know there is only ever one coverage view */
-  static CoverageViewProperties *properties = NULL;
-  
-  if (!properties && widget)
+  CoverageViewProperties *properties = NULL;
+
+  if (widget)
     properties = (CoverageViewProperties*)(g_object_get_data(G_OBJECT(widget), "CoverageViewProperties"));
   
   return properties;
@@ -157,7 +156,10 @@ void CoverageViewProperties::updateDepth()
       roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(100000000));
       roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(250000000));
       roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(500000000));
+    }
 
+  if (!m_rangePerCell)
+    {
       /* First time round, calculate the range per cell, aiming for 
        * around 5 cells. (If we enter this function again, it's because the
        * user has manually entered the range per cell so we just need to calculate
