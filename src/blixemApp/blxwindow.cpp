@@ -7410,7 +7410,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   if (options->seqType == BLXSEQ_PEPTIDE)
     startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
 
-  if (options->bigPictRange.min() != UNSET_INT && options->bigPictRange.max() != UNSET_INT)
+  if (options->bigPictRange.isSet())
     {
       /* Apply any offset */
       options->bigPictRange += options->refSeqOffset;

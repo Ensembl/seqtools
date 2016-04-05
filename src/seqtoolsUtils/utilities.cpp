@@ -490,7 +490,7 @@ GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GEr
  *                       Ranges/values                     * 
  ***********************************************************/
 
-IntRange::IntRange(const int val1, const int val2)
+IntRange::IntRange(const int val1, const int val2) : m_min_is_set(true), m_max_is_set(true)
 {
   if (val1 < val2)
     {
@@ -509,12 +509,19 @@ void IntRange::operator+=(const int offset)
 {
   m_min += offset;
   m_max += offset;
+
+  m_min_is_set = true;
+  m_max_is_set = true;
 }
 
+bool IntRange::isSet() const
+{
+  return m_min_is_set && m_max_is_set;
+}
 
 /* Utilities to return the "start" which is the minimum coord if !rev or the max if rev. The result
  * is negated if "negate" is true. */
-int IntRange::start(const bool rev, const bool negate)
+int IntRange::start(const bool rev, const bool negate) const
 {
   int result = rev ? m_max : m_min;
 
@@ -524,7 +531,7 @@ int IntRange::start(const bool rev, const bool negate)
   return result;
 }
 
-int IntRange::end(const bool rev, const bool negate)
+int IntRange::end(const bool rev, const bool negate) const
 {
   int result = rev ? m_min : m_max;
 
@@ -549,6 +556,14 @@ int IntRange::max(const bool inclusive, const bool rev) const
   return result;
 }
 
+void IntRange::reset()
+{
+  m_min = 0;
+  m_max = 0;
+  m_min_is_set = false;
+  m_max_is_set = false;
+}
+
 void IntRange::set(const int val1, const int val2)
 {
   if (val1 < val2)
@@ -561,12 +576,18 @@ void IntRange::set(const int val1, const int val2)
       m_min = val2;
       m_max = val1;
     }
+
+  m_min_is_set = true;
+  m_max_is_set = true;
 }
 
 void IntRange::set(const IntRange &range)
 {
   m_min = range.min();
   m_max = range.max();
+
+  m_min_is_set = true;
+  m_max_is_set = true;
 }
 
 void IntRange::set(const IntRange *range)
@@ -575,14 +596,32 @@ void IntRange::set(const IntRange *range)
     set(*range);
 }
 
-void IntRange::setMin(const int val)
+bool IntRange::setMin(const int val)
 {
-  m_min = val;
+  bool changed = false;
+
+  if (!m_min_is_set || m_min != val)
+    {
+      m_min = val;
+      m_min_is_set = true;
+      changed = true;
+    }
+
+  return changed;
 }
 
-void IntRange::setMax(const int val)
+bool IntRange::setMax(const int val)
 {
-  m_max = val;
+  bool changed = false;
+
+  if (!m_max_is_set || m_max != val)
+    {
+      m_max = val;
+      m_max_is_set = true;
+      changed = true;
+    }
+
+  return changed;
 }
 
 /* Utility to bounds-limit this range to within the given range. If maintainLen is true, maintains
@@ -591,7 +630,7 @@ void IntRange::boundsLimit(const IntRange* const limit, const gboolean maintainL
 {
   const int len = length();
   
-  if (m_min < limit->min())
+  if (!m_min_is_set || m_min < limit->min())
     {
       setMin(limit->min());
       
@@ -601,7 +640,7 @@ void IntRange::boundsLimit(const IntRange* const limit, const gboolean maintainL
         }
     }
   
-  if (m_max > limit->max())
+  if (!m_max_is_set || m_max > limit->max())
     {
       setMax(limit->max());
       

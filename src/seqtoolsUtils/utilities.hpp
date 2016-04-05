@@ -237,30 +237,40 @@ typedef struct _BlxStyle
 class IntRange
 {
 public:
-  int m_min;
-  int m_max;
-
-  IntRange() : m_min(0), m_max(0) {};
+  // Constructors
+  IntRange() : m_min(0), m_max(0), m_min_is_set(false), m_max_is_set(false) {};
   IntRange(const int val1, const int val2);
+
+  // Operator overloads
   void operator+=(const int val);
 
-  int start(const bool rev = FALSE, const bool negate = FALSE);
-  int end(const bool rev = FALSE, const bool negate = FALSE);
+  // Access functions
+  bool isSet() const;
+  int start(const bool rev = FALSE, const bool negate = FALSE) const;
+  int end(const bool rev = FALSE, const bool negate = FALSE) const;
   int min(const bool inclusive = FALSE, const bool rev = FALSE) const;
   int max(const bool inclusive = FALSE, const bool rev = FALSE) const;
 
   int length() const;
   int centre() const;
 
+  // Modify functions
+  void reset();
   void set(const int val1, const int val2);
   void set(const IntRange &range);
   void set(const IntRange *range);
-  void setMin(const int val);
-  void setMax(const int val);
+  bool setMin(const int val);
+  bool setMax(const int val);
 
   void sort(const bool forwards = TRUE);
   void boundsLimit(const IntRange* const limit, const gboolean maintainLen);
 
+private:
+  int m_min;
+  int m_max;
+
+  bool m_min_is_set;
+  bool m_max_is_set;
 };
 
 typedef struct _DoubleRange

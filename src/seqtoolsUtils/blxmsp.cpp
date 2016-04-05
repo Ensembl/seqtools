@@ -691,8 +691,8 @@ char *mspGetCoordsAsString(const MSP* const msp)
     {
       GString *resultStr = g_string_new("");
 
-      /* If both s coords are UNSET_INT then they are not relevant, so exclude them */
-      if (msp->sRange.min() == UNSET_INT && msp->sRange.max() == UNSET_INT)
+      /* If the s coords are unset then they are not relevant, so exclude them */
+      if (!msp->sRange.isSet())
         g_string_append_printf(resultStr, "%d,%d", msp->qRange.min(), msp->qRange.max());
       else
         g_string_append_printf(resultStr, "%d,%d[%d,%d]", msp->qRange.min(), msp->qRange.max(), msp->sRange.min(), msp->sRange.max());
@@ -2625,7 +2625,7 @@ static void constructExonData(BlxSequence *blxSeq,
               createMissingExonCdsUtr(&curExon, &curChildMsps, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, &tmpError);
               reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
               
-              IntRange newRange = {UNSET_INT, UNSET_INT};
+              IntRange newRange;
               
               if (prevExon && curExon && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
@@ -2645,7 +2645,7 @@ static void constructExonData(BlxSequence *blxSeq,
                   newRange.set(curExon->qRange.max() + 1, blxSequenceGetEnd(blxSeq, blxSeq->strand));
                 }
               
-              if (curExon && newRange.min() != UNSET_INT && newRange.max() != UNSET_INT)
+              if (curExon && newRange.isSet())
                 {
                   createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_INTRON, NULL, blxSequenceGetSource(blxSeq), 
                                curExon->score, curExon->id, 0, blxSeq->idTag, 

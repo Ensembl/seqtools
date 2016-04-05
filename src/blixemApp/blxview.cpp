@@ -370,7 +370,7 @@ void loadNativeFile(const char *filename,
   /* The range passed to the parser must be in the original parsed coords, so subtract the
    * offset. (It is used to validate that the range in the GFF file we're reading in is within 
    * blixem's known range.)  */
-  IntRange toplevelRange(UNSET_INT, UNSET_INT);
+  IntRange toplevelRange;
   
   if (refSeqRange)
     {
@@ -895,8 +895,17 @@ static void mspCalcFullQRange(const MSP* const msp,
       const int endOffset = (fullSRange->max() - msp->sRange.max()) * numFrames;
       
       const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
-      result->m_min -= sameDirection ? startOffset : endOffset;
-      result->m_max += sameDirection ? endOffset : startOffset;
+
+      if (sameDirection)
+        {
+          result->setMin(result->min() - startOffset);
+          result->setMax(result->min() + endOffset);
+        }
+      else
+        {
+          result->setMin(result->min() - endOffset);
+          result->setMax(result->min() + startOffset);
+        }
     }
 }
 

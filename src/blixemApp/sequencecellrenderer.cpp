@@ -656,7 +656,7 @@ static void drawBoxFeature(SequenceCellRenderer *renderer,
 {
   if (mspLayerIsVisible(msp))
     {
-      IntRange segmentRange(UNSET_INT, UNSET_INT);
+      IntRange segmentRange;
       
       if (!mspGetVisibleRange(msp, data, &segmentRange))
         {
@@ -1027,8 +1027,8 @@ static gboolean mspGetVisibleRange(MSP *msp, RenderData *data, IntRange *result)
     }
   else
     {
-      /* No portion of the MSP range is in the display range, so return UNSET_INTs */
-      result->set(UNSET_INT, UNSET_INT);
+      /* No portion of the MSP range is in the display range, so return unset range */
+      result->reset();
     }
 
   return found;
@@ -1094,7 +1094,7 @@ static void drawMsp(SequenceCellRenderer *renderer,
                     RenderData *data)
 {
   /* Extract the section of the reference sequence that we're interested in. */
-  IntRange segmentRange = {UNSET_INT, UNSET_INT};
+  IntRange segmentRange;
   
   if (!mspGetVisibleRange(msp, data, &segmentRange))
     {

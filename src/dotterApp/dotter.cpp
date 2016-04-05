@@ -3490,14 +3490,18 @@ static gboolean setStartCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc,
   int *valueToUpdate = NULL;
   
   if (horizontal)
-    valueToUpdate = (dwc->dotterCtx->hozScaleRev ? &dwc->refSeqRange.m_max : &dwc->refSeqRange.m_min);
-  else
-    valueToUpdate = (dwc->dotterCtx->vertScaleRev ? &dwc->matchSeqRange.m_max : &dwc->matchSeqRange.m_min);
-
-  if (valueToUpdate && *valueToUpdate != newValue)
     {
-      *valueToUpdate = newValue;
-      changed = TRUE;
+      if (dwc->dotterCtx->hozScaleRev)
+        changed = dwc->refSeqRange.setMax(newValue);
+      else
+        changed = dwc->refSeqRange.setMin(newValue);
+    }
+  else
+    {
+      if (dwc->dotterCtx->vertScaleRev)
+        changed = dwc->matchSeqRange.setMax(newValue);
+      else
+        changed = dwc->matchSeqRange.setMin(newValue);
     }
   
   return changed;
@@ -3510,14 +3514,18 @@ static gboolean setEndCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, c
   int *valueToUpdate = NULL;
   
   if (horizontal)
-    valueToUpdate = (dwc->dotterCtx->hozScaleRev ? &dwc->refSeqRange.m_min : &dwc->refSeqRange.m_max);
-  else
-    valueToUpdate = (dwc->dotterCtx->vertScaleRev ? &dwc->matchSeqRange.m_min : &dwc->matchSeqRange.m_max);
-  
-  if (valueToUpdate && *valueToUpdate != newValue)
     {
-      *valueToUpdate = newValue;
-      changed = TRUE;
+      if (dwc->dotterCtx->hozScaleRev)
+        changed = dwc->refSeqRange.setMin(newValue);
+      else
+        changed = dwc->refSeqRange.setMax(newValue);
+    }
+  else
+    {
+      if (dwc->dotterCtx->vertScaleRev)
+        changed = dwc->matchSeqRange.setMin(newValue);
+      else
+        changed = dwc->matchSeqRange.setMax(newValue);
     }
   
   return changed;

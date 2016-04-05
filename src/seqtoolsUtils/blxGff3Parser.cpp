@@ -339,7 +339,7 @@ void parseGff3Header(const int lineNum,
       
       if (!tmpError && refSeqRange)
         {
-          if (refSeqRange->min() == UNSET_INT && refSeqRange->max() == UNSET_INT)
+          if (!refSeqRange->isSet())
             {
               /* Range is currently unset, so set it */
               intrangeSetValues(refSeqRange, qStart, qEnd);
@@ -942,7 +942,7 @@ static void parseGffColumns(GString *line_string,
 
       /* We can only check the range if the refseqrange is set... */
       if (!typeIsExon(gffData->mspType) && !typeIsIntron(gffData->mspType) && !typeIsTranscript(gffData->mspType) &&
-          refSeqRange && (refSeqRange->min() != UNSET_INT || refSeqRange->max() != UNSET_INT))
+          refSeqRange && refSeqRange->isSet())
         {
           IntRange featureRange;
           intrangeSetValues(&featureRange, gffData->qStart, gffData->qEnd); /* makes sure min < max */

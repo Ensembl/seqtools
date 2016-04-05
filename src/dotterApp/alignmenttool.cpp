@@ -243,7 +243,6 @@ static void alignmentToolCreateProperties(GtkWidget *widget,
       properties->dragging = FALSE;
       properties->dragStart = 0;
       properties->selectionWidget = NULL;
-      properties->selectionRange.set(UNSET_INT, UNSET_INT);
       
       properties->spliceSitesOn = TRUE;
 

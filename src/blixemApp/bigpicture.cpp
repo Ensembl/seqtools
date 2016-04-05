@@ -694,7 +694,7 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean keepCen
   GtkWidget *detailView = blxWindowGetDetailView(properties->blxWindow);
   IntRange *dvRange = detailViewGetDisplayRange(detailView);
   
-  if (bpRange->min() == UNSET_INT && bpRange->max() == UNSET_INT) /* check both in case UNSET_INT is a real coord for one end! */
+  if (bpRange->isSet())
     {
       /* This is the first time we've refreshed the detail view range. Set the
        * initial big picture range width to be a ratio of the detail view range width. */
