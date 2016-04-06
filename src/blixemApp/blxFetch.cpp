@@ -58,6 +58,7 @@
 #include <blixemApp/blxwindow.hpp>
 #include <blixemApp/detailview.hpp>
 #include <blixemApp/blixem_.hpp>
+#include <blixemApp/blxcontext.hpp>
 
 #ifdef PFETCH_HTML 
 #include <gbtools/gbtoolsPfetch.hpp>

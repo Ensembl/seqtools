@@ -37,6 +37,7 @@
  */
 
 #include "blixemApp/coverageview.hpp"
+#include "blixemApp/blxcontext.hpp"
 #include "blixemApp/blxwindow.hpp"
 #include "blixemApp/bigpicture.hpp"
 #include "blixemApp/blixem_.hpp"

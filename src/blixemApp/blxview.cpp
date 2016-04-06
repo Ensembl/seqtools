@@ -63,6 +63,7 @@ MSP score codes (for obsolete exblx file format):
 #include <algorithm>
 
 #include <blixemApp/blixem_.hpp>
+#include <blixemApp/blxcontext.hpp>
 #include <blixemApp/blxwindow.hpp>
 #include <blixemApp/detailview.hpp>
 #include <blixemApp/blxdotter.hpp>

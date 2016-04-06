@@ -36,6 +36,7 @@
  */
 
 #include <blixemApp/blxdotter.hpp>
+#include <blixemApp/blxcontext.hpp>
 #include <blixemApp/blxwindow.hpp>
 #include <blixemApp/bigpicture.hpp>
 #include <blixemApp/detailview.hpp>

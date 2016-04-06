@@ -36,6 +36,7 @@
  */
 
 #include <blixemApp/detailviewtree.hpp>
+#include <blixemApp/blxcontext.hpp>
 #include <blixemApp/detailview.hpp>
 #include <blixemApp/bigpicturegrid.hpp>
 #include <blixemApp/sequencecellrenderer.hpp>

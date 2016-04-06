@@ -36,6 +36,7 @@
  */
 
 #include <blixemApp/exonview.hpp>
+#include <blixemApp/blxcontext.hpp>
 #include <blixemApp/detailviewtree.hpp>
 #include <blixemApp/bigpicture.hpp>
 #include <blixemApp/bigpicturegrid.hpp>
