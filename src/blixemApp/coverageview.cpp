@@ -380,10 +380,10 @@ void CoverageViewProperties::calculateBorders()
   m_displayRect.y = height - gridHeight;
   
   m_viewRect.x = m_displayRect.x;
-  m_viewRect.y = m_displayRect.y + bpProperties->highlightBoxYPad + DEFAULT_COVERAGE_VIEW_Y_PADDING;
+  m_viewRect.y = m_displayRect.y + HIGHLIGHT_BOX_Y_PAD + DEFAULT_COVERAGE_VIEW_Y_PADDING;
 
   m_displayRect.width = m_widget->allocation.width - m_viewRect.x;
-  m_displayRect.height = height + 2 * (bpProperties->highlightBoxYPad + DEFAULT_COVERAGE_VIEW_Y_PADDING);
+  m_displayRect.height = height + 2 * (HIGHLIGHT_BOX_Y_PAD + DEFAULT_COVERAGE_VIEW_Y_PADDING);
 
   m_viewRect.width = m_displayRect.width;
   m_viewRect.height = gridHeight;

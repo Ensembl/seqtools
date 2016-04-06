@@ -54,6 +54,9 @@
 class CoverageViewProperties;
 
 
+#define HIGHLIGHT_BOX_Y_PAD             2         /* this provides space between highlight box and the top/bottom of the grid */
+
+
 class BigPictureProperties
 {
 public:
@@ -109,7 +112,6 @@ public:
     
   int highlightBoxMinWidth;
   int previewBoxLineWidth;
-  int highlightBoxYPad;       /* Vertical padding between the highlight box and the grid */
 
 private:
   BlxContext *m_bc;

@@ -485,7 +485,7 @@ void calculateGridBorders(GtkWidget *grid)
   
   /* Get the boundaries of the grid */
   properties->gridRect.x = roundNearest(bigPictureProperties->charWidth() * (gdouble)bigPictureProperties->leftBorderChars);
-  properties->gridRect.y = bigPictureProperties->highlightBoxYPad + properties->gridYPadding;
+  properties->gridRect.y = HIGHLIGHT_BOX_Y_PAD + properties->gridYPadding;
   properties->gridRect.width = properties->displayRect.width - properties->gridRect.x;
   properties->gridRect.height = bigPictureGetCellHeight(properties->bigPicture) * numVCells;
   

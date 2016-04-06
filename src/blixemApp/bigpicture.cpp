@@ -60,7 +60,6 @@ using namespace std;
 #define DEFAULT_PERCENT_ID_PER_CELL	20	  /* the default %ID per vertical cell to show in the grids */
 #define DEFAULT_GRID_PERCENT_ID_MAX	100	  /* default maximum %ID to show on the scale */
 #define MIN_NUM_V_CELLS			1	  /* minimum number of vertical cells to show in the grid */
-#define DEFAULT_HIGHLIGHT_BOX_Y_PAD	2	  /* this provides space between highlight box and the top/bottom of the grid */
 #define MIN_HIGHLIGHT_BOX_WIDTH         5         /* minimum width of the highlight box */
 #define GRID_SCALE_MIN_ID_PER_CELL      0.1       /* minimum %ID per grid cell */
 #define GRID_SCALE_MIN                  0         /* minimum possible value for grid scale */
@@ -481,7 +480,11 @@ void bigPictureCalculateHighlightBoxBorders(GdkRectangle *drawingRect,
       highlightRect->y = 0;
       
       highlightRect->width = abs(x1 - x2);
-      highlightRect->height = drawingRect->height + roundNearest(bpProperties->charHeight() / 2.0) + yPadding + (2 * bpProperties->highlightBoxYPad);
+      highlightRect->height = 
+        drawingRect->height + 
+        roundNearest(bpProperties->charHeight() / 2.0) + 
+        yPadding + 
+        (2 * HIGHLIGHT_BOX_Y_PAD);
     }
 }
 
@@ -1241,7 +1244,6 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
   leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 2; /* Extra fudge factor because char width is approx */
   highlightBoxMinWidth = MIN_HIGHLIGHT_BOX_WIDTH;
   previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
-  highlightBoxYPad = DEFAULT_HIGHLIGHT_BOX_Y_PAD;
   initialZoom = initialZoom_in;
       
   if (initRange_in->isSet())
