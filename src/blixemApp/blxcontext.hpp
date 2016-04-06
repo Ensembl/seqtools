@@ -47,6 +47,7 @@
 class BlxContext
 {
 public:
+  // Constructors
   BlxContext(CommandLineOptions *options,
              const IntRange* const refSeqRange_in,
              const IntRange* const fullDisplayRange_in,
@@ -61,22 +62,28 @@ public:
 
   ~BlxContext();
 
-  void destroySequenceGroup(SequenceGroup **seqGroup);
-  void deleteAllSequenceGroups();
-
+  // Access
+  double charWidth() const;
   BlxStrand activeStrand() const;
 
+  // Query
   bool isSeqSelected(const BlxSequence *seq) const;
   SequenceGroup *getSequenceGroup(const BlxSequence *seqToFind) const;
   GList *getSelectedSeqsByType(const BlxSequenceType type) const;
   BlxSequence* getSelectedTranscript(int *num_transcripts) const;
 
+  // Modify
   void saveSettingsFlags(GKeyFile *key_file);
   void killAllSpawned();
+
   void calculateDepth(const int numUnalignedBases);
   int calculateTotalDepth(const IntRange *range, const BlxStrand strand);
   int getDepth(const int coord, const char *base_char = NULL, const BlxStrand strand = BLXSTRAND_NONE);
   int getDepthForCounter(const int coord, const DepthCounter counter);
+
+  void destroySequenceGroup(SequenceGroup **seqGroup);
+  void deleteAllSequenceGroups();
+
 
   GtkWidget *statusBar;                   /* The Blixem window's status bar */
     
@@ -153,6 +160,9 @@ private:
   void createColors(GtkWidget *widget);
   void initialiseFlags(CommandLineOptions *options);
   void loadSettings();
+
+  double m_charWidth;
+  double m_charHeight;
 };
 
 

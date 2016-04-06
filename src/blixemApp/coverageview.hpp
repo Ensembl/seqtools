@@ -76,6 +76,7 @@ public:
   void prepareForPrinting();
 
 private:
+  double charWidth() const;
   void drawPlot(GdkDrawable *drawable);
   void recalculate();
 

@@ -262,6 +262,17 @@ int CoverageViewProperties::maxLabeledDepth()
 }
 
 
+double CoverageViewProperties::charWidth() const
+{
+  double result = 0.0;
+
+  if (m_bc)
+    result = m_bc->charWidth();
+
+  return result;
+}
+
+
 /* Draw the actual coverage data as a bar chart */
 void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
 {
@@ -365,7 +376,7 @@ void CoverageViewProperties::calculateBorders()
   const int height = ceil(m_numVCells * (double)bigPictureGetCellHeight(bigPicture));
   const int gridHeight = (int)m_numVCells * bigPictureGetCellHeight(bigPicture);
   
-  m_displayRect.x = roundNearest(bpProperties->charWidth * (gdouble)bpProperties->leftBorderChars);
+  m_displayRect.x = roundNearest(charWidth() * (gdouble)bpProperties->leftBorderChars);
   m_displayRect.y = height - gridHeight;
   
   m_viewRect.x = m_displayRect.x;

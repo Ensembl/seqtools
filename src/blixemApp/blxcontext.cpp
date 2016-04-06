@@ -259,6 +259,11 @@ BlxContext::BlxContext(CommandLineOptions *options,
   ipresolve = options->ipresolve;
   cainfo = options->cainfo;
 #endif
+
+  /* Calculate the font size */
+  if (widget_in)
+    getFontCharSize(widget_in, widget_in->style->font_desc, &m_charWidth, &m_charHeight);
+
 }
 
 
@@ -357,6 +362,12 @@ void BlxContext::deleteAllSequenceGroups()
   /* Reset the hide-not-in-group flags otherwise we'll hide everything! */
   flags[BLXFLAG_HIDE_UNGROUPED_SEQS] = FALSE ;
   flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] = FALSE ;
+}
+
+
+double BlxContext::charWidth() const
+{
+  return m_charWidth;
 }
 
 
