@@ -67,6 +67,7 @@ CoverageViewProperties::CoverageViewProperties(GtkWidget *widget_in,
   m_viewYPadding = DEFAULT_COVERAGE_VIEW_Y_PADDING;
   m_numVCells = DEFAULT_NUM_V_CELLS;
   m_rangePerCell = 0;
+  m_leftBorderPos = NULL;
   
   if (bc_in)
     m_maxDepth = &bc_in->maxDepth;
@@ -76,6 +77,17 @@ CoverageViewProperties::CoverageViewProperties(GtkWidget *widget_in,
 GtkWidget* CoverageViewProperties::widget()
 {
   return m_widget;
+}
+
+/* Return the position of the left border. If it hasn't been set, assume 0. */
+double CoverageViewProperties::leftBorderPos()
+{
+  double result = 0.0;
+
+  if (m_leftBorderPos)
+    result = *m_leftBorderPos;
+
+  return result;
 }
 
 
@@ -120,6 +132,14 @@ static CoverageViewProperties* coverageViewCreateProperties(GtkWidget *widget,
     }
 
   return properties;
+}
+
+
+/* Set the pointer to the value where the left border position will be taken from (this is
+ * usually from a parent class so that the coverage will align to the parent) */
+void CoverageViewProperties::setLeftBorderPos(const double *leftBorderPos)
+{
+  m_leftBorderPos = leftBorderPos;
 }
 
 
@@ -370,13 +390,12 @@ void CoverageViewProperties::calculateHighlightBoxBorders()
 void CoverageViewProperties::calculateBorders()
 {
   GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
-  BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
   
   /* Calculate the height based on the number of cells */
   const int height = ceil(m_numVCells * (double)bigPictureGetCellHeight(bigPicture));
   const int gridHeight = (int)m_numVCells * bigPictureGetCellHeight(bigPicture);
   
-  m_displayRect.x = roundNearest(charWidth() * (gdouble)bpProperties->leftBorderChars);
+  m_displayRect.x = roundNearest(leftBorderPos());
   m_displayRect.y = height - gridHeight;
   
   m_viewRect.x = m_displayRect.x;

@@ -51,6 +51,7 @@ public:
 
   /* Access */
   GtkWidget* widget();
+  double leftBorderPos();
   double depthPerCell();
   int maxLabeledDepth();
 
@@ -66,6 +67,7 @@ public:
   gboolean scroll(GdkEventScroll *event, gpointer data);
 
   /* Updates */
+  void setLeftBorderPos(const double *leftBorderPos);
   void updateDepth();
   void calculateBorders();
   void calculateHighlightBoxBorders();
@@ -83,7 +85,10 @@ private:
   GtkWidget *m_widget;      /* The coverage view widget */
   GtkWidget *m_blxWindow;   /* The main blixem window */
   BlxContext *m_bc;
+
   const IntRange *m_displayRange; /* The current range to display */
+  const double *m_leftBorderPos; /* The position of the left border of the coverage view.
+                                  * Points to a value supplied by the parent so it will align. */
 
   int m_viewYPadding;	     /* The y padding around the view rect */
   double m_numVCells;	     /* The number of cells to show vertically */

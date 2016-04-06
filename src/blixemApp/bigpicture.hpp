@@ -102,11 +102,12 @@ public:
   gdouble idPerCell;		/* The percent ID to show per vertical cell */
   DoubleRange percentIdRange;	/* The max and min %ID values displayed */
 
-  gboolean displayPreviewBox; /* Whether to display the preview box */
-  int previewBoxCentre;	/* The base that the preview box is centered on */
-  int previewBoxOffset;       /* Can be used to offset the actual preview box position from previewBoxCentre */
+  gboolean displayPreviewBox;   /* Whether to display the preview box */
+  int previewBoxCentre;	        /* The base that the preview box is centered on */
+  int previewBoxOffset;         /* Can be used to offset the actual preview box position from previewBoxCentre */
 
-  int leftBorderChars;	/* The number of characters in the left border of the big picture grids */
+  int leftBorderChars;          /* The number of characters in the left border of the big picture grids */
+  double leftBorderPos;         /* The position of the left border of the big picture grids */
     
   int previewBoxLineWidth;
 

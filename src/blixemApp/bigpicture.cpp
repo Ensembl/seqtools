@@ -434,7 +434,7 @@ void calculateGridHeaderBorders(GtkWidget *header)
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
   /* Calculate the size of the grid header (zero height if it does not have one) */
-  properties->headerRect.x = roundNearest(bigPictureProperties->charWidth() * (gdouble)bigPictureProperties->leftBorderChars);
+  properties->headerRect.x = roundNearest(bigPictureProperties->leftBorderPos);
   properties->headerRect.y = 0;
   properties->headerRect.width = header->allocation.width - properties->headerRect.x;
   properties->headerRect.height = properties->refButton->allocation.height + (properties->headerYPad * 2);
@@ -1240,7 +1240,9 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
   displayPreviewBox = FALSE;
   previewBoxOffset = 0;
   previewBoxCentre = previewBoxCentre_in;
-  leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 2; /* Extra fudge factor because char width is approx */
+  leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 2; /* Extra fudge factor because
+                                                                        char width is approx */
+  leftBorderPos = (double)leftBorderChars * charWidth();
   previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
   initialZoom = initialZoom_in;
       
@@ -1362,41 +1364,45 @@ static void onDestroyBigPicture(GtkWidget *bigPicture)
 }
 
 
-static void bigPictureCreateProperties(GtkWidget *bigPicture, 
-				       GtkWidget *blxWindow, 
-                                       BlxContext *bc,
-                                       CoverageViewProperties *coverageViewP, 
-				       GtkWidget *header, 
-				       GtkWidget *fwdStrandGrid,
-				       GtkWidget *revStrandGrid,
-				       GtkWidget *fwdExonView,
-				       GtkWidget *revExonView,
-				       int previewBoxCentre,
-                                       const IntRange* const initRange,
-                                       const IntRange* const fullRange,
-				       const int initialZoom,
-				       const gdouble lowestId)
+static BigPictureProperties* bigPictureCreateProperties(GtkWidget *bigPicture, 
+                                                        GtkWidget *blxWindow, 
+                                                        BlxContext *bc,
+                                                        CoverageViewProperties *coverageViewP, 
+                                                        GtkWidget *header, 
+                                                        GtkWidget *fwdStrandGrid,
+                                                        GtkWidget *revStrandGrid,
+                                                        GtkWidget *fwdExonView,
+                                                        GtkWidget *revExonView,
+                                                        int previewBoxCentre,
+                                                        const IntRange* const initRange,
+                                                        const IntRange* const fullRange,
+                                                        const int initialZoom,
+                                                        const gdouble lowestId)
 {
+  BigPictureProperties *properties = NULL;
+
   if (bigPicture)
     { 
-      BigPictureProperties *properties = new BigPictureProperties(bigPicture, 
-                                                                  blxWindow, 
-                                                                  bc,
-                                                                  coverageViewP, 
-                                                                  header, 
-                                                                  fwdStrandGrid,
-                                                                  revStrandGrid,
-                                                                  fwdExonView,
-                                                                  revExonView,
-                                                                  previewBoxCentre,
-                                                                  initRange,
-                                                                  fullRange,
-                                                                  initialZoom,
-                                                                  lowestId);
+      properties = new BigPictureProperties(bigPicture, 
+                                            blxWindow, 
+                                            bc,
+                                            coverageViewP, 
+                                            header, 
+                                            fwdStrandGrid,
+                                            revStrandGrid,
+                                            fwdExonView,
+                                            revExonView,
+                                            previewBoxCentre,
+                                            initRange,
+                                            fullRange,
+                                            initialZoom,
+                                            lowestId);
       
       g_object_set_data(G_OBJECT(bigPicture), "BigPictureProperties", properties);
       g_signal_connect(G_OBJECT(bigPicture), "destroy", G_CALLBACK(onDestroyBigPicture), NULL); 
     }
+
+  return properties;
 }
 
 
@@ -1713,6 +1719,8 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
   *revStrandGrid = createBigPictureGrid(bigPicture, BLXSTRAND_REVERSE);
   GtkWidget *fwdExonView = createExonView(bigPicture, BLXSTRAND_FORWARD);
   GtkWidget *revExonView = createExonView(bigPicture, BLXSTRAND_REVERSE);
+
+  /* Create the coverage view. */
   CoverageViewProperties *coverageViewP = createCoverageView(blxWindow, bc);
   
   /* By default, make the forward strand the top grid */
@@ -1724,21 +1732,26 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
 
   g_signal_connect(G_OBJECT(bigPicture), "size-allocate", G_CALLBACK(onSizeAllocateBigPicture), NULL);
 
-  /* Set the big picture properties */
-  bigPictureCreateProperties(bigPicture, 
-			     blxWindow,
-                             bc,
-                             coverageViewP,
-			     header, 
-			     *fwdStrandGrid,
-			     *revStrandGrid,
-			     fwdExonView,
-			     revExonView,
-			     UNSET_INT,
-                             initRange,
-                             fullRange,
-			     initialZoom,
-			     lowestId);
+  /* Create the big picture properties. */
+  BigPictureProperties *properties = bigPictureCreateProperties(bigPicture, 
+                                                                blxWindow,
+                                                                bc,
+                                                                coverageViewP,
+                                                                header, 
+                                                                *fwdStrandGrid,
+                                                                *revStrandGrid,
+                                                                fwdExonView,
+                                                                revExonView,
+                                                                UNSET_INT,
+                                                                initRange,
+                                                                fullRange,
+                                                                initialZoom,
+                                                                lowestId);
+
+  /* We need to pass the coverage view the left border position so that the coverage
+   * will be aligned with the big picture grids. */
+  if (properties)
+    coverageViewP->setLeftBorderPos(&properties->leftBorderPos);
   
   return bigPicture;
 }
