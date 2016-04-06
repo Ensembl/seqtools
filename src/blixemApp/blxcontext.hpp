@@ -59,12 +59,18 @@ public:
              const gboolean External_in,
              GSList *styles_in);
 
+  ~BlxContext();
+
+  void destroySequenceGroup(SequenceGroup **seqGroup);
+  void deleteAllSequenceGroups();
+
   void saveSettingsFlags(GKeyFile *key_file);
   void killAllSpawned();
   void calculateDepth(const int numUnalignedBases);
   int calculateTotalDepth(const IntRange *range, const BlxStrand strand);
   int getDepth(const int coord, const char *base_char = NULL, const BlxStrand strand = BLXSTRAND_NONE);
   int getDepthForCounter(const int coord, const DepthCounter counter);
+  
 
   GtkWidget *statusBar;                   /* The Blixem window's status bar */
     

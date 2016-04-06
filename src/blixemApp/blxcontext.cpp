@@ -38,6 +38,7 @@
 
 #include <blixemApp/blxcontext.hpp>
 #include <blixemApp/blixem_.hpp>
+#include <seqtoolsUtils/blxGff3Parser.hpp>
 
 
 
@@ -146,6 +147,17 @@ DepthCounter getDepthCounterForChar(const char c, const BlxStrand strand)
 }
 
 
+/* utility to free the given pointer and set it to null */
+static void freeAndNull(gpointer *ptr)
+{
+  if (ptr && *ptr)
+    {
+      g_free(*ptr);
+      *ptr = NULL;
+    }
+}
+
+
 } // unnamed namespace
 
 
@@ -247,6 +259,104 @@ BlxContext::BlxContext(CommandLineOptions *options,
   ipresolve = options->ipresolve;
   cainfo = options->cainfo;
 #endif
+}
+
+
+BlxContext::~BlxContext()
+{
+  /* Free allocated strings */
+  freeAndNull((gpointer*)(&dataset));
+  freeAndNull((gpointer*)(&refSeqName));
+
+  /* Free table of fetch methods and the fetch-method structs */
+  /* to do */
+      
+  /* Free the list of selected sequence names (not the names themselves
+   * because we don't own them). */
+  if (selectedSeqs)
+    {
+      g_list_free(selectedSeqs);
+      selectedSeqs = NULL;
+    }
+      
+  deleteAllSequenceGroups();
+
+  /* Free the color array */
+  if (defaultColors)
+    {
+      int i = BLXCOLOR_MIN + 1;
+      for (; i < BLXCOL_NUM_COLORS; ++i)
+        {
+          BlxColor *blxColor = &g_array_index(defaultColors, BlxColor, i);
+          destroyBlxColor(blxColor);
+        }
+
+      g_array_free(defaultColors, TRUE);
+      defaultColors = NULL;
+    }
+
+  /* destroy the feature lists. note that the stored msps are owned
+   * by the msplist, not by the feature lists */
+  int typeId = 0;
+  for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
+    g_array_free(featureLists[typeId], FALSE);
+      
+  destroyMspList(&(mspList));
+  destroyBlxSequenceList(&(matchSeqs));
+  blxDestroyGffTypeList(&(supportedTypes));
+  killAllSpawned();
+}
+
+
+/* Free the memory used by the given sequence group and its members. */
+void BlxContext::destroySequenceGroup(SequenceGroup **seqGroup)
+{
+  if (seqGroup && *seqGroup)
+    {
+      /* Remove it from the list of groups */
+      sequenceGroups = g_list_remove(sequenceGroups, *seqGroup);
+      
+      /* If this is pointed to by the match-set pointer, null it */
+      if (*seqGroup == matchSetGroup)
+        {
+          matchSetGroup = NULL;
+        }
+      
+      /* Free the memory used by the group name */
+      if ((*seqGroup)->groupName)
+        {
+          g_free((*seqGroup)->groupName);
+        }
+      
+      /* Free the list of sequences */
+      if ((*seqGroup)->seqList)
+        {
+          freeStringList(&(*seqGroup)->seqList, (*seqGroup)->ownsSeqNames);
+        }
+      
+      g_free(*seqGroup);
+      *seqGroup = NULL;
+    }
+}
+
+
+/* Delete all groups */
+void BlxContext::deleteAllSequenceGroups()
+{
+  GList *groupItem = sequenceGroups;
+  
+  for ( ; groupItem; groupItem = groupItem->next)
+    {
+      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+      destroySequenceGroup(&group);
+    }
+  
+  g_list_free(sequenceGroups);
+  sequenceGroups = NULL;
+  
+  /* Reset the hide-not-in-group flags otherwise we'll hide everything! */
+  flags[BLXFLAG_HIDE_UNGROUPED_SEQS] = FALSE ;
+  flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] = FALSE ;
 }
 
 
@@ -675,5 +785,4 @@ int BlxContext::getDepth(const int coord,
 
   return result;
 }
-
 

@@ -1920,61 +1920,6 @@ static void toggleBumpState(GtkWidget *blxWindow)
  *                    Group sequences menu                 *
  ***********************************************************/
 
-/* Utility to free the given list of  strings and (if the option is true) all
- * of its data items as well. */
-static void freeStringList(GList **stringList, const gboolean freeDataItems)
-{
-  if (stringList && *stringList)
-    {
-      if (freeDataItems)
-        {
-          GList *item = *stringList;
-          for ( ; item; item = item->next)
-            {
-              char *strData = (char*)(item->data);
-              g_free(strData);
-              item->data = NULL;
-            }
-        }
-      
-      g_list_free(*stringList);
-      *stringList = NULL;
-    }
-}
-
-
-/* Free the memory used by the given sequence group and its members. */
-static void destroySequenceGroup(BlxContext *bc, SequenceGroup **seqGroup)
-{
-  if (seqGroup && *seqGroup)
-    {
-      /* Remove it from the list of groups */
-      bc->sequenceGroups = g_list_remove(bc->sequenceGroups, *seqGroup);
-      
-      /* If this is pointed to by the match-set pointer, null it */
-      if (*seqGroup == bc->matchSetGroup)
-        {
-          bc->matchSetGroup = NULL;
-        }
-      
-      /* Free the memory used by the group name */
-      if ((*seqGroup)->groupName)
-        {
-          g_free((*seqGroup)->groupName);
-        }
-      
-      /* Free the list of sequences */
-      if ((*seqGroup)->seqList)
-        {
-          freeStringList(&(*seqGroup)->seqList, (*seqGroup)->ownsSeqNames);
-        }
-      
-      g_free(*seqGroup);
-      *seqGroup = NULL;
-    }
-}
-
-
 /* Delete a single group */
 static void blxWindowDeleteSequenceGroup(GtkWidget *blxWindow, SequenceGroup *group)
 {
@@ -1982,36 +1927,16 @@ static void blxWindowDeleteSequenceGroup(GtkWidget *blxWindow, SequenceGroup *gr
   
   if (blxContext->sequenceGroups)
     {
-      destroySequenceGroup(blxContext, &group);
+      blxContext->destroySequenceGroup(&group);
       blxWindowGroupsChanged(blxWindow);
     }
-}
-
-
-/* Delete all groups */
-static void blxContextDeleteAllSequenceGroups(BlxContext *bc)
-{
-  GList *groupItem = bc->sequenceGroups;
-  
-  for ( ; groupItem; groupItem = groupItem->next)
-    {
-      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      destroySequenceGroup(bc, &group);
-    }
-  
-  g_list_free(bc->sequenceGroups);
-  bc->sequenceGroups = NULL;
-  
-  /* Reset the hide-not-in-group flags otherwise we'll hide everything! */
-  bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS] = FALSE ;
-  bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] = FALSE ;
 }
 
 
 static void blxWindowDeleteAllSequenceGroups(GtkWidget *blxWindow)
 {
   BlxContext *bc = blxWindowGetContext(blxWindow);
-  blxContextDeleteAllSequenceGroups(bc);
+  bc->deleteAllSequenceGroups();
   blxWindowGroupsChanged(blxWindow);
 }
 
@@ -2474,12 +2399,13 @@ static GList* getSeqStructsFromSearchStringList(GList *searchStringList,
 static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, GError **error)
 {
   BlxContext *bc = blxWindowGetContext(blxWindow);
+
   GError *tmpError = NULL;
 
   GList *searchStringList = parseMatchList(inputText);
 
   /* Extract the entries from the list that are sequences that blixem knows about */
-  GList *matchSeqs = blxWindowGetAllMatchSeqs(blxWindow);
+  GList *matchSeqs = bc->matchSeqs;
   GList *seqList = getSeqStructsFromSearchStringList(searchStringList, matchSeqs, bc, searchCol, &tmpError);
 
   if (tmpError)
@@ -5338,72 +5264,6 @@ GList* blxWindowGetColumnList(GtkWidget *blxWindow)
   return (bc ? bc->columnList : NULL);
 }
 
-/* utility to free the given pointer and set it to null */
-static void freeAndNull(gpointer *ptr)
-{
-  if (ptr && *ptr)
-    {
-      g_free(*ptr);
-      *ptr = NULL;
-    }
-}
-
-
-static void destroyBlxContext(BlxContext **bcPtr)
-{
-  if (bcPtr && *bcPtr)
-    {
-      BlxContext *bc = *bcPtr;
-
-      /* Free allocated strings */
-      freeAndNull((gpointer*)(&bc->dataset));
-      freeAndNull((gpointer*)(&bc->refSeqName));
-
-      /* Free table of fetch methods and the fetch-method structs */
-      /* to do */
-      
-      /* Free the list of selected sequence names (not the names themselves
-       * because we don't own them). */
-      if (bc->selectedSeqs)
-        {
-          g_list_free(bc->selectedSeqs);
-          bc->selectedSeqs = NULL;
-        }
-      
-      blxContextDeleteAllSequenceGroups(bc);
-
-      /* Free the color array */
-      if (bc->defaultColors)
-        {
-          int i = BLXCOLOR_MIN + 1;
-          for (; i < BLXCOL_NUM_COLORS; ++i)
-            {
-              BlxColor *blxColor = &g_array_index(bc->defaultColors, BlxColor, i);
-              destroyBlxColor(blxColor);
-            }
-
-          g_array_free(bc->defaultColors, TRUE);
-          bc->defaultColors = NULL;
-        }
-
-      /* destroy the feature lists. note that the stored msps are owned
-      * by the msplist, not by the feature lists */
-      int typeId = 0;
-      for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
-        g_array_free(bc->featureLists[typeId], FALSE);
-      
-      destroyMspList(&(bc->mspList));
-      destroyBlxSequenceList(&(bc->matchSeqs));
-      blxDestroyGffTypeList(&(bc->supportedTypes));
-      bc->killAllSpawned();
-      
-      /* Free the context struct itself */
-      g_free(bc);
-      *bcPtr = NULL;
-    }
-}
-
-
 /* This function saves all of blixem's customisable settings to
  * a config file. */
 static void saveBlixemSettings(GtkWidget *blxWindow)
@@ -5443,7 +5303,8 @@ static void onDestroyBlxWindow(GtkWidget *widget)
   
   if (properties)
     {
-      destroyBlxContext(&properties->blxContext);
+      delete properties->blxContext;
+      properties->blxContext = NULL;
 
       if (properties->mainmenu)
         {

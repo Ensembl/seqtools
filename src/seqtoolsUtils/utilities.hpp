@@ -398,6 +398,8 @@ gboolean              isDelimiter(const char c);
 char*                 removeDelimiters(char *text);
 GArray*               keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GError **error);
 
+void                  freeStringList(GList **stringList, const gboolean freeDataItems);
+
 void                  centreRangeOnCoord(IntRange *range, const int coord, const int length);
 gboolean              valueWithinRange(const int value, const IntRange* const range);
 gboolean              rangesOverlap(const IntRange* const range1, const IntRange* const range2);

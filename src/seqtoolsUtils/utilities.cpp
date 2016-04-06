@@ -486,6 +486,29 @@ GArray* keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GEr
 }
 
 
+/* Utility to free the given list of  strings and (if the option is true) all
+ * of its data items as well. */
+void freeStringList(GList **stringList, const gboolean freeDataItems)
+{
+  if (stringList && *stringList)
+    {
+      if (freeDataItems)
+        {
+          GList *item = *stringList;
+          for ( ; item; item = item->next)
+            {
+              char *strData = (char*)(item->data);
+              g_free(strData);
+              item->data = NULL;
+            }
+        }
+      
+      g_list_free(*stringList);
+      *stringList = NULL;
+    }
+}
+
+
 /***********************************************************
  *                       Ranges/values                     * 
  ***********************************************************/
