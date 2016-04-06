@@ -56,7 +56,7 @@ double fct_powi(double x, register int n)
 /* x  argument */ 
 /* n  power */
 {
-    register int	i;
+    int	i;
     double	y;
     
     y = 1.;
@@ -75,9 +75,9 @@ double fct_powi(double x, register int n)
  * Return the greatest common divisor of a and b.
  * From blast/gish/fct/fct_gcd.c
  */
-long fct_gcd(register long a, register long b)
+long fct_gcd(long a, long b)
 {
-    register long	c;
+    long	c;
     
     b = abs(b);
     if (b > a)

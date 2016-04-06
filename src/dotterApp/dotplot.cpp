@@ -1324,12 +1324,12 @@ static void doCalculateImage(const BlxStrand qStrand,
   DotterContext *dc = dwc->dotterCtx;
   const int pixelmapLen = properties->imageWidth * properties->imageHeight;
 
-  register int qIdx, sIdx, qmax, dotpos, dotposq, dotposs;
+  int qIdx, sIdx, qmax, dotpos, dotposq, dotposs;
   
-  register int *newsum;	/* The current row of scores being calculated */
-  register int *oldsum;	/* Remembers the previous row of calculated scores */
-  register int *delrow;	/* Pointer to the row in scoreVec to subtract */
-  register int *addrow;	/* Pointer to the row in scoreVec to add */
+  int *newsum;	/* The current row of scores being calculated */
+  int *oldsum;	/* Remembers the previous row of calculated scores */
+  int *delrow;	/* Pointer to the row in scoreVec to subtract */
+  int *addrow;	/* Pointer to the row in scoreVec to add */
   
   /* Reset the sum vectors */
   int idx = 0;
@@ -1477,8 +1477,8 @@ static void calculateImage(DotplotProperties *properties)
 
   g_assert(properties->slidingWinSize > 0);
   
-  register int qIdx, sIdx;     /* Loop variables */
-  register int dotpos;
+  int qIdx, sIdx;     /* Loop variables */
+  int dotpos;
   
   BlxHandle handle = handleCreate();
   
@@ -2972,7 +2972,7 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
 	  if (byterev)
 	    for (col = 0 ; col < image->width; col++)
 	      { 
-		register guint32 pixel = properties->greyMap[*sptr++];
+		guint32 pixel = properties->greyMap[*sptr++];
 		*ptr++ = ((pixel & 0xff00) >> 8) | ((pixel & 0xff) << 8);
 	      }
 	  else
@@ -2987,7 +2987,7 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
 	  guint8 *sptr = ((guint8 *)pixmap) +row * image->width;
 	  for (col = 0 ; col < image->width; col++)
 	    {
-	      register guint32 pixel = properties->greyMap[*sptr++]; 
+	      guint32 pixel = properties->greyMap[*sptr++]; 
 	      *ptr++ = (guint8)pixel;
 	      *ptr++ = (guint8)(pixel>>8);
 	      *ptr++ = (guint8)(pixel>>16); 
@@ -3002,7 +3002,7 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
 	  if (byterev)
 	    for (col = 0 ; col < image->width; col++)
 	      { 
-		register guint32 pixel = properties->greyMap[*sptr++];
+		guint32 pixel = properties->greyMap[*sptr++];
 		*ptr++ = 
                 ((pixel & 0xff000000) >> 24) |
                 ((pixel & 0xff0000) >> 8) |
