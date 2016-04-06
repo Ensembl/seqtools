@@ -54,8 +54,6 @@
 class CoverageViewProperties;
 
 
-#define HIGHLIGHT_BOX_Y_PAD             2         /* this provides space between highlight box and the top/bottom of the grid */
-
 
 class BigPictureProperties
 {
@@ -110,7 +108,6 @@ public:
 
   int leftBorderChars;	/* The number of characters in the left border of the big picture grids */
     
-  int highlightBoxMinWidth;
   int previewBoxLineWidth;
 
 private:

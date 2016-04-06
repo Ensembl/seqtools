@@ -662,11 +662,10 @@ void exonViewPrepareForPrinting(GtkWidget *exonView)
   if (drawable)
     {
       ExonViewProperties *properties = exonViewGetProperties(exonView);
-      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
       BlxContext *bc = bigPictureGetContext(properties->bigPicture);
       
       GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-      drawHighlightBox(drawable, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+      drawHighlightBox(drawable, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
     }
 }
 
@@ -800,7 +799,7 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
       BlxContext *bc = blxWindowGetContext(bpProperties->blxWindow);
       
       GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-      drawHighlightBox(window, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+      drawHighlightBox(window, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
 
       /* Draw the preview box too, if it is set */
       drawPreviewBox(properties->bigPicture, window, &properties->exonViewRect, &properties->highlightRect);
@@ -833,12 +832,11 @@ static gboolean onButtonPressExonView(GtkWidget *exonView, GdkEventButton *event
     }
   
   ExonViewProperties *properties = exonViewGetProperties(exonView);
-  BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
 
   if (event->button == 2 ||
       (event->button == 1 && !handled && 
        (event->type == GDK_2BUTTON_PRESS || 
-        clickedInRect(event, &properties->highlightRect, bpProperties->highlightBoxMinWidth))))
+        clickedInRect(event, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH))))
     {
       /* Draw the preview box (draw it on the other big picture components as well) */
       int x = event->x;

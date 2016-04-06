@@ -175,7 +175,8 @@ class BlxContext;
 #define MKSTEMP_REPLACEMENT_CHARS             "XXXXXX"            /* the required string that will be replaced by unique chars when creating a temp file name */
 
 
-#define MIN_HIGHLIGHT_BOX_WIDTH         5         /* minimum width of the highlight box */
+#define HIGHLIGHT_BOX_Y_PAD             2         /* this provides space between highlight box and the top/bottom of the grid */
+#define HIGHLIGHT_BOX_MIN_WIDTH         5         /* minimum width of the highlight box */
 
 
 /* Blixem config/fetch error domain */

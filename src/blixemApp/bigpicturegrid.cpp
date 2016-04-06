@@ -452,11 +452,10 @@ void gridPrepareForPrinting(GtkWidget *grid)
   if (drawable)
     {
       GridProperties *properties = gridGetProperties(grid);
-      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
       BlxContext *bc = bigPictureGetContext(properties->bigPicture);
-      
+
       GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-      drawHighlightBox(drawable, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+      drawHighlightBox(drawable, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
     }
 }
 
@@ -541,11 +540,10 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
 
           /* Draw the highlight box on top of it */
           GridProperties *properties = gridGetProperties(grid);
-          BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
           BlxContext *bc = bigPictureGetContext(properties->bigPicture);
-          
+
           GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-          drawHighlightBox(window, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+          drawHighlightBox(window, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
           
           /* Draw the preview box too, if set */
           drawPreviewBox(properties->bigPicture, window, &properties->gridRect, &properties->highlightRect);
@@ -656,12 +654,11 @@ static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpoint
    * box (i.e. left button selects and drags the highlight box; middle 
    * button or double-click makes the highlight box jump) */
   GridProperties *properties = gridGetProperties(grid);
-  BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
   
   if (event->button == 2 || 
       (event->button == 1 && !handled && 
        (event->type == GDK_2BUTTON_PRESS || 
-        clickedInRect(event, &properties->highlightRect, bpProperties->highlightBoxMinWidth))))
+        clickedInRect(event, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH))))
     {
       /* If dragging the highlight box (left button), then centre the preview 
        * box on the existing highlight box centre; otherwise, centre it on the click pos */

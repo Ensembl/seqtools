@@ -405,11 +405,8 @@ void CoverageViewProperties::prepareForPrinting()
   
   if (drawable)
     {
-      GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
-      BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
-      
       GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, m_bc->defaultColors, FALSE, m_bc->usePrintColors);
-      drawHighlightBox(drawable, &m_highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+      drawHighlightBox(drawable, &m_highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
     }
 }
 
@@ -457,10 +454,9 @@ gboolean CoverageViewProperties::expose(GdkEventExpose *event, gpointer data)
           
           /* Draw the highlight box on top of it */
           GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
-          BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
           
           GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, m_bc->defaultColors, FALSE, m_bc->usePrintColors);
-          drawHighlightBox(window, &m_highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
+          drawHighlightBox(window, &m_highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
           
           /* Draw the preview box too, if set */
           drawPreviewBox(bigPicture, window, &m_viewRect, &m_highlightRect);
@@ -501,12 +497,10 @@ gboolean CoverageViewProperties::buttonPress(GdkEventButton *event, gpointer dat
 {
   gboolean handled = FALSE;
   
-  BigPictureProperties *bpProperties = bigPictureGetProperties(blxWindowGetBigPicture(m_blxWindow));
-  
   if (event->button == 2 ||
       (event->button == 1 && !handled && 
        (event->type == GDK_2BUTTON_PRESS || 
-        clickedInRect(event, &m_highlightRect, bpProperties->highlightBoxMinWidth))))
+        clickedInRect(event, &m_highlightRect, HIGHLIGHT_BOX_MIN_WIDTH))))
     {
       /* Draw the preview box (draw it on the other big picture components as well) */
       int x = event->x;

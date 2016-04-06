@@ -60,7 +60,6 @@ using namespace std;
 #define DEFAULT_PERCENT_ID_PER_CELL	20	  /* the default %ID per vertical cell to show in the grids */
 #define DEFAULT_GRID_PERCENT_ID_MAX	100	  /* default maximum %ID to show on the scale */
 #define MIN_NUM_V_CELLS			1	  /* minimum number of vertical cells to show in the grid */
-#define MIN_HIGHLIGHT_BOX_WIDTH         5         /* minimum width of the highlight box */
 #define GRID_SCALE_MIN_ID_PER_CELL      0.1       /* minimum %ID per grid cell */
 #define GRID_SCALE_MIN                  0         /* minimum possible value for grid scale */
 #define GRID_SCALE_MAX                  100       /* maximum possible value for grid scale */
@@ -1242,7 +1241,6 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
   previewBoxOffset = 0;
   previewBoxCentre = previewBoxCentre_in;
   leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 2; /* Extra fudge factor because char width is approx */
-  highlightBoxMinWidth = MIN_HIGHLIGHT_BOX_WIDTH;
   previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
   initialZoom = initialZoom_in;
       
