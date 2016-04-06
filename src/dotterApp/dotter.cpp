@@ -3487,7 +3487,6 @@ int getEndCoord(DotterWindowContext *dwc, const gboolean horizontal)
 static gboolean setStartCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue)
 {
   gboolean changed = FALSE; 
-  int *valueToUpdate = NULL;
   
   if (horizontal)
     {
@@ -3511,7 +3510,6 @@ static gboolean setStartCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc,
 static gboolean setEndCoord(GtkWidget *dotterWindow, DotterWindowContext *dwc, const gboolean horizontal, const int newValue)
 {
   gboolean changed = FALSE;
-  int *valueToUpdate = NULL;
   
   if (horizontal)
     {
