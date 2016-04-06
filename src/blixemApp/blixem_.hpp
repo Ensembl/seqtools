@@ -353,7 +353,7 @@ typedef enum
 
 
 /* This enum contains IDs for all the persistent dialogs in the application, and should be used
- * to access a stored dialog in the dialogList array in the BlxViewContext. Note that the dialogList
+ * to access a stored dialog in the dialogList array in the BlxContext. Note that the dialogList
  * array will contain null entries until the dialogs are created for the first time */
 typedef enum
   {
@@ -468,7 +468,7 @@ typedef struct _CommandLineOptions
 
 
 /* A Blixem View context, containing all status information required to draw the blixem view */
-class BlxViewContext
+class BlxContext
 {
 public:
   GtkWidget *statusBar;                   /* The Blixem window's status bar */
@@ -710,17 +710,17 @@ void                               resetColumnWidths(GList *columnList);
 
 void                               blviewRedraw(void);
 GtkWidget*                         getBlixemWindow(void);
-const IntRange*                    mspGetFullSRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc);
+const IntRange*                    mspGetFullSRange(const MSP* const msp, const gboolean seqSelected, const BlxContext* const bc);
 const IntRange*                    mspGetDisplayRange(const MSP* const msp);
-const IntRange*                    mspGetFullDisplayRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc);
-void                               mspCalculateFullExtents(MSP *msp, const BlxViewContext* const bc, const int numUnalignedBases);
-void                               cacheMspDisplayRanges(const BlxViewContext* const bc, const int numUnalignedBases);
+const IntRange*                    mspGetFullDisplayRange(const MSP* const msp, const gboolean seqSelected, const BlxContext* const bc);
+void                               mspCalculateFullExtents(MSP *msp, const BlxContext* const bc, const int numUnalignedBases);
+void                               cacheMspDisplayRanges(const BlxContext* const bc, const int numUnalignedBases);
 
 gboolean                           mspGetMatchCoord(const MSP *msp, 
                                                     const int qIdx, 
                                                     const gboolean seqSelected,
                                                     const int numUnalignedBases,
-                                                    BlxViewContext *bc,
+                                                    BlxContext *bc,
                                                     int *result_out);
 
 
@@ -737,7 +737,7 @@ GList*                             blxCreateColumns(const gboolean optionalColum
 GSList*                            blxReadStylesFile(const char *keyFileName_in, GError **error);
 
 const char*                        blxGetAppName();
-const char*                        blxGetTitlePrefix(const BlxViewContext* const bc);
+const char*                        blxGetTitlePrefix(const BlxContext* const bc);
 const char*                        blxGetCopyrightString();
 const char*                        blxGetWebSiteString();
 char*                              blxGetCommentsString();

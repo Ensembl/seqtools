@@ -67,7 +67,7 @@ typedef struct _DrawGridData
   
 
 /* Local function declarations */
-static BlxViewContext*	    gridGetContext(GtkWidget *grid);
+static BlxContext*	    gridGetContext(GtkWidget *grid);
 static IntRange*	    gridGetDisplayRange(GtkWidget *grid);
 static GdkColor*	    gridGetMspLineColor(GtkWidget *grid, const gboolean selected);
 static GtkWidget*	    gridGetBlxWindow(GtkWidget *grid);
@@ -127,7 +127,7 @@ static void calculateMspLineDimensions(GtkWidget *grid,
                                        int *width, 
                                        int *height)
 {
-  BlxViewContext *bc = gridGetContext(grid);
+  BlxContext *bc = gridGetContext(grid);
   GridProperties *gridProperties = gridGetProperties(grid);
 
   /* Get the display range in dna coords */
@@ -177,7 +177,7 @@ static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean c
   gboolean result = FALSE ; 
 
   SequenceGroup *group = NULL ;
-  BlxViewContext *bc = NULL ;
+  BlxContext *bc = NULL ;
 
   /* First check strand and type */
   result = (grid && msp && mspIsBlastMatch(msp) && mspGetRefStrand(msp) == gridGetStrand(grid)) ;
@@ -256,7 +256,7 @@ static void drawColinearityLines(GList *mspListItem, DrawGridData *drawData)
 {
   g_return_if_fail(drawData);
 
-  BlxViewContext *bc = gridGetContext(drawData->grid);
+  BlxContext *bc = gridGetContext(drawData->grid);
   
   if (drawData->drawColinearityLines && mspListItem && mspListItem->next && bc->flags[BLXFLAG_SHOW_COLINEARITY])
     {
@@ -377,7 +377,7 @@ static void drawGroupedMspLines(gpointer listItemData, gpointer data)
 /* Draw a line for each MSP in the given grid */
 static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable)
 {
-  BlxViewContext *bc = gridGetContext(grid);
+  BlxContext *bc = gridGetContext(grid);
   GdkGC *gc = gdk_gc_new(drawable);
   
   DrawGridData drawData = {
@@ -416,7 +416,7 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
 {
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
-  BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+  BlxContext *bc = bigPictureGetContext(properties->bigPicture);
 
   /* Calculate some factors for scaling */
   const gdouble percentPerCell = bigPictureGetIdPerCell(properties->bigPicture);
@@ -452,7 +452,7 @@ void gridPrepareForPrinting(GtkWidget *grid)
     {
       GridProperties *properties = gridGetProperties(grid);
       BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
-      BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+      BlxContext *bc = bigPictureGetContext(properties->bigPicture);
       
       GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
       drawHighlightBox(drawable, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
@@ -541,7 +541,7 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
           /* Draw the highlight box on top of it */
           GridProperties *properties = gridGetProperties(grid);
           BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
-          BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+          BlxContext *bc = bigPictureGetContext(properties->bigPicture);
           
           GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
           drawHighlightBox(window, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
@@ -745,7 +745,7 @@ GridProperties* gridGetProperties(GtkWidget *widget)
   return widget ? (GridProperties*)(g_object_get_data(G_OBJECT(widget), "GridProperties")) : NULL;
 }
 
-static BlxViewContext* gridGetContext(GtkWidget *grid)
+static BlxContext* gridGetContext(GtkWidget *grid)
 {
   GtkWidget *blxWindow = gridGetBlxWindow(grid);
   return blxWindowGetContext(blxWindow);
@@ -822,7 +822,7 @@ static IntRange* gridGetDisplayRange(GtkWidget *grid)
 static GdkColor *gridGetMspLineColor(GtkWidget *grid, const gboolean selected)
 {
   GtkWidget *bigPicture = gridGetBigPicture(grid);
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  BlxContext *bc = bigPictureGetContext(bigPicture);
   return getGdkColor(BLXCOLOR_MSP_LINE, bc->defaultColors, selected, bc->usePrintColors);
 }
 

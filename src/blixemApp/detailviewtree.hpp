@@ -90,7 +90,7 @@ public:
 
 
 /* Public function declarations */
-BlxViewContext*	  treeGetContext(GtkWidget *tree);
+BlxContext*	  treeGetContext(GtkWidget *tree);
 TreeProperties*	  treeGetProperties(GtkWidget *widget);
 BlxStrand	  treeGetStrand(GtkWidget *tree);
 GList*		  treeGetMsps(GtkTreeModel *model, GtkTreeIter *iter);

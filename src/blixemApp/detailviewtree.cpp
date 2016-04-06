@@ -409,7 +409,7 @@ static int sortByDnaCompareFunc(gconstpointer a, gconstpointer b)
  * placing duplicate sequences on the same row as each other to create a compact tree. */
 static void addFeaturesToCompactTree(GtkWidget *tree, GtkListStore *store, GtkWidget *blxWindow)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   const BlxStrand treeStrand = treeGetStrand(tree);
 
   /* Extract matches that should be squashed if identical into their own array. */
@@ -636,7 +636,7 @@ void treeUpdateFontSize(GtkWidget *tree, gpointer data)
 /* This function updates the tree following a change in which tree model we're viewing */
 void treeUpdateSquashMatches(GtkWidget *tree, gpointer data)
 {
-  BlxViewContext *bc = treeGetContext(tree);
+  BlxContext *bc = treeGetContext(tree);
   TreeProperties *properties = treeGetProperties(tree);
   
   /* Find the new model */
@@ -680,7 +680,7 @@ void refreshTreeHeaders(GtkWidget *tree, gpointer data)
       if (headerInfo && headerInfo->headerWidget)
 	{
 	  /* Set the background color  */
-	  BlxViewContext *bc = treeGetContext(tree);
+	  BlxContext *bc = treeGetContext(tree);
 	  GdkColor *bgColor = getGdkColor(BLXCOLOR_REF_SEQ, bc->defaultColors, FALSE, bc->usePrintColors);
 	  gtk_widget_modify_bg(headerInfo->headerWidget, GTK_STATE_NORMAL, bgColor);
 	  gtk_widget_modify_bg(headerInfo->headerWidget, GTK_STATE_NORMAL, bgColor);
@@ -876,7 +876,7 @@ void resortTree(GtkWidget *tree, gpointer data)
 
   
   /* Update the cached path held by each MSP about the row it is in. */
-  BlxViewContext *bc = treeGetContext(tree);
+  BlxContext *bc = treeGetContext(tree);
   gtk_tree_model_foreach(model, updateMspPaths, GINT_TO_POINTER(bc->modelId));
 }
 
@@ -884,7 +884,7 @@ void resortTree(GtkWidget *tree, gpointer data)
 /* Utility that returns true if the given MSP is currently shown in the tree with the given
  * strand/frame */
 static gboolean isMspVisible(const MSP* const msp, 
-			     const BlxViewContext *bc, 
+			     const BlxContext *bc, 
 			     const int frame, 
 			     const IntRange* const displayRange,
 			     const int numUnalignedBases,
@@ -949,7 +949,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
       GtkWidget *tree = GTK_WIDGET(data);
       TreeProperties *properties = treeGetProperties(tree);
       DetailViewProperties *dvProperties = detailViewGetProperties(properties->detailView);
-      BlxViewContext *bc = blxWindowGetContext(dvProperties->blxWindow);
+      BlxContext *bc = blxWindowGetContext(dvProperties->blxWindow);
 
       /* Check the first msp to see if this sequence is in a group that's hidden.
        * (Note that all MSPs in the same row should be in the same sequence - we 
@@ -960,7 +960,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
       
       if (isGroupVisible(group))
 	{
-	  BlxViewContext *bc = treeGetContext(tree);
+	  BlxContext *bc = treeGetContext(tree);
           GtkWidget *detailView = treeGetDetailView(tree);
           DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
 
@@ -998,7 +998,7 @@ TreeProperties* treeGetProperties(GtkWidget *widget)
   return widget ? (TreeProperties*)(g_object_get_data(G_OBJECT(widget), "TreeProperties")) : NULL;
 }
 
-BlxViewContext* treeGetContext(GtkWidget *tree)
+BlxContext* treeGetContext(GtkWidget *tree)
 {
   GtkWidget *blxWindow = treeGetBlxWindow(tree);
   return blxWindowGetContext(blxWindow);
@@ -1087,7 +1087,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 {
   GdkDrawable *drawable = createBlankPixmap(headerWidget);
   
-  BlxViewContext *bc = treeGetContext(tree);
+  BlxContext *bc = treeGetContext(tree);
   const BlxStrand strand = treeGetStrand(tree);
   const int frame = treeGetFrame(tree);
   
@@ -1299,7 +1299,7 @@ static void treeHighlightSelectedBase(GtkWidget *tree, GdkDrawable *drawable)
               const int x = xRange.min() + (charIdx * properties->charWidth);
               const int y = 0;
       
-              BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+              BlxContext *bc = blxWindowGetContext(properties->blxWindow);
               GdkColor *color = getGdkColor(BLXCOLOR_SELECTION, bc->defaultColors, FALSE, bc->usePrintColors);
       
               drawRect(drawable, color, x, y, roundNearest(properties->charWidth), tree->allocation.height, 0.3, CAIRO_OPERATOR_XOR);
@@ -1521,7 +1521,7 @@ static gboolean treePfetchRow(GtkWidget *tree)
 {
   /* Get the selected sequence (assumes that only one is selected) */
   GtkWidget *blxWindow = treeGetBlxWindow(tree);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   GList *selectedSeqs = blxWindowGetSelectedSeqs(blxWindow);
   
   if (selectedSeqs)
@@ -1577,7 +1577,7 @@ static gboolean onButtonPressTree(GtkWidget *tree, GdkEventButton *event, gpoint
 static void treeHeaderSelectClickedVariation(GtkWidget *header, GtkWidget *tree, const int x, const int y)
 {
   /* If variations are highlighted, select the variation that was clicked on, if any.  */
-  BlxViewContext *bc = treeGetContext(tree);
+  BlxContext *bc = treeGetContext(tree);
   GtkWidget *detailView = treeGetDetailView(tree);
 
   if (bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS])
@@ -1597,7 +1597,7 @@ static void treeHeaderSelectClickedVariation(GtkWidget *header, GtkWidget *tree,
 static void treeShowHideVariations(GtkWidget *tree)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
-  BlxViewContext *bc = treeGetContext(tree);
+  BlxContext *bc = treeGetContext(tree);
 
   const gboolean showTrack = !bc->flags[BLXFLAG_SHOW_VARIATION_TRACK];
   bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] = showTrack;
@@ -1956,7 +1956,7 @@ static gboolean onMouseMoveTreeHeader(GtkWidget *header, GdkEventMotion *event, 
     {
       /* If we're hovering over a base that's affected by a variation, then feed back info
        * about the variation to the user. Only applicable if we're showing a nucleotide sequence. */
-      BlxViewContext *bc = treeGetContext(tree);
+      BlxContext *bc = treeGetContext(tree);
       
       if (bc->seqType == BLXSEQ_DNA)
         {
@@ -2139,7 +2139,7 @@ static void cellDataFunctionNameCol(GtkTreeViewColumn *column,
 	  /* If the display is squashed and identical matches are on 
            * the same linke, we need to create a name that includes the
            * number of duplicate matches. */
-          BlxViewContext *bc = treeGetContext(tree);
+          BlxContext *bc = treeGetContext(tree);
 
 	  if (bc->modelId == BLXMODEL_SQUASHED && mspGetFlag(msp, MSPFLAG_SQUASH_IDENTICAL_FEATURES))
 	    {
@@ -2629,7 +2629,7 @@ static void refreshStartColHeader(GtkWidget *headerWidget, gpointer data)
   if (GTK_IS_LABEL(label))
     {
       GtkWidget *tree = GTK_WIDGET(data);
-      BlxViewContext *bc = treeGetContext(tree);
+      BlxContext *bc = treeGetContext(tree);
 
       /* Update the font, in case its size has changed */
       gtk_widget_modify_font(label, treeGetFontDesc(tree));
@@ -2667,7 +2667,7 @@ static void refreshEndColHeader(GtkWidget *headerWidget, gpointer data)
   if (GTK_IS_LABEL(label))
     {
       GtkWidget *tree = GTK_WIDGET(data);
-      BlxViewContext *bc = treeGetContext(tree);
+      BlxContext *bc = treeGetContext(tree);
     
       int displayVal = getEndDnaCoord(treeGetDisplayRange(tree),
 				      treeGetFrame(tree),

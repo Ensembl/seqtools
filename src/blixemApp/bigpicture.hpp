@@ -150,7 +150,7 @@ int			      bigPictureGetNumFrames(GtkWidget *bigPicture);
 gdouble			      bigPictureGetIdPerCell(GtkWidget *bigPicture);
 DoubleRange*		      bigPictureGetPercentIdRange(GtkWidget *bigPicture);
 int			      bigPictureGetNumVCells(GtkWidget *bigPicture);
-BlxViewContext*		      bigPictureGetContext(GtkWidget *bigPicture);
+BlxContext*		      bigPictureGetContext(GtkWidget *bigPicture);
 
 gboolean                      bigPictureSetIdPerCell(GtkWidget *bigPicture, const gdouble idPerCell);
 gboolean		      bigPictureSetMaxPercentId(GtkWidget *bigPicture, const gdouble newValue);
@@ -172,11 +172,11 @@ void                          acceptAndClearPreviewBox(GtkWidget *bigPicture, co
 gint			      bigPictureGetCellHeight(GtkWidget *bigPicture);
 
 void			      drawVerticalGridLines(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
-						    const int yPadding, BlxViewContext *bc, 
+						    const int yPadding, BlxContext *bc, 
 						    BigPictureProperties *bpProperties, GdkDrawable *drawable);
 
 void			      drawHorizontalGridLines(GtkWidget *widget, GtkWidget *bigPicture,
-						      GdkRectangle *drawingRect, BlxViewContext *bc,
+						      GdkRectangle *drawingRect, BlxContext *bc,
 						      BigPictureProperties *bpProperties, GdkDrawable *drawable,
 						      const gint numCells, const gdouble rangePerCell, 
 						      const gdouble maxVal, const gboolean abbrev, const char *unit);
@@ -198,7 +198,7 @@ int			      getRightCoordFromCentre(const int centreCoord,
 void			      refreshGridOrder(GtkWidget *bigPicture);
 
 GtkWidget*		      createBigPicture(GtkWidget *blxWindow,
-                                               BlxViewContext *bc,
+                                               BlxContext *bc,
 					       GtkContainer *parent,
 					       GtkWidget **fwdStrandGrid, 
 					       GtkWidget **revStrandGrid,

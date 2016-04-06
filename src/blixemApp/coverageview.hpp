@@ -47,7 +47,7 @@ class CoverageViewProperties
 public:
   CoverageViewProperties(GtkWidget *widget_in, 
                          GtkWidget *blxWindow_in, 
-                         BlxViewContext *bc);
+                         BlxContext *bc);
 
   /* Access */
   GtkWidget* widget();
@@ -81,7 +81,7 @@ private:
 
   GtkWidget *m_widget;      /* The coverage view widget */
   GtkWidget *m_blxWindow;   /* The main blixem window */
-  BlxViewContext *m_bc;
+  BlxContext *m_bc;
   const IntRange *m_displayRange; /* The current range to display */
 
   int m_viewYPadding;	     /* The y padding around the view rect */
@@ -97,7 +97,7 @@ private:
 };
 
 
-CoverageViewProperties*     createCoverageView(GtkWidget *blxWindow, BlxViewContext *bc);
+CoverageViewProperties*     createCoverageView(GtkWidget *blxWindow, BlxContext *bc);
 
 
 #endif /* _coverage_view_h_included_ */

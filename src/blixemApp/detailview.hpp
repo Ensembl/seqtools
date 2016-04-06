@@ -320,7 +320,7 @@ int                     seqColHeaderGetBase(GtkWidget *header, const int frame, 
 
 GHashTable*             getRefSeqBasesToHighlight(GtkWidget *detailView, const IntRange* const displayRange, const BlxSeqType seqType, const BlxStrand strand);
 
-void                    drawColumnSeparatorLine(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const BlxViewContext *bc);
+void                    drawColumnSeparatorLine(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const BlxContext *bc);
 gboolean                onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 
 gint                    sortByColumnCompareFunc(GList *mspGList1,
@@ -328,7 +328,7 @@ gint                    sortByColumnCompareFunc(GList *mspGList1,
                                                 GtkWidget *detailView, 
                                                 const BlxColumnId sortColumn);
 
-void                    drawHeaderChar(BlxViewContext *bc,
+void                    drawHeaderChar(BlxContext *bc,
                                        DetailViewProperties *properties,
                                        GdkDrawable *drawable,
                                        GdkGC *gc,
@@ -338,7 +338,7 @@ void                    drawHeaderChar(BlxViewContext *bc,
                                        DrawBaseData *baseData);
 
 GtkWidget*              createDetailView(GtkWidget *blxWindow,
-                                         BlxViewContext *bc,
+                                         BlxContext *bc,
                                          GtkContainer *parent,
                                          GtkWidget *toolbar,
                                          GtkAdjustment *adjustment, 

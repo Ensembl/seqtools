@@ -51,7 +51,7 @@
 
 
 /* Public function declarations */
-BlxViewContext*		  blxWindowGetContext(GtkWidget *widget);
+BlxContext*		  blxWindowGetContext(GtkWidget *widget);
 GList*                    blxWindowGetColumnList(GtkWidget *blxWindow);
 gboolean		  blxWindowGetDisplayRev(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetBigPicture(GtkWidget *blxWindow);
@@ -91,14 +91,14 @@ void                      blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSeque
 void                      blxWindowSelectionChanged(GtkWidget *blxWindow);
 BlxSequence*              blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
-BlxStrand                 blxContextGetActiveStrand(BlxViewContext *bc);
-int                       blxContextGetDepth(BlxViewContext *bc, const int coord, const char *base_char = NULL, const BlxStrand strand = BLXSTRAND_NONE);
-int                       blxContextCalculateTotalDepth(BlxViewContext *bc, const IntRange *range, const BlxStrand strand = BLXSTRAND_NONE);
+BlxStrand                 blxContextGetActiveStrand(BlxContext *bc);
+int                       blxContextGetDepth(BlxContext *bc, const int coord, const char *base_char = NULL, const BlxStrand strand = BLXSTRAND_NONE);
+int                       blxContextCalculateTotalDepth(BlxContext *bc, const IntRange *range, const BlxStrand strand = BLXSTRAND_NONE);
 
-gboolean                  blxContextIsSeqSelected(const BlxViewContext* const bc, const BlxSequence *seq);
-SequenceGroup*            blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSequence *seqToFind);
-BlxSequence*              blxContextGetSelectedTranscript(const BlxViewContext *blxContext, int *num_transcripts);
-GList*                    blxContextGetSelectedSeqsByType(const BlxViewContext *blxContext, const BlxSequenceType type);
+gboolean                  blxContextIsSeqSelected(const BlxContext* const bc, const BlxSequence *seq);
+SequenceGroup*            blxContextGetSequenceGroup(const BlxContext *bc, const BlxSequence *seqToFind);
+BlxSequence*              blxContextGetSelectedTranscript(const BlxContext *blxContext, int *num_transcripts);
+GList*                    blxContextGetSelectedSeqsByType(const BlxContext *blxContext, const BlxSequenceType type);
 
 int                       sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
 void                      copySelectionToClipboard(GtkWidget *blxWindow);

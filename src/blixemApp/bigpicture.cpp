@@ -114,7 +114,7 @@ void calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *pr
 {
   DEBUG_ENTER("calculateBigPictureCellSize");
 
-  BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+  BlxContext *bc = blxWindowGetContext(properties->blxWindow);
   GtkWidget *header = properties->header;
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
   
@@ -201,7 +201,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 					const GdkColor* const lineColor,
                                         const gboolean abbrev)
 {
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  BlxContext *bc = bigPictureGetContext(bigPicture);
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
   
@@ -259,7 +259,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 void drawVerticalGridLines(GdkRectangle *drawingRect,
 			   GdkRectangle *highlightRect,
 			   const int yPadding,
-			   BlxViewContext *bc,
+			   BlxContext *bc,
 			   BigPictureProperties *bpProperties,
 			   GdkDrawable *drawable)
 {
@@ -317,7 +317,7 @@ gint bigPictureGetCellHeight(GtkWidget *bigPicture)
 void drawHorizontalGridLines(GtkWidget *widget,
 			     GtkWidget *bigPicture,
 			     GdkRectangle *drawingRect,
-			     BlxViewContext *bc,
+			     BlxContext *bc,
 			     BigPictureProperties *bpProperties,
 			     GdkDrawable *drawable,
 			     const gint numCells, 
@@ -403,7 +403,7 @@ static void redrawBigPictureGridHeader(GtkWidget *header)
 static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, GdkGC *gc)
 {
   GridHeaderProperties *properties = gridHeaderGetProperties(header);
-  BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+  BlxContext *bc = bigPictureGetContext(properties->bigPicture);
   
   /* Set the drawing properties */
   gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
@@ -462,7 +462,7 @@ void bigPictureCalculateHighlightBoxBorders(GdkRectangle *drawingRect,
   if (adjustment)
     {
       BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
-      BlxViewContext *bc = bigPictureGetContext(bigPicture);
+      BlxContext *bc = bigPictureGetContext(bigPicture);
       
       /* Get the big picture display range in dna coords */
       IntRange bpRange;
@@ -921,7 +921,7 @@ static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpo
 void scrollBigPictureLeftStep(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  BlxContext *bc = bigPictureGetContext(bigPicture);
   
   IntRange *displayRange = &properties->displayRange;
   
@@ -951,7 +951,7 @@ void scrollBigPictureLeftStep(GtkWidget *bigPicture)
 void scrollBigPictureRightStep(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  BlxContext *bc = bigPictureGetContext(bigPicture);
   
   IntRange *displayRange = &properties->displayRange;
   
@@ -1011,7 +1011,7 @@ void drawPreviewBox(GtkWidget *bigPicture,
                     GdkRectangle *highlightRect)
 {
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  BlxContext *bc = bigPictureGetContext(bigPicture);
   
   if (!bpProperties->displayPreviewBox)
     {
@@ -1089,7 +1089,7 @@ void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentreIn, GdkRec
   const int xCentre = xCentreIn + bpProperties->previewBoxOffset;
   
   /* Get the display range in dna coords */
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  BlxContext *bc = bigPictureGetContext(bigPicture);
   IntRange dnaDispRange;
   convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
   
@@ -1304,7 +1304,7 @@ BigPictureProperties* bigPictureGetProperties(GtkWidget *bigPicture)
   return properties;
 }
 
-BlxViewContext* bigPictureGetContext(GtkWidget *bigPicture)
+BlxContext* bigPictureGetContext(GtkWidget *bigPicture)
 {
   GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
   return blxWindowGetContext(blxWindow);
@@ -1657,7 +1657,7 @@ static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
 
 
 GtkWidget* createBigPicture(GtkWidget *blxWindow, 
-                            BlxViewContext *bc,
+                            BlxContext *bc,
 			    GtkContainer *parent,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid,

@@ -54,7 +54,7 @@
 
 typedef struct _RenderData
   {
-    BlxViewContext *bc;
+    BlxContext *bc;
     GdkRectangle *cell_area;
     GdkWindow *window;
     GtkStateType state;
@@ -1317,7 +1317,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
   /* Extract all the info from the tree that we'll need repeatedly. */
   TreeProperties *treeProperties = treeGetProperties(tree);
   DetailViewProperties *detailViewProperties = detailViewGetProperties(treeProperties->detailView);
-  BlxViewContext *bc = blxWindowGetContext(detailViewProperties->blxWindow);
+  BlxContext *bc = blxWindowGetContext(detailViewProperties->blxWindow);
   
   const gboolean highlightDiffs = bc->flags[BLXFLAG_HIGHLIGHT_DIFFS]; /* swap match/mismatch colors if this is true */
   const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
@@ -1502,7 +1502,7 @@ static GtkStateType getState(GtkWidget *widget, GtkCellRendererState flags)
 
 /* Utility function that returns true if any of the MSPs in the given list
  * is selected. */
-static gboolean mspListContainsSelectedMsp(GList *mspList, const BlxViewContext* const bc)
+static gboolean mspListContainsSelectedMsp(GList *mspList, const BlxContext* const bc)
 {
   gboolean isSelected = FALSE;
   GList *mspItem = mspList;
@@ -1521,7 +1521,7 @@ static gboolean mspListContainsSelectedMsp(GList *mspList, const BlxViewContext*
  * to return that group.  Returns the first group found and ignores any 
  * subsequent MSPs in the list that also have groups. Returns null if no group
  * was found. */
-static SequenceGroup* mspListContainsGroupedMsp(GList *mspList, const BlxViewContext* const bc)
+static SequenceGroup* mspListContainsGroupedMsp(GList *mspList, const BlxContext* const bc)
 {
   SequenceGroup *group = NULL;
   GList *mspItem = mspList;
@@ -1546,7 +1546,7 @@ static void rendererSetBackgroundColor(GtkCellRenderer *cell, GtkWidget *tree, G
     {
       /* Find out whether the MSP(s) that this cell is displaying are in 
        * a grouped sequence or are selected. */
-      const BlxViewContext* const bc = blxWindowGetContext(treeGetBlxWindow(tree));
+      const BlxContext* const bc = blxWindowGetContext(treeGetBlxWindow(tree));
       GList *mspList = renderer->data;
       
       const gboolean isSelected = mspListContainsSelectedMsp(mspList, bc);
@@ -1592,7 +1592,7 @@ static void rendererSetBackgroundColor(GtkCellRenderer *cell, GtkWidget *tree, G
 static void rendererDrawGridLines(GtkWidget *tree, GdkWindow *window, GdkRectangle *cell_area)
 {
   GdkDrawable *drawable = widgetGetDrawable(tree);
-  BlxViewContext *bc = treeGetContext(tree);
+  BlxContext *bc = treeGetContext(tree);
 
   GdkGC *gc = gdk_gc_new(window);
 

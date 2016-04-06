@@ -111,13 +111,13 @@ static gboolean	      getDotterRange(GtkWidget *blxWindow, DotterMatchType match
 static gboolean	      smartDotterRange(GtkWidget *blxWindow, int *dotter_start_out, int *dotter_end_out, GError **error);
 static gboolean	      callDotterOnSelf(DotterDialogData *dialogData, GError **error);
 static gboolean	      callDotterOnAdhocSeq(DotterDialogData *dialogData, GError **error);
-static char*          getSelectedSequenceDNA(const BlxSequence *selectedSeq, const BlxViewContext *bc, GError **error);
+static char*          getSelectedSequenceDNA(const BlxSequence *selectedSeq, const BlxContext *bc, GError **error);
 static void           textGetSeqDetails(const char *text, char **sequence, char **sequenceName);
-static char*          getDotterTitle(const BlxViewContext *bc, const DotterMatchType matchType, const DotterRefType refType, const char *adhocSeq); 
-static char*          getDotterTitleAdhocSeq(const BlxViewContext *bc, const char *adhocSeq, const DotterRefType refType);
-static const char*    getDotterRefSeqName(const BlxViewContext *bc, const gboolean transcript);
-static gboolean       boundsCheckDotterCoord(int *coordIn, BlxViewContext *bc, GError **error);
-static int            getDisplayCoord(const int coordIn, BlxViewContext *bc);
+static char*          getDotterTitle(const BlxContext *bc, const DotterMatchType matchType, const DotterRefType refType, const char *adhocSeq); 
+static char*          getDotterTitleAdhocSeq(const BlxContext *bc, const char *adhocSeq, const DotterRefType refType);
+static const char*    getDotterRefSeqName(const BlxContext *bc, const gboolean transcript);
+static gboolean       boundsCheckDotterCoord(int *coordIn, BlxContext *bc, GError **error);
+static int            getDisplayCoord(const int coordIn, BlxContext *bc);
 static char*          textViewGetText(GtkWidget *textView);
 
 
@@ -199,7 +199,7 @@ static gboolean onSaveDotterMode(GtkWidget *button, const gint responseId, gpoin
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
   GtkWidget *blxWindow = dialogData->blxWindow;
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   
   bc->dotterRefType = dialogData->refType;
 
@@ -213,7 +213,7 @@ static gboolean onSaveDotterMode(GtkWidget *button, const gint responseId, gpoin
 static gboolean onSaveDotterSelectedSeq(GtkWidget *button, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
 
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
     blxContext->dotterMatchType = BLXDOTTER_MATCH_SELECTED;
@@ -228,7 +228,7 @@ static gboolean onSaveDotterSelectedSeq(GtkWidget *button, const gint responseId
 static gboolean onSaveDotterAdhoc(GtkWidget *button, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
 
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
     blxContext->dotterMatchType = BLXDOTTER_MATCH_ADHOC;
@@ -242,7 +242,7 @@ static gboolean onSaveDotterAdhoc(GtkWidget *button, const gint responseId, gpoi
 static gboolean onSaveDotterAdhocSeq(GtkWidget *textView, const gint responseId, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
-  BlxViewContext *blxContext = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(dialogData->blxWindow);
 
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->adhocButton)))
     {
@@ -270,7 +270,7 @@ static gboolean onSaveDotterAdhocSeq(GtkWidget *textView, const gint responseId,
 static gboolean onSaveDotterSelf(GtkWidget *button, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
 
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
     blxContext->dotterMatchType = BLXDOTTER_MATCH_SELF;
@@ -284,7 +284,7 @@ static gboolean onSaveDotterSelf(GtkWidget *button, const gint responseId, gpoin
 static gboolean onSaveDotterHsps(GtkWidget *button, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   blxContext->dotterHsps = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   return TRUE;
 }
@@ -295,7 +295,7 @@ static gboolean onSaveDotterHsps(GtkWidget *button, const gint responseId, gpoin
 static gboolean onSaveDotterSleep(GtkWidget *button, const gint responseId, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   blxContext->dotterSleep = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
   return TRUE;
 }
@@ -309,7 +309,7 @@ static gboolean onSaveDotterStart(GtkWidget *entry, const gint responseId, gpoin
   gboolean result = TRUE;
 
   DotterDialogData *dialogData = (DotterDialogData*)data;
-  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *bc = blxWindowGetContext(dialogData->blxWindow);
 
   /* Only save the parameter if we are using manual parameters */
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->manualButton)))
@@ -339,7 +339,7 @@ static gboolean onSaveDotterEnd(GtkWidget *entry, const gint responseId, gpointe
   gboolean result = TRUE;
   
   DotterDialogData *dialogData = (DotterDialogData*)data;
-  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
   /* Only save the parameter if we are using manual parameters */
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->manualButton)))
@@ -370,7 +370,7 @@ static gboolean onSaveDotterZoom(GtkWidget *entry, const gint responseId, gpoint
   gboolean result = TRUE;
   
   DotterDialogData *dialogData = (DotterDialogData*)data;
-  BlxViewContext *blxContext = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(dialogData->blxWindow);
   
   /* Only save the parameter if we are using manual parameters */
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->manualButton)))
@@ -413,7 +413,7 @@ static gboolean onChangeCurrentPage(GtkNotebook *notebook, GtkWidget *page, gint
 static void onLastSavedButtonClicked(GtkWidget *button, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
-  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
   char *startString = convertIntToString(getDisplayCoord(bc->dotterStart, bc));
   char *endString = convertIntToString(getDisplayCoord(bc->dotterEnd, bc));
@@ -433,7 +433,7 @@ static void onLastSavedButtonClicked(GtkWidget *button, gpointer data)
 static void onFullRangeButtonClicked(GtkWidget *button, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
-  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
   const int startCoord = (bc->displayRev ? bc->refSeqRange.max() : bc->refSeqRange.min());
   const int endCoord = (bc->displayRev ? bc->refSeqRange.min() : bc->refSeqRange.max());
@@ -457,7 +457,7 @@ static void onFullRangeButtonClicked(GtkWidget *button, gpointer data)
 static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
-  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *bc = blxWindowGetContext(dialogData->blxWindow);
   GtkWidget *bigPicture = blxWindowGetBigPicture(dialogData->blxWindow);
   const IntRange* const displayRange = bigPictureGetDisplayRange(bigPicture);
 
@@ -486,7 +486,7 @@ static void onBpRangeButtonClicked(GtkWidget *button, gpointer data)
 static gboolean onAdhocSeqEntered(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
-  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *bc = blxWindowGetContext(dialogData->blxWindow);
 
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialogData->adhocButton), TRUE);
 
@@ -514,7 +514,7 @@ static gboolean onAdhocSeqEntered(GtkWidget *widget, GdkEvent *event, gpointer d
 static void onRefTypeToggled(GtkWidget *button, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
-  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
   char *title = getDotterTitle(bc, dialogData->matchType, dialogData->refType, bc->dotterAdhocSeq);
   gtk_window_set_title(GTK_WINDOW(dialogData->dialog), title);
@@ -572,7 +572,7 @@ static void onRefTypeToggled(GtkWidget *button, gpointer data)
 static void onMatchTypeToggled(GtkWidget *button, gpointer data)
 {
   DotterDialogData *dialogData = (DotterDialogData*)data;
-  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *bc = blxWindowGetContext(dialogData->blxWindow);
   
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->selfButton)))
     {
@@ -707,7 +707,7 @@ static void dotterDialogSetDefaultSize(GtkWidget *dialog, GtkWidget *blxWindow)
 
 static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
 {
-  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *bc = blxWindowGetContext(dialogData->blxWindow);
 
   /* Put everything in a table */
   int numRows = 5;
@@ -812,7 +812,7 @@ static void createCoordsTab(DotterDialogData *dialogData, const int spacing)
 static void createSequenceTab(DotterDialogData *dialogData, const int spacing)
 {
   GtkWidget *blxWindow = dialogData->blxWindow;
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
   /* Put everything in a table */
   int numRows = 5;
@@ -909,7 +909,7 @@ static void createSequenceTab(DotterDialogData *dialogData, const int spacing)
 
 static void createOptionsTab(DotterDialogData *dialogData, const int spacing)
 {
-  BlxViewContext *bc = blxWindowGetContext(dialogData->blxWindow);
+  BlxContext *bc = blxWindowGetContext(dialogData->blxWindow);
 
   GtkBox *vbox = GTK_BOX(gtk_vbox_new(FALSE, 0));
 
@@ -941,7 +941,7 @@ static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow,
                                           const gboolean resetValues,
                                           DotterDialogData **dialogData_inout)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_DOTTER;
   GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   DotterDialogData *dialogData = *dialogData_inout;
@@ -1056,7 +1056,7 @@ void showDotterDialog(GtkWidget *blxWindow, const gboolean resetValues)
 /* Utility to get the title for the dotter dialog. Uses the selected sequence name if a single
  * sequence is selected, or shows <no sequences> or <multiple sequences>. The result should be
  * free'd with g_free. */
-static char* getDotterTitleSelectedSeq(const BlxViewContext *bc, const DotterRefType refType)
+static char* getDotterTitleSelectedSeq(const BlxContext *bc, const DotterRefType refType)
 {
   char *result = NULL;
   GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
@@ -1091,7 +1091,7 @@ static char* getDotterTitleSelectedSeq(const BlxViewContext *bc, const DotterRef
 
 
 /* Get the dotter title for the adhoc sequence text */
-static char *getDotterTitleAdhocSeq(const BlxViewContext *bc, const char *adhocSeq, const DotterRefType refType)
+static char *getDotterTitleAdhocSeq(const BlxContext *bc, const char *adhocSeq, const DotterRefType refType)
 {
   char *result = NULL;
   GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
@@ -1127,7 +1127,7 @@ static char *getDotterTitleAdhocSeq(const BlxViewContext *bc, const char *adhocS
 
 
 /* Get the dotter title for the ref sequence vs itself */
-static char *getDotterTitleSelf(const BlxViewContext *bc, const DotterRefType refType)
+static char *getDotterTitleSelf(const BlxContext *bc, const DotterRefType refType)
 {
   char *result = NULL;
   GString *resultStr = g_string_new(blxGetTitlePrefix(bc));
@@ -1143,7 +1143,7 @@ static char *getDotterTitleSelf(const BlxViewContext *bc, const DotterRefType re
 
 
 /* Get the title for the dotter dialog. */
-static char *getDotterTitle(const BlxViewContext *bc, 
+static char *getDotterTitle(const BlxContext *bc, 
                             const DotterMatchType matchType, 
                             const DotterRefType refType,
                             const char *adhocSeq)
@@ -1177,7 +1177,7 @@ static char *getDotterTitle(const BlxViewContext *bc,
 /* Get the display coord version of the given coord (i.e. negated if the
  * 'negate coords' option is enabled and the display is reversed). Only 
  * applicable to reference sequence coords. */
-static int getDisplayCoord(const int coordIn, BlxViewContext *bc)
+static int getDisplayCoord(const int coordIn, BlxContext *bc)
 {
   int result = coordIn;
   
@@ -1196,7 +1196,7 @@ static int getDisplayCoord(const int coordIn, BlxViewContext *bc)
  * will be updated to reflect the real coord. 
  * Returns false and sets the error if not in range. Also sets the error but 
  * returns true if we succeeded but with a warning. */
-static gboolean boundsCheckDotterCoord(int *coordIn, BlxViewContext *bc, GError **error)
+static gboolean boundsCheckDotterCoord(int *coordIn, BlxContext *bc, GError **error)
 {
   gboolean ok = TRUE;
   
@@ -1276,7 +1276,7 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
   GError *tmpError = NULL;
   gboolean success = TRUE;
   
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   
 
   if (refType == BLXDOTTER_REF_TRANSCRIPT)
@@ -1375,7 +1375,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 {
   /* We'll just use a large-ish range centred on the current display range */
   GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   const IntRange* const displayRange = bigPictureGetDisplayRange(bigPicture);
   
   /* Convert to DNA coords */
@@ -1416,7 +1416,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
 {
   g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
 
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
   /* Check that a sequence is selected */
   GList *selectedSeqs = blxContextGetSelectedSeqsByType(bc, BLXSEQUENCE_MATCH);
@@ -1553,7 +1553,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
  * the same match sequence. Returns null if no MSPs are selected, with details of the error
  * in 'error'.  If the sequence was found but there were warnings, it returns non-null with
  * the warnings in 'error'. The return value should be free'd with g_free */
-static char* getSelectedSequenceDNA(const BlxSequence *blxSeq, const BlxViewContext *bc, GError **error)
+static char* getSelectedSequenceDNA(const BlxSequence *blxSeq, const BlxContext *bc, GError **error)
 {
   g_return_val_if_fail(!error || *error == NULL, FALSE); /* if error is passed, its contents must be NULL */
   
@@ -1600,7 +1600,7 @@ static char* getSelectedSequenceDNA(const BlxSequence *blxSeq, const BlxViewCont
 }
 
 
-static const char* getDotterRefSeqName(const BlxViewContext *bc, const gboolean transcript)
+static const char* getDotterRefSeqName(const BlxContext *bc, const gboolean transcript)
 {
   const char *result = "<no transcript selected>";
   g_return_val_if_fail(bc, result);
@@ -1636,7 +1636,7 @@ static char* getDotterRefSeq(GtkWidget *blxWindow,
   char *result = NULL;
   g_return_val_if_fail(blxWindow && dotterRange, result);
 
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   GError *tmpError = NULL;
 
   if (transcript)
@@ -1809,7 +1809,7 @@ static GIOChannel* callDotterChildProcess(GtkWidget *blxWindow,
                                           const IntRange* const seq2Range,
                                           const BlxStrand seq2Strand,
                                           const gboolean seq2DisplayRev,
-                                          BlxViewContext *bc,
+                                          BlxContext *bc,
                                           GPid *childPid,
                                           GError **error)
 {
@@ -1922,7 +1922,7 @@ static GIOChannel* callDotterChildProcess(GtkWidget *blxWindow,
 
 /* Call dotter as an external process */
 gboolean callDotterExternal(GtkWidget *blxWindow,
-                            BlxViewContext *bc,
+                            BlxContext *bc,
                             int dotterZoom, 
                             const gboolean hspsOnly,
                             const gboolean sleep,
@@ -2040,7 +2040,7 @@ gboolean callDotterOnSelectedSeq(GtkWidget *blxWindow,
                                  const BlxSequence *selectedSeq,
                                  GError **error)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
   /* Check this sequence is a valid blast match (just check the first MSP;
    * they must all the same type if they have the same seq name) */
@@ -2234,7 +2234,7 @@ gboolean callDotterOnAdhocSeq(DotterDialogData *dialogData, GError **error)
   g_return_val_if_fail(!error || *error == NULL, result); /* if error is passed it must be NULL */
   
   GtkWidget *blxWindow = dialogData->blxWindow;
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   const gboolean transcript = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialogData->transcriptButton));
   
   /* We will display the active strand as the main strand in dotter */
@@ -2341,7 +2341,7 @@ gboolean callDotterOnAdhocSeq(DotterDialogData *dialogData, GError **error)
 static gboolean callDotterOnSelf(DotterDialogData *dialogData, GError **error)
 {
   GtkWidget *blxWindow = dialogData->blxWindow;
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   
   /* Get the auto range, if requested */
   int dotterStart = UNSET_INT;

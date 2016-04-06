@@ -598,7 +598,7 @@ static void blviewCreate(char *align_types,
       if (!align_types)
         align_types = g_strdup_printf("%s", options->seqType == BLXSEQ_PEPTIDE ? "peptide alignment" : "nucleotide alignment");
       
-      BlxViewContext *bc = blxWindowGetContext(blixemWindow);
+      BlxContext *bc = blxWindowGetContext(blixemWindow);
       
       char *title = g_strdup_printf("%s(%s) %s %s",
                                     blxGetTitlePrefix(bc),
@@ -779,7 +779,7 @@ gboolean mspHasFs(const MSP *msp)
 
 
 /* Return the (cached) full extent of the match that we're showing in match seq coords */
-const IntRange* mspGetFullSRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc)
+const IntRange* mspGetFullSRange(const MSP* const msp, const gboolean seqSelected, const BlxContext* const bc)
 {
   const IntRange *result = NULL;
   
@@ -797,7 +797,7 @@ const IntRange* mspGetFullSRange(const MSP* const msp, const gboolean seqSelecte
 /* Return the (cached) full extent of the match on the ref sequence in display coords
  * (including any portions of unaligned sequence that we're showing). Depending on the
  * options, the range may depend on whether the sequence is selected or not. */
-const IntRange* mspGetFullDisplayRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc)
+const IntRange* mspGetFullDisplayRange(const MSP* const msp, const gboolean seqSelected, const BlxContext* const bc)
 {
   const IntRange *result = NULL;
   
@@ -917,7 +917,7 @@ static void mspCalcFullQRange(const MSP* const msp,
 /* Calculate the full extent of the match sequence to display, in display coords,
  * and cache the result in the msp. Includes any portions of unaligned sequence that we're
  * displaying */
-void mspCalculateFullExtents(MSP *msp, const BlxViewContext* const bc, const int numUnalignedBases)
+void mspCalculateFullExtents(MSP *msp, const BlxContext* const bc, const int numUnalignedBases)
 {
   mspCalcFullSRange(msp, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], &msp->fullSRange);
   mspCalcFullQRange(msp, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], bc->numFrames, &msp->fullSRange, &msp->fullRange);
@@ -937,7 +937,7 @@ void mspCalculateFullExtents(MSP *msp, const BlxViewContext* const bc, const int
 
 
 /* Convert the ref-seq range of the given msp in display coords and cache it in the msp */
-static void mspCalculateDisplayRange(MSP *msp, const BlxViewContext* const bc)
+static void mspCalculateDisplayRange(MSP *msp, const BlxContext* const bc)
 {
   const int frame = mspGetRefFrame(msp, bc->seqType);
   const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
@@ -948,7 +948,7 @@ static void mspCalculateDisplayRange(MSP *msp, const BlxViewContext* const bc)
 
 /* This caches the display range (in display coords rather than dna coords,
  * and inverted if the display is inverted) for each MSP */
-void cacheMspDisplayRanges(const BlxViewContext* const bc, const int numUnalignedBases)
+void cacheMspDisplayRanges(const BlxContext* const bc, const int numUnalignedBases)
 {
   /* This also calculates the max msp len */
   setMaxMspLen(0);
@@ -965,7 +965,7 @@ void cacheMspDisplayRanges(const BlxViewContext* const bc, const int numUnaligne
 /* Return the match-sequence coord of an MSP at the given reference-sequence coord,
  * where the MSP is a gapped MSP and the ref-seq coord is known to lie within the
  * MSP's alignment range. */
-static gboolean mspGetGappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxViewContext *bc, int *result_out)
+static gboolean mspGetGappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxContext *bc, int *result_out)
 {
   gboolean success = FALSE;
   int result = UNSET_INT;
@@ -1013,7 +1013,7 @@ static gboolean mspGetGappedAlignmentCoord(const MSP *msp, const int qIdx, const
 /* Return the match-sequence coord of an MSP at the given reference-sequence coord,
  * where the MSP is an ungapped MSP and the ref-seq coord is known to lie within the
  * MSP's alignment range. */
-static gboolean mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxViewContext *bc, int *result_out)
+static gboolean mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxContext *bc, int *result_out)
 {
   gboolean success = FALSE;
   int result = UNSET_INT;
@@ -1052,7 +1052,7 @@ static gboolean mspGetUnalignedCoord(const MSP *msp,
                                      const int qIdx, 
                                      const gboolean seqSelected, 
                                      const int numUnalignedBases, 
-                                     const BlxViewContext *bc,
+                                     const BlxContext *bc,
                                      int *result_out)
 {
   gboolean success = FALSE;
@@ -1110,7 +1110,7 @@ gboolean mspGetMatchCoord(const MSP *msp,
                           const int qIdx, 
                           const gboolean seqSelected,
                           const int numUnalignedBases,
-                          BlxViewContext *bc,
+                          BlxContext *bc,
                           int *result_out)
 {
   gboolean success = FALSE;
@@ -1684,7 +1684,7 @@ const char *blxGetAppName()
 
 /* Returns a string which is used to prefix window titles (full or abbrev
  * depending on settings). */
-const char *blxGetTitlePrefix(const BlxViewContext * const bc)
+const char *blxGetTitlePrefix(const BlxContext * const bc)
 {
   return bc->flags[BLXFLAG_ABBREV_TITLE] ? BLIXEM_PREFIX_ABBREV : BLIXEM_PREFIX ;
 }

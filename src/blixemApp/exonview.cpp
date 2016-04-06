@@ -80,7 +80,7 @@ typedef struct _DrawData
     GdkGC *gc;
     GdkRectangle *exonViewRect;
     GtkWidget *blxWindow;
-    BlxViewContext *bc;
+    BlxContext *bc;
     const BlxStrand strand;
     const IntRange* const displayRange;
     const IntRange* const refSeqRange;
@@ -125,7 +125,7 @@ void callFuncOnAllBigPictureExonViews(GtkWidget *widget, gpointer data)
 
 
 static gboolean calculateExonIntronDimensions(const MSP* const msp, 
-                                              BlxViewContext *bc,
+                                              BlxContext *bc,
                                               const IntRange* const displayRange,
                                               GdkRectangle *exonViewRect,
                                               int *x, 
@@ -176,7 +176,7 @@ static gboolean isGroupVisible(const SequenceGroup* const group)
 
 
 /* Returns true if the given MSP should be shown in this exon view */
-static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand, BlxViewContext *bc)
+static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand, BlxContext *bc)
 {
   /* Check it's an exon or intron */
   gboolean showMsp = mspIsBoxFeature(msp) || mspIsIntron(msp);
@@ -206,7 +206,7 @@ static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand, BlxVie
  * Returns true if it was selected. */
 static gboolean selectExonIfContainsCoords(GtkWidget *exonView, 
                                            ExonViewProperties *properties,
-                                           BlxViewContext *bc,
+                                           BlxContext *bc,
                                            const IntRange* const displayRange,
                                            const MSP *msp,
                                            const int x,
@@ -265,7 +265,7 @@ static gboolean selectClickedExon(GtkWidget *exonView,
 
   /* Loop through all the MSPs until we find one under the click coords */
   GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   GList *seqItem = blxWindowGetAllMatchSeqs(blxWindow);
 
   gboolean found = FALSE;
@@ -302,7 +302,7 @@ void calculateExonViewHeight(GtkWidget *exonView)
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
   const IntRange* const displayRange = &bpProperties->displayRange;
   
-  BlxViewContext *bc = blxWindowGetContext(bpProperties->blxWindow);
+  BlxContext *bc = blxWindowGetContext(bpProperties->blxWindow);
 
   /* Calculate the height based on how many exon lines will actually be drawn */
   int numExons = 0;
@@ -356,7 +356,7 @@ void calculateExonViewHeight(GtkWidget *exonView)
 void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
-  BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+  BlxContext *bc = bigPictureGetContext(properties->bigPicture);
   
   /* Get the big picture display range in dna coords */
   IntRange bpRange;
@@ -581,7 +581,7 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
 static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
 {
   GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   const IntRange* const displayRange = bigPictureGetDisplayRange(properties->bigPicture);
@@ -662,7 +662,7 @@ void exonViewPrepareForPrinting(GtkWidget *exonView)
     {
       ExonViewProperties *properties = exonViewGetProperties(exonView);
       BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
-      BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+      BlxContext *bc = bigPictureGetContext(properties->bigPicture);
       
       GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
       drawHighlightBox(drawable, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);
@@ -796,7 +796,7 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
       /* Draw the highlight box on top of it */
       ExonViewProperties *properties = exonViewGetProperties(exonView);
       BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
-      BlxViewContext *bc = blxWindowGetContext(bpProperties->blxWindow);
+      BlxContext *bc = blxWindowGetContext(bpProperties->blxWindow);
       
       GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
       drawHighlightBox(window, &properties->highlightRect, bpProperties->highlightBoxMinWidth, highlightBoxColor);

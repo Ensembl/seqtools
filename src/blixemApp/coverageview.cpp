@@ -57,7 +57,7 @@
 
 CoverageViewProperties::CoverageViewProperties(GtkWidget *widget_in, 
                                                GtkWidget *blxWindow_in,
-                                               BlxViewContext *bc_in)
+                                               BlxContext *bc_in)
 {
   m_widget = widget_in;
   m_blxWindow = blxWindow_in;
@@ -106,7 +106,7 @@ static void onDestroyCoverageView(GtkWidget *widget)
 
 static CoverageViewProperties* coverageViewCreateProperties(GtkWidget *widget, 
                                                             GtkWidget *blxWindow,
-                                                            BlxViewContext *bc)
+                                                            BlxContext *bc)
 {
   CoverageViewProperties *properties = NULL;
 
@@ -609,7 +609,7 @@ static gboolean onMouseMoveCoverageView(GtkWidget *coverageView, GdkEventMotion 
  ***********************************************************/
 
 CoverageViewProperties* createCoverageView(GtkWidget *blxWindow, 
-                                           BlxViewContext *bc)
+                                           BlxContext *bc)
 {
   GtkWidget *coverageView = gtk_layout_new(NULL, NULL);
 
