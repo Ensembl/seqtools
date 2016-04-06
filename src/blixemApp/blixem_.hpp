@@ -418,8 +418,9 @@ typedef enum
 
 
 /* Struct to hold all the settings that come from the command line options */
-typedef struct _CommandLineOptions
+class CommandLineOptions
 {
+public:
   char *refSeq;                   /* the section of reference sequence we're viewing */
   char *refSeqName;               /* the name of the reference sequence */
   IntRange refSeqRange;           /* the range of the reference sequence (before any offset is applied) */
@@ -467,7 +468,7 @@ typedef struct _CommandLineOptions
   bool fetch_debug;               /* whether to include verbose debug output for fetch */
   long ipresolve;                 /* whether to make curl use ipv4 or ipv6 */
   const char *cainfo;             /* location of curl cainfo file */
-} CommandLineOptions;
+};
 
 
 /* blixem can use either efetch (default) or a pfetch server to get

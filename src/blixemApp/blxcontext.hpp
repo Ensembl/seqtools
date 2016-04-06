@@ -31,7 +31,8 @@
  *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
- * Description: Internal header for Blixem package-wide code
+ * Description: A Blixem context class, containing all status information 
+ *              required for a blixem instance.
  *----------------------------------------------------------------------------
  */
 
@@ -39,10 +40,10 @@
 #define DEF_BLXCONTEXT_H
 
 #include <gtk/gtk.h>
+#include <blixemApp/blixem_.hpp>
 
 
 
-/* A Blixem context, containing all status information required for a blixem instance */
 class BlxContext
 {
 public:
@@ -57,6 +58,9 @@ public:
              GtkWidget *statusBar_in,
              const gboolean External_in,
              GSList *styles_in);
+
+  void saveSettingsFlags(GKeyFile *key_file);
+
 
   GtkWidget *statusBar;                   /* The Blixem window's status bar */
     
