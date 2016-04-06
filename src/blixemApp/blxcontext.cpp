@@ -370,6 +370,11 @@ double BlxContext::charWidth() const
   return m_charWidth;
 }
 
+double BlxContext::charHeight() const
+{
+  return m_charHeight;
+}
+
 
 BlxStrand BlxContext::activeStrand() const
 {

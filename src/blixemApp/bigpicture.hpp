@@ -57,8 +57,10 @@ class CoverageViewProperties;
 class BigPictureProperties
 {
 public:
+  // Constructors
   BigPictureProperties(GtkWidget *bigPicture_in, 
                        GtkWidget *blxWindow_in, 
+                       BlxContext *bc,
                        CoverageViewProperties *coverageViewP_in, 
                        GtkWidget *header_in, 
                        GtkWidget *fwdStrandGrid_in,
@@ -71,8 +73,12 @@ public:
                        const int initialZoom_in,
                        const gdouble lowestId_in);
 
+  // Access
+  double charWidth();
+  double charHeight();
   GtkWidget* coverageView();
   CoverageViewProperties *coverageViewProperties();
+
 
   GtkWidget *widget;            /* The big picture widget*/
   GtkWidget *blxWindow;         /* The main blixem window that this grid belongs to */
@@ -100,15 +106,14 @@ public:
   int previewBoxOffset;       /* Can be used to offset the actual preview box position from previewBoxCentre */
 
   int leftBorderChars;	/* The number of characters in the left border of the big picture grids */
-  gdouble charWidth;		/* The width of the characters in the big picture grids */
-  gdouble charHeight;		/* The height of the characters in the big picture grids */
     
   int highlightBoxMinWidth;
   int previewBoxLineWidth;
   int highlightBoxYPad;       /* Vertical padding between the highlight box and the grid */
 
 private:
-  CoverageViewProperties *coverageViewP;
+  BlxContext *m_bc;
+  CoverageViewProperties *m_coverageViewP;
 };
 
 class GridHeaderProperties

@@ -310,7 +310,7 @@ gint bigPictureGetCellHeight(GtkWidget *bigPicture)
 {
   /* Base the cell height on the font height */
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return roundNearest(properties->charHeight + (gdouble)(2 * DEFAULT_LABEL_Y_PADDING));
+  return roundNearest(properties->charHeight() + (gdouble)(2 * DEFAULT_LABEL_Y_PADDING));
 }
 
 
@@ -436,12 +436,12 @@ void calculateGridHeaderBorders(GtkWidget *header)
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
   /* Calculate the size of the grid header (zero height if it does not have one) */
-  properties->headerRect.x = roundNearest(bigPictureProperties->charWidth * (gdouble)bigPictureProperties->leftBorderChars);
+  properties->headerRect.x = roundNearest(bigPictureProperties->charWidth() * (gdouble)bigPictureProperties->leftBorderChars);
   properties->headerRect.y = 0;
   properties->headerRect.width = header->allocation.width - properties->headerRect.x;
   properties->headerRect.height = properties->refButton->allocation.height + (properties->headerYPad * 2);
   
-  properties->markerHeight = properties->headerRect.height - roundNearest(bigPictureProperties->charHeight * (gdouble)properties->numHeaderLines);
+  properties->markerHeight = properties->headerRect.height - roundNearest(bigPictureProperties->charHeight() * (gdouble)properties->numHeaderLines);
   if (properties->markerHeight < 0)
     properties->markerHeight = 0;
   
@@ -481,7 +481,7 @@ void bigPictureCalculateHighlightBoxBorders(GdkRectangle *drawingRect,
       highlightRect->y = 0;
       
       highlightRect->width = abs(x1 - x2);
-      highlightRect->height = drawingRect->height + roundNearest(bpProperties->charHeight / 2.0) + yPadding + (2 * bpProperties->highlightBoxYPad);
+      highlightRect->height = drawingRect->height + roundNearest(bpProperties->charHeight() / 2.0) + yPadding + (2 * bpProperties->highlightBoxYPad);
     }
 }
 
@@ -1203,6 +1203,7 @@ static void onSizeAllocateBigPicture(GtkWidget *bigPicture, GtkAllocation *alloc
 
 BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in, 
                                            GtkWidget *blxWindow_in, 
+                                           BlxContext *bc_in,
                                            CoverageViewProperties *coverageViewP_in, 
                                            GtkWidget *header_in, 
                                            GtkWidget *fwdStrandGrid_in,
@@ -1217,12 +1218,13 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
 {
   widget = bigPicture_in;
   blxWindow = blxWindow_in;
+  m_bc = bc_in;
   header = header_in;
   fwdStrandGrid = fwdStrandGrid_in;
   revStrandGrid = revStrandGrid_in;
   fwdExonView = fwdExonView_in;
   revExonView = revExonView_in;
-  coverageViewP = coverageViewP_in;      
+  m_coverageViewP = coverageViewP_in;      
 
   numHCells = UNSET_INT;
   basesPerCell = UNSET_INT;
@@ -1248,11 +1250,8 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
     displayRange.set(fullRange_in);
 
   /* Set a reference to our display range in the coverage view */
-  if (coverageViewP)
-    coverageViewP->setDisplayRange(&displayRange);
-
-  /* Calculate the font size */
-  getFontCharSize(bigPicture_in, bigPicture_in->style->font_desc, &charWidth, &charHeight);
+  if (m_coverageViewP)
+    m_coverageViewP->setDisplayRange(&displayRange);
       
   /* Create the list of "nice round values" to round the grid header values to.
    * Create the list in reverse order (i.e. highest values first). */
@@ -1272,9 +1271,30 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
 }
 
 
+double BigPictureProperties::charWidth()
+{
+  double result = 0.0;
+
+  if (m_bc)
+    result = m_bc->charWidth();
+
+  return result;
+}
+
+double BigPictureProperties::charHeight()
+{
+  double result = 0.0;
+
+  if (m_bc)
+    result = m_bc->charHeight();
+
+  return result;
+}
+
+
 CoverageViewProperties* BigPictureProperties::coverageViewProperties()
 {
-  return coverageViewP;
+  return m_coverageViewP;
 }
 
 
@@ -1282,8 +1302,8 @@ GtkWidget* BigPictureProperties::coverageView()
 {
   GtkWidget *result = NULL;
 
-  if (coverageViewP)
-    result = coverageViewP->widget();
+  if (m_coverageViewP)
+    result = m_coverageViewP->widget();
 
   return result;
 }
@@ -1344,6 +1364,7 @@ static void onDestroyBigPicture(GtkWidget *bigPicture)
 
 static void bigPictureCreateProperties(GtkWidget *bigPicture, 
 				       GtkWidget *blxWindow, 
+                                       BlxContext *bc,
                                        CoverageViewProperties *coverageViewP, 
 				       GtkWidget *header, 
 				       GtkWidget *fwdStrandGrid,
@@ -1360,6 +1381,7 @@ static void bigPictureCreateProperties(GtkWidget *bigPicture,
     { 
       BigPictureProperties *properties = new BigPictureProperties(bigPicture, 
                                                                   blxWindow, 
+                                                                  bc,
                                                                   coverageViewP, 
                                                                   header, 
                                                                   fwdStrandGrid,
@@ -1705,6 +1727,7 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
   /* Set the big picture properties */
   bigPictureCreateProperties(bigPicture, 
 			     blxWindow,
+                             bc,
                              coverageViewP,
 			     header, 
 			     *fwdStrandGrid,

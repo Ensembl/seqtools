@@ -64,6 +64,7 @@ public:
 
   // Access
   double charWidth() const;
+  double charHeight() const;
   BlxStrand activeStrand() const;
 
   // Query
