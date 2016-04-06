@@ -187,7 +187,7 @@ static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean c
   if (result)
     {
       bc = gridGetContext(grid) ;
-      group = blxContextGetSequenceGroup(bc, msp->sSequence) ;
+      group = bc->getSequenceGroup(msp->sSequence) ;
       result = isGroupVisible(group) ;
     }
 

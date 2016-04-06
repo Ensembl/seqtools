@@ -360,6 +360,16 @@ void BlxContext::deleteAllSequenceGroups()
 }
 
 
+BlxStrand BlxContext::activeStrand() const
+{
+  BlxStrand result = BLXSTRAND_NONE;
+
+  result = displayRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
+  
+  return result;
+}
+
+
 /* Create the colors that blixem will use for various specific purposes */
 void BlxContext::createColors(GtkWidget *widget)
 {
@@ -785,4 +795,110 @@ int BlxContext::getDepth(const int coord,
 
   return result;
 }
+
+
+bool BlxContext::isSeqSelected(const BlxSequence *seq) const
+{
+  GList *foundItem = NULL;
+  
+  if (seq)
+    {
+      foundItem = g_list_find(selectedSeqs, seq);
+    }
+  
+  return (foundItem != NULL);
+}
+
+
+/* Returns the group that the given sequence belongs to, if any (assumes the sequence
+ * is only in one group; otherwise it just returns the first group it finds). */
+SequenceGroup *BlxContext::getSequenceGroup(const BlxSequence *seqToFind) const
+{
+  SequenceGroup *result = NULL;
+  
+  if (!seqToFind)
+    return result;
+  
+  /* Loop through all the groups until we find this sequence in one */
+  GList *groupItem = sequenceGroups;
+  for ( ; groupItem; groupItem = groupItem->next)
+    {
+      /* See if our sequence struct is in this group's list */
+      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+      GList *foundItem = g_list_find(group->seqList, seqToFind);
+      
+      if (foundItem)
+        {
+          result = group;
+          break;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Return a list of all selected features of the given type. Result should be free'd by caller
+ * using g_list_free */
+GList *BlxContext::getSelectedSeqsByType(const BlxSequenceType type) const
+{
+  GList *result = NULL;
+
+  GList *list_item = selectedSeqs;
+  
+  for ( ; list_item; list_item = list_item->next)
+    {
+      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
+      
+      if (curSeq->type == type)
+        {
+          result = g_list_append(result, curSeq);
+        }
+    }
+
+  return result;
+}
+
+
+/* If there is one (and only one) selected transcript then return it; otherwise return null. If
+ * num_transcripts is given then return the number of selected transcripts. */
+BlxSequence* BlxContext::getSelectedTranscript(int *num_transcripts) const
+{
+  BlxSequence *result = NULL;
+
+  GList *list_item = selectedSeqs;
+  int num_found = 0;
+  
+  for ( ; list_item; list_item = list_item->next)
+    {
+      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
+      
+      if (curSeq->type == BLXSEQUENCE_TRANSCRIPT)
+        {
+          ++num_found;
+          
+          if (result)
+            {
+              /* Found more than one - don't know which to choose so return null */
+              result = NULL;
+
+              /* If we don't need to return the count, then exit now */
+              if (!num_transcripts)
+                break;
+            }
+          else
+            {
+              /* First one found: set the result. Continue to make sure there aren't any more */
+              result = curSeq;
+            }
+        }
+    }
+
+  if (num_transcripts)
+    *num_transcripts = num_found;
+
+  return result;
+}
+
+
 

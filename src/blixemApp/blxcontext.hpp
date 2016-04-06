@@ -64,13 +64,19 @@ public:
   void destroySequenceGroup(SequenceGroup **seqGroup);
   void deleteAllSequenceGroups();
 
+  BlxStrand activeStrand() const;
+
+  bool isSeqSelected(const BlxSequence *seq) const;
+  SequenceGroup *getSequenceGroup(const BlxSequence *seqToFind) const;
+  GList *getSelectedSeqsByType(const BlxSequenceType type) const;
+  BlxSequence* getSelectedTranscript(int *num_transcripts) const;
+
   void saveSettingsFlags(GKeyFile *key_file);
   void killAllSpawned();
   void calculateDepth(const int numUnalignedBases);
   int calculateTotalDepth(const IntRange *range, const BlxStrand strand);
   int getDepth(const int coord, const char *base_char = NULL, const BlxStrand strand = BLXSTRAND_NONE);
   int getDepthForCounter(const int coord, const DepthCounter counter);
-  
 
   GtkWidget *statusBar;                   /* The Blixem window's status bar */
     

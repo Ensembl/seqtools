@@ -957,7 +957,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
        * don't check this here because this function is called many times so we
        * avoid any unnecessary checks.) */
       const MSP *firstMsp = (const MSP*)(mspList->data);
-      SequenceGroup *group = blxContextGetSequenceGroup(bc, firstMsp->sSequence);
+      SequenceGroup *group = bc->getSequenceGroup(firstMsp->sSequence);
       
       if (isGroupVisible(group))
 	{
@@ -967,7 +967,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 
 	  const int frame = properties->readingFrame;
 	  const IntRange* const displayRange = &dvProperties->displayRange;
-          const gboolean seqSelected = blxContextIsSeqSelected(bc, firstMsp->sSequence);
+          const gboolean seqSelected = bc->isSeqSelected(firstMsp->sSequence);
 
 	  /* Show the row if any MSP in the list is an exon or blast match in the correct frame/strand
 	   * and within the display range */

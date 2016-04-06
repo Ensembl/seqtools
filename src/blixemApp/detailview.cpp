@@ -1331,7 +1331,7 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
                                 const BlxSequence *seq)
 {
   BlxContext *bc = detailViewGetContext(detailView);
-  const BlxStrand strand = blxContextGetActiveStrand(bc);
+  const BlxStrand strand = bc->activeStrand();
   
   if (detailViewGetSelectedIdxRangeSet(detailView))
     {
@@ -3033,7 +3033,7 @@ static gboolean coordAffectedByVariation(const int dnaIdx,
             
           /* Highlight the background if the variation is selected (unless it's a zero-length variation) */
           if (drawBackground)
-            *drawBackground |= !isZeroLen && blxContextIsSeqSelected(bc, msp->sSequence);
+            *drawBackground |= !isZeroLen && bc->isSeqSelected(msp->sSequence);
           
           /* If we only want to know if this coord is affected by a snp, we can return now.
            *

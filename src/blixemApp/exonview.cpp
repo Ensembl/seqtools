@@ -191,7 +191,7 @@ static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand, BlxCon
   /* Check if its in a group that's hidden */
   if (showMsp)
     {
-      SequenceGroup *group = blxContextGetSequenceGroup(bc, msp->sSequence) ;
+      SequenceGroup *group = bc->getSequenceGroup(msp->sSequence) ;
       showMsp &= isGroupVisible(group) ;
 
       /* If hiding ungrouped features and this is a feature (i.e. not a match) without a group, hide it */
@@ -551,7 +551,7 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
   DrawData *drawData = (DrawData*)data;
 
   const gboolean isSelected = blxWindowIsSeqSelected(drawData->blxWindow, seq);
-  SequenceGroup *group = blxContextGetSequenceGroup(drawData->bc, seq);
+  SequenceGroup *group = drawData->bc->getSequenceGroup(seq);
   gboolean seqDrawn = FALSE;
   
   if (!drawData->normalOnly || (!isSelected && !group))

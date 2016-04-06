@@ -2211,7 +2211,7 @@ static const char* blxSequenceGetColumnData(const BlxSequence* const blxSeq,
 
   if (columnId == BLXCOL_GROUP)
     {
-      const SequenceGroup *group = blxContextGetSequenceGroup(bc, blxSeq);
+      const SequenceGroup *group = bc->getSequenceGroup(blxSeq);
 
       if (group)
         result = group->groupName;
@@ -5550,112 +5550,11 @@ BlxColumnInfo *getColumnInfo(GList *columnList, const BlxColumnId columnId)
 }
 
 
-BlxStrand blxContextGetActiveStrand(BlxContext *bc)
-{
-  BlxStrand result = BLXSTRAND_NONE;
-
-  if (bc)
-    result = bc->displayRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
-  
-  return result;
-}
-
-
 /* Returns the list of all sequence groups */
 GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
 {
   BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext->sequenceGroups;
-}
-
-/* Returns the group that the given sequence belongs to, if any (assumes the sequence
- * is only in one group; otherwise it just returns the first group it finds). */
-SequenceGroup *blxContextGetSequenceGroup(const BlxContext *bc, const BlxSequence *seqToFind)
-{
-  SequenceGroup *result = NULL;
-  
-  if (!seqToFind)
-    return result;
-  
-  /* Loop through all the groups until we find this sequence in one */
-  GList *groupItem = bc->sequenceGroups;
-  for ( ; groupItem; groupItem = groupItem->next)
-    {
-      /* See if our sequence struct is in this group's list */
-      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      GList *foundItem = g_list_find(group->seqList, seqToFind);
-      
-      if (foundItem)
-        {
-          result = group;
-          break;
-        }
-    }
-  
-  return result;
-}
-
-
-/* Return a list of all selected features of the given type. Result should be free'd by caller
- * using g_list_free */
-GList *blxContextGetSelectedSeqsByType(const BlxContext *blxContext, const BlxSequenceType type)
-{
-  GList *result = NULL;
-
-  GList *list_item = blxContext->selectedSeqs;
-  
-  for ( ; list_item; list_item = list_item->next)
-    {
-      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
-      
-      if (curSeq->type == type)
-        {
-          result = g_list_append(result, curSeq);
-        }
-    }
-
-  return result;
-}
-
-
-/* If there is one (and only one) selected transcript then return it; otherwise return null. If
- * num_transcripts is given then return the number of selected transcripts. */
-BlxSequence* blxContextGetSelectedTranscript(const BlxContext *blxContext, int *num_transcripts)
-{
-  BlxSequence *result = NULL;
-
-  GList *list_item = blxContext->selectedSeqs;
-  int num_found = 0;
-  
-  for ( ; list_item; list_item = list_item->next)
-    {
-      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
-      
-      if (curSeq->type == BLXSEQUENCE_TRANSCRIPT)
-        {
-          ++num_found;
-          
-          if (result)
-            {
-              /* Found more than one - don't know which to choose so return null */
-              result = NULL;
-
-              /* If we don't need to return the count, then exit now */
-              if (!num_transcripts)
-                break;
-            }
-          else
-            {
-              /* First one found: set the result. Continue to make sure there aren't any more */
-              result = curSeq;
-            }
-        }
-    }
-
-  if (num_transcripts)
-    *num_transcripts = num_found;
-
-  return result;
 }
 
 
@@ -5664,7 +5563,7 @@ BlxSequence* blxContextGetSelectedTranscript(const BlxContext *blxContext, int *
 SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind)
 {
   BlxContext *bc = blxWindowGetContext(blxWindow);
-  return blxContextGetSequenceGroup(bc, seqToFind);
+  return bc->getSequenceGroup(seqToFind);
 }
 
 
@@ -5715,7 +5614,7 @@ GList *blxWindowGetSelectedSeqsByType(GtkWidget *blxWindow, const BlxSequenceTyp
   GList *result = NULL;
 
   BlxContext *blxContext = blxWindowGetContext(blxWindow);
-  result = blxContextGetSelectedSeqsByType(blxContext, type);
+  result = blxContext->getSelectedSeqsByType(type);
 
   return result;
 }
@@ -5726,7 +5625,7 @@ BlxSequence* blxWindowGetSelectedTranscript(GtkWidget *blxWindow)
   BlxSequence *result = NULL;
 
   BlxContext *blxContext = blxWindowGetContext(blxWindow);
-  result = blxContextGetSelectedTranscript(blxContext, NULL);
+  result = blxContext->getSelectedTranscript(NULL);
 
   return result;
 }
@@ -6174,25 +6073,11 @@ void blxWindowDeselectAllSeqs(GtkWidget *blxWindow)
     }
 }
 
-
-gboolean blxContextIsSeqSelected(const BlxContext* const bc, const BlxSequence *seq)
-{
-  GList *foundItem = NULL;
-  
-  if (bc && seq)
-    {
-      foundItem = g_list_find(bc->selectedSeqs, seq);
-    }
-  
-  return (foundItem != NULL);
-}
-
-
 /* Returns true if the given sequence is selected */
 gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequence *seq)
 {
   BlxContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContextIsSeqSelected(blxContext, seq);
+  return blxContext->isSeqSelected(seq);
 }
 
 

@@ -91,13 +91,6 @@ void                      blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSeque
 void                      blxWindowSelectionChanged(GtkWidget *blxWindow);
 BlxSequence*              blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
-BlxStrand                 blxContextGetActiveStrand(BlxContext *bc);
-
-gboolean                  blxContextIsSeqSelected(const BlxContext* const bc, const BlxSequence *seq);
-SequenceGroup*            blxContextGetSequenceGroup(const BlxContext *bc, const BlxSequence *seqToFind);
-BlxSequence*              blxContextGetSelectedTranscript(const BlxContext *blxContext, int *num_transcripts);
-GList*                    blxContextGetSelectedSeqsByType(const BlxContext *blxContext, const BlxSequenceType type);
-
 int                       sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
 void                      copySelectionToClipboard(GtkWidget *blxWindow);
 void                      findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data);

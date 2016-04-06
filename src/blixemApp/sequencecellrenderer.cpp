@@ -1511,7 +1511,7 @@ static gboolean mspListContainsSelectedMsp(GList *mspList, const BlxContext* con
   for ( ; mspItem && !isSelected; mspItem = mspItem->next)
     {
       const MSP* const msp = (const MSP*)(mspItem->data);
-      isSelected = blxContextIsSeqSelected(bc, msp->sSequence);
+      isSelected = bc->isSeqSelected(msp->sSequence);
     }
   
   return isSelected;
@@ -1530,7 +1530,7 @@ static SequenceGroup* mspListContainsGroupedMsp(GList *mspList, const BlxContext
   for ( ; mspItem && !group; mspItem = mspItem->next)
     {
       const MSP* const msp = (const MSP*)(mspItem->data);
-      group = blxContextGetSequenceGroup(bc, msp->sSequence);
+      group = bc->getSequenceGroup(msp->sSequence);
     }
   
   return group;

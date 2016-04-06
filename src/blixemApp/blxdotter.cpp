@@ -1068,7 +1068,7 @@ static char* getDotterTitleSelectedSeq(const BlxContext *bc, const DotterRefType
   g_string_append_printf(resultStr, "Dotter %s vs ", refSeqName);
 
   /* Get selected match seq name */
-  GList *selectedSeqs = blxContextGetSelectedSeqsByType(bc, BLXSEQUENCE_MATCH);
+  GList *selectedSeqs = bc->getSelectedSeqsByType(BLXSEQUENCE_MATCH);
   const int numSeqs = g_list_length(selectedSeqs);
   
   if (numSeqs == 1)
@@ -1282,7 +1282,7 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
 
   if (refType == BLXDOTTER_REF_TRANSCRIPT)
     {
-      BlxSequence *transcriptSeq = blxContextGetSelectedTranscript(bc, NULL);
+      BlxSequence *transcriptSeq = bc->getSelectedTranscript(NULL);
 
       if (transcriptSeq)
         {
@@ -1326,7 +1326,7 @@ static gboolean getDotterRange(GtkWidget *blxWindow,
       const int qMin = min(*dotterStart, *dotterEnd);
       const int qMax = max(*dotterStart, *dotterEnd);
 
-      GList *selectedSeqs = blxContextGetSelectedSeqsByType(bc, BLXSEQUENCE_MATCH);
+      GList *selectedSeqs = bc->getSelectedSeqsByType(BLXSEQUENCE_MATCH);
       GList *seqItem = selectedSeqs;
       
       for ( ; seqItem; seqItem = seqItem->next)
@@ -1420,7 +1420,7 @@ static gboolean smartDotterRange(GtkWidget *blxWindow,
   BlxContext *bc = blxWindowGetContext(blxWindow);
 
   /* Check that a sequence is selected */
-  GList *selectedSeqs = blxContextGetSelectedSeqsByType(bc, BLXSEQUENCE_MATCH);
+  GList *selectedSeqs = bc->getSelectedSeqsByType(BLXSEQUENCE_MATCH);
   if (g_list_length(selectedSeqs) < 1)
     {
       g_set_error(error, BLX_DOTTER_ERROR, BLX_DOTTER_ERROR_NO_SEQS, "There are no sequences selected.\n");
@@ -1610,7 +1610,7 @@ static const char* getDotterRefSeqName(const BlxContext *bc, const gboolean tran
     {
       /* Get the sequence for a transcript */
       int num_found = 0;
-      BlxSequence *transcriptSeq = blxContextGetSelectedTranscript(bc, &num_found);
+      BlxSequence *transcriptSeq = bc->getSelectedTranscript(&num_found);
       
       if (transcriptSeq)
         result = blxSequenceGetName(transcriptSeq);
