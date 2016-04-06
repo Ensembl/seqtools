@@ -471,6 +471,18 @@ typedef struct _CommandLineOptions
 class BlxContext
 {
 public:
+  BlxContext(CommandLineOptions *options,
+             const IntRange* const refSeqRange_in,
+             const IntRange* const fullDisplayRange_in,
+             const char *paddingSeq_in,
+             GArray* featureLists_in[],
+             GList *seqList_in,
+             GSList *supportedTypes_in,
+             GtkWidget *widget_in,
+             GtkWidget *statusBar_in,
+             const gboolean External_in,
+             GSList *styles_in);
+
   GtkWidget *statusBar;                   /* The Blixem window's status bar */
     
   char *refSeq;                           /* The reference sequence (always forward strand, always DNA sequence) */
@@ -542,6 +554,10 @@ public:
   const char *cainfo;                     /* specify location of curl cainfo file */
   bool fetch_debug;                       /* enable verbose debug output in fetch methods */
 
+private:
+  void createColors(GtkWidget *widget);
+  void initialiseFlags(CommandLineOptions *options);
+  void loadSettings();
 };
 
 

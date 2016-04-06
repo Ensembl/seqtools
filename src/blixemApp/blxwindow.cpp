@@ -5547,10 +5547,10 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 
 
 /* Create the colors that blixem will use for various specific purposes */
-static void createBlxColors(BlxContext *bc, GtkWidget *widget)
+void BlxContext::createColors(GtkWidget *widget)
 {
   /* Initialise the array with empty BlxColor structs */
-  bc->defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), BLXCOL_NUM_COLORS);
+  defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), BLXCOL_NUM_COLORS);
   int i = BLXCOLOR_MIN + 1;
   
   for ( ; i < BLXCOL_NUM_COLORS; ++i)
@@ -5558,75 +5558,75 @@ static void createBlxColors(BlxContext *bc, GtkWidget *widget)
       BlxColor *blxColor = (BlxColor*)g_malloc(sizeof(BlxColor));
       blxColor->name = NULL;
       blxColor->desc = NULL;
-      g_array_append_val(bc->defaultColors, *blxColor);
+      g_array_append_val(defaultColors, *blxColor);
     }
   
   /* Get the default background color of our widgets (i.e. that inherited from the theme).
    * Convert it to a string so we can use the same creation function as the other colors */
   char *defaultBgColorStr = convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
-  createBlxColor(bc->defaultColors, BLXCOLOR_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
+  createBlxColor(defaultColors, BLXCOLOR_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
   
   /* reference sequence */
-  createBlxColor(bc->defaultColors, BLXCOLOR_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_VERY_LIGHT_GREY, BLX_DARK_YELLOW, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_VERY_LIGHT_GREY, BLX_DARK_YELLOW, NULL);
   
   /* matches */
-  createBlxColor(bc->defaultColors, BLXCOLOR_MATCH, "Exact match", "Exact match", BLX_LIGHT_CYAN, BLX_LIGHT_GREY, BLX_CYAN, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_CONS, "Conserved match", "Conserved match", BLX_VIOLET, BLX_VERY_LIGHT_GREY, BLX_DARK_VIOLET, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MISMATCH, "Mismatch", "Mismatch", "#FFFFFF", BLX_WHITE, "#FED4EA", NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_INSERTION, "Insertion", "Insertion", "#9E00FF", BLX_VERY_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_MATCH, "Exact match", "Exact match", BLX_LIGHT_CYAN, BLX_LIGHT_GREY, BLX_CYAN, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_CONS, "Conserved match", "Conserved match", BLX_VIOLET, BLX_VERY_LIGHT_GREY, BLX_DARK_VIOLET, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_MISMATCH, "Mismatch", "Mismatch", "#FFFFFF", BLX_WHITE, "#FED4EA", NULL);
+  createBlxColor(defaultColors, BLXCOLOR_INSERTION, "Insertion", "Insertion", "#9E00FF", BLX_VERY_DARK_GREY, NULL, NULL);
   
   /* exons */
-  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_END, "Exon end", "Exon end boundary", BLX_DARK_BLUE, BLX_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_EXON_END, "Exon end", "Exon end boundary", BLX_DARK_BLUE, BLX_GREY, NULL, NULL);
 
-  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_FILL, "Exon fill color", "Exon fill color in big picture", BLX_PALE_YELLOW, BLX_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_LINE, "Exon line color", "Exon line color in big picture", BLX_BLUE, BLX_VERY_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color in big picture", BLX_LIGHT_GREEN, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_CDS_LINE, "CDS line color", "Coding section line color in big picture", BLX_DARK_GREEN, BLX_DARK_GREY, BLX_VERY_DARK_GREEN, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_UTR_FILL, "Exon fill color (UTR)", "Untranslated region fill color in big picture", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_UTR_LINE, "Exon line color (UTR)", "Untranslated region line color in big picture", BLX_DARK_RED, BLX_VERY_DARK_GREY, BLX_VERY_DARK_RED, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_PARTIAL_EXON_CROSSHATCH, "Cross-hatch line color for partial exons", "Line color of cross-hatch highlighting for partial exons", BLX_GREY, BLX_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_EXON_FILL, "Exon fill color", "Exon fill color in big picture", BLX_PALE_YELLOW, BLX_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_EXON_LINE, "Exon line color", "Exon line color in big picture", BLX_BLUE, BLX_VERY_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color in big picture", BLX_LIGHT_GREEN, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_CDS_LINE, "CDS line color", "Coding section line color in big picture", BLX_DARK_GREEN, BLX_DARK_GREY, BLX_VERY_DARK_GREEN, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_UTR_FILL, "Exon fill color (UTR)", "Untranslated region fill color in big picture", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_UTR_LINE, "Exon line color (UTR)", "Untranslated region line color in big picture", BLX_DARK_RED, BLX_VERY_DARK_GREY, BLX_VERY_DARK_RED, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_PARTIAL_EXON_CROSSHATCH, "Cross-hatch line color for partial exons", "Line color of cross-hatch highlighting for partial exons", BLX_GREY, BLX_GREY, NULL, NULL);
   
   /* codons */
-  createBlxColor(bc->defaultColors, BLXCOLOR_CODON, "Codon nucleotides", "Codon nucleotides", BLX_SKY_BLUE, BLX_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MET, "MET codons", "MET codons", BLX_LAWN_GREEN, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_STOP, "STOP codons", "MET codons", BLX_SALMON_RED, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_CODON, "Codon nucleotides", "Codon nucleotides", BLX_SKY_BLUE, BLX_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_MET, "MET codons", "MET codons", BLX_LAWN_GREEN, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_STOP, "STOP codons", "MET codons", BLX_SALMON_RED, BLX_LIGHT_GREY, NULL, NULL);
   
   /* SNPs */
-  createBlxColor(bc->defaultColors, BLXCOLOR_SNP, "SNPs", "SNPs", BLX_ORANGE, BLX_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_SNP, "SNPs", "SNPs", BLX_ORANGE, BLX_GREY, NULL, NULL);
 
   /* Big Picture */
-  createBlxColor(bc->defaultColors, BLXCOLOR_GRID_LINE, "Grid lines", "Big Picture grid lines", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_GRID_TEXT, "Grid text", "Big Picture grid text", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_PREVIEW_BOX, "Preview box", "Preview box in the big picture", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MSP_LINE, "Big picture match line", "Color of the lines representing matches in the Big Picture", BLX_BLACK, BLX_BLACK, BLX_CYAN, BLX_GREY);
+  createBlxColor(defaultColors, BLXCOLOR_GRID_LINE, "Grid lines", "Big Picture grid lines", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_GRID_TEXT, "Grid text", "Big Picture grid text", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_PREVIEW_BOX, "Preview box", "Preview box in the big picture", BLX_BLACK, BLX_BLACK, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_MSP_LINE, "Big picture match line", "Color of the lines representing matches in the Big Picture", BLX_BLACK, BLX_BLACK, BLX_CYAN, BLX_GREY);
 
   /* groups */
-  createBlxColor(bc->defaultColors, BLXCOLOR_GROUP, "Default group color", "Default highlight color for a new group", BLX_ORANGE_RED, BLX_VERY_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_VERY_LIGHT_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_GROUP, "Default group color", "Default highlight color for a new group", BLX_ORANGE_RED, BLX_VERY_LIGHT_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_VERY_LIGHT_GREY, NULL, NULL);
 
   /* colinearity */
-  createBlxColor(bc->defaultColors, BLXCOLOR_COLINEAR_PERFECT, "Perfect colinearity", "Color of lines joining alignment blocks with perfect colinearity", BLX_DARK_GREEN, BLX_LIGHT_GREY, BLX_DARK_GREEN, BLX_LIGHT_GREY);
-  createBlxColor(bc->defaultColors, BLXCOLOR_COLINEAR_IMPERFECT, "Imperfect colinearity", "Color of lines joining alignment blocks with imperfect colinearity", BLX_ORANGE, BLX_GREY, BLX_ORANGE, BLX_GREY);
-  createBlxColor(bc->defaultColors, BLXCOLOR_COLINEAR_NOT, "Not colinear", "Color of lines joining alignment blocks that are not colinear", BLX_RED, BLX_DARK_GREY, BLX_RED, BLX_DARK_GREY);
+  createBlxColor(defaultColors, BLXCOLOR_COLINEAR_PERFECT, "Perfect colinearity", "Color of lines joining alignment blocks with perfect colinearity", BLX_DARK_GREEN, BLX_LIGHT_GREY, BLX_DARK_GREEN, BLX_LIGHT_GREY);
+  createBlxColor(defaultColors, BLXCOLOR_COLINEAR_IMPERFECT, "Imperfect colinearity", "Color of lines joining alignment blocks with imperfect colinearity", BLX_ORANGE, BLX_GREY, BLX_ORANGE, BLX_GREY);
+  createBlxColor(defaultColors, BLXCOLOR_COLINEAR_NOT, "Not colinear", "Color of lines joining alignment blocks that are not colinear", BLX_RED, BLX_DARK_GREY, BLX_RED, BLX_DARK_GREY);
 
   /* polyA features */
-  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_SIGNAL, "polyA signal", "polyA signal", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_SIGNAL_ANN, "Annotated polyA signal", "Annotated polyA signal", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_SITE_ANN, "Annotated polyA site", "Annotated polyA site", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_POLYA_SIGNAL, "polyA signal", "polyA signal", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_POLYA_SIGNAL_ANN, "Annotated polyA signal", "Annotated polyA signal", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_POLYA_SITE_ANN, "Annotated polyA site", "Annotated polyA site", BLX_RED, BLX_DARK_GREY, NULL, NULL);
 
   /* misc */
-  createBlxColor(bc->defaultColors, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", "#FFC432", BLX_WHITE, "#FFE8AD", NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MAYBE_CANONICAL, "\"Maybe\" canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they would be canonical if they were on the other strand", BLX_ORANGE, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_TREE_GRID_LINES, "Tree grid lines", "Tree grid lines", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY);
-  createBlxColor(bc->defaultColors, BLXCOLOR_CLIP_MARKER, "Clipped-match indicator", "Marker to indicate a match has been clipped to the display range", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_COVERAGE_PLOT, "Coverage plot", "Coverage plot", BLX_ROYAL_BLUE, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_ASSEMBLY_GAP, "Assembly gaps", "Highlight color for assembly gaps", "#D14553", BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_SELECTION, "Selection color", "Highlight color for selections", BLX_DARK_GREY, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", "#FFC432", BLX_WHITE, "#FFE8AD", NULL);
+  createBlxColor(defaultColors, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_MAYBE_CANONICAL, "\"Maybe\" canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they would be canonical if they were on the other strand", BLX_ORANGE, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_TREE_GRID_LINES, "Tree grid lines", "Tree grid lines", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY);
+  createBlxColor(defaultColors, BLXCOLOR_CLIP_MARKER, "Clipped-match indicator", "Marker to indicate a match has been clipped to the display range", BLX_RED, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_COVERAGE_PLOT, "Coverage plot", "Coverage plot", BLX_ROYAL_BLUE, BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_ASSEMBLY_GAP, "Assembly gaps", "Highlight color for assembly gaps", "#D14553", BLX_DARK_GREY, NULL, NULL);
+  createBlxColor(defaultColors, BLXCOLOR_SELECTION, "Selection color", "Highlight color for selections", BLX_DARK_GREY, BLX_DARK_GREY, NULL, NULL);
   
   g_free(defaultBgColorStr);
 }
@@ -5860,29 +5860,29 @@ int blxContextCalculateTotalDepth(BlxContext *bc, const IntRange *range, const B
 /* Called on startup to set the initial state of the flags. Gets the state for
  * the settings from the config file if specified, otherwises uses hard-coded
  * defaults. */
-static void initialiseFlags(BlxContext *blxContext, CommandLineOptions *options)
+void BlxContext::initialiseFlags(CommandLineOptions *options)
 {
   /* Initialise all the flags to false */
   int flag = BLXFLAG_MIN + 1;
   for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
     {
-      blxContext->flags[flag] = FALSE;
+      flags[flag] = FALSE;
     }
   
   /* Set any specific flags that we want initialised to TRUE */
-  blxContext->flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
-  blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
-  blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
-  blxContext->flags[BLXFLAG_SHOW_SPLICE_SITES] = TRUE;
-  blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
-  blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
-  blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
-  blxContext->flags[BLXFLAG_ABBREV_TITLE] = options->abbrevTitle;
+  flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
+  flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
+  flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
+  flags[BLXFLAG_SHOW_SPLICE_SITES] = TRUE;
+  flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
+  flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
+  flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
+  flags[BLXFLAG_ABBREV_TITLE] = options->abbrevTitle;
 }
 
 
 /* load settings from the config file */
-static void loadBlixemSettings(BlxContext *blxContext)
+void BlxContext::loadSettings()
 {
   /* Override the defaults settings with those given in the config file, if any */
   GKeyFile *key_file = blxGetConfig();
@@ -5903,7 +5903,7 @@ static void loadBlixemSettings(BlxContext *blxContext)
     }
   else
     {
-      blxContext->modelId = squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
+      modelId = squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
     }
 
   /* loop through all the flags and see if any of them are given */
@@ -5924,111 +5924,106 @@ static void loadBlixemSettings(BlxContext *blxContext)
             }
           else
             {
-              blxContext->flags[flag] = result;
+              flags[flag] = result;
             }
         }
     }
 }
 
-
-static BlxContext* blxWindowCreateContext(CommandLineOptions *options,
-                                              const IntRange* const refSeqRange,
-                                              const IntRange* const fullDisplayRange,
-                                              const char *paddingSeq,
-                                              GArray* featureLists[],
-                                              GList *seqList,
-                                              GSList *supportedTypes,
-                                              GtkWidget *widget,
-                                              GtkWidget *statusBar,
-                                              const gboolean External,
-                                              GSList *styles)
+BlxContext::BlxContext(CommandLineOptions *options,
+                       const IntRange* const refSeqRange_in,
+                       const IntRange* const fullDisplayRange_in,
+                       const char *paddingSeq_in,
+                       GArray* featureLists_in[],
+                       GList *seqList_in,
+                       GSList *supportedTypes_in,
+                       GtkWidget *widget_in,
+                       GtkWidget *statusBar_in,
+                       const gboolean External_in,
+                       GSList *styles_in)
 {
-  BlxContext *blxContext = (BlxContext*)g_malloc(sizeof *blxContext);
+  statusBar = statusBar_in;
   
-  blxContext->statusBar = statusBar;
-  
-  blxContext->refSeq = options->refSeq;
-  blxContext->refSeqName = options->refSeqName ? g_strdup(options->refSeqName) : g_strdup("Blixem-seq");
-  blxContext->refSeqRange.set(refSeqRange);
-  blxContext->fullDisplayRange.set(fullDisplayRange);
-  blxContext->refSeqOffset = options->refSeqOffset;
-  blxContext->optionalColumns = options->optionalColumns;
+  refSeq = options->refSeq;
+  refSeqName = options->refSeqName ? g_strdup(options->refSeqName) : g_strdup("Blixem-seq");
+  refSeqRange.set(refSeqRange_in);
+  fullDisplayRange.set(fullDisplayRange_in);
+  refSeqOffset = options->refSeqOffset;
+  optionalColumns = options->optionalColumns;
 
-  blxContext->mspList = options->mspList;
-  blxContext->columnList = options->columnList;
-  blxContext->styles = styles;
+  mspList = options->mspList;
+  columnList = options->columnList;
+  styles = styles_in;
   
   int typeId = 0;
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
     {
-      blxContext->featureLists[typeId] = featureLists[typeId];
+      featureLists[typeId] = featureLists_in[typeId];
     }
   
-  blxContext->geneticCode = options->geneticCode;
-  blxContext->blastMode = options->blastMode;
-  blxContext->seqType = options->seqType;
-  blxContext->numFrames = options->numFrames;
-  blxContext->paddingSeq = paddingSeq;
-  blxContext->bulkFetchDefault = options->bulkFetchDefault;
-  blxContext->userFetchDefault = options->userFetchDefault;
-  blxContext->optionalFetchDefault = options->optionalFetchDefault;
-  blxContext->fetchMethods = options->fetchMethods;
-  blxContext->dataset = g_strdup(options->dataset);
-  blxContext->matchSeqs = seqList;
-  blxContext->supportedTypes = supportedTypes;
+  geneticCode = options->geneticCode;
+  blastMode = options->blastMode;
+  seqType = options->seqType;
+  numFrames = options->numFrames;
+  paddingSeq = paddingSeq_in;
+  bulkFetchDefault = options->bulkFetchDefault;
+  userFetchDefault = options->userFetchDefault;
+  optionalFetchDefault = options->optionalFetchDefault;
+  fetchMethods = options->fetchMethods;
+  dataset = g_strdup(options->dataset);
+  matchSeqs = seqList_in;
+  supportedTypes = supportedTypes_in;
   
-  blxContext->displayRev = FALSE;
-  blxContext->external = External;
+  displayRev = FALSE;
+  external = External_in;
   
-  blxContext->selectedSeqs = NULL;
-  blxContext->sequenceGroups = NULL;
-  blxContext->matchSetGroup = NULL;
+  selectedSeqs = NULL;
+  sequenceGroups = NULL;
+  matchSetGroup = NULL;
   
-  blxContext->dotterRefType = BLXDOTTER_REF_AUTO;
-  blxContext->dotterMatchType = BLXDOTTER_MATCH_SELECTED;
-  blxContext->dotterAdhocSeq = NULL;
-  blxContext->dotterHsps = FALSE;
-  blxContext->dotterSleep = FALSE;
-  blxContext->dotterStart = UNSET_INT;
-  blxContext->dotterEnd = UNSET_INT;
-  blxContext->dotterZoom = 0;
+  dotterRefType = BLXDOTTER_REF_AUTO;
+  dotterMatchType = BLXDOTTER_MATCH_SELECTED;
+  dotterAdhocSeq = NULL;
+  dotterHsps = FALSE;
+  dotterSleep = FALSE;
+  dotterStart = UNSET_INT;
+  dotterEnd = UNSET_INT;
+  dotterZoom = 0;
   
-  blxContext->defaultColors = NULL;
-  blxContext->usePrintColors = FALSE;
-  blxContext->windowColor = options->windowColor;
+  defaultColors = NULL;
+  usePrintColors = FALSE;
+  windowColor = options->windowColor;
   
-  createBlxColors(blxContext, widget);
+  createColors(widget_in);
   
-  initialiseFlags(blxContext, options);
+  initialiseFlags(options);
     
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;
   for ( ; dialogId < BLXDIALOG_NUM_DIALOGS; ++dialogId)
     {
-      blxContext->dialogList[dialogId] = NULL;
+      dialogList[dialogId] = NULL;
     }
     
-  blxContext->spawnedProcesses = NULL;
-  blxContext->minDepth = 0;
-  blxContext->maxDepth = 0;
+  spawnedProcesses = NULL;
+  minDepth = 0;
+  maxDepth = 0;
 
   for (int counter = DEPTHCOUNTER_NONE + 1; counter < DEPTHCOUNTER_NUM_ITEMS; ++counter)
-    blxContext->depthArray[counter] = NULL;
+    depthArray[counter] = NULL;
  
-  loadBlixemSettings(blxContext);
+  loadSettings();
 
   /* do this after loading settings because the passed-in squashed 
    * matches option should override the saved option in the settings */
-  blxContext->modelId = options->squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
+  modelId = options->squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
 
-  blxContext->fetch_debug = options->fetch_debug;
+  fetch_debug = options->fetch_debug;
 
 #ifdef PFETCH_HTML
-  blxContext->ipresolve = options->ipresolve;
-  blxContext->cainfo = options->cainfo;
+  ipresolve = options->ipresolve;
+  cainfo = options->cainfo;
 #endif
-
-  return blxContext;
 }
 
 
@@ -7458,17 +7453,17 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                                                       0,   /* page increment dynamically set based on display range */
                                                                       0)); /* page size dunamically set based on display range */
   
-  BlxContext *blxContext = blxWindowCreateContext(options, 
-                                                      &refSeqRange, 
-                                                      &fullDisplayRange, 
-                                                      paddingSeq, 
-                                                      featureLists,
-                                                      seqList, 
-                                                      supportedTypes,
-                                                      window, 
-                                                      statusBar,
-                                                      External,
-                                                      styles);
+  BlxContext *blxContext = new BlxContext(options, 
+                                          &refSeqRange, 
+                                          &fullDisplayRange, 
+                                          paddingSeq, 
+                                          featureLists,
+                                          seqList, 
+                                          supportedTypes,
+                                          window, 
+                                          statusBar,
+                                          External,
+                                          styles);
 
   /* Create the main menu */
   GtkWidget *mainmenu = NULL;
