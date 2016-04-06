@@ -165,8 +165,6 @@ static GList*                     findSeqsFromList(GtkWidget *blxWindow, const c
 static int                        getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginning, const gboolean searchLeft);
 static GList*                     findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, const gboolean rememberSearch, const gboolean findAgain, GError **error);
 static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
-static void                       killAllSpawned(BlxContext *bc);
-static void                       calculateDepth(BlxContext *bc, const int numUnalignedBases);
 static gdouble                    calculateMspData(MSP *mspList, BlxContext *bc);
 
 static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
@@ -835,11 +833,11 @@ static void coverageSetHidden(GtkWidget *blxWindow, const bool hide)
  * feature-loading happens) */
 static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, const char *buffer, GError **error)
 {
-  /* Must be passed either a filename or buffer */
-  if (!filename && !buffer)
-    return;
-
   BlxContext *bc = blxWindowGetContext(blxWindow);
+
+  /* Must be passed either a filename or buffer */
+  g_return_if_fail(filename && buffer && bc);
+
   GKeyFile *keyFile = blxGetConfig();
   
   /* We'll load the features from the file into some temporary lists */
@@ -913,7 +911,7 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
       callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
 
       /* Recalculate the coverage */
-      calculateDepth(bc, numUnalignedBases);
+      bc->calculateDepth(numUnalignedBases);
       updateCoverageDepth(blxWindow);
   
       /* Re-calculate the height of the exon views */
@@ -4979,7 +4977,7 @@ static void onCloseAllDottersMenu(GtkAction *action, gpointer data)
 
       if (responseId == GTK_RESPONSE_ACCEPT)
         {
-          killAllSpawned(bc);
+          bc->killAllSpawned();
         }
     }
   else
@@ -5340,25 +5338,6 @@ GList* blxWindowGetColumnList(GtkWidget *blxWindow)
   return (bc ? bc->columnList : NULL);
 }
 
-/* Kill all processes spawned from blixem */
-static void killAllSpawned(BlxContext *bc)
-{
-  GSList *processes = bc->spawnedProcesses;
-  
-  for ( ; processes; processes = processes->next)
-    {
-      pid_t pid = GPOINTER_TO_INT(processes->data);
-      kill(pid, 9);
-    }
-    
-  if (bc->spawnedProcesses)
-    {
-      g_slist_free(bc->spawnedProcesses);
-      bc->spawnedProcesses = NULL;
-    }
-}
-
-
 /* utility to free the given pointer and set it to null */
 static void freeAndNull(gpointer *ptr)
 {
@@ -5416,7 +5395,7 @@ static void destroyBlxContext(BlxContext **bcPtr)
       destroyMspList(&(bc->mspList));
       destroyBlxSequenceList(&(bc->matchSeqs));
       blxDestroyGffTypeList(&(bc->supportedTypes));
-      killAllSpawned(bc);
+      bc->killAllSpawned();
       
       /* Free the context struct itself */
       g_free(bc);
@@ -5495,233 +5474,6 @@ static void onDestroyBlxWindow(GtkWidget *widget)
   blviewResetGlobals();
   
   gtk_main_quit();
-}
-
-
-
-
-/* Whether to include the given msp type in depth coverage calculations */
-static gboolean includeTypeInCoverage(BlxMspType mspType)
-{
-  return (mspType == BLXMSP_MATCH);
-}
-
-
-/* Utility to get the depth-counter enum from the given character */
-static DepthCounter getDepthCounterForChar(const char c, const BlxStrand strand)
-{
-  DepthCounter result = DEPTHCOUNTER_NONE;
-
-  switch (c)
-    {
-    case 'a': //fall through
-    case 'A': 
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_A_R;
-      else
-        result = DEPTHCOUNTER_A_F;
-      break;
-    case 'c': //fall through 
-    case 'C': 
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_C_R;
-      else
-        result = DEPTHCOUNTER_C_F;
-      break;
-    case 'g':  //fall through
-    case 'G': 
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_G_R; 
-      else
-        result = DEPTHCOUNTER_G_F; 
-      break;
-    case 'u':  //fall through
-    case 'U':   //fall through
-    case 't':  //fall through
-    case 'T': 
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_T_R; 
-      else
-        result = DEPTHCOUNTER_T_F; 
-      break;
-    case 'n':  //fall through
-    case 'N': 
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_N_R; 
-      else
-        result = DEPTHCOUNTER_N_F; 
-      break;
-    case '.': // indicates a gap
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_GAP_R; 
-      else
-        result = DEPTHCOUNTER_GAP_F; 
-      break;
-    default:
-      break;
-    }
-
-  return result;
-}
-
-
-/* Calculate the depth of coverage of short-reads for each reference sequence display coord.
- * depthArray must be the same length as displayRange. */
-static void calculateDepth(BlxContext *bc, const int numUnalignedBases)
-{
-  /* Allocate the depth array, if null */
-  const int displayLen = bc->fullDisplayRange.length();
-  
-  if (displayLen < 1)
-    return; 
-  
-  bc->depthArray[DEPTHCOUNTER_ALL_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_GAP_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_A_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_C_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_G_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_T_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_N_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  
-  bc->depthArray[DEPTHCOUNTER_ALL_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_GAP_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_A_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_C_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_G_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_T_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_N_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  
-  /* Initialise each entry to zero */  
-  int i = 0;
-  for ( ; i < displayLen; ++i)
-    {
-      bc->depthArray[DEPTHCOUNTER_ALL_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_GAP_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_A_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_C_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_G_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_T_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_N_F][i] = 0;
-
-      bc->depthArray[DEPTHCOUNTER_ALL_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_GAP_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_A_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_C_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_G_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_T_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_N_R][i] = 0;
-    }
-  
-  /* Loop through all MSP lists */
-  int mspType = 0;
-  
-  for ( ; mspType < BLXMSP_NUM_TYPES; ++mspType)
-    {
-      /* Only include MSPs of relevant types */
-      if (!includeTypeInCoverage((BlxMspType)mspType))
-        continue;
-      
-      /* Loop through all MSPs in this list */
-      GArray *mspArray = bc->featureLists[mspType];
-      const int fullDisplayLen = bc->fullDisplayRange.length();
-    
-      i = 0;
-      const MSP *msp = mspArrayIdx(mspArray, i);
-  
-      for ( ; msp; msp = mspArrayIdx(mspArray, ++i))
-        {
-          /* For each ref-seq coord that this alignment spans, increment the depth */
-          int alignIdx = msp->displayRange.min();
-          int qIdx = msp->qRange.min();
-
-          for ( ; alignIdx <= msp->displayRange.max(); ++alignIdx, ++qIdx)
-            {
-              /* Convert the msp coord to a zero-based coord. Note that parts of the
-               * msp range may be outside the ref seq range. */
-              const int displayIdx = alignIdx - bc->fullDisplayRange.min();
-
-              if (displayIdx >= 0 && displayIdx < fullDisplayLen)
-                {
-                  /* Increment the main counter */
-                  if (msp->qStrand == BLXSTRAND_REVERSE)
-                    bc->depthArray[DEPTHCOUNTER_ALL_R][displayIdx] += 1;
-                  else
-                    bc->depthArray[DEPTHCOUNTER_ALL_F][displayIdx] += 1;
-
-                  /* Find the match sequence base at this coord */
-                  int sIdx = 0;
-                  const char *seq = mspGetMatchSeq(msp);
-
-                  if (mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
-                    {
-                      /* Check we have the sequence. If not then don't do anything (this will
-                       * show up as "unknown" in the read depth display) */
-                      if (seq)
-                        {
-                          DepthCounter counter = getDepthCounterForChar(seq[sIdx - 1], msp->qStrand); // sIdx is 1-based
-
-                          if (counter != DEPTHCOUNTER_NONE)
-                            bc->depthArray[counter][displayIdx] += 1;
-                        }
-                    }
-                  else
-                    {
-                      /* No base here so it must be a gap in the match sequence */
-                      if (msp->qStrand == BLXSTRAND_REVERSE)
-                        bc->depthArray[DEPTHCOUNTER_GAP_R][displayIdx] += 1;
-                      else
-                        bc->depthArray[DEPTHCOUNTER_GAP_F][displayIdx] += 1;
-                    }
-                }
-            }
-        }
-    } 
-  
-  /* Find the max and min depth (total depth over both strands) */
-  bc->minDepth = bc->depthArray[DEPTHCOUNTER_ALL_F][0] + bc->depthArray[DEPTHCOUNTER_ALL_R][0];
-  bc->maxDepth = bc->minDepth;
-  
-  for (i = 1 ; i < displayLen; ++i)
-    {
-      const int cur_depth = bc->depthArray[DEPTHCOUNTER_ALL_F][i] + bc->depthArray[DEPTHCOUNTER_ALL_R][i];
-
-      if (cur_depth < bc->minDepth)
-        bc->minDepth = cur_depth;
-      
-      if (cur_depth > bc->maxDepth)
-        bc->maxDepth = cur_depth;
-    }  
-}
-
-
-/* Calculate the total depth of coverage of short-reads for the given range of ref seq coords.
- * depthArray must be the same length as displayRange. */
-int blxContextCalculateTotalDepth(BlxContext *bc, const IntRange *range, const BlxStrand strand)
-{
-  int depth = 0;
-
-  /* Loop through all MSP lists */
-  for (int mspType = 0 ; mspType < BLXMSP_NUM_TYPES; ++mspType)
-    {
-      /* Only include MSPs of relevant types */
-      if (!includeTypeInCoverage((BlxMspType)mspType))
-        continue;
-      
-      /* Loop through all MSPs in this list */
-      GArray *mspArray = bc->featureLists[mspType];
-    
-      int i = 0;
-      for (const MSP *msp = mspArrayIdx(mspArray, i); msp; msp = mspArrayIdx(mspArray, ++i))
-        {
-          /* If the alignment is in our range, increment the depth. Only include msps on the
-           * given strand (or both strands if given strand is "none") */
-          if ((strand == BLXSTRAND_NONE || msp->qStrand == strand) &&
-              rangesOverlap(range, &msp->displayRange))
-            ++depth;
-        }
-    } 
-
-  return depth;
 }
 
 
@@ -5947,82 +5699,6 @@ BlxStrand blxContextGetActiveStrand(BlxContext *bc)
   return result;
 }
 
-
-/* Utility to get the value from the depth array at the given coord for the given
- * counter. Validates the coord and counter are valid. The coord should be in display coords. */
-static int getDepth(BlxContext *bc, const int coord, const DepthCounter counter)
-{
-  int result = 0;
-
-  g_return_val_if_fail(bc && 
-                       valueWithinRange(coord, &bc->fullDisplayRange) &&
-                       counter > DEPTHCOUNTER_NONE &&
-                       counter < DEPTHCOUNTER_NUM_ITEMS &&
-                       bc->depthArray[counter] != NULL,
-                       result);
-
-  int idx = invertCoord(coord, &bc->fullDisplayRange, bc->displayRev); // invert if display reversed
-  idx -= bc->fullDisplayRange.min(); // make 0-based
-
-  result = bc->depthArray[counter][idx];
-
-  return result;
-}
-
-
-/* Return the read depth at the given display coord */
-int blxContextGetDepth(BlxContext *bc, 
-                       const int coord, 
-                       const char *base_char,
-                       const BlxStrand strand)
-{
-  int result = 0;
-  g_return_val_if_fail(bc && 
-                       coord >= bc->fullDisplayRange.min() &&
-                       coord <= bc->fullDisplayRange.max(), 
-                       result);
-
-  if (base_char && strand == BLXSTRAND_NONE)
-    {
-      /* Get the depth for the specific base for both strands */
-      DepthCounter counter_f = getDepthCounterForChar(*base_char, BLXSTRAND_FORWARD);
-      DepthCounter counter_r = getDepthCounterForChar(*base_char, BLXSTRAND_REVERSE);
-      
-      result = 
-        getDepth(bc, coord, counter_f) +
-        getDepth(bc, coord, counter_r);
-    }
-  else if (base_char && strand != BLXSTRAND_NONE)
-    {
-      /* Get the depth for the specific base and given strand */
-      DepthCounter counter = getDepthCounterForChar(*base_char, strand);
-      result = getDepth(bc, coord, counter);
-    }
-  else if (strand == BLXSTRAND_NONE)
-    {
-      /* Get the depth for all reads for both strands */
-      result = 
-        getDepth(bc, coord, DEPTHCOUNTER_ALL_F) + 
-        getDepth(bc, coord, DEPTHCOUNTER_ALL_R);
-    }
-  else if (strand == BLXSTRAND_FORWARD)
-    {
-      /* Get the depth for all reads for the forward strand */
-      result = getDepth(bc, coord, DEPTHCOUNTER_ALL_F);
-    }
-  else if (strand == BLXSTRAND_REVERSE)
-    {
-      /* Get the depth for all reads for the reverse strand */
-      result = getDepth(bc, coord, DEPTHCOUNTER_ALL_R);
-    }
-  else
-    {
-      /* All possible conditions should be covered above */
-      g_warn_if_reached();
-    }
-
-  return result;
-}
 
 /* Returns the list of all sequence groups */
 GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
@@ -7245,7 +6921,9 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   detailViewUpdateMspLengths(detailView, numUnalignedBases);
 
   /* Updated the cached display range and full extents of the MSPs */
-  calculateDepth(blxContext, numUnalignedBases);
+  if (blxContext)
+    blxContext->calculateDepth(numUnalignedBases);
+
   updateCoverageDepth(window);
   
   /* Set the detail view font (again, this accesses the widgets' properties). */

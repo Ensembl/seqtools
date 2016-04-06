@@ -1340,7 +1340,7 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
 
       if (range)
         {
-          int depth = blxContextCalculateTotalDepth(bc, range, strand);
+          int depth = bc->calculateTotalDepth(range, strand);
           feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, depth);
           g_free(range);
         }
@@ -1351,7 +1351,7 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
     {
       /* A single coord is selected */
       const int coord = detailViewGetSelectedDisplayIdx(detailView);
-      const int depth = blxContextGetDepth(bc, coord, NULL, strand);
+      const int depth = bc->getDepth(coord, NULL, strand);
 
       feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, depth);
 
@@ -1360,12 +1360,12 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
           /* Show the specific base support of the reads at this coord, i.e. how many a's, t's, g's
            * and c's. Show this in the tooltip for now to avoid clutter (we could perhaps add this to
            * the main box but only show the box if coverage is enabled, or have its own option). */
-          const int depth_a = blxContextGetDepth(bc, coord, "a", strand);
-          const int depth_c = blxContextGetDepth(bc, coord, "c", strand);
-          const int depth_g = blxContextGetDepth(bc, coord, "g", strand);
-          const int depth_t = blxContextGetDepth(bc, coord, "t", strand);
-          const int depth_n = blxContextGetDepth(bc, coord, "n", strand);
-          const int depth_gaps = blxContextGetDepth(bc, coord, ".", strand);
+          const int depth_a = bc->getDepth(coord, "a", strand);
+          const int depth_c = bc->getDepth(coord, "c", strand);
+          const int depth_g = bc->getDepth(coord, "g", strand);
+          const int depth_t = bc->getDepth(coord, "t", strand);
+          const int depth_n = bc->getDepth(coord, "n", strand);
+          const int depth_gaps = bc->getDepth(coord, ".", strand);
           const int total_bases = depth_a + depth_c + depth_g + depth_t + depth_n + depth_gaps;
 
           string tmpStr(DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP);

@@ -287,7 +287,7 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
       /* Get the x position for this coord (always pass displayRev as false because
        * display coords are already inverted if the display is reversed). */
       const double x = convertBaseIdxToRectPos(coord, &m_viewRect, m_displayRange, TRUE, FALSE, TRUE);
-      const int depth = blxContextGetDepth(m_bc, coord);
+      const int depth = m_bc->getDepth(coord);
 
       /* Calculate the y position based on the depth */
       const double height = (pixelsPerVal * (double)depth);

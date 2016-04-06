@@ -92,8 +92,6 @@ void                      blxWindowSelectionChanged(GtkWidget *blxWindow);
 BlxSequence*              blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
 
 BlxStrand                 blxContextGetActiveStrand(BlxContext *bc);
-int                       blxContextGetDepth(BlxContext *bc, const int coord, const char *base_char = NULL, const BlxStrand strand = BLXSTRAND_NONE);
-int                       blxContextCalculateTotalDepth(BlxContext *bc, const IntRange *range, const BlxStrand strand = BLXSTRAND_NONE);
 
 gboolean                  blxContextIsSeqSelected(const BlxContext* const bc, const BlxSequence *seq);
 SequenceGroup*            blxContextGetSequenceGroup(const BlxContext *bc, const BlxSequence *seqToFind);
