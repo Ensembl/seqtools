@@ -3391,9 +3391,10 @@ static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
 
 
 /* Create a set of widgets to allow the user to edit coverage-view properties */
-static void createCoverageSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
+static void createCoverageSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture, GtkWidget *detailView)
 {
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+  DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
   
   /* Group these buttons in a frame */
   GtkWidget *frame = gtk_frame_new("Coverage section");
@@ -3401,9 +3402,14 @@ static void createCoverageSettingsButtons(GtkWidget *parent, GtkWidget *bigPictu
   
   /* Arrange the widgets horizontally */
   GtkWidget *hbox = createHBoxWithBorder(frame, 12, FALSE, NULL);
-  const double rangePerCell = properties->coverageViewProperties()->depthPerCell();
   
-  createTextEntry(hbox, "Depth per cell", rangePerCell, onDepthPerCellChanged, properties->coverageViewProperties());
+  createTextEntry(hbox, "Depth per cell (big picture)", 
+                  bpProperties->coverageViewProperties()->depthPerCell(),
+                  onDepthPerCellChanged, bpProperties->coverageViewProperties());
+
+  createTextEntry(hbox, "Depth per cell (detail view)", 
+                  dvProperties->coverageViewProperties()->depthPerCell(),
+                  onDepthPerCellChanged, dvProperties->coverageViewProperties());
 }
 
 
@@ -4047,7 +4053,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   createGridSettingsButtons(displayBox, bigPicture);
 
-  createCoverageSettingsButtons(displayBox, bigPicture);
+  createCoverageSettingsButtons(displayBox, bigPicture, detailView);
 
 
   /* COLUMNS PAGE */
