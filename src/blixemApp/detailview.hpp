@@ -52,6 +52,8 @@
 #include <gtk/gtk.h>
 #include <seqtoolsUtils/utilities.hpp>
 #include <blixemApp/blxwindow.hpp>
+#include <blixemApp/blxpanel.hpp>
+
 
 class CoverageViewProperties;
 
@@ -102,12 +104,13 @@ typedef struct _DetailViewIndex
 
 
 /* Essential info required by the the detail view */
-class DetailViewProperties
+class DetailViewProperties : public BlxPanel
 {
 public:
   // Constructors
   DetailViewProperties(GtkWidget *detailView_in,
                        GtkWidget *blxWindow_in,
+                       BlxContext *bc_in,
                        CoverageViewProperties *coverageViewP_in, 
                        GtkCellRenderer *renderer_in,
                        GList *fwdStrandTrees_in,
@@ -122,6 +125,8 @@ public:
   ~DetailViewProperties();
 
   // Access
+  double leftBorderPos() const;
+  const GList *columnList() const;
   GtkWidget* coverageView();
   CoverageViewProperties *coverageViewProperties();
 
@@ -133,7 +138,6 @@ public:
 
   GtkWidget *feedbackBox;              /* A text box that feeds back info to the user about the currently selected items */
   GtkWidget *statusBar;                /* A status bar that feeds back info to the user about the currently moused-over items */
-  GList *columnList;                   /* A list of details about all the columns in the detail view */    
   BlxColumnId* sortColumns;            /* Array of columns to sort by, in order of priority. The length of this array will be set to the same length as columnList */
     
   GList *fwdStrandTrees;               /* A list of all the trees that show the forward strand of the ref seq */
@@ -169,6 +173,7 @@ public:
                                     Blixem */
 
 private:
+  BlxContext *m_bc;
   CoverageViewProperties *coverageViewP;
 };
 

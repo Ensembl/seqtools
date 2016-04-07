@@ -192,6 +192,7 @@ static void                    destroyBlxSpliceSite(gpointer listItemData, gpoin
 
 DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
                                            GtkWidget *blxWindow_in,
+                                           BlxContext *bc_in,
                                            CoverageViewProperties *coverageViewP_in, 
                                            GtkCellRenderer *renderer_in,
                                            GList *fwdStrandTrees_in,
@@ -210,6 +211,7 @@ DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
 
   widget = detailView_in;
   blxWindow = blxWindow_in;
+  m_bc = bc_in;
   coverageViewP = coverageViewP_in;
   renderer = renderer_in;
   fwdStrandTrees = fwdStrandTrees_in;
@@ -324,6 +326,41 @@ DetailViewProperties::~DetailViewProperties()
       g_slist_free(spliceSites);
       spliceSites = NULL;
     }
+}
+
+const GList* DetailViewProperties::columnList() const
+{
+  const GList *result = NULL;
+
+  if (m_bc)
+    result = m_bc->columnList;
+
+  return result;
+}
+
+
+/* Get the position of the left border of the main content, i.e. the 
+ * sequence column */
+double DetailViewProperties::leftBorderPos() const
+{
+  double result = 0.0;
+
+  // Loop through all columns up to the sequence column and sum their width
+  const GList *listItem = columnList();
+  int pos = 0;
+  
+  for ( ; listItem; listItem = listItem->next)
+    {
+      BlxColumnInfo *columnInfo = (BlxColumnInfo*)listItem->data;
+
+      if (columnInfo->columnId == BLXCOL_SEQUENCE)
+        break;
+      else if (columnInfo->showColumn)
+        pos += columnInfo->width;
+    }
+
+  result = (double)pos;
+  return result;
 }
 
 
@@ -4760,37 +4797,43 @@ static void onDestroyDetailView(GtkWidget *widget)
 }
 
 
-static void detailViewCreateProperties(GtkWidget *detailView,
-                                       GtkWidget *blxWindow,
-                                       CoverageViewProperties *coverageViewP,
-                                       GtkCellRenderer *renderer,
-                                       GList *fwdStrandTrees,
-                                       GList *revStrandTrees,
-                                       GtkWidget *feedbackBox,
-                                       GtkWidget *statusBar,
-                                       GList *columnList,
-                                       GtkAdjustment *adjustment, 
-                                       const int startCoord,
-                                       const BlxColumnId sortColumn)
+static DetailViewProperties* detailViewCreateProperties(GtkWidget *detailView,
+                                                        GtkWidget *blxWindow,
+                                                        BlxContext *bc,
+                                                        CoverageViewProperties *coverageViewP,
+                                                        GtkCellRenderer *renderer,
+                                                        GList *fwdStrandTrees,
+                                                        GList *revStrandTrees,
+                                                        GtkWidget *feedbackBox,
+                                                        GtkWidget *statusBar,
+                                                        GList *columnList,
+                                                        GtkAdjustment *adjustment, 
+                                                        const int startCoord,
+                                                        const BlxColumnId sortColumn)
 {
+  DetailViewProperties *properties = NULL;
+
   if (detailView)
     { 
-      DetailViewProperties *properties = new DetailViewProperties(detailView,
-                                                                  blxWindow,
-                                                                  coverageViewP,
-                                                                  renderer,
-                                                                  fwdStrandTrees,
-                                                                  revStrandTrees,
-                                                                  feedbackBox,
-                                                                  statusBar,
-                                                                  columnList,
-                                                                  adjustment, 
-                                                                  startCoord,
-                                                                  sortColumn);
+      properties = new DetailViewProperties(detailView,
+                                            blxWindow,
+                                            bc,
+                                            coverageViewP,
+                                            renderer,
+                                            fwdStrandTrees,
+                                            revStrandTrees,
+                                            feedbackBox,
+                                            statusBar,
+                                            columnList,
+                                            adjustment, 
+                                            startCoord,
+                                            sortColumn);
  
       g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
       g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
     }
+
+  return properties;
 }
 
 
@@ -6496,18 +6539,21 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   g_signal_connect(G_OBJECT(detailView), "motion-notify-event",  G_CALLBACK(onMouseMoveDetailView),     NULL);
   g_signal_connect(G_OBJECT(detailView), "scroll-event",         G_CALLBACK(onScrollDetailView),        NULL);
 
-  detailViewCreateProperties(detailView, 
-                             blxWindow, 
-                             coverageViewP,
-                             renderer,
-                             fwdStrandTrees,
-                             revStrandTrees,
-                             feedbackBox, 
-                             statusBar,
-                             columnList,
-                             adjustment, 
-                             startCoord,
-                             sortColumn);
+  DetailViewProperties *properties = detailViewCreateProperties(detailView, 
+                                                                blxWindow, 
+                                                                bc,
+                                                                coverageViewP,
+                                                                renderer,
+                                                                fwdStrandTrees,
+                                                                revStrandTrees,
+                                                                feedbackBox, 
+                                                                statusBar,
+                                                                columnList,
+                                                                adjustment, 
+                                                                startCoord,
+                                                                sortColumn);
+
+  coverageViewP->setPanel(properties);
 
   return detailView;
 }
