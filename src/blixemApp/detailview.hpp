@@ -105,6 +105,7 @@ typedef struct _DetailViewIndex
 class DetailViewProperties
 {
 public:
+  // Constructors
   DetailViewProperties(GtkWidget *detailView_in,
                        GtkWidget *blxWindow_in,
                        CoverageViewProperties *coverageViewP_in, 
@@ -118,9 +119,13 @@ public:
                        const int startCoord_in,
                        const BlxColumnId sortColumn_in);
 
+  ~DetailViewProperties();
+
+  // Access
   GtkWidget* coverageView();
   CoverageViewProperties *coverageViewProperties();
 
+  // Member variables
   GtkWidget *widget;                   /* The detail view widget */
   GtkWidget *blxWindow;                /* The main blixem window that this view belongs to */
   GtkCellRenderer *renderer;           /* The cell renderer that renders the sequences */

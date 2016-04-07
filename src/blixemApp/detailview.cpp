@@ -184,6 +184,7 @@ static void                    setDetailViewIndex(DetailViewIndex *index,
 
 static void                    addBlxSpliceSite(GSList **spliceSites, const char *donorSite, const char *acceptorSite, const gboolean bothReqd) ;
 
+static void                    destroyBlxSpliceSite(gpointer listItemData, gpointer data);
 
 /***********************************************************
  *                 Class member functions                  *
@@ -291,6 +292,38 @@ DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
   sortColumns[0] = sortColumn_in;
   sortColumns[1] = BLXCOL_SEQNAME;
   sortColumns[2] = BLXCOL_START;
+}
+
+
+DetailViewProperties::~DetailViewProperties()
+{
+  /* N.B. Don't free the cell renderer, or it causes memory corruption. I'm not
+   * sure what owns it - the columns it is added to? */
+    
+  if (fwdStrandTrees)
+    {
+      g_list_free(fwdStrandTrees);
+      fwdStrandTrees = NULL;
+    }
+  
+  if (revStrandTrees)
+    {
+      g_list_free(revStrandTrees);
+      revStrandTrees = NULL;
+    }
+
+  if (fontDesc)
+    {
+      pango_font_description_free(fontDesc);
+      fontDesc = NULL;
+    }
+  
+  if (spliceSites)
+    {
+      g_slist_foreach(spliceSites, destroyBlxSpliceSite, NULL);
+      g_slist_free(spliceSites);
+      spliceSites = NULL;
+    }
 }
 
 
@@ -4719,39 +4752,9 @@ static BlxContext* detailViewGetContext(GtkWidget *detailView)
 static void onDestroyDetailView(GtkWidget *widget)
 {
   DetailViewProperties *properties = detailViewGetProperties(widget);
-
-  /* N.B. Don't free the cell renderer, or it causes memory corruption. I'm not
-   * sure what owns it - the columns it is added to? */
-    
-  if (properties->fwdStrandTrees)
-    {
-      g_list_free(properties->fwdStrandTrees);
-      properties->fwdStrandTrees = NULL;
-    }
-  
-  if (properties->revStrandTrees)
-    {
-      g_list_free(properties->revStrandTrees);
-      properties->revStrandTrees = NULL;
-    }
-
-  if (properties->fontDesc)
-    {
-      pango_font_description_free(properties->fontDesc);
-      properties->fontDesc = NULL;
-    }
-  
-  if (properties->spliceSites)
-    {
-      g_slist_foreach(properties->spliceSites, destroyBlxSpliceSite, NULL);
-      g_slist_free(properties->spliceSites);
-      properties->spliceSites = NULL;
-    }
-  
   if (properties)
     {
-      g_free(properties);
-      properties = NULL;
+      delete properties;
       g_object_set_data(G_OBJECT(widget), "DetailViewProperties", NULL);
     }
 }
