@@ -70,7 +70,6 @@ CoverageViewProperties::CoverageViewProperties(GtkWidget *widget_in,
   m_viewYPadding = DEFAULT_COVERAGE_VIEW_Y_PADDING;
   m_numVCells = DEFAULT_NUM_V_CELLS;
   m_rangePerCell = 0;
-  m_leftBorderPos = NULL;
   
   if (bc_in)
     m_maxDepth = &bc_in->maxDepth;
@@ -108,13 +107,13 @@ const IntRange* CoverageViewProperties::highlightRange()
 }
 
 /* Return the position of the left border. */
-double CoverageViewProperties::leftBorderPos() const
+double CoverageViewProperties::contentXPos() const
 {
   double result = 0.0;
 
   // Use the left border position of the parent panel
   if (m_panel)
-    result = m_panel->leftBorderPos();
+    result = m_panel->contentXPos();
 
   return result;
 }
@@ -434,7 +433,7 @@ void CoverageViewProperties::calculateBorders()
   const int height = ceil(m_numVCells * (double)bigPictureGetCellHeight(bigPicture));
   const int gridHeight = (int)m_numVCells * bigPictureGetCellHeight(bigPicture);
   
-  m_displayRect.x = roundNearest(leftBorderPos());
+  m_displayRect.x = roundNearest(contentXPos());
   m_displayRect.y = height - gridHeight;
   
   m_viewRect.x = m_displayRect.x;

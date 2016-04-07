@@ -47,7 +47,7 @@ public:
   virtual ~BlxPanel() {};
 
   // Access
-  virtual double leftBorderPos() const = 0;
+  virtual double contentXPos() const = 0;
   virtual double contentWidth() const = 0;
   virtual const IntRange* highlightRange() const { return NULL; };
 

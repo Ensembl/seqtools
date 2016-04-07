@@ -125,7 +125,7 @@ public:
   ~DetailViewProperties();
 
   // Access
-  double leftBorderPos() const;
+  double contentXPos() const;
   double contentWidth() const;
   const GList *columnList() const;
   GtkWidget* coverageView();

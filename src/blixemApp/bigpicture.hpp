@@ -80,7 +80,7 @@ public:
   // Access
   double charWidth() const;
   double charHeight() const;
-  double leftBorderPos() const;
+  double contentXPos() const;
   double contentWidth() const;
   const IntRange *highlightRange() const;
 

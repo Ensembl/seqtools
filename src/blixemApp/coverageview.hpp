@@ -58,7 +58,7 @@ public:
   GtkWidget* widget();
   const IntRange *displayRange();
   const IntRange *highlightRange();
-  double leftBorderPos() const;
+  double contentXPos() const;
   double contentWidth() const;
   double depthPerCell();
   int maxLabeledDepth();
@@ -94,9 +94,6 @@ private:
   const BlxPanel *m_panel;  /* The parent panel that the coverage view is part of */
 
   GtkWidget *m_blxWindow;   /* The main blixem window */
-
-  const double *m_leftBorderPos; /* The position of the left border of the coverage view.
-                                  * Points to a value supplied by the parent so it will align. */
 
   int m_viewYPadding;	     /* The y padding around the view rect */
   double m_numVCells;	     /* The number of cells to show vertically */

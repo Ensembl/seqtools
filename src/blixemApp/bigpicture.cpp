@@ -434,7 +434,7 @@ void calculateGridHeaderBorders(GtkWidget *header)
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
   /* Calculate the size of the grid header (zero height if it does not have one) */
-  properties->headerRect.x = roundNearest(bigPictureProperties->leftBorderPos());
+  properties->headerRect.x = roundNearest(bigPictureProperties->contentXPos());
   properties->headerRect.y = 0;
   properties->headerRect.width = header->allocation.width - properties->headerRect.x;
   properties->headerRect.height = properties->refButton->allocation.height + (properties->headerYPad * 2);
@@ -1258,7 +1258,7 @@ double BigPictureProperties::charHeight() const
   return result;
 }
 
-double BigPictureProperties::leftBorderPos() const
+double BigPictureProperties::contentXPos() const
 {
   return ((double)leftBorderChars * charWidth());
 }
@@ -1270,7 +1270,7 @@ double BigPictureProperties::contentWidth() const
 
   /* The big picture content covers the whole allocation minus the left border */
   if (widget)
-    result = widget->allocation.width - leftBorderPos();
+    result = widget->allocation.width - contentXPos();
 
   return result;
 }

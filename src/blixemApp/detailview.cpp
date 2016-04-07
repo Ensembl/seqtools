@@ -337,7 +337,7 @@ const GList* DetailViewProperties::columnList() const
 
 /* Get the position of the left border of the main content, i.e. the 
  * sequence column */
-double DetailViewProperties::leftBorderPos() const
+double DetailViewProperties::contentXPos() const
 {
   double result = 0.0;
 
