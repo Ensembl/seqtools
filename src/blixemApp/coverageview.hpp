@@ -74,7 +74,7 @@ public:
   gboolean scroll(GdkEventScroll *event, gpointer data);
 
   /* Updates */
-  void setPanel(const BlxPanel *panel);
+  void setPanel(BlxPanel *panel);
   void updateDepth();
   void calculateBorders();
   void calculateHighlightBoxBorders();
@@ -91,7 +91,7 @@ private:
 
   GtkWidget *m_widget;      /* The coverage view widget */
   BlxContext *m_bc;
-  const BlxPanel *m_panel;  /* The parent panel that the coverage view is part of */
+  BlxPanel *m_panel;        /* The parent panel that the coverage view is part of */
 
   GtkWidget *m_blxWindow;   /* The main blixem window */
 

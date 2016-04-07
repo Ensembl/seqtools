@@ -41,6 +41,7 @@
 #include <blixemApp/detailview.hpp>
 #include <blixemApp/detailviewtree.hpp>
 #include <blixemApp/blxwindow.hpp>
+#include <blixemApp/blxpanel.hpp>
 #include <seqtoolsUtils/utilities.hpp>
 #include <math.h>
 #include <string.h>
@@ -559,7 +560,8 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
           drawHighlightBox(window, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
           
           /* Draw the preview box too, if set */
-          drawPreviewBox(properties->bigPicture, window, &properties->gridRect, &properties->highlightRect);
+          BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+          bpProperties->drawPreviewBox(window, &properties->gridRect, &properties->highlightRect);
         }
       else
 	{
@@ -680,7 +682,8 @@ static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpoint
       if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
         x = properties->highlightRect.x + properties->highlightRect.width / 2;
 
-      showPreviewBox(gridGetBigPicture(grid), event->x, TRUE, x - event->x);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      bpProperties->startPreviewBox(event->x, TRUE, x - event->x);
       handled = TRUE;
     }
   
@@ -693,7 +696,8 @@ static gboolean onButtonReleaseGrid(GtkWidget *grid, GdkEventButton *event, gpoi
   if (event->button == 1 || event->button == 2) /* left or middle button */
     {
       GridProperties *properties = gridGetProperties(grid);
-      acceptAndClearPreviewBox(gridGetBigPicture(grid), event->x, &properties->gridRect, &properties->highlightRect);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      bpProperties->finishPreviewBox(event->x, &properties->gridRect, &properties->highlightRect);
     }
   
   return TRUE;
@@ -740,7 +744,8 @@ static gboolean onMouseMoveGrid(GtkWidget *grid, GdkEventMotion *event, gpointer
       (event->state & GDK_BUTTON2_MASK))   /* middle button */
     {
       /* Draw a preview box at the mouse pointer location */
-      showPreviewBox(gridGetBigPicture(grid), event->x, FALSE, 0);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(gridGetBigPicture(grid));
+      bpProperties->startPreviewBox(event->x, FALSE, 0);
     }
   
   return TRUE;

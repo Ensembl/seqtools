@@ -138,7 +138,6 @@ static void                   snpTrackSetHeight(GtkWidget *detailView, GtkWidget
 static void                   getVariationDisplayRange(const MSP *msp, const gboolean expand, const BlxSeqType seqType, const int numFrames, const gboolean displayRev, const int activeFrame, const IntRange* const refSeqRange, IntRange *displayRange, IntRange *expandedRange);
 static void                   recalculateSnpTrackBorders(GtkWidget *snpTrack, gpointer data);
 
-static void                   detailViewCacheFontSize(GtkWidget *detailView, gdouble charWidth, gdouble charHeight);
 static gboolean               widgetIsTree(GtkWidget *widget);
 static gboolean               widgetIsTreeContainer(GtkWidget *widget);
 static void                   updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *fontDesc);
@@ -202,17 +201,14 @@ DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
                                            GList *columnList_in,
                                            GtkAdjustment *adjustment_in, 
                                            const int startCoord_in,
-                                           const BlxColumnId sortColumn_in)
+                                           const BlxColumnId sortColumn_in) :
+  BlxPanel(detailView_in, blxWindow_in, bc_in, coverageViewP_in, 0)
 {
   /* Find a fixed-width font */
   const char *fontFamily = findFixedWidthFont(detailView_in);
   PangoFontDescription *fontDesc_in = pango_font_description_from_string(fontFamily);
   pango_font_description_set_size(fontDesc_in, pango_font_description_get_size(detailView_in->style->font_desc));
 
-  widget = detailView_in;
-  blxWindow = blxWindow_in;
-  m_bc = bc_in;
-  coverageViewP = coverageViewP_in;
   renderer = renderer_in;
   fwdStrandTrees = fwdStrandTrees_in;
   revStrandTrees = revStrandTrees_in;
@@ -220,8 +216,6 @@ DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
   statusBar = statusBar_in;
   adjustment = adjustment_in;
   fontDesc = fontDesc_in;
-  charWidth = 0.0;
-  charHeight = 0.0;
   snpConnectorHeight = DEFAULT_SNP_CONNECTOR_HEIGHT;
   numUnalignedBases = DEFAULT_NUM_UNALIGNED_BASES;
 
@@ -324,16 +318,15 @@ DetailViewProperties::~DetailViewProperties()
     }
 }
 
-const GList* DetailViewProperties::columnList() const
+double DetailViewProperties::charWidth() const
 {
-  const GList *result = NULL;
-
-  if (m_bc)
-    result = m_bc->columnList;
-
-  return result;
+  return m_charWidth;
 }
 
+double DetailViewProperties::charHeight() const
+{
+  return m_charHeight;
+}
 
 /* Get the position of the left border of the main content, i.e. the 
  * sequence column */
@@ -358,22 +351,11 @@ double DetailViewProperties::contentWidth() const
 }
 
 
-CoverageViewProperties* DetailViewProperties::coverageViewProperties()
+void DetailViewProperties::setFontSize(const double charWidth, const double charHeight)
 {
-  return coverageViewP;
+  m_charWidth = charWidth;
+  m_charHeight = charHeight;
 }
-
-
-GtkWidget* DetailViewProperties::coverageView()
-{
-  GtkWidget *result = NULL;
-
-  if (coverageViewP)
-    result = coverageViewP->widget();
-
-  return result;
-}
-
 
 
 /***********************************************************
@@ -580,7 +562,7 @@ static int calcNumBasesInSequenceColumn(DetailViewProperties *properties)
   
   /* Find the width of the sequence column */
   int colWidth = UNSET_INT;
-  GList *listItem = blxWindowGetColumnList(properties->blxWindow);
+  GList *listItem = blxWindowGetColumnList(properties->blxWindow());
   
   for ( ; listItem; listItem = listItem->next)
     {
@@ -599,7 +581,7 @@ static int calcNumBasesInSequenceColumn(DetailViewProperties *properties)
       colWidth -= (2 * renderer->xpad) + (2 * renderer->xalign);
       
       /* Return the number of whole characters that fit in the column. */
-      numChars = (int)((gdouble)colWidth / properties->charWidth);
+      numChars = (int)((gdouble)colWidth / properties->charWidth());
     }
   
   DEBUG_EXIT("calcNumBasesInSequenceColumn returning %d", numChars);
@@ -643,7 +625,7 @@ void updateDetailViewRange(GtkWidget *detailView)
 //            newStart = centre - offset;
 //          }
 //            
-//        const BlxSeqType seqType = blxWindowGetSeqType(properties->blxWindow);
+//        const BlxSeqType seqType = blxWindowGetSeqType(properties->blxWindow());
 //        setDetailViewStartIdx(detailView, newStart, seqType);
           
           gtk_adjustment_changed(properties->adjustment); /* signal that the scroll range has changed */
@@ -1536,7 +1518,7 @@ void clearFeedbackArea(GtkWidget *detailView)
 void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const BlxStrand strand)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  BlxContext *bc = blxWindowGetContext(properties->blxWindow);
+  BlxContext *bc = blxWindowGetContext(properties->blxWindow());
 
   /* First clear the existing message if there is one */
   GtkStatusbar *statusBar = GTK_STATUSBAR(properties->statusBar);
@@ -2202,10 +2184,10 @@ void selectClickedSnp(GtkWidget *snpTrack,
       gtk_widget_translate_coordinates(snpTrack, colHeader, xIn, 0, &x, NULL);
     }
 
-  int clickedDisplayIdx = getBaseIndexAtColCoords(x, y, properties->charWidth, &properties->displayRange);
+  int clickedDisplayIdx = getBaseIndexAtColCoords(x, y, properties->charWidth(), &properties->displayRange);
 
   /* Get the clicked row index (0-based) */
-  const int rowHeight = ceil(properties->charHeight);
+  const int rowHeight = ceil(properties->charHeight());
   const int clickedRow = y / rowHeight;
   const int numRows = getNumSnpTrackRows(bc, properties, snpTrackGetStrand(snpTrack, detailView), activeFrame);
 
@@ -2908,7 +2890,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
   const BlxStrand activeStrand = blxWindowGetActiveStrand(blxWindow);
   const gboolean highlightSnps = bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS];
 
-  gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, roundNearest(properties->charHeight));
+  gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, roundNearest(properties->charHeight()));
   
   /* Find out if there are any bases in the introns that need highlighting. */
   GHashTable *basesToHighlight = getRefSeqBasesToHighlight(detailView, &qRange, BLXSEQ_DNA, activeStrand);
@@ -2946,7 +2928,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
     {
       /* Get the character to display at this index, and its position */
       displayText[displayTextPos] = getSequenceIndex(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
-      const int x = (int)((gdouble)displayTextPos * properties->charWidth);
+      const int x = (int)((gdouble)displayTextPos * properties->charWidth());
       
       baseData.dnaIdx = qIdx;
       baseData.baseChar = displayText[displayTextPos];
@@ -3433,12 +3415,12 @@ void drawHeaderChar(BlxContext *bc,
     {
       /* We're drawing nucleotides from top-to-bottom instead of left-to-right, so the start border is
        * the top border and the bottom border is the end border. */
-      drawRectangle(drawable, gc, data->fillColor, data->outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
+      drawRectangle(drawable, gc, data->fillColor, data->outlineColor, x, y, ceil(properties->charWidth()), roundNearest(properties->charHeight()),
                     data->drawJoiningLines, data->drawJoiningLines, data->drawStart, data->drawEnd);
     }
   else
     {
-      drawRectangle(drawable, gc, data->fillColor, data->outlineColor, x, y, ceil(properties->charWidth), roundNearest(properties->charHeight),
+      drawRectangle(drawable, gc, data->fillColor, data->outlineColor, x, y, ceil(properties->charWidth()), roundNearest(properties->charHeight()),
                     data->drawStart, data->drawEnd, data->drawJoiningLines, data->drawJoiningLines);
     }
 }
@@ -3586,7 +3568,7 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 
   /* Create the drawable for the widget (whether we're actually going to do any drawing or not) */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  GdkDrawable *drawable = createBlankSizedPixmap(snpTrack, snpTrack->window, snpTrack->allocation.width, ceil(properties->charHeight) * 10);
+  GdkDrawable *drawable = createBlankSizedPixmap(snpTrack, snpTrack->window, snpTrack->allocation.width, ceil(properties->charHeight()) * 10);
 
   GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   BlxContext *bc = blxWindowGetContext(blxWindow);
@@ -3615,7 +3597,7 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 
   /* Loop through all variations and see if any are in the current display range */
   const int y = 0;
-  const int rowHeight = ceil(properties->charHeight);
+  const int rowHeight = ceil(properties->charHeight());
   int i = 0;
   const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
   GSList *rows = NULL;
@@ -3635,8 +3617,8 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
               const int rowNum = getVariationRowNumber(&mspExpandedRange, numRows, &rows);
               const int rowIdx = rowNum - 1;
               
-              int x = leftMargin + (int)((gdouble)(mspExpandedRange.min() - properties->displayRange.min()) * properties->charWidth);
-              const int width = ceil((gdouble)strlen(mspGetMatchSeq(msp)) * properties->charWidth);
+              int x = leftMargin + (int)((gdouble)(mspExpandedRange.min() - properties->displayRange.min()) * properties->charWidth());
+              const int width = ceil((gdouble)strlen(mspGetMatchSeq(msp)) * properties->charWidth());
               const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
               
               /* Draw the outline in the default SNP color. If the SNP is selected, also
@@ -3710,7 +3692,7 @@ static int getBaseIndexAtDetailViewCoords(GtkWidget *detailView, const int x, co
   if (x >= xRange.min() && x <= xRange.max())
     {
       /* Get the 0-based char index at x */
-      gdouble charWidth = properties->charWidth;
+      gdouble charWidth = properties->charWidth();
       int charIdx = (int)(((gdouble)x - xRange.min()) / charWidth);
 
       /* Add the start of the scroll range to convert this to the display index */
@@ -3809,7 +3791,7 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
       detailViewRedrawAll(detailView);
 
       /* Update the big picture because the highlight box has moved */
-      GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow);
+      GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow());
       refreshBigPictureDisplayRange(bigPicture, FALSE);
     }
   
@@ -3830,7 +3812,8 @@ static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *
   getFontCharSize(detailView, fontDesc, &charWidth, &charHeight);
   
   /* Cache these results, because we use them often for calculations */
-  detailViewCacheFontSize(detailView, charWidth, charHeight);
+  DetailViewProperties *properties = detailViewGetProperties(detailView);
+  properties->setFontSize(charWidth, charHeight);
   
   /* Set the row height. Subtract the padding between the cell's actual area and
    * its background area. We will render at the background area's height, so that
@@ -4102,7 +4085,7 @@ static void assertDetailView(GtkWidget *detailView)
 GtkWidget* detailViewGetBlxWindow(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->blxWindow : NULL;
+  return properties ? properties->blxWindow() : NULL;
 }
 
 GtkAdjustment* detailViewGetAdjustment(GtkWidget *detailView)
@@ -4177,20 +4160,13 @@ int detailViewGetCellYPadding(GtkWidget *detailView)
 gdouble detailViewGetCharWidth(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->charWidth : 0.0;
+  return properties ? properties->charWidth() : 0.0;
 }
 
 gdouble detailViewGetCharHeight(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  return properties ? properties->charHeight : 0.0;
-}
-
-static void detailViewCacheFontSize(GtkWidget *detailView, gdouble charWidth, gdouble charHeight)
-{
-  DetailViewProperties *properties = detailViewGetProperties(detailView);
-  properties->charWidth = charWidth;
-  properties->charHeight = charHeight;
+  return properties ? properties->charHeight() : 0.0;
 }
 
 
@@ -5758,7 +5734,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 void detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColumn)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  GList *columnList = blxWindowGetColumnList(properties->blxWindow);
+  GList *columnList = blxWindowGetColumnList(properties->blxWindow());
   const int numColumns = g_list_length(columnList);
 
   if (numColumns > 0)

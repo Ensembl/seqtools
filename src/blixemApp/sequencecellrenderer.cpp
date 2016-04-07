@@ -1318,7 +1318,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
   /* Extract all the info from the tree that we'll need repeatedly. */
   TreeProperties *treeProperties = treeGetProperties(tree);
   DetailViewProperties *detailViewProperties = detailViewGetProperties(treeProperties->detailView);
-  BlxContext *bc = blxWindowGetContext(detailViewProperties->blxWindow);
+  BlxContext *bc = blxWindowGetContext(detailViewProperties->blxWindow());
   
   const gboolean highlightDiffs = bc->flags[BLXFLAG_HIGHLIGHT_DIFFS]; /* swap match/mismatch colors if this is true */
   const MSP *firstMsp = (const MSP*)(renderer->mspGList->data);
@@ -1350,16 +1350,16 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
     treeProperties->readingFrame,
     detailViewGetSelectedDisplayIdx(treeProperties->detailView),
     detailViewGetSelectedDisplayIdxRange(treeProperties->detailView),
-    blxWindowIsSeqSelected(detailViewProperties->blxWindow, seq),
-    blxWindowGetSelectedSeqs(detailViewProperties->blxWindow),
+    blxWindowIsSeqSelected(detailViewProperties->blxWindow(), seq),
+    blxWindowGetSelectedSeqs(detailViewProperties->blxWindow()),
     detailViewProperties->cellXPadding,
     detailViewProperties->cellYPadding,
-    detailViewProperties->charWidth,
-    detailViewProperties->charHeight,
+    detailViewProperties->charWidth(),
+    detailViewProperties->charHeight(),
     &detailViewProperties->displayRange,
     highlightDiffs,
     widgetGetDrawable(tree),
-    detailViewProperties->blxWindow,
+    detailViewProperties->blxWindow(),
     getGdkColor(BLXCOLOR_EXON_FILL, bc->defaultColors, FALSE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_EXON_FILL, bc->defaultColors, TRUE, bc->usePrintColors),
     getGdkColor(BLXCOLOR_CDS_FILL, bc->defaultColors, FALSE, bc->usePrintColors),
@@ -1413,7 +1413,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
       
       if (mspIsBlastMatch(msp))
         {
-          gboolean selected = blxWindowIsSeqSelected(detailViewProperties->blxWindow, msp->sSequence);
+          gboolean selected = blxWindowIsSeqSelected(detailViewProperties->blxWindow(), msp->sSequence);
 
           if (mspGetFlag(msp, MSPFLAG_SQUASH_IDENTICAL_FEATURES) && !mspGetFlag(msp, MSPFLAG_SQUASH_LINKED_FEATURES))
             {
@@ -1460,7 +1460,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
   /* Draw colinearity lines for the last msp. Passing curMsp as null indicates it's the last msp
    * so we search for adjacent msps in different rows. */
   if (prevMsp)
-    mspDrawColinearityLines(NULL, prevMsp, blxWindowIsSeqSelected(detailViewProperties->blxWindow, prevMsp->sSequence), &data);
+    mspDrawColinearityLines(NULL, prevMsp, blxWindowIsSeqSelected(detailViewProperties->blxWindow(), prevMsp->sSequence), &data);
 
   if (savedMsp)
     drawMsp(renderer, savedMsp, tree, &data);

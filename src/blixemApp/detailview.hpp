@@ -125,14 +125,15 @@ public:
   ~DetailViewProperties();
 
   // Access
+  double charWidth() const;
+  double charHeight() const;
   double contentXPos() const;
   double contentWidth() const;
-  const GList *columnList() const;
-  GtkWidget* coverageView();
-  CoverageViewProperties *coverageViewProperties();
+
+  // Update
+  void setFontSize(const double charWidth, const double charHeight);
 
   // Member variables
-  GtkWidget *blxWindow;                /* The main blixem window that this view belongs to */
   GtkCellRenderer *renderer;           /* The cell renderer that renders the sequences */
   GtkAdjustment *adjustment;           /* The scroll adjustment control for the detail view */
 
@@ -158,10 +159,6 @@ public:
 
   int snpConnectorHeight;              /* The height of the connector between the SNP track and the DNA base track */
   int numUnalignedBases;               /* If the display-unaligned-sequence option is on, this specifies how many additional bases to show at each end of the alignment */
-
-  /* Cached font sizes, needed often for calculations. */
-  gdouble charHeight;
-  gdouble charWidth;
         
   int exonBoundaryLineWidth;                 /* line width for exon boundaries */
   GdkLineStyle exonBoundaryLineStyle;        /* line style for exon boundaries */
@@ -171,8 +168,8 @@ public:
                                     Blixem */
 
 private:
-  BlxContext *m_bc;
-  CoverageViewProperties *coverageViewP;
+  double m_charWidth;
+  double m_charHeight;
 };
 
 

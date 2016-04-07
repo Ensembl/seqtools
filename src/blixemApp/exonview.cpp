@@ -44,6 +44,7 @@
 #include <blixemApp/blxwindow.hpp>
 #include <seqtoolsUtils/utilities.hpp>
 #include <seqtoolsUtils/blxmsp.hpp>
+#include <blixemApp/blxpanel.hpp>
 #include <string.h>
 #include <stdlib.h>
 #include <algorithm>
@@ -303,7 +304,7 @@ void calculateExonViewHeight(GtkWidget *exonView)
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
   const IntRange* const displayRange = &bpProperties->displayRange;
   
-  BlxContext *bc = blxWindowGetContext(bpProperties->blxWindow);
+  BlxContext *bc = blxWindowGetContext(bpProperties->blxWindow());
 
   /* Calculate the height based on how many exon lines will actually be drawn */
   int numExons = 0;
@@ -796,13 +797,13 @@ static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpo
       /* Draw the highlight box on top of it */
       ExonViewProperties *properties = exonViewGetProperties(exonView);
       BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
-      BlxContext *bc = blxWindowGetContext(bpProperties->blxWindow);
+      BlxContext *bc = blxWindowGetContext(bpProperties->blxWindow());
       
       GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
       drawHighlightBox(window, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
 
       /* Draw the preview box too, if it is set */
-      drawPreviewBox(properties->bigPicture, window, &properties->exonViewRect, &properties->highlightRect);
+      bpProperties->drawPreviewBox(window, &properties->exonViewRect, &properties->highlightRect);
     }
   
   return TRUE;
@@ -844,7 +845,8 @@ static gboolean onButtonPressExonView(GtkWidget *exonView, GdkEventButton *event
       if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
         x = properties->highlightRect.x + properties->highlightRect.width / 2;
       
-      showPreviewBox(exonViewGetBigPicture(exonView), event->x, TRUE, x - event->x);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      bpProperties->startPreviewBox(event->x, TRUE, x - event->x);
       handled = TRUE;
     }
   
@@ -857,7 +859,8 @@ static gboolean onButtonReleaseExonView(GtkWidget *exonView, GdkEventButton *eve
   if (event->button == 1 || event->button == 2) /* left or middle button */
     {
       ExonViewProperties *properties = exonViewGetProperties(exonView);
-      acceptAndClearPreviewBox(exonViewGetBigPicture(exonView), event->x, &properties->exonViewRect, &properties->highlightRect);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      bpProperties->finishPreviewBox(event->x, &properties->exonViewRect, &properties->highlightRect);
     }
   
   return TRUE;
@@ -869,7 +872,9 @@ static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, 
   if ((event->state & GDK_BUTTON1_MASK) || (event->state & GDK_BUTTON2_MASK)) /* left or middle button */
     {
       /* Draw a preview box at the mouse pointer location */
-      showPreviewBox(exonViewGetBigPicture(exonView), event->x, FALSE, 0);
+      ExonViewProperties *properties = exonViewGetProperties(exonView);
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      bpProperties->startPreviewBox(event->x, FALSE, 0);
     }
   
   return TRUE;

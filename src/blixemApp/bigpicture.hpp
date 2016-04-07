@@ -52,9 +52,6 @@
 #include <blixemApp/blxpanel.hpp>
 
 
-class CoverageViewProperties;
-
-
 
 class BigPictureProperties : public BlxPanel
 {
@@ -78,18 +75,17 @@ public:
   ~BigPictureProperties();
 
   // Access
-  double charWidth() const;
-  double charHeight() const;
   double contentXPos() const;
   double contentWidth() const;
+
+  // Query
   const IntRange *highlightRange() const;
 
-  GtkWidget* coverageView();
-  CoverageViewProperties *coverageViewProperties();
-
+  // Update
+  void refreshDisplayRange(const bool keepCentered);
+  void onHighlightBoxMoved(const int displayIdx, const BlxSeqType seqType);
 
   // Member variables
-  GtkWidget *blxWindow;         /* The main blixem window that this grid belongs to */
   GtkWidget *header;		/* The grid header */
   GtkWidget *fwdStrandGrid;	/* The grid that displays the forward ref seq strand */
   GtkWidget *revStrandGrid;	/* The grid that displays the reverse ref seq strand */
@@ -107,30 +103,21 @@ public:
   gdouble idPerCell;		/* The percent ID to show per vertical cell */
   DoubleRange percentIdRange;	/* The max and min %ID values displayed */
 
-  gboolean displayPreviewBox;   /* Whether to display the preview box */
-  int previewBoxCentre;	        /* The base that the preview box is centered on */
-  int previewBoxOffset;         /* Can be used to offset the actual preview box position from previewBoxCentre */
-
   int leftBorderChars;          /* The number of characters in the left border of the big picture grids */
     
-  int previewBoxLineWidth;
-
-private:
-  BlxContext *m_bc;
-  CoverageViewProperties *m_coverageViewP;
 };
 
 class GridHeaderProperties
 {
 public:
-  GtkWidget *widget;      /* The grid header widget */
-  GtkWidget *bigPicture;  /* The big picture view that this header belongs to */
-  GtkWidget *refButton;   /* A reference button, so we can query properties like its height */
+  GtkWidget *widget;          /* The grid header widget */
+  GtkWidget *bigPicture;      /* The big picture view that this header belongs to */
+  GtkWidget *refButton;       /* A reference button, so we can query properties like its height */
     
-  GdkRectangle headerRect; /* The actual drawing area where we'll draw the labels */
-  int numHeaderLines;	    /* The number of lines of text in the header labels */
-  int markerHeight;	    /* The height of the marker lines between the grid and the header labels */
-  int headerYPad;	    /* Y padding around the header buttons */
+  GdkRectangle headerRect;    /* The actual drawing area where we'll draw the labels */
+  int numHeaderLines;	      /* The number of lines of text in the header labels */
+  int markerHeight;	      /* The height of the marker lines between the grid and the header labels */
+  int headerYPad;	      /* Y padding around the header buttons */
 };
 
 
@@ -174,9 +161,6 @@ void                          bigPicturePrepareForPrinting(GtkWidget *bigPicture
 
 void                          scrollBigPictureLeftStep(GtkWidget *bigPicture);
 void                          scrollBigPictureRightStep(GtkWidget *bigPicture);
-void                          drawPreviewBox(GtkWidget *bigPicture, GdkDrawable *drawable, GdkRectangle *displayRect, GdkRectangle *highlightRect);
-void                          showPreviewBox(GtkWidget *bigPicture, const int x, const gboolean bOffset, const int offset);
-void                          acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentre, GdkRectangle *displayRect, GdkRectangle *highlightRect);
 
 gint			      bigPictureGetCellHeight(GtkWidget *bigPicture);
 
@@ -192,10 +176,6 @@ void			      drawHorizontalGridLines(GtkWidget *widget, GtkWidget *bigPicture,
 
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
 void			      zoomWholeBigPicture(GtkWidget *bigPicture);
-
-int			      getLeftCoordFromCentre(const int centreCoord, 
-						     const int width, 
-						     const GdkRectangle *outerRect);
 
 int			      getRightCoordFromCentre(const int centreCoord, 
 						      const int width, 

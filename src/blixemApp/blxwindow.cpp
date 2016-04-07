@@ -43,6 +43,7 @@
 #include <blixemApp/blxdotter.hpp>
 #include <blixemApp/exonview.hpp>
 #include <blixemApp/coverageview.hpp>
+#include <blixemApp/blxpanel.hpp>
 #include <seqtoolsUtils/utilities.hpp>
 #include <seqtoolsUtils/blxGff3Parser.hpp>
 #include <seqtoolsUtils/blxmsp.hpp>
@@ -1741,7 +1742,7 @@ static void createSearchColumnCombo(GtkTable *table, const int col, const int ro
   
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow());
 
   createSortBox(GTK_BOX(hbox), detailView, BLXCOL_SEQNAME, columnList, "Search column: ", TRUE);  
 }
@@ -4158,7 +4159,7 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
 {
   GtkWidget *detailView = GTK_WIDGET(data);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow());
 
   if (GTK_WIDGET_REALIZED(detailView) && GTK_IS_CONTAINER(widget))
     {
@@ -4282,7 +4283,7 @@ static void onAddNewSortByBox(GtkButton *button, gpointer data)
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow());
 
   /* Add another sort-by box to the container */
   createSortBox(box, detailView, BLXCOL_NONE, columnList, "then by", FALSE);
@@ -4334,7 +4335,7 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow());
   const int numColumns = g_list_length(columnList);
 
   /* Add a drop-down for each sort column that is currently specified (or just

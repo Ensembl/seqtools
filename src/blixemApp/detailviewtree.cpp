@@ -847,7 +847,7 @@ void resortTree(GtkWidget *tree, gpointer data)
 {
   GtkWidget *detailView = treeGetDetailView(tree);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow());
   const int numColumns = g_list_length(columnList);
 
   if (numColumns < 1)
@@ -950,7 +950,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
       GtkWidget *tree = GTK_WIDGET(data);
       TreeProperties *properties = treeGetProperties(tree);
       DetailViewProperties *dvProperties = detailViewGetProperties(properties->detailView);
-      BlxContext *bc = blxWindowGetContext(dvProperties->blxWindow);
+      BlxContext *bc = blxWindowGetContext(dvProperties->blxWindow());
 
       /* Check the first msp to see if this sequence is in a group that's hidden.
        * (Note that all MSPs in the same row should be in the same sequence - we 
@@ -1155,7 +1155,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
 
   /* Offset the x coord where we'll start drawing if we did not start at the beginning of the display range. */
   const int offset = bc->displayRev ? offsetMax : offsetMin;
-  gdouble xStart = (gdouble)offset * properties->charWidth;
+  gdouble xStart = (gdouble)offset * properties->charWidth();
   const int yStart = 0;
   
   /* Find out if there are any special bases that need highlighting. */
@@ -1190,7 +1190,7 @@ static void drawRefSeqHeader(GtkWidget *headerWidget, GtkWidget *tree)
       baseData.dnaIdxSelected = baseData.displayIdxSelected;
       baseData.baseChar = segmentToDisplay[displayIdx - properties->displayRange.min()];
       
-      const int x = (int)((gdouble)xStart + (gdouble)(displayIdx - properties->displayRange.min()) * properties->charWidth);
+      const int x = (int)((gdouble)xStart + (gdouble)(displayIdx - properties->displayRange.min()) * properties->charWidth());
 
       /* Draw the character, seting the background color and outline depending on whether this base is selected or
        * is affected by a SNP or polyA signal etc. */
@@ -1297,13 +1297,13 @@ static void treeHighlightSelectedBase(GtkWidget *tree, GdkDrawable *drawable)
               IntRange xRange;
               getColumnXCoords(columnList, BLXCOL_SEQUENCE, &xRange);
       
-              const int x = xRange.min() + (charIdx * properties->charWidth);
+              const int x = xRange.min() + (charIdx * properties->charWidth());
               const int y = 0;
       
-              BlxContext *bc = blxWindowGetContext(properties->blxWindow);
+              BlxContext *bc = blxWindowGetContext(properties->blxWindow());
               GdkColor *color = getGdkColor(BLXCOLOR_SELECTION, bc->defaultColors, FALSE, bc->usePrintColors);
       
-              drawRect(drawable, color, x, y, roundNearest(properties->charWidth), tree->allocation.height, 0.3, CAIRO_OPERATOR_XOR);
+              drawRect(drawable, color, x, y, roundNearest(properties->charWidth()), tree->allocation.height, 0.3, CAIRO_OPERATOR_XOR);
             }
         }
     }
@@ -2959,7 +2959,7 @@ static gint sortColumnCompareFunc(GtkTreeModel *model, GtkTreeIter *iter1, GtkTr
   GtkWidget *tree = GTK_WIDGET(data);
   GtkWidget *detailView = treeGetDetailView(tree);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow());
   const int numColumns = g_list_length(columnList);
 
   /* Sort by each requested column in order of priority */

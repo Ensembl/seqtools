@@ -176,7 +176,7 @@ static CoverageViewProperties* coverageViewCreateProperties(GtkWidget *widget,
 
 
 /* Set the pointer to the parent panel that this coverage view belongs to */
-void CoverageViewProperties::setPanel(const BlxPanel *panel)
+void CoverageViewProperties::setPanel(BlxPanel *panel)
 {
   m_panel = panel;
 }
@@ -514,13 +514,12 @@ gboolean CoverageViewProperties::expose(GdkEventExpose *event, gpointer data)
           g_object_unref(gc);
           
           /* Draw the highlight box on top of it */
-          GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
-          
           GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, m_bc->defaultColors, FALSE, m_bc->usePrintColors);
           drawHighlightBox(window, &m_highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
           
           /* Draw the preview box too, if set */
-          drawPreviewBox(bigPicture, window, &m_viewRect, &m_highlightRect);
+          if (m_panel)
+            m_panel->drawPreviewBox(window, &m_viewRect, &m_highlightRect);
         }
       else
 	{
@@ -569,7 +568,9 @@ gboolean CoverageViewProperties::buttonPress(GdkEventButton *event, gpointer dat
       if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
         x = m_highlightRect.x + m_highlightRect.width / 2;
       
-      showPreviewBox(blxWindowGetBigPicture(m_blxWindow), event->x, TRUE, x - event->x);
+      if (m_panel)
+        m_panel->startPreviewBox(event->x, TRUE, x - event->x);
+
       handled = TRUE;
     }
   
@@ -592,7 +593,8 @@ gboolean CoverageViewProperties::buttonRelease(GdkEventButton *event, gpointer d
 {
   if (event->button == 1 || event->button == 2) /* left or middle button */
     {
-      acceptAndClearPreviewBox(blxWindowGetBigPicture(m_blxWindow), event->x, &m_viewRect, &m_highlightRect);
+      if (m_panel)
+        m_panel->finishPreviewBox(event->x, &m_viewRect, &m_highlightRect);
     }
   
   return TRUE;
@@ -649,10 +651,11 @@ gboolean CoverageViewProperties::scroll(GdkEventScroll *event, gpointer data)
 gboolean CoverageViewProperties::mouseMove(GdkEventMotion *event, gpointer data)
 {
   if ((event->state & GDK_BUTTON1_MASK) || /* left or middle button */
-      (event->state & GDK_BUTTON2_MASK))
+       (event->state & GDK_BUTTON2_MASK))
     {
       /* Draw a preview box at the mouse pointer location */
-      showPreviewBox(blxWindowGetBigPicture(m_blxWindow), event->x, FALSE, 0);
+      if (m_panel)
+        m_panel->startPreviewBox(event->x, FALSE, 0);
     }
   
   return TRUE;

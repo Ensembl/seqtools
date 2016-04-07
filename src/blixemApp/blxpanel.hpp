@@ -39,23 +39,66 @@
 #define _blx_panel_included_
 
 
+#include <gtk/gtk.h>
+#include <seqtoolsUtils/utilities.hpp>
+
+
+class CoverageViewProperties;
+class BlxContext;
+class IntRange;
+
+
+
 class BlxPanel
 {
 public:
   // Construct/destruct
-  BlxPanel() : displayRange(0, 0), widget(NULL) {};
-  virtual ~BlxPanel() {};
+  BlxPanel();
+
+  BlxPanel(GtkWidget *widget, 
+           GtkWidget *blxWindow, 
+           BlxContext *bc_in,
+           CoverageViewProperties *coverageViewP,
+           int previewBoxCentre);
+
+  virtual ~BlxPanel();
 
   // Access
+  GtkWidget* widget() const;
+  GtkWidget* blxWindow() const;
+  virtual double charWidth() const;
+  virtual double charHeight() const;
+  GtkWidget* coverageView();
+  CoverageViewProperties *coverageViewProperties();
+  const GList *columnList() const;
+
   virtual double contentXPos() const = 0;
   virtual double contentWidth() const = 0;
   virtual const IntRange* highlightRange() const { return NULL; };
 
-  // Public member variables
-  IntRange displayRange;      /* The currently-displayed range of ref-sequence bases in the panel */
+  // Update
+  virtual void refreshDisplayRange(const bool keepCentered);
+  virtual void onHighlightBoxMoved(const int displayIdx, const BlxSeqType seqType);
 
-protected:
-  GtkWidget *widget;          /* The widget that draws this panel  */
+  // Draw
+  void startPreviewBox(const int x, const gboolean init, const int offset);
+  void finishPreviewBox(const int xCentreIn, GdkRectangle *displayRect, GdkRectangle *highlightRect);
+  void drawPreviewBox(GdkDrawable *drawable, GdkRectangle *displayRect, GdkRectangle *highlightRect);
+
+
+  // Public member variables
+  IntRange displayRange;       /* The currently-displayed range of ref-sequence bases in the panel */
+
+private:
+  GtkWidget *m_widget;           /* The widget that draws this panel  */
+  GtkWidget *m_blxWindow;      /* The main blixem window that this panel belongs to */
+  BlxContext *m_bc;
+  CoverageViewProperties *m_coverageViewP;
+
+  bool m_previewBoxOn;         /* True if currently displaying the preview box */
+  int m_previewBoxCentre;      /* The base that the preview box is centered on */
+  int m_previewBoxOffset;      /* Can be used to offset the actual preview box position from previewBoxCentre */
+  int m_previewBoxLineWidth;
 };
 
 
