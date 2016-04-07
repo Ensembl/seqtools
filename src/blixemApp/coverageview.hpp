@@ -56,7 +56,8 @@ public:
 
   /* Access */
   GtkWidget* widget();
-  double leftBorderPos();
+  double leftBorderPos() const;
+  double contentWidth() const;
   double depthPerCell();
   int maxLabeledDepth();
 

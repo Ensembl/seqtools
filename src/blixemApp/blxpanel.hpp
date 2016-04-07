@@ -45,7 +45,7 @@ public:
   virtual ~BlxPanel() {};
 
   virtual double leftBorderPos() const = 0;
-  
+  virtual double contentWidth() const = 0;
 };
 
 

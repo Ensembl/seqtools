@@ -81,6 +81,7 @@ public:
   double charWidth() const;
   double charHeight() const;
   double leftBorderPos() const;
+  double contentWidth() const;
 
   GtkWidget* coverageView();
   CoverageViewProperties *coverageViewProperties();

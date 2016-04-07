@@ -345,21 +345,19 @@ double DetailViewProperties::leftBorderPos() const
 {
   double result = 0.0;
 
-  // Loop through all columns up to the sequence column and sum their width
-  const GList *listItem = columnList();
-  int pos = 0;
-  
-  for ( ; listItem; listItem = listItem->next)
-    {
-      BlxColumnInfo *columnInfo = (BlxColumnInfo*)listItem->data;
+  IntRange range;
+  getColumnXCoords(columnList(), BLXCOL_SEQUENCE, &range);
 
-      if (columnInfo->columnId == BLXCOL_SEQUENCE)
-        break;
-      else if (columnInfo->showColumn)
-        pos += columnInfo->width;
-    }
+  result = (double)range.min();
 
-  result = (double)pos;
+  return result;
+}
+
+/* Get the position of the right border of the main content, i.e. the 
+ * sequence column */
+double DetailViewProperties::contentWidth() const
+{
+  double result = (double)getColumnWidth(columnList(), BLXCOL_SEQUENCE);
   return result;
 }
 

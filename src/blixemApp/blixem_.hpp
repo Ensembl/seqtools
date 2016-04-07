@@ -626,10 +626,10 @@ gboolean                            blxview(CommandLineOptions *options,
                                             GSList *styles,
                                             GHashTable *lookupTable) ;
 
-BlxColumnInfo*                     getColumnInfo(GList *columnList, const BlxColumnId columnId);
-int                                getColumnWidth(GList *columnList, const BlxColumnId columnId);
-const char*                        getColumnTitle(GList *columnList, const BlxColumnId columnId);
-void                               getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *xRange);
+BlxColumnInfo*                     getColumnInfo(const GList *columnList, const BlxColumnId columnId);
+int                                getColumnWidth(const GList *columnList, const BlxColumnId columnId);
+const char*                        getColumnTitle(const GList *columnList, const BlxColumnId columnId);
+void                               getColumnXCoords(const GList *columnList, const BlxColumnId columnId, IntRange *xRange);
 void                               saveColumnWidths(GList *columnList, GKeyFile *key_file);
 void                               saveSummaryColumns(GList *columnList, GKeyFile *key_file);
 gboolean                           showColumn(BlxColumnInfo *columnInfo);

@@ -83,13 +83,25 @@ GtkWidget* CoverageViewProperties::widget()
 }
 
 /* Return the position of the left border. */
-double CoverageViewProperties::leftBorderPos()
+double CoverageViewProperties::leftBorderPos() const
 {
   double result = 0.0;
 
   // Use the left border position of the parent panel
   if (m_panel)
     result = m_panel->leftBorderPos();
+
+  return result;
+}
+
+/* Return the position of the left border. */
+double CoverageViewProperties::contentWidth() const
+{
+  double result = 0.0;
+
+  // Use the left border position of the parent panel
+  if (m_panel)
+    result = m_panel->contentWidth();
 
   return result;
 }
@@ -404,8 +416,12 @@ void CoverageViewProperties::calculateBorders()
   m_viewRect.x = m_displayRect.x;
   m_viewRect.y = m_displayRect.y + HIGHLIGHT_BOX_Y_PAD + DEFAULT_COVERAGE_VIEW_Y_PADDING;
 
-  m_displayRect.width = m_widget->allocation.width - m_viewRect.x;
+  m_displayRect.width = contentWidth();
   m_displayRect.height = height + 2 * (HIGHLIGHT_BOX_Y_PAD + DEFAULT_COVERAGE_VIEW_Y_PADDING);
+
+  /* If the width isn't set (e.g. we don't have a parent panel) then use the allocation width */
+  if (m_displayRect.width == 0.0)
+    m_displayRect.width = m_widget->allocation.width - m_viewRect.x;
 
   m_viewRect.width = m_displayRect.width;
   m_viewRect.height = gridHeight;

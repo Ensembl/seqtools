@@ -5530,11 +5530,11 @@ gboolean blxWindowGetNegateCoords(GtkWidget *blxWindow)
 }
 
 /* Get the column info for a particular column */
-BlxColumnInfo *getColumnInfo(GList *columnList, const BlxColumnId columnId)
+BlxColumnInfo *getColumnInfo(const GList *columnList, const BlxColumnId columnId)
 {
   BlxColumnInfo *result = NULL;
   
-  GList *listItem = columnList;
+  const GList *listItem = columnList;
   
   for ( ; listItem; listItem = listItem->next)
   {

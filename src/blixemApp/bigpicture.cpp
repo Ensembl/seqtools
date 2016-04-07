@@ -1307,6 +1307,18 @@ double BigPictureProperties::leftBorderPos() const
 }
 
 
+double BigPictureProperties::contentWidth() const
+{
+  double result = 0.0;
+
+  /* The big picture content covers the whole allocation minus the left border */
+  if (widget)
+    result = widget->allocation.width - leftBorderPos();
+
+  return result;
+}
+
+
 CoverageViewProperties* BigPictureProperties::coverageViewProperties()
 {
   return m_coverageViewP;

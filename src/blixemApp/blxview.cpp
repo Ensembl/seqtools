@@ -1851,7 +1851,7 @@ GList* blxCreateColumns(const gboolean optionalColumns, const gboolean customSeq
 
 
 /* Return the width of the column with the given column id */
-int getColumnWidth(GList *columnList, const BlxColumnId columnId)
+int getColumnWidth(const GList *columnList, const BlxColumnId columnId)
 {
   int result = 0;
 
@@ -1867,7 +1867,7 @@ int getColumnWidth(GList *columnList, const BlxColumnId columnId)
 
 
 /* Return the width of the column with the given column id */
-const char* getColumnTitle(GList *columnList, const BlxColumnId columnId)
+const char* getColumnTitle(const GList *columnList, const BlxColumnId columnId)
 {
   const char *result = NULL;
   
@@ -1884,12 +1884,12 @@ const char* getColumnTitle(GList *columnList, const BlxColumnId columnId)
 
 /* Gets the x coords at the start/end of the given column and populate them into the range
  * return argument. */
-void getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *xRange)
+void getColumnXCoords(const GList *columnList, const BlxColumnId columnId, IntRange *xRange)
 {
   xRange->set(0, 0);
   
   /* Loop through all visible columns up to the given column, summing their widths. */
-  GList *columnItem = columnList;
+  const GList *columnItem = columnList;
   
   for ( ; columnItem; columnItem = columnItem->next)
     {

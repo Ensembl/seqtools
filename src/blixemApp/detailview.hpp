@@ -126,6 +126,7 @@ public:
 
   // Access
   double leftBorderPos() const;
+  double contentWidth() const;
   const GList *columnList() const;
   GtkWidget* coverageView();
   CoverageViewProperties *coverageViewProperties();
