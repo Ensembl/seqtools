@@ -56,6 +56,7 @@ public:
 
   /* Access */
   GtkWidget* widget();
+  const IntRange *displayRange();
   double leftBorderPos() const;
   double contentWidth() const;
   double depthPerCell();
@@ -63,7 +64,6 @@ public:
 
   /* Modify */
   gboolean setDepthPerCell(const double depthPerCell);
-  void setDisplayRange(const IntRange *displayRange);
 
   /* Events */
   gboolean expose(GdkEventExpose *event, gpointer data);
@@ -94,7 +94,6 @@ private:
 
   GtkWidget *m_blxWindow;   /* The main blixem window */
 
-  const IntRange *m_displayRange; /* The current range to display */
   const double *m_leftBorderPos; /* The position of the left border of the coverage view.
                                   * Points to a value supplied by the parent so it will align. */
 

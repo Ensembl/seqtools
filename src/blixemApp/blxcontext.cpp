@@ -36,9 +36,14 @@
  */
 
 
+#include <algorithm>
+
 #include <blixemApp/blxcontext.hpp>
 #include <blixemApp/blixem_.hpp>
 #include <seqtoolsUtils/blxGff3Parser.hpp>
+
+
+using namespace std;
 
 
 
@@ -917,4 +922,35 @@ BlxSequence* BlxContext::getSelectedTranscript(int *num_transcripts) const
 }
 
 
+void BlxContext::highlightBoxCalcBorders(GdkRectangle *drawingRect, 
+                                         GdkRectangle *highlightRect,
+                                         const IntRange *fullRange,
+                                         const IntRange *highlightRange,
+                                         const int yPadding)
+{
+  if (drawingRect && highlightRect && fullRange && highlightRange)
+    {
+      /* Get the full range in dna coords */
+      IntRange fullDnaRange;
+      convertDisplayRangeToDnaRange(fullRange, seqType, numFrames, displayRev, &refSeqRange, &fullDnaRange);
+      
+      /* Get the highlight range in dna coords */
+      IntRange highlightDnaRange;
+      convertDisplayRangeToDnaRange(highlightRange, seqType, numFrames, displayRev, &refSeqRange, &highlightDnaRange);
+      
+      /* Get the x coords for the start and end of the detail view display range */
+      const int x1 = convertBaseIdxToRectPos(highlightDnaRange.min(true, displayRev), drawingRect, &fullDnaRange, TRUE, displayRev, TRUE);
+      const int x2 = convertBaseIdxToRectPos(highlightDnaRange.max(true, displayRev), drawingRect, &fullDnaRange, TRUE, displayRev, TRUE);
+      
+      highlightRect->x = min(x1, x2);
+      highlightRect->y = 0;
 
+      highlightRect->width = abs(x1 - x2);
+
+      highlightRect->height = 
+        drawingRect->height + 
+        roundNearest(charHeight() / 2.0) + 
+        yPadding + 
+        (2 * HIGHLIGHT_BOX_Y_PAD);
+    }
+}

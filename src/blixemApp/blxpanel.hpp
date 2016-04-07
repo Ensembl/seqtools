@@ -42,10 +42,17 @@
 class BlxPanel
 {
 public:
+  // Constructors
   virtual ~BlxPanel() {};
 
+  // Access
   virtual double leftBorderPos() const = 0;
   virtual double contentWidth() const = 0;
+
+  IntRange displayRange;      /* The currently-displayed range of ref-sequence bases in the panel */
+
+protected:
+  GtkWidget *widget;          /* The widget that draws this panel  */
 };
 
 

@@ -73,6 +73,10 @@ public:
   GList *getSelectedSeqsByType(const BlxSequenceType type) const;
   BlxSequence* getSelectedTranscript(int *num_transcripts) const;
 
+  void highlightBoxCalcBorders(GdkRectangle *drawingRect, GdkRectangle *highlightRect, 
+                               const IntRange *fullRange, const IntRange *highlightRange, 
+                               const int yPadding);
+
   // Modify
   void saveSettingsFlags(GKeyFile *key_file);
   void killAllSpawned();

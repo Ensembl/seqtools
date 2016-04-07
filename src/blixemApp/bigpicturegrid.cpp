@@ -463,7 +463,20 @@ void gridPrepareForPrinting(GtkWidget *grid)
 void calculateGridHighlightBoxBorders(GtkWidget *grid)
 {
   GridProperties *properties = gridGetProperties(grid);
-  bigPictureCalculateHighlightBoxBorders(&properties->gridRect, &properties->highlightRect, properties->bigPicture, properties->mspLineHeight);
+  g_return_if_fail(properties);
+
+  BlxContext *bc = gridGetContext(grid);
+  GtkWidget *bigPicture = properties->bigPicture;
+  GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
+
+  IntRange *bpRange = bigPictureGetDisplayRange(bigPicture);
+  IntRange *dvRange = detailViewGetDisplayRange(detailView);
+
+  bc->highlightBoxCalcBorders(&properties->gridRect,
+                              &properties->highlightRect, 
+                              bpRange,
+                              dvRange,
+                              properties->mspLineHeight);
 }
 
 

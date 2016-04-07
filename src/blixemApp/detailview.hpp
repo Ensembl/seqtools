@@ -132,7 +132,6 @@ public:
   CoverageViewProperties *coverageViewProperties();
 
   // Member variables
-  GtkWidget *widget;                   /* The detail view widget */
   GtkWidget *blxWindow;                /* The main blixem window that this view belongs to */
   GtkCellRenderer *renderer;           /* The cell renderer that renders the sequences */
   GtkAdjustment *adjustment;           /* The scroll adjustment control for the detail view */
@@ -147,8 +146,6 @@ public:
   int cellXPadding;                    /* The x padding between the tree cell background area and their drawing area */
   int cellYPadding;                    /* The y padding between the tree cell background area and their drawing area */
         
-  IntRange displayRange;               /* The currently-displayed range of bases in the reference sequence */
-
   DetailViewIndex selectedRangeInit;   /* Caches the initial selected index when selecting a range */
   DetailViewIndex selectedRangeStart;  /* The currently-selected range start (if shift-selecting) */
   DetailViewIndex selectedRangeEnd;    /* The currently-selected range end (if shift-selecting) */

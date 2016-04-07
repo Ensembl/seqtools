@@ -82,6 +82,16 @@ GtkWidget* CoverageViewProperties::widget()
   return m_widget;
 }
 
+const IntRange* CoverageViewProperties::displayRange()
+{
+  const IntRange *result = NULL;
+  
+  if (m_panel)
+    result = &m_panel->displayRange;
+
+  return result;
+}
+
 /* Return the position of the left border. */
 double CoverageViewProperties::leftBorderPos() const
 {
@@ -232,11 +242,6 @@ gboolean CoverageViewProperties::setDepthPerCell(const double depthPerCell_in)
   return TRUE;
 }
 
-void CoverageViewProperties::setDisplayRange(const IntRange *displayRange)
-{
-  m_displayRange = displayRange;
-}
-
 /***********************************************************
  *                         Drawing                         *
  ***********************************************************/
@@ -311,7 +316,8 @@ double CoverageViewProperties::charWidth() const
 /* Draw the actual coverage data as a bar chart */
 void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
 {
-  g_return_if_fail(m_bc && m_bc->maxDepth > 0 && m_displayRange);
+  const IntRange *dispRange = displayRange();
+  g_return_if_fail(m_bc && m_bc->maxDepth > 0 && dispRange);
 
   cairo_t *cr = gdk_cairo_create(drawable);
 
@@ -326,13 +332,13 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
   double startX = -1.0;
   double prevX = -1.0;
   double prevY = -1.0;
-  int coord = m_displayRange->min();
+  int coord = dispRange->min();
   
-  for ( ; coord <= m_displayRange->max(); ++coord)
+  for ( ; coord <= dispRange->max(); ++coord)
     {
       /* Get the x position for this coord (always pass displayRev as false because
        * display coords are already inverted if the display is reversed). */
-      const double x = convertBaseIdxToRectPos(coord, &m_viewRect, m_displayRange, TRUE, FALSE, TRUE);
+      const double x = convertBaseIdxToRectPos(coord, &m_viewRect, dispRange, TRUE, FALSE, TRUE);
       const int depth = m_bc->getDepth(coord);
 
       /* Calculate the y position based on the depth */
@@ -347,7 +353,7 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
         {
           startX = x;
         }
-      else if (y != prevY || coord == m_displayRange->max())
+      else if (y != prevY || coord == dispRange->max())
         {
           /* If we had multiple positions where y was the same, draw a horizontal
            * line at that y position. If there was only one position at the previous y value then
@@ -356,9 +362,9 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
           
           /* If it's the last coord, also draw the current column, because there won't be another
            * loop to take care of this */
-          if (coord == m_displayRange->max())
+          if (coord == dispRange->max())
             {
-              const int endX = convertBaseIdxToRectPos(coord + 1, &m_viewRect, m_displayRange, TRUE, FALSE, TRUE);
+              const int endX = convertBaseIdxToRectPos(coord + 1, &m_viewRect, dispRange, TRUE, FALSE, TRUE);
               drawCoverageBar(x, endX, y, bottomBorder, cr);
             }
 
@@ -391,13 +397,17 @@ void CoverageViewProperties::draw(GdkDrawable *drawable)
 
 
 /* Calculate the borders of the highlight box (the shaded area that indicates the
- * detail-view range). (This is just a convenience way to call calculateHighlightBoxBorders
+ * selection range). (This is just a convenience way to call calculateHighlightBoxBorders
  * from an external function.) */
 void CoverageViewProperties::calculateHighlightBoxBorders()
 {  
-  GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
-
-  bigPictureCalculateHighlightBoxBorders(&m_displayRect, &m_highlightRect, bigPicture, 0);
+  if (m_bc)
+    {
+      const IntRange *highlightRange = NULL;
+      m_bc->highlightBoxCalcBorders(&m_displayRect, &m_highlightRect, 
+                                    displayRange(), highlightRange,
+                                    0);
+    }
 }
 
 
@@ -427,7 +437,7 @@ void CoverageViewProperties::calculateBorders()
   m_viewRect.height = gridHeight;
   
   /* Get the boundaries of the highlight box */
-  bigPictureCalculateHighlightBoxBorders(&m_displayRect, &m_highlightRect, bigPicture, 0);
+  calculateHighlightBoxBorders();
   
   /* Set the size request to our desired height. We want a fixed heigh but don't set the
    * width, because we want the user to be able to resize that. */

@@ -448,46 +448,6 @@ void calculateGridHeaderBorders(GtkWidget *header)
 }
 
 
-void bigPictureCalculateHighlightBoxBorders(GdkRectangle *drawingRect, 
-                                            GdkRectangle *highlightRect,
-                                            GtkWidget *bigPicture,
-                                            const int yPadding)
-{
-  /* Calculate how many pixels from the left edge of the widget to the first base in the range. Truncating
-   * the double to an int after the multiplication means we can be up to 1 pixel out, but this should be fine. */
-  GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
-  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
-
-  if (adjustment)
-    {
-      BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
-      BlxContext *bc = bigPictureGetContext(bigPicture);
-      
-      /* Get the big picture display range in dna coords */
-      IntRange bpRange;
-      convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
-      
-      /* Get the detail view display range in dna coords */
-      IntRange dvRange;
-      convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
-      
-      /* Get the x coords for the start and end of the detail view display range */
-      const int x1 = convertBaseIdxToRectPos(dvRange.min(true, bc->displayRev), drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
-      const int x2 = convertBaseIdxToRectPos(dvRange.max(true, bc->displayRev), drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
-      
-      highlightRect->x = min(x1, x2);
-      highlightRect->y = 0;
-      
-      highlightRect->width = abs(x1 - x2);
-      highlightRect->height = 
-        drawingRect->height + 
-        roundNearest(bpProperties->charHeight() / 2.0) + 
-        yPadding + 
-        (2 * HIGHLIGHT_BOX_Y_PAD);
-    }
-}
-
-
 /* Add the given child to the big picture. This is separated out into its
  * own function in case we want to change the container type in the future. */
 static void addChildToBigPicture(GtkWidget *container, GtkWidget *child, gboolean expand)
@@ -568,6 +528,7 @@ static void updateHighlightBox(GtkWidget *bigPicture, BigPictureProperties *prop
 {
   callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridHighlightBoxBorders);
   callFuncOnAllBigPictureExonViews(bigPicture, (gpointer)calculateExonViewHighlightBoxBorders);
+  
   properties->coverageViewProperties()->calculateHighlightBoxBorders();
 }
 
@@ -1249,10 +1210,6 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
     displayRange.set(initRange_in);
   else
     displayRange.set(fullRange_in);
-
-  /* Set a reference to our display range in the coverage view */
-  if (m_coverageViewP)
-    m_coverageViewP->setDisplayRange(&displayRange);
       
   /* Create the list of "nice round values" to round the grid header values to.
    * Create the list in reverse order (i.e. highest values first). */

@@ -88,7 +88,6 @@ public:
 
 
   // Member variables
-  GtkWidget *widget;            /* The big picture widget*/
   GtkWidget *blxWindow;         /* The main blixem window that this grid belongs to */
   GtkWidget *header;		/* The grid header */
   GtkWidget *fwdStrandGrid;	/* The grid that displays the forward ref seq strand */
@@ -98,8 +97,6 @@ public:
     
   GSList *roundValues;	        /* List of "nice" values to round to, for the display values in the grid header */
   int initialZoom;		/* Multiple to multiply the detail view display range by to get the initial big picture display range */
-    
-  IntRange displayRange;	/* The currently-displayed range in the big picture */
     
   int numHCells;		/* The number of cells in the grid horizontally */
   int basesPerCell;		/* The number of bases show per horizontal cell */
@@ -191,9 +188,6 @@ void			      drawHorizontalGridLines(GtkWidget *widget, GtkWidget *bigPicture,
 						      BigPictureProperties *bpProperties, GdkDrawable *drawable,
 						      const gint numCells, const gdouble rangePerCell, 
 						      const gdouble maxVal, const gboolean abbrev, const char *unit);
-
-void			      bigPictureCalculateHighlightBoxBorders(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
-                                                                     GtkWidget *bigPicture, const int yPadding);
 
 void			      zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn);
 void			      zoomWholeBigPicture(GtkWidget *bigPicture);
