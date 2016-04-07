@@ -1276,6 +1276,20 @@ double BigPictureProperties::contentWidth() const
 }
 
 
+/* Return the range that should be highlighted by the highlight box, i.e. the 
+ * detail-view range */
+const IntRange *BigPictureProperties::highlightRange() const
+{
+  const IntRange *result = NULL;
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
+
+  if (detailView)
+    result = detailViewGetDisplayRange(detailView);
+
+  return result;
+}
+
+
 CoverageViewProperties* BigPictureProperties::coverageViewProperties()
 {
   return m_coverageViewP;

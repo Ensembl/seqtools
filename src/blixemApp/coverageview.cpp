@@ -82,12 +82,27 @@ GtkWidget* CoverageViewProperties::widget()
   return m_widget;
 }
 
+/* Return the range of ref-seq coords that the coverage view currently displays */
 const IntRange* CoverageViewProperties::displayRange()
 {
   const IntRange *result = NULL;
   
+  // The range is the same as the parent panel
   if (m_panel)
     result = &m_panel->displayRange;
+
+  return result;
+}
+
+/* Return the range of ref-seq coords that should be highlighted in the highlight box, if any
+ * (returns NULL if not applicable) */
+const IntRange* CoverageViewProperties::highlightRange()
+{
+  const IntRange *result = NULL;
+
+  // The range is the same as the parent panel
+  if (m_panel)
+    result = m_panel->highlightRange();
 
   return result;
 }
@@ -403,9 +418,8 @@ void CoverageViewProperties::calculateHighlightBoxBorders()
 {  
   if (m_bc)
     {
-      const IntRange *highlightRange = NULL;
       m_bc->highlightBoxCalcBorders(&m_displayRect, &m_highlightRect, 
-                                    displayRange(), highlightRange,
+                                    displayRange(), highlightRange(),
                                     0);
     }
 }

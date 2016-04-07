@@ -82,6 +82,7 @@ public:
   double charHeight() const;
   double leftBorderPos() const;
   double contentWidth() const;
+  const IntRange *highlightRange() const;
 
   GtkWidget* coverageView();
   CoverageViewProperties *coverageViewProperties();

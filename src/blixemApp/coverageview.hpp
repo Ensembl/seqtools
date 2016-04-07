@@ -57,6 +57,7 @@ public:
   /* Access */
   GtkWidget* widget();
   const IntRange *displayRange();
+  const IntRange *highlightRange();
   double leftBorderPos() const;
   double contentWidth() const;
   double depthPerCell();

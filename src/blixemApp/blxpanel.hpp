@@ -42,13 +42,16 @@
 class BlxPanel
 {
 public:
-  // Constructors
+  // Construct/destruct
+  BlxPanel() : displayRange(0, 0), widget(NULL) {};
   virtual ~BlxPanel() {};
 
   // Access
   virtual double leftBorderPos() const = 0;
   virtual double contentWidth() const = 0;
+  virtual const IntRange* highlightRange() const { return NULL; };
 
+  // Public member variables
   IntRange displayRange;      /* The currently-displayed range of ref-sequence bases in the panel */
 
 protected:
