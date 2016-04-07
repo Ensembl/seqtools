@@ -434,7 +434,7 @@ void calculateGridHeaderBorders(GtkWidget *header)
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
   /* Calculate the size of the grid header (zero height if it does not have one) */
-  properties->headerRect.x = roundNearest(bigPictureProperties->leftBorderPos);
+  properties->headerRect.x = roundNearest(bigPictureProperties->leftBorderPos());
   properties->headerRect.y = 0;
   properties->headerRect.width = header->allocation.width - properties->headerRect.x;
   properties->headerRect.height = properties->refButton->allocation.height + (properties->headerYPad * 2);
@@ -1242,7 +1242,6 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
   previewBoxCentre = previewBoxCentre_in;
   leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 2; /* Extra fudge factor because
                                                                         char width is approx */
-  leftBorderPos = (double)leftBorderChars * charWidth();
   previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
   initialZoom = initialZoom_in;
       
@@ -1272,8 +1271,17 @@ BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in,
   roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(25000));
 }
 
+BigPictureProperties::~BigPictureProperties()
+{
+  if (roundValues)
+    {
+      g_slist_free(roundValues);
+      roundValues = NULL;
+    }
+}
 
-double BigPictureProperties::charWidth()
+
+double BigPictureProperties::charWidth() const
 {
   double result = 0.0;
 
@@ -1283,7 +1291,7 @@ double BigPictureProperties::charWidth()
   return result;
 }
 
-double BigPictureProperties::charHeight()
+double BigPictureProperties::charHeight() const
 {
   double result = 0.0;
 
@@ -1291,6 +1299,11 @@ double BigPictureProperties::charHeight()
     result = m_bc->charHeight();
 
   return result;
+}
+
+double BigPictureProperties::leftBorderPos() const
+{
+  return ((double)leftBorderChars * charWidth());
 }
 
 
@@ -1351,14 +1364,7 @@ static void onDestroyBigPicture(GtkWidget *bigPicture)
   
   if (properties)
     {
-      if (properties->roundValues)
-	{
-	  g_slist_free(properties->roundValues);
-	  properties->roundValues = NULL;
-	}
-      
       delete properties;
-      properties = NULL;
       g_object_set_data(G_OBJECT(bigPicture), "BigPictureProperties", NULL);
     }
 }
@@ -1748,10 +1754,8 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
                                                                 initialZoom,
                                                                 lowestId);
 
-  /* We need to pass the coverage view the left border position so that the coverage
-   * will be aligned with the big picture grids. */
-  if (properties)
-    coverageViewP->setLeftBorderPos(&properties->leftBorderPos);
+  /* Set a pointer to the parent big picture panel */
+  coverageViewP->setPanel(properties);
   
   return bigPicture;
 }

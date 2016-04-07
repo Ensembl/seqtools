@@ -42,6 +42,11 @@
 #include "blixemApp/blixem_.hpp"
 #include <gtk/gtk.h>
 
+
+class BlxPanel;
+
+
+
 class CoverageViewProperties
 {
 public:
@@ -67,7 +72,7 @@ public:
   gboolean scroll(GdkEventScroll *event, gpointer data);
 
   /* Updates */
-  void setLeftBorderPos(const double *leftBorderPos);
+  void setPanel(const BlxPanel *panel);
   void updateDepth();
   void calculateBorders();
   void calculateHighlightBoxBorders();
@@ -83,8 +88,10 @@ private:
   void recalculate();
 
   GtkWidget *m_widget;      /* The coverage view widget */
-  GtkWidget *m_blxWindow;   /* The main blixem window */
   BlxContext *m_bc;
+  const BlxPanel *m_panel;  /* The parent panel that the coverage view is part of */
+
+  GtkWidget *m_blxWindow;   /* The main blixem window */
 
   const IntRange *m_displayRange; /* The current range to display */
   const double *m_leftBorderPos; /* The position of the left border of the coverage view.

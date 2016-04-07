@@ -41,6 +41,7 @@
 #include "blixemApp/blxwindow.hpp"
 #include "blixemApp/bigpicture.hpp"
 #include "blixemApp/blixem_.hpp"
+#include "blixemApp/blxpanel.hpp"
 #include <gtk/gtk.h>
 #include <math.h>
 
@@ -61,8 +62,10 @@ CoverageViewProperties::CoverageViewProperties(GtkWidget *widget_in,
                                                BlxContext *bc_in)
 {
   m_widget = widget_in;
-  m_blxWindow = blxWindow_in;
   m_bc = bc_in;
+  m_panel = NULL;
+
+  m_blxWindow = blxWindow_in;
 
   m_viewYPadding = DEFAULT_COVERAGE_VIEW_Y_PADDING;
   m_numVCells = DEFAULT_NUM_V_CELLS;
@@ -79,13 +82,14 @@ GtkWidget* CoverageViewProperties::widget()
   return m_widget;
 }
 
-/* Return the position of the left border. If it hasn't been set, assume 0. */
+/* Return the position of the left border. */
 double CoverageViewProperties::leftBorderPos()
 {
   double result = 0.0;
 
-  if (m_leftBorderPos)
-    result = *m_leftBorderPos;
+  // Use the left border position of the parent panel
+  if (m_panel)
+    result = m_panel->leftBorderPos();
 
   return result;
 }
@@ -135,11 +139,10 @@ static CoverageViewProperties* coverageViewCreateProperties(GtkWidget *widget,
 }
 
 
-/* Set the pointer to the value where the left border position will be taken from (this is
- * usually from a parent class so that the coverage will align to the parent) */
-void CoverageViewProperties::setLeftBorderPos(const double *leftBorderPos)
+/* Set the pointer to the parent panel that this coverage view belongs to */
+void CoverageViewProperties::setPanel(const BlxPanel *panel)
 {
-  m_leftBorderPos = leftBorderPos;
+  m_panel = panel;
 }
 
 

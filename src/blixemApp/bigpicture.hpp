@@ -49,13 +49,14 @@
 #include <blixemApp/bigpicturegrid.hpp>
 #include <blixemApp/blxwindow.hpp>
 #include <blixemApp/blixem_.hpp>
+#include <blixemApp/blxpanel.hpp>
 
 
 class CoverageViewProperties;
 
 
 
-class BigPictureProperties
+class BigPictureProperties : public BlxPanel
 {
 public:
   // Constructors
@@ -74,13 +75,18 @@ public:
                        const int initialZoom_in,
                        const gdouble lowestId_in);
 
+  ~BigPictureProperties();
+
   // Access
-  double charWidth();
-  double charHeight();
+  double charWidth() const;
+  double charHeight() const;
+  double leftBorderPos() const;
+
   GtkWidget* coverageView();
   CoverageViewProperties *coverageViewProperties();
 
 
+  // Member variables
   GtkWidget *widget;            /* The big picture widget*/
   GtkWidget *blxWindow;         /* The main blixem window that this grid belongs to */
   GtkWidget *header;		/* The grid header */
@@ -107,7 +113,6 @@ public:
   int previewBoxOffset;         /* Can be used to offset the actual preview box position from previewBoxCentre */
 
   int leftBorderChars;          /* The number of characters in the left border of the big picture grids */
-  double leftBorderPos;         /* The position of the left border of the big picture grids */
     
   int previewBoxLineWidth;
 

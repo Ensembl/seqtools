@@ -32,7 +32,7 @@ else
 bin_PROGRAMS = blixem
 endif
 
-blixem_SOURCES = blxmain.cpp blxview.cpp blxFetch.cpp sequencecellrenderer.cpp bigpicture.cpp bigpicturegrid.cpp detailview.cpp detailviewtree.cpp blxwindow.cpp exonview.cpp coverageview.cpp blxdotter.cpp blxFetchDb.cpp blxcontext.cpp blxview.hpp blxcontext.hpp blixem_.hpp detailview.hpp detailviewtree.hpp sequencecellrenderer.hpp bigpicture.hpp bigpicturegrid.hpp blxwindow.hpp exonview.hpp coverageview.hpp blxdotter.hpp 
+blixem_SOURCES = blxmain.cpp blxview.cpp blxFetch.cpp sequencecellrenderer.cpp bigpicture.cpp bigpicturegrid.cpp detailview.cpp detailviewtree.cpp blxwindow.cpp exonview.cpp coverageview.cpp blxdotter.cpp blxFetchDb.cpp blxcontext.cpp blxview.hpp blxcontext.hpp blixem_.hpp detailview.hpp detailviewtree.hpp sequencecellrenderer.hpp blxpanel.hpp bigpicture.hpp bigpicturegrid.hpp blxwindow.hpp exonview.hpp coverageview.hpp blxdotter.hpp 
 blixem_LDADD = $(BLX_LIBS)
 
 # Only compile the blixemh target if we have the libcurl library
