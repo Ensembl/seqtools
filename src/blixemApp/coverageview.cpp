@@ -38,12 +38,15 @@
 
 #include "blixemApp/coverageview.hpp"
 #include "blixemApp/blxcontext.hpp"
-#include "blixemApp/blxwindow.hpp"
-#include "blixemApp/bigpicture.hpp"
 #include "blixemApp/blixem_.hpp"
 #include "blixemApp/blxpanel.hpp"
 #include <gtk/gtk.h>
 #include <math.h>
+
+/* We should remove references to the big picture and blxwindow here. The blxwindow is only used
+ * to get the big picture */
+#include "blixemApp/bigpicture.hpp"
+#include "blixemApp/blxwindow.hpp"
 
 
 #define DEFAULT_COVERAGE_VIEW_Y_PADDING		3	  /* this provides space between the drawing area and the edge of the widget */
@@ -397,6 +400,8 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
 /* Main function for drawing the coverage view */
 void CoverageViewProperties::draw(GdkDrawable *drawable)
 {
+  /* We should move the gridlines functions to BlxPanel so that we can remove references to
+   * bigpicture here */
   GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
 
@@ -427,6 +432,7 @@ void CoverageViewProperties::calculateHighlightBoxBorders()
 /* Calculate the borders of the view */
 void CoverageViewProperties::calculateBorders()
 {
+  /* We should move cell height to BlxPanel so that we can get rid of references to big picture here */
   GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
   
   /* Calculate the height based on the number of cells */
@@ -620,6 +626,9 @@ static gboolean onScrollCoverageView(GtkWidget *coverageView, GdkEventScroll *ev
 gboolean CoverageViewProperties::scroll(GdkEventScroll *event, gpointer data)
 {  
   gboolean handled = FALSE;
+
+  /* We should make the scroll functions here virtual functions that can be called from the base
+   * class BlxPanel. Then we can get rid of references to bigpicture */
 
   switch (event->direction)
   {
