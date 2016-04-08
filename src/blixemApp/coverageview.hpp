@@ -43,21 +43,72 @@
 #include <gtk/gtk.h>
 
 
-GtkWidget*                  createCoverageView(GtkWidget *blxWindow, BlxViewContext *bc);
-
-void                        coverageViewPrepareForPrinting(GtkWidget *coverageView);
-
-void			    updateCoverageDepth(GtkWidget *coverageView, BlxViewContext *bc);
-
-void                        coverageViewRedraw(GtkWidget *coverageView);
-void                        coverageViewRecalculate(GtkWidget *coverageView);
-
-void			    calculateCoverageViewBorders(GtkWidget *coverageView);
-void			    calculateCoverageViewHighlightBoxBorders(GtkWidget *coverageView);
+class BlxPanel;
 
 
-double                      coverageViewGetDepthPerCell(GtkWidget *coverageView);
-gboolean                    coverageViewSetDepthPerCell(GtkWidget *coverageView, const double depthPerCell);
+
+class CoverageViewProperties
+{
+public:
+  CoverageViewProperties(GtkWidget *widget_in, 
+                         GtkWidget *blxWindow_in, 
+                         BlxContext *bc);
+
+  /* Access */
+  GtkWidget* widget();
+  const IntRange *displayRange();
+  const IntRange *highlightRange();
+  double contentXPos() const;
+  double contentWidth() const;
+  double depthPerCell();
+  int maxLabeledDepth();
+
+  /* Modify */
+  gboolean setDepthPerCell(const double depthPerCell);
+
+  /* Events */
+  gboolean expose(GdkEventExpose *event, gpointer data);
+  gboolean buttonPress(GdkEventButton *event, gpointer data);
+  gboolean buttonRelease(GdkEventButton *event, gpointer data);
+  gboolean mouseMove(GdkEventMotion *event, gpointer data);
+  gboolean scroll(GdkEventScroll *event, gpointer data);
+
+  /* Updates */
+  void setPanel(BlxPanel *panel);
+  void updateDepth();
+  void calculateBorders();
+  void calculateHighlightBoxBorders();
+
+  /* Drawing */
+  void draw(GdkDrawable *drawable);
+  void redraw();
+  void prepareForPrinting();
+
+private:
+  double charWidth() const;
+  void drawPlot(GdkDrawable *drawable);
+  void recalculate();
+
+  GtkWidget *m_widget;      /* The coverage view widget */
+  BlxContext *m_bc;
+  BlxPanel *m_panel;        /* The parent panel that the coverage view is part of */
+
+  GtkWidget *m_blxWindow;   /* The main blixem window */
+
+  int m_viewYPadding;	     /* The y padding around the view rect */
+  double m_numVCells;	     /* The number of cells to show vertically */
+  gdouble m_rangePerCell;    /* The range of depth values shown per grid cell on the plot */
+    
+  GdkRectangle m_viewRect;   /* The rectangle we draw in */
+  GdkRectangle m_displayRect; /* The total display area */
+  GdkRectangle m_highlightRect; /* The area that is highlighted (which indicates the detail-view
+                                 range) */
+
+  int *m_maxDepth;
+};
+
+
+CoverageViewProperties*     createCoverageView(GtkWidget *blxWindow, BlxContext *bc);
 
 
 #endif /* _coverage_view_h_included_ */

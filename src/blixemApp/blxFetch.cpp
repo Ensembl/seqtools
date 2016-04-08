@@ -58,6 +58,7 @@
 #include <blixemApp/blxwindow.hpp>
 #include <blixemApp/detailview.hpp>
 #include <blixemApp/blixem_.hpp>
+#include <blixemApp/blxcontext.hpp>
 
 #ifdef PFETCH_HTML 
 #include <gbtools/gbtoolsPfetch.hpp>
@@ -3105,7 +3106,7 @@ UserFetch::UserFetch(const BlxSequence *blxSeq_in,
  * they should remain as NULL in all other cases. */
 void UserFetch::performFetch()
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   g_return_if_fail(blxSeq && bc);
  
   ++attempt;
@@ -3192,7 +3193,7 @@ void UserFetch::setTextBuffer(GtkTextBuffer *text_buffer_in)
 bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
 {
   gboolean ok = 0;
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   PFetchData pfetch_data = NULL ;
   GError *tmpError = NULL;
   GString *command = NULL;
@@ -3316,7 +3317,7 @@ void UserFetch::wwwFetchSequence(const BlxFetchMethod *fetchMethod)
 {
   if (displayResults)
     {
-      BlxViewContext *bc = blxWindowGetContext(blxWindow);
+      BlxContext *bc = blxWindowGetContext(blxWindow);
 
       GError *error = NULL;
       
@@ -3354,7 +3355,7 @@ void UserFetch::wwwFetchSequence(const BlxFetchMethod *fetchMethod)
  * the results in a dialog. */
 void UserFetch::commandFetchSequence(const BlxFetchMethod *fetchMethod)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   GError *error = NULL;
   GString *command = NULL;
   GString *resultText = NULL;
@@ -3411,7 +3412,7 @@ void UserFetch::internalFetchSequence(const BlxFetchMethod *fetchMethod)
 
       if (displayResults)
         {
-          BlxViewContext *bc = blxWindowGetContext(blxWindow);
+          BlxContext *bc = blxWindowGetContext(blxWindow);
           char *title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), seqName ? seqName : "");
           displayFetchResults(title, result, blxWindow, dialog, &text_buffer);
           g_free(title);
@@ -3432,7 +3433,7 @@ void UserFetch::internalFetchSequence(const BlxFetchMethod *fetchMethod)
 /* Use the given socket-fetch method to fetch an entry and optionally display the results. */
 void UserFetch::socketFetchSequence(const BlxFetchMethod *fetchMethod)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   GError *error = NULL;
   GString *resultText = NULL;
   GString *command = NULL;
@@ -3484,7 +3485,7 @@ void UserFetch::sqliteFetchSequence(const BlxFetchMethod *fetchMethod)
   GError *tmpError = NULL;
   sqliteValidateFetchMethod(fetchMethod, &tmpError);
     
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   GString *query = NULL;
   
   if (!tmpError)

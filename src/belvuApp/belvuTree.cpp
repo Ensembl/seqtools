@@ -157,30 +157,32 @@ typedef struct _ClickableRect
 
 
 /* Properties specific to the belvu tree */
-typedef struct _BelvuTreeProperties
-  {
-    BelvuContext *bc;	            /* The belvu context */
-    GtkActionGroup *actionGroup;
+class BelvuTreeProperties
+{
+public:
+  GtkWidget *widget;
+  BelvuContext *bc;	            /* The belvu context */
+  GtkActionGroup *actionGroup;
     
-    Tree *tree;                     /* The underlying tree struct */
-    gboolean isMainTree;            /* True if tree is the main tree's root node. */
+  Tree *tree;                     /* The underlying tree struct */
+  gboolean isMainTree;            /* True if tree is the main tree's root node. */
     
-    GtkWidget *treeArea;            /* Drawing widget for the tree */
-    GdkRectangle treeRect;          /* Specifies the actual area in which we'll draw the tree within treeAre */
+  GtkWidget *treeArea;            /* Drawing widget for the tree */
+  GdkRectangle treeRect;          /* Specifies the actual area in which we'll draw the tree within treeAre */
     
-    gdouble charWidth;
-    gdouble charHeight;
+  gdouble charWidth;
+  gdouble charHeight;
     
-    BelvuBuildMethod buildMethod;   /* The build method used to build the tree */
-    BelvuDistCorr distCorr;         /* The distance-correction method used to build the tree */
+  BelvuBuildMethod buildMethod;   /* The build method used to build the tree */
+  BelvuDistCorr distCorr;         /* The distance-correction method used to build the tree */
     
-    double treeScale;               /* The tree scale (not used if main tree - uses the values in the context instead) */
-    double lineWidth;               /* Line width (not used if main tree) */
-    gboolean showBranchLen;         /* Whether to display branch lengths (not used if main tree) */
-    gboolean showOrganism;          /* Whether to show organism names (not used if main tree) */
+  double treeScale;               /* The tree scale (not used if main tree - uses the values in the context instead) */
+  double lineWidth;               /* Line width (not used if main tree) */
+  gboolean showBranchLen;         /* Whether to display branch lengths (not used if main tree) */
+  gboolean showOrganism;          /* Whether to show organism names (not used if main tree) */
     
-    GArray *clickableRects;         /* Array of rectangles that associate clickable areas in treeArea to TreeNodes. */
-  } BelvuTreeProperties;
+  GArray *clickableRects;         /* Array of rectangles that associate clickable areas in treeArea to TreeNodes. */
+};
 
 
 
@@ -232,7 +234,8 @@ static void belvuTreeCreateProperties(GtkWidget *belvuTree,
   if (belvuTree)
     {
       BelvuTreeProperties *properties = (BelvuTreeProperties*)g_malloc(sizeof *properties);
-      
+
+      properties->widget = belvuTree;
       properties->bc = bc;
       
       properties->tree = tree;

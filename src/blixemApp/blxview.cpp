@@ -63,6 +63,7 @@ MSP score codes (for obsolete exblx file format):
 #include <algorithm>
 
 #include <blixemApp/blixem_.hpp>
+#include <blixemApp/blxcontext.hpp>
 #include <blixemApp/blxwindow.hpp>
 #include <blixemApp/detailview.hpp>
 #include <blixemApp/blxdotter.hpp>
@@ -370,12 +371,11 @@ void loadNativeFile(const char *filename,
   /* The range passed to the parser must be in the original parsed coords, so subtract the
    * offset. (It is used to validate that the range in the GFF file we're reading in is within 
    * blixem's known range.)  */
-  IntRange toplevelRange = {UNSET_INT, UNSET_INT};
+  IntRange toplevelRange;
   
   if (refSeqRange)
     {
-      toplevelRange.min = refSeqRange->min - refSeqOffset;
-      toplevelRange.max = refSeqRange->max - refSeqOffset;
+      toplevelRange.set(refSeqRange->min() - refSeqOffset, refSeqRange->max() - refSeqOffset);
     }
   
   if (filename)
@@ -440,17 +440,17 @@ static void findAssemblyGaps(const char *refSeq, GArray *featureLists[], MSP **m
   while (cp && *cp)
     {
       /* Found the start of a gap; remember the start coord */
-      const int startCoord = cp - refSeq + refSeqRange->min;
+      const int startCoord = cp - refSeq + refSeqRange->min();
     
       /* Loop until we find a non-gap character (or the end of the string) */
       while (cp && *cp == SEQUENCE_CHAR_GAP)
 	++cp;
     
-      const int endCoord = cp - refSeq - 1 + refSeqRange->min;
+      const int endCoord = cp - refSeq - 1 + refSeqRange->min();
     
       MSP *msp = createEmptyMsp(&lastMsp, mspList);
       msp->type = BLXMSP_GAP;
-      intrangeSetValues(&msp->qRange, startCoord, endCoord);
+      msp->qRange.set(startCoord, endCoord);
       
       featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
     
@@ -599,7 +599,7 @@ static void blviewCreate(char *align_types,
       if (!align_types)
         align_types = g_strdup_printf("%s", options->seqType == BLXSEQ_PEPTIDE ? "peptide alignment" : "nucleotide alignment");
       
-      BlxViewContext *bc = blxWindowGetContext(blixemWindow);
+      BlxContext *bc = blxWindowGetContext(blixemWindow);
       
       char *title = g_strdup_printf("%s(%s) %s %s",
                                     blxGetTitlePrefix(bc),
@@ -780,7 +780,7 @@ gboolean mspHasFs(const MSP *msp)
 
 
 /* Return the (cached) full extent of the match that we're showing in match seq coords */
-const IntRange* mspGetFullSRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc)
+const IntRange* mspGetFullSRange(const MSP* const msp, const gboolean seqSelected, const BlxContext* const bc)
 {
   const IntRange *result = NULL;
   
@@ -788,6 +788,9 @@ const IntRange* mspGetFullSRange(const MSP* const msp, const gboolean seqSelecte
     result = &msp->fullSRange;
   else
     result = &msp->sRange;
+
+  if (!result->isSet())
+    g_warn_if_reached();
   
   return result;
 }
@@ -795,7 +798,7 @@ const IntRange* mspGetFullSRange(const MSP* const msp, const gboolean seqSelecte
 /* Return the (cached) full extent of the match on the ref sequence in display coords
  * (including any portions of unaligned sequence that we're showing). Depending on the
  * options, the range may depend on whether the sequence is selected or not. */
-const IntRange* mspGetFullDisplayRange(const MSP* const msp, const gboolean seqSelected, const BlxViewContext* const bc)
+const IntRange* mspGetFullDisplayRange(const MSP* const msp, const gboolean seqSelected, const BlxContext* const bc)
 {
   const IntRange *result = NULL;
   
@@ -812,7 +815,10 @@ const IntRange* mspGetFullDisplayRange(const MSP* const msp, const gboolean seqS
     {
       result = &msp->displayRange;
     }
-  
+
+  if (!result->isSet())
+    g_warn_if_reached();
+
   return result;
 }
 
@@ -834,8 +840,7 @@ static void mspCalcFullSRange(const MSP* const msp,
 			      IntRange *result)
 {
   /* Normally we just display the part of the sequence in the alignment */
-  result->min = msp->sRange.min;
-  result->max = msp->sRange.max;
+  result->set(msp->sRange);
   
   if (mspIsBlastMatch(msp))
     {
@@ -843,15 +848,14 @@ static void mspCalcFullSRange(const MSP* const msp,
 	{
 	  /* We're displaying additional unaligned sequence outside the alignment range. Get 
 	   * the full range of the match sequence */
-	  result->min = 1;
-	  result->max = mspGetMatchSeqLen(msp);
+	  result->set(1, mspGetMatchSeqLen(msp));
 	  
 	  if (flags[BLXFLAG_LIMIT_UNALIGNED_BASES])
 	    {
 	      /* Only include up to 'numUnalignedBases' each side of the MSP range (still limited
 	       * to the range we found above, though). */
-	      result->min = max(result->min, msp->sRange.min - numUnalignedBases);
-	      result->max = min(result->max, msp->sRange.max + numUnalignedBases);
+	      result->set(max(result->min(), msp->sRange.min() - numUnalignedBases), 
+                          min(result->max(), msp->sRange.max() + numUnalignedBases));
 	    }
 	}
       
@@ -864,11 +868,11 @@ static void mspCalcFullSRange(const MSP* const msp,
 	  
 	  if (sameDirection)
 	    {
-	      result->max = mspGetMatchSeqLen(msp);
+	      result->setMax(mspGetMatchSeqLen(msp));
 	    }
 	  else
 	    {
-	      result->min = 1;
+	      result->setMin(1);
 	    }
 	}
     }
@@ -887,20 +891,26 @@ static void mspCalcFullQRange(const MSP* const msp,
 			      IntRange *result)
 {
   /* Default to the alignment range so we can exit quickly if there are no special cases */
-  result->min = msp->qRange.min;
-  result->max = msp->qRange.max;
+  result->set(msp->qRange);
   
   if (mspIsBlastMatch(msp) && (flags[BLXFLAG_SHOW_UNALIGNED] || flags[BLXFLAG_SHOW_POLYA_SITE]))
     {
       /* Find the offset of the start and end of the full range compared to the alignment range and
        * offset the ref seq range by the same amount. We need to multiply by the number of reading
        * frames because q coords are in nucleotides and s coords are in peptides. */
-      const int startOffset = (msp->sRange.min - fullSRange->min) * numFrames;
-      const int endOffset = (fullSRange->max - msp->sRange.max) * numFrames;
+      const int startOffset = (msp->sRange.min() - fullSRange->min()) * numFrames;
+      const int endOffset = (fullSRange->max() - msp->sRange.max()) * numFrames;
       
       const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
-      result->min -= sameDirection ? startOffset : endOffset;
-      result->max += sameDirection ? endOffset : startOffset;
+
+      if (sameDirection)
+        {
+          result->set(result->min() - startOffset, result->max() + endOffset);
+        }
+      else
+        {
+          result->set(result->min() - endOffset, result->max() + startOffset);
+        }
     }
 }
 
@@ -908,38 +918,38 @@ static void mspCalcFullQRange(const MSP* const msp,
 /* Calculate the full extent of the match sequence to display, in display coords,
  * and cache the result in the msp. Includes any portions of unaligned sequence that we're
  * displaying */
-void mspCalculateFullExtents(MSP *msp, const BlxViewContext* const bc, const int numUnalignedBases)
+void mspCalculateFullExtents(MSP *msp, const BlxContext* const bc, const int numUnalignedBases)
 {
   mspCalcFullSRange(msp, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], &msp->fullSRange);
   mspCalcFullQRange(msp, bc->flags, numUnalignedBases, bc->featureLists[BLXMSP_POLYA_SITE], bc->numFrames, &msp->fullSRange, &msp->fullRange);
  
   /* convert the Q range to display coords */
   const int frame = mspGetRefFrame(msp, bc->seqType);
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->fullRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->fullRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  intrangeSetValues(&msp->fullRange, coord1, coord2);
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->fullRange.min(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->fullRange.max(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  msp->fullRange.set(coord1, coord2);
   
   /* Remember the max len of all the MSPs in the detail-view */
-  if (typeShownInDetailView(msp->type) && getRangeLength(&msp->fullRange) > getMaxMspLen())
+  if (typeShownInDetailView(msp->type) && msp->fullRange.length() > getMaxMspLen())
     {
-      setMaxMspLen(getRangeLength(&msp->fullRange));
+      setMaxMspLen(msp->fullRange.length());
     }
 }
 
 
 /* Convert the ref-seq range of the given msp in display coords and cache it in the msp */
-static void mspCalculateDisplayRange(MSP *msp, const BlxViewContext* const bc)
+static void mspCalculateDisplayRange(MSP *msp, const BlxContext* const bc)
 {
   const int frame = mspGetRefFrame(msp, bc->seqType);
-  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max, bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  intrangeSetValues(&msp->displayRange, coord1, coord2);  
+  const int coord1 = convertDnaIdxToDisplayIdx(msp->qRange.min(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  const int coord2 = convertDnaIdxToDisplayIdx(msp->qRange.max(), bc->seqType, frame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
+  msp->displayRange.set(coord1, coord2);  
 }
 
 
 /* This caches the display range (in display coords rather than dna coords,
  * and inverted if the display is inverted) for each MSP */
-void cacheMspDisplayRanges(const BlxViewContext* const bc, const int numUnalignedBases)
+void cacheMspDisplayRanges(const BlxContext* const bc, const int numUnalignedBases)
 {
   /* This also calculates the max msp len */
   setMaxMspLen(0);
@@ -956,7 +966,7 @@ void cacheMspDisplayRanges(const BlxViewContext* const bc, const int numUnaligne
 /* Return the match-sequence coord of an MSP at the given reference-sequence coord,
  * where the MSP is a gapped MSP and the ref-seq coord is known to lie within the
  * MSP's alignment range. */
-static gboolean mspGetGappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxViewContext *bc, int *result_out)
+static gboolean mspGetGappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxContext *bc, int *result_out)
 {
   gboolean success = FALSE;
   int result = UNSET_INT;
@@ -1004,7 +1014,7 @@ static gboolean mspGetGappedAlignmentCoord(const MSP *msp, const int qIdx, const
 /* Return the match-sequence coord of an MSP at the given reference-sequence coord,
  * where the MSP is an ungapped MSP and the ref-seq coord is known to lie within the
  * MSP's alignment range. */
-static gboolean mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxViewContext *bc, int *result_out)
+static gboolean mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, const BlxContext *bc, int *result_out)
 {
   gboolean success = FALSE;
   int result = UNSET_INT;
@@ -1013,12 +1023,12 @@ static gboolean mspGetUngappedAlignmentCoord(const MSP *msp, const int qIdx, con
    * sRange.min. If strands are in opposite directions, find the offset from qRange.min and
    * subtract it from sRange.max. Note that the offset could be negative if we're outside
    * the alignment range. */
-  int offset = (qIdx - msp->qRange.min) / bc->numFrames ;
+  int offset = (qIdx - msp->qRange.min()) / bc->numFrames ;
   const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
 
-  result = (sameDirection) ? msp->sRange.min + offset : msp->sRange.max - offset ;
+  result = (sameDirection) ? msp->sRange.min() + offset : msp->sRange.max() - offset ;
   
-  if (result < msp->sRange.min || result > msp->sRange.max)
+  if (result < msp->sRange.min() || result > msp->sRange.max())
     {
       result = UNSET_INT;
       success = FALSE;
@@ -1043,7 +1053,7 @@ static gboolean mspGetUnalignedCoord(const MSP *msp,
                                      const int qIdx, 
                                      const gboolean seqSelected, 
                                      const int numUnalignedBases, 
-                                     const BlxViewContext *bc,
+                                     const BlxContext *bc,
                                      int *result_out)
 {
   gboolean success = FALSE;
@@ -1059,21 +1069,21 @@ static gboolean mspGetUnalignedCoord(const MSP *msp,
   const gboolean sameDirection = (mspGetMatchStrand(msp) == mspGetRefStrand(msp));
   const gboolean sForward = (sameDirection != bc->displayRev);
   
-  if (displayIdx < mspRange->min)
+  if (displayIdx < mspRange->min())
     {
       /* Find the offset backwards from the low coord and subtract it from the low end
        * of the s coord range (or add it to the high end, if the directions are opposite).
        * We're working in display coords here. */
-      const int offset = mspRange->min - displayIdx;
-      result = sForward ? msp->sRange.min - offset : msp->sRange.max + offset;
+      const int offset = mspRange->min() - displayIdx;
+      result = sForward ? msp->sRange.min() - offset : msp->sRange.max() + offset;
       success = TRUE;
     }
   else
     {
       /* Find the offset forwards from the high coord and add it to the high end of the
        * s coord range (or subtract it from the low end, if the directions are opposite). */
-      const int offset = displayIdx - mspRange->max;
-      result = sForward ? msp->sRange.max + offset : msp->sRange.min - offset;
+      const int offset = displayIdx - mspRange->max();
+      result = sForward ? msp->sRange.max() + offset : msp->sRange.min() - offset;
       success = TRUE;
     }
   
@@ -1101,7 +1111,7 @@ gboolean mspGetMatchCoord(const MSP *msp,
                           const int qIdx, 
                           const gboolean seqSelected,
                           const int numUnalignedBases,
-                          BlxViewContext *bc,
+                          BlxContext *bc,
                           int *result_out)
 {
   gboolean success = FALSE;
@@ -1300,8 +1310,11 @@ void drawAssemblyGaps(GtkWidget *widget,
       if (rangesOverlap(&gap->qRange, dnaRange))
         {
 	  /* Draw to max coord plus one (or min coord minus one if reversed) to be inclusive */
-	  const int x1 = convertBaseIdxToRectPos(displayRev ? gap->qRange.min - 1 : gap->qRange.min, rect, dnaRange, TRUE, displayRev, TRUE);
-	  const int x2 = convertBaseIdxToRectPos(gap->qRange.max + 1, rect, dnaRange, TRUE, displayRev, TRUE);
+          const int gapMin = gap->qRange.min(true, displayRev);
+          const int gapMax = gap->qRange.max(true, displayRev);
+
+	  const int x1 = convertBaseIdxToRectPos(gapMin, rect, dnaRange, TRUE, displayRev, TRUE);
+	  const int x2 = convertBaseIdxToRectPos(gapMax, rect, dnaRange, TRUE, displayRev, TRUE);
           
 	  const int width = max(MIN_GAP_HIGHLIGHT_WIDTH, abs(x2 - x1));
 	
@@ -1672,7 +1685,7 @@ const char *blxGetAppName()
 
 /* Returns a string which is used to prefix window titles (full or abbrev
  * depending on settings). */
-const char *blxGetTitlePrefix(const BlxViewContext * const bc)
+const char *blxGetTitlePrefix(const BlxContext * const bc)
 {
   return bc->flags[BLXFLAG_ABBREV_TITLE] ? BLIXEM_PREFIX_ABBREV : BLIXEM_PREFIX ;
 }
@@ -1838,7 +1851,7 @@ GList* blxCreateColumns(const gboolean optionalColumns, const gboolean customSeq
 
 
 /* Return the width of the column with the given column id */
-int getColumnWidth(GList *columnList, const BlxColumnId columnId)
+int getColumnWidth(const GList *columnList, const BlxColumnId columnId)
 {
   int result = 0;
 
@@ -1854,7 +1867,7 @@ int getColumnWidth(GList *columnList, const BlxColumnId columnId)
 
 
 /* Return the width of the column with the given column id */
-const char* getColumnTitle(GList *columnList, const BlxColumnId columnId)
+const char* getColumnTitle(const GList *columnList, const BlxColumnId columnId)
 {
   const char *result = NULL;
   
@@ -1871,13 +1884,12 @@ const char* getColumnTitle(GList *columnList, const BlxColumnId columnId)
 
 /* Gets the x coords at the start/end of the given column and populate them into the range
  * return argument. */
-void getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *xRange)
+void getColumnXCoords(const GList *columnList, const BlxColumnId columnId, IntRange *xRange)
 {
-  xRange->min = 0;
-  xRange->max = 0;
+  xRange->set(0, 0);
   
   /* Loop through all visible columns up to the given column, summing their widths. */
-  GList *columnItem = columnList;
+  const GList *columnItem = columnList;
   
   for ( ; columnItem; columnItem = columnItem->next)
     {
@@ -1886,16 +1898,16 @@ void getColumnXCoords(GList *columnList, const BlxColumnId columnId, IntRange *x
       if (columnInfo->columnId != columnId)
         {
           if (showColumn(columnInfo))
-            xRange->min += columnInfo->width;
+            xRange->setMin(xRange->min() + columnInfo->width);
         }
       else
         {
           /* We've got to the required column. Calculate the x coord at the end
            * of this column and then break. */
           if (showColumn(columnInfo))
-            xRange->max = xRange->min + columnInfo->width;
+            xRange->setMax(xRange->min() + columnInfo->width);
           else
-            xRange->max = xRange->min; /* return zero-width if column is not visible */
+            xRange->setMax(xRange->min()); /* return zero-width if column is not visible */
           
           break;
         }

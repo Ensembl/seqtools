@@ -74,21 +74,25 @@ typedef struct _ColorChangeData
 
 
 /* Properties specific to the belvu window */
-typedef struct _BelvuWindowProperties
-  {
-    BelvuContext *bc;                   /* The belvu context */
-    GtkWidget *statusBar;               /* Message bar at the bottom of the main window */
-    GtkWidget *feedbackBox;             /* Feedback area showing info about the current selction */
-    GtkActionGroup *actionGroup;
-  } BelvuWindowProperties;
+class BelvuWindowProperties
+{
+public:
+  GtkWidget *widget;                  /* The belvu window */
+  BelvuContext *bc;                   /* The belvu context */
+  GtkWidget *statusBar;               /* Message bar at the bottom of the main window */
+  GtkWidget *feedbackBox;             /* Feedback area showing info about the current selction */
+  GtkActionGroup *actionGroup;
+};
 
 
 /* Properties for generic windows */
-typedef struct _GenericWindowProperties
-  {
-    BelvuContext *bc;                   /* The belvu context */
-    GtkActionGroup *actionGroup;
-  } GenericWindowProperties;
+class GenericWindowProperties
+{
+public:
+  GtkWidget *widget;                  /* The window */
+  BelvuContext *bc;                   /* The belvu context */
+  GtkActionGroup *actionGroup;
+};
 
 
 
@@ -1585,7 +1589,8 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow,
   if (belvuWindow)
     {
       BelvuWindowProperties *properties = (BelvuWindowProperties*)g_malloc(sizeof *properties);
-      
+     
+      properties->widget = belvuWindow;
       properties->bc = bc;
       properties->statusBar = statusBar;
       properties->feedbackBox = feedbackBox;
@@ -1635,7 +1640,8 @@ static void genericWindowCreateProperties(GtkWidget *wrapWindow,
   if (wrapWindow)
     {
       GenericWindowProperties *properties = (GenericWindowProperties*)g_malloc(sizeof *properties);
-      
+
+      properties->widget = wrapWindow;
       properties->bc = bc;
       properties->actionGroup = actionGroup;
 

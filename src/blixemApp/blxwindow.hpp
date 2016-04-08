@@ -51,12 +51,13 @@
 
 
 /* Public function declarations */
-BlxViewContext*		  blxWindowGetContext(GtkWidget *widget);
+BlxContext*		  blxWindowGetContext(GtkWidget *widget);
 GList*                    blxWindowGetColumnList(GtkWidget *blxWindow);
 gboolean		  blxWindowGetDisplayRev(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetBigPicture(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetDetailView(GtkWidget *blxWindow);
-GtkWidget*                blxWindowGetCoverageView(GtkWidget *blxWindow);
+GtkWidget*                blxWindowGetBigPictureCoverageView(GtkWidget *blxWindow);
+GtkWidget*                blxWindowGetDetailViewCoverageView(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetMainMenu(GtkWidget *blxWindow);
 GtkWidget*		  blxWindowGetSeqHeaderMenu(GtkWidget *blxWindow);
 BlxBlastMode		  blxWindowGetBlastMode(GtkWidget *blxWindow);
@@ -90,15 +91,6 @@ gboolean                  blxWindowIsSeqSelected(GtkWidget *blxWindow, const Blx
 void                      blxWindowSetSeqSelected(GtkWidget *blxWindow, BlxSequence *seq, const gboolean selected);
 void                      blxWindowSelectionChanged(GtkWidget *blxWindow);
 BlxSequence*              blxWindowGetLastSelectedSeq(GtkWidget *blxWindow);
-
-BlxStrand                 blxContextGetActiveStrand(BlxViewContext *bc);
-int                       blxContextGetDepth(BlxViewContext *bc, const int coord, const char *base_char = NULL, const BlxStrand strand = BLXSTRAND_NONE);
-int                       blxContextCalculateTotalDepth(BlxViewContext *bc, const IntRange *range, const BlxStrand strand = BLXSTRAND_NONE);
-
-gboolean                  blxContextIsSeqSelected(const BlxViewContext* const bc, const BlxSequence *seq);
-SequenceGroup*            blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSequence *seqToFind);
-BlxSequence*              blxContextGetSelectedTranscript(const BlxViewContext *blxContext, int *num_transcripts);
-GList*                    blxContextGetSelectedSeqsByType(const BlxViewContext *blxContext, const BlxSequenceType type);
 
 int                       sequenceGetGroupOrder(GtkWidget *blxWindow, const BlxSequence *seq);
 void                      copySelectionToClipboard(GtkWidget *blxWindow);

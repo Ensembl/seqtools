@@ -234,14 +234,46 @@ typedef struct _BlxStyle
   } BlxStyle;
 
 /* Utility structs to hold a range of integers/doubles */
-typedef struct _IntRange
-  {
-    int min;
-    int max;
+class IntRange
+{
+public:
+  // Constructors
+  IntRange() : m_min(0), m_max(0), m_min_is_set(false), m_max_is_set(false) {};
+  IntRange(const IntRange &range);
+  IntRange(const IntRange *range);
+  IntRange(const int val1, const int val2);
 
-    int start(const bool rev = FALSE, const bool negate = FALSE);
-    int end(const bool rev = FALSE, const bool negate = FALSE);
-  } IntRange ;
+  // Operator overloads
+  void operator+=(const int val);
+
+  // Access functions
+  bool isSet() const;
+  int start(const bool rev = false, const bool negate = false) const;
+  int end(const bool rev = false, const bool negate = false) const;
+  int min(const bool inclusive = false, const bool rev = false) const;
+  int max(const bool inclusive = false, const bool rev = false) const;
+
+  int length() const;
+  int centre() const;
+
+  // Modify functions
+  void reset();
+  void set(const int val1, const int val2);
+  void set(const IntRange &range);
+  void set(const IntRange *range);
+  bool setMin(const int val);
+  bool setMax(const int val);
+
+  void sort(const bool forwards = false);
+  void boundsLimit(const IntRange* const limit, const gboolean maintainLen);
+
+private:
+  int m_min;
+  int m_max;
+
+  bool m_min_is_set;
+  bool m_max_is_set;
+};
 
 typedef struct _DoubleRange
   {
@@ -366,15 +398,14 @@ gboolean              isDelimiter(const char c);
 char*                 removeDelimiters(char *text);
 GArray*               keyFileGetCsv(GKeyFile *keyFile, const char *group, const char *key, GError **error);
 
-int                   getRangeLength(const IntRange* const range);
-int                   getRangeCentre(const IntRange* const range);
+void                  freeStringList(GList **stringList, const gboolean freeDataItems);
+
 void                  centreRangeOnCoord(IntRange *range, const int coord, const int length);
 gboolean              valueWithinRange(const int value, const IntRange* const range);
 gboolean              rangesOverlap(const IntRange* const range1, const IntRange* const range2);
 gboolean              rangesAdjacent(const IntRange* const range1, const IntRange* const range2);
 gboolean              rangesEqual(const IntRange* const range1, const IntRange* const range2);
 void                  boundsLimitValue(int *value, const IntRange* const range);
-void                  boundsLimitRange(IntRange *range, const IntRange* const limit, const gboolean maintainLen);
 gboolean              pointInRect(const int x, const int y, const GdkRectangle* const rect);
 char                  convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
 
@@ -495,8 +526,6 @@ gint                  runConfirmationBox(GtkWidget *blxWindow, const char *title
 void                  prefixError(GError *error, const char *prefixStr, ...);
 void                  postfixError(GError *error, const char *formatStr, ...);
 void                  reportAndClearIfError(GError **error, GLogLevelFlags log_level);
-
-void                  intrangeSetValues(IntRange *range, const int val1, const int val2);
 
 #ifdef DEBUG
 void                  debugLogLevel(const int increaseAmt);
