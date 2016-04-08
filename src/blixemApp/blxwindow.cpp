@@ -822,9 +822,13 @@ static void coverageSetHidden(GtkWidget *blxWindow, const bool hide)
   if (properties)
     {
       BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      DetailViewProperties *dvProperties = detailViewGetProperties(properties->detailView);
 
       if (bpProperties && bpProperties->coverageViewProperties())
         widgetSetHidden(bpProperties->coverageViewProperties()->widget(), hide);
+
+      if (dvProperties && dvProperties->coverageViewProperties())
+        widgetSetHidden(dvProperties->coverageViewProperties()->widget(), hide);
     }
 }
 
@@ -1250,10 +1254,12 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       createTreeVisibilityButton(dv, blxWindowGetInactiveStrand(blxWindow), frame, dvSubBox);
     }
   
-  /* Coverage view */
-  GtkWidget *coverageView = blxWindowGetCoverageView(blxWindow);
+  /* Coverage views */
+  GtkWidget *bpCoverageView = blxWindowGetBigPictureCoverageView(blxWindow);
+  GtkWidget *dvCoverageView = blxWindowGetDetailViewCoverageView(blxWindow);
   GtkWidget *coverageVbox = createVBoxWithBorder(contentArea, borderWidth, TRUE, "Coverage view");
-  createVisibilityButton(coverageView, "Show _coverage view", coverageVbox);
+  createVisibilityButton(bpCoverageView, "Show _coverage view (big picture)", coverageVbox);
+  createVisibilityButton(dvCoverageView, "Show _coverage view (detail view)", coverageVbox);
 
   
   gtk_widget_show_all(dialog);
@@ -5402,7 +5408,7 @@ GtkWidget* blxWindowGetDetailView(GtkWidget *blxWindow)
   return properties ? properties->detailView : NULL;
 }
 
-GtkWidget* blxWindowGetCoverageView(GtkWidget *blxWindow)
+GtkWidget* blxWindowGetBigPictureCoverageView(GtkWidget *blxWindow)
 {
   GtkWidget *coverageView = NULL;
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
@@ -5413,6 +5419,22 @@ GtkWidget* blxWindowGetCoverageView(GtkWidget *blxWindow)
       
       if (bpProperties)
         coverageView = bpProperties->coverageView();
+    }
+
+  return coverageView;
+}
+
+GtkWidget* blxWindowGetDetailViewCoverageView(GtkWidget *blxWindow)
+{
+  GtkWidget *coverageView = NULL;
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+
+  if (properties && properties->detailView)
+    {
+      DetailViewProperties *dvProperties = detailViewGetProperties(properties->detailView);
+      
+      if (dvProperties)
+        coverageView = dvProperties->coverageView();
     }
 
   return coverageView;
