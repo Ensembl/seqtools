@@ -388,7 +388,7 @@ static void calculateExonViewBorders(GtkWidget *exonView)
   
   /* Calculate the size of the exon view */
   properties->exonViewRect.x = roundNearest(bigPictureProperties->contentXPos());
-  properties->exonViewRect.width = exonView->allocation.width - properties->exonViewRect.x;
+  properties->exonViewRect.width = bigPictureProperties->contentWidth();
   
   /* Calculate the size of the highlight box */
   calculateExonViewHighlightBoxBorders(exonView);

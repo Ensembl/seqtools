@@ -436,7 +436,7 @@ void calculateGridHeaderBorders(GtkWidget *header)
   /* Calculate the size of the grid header (zero height if it does not have one) */
   properties->headerRect.x = roundNearest(bigPictureProperties->contentXPos());
   properties->headerRect.y = 0;
-  properties->headerRect.width = header->allocation.width - properties->headerRect.x;
+  properties->headerRect.width = bigPictureProperties->contentWidth();
   properties->headerRect.height = properties->refButton->allocation.height + (properties->headerYPad * 2);
   
   properties->markerHeight = properties->headerRect.height - roundNearest(bigPictureProperties->charHeight() * (gdouble)properties->numHeaderLines);
