@@ -1,15 +1,5 @@
 
-Request Tracker Tickets Resolved from 10/02/2016 to 23/03/2016
-
-ticket/519841
-id: ticket/519841
-Queue: seqtools
-Subject: Installation of SeqTools
-Requestors: alistair.macdougall@ebi.ac.uk
-Owner: gb10
-Resolved: Wed Mar 09 17:04:40 2016
-CF.{zmapace_gitcommit}: 
-CF.{zmapace_resolve_version}: 
+Request Tracker Tickets Resolved from 11/03/2016 to 15/04/2016
 
 
 End of Request Tracker tickets

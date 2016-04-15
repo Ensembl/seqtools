@@ -1,262 +1,495 @@
-2016-03-17  zmap  <zmap@sanger.ac.uk>
- SeqTools version 4.41.1-45-gb1f4 - Update RT and git commit reports
- src/ChangeLog                                  | 368 ++++++++++++++++---------
- src/build/release_docs/GIT_COMMITS.txt         |  14 +-
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |  12 +-
- 3 files changed, 264 insertions(+), 130 deletions(-)
+2016-04-08  Gemma Guest  <gb10@sanger.ac.uk>
+ Update release notes for addition of c++0x in 4.41.0 - DOC
+ src/doc/User_doc/release_notes.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-2016-03-11  Gemma Guest  <gb10@sanger.ac.uk>
- Merge branch 'feature/read_depth' into develop
-2016-03-11  Gemma Guest  <gb10@sanger.ac.uk>
- Fix compiler error on older gcc versions - BUILD
- src/blixemApp/detailview.cpp | 10 +++++-----
+2016-04-08  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix a bug with big picture sections slightly misaligned - REGRESSION FIX
+ src/blixemApp/bigpicture.cpp     | 2 +-
+ src/blixemApp/bigpicturegrid.cpp | 2 +-
+ src/blixemApp/exonview.cpp       | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+2016-04-08  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix incorrect version number in release notes - DOC
+ src/doc/User_doc/release_notes.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+2016-04-08  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'feature/coverage' into develop - NEW FEATURE 'Detail view coverage'
+2016-04-08  Gemma Guest  <gb10@sanger.ac.uk>
+ Add option to display detail view coverage - WIP
+ src/blixemApp/blxwindow.cpp | 30 ++++++++++++++++++++++++++----
+ src/blixemApp/blxwindow.hpp |  3 ++-
+ 2 files changed, 28 insertions(+), 5 deletions(-)
+
+2016-04-07  Gemma Guest  <gb10@sanger.ac.uk>
+ Add comments about remaining tidying to be done - WIP
+ src/blixemApp/coverageview.cpp | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+2016-04-07  Gemma Guest  <gb10@sanger.ac.uk>
+ Move highlight box functions to base class - WIP
+ src/blixemApp/Makefile.am              |   2 +-
+ src/blixemApp/bigpicture.cpp           | 276 ++++------------------------
+ src/blixemApp/bigpicture.hpp           |  44 ++---
+ src/blixemApp/bigpicturegrid.cpp       |  13 +-
+ src/blixemApp/blxpanel.cpp             | 318 +++++++++++++++++++++++++++++++++
+ src/blixemApp/blxpanel.hpp             |  53 +++++-
+ src/blixemApp/blxwindow.cpp            |   9 +-
+ src/blixemApp/coverageview.cpp         |  19 +-
+ src/blixemApp/coverageview.hpp         |   4 +-
+ src/blixemApp/detailview.cpp           |  90 ++++------
+ src/blixemApp/detailview.hpp           |  17 +-
+ src/blixemApp/detailviewtree.cpp       |  16 +-
+ src/blixemApp/exonview.cpp             |  17 +-
+ src/blixemApp/sequencecellrenderer.cpp |  16 +-
+ 14 files changed, 511 insertions(+), 383 deletions(-)
+
+2016-04-07  Gemma Guest  <gb10@sanger.ac.uk>
+ Add setting to change depth-per-cell for detail view coverage - WIP
+ src/blixemApp/blxwindow.cpp | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
+
+2016-04-07  Gemma Guest  <gb10@sanger.ac.uk>
+ Rename x position variable - WIP
+ src/blixemApp/bigpicture.cpp     | 6 +++---
+ src/blixemApp/bigpicture.hpp     | 2 +-
+ src/blixemApp/bigpicturegrid.cpp | 2 +-
+ src/blixemApp/blxpanel.hpp       | 2 +-
+ src/blixemApp/coverageview.cpp   | 7 +++----
+ src/blixemApp/coverageview.hpp   | 5 +----
+ src/blixemApp/detailview.cpp     | 2 +-
+ src/blixemApp/detailview.hpp     | 2 +-
+ src/blixemApp/exonview.cpp       | 2 +-
+ 9 files changed, 13 insertions(+), 17 deletions(-)
+
+2016-04-07  Gemma Guest  <gb10@sanger.ac.uk>
+ Set highlight range for big picture panel - WIP
+ src/blixemApp/bigpicture.cpp   | 14 ++++++++++++++
+ src/blixemApp/bigpicture.hpp   |  1 +
+ src/blixemApp/blxpanel.hpp     |  5 ++++-
+ src/blixemApp/coverageview.cpp | 18 ++++++++++++++++--
+ src/blixemApp/coverageview.hpp |  1 +
+ 5 files changed, 36 insertions(+), 3 deletions(-)
+
+2016-04-07  Gemma Guest  <gb10@sanger.ac.uk>
+ Move highlight-box calc to base class - WIP
+ src/blixemApp/bigpicture.cpp     | 45 +---------------------------------------
+ src/blixemApp/bigpicture.hpp     |  6 ------
+ src/blixemApp/bigpicturegrid.cpp | 15 +++++++++++++-
+ src/blixemApp/blxcontext.cpp     | 36 ++++++++++++++++++++++++++++++++
+ src/blixemApp/blxcontext.hpp     |  4 ++++
+ src/blixemApp/blxpanel.hpp       |  7 +++++++
+ src/blixemApp/coverageview.cpp   | 44 ++++++++++++++++++++++++---------------
+ src/blixemApp/coverageview.hpp   |  3 +--
+ src/blixemApp/detailview.cpp     |  4 ----
+ src/blixemApp/detailview.hpp     |  3 ---
+ 10 files changed, 90 insertions(+), 77 deletions(-)
+
+2016-04-07  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix detail view coverage section width - WIP
+ src/blixemApp/bigpicture.cpp   | 12 ++++++++++++
+ src/blixemApp/bigpicture.hpp   |  1 +
+ src/blixemApp/blixem_.hpp      |  8 ++++----
+ src/blixemApp/blxpanel.hpp     |  2 +-
+ src/blixemApp/blxview.cpp      |  8 ++++----
+ src/blixemApp/blxwindow.cpp    |  4 ++--
+ src/blixemApp/coverageview.cpp | 20 ++++++++++++++++++--
+ src/blixemApp/coverageview.hpp |  3 ++-
+ src/blixemApp/detailview.cpp   | 24 +++++++++++-------------
+ src/blixemApp/detailview.hpp   |  1 +
+ 10 files changed, 56 insertions(+), 27 deletions(-)
+
+2016-04-07  Gemma Guest  <gb10@sanger.ac.uk>
+ Derive detail-view from BlxPanel - WIP
+ src/blixemApp/detailview.cpp | 120 ++++++++++++++++++++++++++++++-------------
+ src/blixemApp/detailview.hpp |   9 +++-
+ 2 files changed, 90 insertions(+), 39 deletions(-)
+
+2016-04-07  Gemma Guest  <gb10@sanger.ac.uk>
+ Add detail-view destructor - WIP
+ src/blixemApp/detailview.cpp | 65 +++++++++++++++++++++++---------------------
+ src/blixemApp/detailview.hpp |  5 ++++
+ 2 files changed, 39 insertions(+), 31 deletions(-)
+
+2016-04-07  Gemma Guest  <gb10@sanger.ac.uk>
+ Add base class for big picture - WIP
+ src/blixemApp/Makefile.am        |  2 +-
+ src/blixemApp/bigpicture.cpp     | 34 ++++++++++++++------------
+ src/blixemApp/bigpicture.hpp     | 13 +++++++---
+ src/blixemApp/bigpicturegrid.cpp |  2 +-
+ src/blixemApp/blxpanel.hpp       | 53 ++++++++++++++++++++++++++++++++++++++++
+ src/blixemApp/coverageview.cpp   | 19 ++++++++------
+ src/blixemApp/coverageview.hpp   | 11 +++++++--
+ src/blixemApp/exonview.cpp       |  2 +-
+ 8 files changed, 104 insertions(+), 32 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Coverage section has pointer to parent left border pos - WIP
+ src/blixemApp/bigpicture.cpp     | 103 ++++++++++++++++++++++-----------------
+ src/blixemApp/bigpicture.hpp     |   9 ++--
+ src/blixemApp/bigpicturegrid.cpp |   2 +-
+ src/blixemApp/coverageview.cpp   |  23 ++++++++-
+ src/blixemApp/coverageview.hpp   |   5 ++
+ src/blixemApp/exonview.cpp       |   2 +-
+ 6 files changed, 91 insertions(+), 53 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Remove unnecessary member variable - WIP
+ src/blixemApp/bigpicture.cpp     |  2 --
+ src/blixemApp/bigpicture.hpp     |  3 ---
+ src/blixemApp/bigpicturegrid.cpp | 13 +++++--------
+ src/blixemApp/blixem_.hpp        |  3 ++-
+ src/blixemApp/coverageview.cpp   | 12 +++---------
+ src/blixemApp/exonview.cpp       |  8 +++-----
+ 6 files changed, 13 insertions(+), 28 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Remove unnecessary member variable - WIP
+ src/blixemApp/bigpicture.cpp     | 8 +++++---
+ src/blixemApp/bigpicture.hpp     | 4 +++-
+ src/blixemApp/bigpicturegrid.cpp | 2 +-
+ src/blixemApp/coverageview.cpp   | 4 ++--
+ 4 files changed, 11 insertions(+), 7 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Remove char size from big picture - WIP
+ src/blixemApp/bigpicture.cpp     | 49 +++++++++++++++++++++++++++++-----------
+ src/blixemApp/bigpicture.hpp     | 11 ++++++---
+ src/blixemApp/bigpicturegrid.cpp |  2 +-
+ src/blixemApp/blxcontext.cpp     |  5 ++++
+ src/blixemApp/blxcontext.hpp     |  1 +
+ src/blixemApp/exonview.cpp       |  2 +-
+ 6 files changed, 52 insertions(+), 18 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Add char size to BlxContext - WIP
+ src/blixemApp/blxcontext.cpp   | 11 +++++++++++
+ src/blixemApp/blxcontext.hpp   | 16 +++++++++++++---
+ src/blixemApp/coverageview.cpp | 13 ++++++++++++-
+ src/blixemApp/coverageview.hpp |  1 +
+ 4 files changed, 37 insertions(+), 4 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Move sequence-group code to BlxContext file - WIP
+ src/blixemApp/bigpicturegrid.cpp       |   2 +-
+ src/blixemApp/blxcontext.cpp           | 116 ++++++++++++++++++++++++++++++
+ src/blixemApp/blxcontext.hpp           |   8 ++-
+ src/blixemApp/blxdotter.cpp            |  10 +--
+ src/blixemApp/blxwindow.cpp            | 125 ++-------------------------------
+ src/blixemApp/blxwindow.hpp            |   7 --
+ src/blixemApp/detailview.cpp           |   4 +-
+ src/blixemApp/detailviewtree.cpp       |   4 +-
+ src/blixemApp/exonview.cpp             |   4 +-
+ src/blixemApp/sequencecellrenderer.cpp |   4 +-
+ 10 files changed, 142 insertions(+), 142 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Add BlxContext destructor - WIP
+ src/blixemApp/blxcontext.cpp    | 111 ++++++++++++++++++++++++++++-
+ src/blixemApp/blxcontext.hpp    |   6 ++
+ src/blixemApp/blxwindow.cpp     | 151 ++--------------------------------------
+ src/seqtoolsUtils/utilities.cpp |  23 ++++++
+ src/seqtoolsUtils/utilities.hpp |   2 +
+ 5 files changed, 147 insertions(+), 146 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Move code to BlxContext file - WIP
+ src/blixemApp/blxcontext.cpp   | 333 +++++++++++++++++++++++++++++++++++++++-
+ src/blixemApp/blxcontext.hpp   |   6 +-
+ src/blixemApp/blxwindow.cpp    | 340 ++---------------------------------------
+ src/blixemApp/blxwindow.hpp    |   2 -
+ src/blixemApp/coverageview.cpp |   2 +-
+ src/blixemApp/detailview.cpp   |  16 +-
+ 6 files changed, 354 insertions(+), 345 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Add BlxContext cpp file - WIP
+ src/blixemApp/Makefile.am    |   2 +-
+ src/blixemApp/blixem_.hpp    |   5 +-
+ src/blixemApp/blxcontext.cpp | 350 +++++++++++++++++++++++++++++++++++++++++++
+ src/blixemApp/blxcontext.hpp |   8 +-
+ src/blixemApp/blxwindow.cpp  | 305 +------------------------------------
+ 5 files changed, 361 insertions(+), 309 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Move BlxContext to separate header - WIP
+ src/blixemApp/Makefile.am              |   2 +-
+ src/blixemApp/bigpicture.cpp           |   1 +
+ src/blixemApp/bigpicturegrid.cpp       |   1 +
+ src/blixemApp/blixem_.hpp              |  99 +----------------------
+ src/blixemApp/blxFetch.cpp             |   1 +
+ src/blixemApp/blxcontext.hpp           | 139 +++++++++++++++++++++++++++++++++
+ src/blixemApp/blxdotter.cpp            |   1 +
+ src/blixemApp/blxview.cpp              |   1 +
+ src/blixemApp/blxwindow.cpp            |   1 +
+ src/blixemApp/coverageview.cpp         |   1 +
+ src/blixemApp/detailview.cpp           |   1 +
+ src/blixemApp/detailviewtree.cpp       |   1 +
+ src/blixemApp/exonview.cpp             |   1 +
+ src/blixemApp/sequencecellrenderer.cpp |   1 +
+ 14 files changed, 155 insertions(+), 96 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix compiler warnings - BUILD
+ src/dotterApp/dotter.cpp | 2 --
+ 1 file changed, 2 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Add BlxContext constructor - WIP
+ src/blixemApp/blixem_.hpp   |  16 +++
+ src/blixemApp/blxwindow.cpp | 283 ++++++++++++++++++++++----------------------
+ 2 files changed, 155 insertions(+), 144 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Rename BlxContext - WIP
+ src/blixemApp/bigpicture.cpp           |  24 ++--
+ src/blixemApp/bigpicture.hpp           |   8 +-
+ src/blixemApp/bigpicturegrid.cpp       |  20 ++--
+ src/blixemApp/blixem_.hpp              |  16 +--
+ src/blixemApp/blxFetch.cpp             |  14 +--
+ src/blixemApp/blxdotter.cpp            |  86 +++++++-------
+ src/blixemApp/blxview.cpp              |  22 ++--
+ src/blixemApp/blxwindow.cpp            | 211 ++++++++++++++++-----------------
+ src/blixemApp/blxwindow.hpp            |  16 +--
+ src/blixemApp/coverageview.cpp         |   6 +-
+ src/blixemApp/coverageview.hpp         |   6 +-
+ src/blixemApp/detailview.cpp           | 124 +++++++++----------
+ src/blixemApp/detailview.hpp           |   6 +-
+ src/blixemApp/detailviewtree.cpp       |  34 +++---
+ src/blixemApp/detailviewtree.hpp       |   2 +-
+ src/blixemApp/exonview.cpp             |  20 ++--
+ src/blixemApp/sequencecellrenderer.cpp |  12 +-
+ 17 files changed, 313 insertions(+), 314 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Convert context to class - WIP
+ src/blixemApp/blixem_.hpp | 133 ++++++++++++++++++++++++----------------------
+ 1 file changed, 68 insertions(+), 65 deletions(-)
+
+2016-04-06  Gemma Guest  <gb10@sanger.ac.uk>
+ Remove deprecated register keyword - BUILD
+ src/dotterApp/dotplot.cpp      | 20 ++++++++++----------
+ src/dotterApp/dotterKarlin.cpp |  6 +++---
+ 2 files changed, 13 insertions(+), 13 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Add correct display range for detail view coverage - WIP
+ src/blixemApp/bigpicture.cpp   |  4 +++
+ src/blixemApp/coverageview.cpp | 78 ++++++++++++++++++++++--------------------
+ src/blixemApp/coverageview.hpp | 30 ++++++++++------
+ src/blixemApp/detailview.cpp   |  6 +++-
+ 4 files changed, 70 insertions(+), 48 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix bugs with coverage view in detail view - WIP
+ src/blixemApp/blxwindow.cpp    |  5 +++++
+ src/blixemApp/coverageview.cpp | 10 ++++++----
+ 2 files changed, 11 insertions(+), 4 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Remove obsolete function - WIP
+ src/blixemApp/bigpicture.cpp | 6 ------
+ src/blixemApp/bigpicture.hpp | 1 -
+ src/blixemApp/detailview.cpp | 6 ------
+ src/blixemApp/detailview.hpp | 1 -
+ 4 files changed, 14 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Add coverage view to detail view - WIP
+ src/blixemApp/blxwindow.cpp  |   1 +
+ src/blixemApp/detailview.cpp | 250 ++++++++++++++++++++++++++-----------------
+ src/blixemApp/detailview.hpp |  11 +-
+ 3 files changed, 161 insertions(+), 101 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Add constructor for detail view - WIP
+ src/blixemApp/detailview.cpp | 197 ++++++++++++++++++++++++-------------------
+ src/blixemApp/detailview.hpp |  17 ++++
+ 2 files changed, 128 insertions(+), 86 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix bug with zooming to range - WIP
+ src/blixemApp/bigpicture.cpp    | 3 ++-
+ src/blixemApp/detailview.cpp    | 4 ++--
+ src/dotterApp/alignmenttool.cpp | 6 ++++--
+ src/seqtoolsUtils/blxmsp.cpp    | 4 ++--
+ 4 files changed, 10 insertions(+), 7 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix off-by-one in big picture drawing, and more tidying - WIP
+ src/blixemApp/bigpicture.cpp           |  4 ++--
+ src/blixemApp/blixem_.hpp              |  6 +++---
+ src/blixemApp/blxFetch.cpp             |  8 ++++----
+ src/blixemApp/blxwindow.cpp            |  4 ++--
+ src/blixemApp/detailview.cpp           |  2 +-
+ src/blixemApp/exonview.cpp             |  4 ++--
+ src/blixemApp/sequencecellrenderer.cpp |  6 +++---
+ src/seqtoolsUtils/blxmsp.cpp           | 14 ++++----------
+ src/seqtoolsUtils/blxmsp.hpp           |  4 ++--
+ 9 files changed, 23 insertions(+), 29 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix bug with drawing msps and more tidying - WIP
+ src/blixemApp/bigpicture.cpp           |  9 ++--
+ src/blixemApp/blixem_.hpp              |  6 +--
+ src/blixemApp/blxFetch.cpp             |  8 +--
+ src/blixemApp/blxdotter.cpp            |  8 +--
+ src/blixemApp/blxmain.cpp              |  4 +-
+ src/blixemApp/blxview.cpp              | 20 +++++---
+ src/blixemApp/blxwindow.cpp            | 12 ++---
+ src/blixemApp/detailview.cpp           | 14 ++---
+ src/blixemApp/detailviewtree.cpp       |  2 +-
+ src/blixemApp/sequencecellrenderer.cpp |  3 +-
+ src/dotterApp/alignmenttool.cpp        |  9 ++--
+ src/dotterApp/dotplot.cpp              |  4 +-
+ src/seqtoolsUtils/blxGff3Parser.cpp    |  7 ++-
+ src/seqtoolsUtils/blxmsp.cpp           | 62 +++++++++++++++--------
+ src/seqtoolsUtils/blxmsp.hpp           |  4 +-
+ src/seqtoolsUtils/blxparser.cpp        |  2 +-
+ src/seqtoolsUtils/utilities.cpp        | 93 ++++++++++++++++++++++++++--------
+ src/seqtoolsUtils/utilities.hpp        |  4 +-
+ 18 files changed, 172 insertions(+), 99 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix bug with updating scroll range - WIP
+ src/blixemApp/bigpicture.cpp       | 6 ++++--
+ src/blixemApp/bigpicturegrid.cpp   | 9 ++-------
+ src/blixemApp/blxview.cpp          | 7 +++++--
+ src/blixemApp/exonview.cpp         | 9 ++-------
+ src/dotterApp/seqtoolsExonView.cpp | 4 ++--
+ 5 files changed, 15 insertions(+), 20 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Use c++ bool values - WIP
+ src/seqtoolsUtils/utilities.hpp | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
 
-2016-03-11  Gemma Guest  <gb10@sanger.ac.uk>
- Add read depth counters for N, gaps and unknown - WIP
- src/blixemApp/blixem_.hpp    |  8 ++++++--
- src/blixemApp/blxwindow.cpp  | 49 ++++++++++++++++++++++++++++++++++++++------
- src/blixemApp/detailview.cpp | 32 +++++++++++++++++++++++------
- 3 files changed, 75 insertions(+), 14 deletions(-)
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix bug with zooming due to intrange change - WIP
+ src/blixemApp/bigpicture.cpp    |  2 +-
+ src/seqtoolsUtils/utilities.cpp | 11 +++++++----
+ 2 files changed, 8 insertions(+), 5 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Remove accidental file - WIP
+ src/blixemApp/sequencecellrenderer.cpp.~develop~ | 1612 ----------------------
+ 1 file changed, 1612 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix a bug with new range access functions - WIP
+ src/seqtoolsUtils/utilities.cpp | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix a bug with unset ranges - WIP
+ src/blixemApp/bigpicture.cpp           |  2 +-
+ src/blixemApp/blxmain.cpp              |  4 +--
+ src/blixemApp/blxview.cpp              | 15 +++++++--
+ src/blixemApp/blxwindow.cpp            |  2 +-
+ src/blixemApp/sequencecellrenderer.cpp |  8 ++---
+ src/dotterApp/alignmenttool.cpp        |  1 -
+ src/dotterApp/dotter.cpp               | 32 ++++++++++++-------
+ src/seqtoolsUtils/blxGff3Parser.cpp    |  4 +--
+ src/seqtoolsUtils/blxmsp.cpp           |  8 ++---
+ src/seqtoolsUtils/blxparser.cpp        |  2 +-
+ src/seqtoolsUtils/utilities.cpp        | 57 ++++++++++++++++++++++++++++------
+ src/seqtoolsUtils/utilities.hpp        | 26 +++++++++++-----
+ 12 files changed, 112 insertions(+), 49 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Add utility function to simplify code - WIP
+ src/blixemApp/bigpicture.cpp           | 25 ++++++++----------------
+ src/blixemApp/blxmain.cpp              |  9 +++------
+ src/blixemApp/blxview.cpp              | 19 +++++++-----------
+ src/blixemApp/blxwindow.cpp            | 13 +++++--------
+ src/blixemApp/detailview.cpp           | 16 ++++++----------
+ src/blixemApp/sequencecellrenderer.cpp |  6 ++----
+ src/dotterApp/alignmenttool.cpp        | 18 ++++++-----------
+ src/dotterApp/dotplot.cpp              |  4 ++--
+ src/dotterApp/dotter.cpp               | 12 ++++--------
+ src/dotterApp/dotterMain.cpp           |  3 +--
+ src/seqtoolsUtils/blxmsp.cpp           | 35 +++++++++++++---------------------
+ src/seqtoolsUtils/blxparser.cpp        |  3 +--
+ src/seqtoolsUtils/utilities.cpp        | 18 +++++++++++++----
+ src/seqtoolsUtils/utilities.hpp        |  2 ++
+ 14 files changed, 74 insertions(+), 109 deletions(-)
+
+2016-04-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Convert IntRange to class - WIP
+ src/blixemApp/bigpicture.cpp           |  98 +++++++--------
+ src/blixemApp/bigpicturegrid.cpp       |  38 +++---
+ src/blixemApp/blxdotter.cpp            |  50 ++++----
+ src/blixemApp/blxmain.cpp              |  16 +--
+ src/blixemApp/blxview.cpp              |  80 ++++++------
+ src/blixemApp/blxwindow.cpp            | 107 ++++++++--------
+ src/blixemApp/coverageview.cpp         |   8 +-
+ src/blixemApp/detailview.cpp           | 175 +++++++++++++-------------
+ src/blixemApp/detailviewtree.cpp       |  50 ++++----
+ src/blixemApp/exonview.cpp             |  15 ++-
+ src/blixemApp/sequencecellrenderer.cpp |  50 ++++----
+ src/dotterApp/alignmenttool.cpp        |  62 ++++-----
+ src/dotterApp/dotplot.cpp              |  62 ++++-----
+ src/dotterApp/dotter.cpp               |  58 ++++-----
+ src/dotterApp/dotterMain.cpp           |   3 +-
+ src/dotterApp/seqtoolsExonView.cpp     |   4 +-
+ src/seqtoolsUtils/blxGff3Parser.cpp    |  28 ++---
+ src/seqtoolsUtils/blxmsp.cpp           | 170 ++++++++++++-------------
+ src/seqtoolsUtils/blxparser.cpp        |  18 +--
+ src/seqtoolsUtils/utilities.cpp        | 222 +++++++++++++++++++++------------
+ src/seqtoolsUtils/utilities.hpp        |  35 ++++--
+ 21 files changed, 716 insertions(+), 633 deletions(-)
+
+2016-04-04  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix off-by-one error drawing coverage view - WIP
+ src/blixemApp/coverageview.cpp | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
 
 2016-03-11  Gemma Guest  <gb10@sanger.ac.uk>
- Make read depth display for active strand only - WIP
- src/blixemApp/blixem_.hpp    |  22 ++++--
- src/blixemApp/blxwindow.cpp  | 168 ++++++++++++++++++++++++++++++++++---------
- src/blixemApp/blxwindow.hpp  |   5 +-
- src/blixemApp/detailview.cpp |  21 ++++--
- 4 files changed, 169 insertions(+), 47 deletions(-)
+ Convert coverage view to a class - WIP
+ src/blixemApp/bigpicture.cpp     | 219 ++++++++++++++++++----------
+ src/blixemApp/bigpicture.hpp     |  32 ++++-
+ src/blixemApp/bigpicturegrid.cpp |   2 +-
+ src/blixemApp/blxwindow.cpp      |  66 ++++++---
+ src/blixemApp/coverageview.cpp   | 303 ++++++++++++++++++++++-----------------
+ src/blixemApp/coverageview.hpp   |  48 +++++--
+ 6 files changed, 429 insertions(+), 241 deletions(-)
 
-2016-03-10  Gemma Guest  <gb10@sanger.ac.uk>
- Read coverage now shows specific base support at coord - WIP
- src/blixemApp/blixem_.hpp    |  18 +++++++-
- src/blixemApp/blxwindow.cpp  | 102 +++++++++++++++++++++++++++++++++----------
- src/blixemApp/blxwindow.hpp  |   2 +-
- src/blixemApp/detailview.cpp |  31 ++++++++++++-
- 4 files changed, 128 insertions(+), 25 deletions(-)
+2016-03-11  Gemma Guest  <gb10@sanger.ac.uk>
+ Convert to classes and add ptr to widget - WIP
+ src/belvuApp/belvuAlignment.cpp  |  7 +++++--
+ src/belvuApp/belvuConsPlot.cpp   | 43 +++++++++++++++++++++-------------------
+ src/belvuApp/belvuTree.cpp       | 41 ++++++++++++++++++++------------------
+ src/belvuApp/belvuWindow.cpp     | 34 ++++++++++++++++++-------------
+ src/blixemApp/bigpicture.cpp     |  4 +++-
+ src/blixemApp/bigpicture.hpp     | 10 ++++++----
+ src/blixemApp/bigpicturegrid.cpp |  3 ++-
+ src/blixemApp/bigpicturegrid.hpp |  1 +
+ src/blixemApp/blxwindow.cpp      | 25 +++++++++++++----------
+ src/blixemApp/coverageview.cpp   | 25 +++++++++++++----------
+ src/blixemApp/detailview.cpp     |  7 +++++--
+ src/blixemApp/detailview.hpp     |  1 +
+ src/blixemApp/detailviewtree.cpp |  3 ++-
+ src/blixemApp/detailviewtree.hpp |  3 ++-
+ src/blixemApp/exonview.cpp       | 23 +++++++++++----------
+ src/dotterApp/alignmenttool.cpp  | 16 ++++++++++-----
+ src/dotterApp/dotplot.cpp        |  3 ++-
+ src/dotterApp/dotter.cpp         |  7 +++++--
+ src/dotterApp/dotter_.hpp        |  2 ++
+ src/dotterApp/greyramptool.cpp   | 43 +++++++++++++++++++++-------------------
+ 20 files changed, 176 insertions(+), 125 deletions(-)
 
-2016-03-10  Gemma Guest  <gb10@sanger.ac.uk>
- Update installation instructions - DOC
- src/INSTALL.linux   |  7 +++++--
- src/INSTALL.mac     |  7 +++++--
- src/INSTALL.windows | 41 +++++++++++++++++++++++++++++++++++------
- src/README          | 31 ++++++++++++++++++++++++-------
- 4 files changed, 69 insertions(+), 17 deletions(-)
+2016-03-11  Gemma Guest  <gb10@sanger.ac.uk>
+ Convert properties structs to classes - WIP
+ src/blixemApp/bigpicture.hpp     | 78 ++++++++++++++++++++--------------------
+ src/blixemApp/bigpicturegrid.hpp | 25 ++++++-------
+ src/blixemApp/detailview.hpp     |  5 +--
+ src/blixemApp/detailviewtree.hpp | 23 ++++++------
+ src/dotterApp/dotter_.hpp        | 78 ++++++++++++++++++++--------------------
+ 5 files changed, 108 insertions(+), 101 deletions(-)
 
-2016-03-10  Gemma Guest  <gb10@sanger.ac.uk>
- Merge branch 'develop' into feature/read_depth
-2016-03-09  Gemma Guest  <gb10@sanger.ac.uk>
- Minor improvement to installation instructions - RT 519841
- src/INSTALL.linux | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
-
-2016-03-09  Gemma Guest  <gb10@sanger.ac.uk>
- Add README for generated files - BUILD
- src/build/release_docs/README | 4 ++++
- 1 file changed, 4 insertions(+)
-
-2016-03-09  Gemma Guest  <gb10@sanger.ac.uk>
+2016-04-04  Ed Griffiths  <edgrif@sanger.ac.uk>
  Merge branch 'production' into develop
-2016-03-09  Gemma Guest  <gb10@sanger.ac.uk>
- Fix a C++ compilation error on cygwin - BUG FIX
- src/configure.ac | 1 -
- 1 file changed, 1 deletion(-)
-
-2016-03-01  Gemma Guest  <gb10@sanger.ac.uk>
- Merge branch 'develop' into feature/read_depth
-2016-03-01  Gemma Guest  <gb10@sanger.ac.uk>
- Fix compile error on linux - REGRESSION FIX
- src/blixemApp/blxdotter.cpp | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-2016-03-01  Gemma Guest  <gb10@sanger.ac.uk>
- Replace fprintf etc. with GLib functions - WIP
- src/blixemApp/blxdotter.cpp     | 159 +++++++++++++++++++---------------------
- src/seqtoolsUtils/blxmsp.cpp    | 151 ++++++++++++++++++++++++--------------
- src/seqtoolsUtils/blxmsp.hpp    |   6 +-
- src/seqtoolsUtils/utilities.cpp |  45 ++++++++----
- src/seqtoolsUtils/utilities.hpp |   2 +-
- 5 files changed, 206 insertions(+), 157 deletions(-)
-
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Replace mkstemp with g_mkstemp - TRIVIAL
- src/blixemApp/blxFetch.cpp | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Minor update to previous - WIP
- src/seqtoolsUtils/utilities.cpp | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
-
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Merge branch 'develop' into feature/read_depth
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Replace popen call with GLib function - REGRESSION FIX
- src/Makefile.am.common          |  4 +---
- src/seqtoolsUtils/utilities.cpp | 43 +++++++++++++++++------------------------
- 2 files changed, 19 insertions(+), 28 deletions(-)
-
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Revert "Revert "Fix ambiguous call to overloaded fn - REGRESSION FIX""
- src/blixemApp/detailview.cpp | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Revert "Revert "Remove deprecated-register flag (not avail on linux) - BUILD""
- src/Makefile.am.common | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Revert "Revert "Merge branch 'feature/read_depth' into develop - NEW FEATURE 'read depth'""
- src/blixemApp/blxwindow.cpp     |  45 ++++++
- src/blixemApp/blxwindow.hpp     |   3 +
- src/blixemApp/coverageview.cpp  |   2 +-
- src/blixemApp/detailview.cpp    | 349 ++++++++++++++++++++++++++++------------
- src/blixemApp/detailview.hpp    |   1 +
- src/seqtoolsUtils/utilities.cpp |  24 ++-
- src/seqtoolsUtils/utilities.hpp |   5 +-
- 7 files changed, 319 insertions(+), 110 deletions(-)
-
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Revert "Merge branch 'feature/read_depth' into develop - NEW FEATURE 'read depth'"
- src/blixemApp/blxwindow.cpp     |  45 ------
- src/blixemApp/blxwindow.hpp     |   3 -
- src/blixemApp/coverageview.cpp  |   2 +-
- src/blixemApp/detailview.cpp    | 349 ++++++++++++----------------------------
- src/blixemApp/detailview.hpp    |   1 -
- src/seqtoolsUtils/utilities.cpp |  24 +--
- src/seqtoolsUtils/utilities.hpp |   5 +-
- 7 files changed, 110 insertions(+), 319 deletions(-)
-
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Revert "Remove deprecated-register flag (not avail on linux) - BUILD"
- src/Makefile.am.common | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Revert "Fix ambiguous call to overloaded fn - REGRESSION FIX"
- src/blixemApp/detailview.cpp | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Fix ambiguous call to overloaded fn - REGRESSION FIX
- src/blixemApp/detailview.cpp | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-2016-02-29  Gemma Guest  <gb10@sanger.ac.uk>
- Remove deprecated-register flag (not avail on linux) - BUILD
- src/Makefile.am.common | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Merge branch 'feature/read_depth' into develop - NEW FEATURE 'read depth'
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Add feedback box to display read depth - WIP
- src/blixemApp/blxwindow.cpp  | 30 +++++++++++++++++++++++++++++
- src/blixemApp/blxwindow.hpp  |  1 +
- src/blixemApp/detailview.cpp | 46 +++++++++++++++++++++++++++++++++++++-------
- 3 files changed, 70 insertions(+), 7 deletions(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Add access function for read depth - WIP
- src/blixemApp/blxwindow.cpp    | 15 +++++++++++++++
- src/blixemApp/blxwindow.hpp    |  2 ++
- src/blixemApp/coverageview.cpp |  2 +-
- 3 files changed, 18 insertions(+), 1 deletion(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Tooltips - TRIVIAL
- src/blixemApp/detailview.cpp | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Show selected match coord range in toolbar - WIP
- src/blixemApp/detailview.cpp | 112 +++++++++++++++++++++++++++----------------
- 1 file changed, 72 insertions(+), 40 deletions(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Show selected coordinate range in feedback box - WIP
- src/blixemApp/detailview.cpp    | 64 +++++++++++++++++++++++++++++++++++------
- src/blixemApp/detailview.hpp    |  1 +
- src/seqtoolsUtils/utilities.cpp | 22 ++++++++++++++
- src/seqtoolsUtils/utilities.hpp |  3 ++
- 4 files changed, 82 insertions(+), 8 deletions(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- More tidying/simplification - WIP
- src/blixemApp/detailview.cpp | 71 ++++++++++++++++++++++----------------------
- 1 file changed, 36 insertions(+), 35 deletions(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- More reorganisation/tidying - WIP
- src/blixemApp/detailview.cpp    | 86 +++++++++++++++++++++--------------------
- src/seqtoolsUtils/utilities.cpp |  2 +-
- src/seqtoolsUtils/utilities.hpp |  2 +-
- 3 files changed, 46 insertions(+), 44 deletions(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Tidying - split large function - WIP
- src/blixemApp/detailview.cpp | 126 +++++++++++++++++++++++++------------------
- 1 file changed, 73 insertions(+), 53 deletions(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Fix compile problem with popen on cygwin - BUILD
- src/Makefile.am.common | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Fix missing include - BUILD
- src/seqtoolsUtils/utilities.cpp | 1 +
- 1 file changed, 1 insertion(+)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Disable deprecated-register warnings - BUILD
- src/Makefile.am.common | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Fix compiler errors - BUILD
- src/seqtoolsUtils/seqtoolsWebBrowser.cpp | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
-
-2016-02-26  Gemma Guest  <gb10@sanger.ac.uk>
- Fix compiler errors on mac - BUILD
- src/belvuApp/belvuMain.cpp    | 10 +++++-----
- src/blixemApp/blxmain.cpp     |  8 ++++----
- src/dotterApp/dotterMain.cpp  |  8 ++++----
- src/seqtoolsUtils/version.hpp | 12 ++++++------
- 4 files changed, 19 insertions(+), 19 deletions(-)
-
-2016-02-25  Ed Griffiths  <edgrif@sanger.ac.uk>
- Ugh...what are these files about. - BUILD
- src/build/release_docs/GIT_COMMITS.txt         | 11 -----------
- src/build/release_docs/RT_TICKETS_RESOLVED.txt |  6 ------
- 2 files changed, 17 deletions(-)
-
-2016-02-25  Ed Griffiths  <edgrif@sanger.ac.uk>
- Change blixem to use new C++ pfetch obj. - DEVELOP
- src/blixemApp/blxFetch.cpp | 374 +++++++++++++++++++--------------------------
- 1 file changed, 160 insertions(+), 214 deletions(-)
-
-2016-02-25  Ed Griffiths  <edgrif@sanger.ac.uk>
- Fix clash with C++ identity keyword - TRIVIAL
- src/belvuApp/belvu.cpp     | 10 +++++-----
- src/belvuApp/belvuTree.cpp |  2 +-
- src/belvuApp/belvu_.hpp    |  2 +-
- 3 files changed, 7 insertions(+), 7 deletions(-)
-
-2016-02-25  Ed Griffiths  <edgrif@sanger.ac.uk>
- add -std to compiler flags. - BUILD
- src/Makefile.am.common | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-2016-02-19  Gemma Guest  <gb10@sanger.ac.uk>
- Add links to the manuals from the User_doc directory - DOC
- src/doc/User_doc/Belvu_manual.pdf        | 1 +
- src/doc/User_doc/Blixem_manual.pdf       | 1 +
- src/doc/User_doc/Dotter_manual.pdf       | 1 +
- src/doc/User_doc/belvu_quick_start.html  | 2 +-
- src/doc/User_doc/blixem_quick_start.html | 2 +-
- src/doc/User_doc/dotter_quick_start.html | 2 +-
- src/doc/User_doc/manuals.html            | 6 +++---
- 7 files changed, 9 insertions(+), 6 deletions(-)
+2016-04-04  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Merge branch 'production' into develop
