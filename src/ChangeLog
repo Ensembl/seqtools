@@ -1,3 +1,20 @@
+2016-04-18  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix a memory corruption crash on blixem startup - REGRESSION FIX
+ src/blixemApp/blxwindow.cpp | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+2016-04-15  Steve Miller  <sm23@sanger.ac.uk>
+ Release notes
+ src/doc/User_doc/release_notes.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+2016-04-15  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.0-53-g8864 - Update RT and git commit reports
+ src/ChangeLog                                  | 743 ++++++++++++++++---------
+ src/build/release_docs/GIT_COMMITS.txt         |  14 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |  12 +-
+ 3 files changed, 492 insertions(+), 277 deletions(-)
+
 2016-04-08  Gemma Guest  <gb10@sanger.ac.uk>
  Update release notes for addition of c++0x in 4.41.0 - DOC
  src/doc/User_doc/release_notes.html | 2 +-
