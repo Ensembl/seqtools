@@ -841,7 +841,8 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
   BlxContext *bc = blxWindowGetContext(blxWindow);
 
   /* Must be passed either a filename or buffer */
-  g_return_if_fail(filename && buffer && bc);
+  g_return_if_fail(filename || buffer);
+  g_return_if_fail(bc);
 
   GKeyFile *keyFile = blxGetConfig();
   
