@@ -1,16 +1,8 @@
 
-Git commits for  from commit "production" until commit "release/4.42.0"
+Git commits for  from commit "production" until commit "release/4.43.0"
 
-b1f4fbd 2016-03-11 Merge branch 'feature/read_depth' into develop
-ed4499e 2016-03-10 Update installation instructions - DOC
-505853d 2016-03-09 Fix a C++ compilation error on cygwin - BUG FIX
-bc2a43c 2016-02-29 Replace popen call with GLib function - REGRESSION FIX
-050d610 2016-02-29 Revert "Merge branch 'feature/read_depth' into develop - NEW FEATURE 'read depth'"
-89d723d 2016-02-29 Revert "Fix ambiguous call to overloaded fn - REGRESSION FIX"
-ad11ec0 2016-02-29 Fix ambiguous call to overloaded fn - REGRESSION FIX
-b2c9fd7 2016-02-26 Merge branch 'feature/read_depth' into develop - NEW FEATURE 'read depth'
-a587fa9 2016-02-25 Change blixem to use new C++ pfetch obj. - DEVELOP
-039a10c 2016-02-19 Add links to the manuals from the User_doc directory - DOC
+2680452 2016-04-08 Fix a bug with big picture sections slightly misaligned - REGRESSION FIX
+139c6f5 2016-04-08 Merge branch 'feature/coverage' into develop - NEW FEATURE 'Detail view coverage'
 
 
 End of git commits

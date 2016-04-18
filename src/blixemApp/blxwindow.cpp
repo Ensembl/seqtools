@@ -6492,15 +6492,15 @@ static gdouble calculateMspData(MSP *mspList, BlxContext *bc)
 /* Calculate the reference sequence range from the range and offset given in 
  * the option. Also translate this to display coords. */
 static void calculateRefSeqRange(CommandLineOptions *options,
-                                 IntRange *refSeqRange,
-                                 IntRange *fullDisplayRange)
+                                 IntRange &refSeqRange,
+                                 IntRange &fullDisplayRange)
 {
   
   /* Offset the reference sequence range, if an offset was specified. */ 
-  refSeqRange->set(options->refSeqRange);
+  refSeqRange.set(options->refSeqRange);
   refSeqRange += options->refSeqOffset;
   
-  fullDisplayRange->set(refSeqRange);
+  fullDisplayRange.set(refSeqRange);
   
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
@@ -6508,29 +6508,29 @@ static void calculateRefSeqRange(CommandLineOptions *options,
         * base 1 in frame 1. This makes the display easier because we can always just
         * start drawing from the 1st base in the reference sequence. */
       int base = UNSET_INT;
-      convertDnaIdxToDisplayIdx(refSeqRange->min(), options->seqType, 1, options->numFrames, FALSE, refSeqRange, &base);
+      convertDnaIdxToDisplayIdx(refSeqRange.min(), options->seqType, 1, options->numFrames, FALSE, &refSeqRange, &base);
       
       int offset = (options->numFrames - base + 1);
       
       if (offset >= options->numFrames)
           offset -= options->numFrames;
       
-      refSeqRange->setMin(refSeqRange->min() + offset);
+      refSeqRange.setMin(refSeqRange.min() + offset);
       options->refSeq = options->refSeq + offset;
       
       /* Now do the same for when the ref seq is reversed */
-      convertDnaIdxToDisplayIdx(refSeqRange->max(), options->seqType, 1, options->numFrames, TRUE, refSeqRange, &base);
+      convertDnaIdxToDisplayIdx(refSeqRange.max(), options->seqType, 1, options->numFrames, TRUE, &refSeqRange, &base);
       offset = (options->numFrames - base + 1);
       
       if (offset >= options->numFrames) 
           offset -= options->numFrames;
       
-      refSeqRange->setMax(refSeqRange->max() - offset);
-      options->refSeq[refSeqRange->length()] = '\0';
+      refSeqRange.setMax(refSeqRange.max() - offset);
+      options->refSeq[refSeqRange.length()] = '\0';
       
       /* Now calculate the full display range in display coords */
-      fullDisplayRange->setMin(convertDnaIdxToDisplayIdx(refSeqRange->min(), options->seqType, 1, options->numFrames, FALSE, refSeqRange, NULL));
-      fullDisplayRange->setMax(convertDnaIdxToDisplayIdx(refSeqRange->max(), options->seqType, 1, options->numFrames, FALSE, refSeqRange, NULL));
+      fullDisplayRange.setMin(convertDnaIdxToDisplayIdx(refSeqRange.min(), options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL));
+      fullDisplayRange.setMax(convertDnaIdxToDisplayIdx(refSeqRange.max(), options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL));
     }  
 }
 
@@ -6547,7 +6547,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   IntRange refSeqRange;
   IntRange fullDisplayRange;
   
-  calculateRefSeqRange(options, &refSeqRange, &fullDisplayRange);
+  calculateRefSeqRange(options, refSeqRange, fullDisplayRange);
   
   g_message("Reference sequence [%d - %d], display range [%d - %d]\n", 
             refSeqRange.min(), refSeqRange.max(), fullDisplayRange.min(), fullDisplayRange.max());
