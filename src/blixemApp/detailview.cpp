@@ -48,6 +48,7 @@
 #include <math.h>
 #include <algorithm>
 #include <string>
+#include <sstream>
 
 
 using namespace std;
@@ -1039,12 +1040,12 @@ static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
 
       if (range)
         {
-          string resultStr("");
-          resultStr += to_string((long long int)range->start(bc->displayRev, negateCoords(bc)));
-          resultStr += "..";
-          resultStr += to_string((long long int)range->end(bc->displayRev, negateCoords(bc)));
+          stringstream resultStr;
+          resultStr << range->start(bc->displayRev, negateCoords(bc))
+                    << ".."
+                    << range->end(bc->displayRev, negateCoords(bc));
 
-          feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, resultStr.c_str());
+          feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, resultStr.str().c_str());
 
           g_free(range);
         }
@@ -1122,12 +1123,10 @@ static void feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
                   getMatchCoordForRefCoord(detailView, seq, range->start(bc->displayRev), start) &&
                   getMatchCoordForRefCoord(detailView, seq, range->end(bc->displayRev), end))
                 {
-                  string resultStr("");
-                  resultStr += to_string((long long int)start);
-                  resultStr += "..";
-                  resultStr += to_string((long long int)end);
+                  stringstream resultStr;
+                  resultStr << start << ".." << end;
 
-                  feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, resultStr.c_str());
+                  feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, resultStr.str().c_str());
                 }
 
               if (range)
@@ -1223,26 +1222,26 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
           const int depth_gaps = blxContextGetDepth(bc, coord, ".", strand);
           const int total_bases = depth_a + depth_c + depth_g + depth_t + depth_n + depth_gaps;
 
-          string tmpStr(DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP);
+          stringstream tmpStr;
+          tmpStr << DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP;
 
           /* Always show ACGT, even if 0, for consistency. We could change this however we like,
            * e.g. it might be good to show them in descending order */
-          tmpStr +=
-            "\nA: " + to_string((long long int)depth_a) + "\nC: " + to_string((long long int)depth_c) +
-            "\nG: " + to_string((long long int)depth_g) + "\nT: " + to_string((long long int)depth_t);
+          tmpStr << "\nA: " << depth_a << "\nC: " << depth_c 
+                 << "\nG: " << depth_g << "\nT: " << depth_t;
 
           /* Only show N, Gaps and Unknown if they are non-zero because most of the time they're
            * not relevant */
           if (depth_n > 0)
-            tmpStr += "\nN: " + to_string((long long int)depth_n);
+            tmpStr << "\nN: " << depth_n;
 
           if (depth_gaps > 0)
-            tmpStr += "\nGaps: " + to_string((long long int)depth_gaps);
+            tmpStr << "\nGaps: " << depth_gaps;
 
           if (total_bases < depth)
-            tmpStr += "\nUnknown: " + to_string((long long int)(depth - total_bases));
+            tmpStr << "\nUnknown: " << depth - total_bases;
 
-          feedbackBoxSetTooltip(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, tmpStr.c_str());
+          feedbackBoxSetTooltip(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, tmpStr.str().c_str());
         }
     }
   else
