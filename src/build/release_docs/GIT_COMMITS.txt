@@ -1,6 +1,7 @@
 
 Git commits for  from commit "production" until commit "release/4.43.0"
 
+0f579a2 2016-04-18 Fix a typo which was causing drag-and-drop to fail - REGRESSION FIX
 744cb30 2016-04-18 Fix a memory corruption crash on blixem startup - REGRESSION FIX
 2680452 2016-04-08 Fix a bug with big picture sections slightly misaligned - REGRESSION FIX
 139c6f5 2016-04-08 Merge branch 'feature/coverage' into develop - NEW FEATURE 'Detail view coverage'

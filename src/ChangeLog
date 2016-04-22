@@ -1,4 +1,16 @@
 2016-04-18  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix a typo which was causing drag-and-drop to fail - REGRESSION FIX
+ src/blixemApp/blxwindow.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+2016-04-18  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.0-56-g744c - Update RT and git commit reports
+ src/ChangeLog                                  | 17 +++++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |  1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |  2 +-
+ 3 files changed, 19 insertions(+), 1 deletion(-)
+
+2016-04-18  Gemma Guest  <gb10@sanger.ac.uk>
  Fix a memory corruption crash on blixem startup - REGRESSION FIX
  src/blixemApp/blxwindow.cpp | 24 ++++++++++++------------
  1 file changed, 12 insertions(+), 12 deletions(-)
