@@ -1,3 +1,14 @@
+2016-05-03  Gemma Guest  <gb10@sanger.ac.uk>
+ Revert "Remove to_string to fix compile error on FreeBSD - BUILD"
+ src/blixemApp/detailview.cpp | 35 ++++++++++++++++++-----------------
+ 1 file changed, 18 insertions(+), 17 deletions(-)
+
+2016-04-28  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-64-gd36e - Update RT and git commit reports
+ src/ChangeLog                                  | 5 +++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
 2016-04-26  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.42.1-63-g8b3b - Update RT and git commit reports
  src/ChangeLog | 5 +++++
