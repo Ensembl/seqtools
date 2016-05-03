@@ -1231,12 +1231,13 @@ static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
 
       if (range)
         {
-          stringstream resultStr;
-          resultStr << range->start(bc->displayRev, negateCoords(bc))
+          stringstream result_ss;
+          result_ss << range->start(bc->displayRev, negateCoords(bc))
                     << ".."
                     << range->end(bc->displayRev, negateCoords(bc));
 
-          feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, resultStr.str().c_str());
+          string result_str = result_ss.str();
+          feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, result_str.c_str());
 
           g_free(range);
         }
@@ -1314,10 +1315,11 @@ static void feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
                   getMatchCoordForRefCoord(detailView, seq, range->start(bc->displayRev), start) &&
                   getMatchCoordForRefCoord(detailView, seq, range->end(bc->displayRev), end))
                 {
-                  stringstream resultStr;
-                  resultStr << start << ".." << end;
+                  stringstream result_ss;
+                  result_ss << start << ".." << end;
 
-                  feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, resultStr.str().c_str());
+                  string result_str = result_ss.str();
+                  feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, result_str.c_str());
                 }
 
               if (range)
@@ -1413,26 +1415,27 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
           const int depth_gaps = bc->getDepth(coord, ".", strand);
           const int total_bases = depth_a + depth_c + depth_g + depth_t + depth_n + depth_gaps;
 
-          stringstream tmpStr;
-          tmpStr << DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP;
+          stringstream tmp_ss;
+          tmp_ss << DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP;
 
           /* Always show ACGT, even if 0, for consistency. We could change this however we like,
            * e.g. it might be good to show them in descending order */
-          tmpStr << "\nA: " << depth_a << "\nC: " << depth_c 
+          tmp_ss << "\nA: " << depth_a << "\nC: " << depth_c 
                  << "\nG: " << depth_g << "\nT: " << depth_t;
 
           /* Only show N, Gaps and Unknown if they are non-zero because most of the time they're
            * not relevant */
           if (depth_n > 0)
-            tmpStr << "\nN: " << depth_n;
+            tmp_ss << "\nN: " << depth_n;
 
           if (depth_gaps > 0)
-            tmpStr << "\nGaps: " << depth_gaps;
+            tmp_ss << "\nGaps: " << depth_gaps;
 
           if (total_bases < depth)
-            tmpStr << "\nUnknown: " << depth - total_bases;
+            tmp_ss << "\nUnknown: " << depth - total_bases;
 
-          feedbackBoxSetTooltip(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, tmpStr.str().c_str());
+          string tmp_str = tmp_ss.str();
+          feedbackBoxSetTooltip(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, tmp_str.c_str());
         }
     }
   else
