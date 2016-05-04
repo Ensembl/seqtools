@@ -721,7 +721,7 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
                                 const gboolean showCrosshair,
                                 GtkWidget **exonViewOut)
 {
-  DEBUG_ENTER("createDotterExonView(width=%d, height=%d, qRange=%d %d)", width, height, qRange->min, qRange->max);
+  DEBUG_ENTER("createDotterExonView(width=%d, height=%d, qRange=%d %d)", width, height, qRange->min(), qRange->max());
 
   DotterContext *dc = dwc->dotterCtx;
   

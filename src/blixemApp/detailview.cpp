@@ -3936,7 +3936,7 @@ static void refilterMspList(const int startIdx,
                             GtkWidget *detailView, 
                             BlxContext *bc)
 {
-  DEBUG_ENTER("refilterMspList(startIdx=%d, range=[%d,%d])", startIdx, range->min, range->max);
+  DEBUG_ENTER("refilterMspList(startIdx=%d, range=[%d,%d])", startIdx, range->min(), range->max());
 
   /* Loop forwards through the array from the start index, refiltering the rows
    * for each MSP until we find an MSP that is out of range. */
@@ -4026,7 +4026,7 @@ static void refilterMspArrayByRange(BlxMspType mspType,
  * current display range and (if given) the old display range. */
 void refilterDetailView(GtkWidget *detailView, const IntRange* const oldRange)
 {
-  DEBUG_ENTER("refilterDetailView(oldRange=[%d,%d])", oldRange ? oldRange->min : 0, oldRange ? oldRange->max : 0);
+  DEBUG_ENTER("refilterDetailView(oldRange=[%d,%d])", oldRange ? oldRange->min() : 0, oldRange ? oldRange->max() : 0);
   
   BlxContext *bc = detailViewGetContext(detailView);
   
