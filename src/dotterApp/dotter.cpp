@@ -543,7 +543,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
 {
   DEBUG_ENTER("createDotterContext");
 
-  DotterContext *result = (DotterContext*)g_malloc(sizeof *result);
+  DotterContext *result = new DotterContext;
   
   result->blastMode = blastMode;
   result->displaySeqType = (blastMode == BLXMODE_BLASTN) ? BLXSEQ_DNA : BLXSEQ_PEPTIDE;
@@ -726,7 +726,7 @@ static void destroyDotterContext(DotterContext **dc)
     }  
 
   /* free the context struct itself */
-  g_free(*dc);
+  delete *dc;
   *dc = NULL;
   
   DEBUG_EXIT("destroyDotterContext returning ");
@@ -739,7 +739,7 @@ static void destroyDotterWindowContext(DotterWindowContext **dwc)
   if ((*dwc)->printSettings)
     g_object_unref((*dwc)->printSettings);
   
-  g_free(*dwc);
+  delete *dwc;
   *dwc = NULL;
   
   DEBUG_EXIT("destroyDotterWindowContext returning ");
@@ -941,7 +941,7 @@ static DotterWindowContext* createDotterWindowContext(DotterContext *dotterCtx,
 {
   DEBUG_ENTER("createDotterWindowContext");
 
-  DotterWindowContext *result = (DotterWindowContext*)g_malloc(sizeof *result);
+  DotterWindowContext *result = new DotterWindowContext;
   
   result->dotterCtx = dotterCtx;
   
