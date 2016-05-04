@@ -63,7 +63,6 @@
 
 
 /* Debug logging macros. #define DEBUG to enable debug output. */
-
 #ifdef DEBUG
 #define DEBUG_OUT(format, args...) debugLogLevel(0); printf(format, ##args); fflush(stdout);
 #else
@@ -242,9 +241,6 @@ public:
   IntRange(const IntRange &range);
   IntRange(const IntRange *range);
   IntRange(const int val1, const int val2);
-
-  // Operator overloads
-  void operator+=(const int val);
 
   // Access functions
   bool isSet() const;

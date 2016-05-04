@@ -1486,7 +1486,7 @@ void destroyBlxSequence(BlxSequence *seq)
       if (seq->idTag)
         g_free(seq->idTag);
           
-      g_free(seq);
+      delete seq;
     }
 }
 
@@ -1602,7 +1602,7 @@ void blxSequenceSetColumn(BlxSequence *seq, const char *colName, const char *val
 /* Utility to create a BlxSequence with the given name. */
 BlxSequence* createEmptyBlxSequence()
 {
-  BlxSequence *seq = (BlxSequence*)g_malloc(sizeof(BlxSequence));
+  BlxSequence *seq = new BlxSequence;
   
   seq->type = BLXSEQUENCE_UNSET;
   seq->dataType = NULL;
@@ -2088,7 +2088,7 @@ static void insertMsp(MSP *msp, MSP **mspList, MSP **lastMsp)
  * add it to a feature list yet because we don't know its type. Returns a pointer to the newly-created MSP */
 MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
 {
-  MSP *msp = (MSP *)g_malloc(sizeof(MSP));
+  MSP *msp = new MSP;
   
   int i = 0;
   for ( ; i < BLXMODEL_NUM_MODELS; ++i)
@@ -2784,7 +2784,8 @@ static void adjustMspCoordsByOffset(MSP *msp, const int offset)
     {
       /* Convert the input coords (which are 1-based within the ref sequence section
        * that we're dealing with) to "real" coords (i.e. coords that the user will see). */
-      msp->qRange += offset;
+      msp->qRange.set(msp->qRange.min() + offset,
+                      msp->qRange.max() + offset);
       
       /* Gap coords are also 1-based, so convert those too */
       GSList *rangeItem = msp->gaps;
