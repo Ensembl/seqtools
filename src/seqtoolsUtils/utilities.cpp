@@ -549,16 +549,6 @@ IntRange::IntRange(const int val1, const int val2) : m_min_is_set(true), m_max_i
     }
 }
 
-/* Add an offset to both values in the range */
-void IntRange::operator+=(const int offset)
-{
-  m_min += offset;
-  m_max += offset;
-
-  m_min_is_set = true;
-  m_max_is_set = true;
-}
-
 bool IntRange::isSet() const
 {
   return m_min_is_set && m_max_is_set;

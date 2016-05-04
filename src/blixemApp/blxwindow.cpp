@@ -6499,7 +6499,8 @@ static void calculateRefSeqRange(CommandLineOptions *options,
   
   /* Offset the reference sequence range, if an offset was specified. */ 
   refSeqRange.set(options->refSeqRange);
-  refSeqRange += options->refSeqOffset;
+  refSeqRange.set(refSeqRange.min() + options->refSeqOffset,
+                  refSeqRange.max() + options->refSeqOffset);
   
   fullDisplayRange.set(refSeqRange);
   
@@ -6561,7 +6562,8 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   if (options->bigPictRange.isSet())
     {
       /* Apply any offset */
-      options->bigPictRange += options->refSeqOffset;
+      options->bigPictRange.set(options->bigPictRange.min() + options->refSeqOffset,
+                                options->bigPictRange.max() + options->refSeqOffset);
 
       /* Make sure the big picture range is not outside our ref seq range */
       options->bigPictRange.boundsLimit(&refSeqRange, FALSE);
