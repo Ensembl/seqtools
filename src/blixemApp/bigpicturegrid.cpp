@@ -780,6 +780,33 @@ static void onDestroyGrid(GtkWidget *widget)
 }
 
 
+GridProperties::GridProperties(GtkWidget *widget_in, 
+                               GtkWidget *bigPicture_in,
+                               gulong exposeHandlerId_in,
+                               BlxStrand strand_in)
+  : widget(widget_in),
+    bigPicture(bigPicture_in),
+    strand(strand_in),
+    mspLineHeight(DEFAULT_MSP_LINE_HEIGHT),
+    gridYPadding(DEFAULT_GRID_Y_PADDING),
+    exposeHandlerId(exposeHandlerId_in),
+    ignoreSizeAlloc(FALSE)
+{
+  gridRect.x = 0;
+  gridRect.y = 0;
+  gridRect.width = 0;
+  gridRect.height = 0;
+  displayRect.x = 0;
+  displayRect.y = 0;
+  displayRect.width = 0;
+  displayRect.height = 0;
+  highlightRect.x = 0;
+  highlightRect.y = 0;
+  highlightRect.width = 0;
+  highlightRect.height = 0;
+}
+
+
 static void gridCreateProperties(GtkWidget *widget, 
 				 GtkWidget *bigPicture,
 				 gulong exposeHandlerId,
@@ -792,17 +819,10 @@ static void gridCreateProperties(GtkWidget *widget,
        * largest label value plus one (for a '%' character)
        * Add a fudge factor to give more space to allow for the fact that 
        * the calculated char width is approximate and may not give enough space */
-      GridProperties *properties = new GridProperties;
-
-      properties->widget = widget;
-      properties->bigPicture = bigPicture;
-      properties->strand = strand;
-      
-      properties->gridYPadding = DEFAULT_GRID_Y_PADDING;
-      
-      properties->mspLineHeight = DEFAULT_MSP_LINE_HEIGHT;
-      properties->exposeHandlerId = exposeHandlerId;
-      properties->ignoreSizeAlloc = FALSE;
+      GridProperties *properties = new GridProperties(widget, 
+                                                      bigPicture,
+                                                      exposeHandlerId,
+                                                      strand);
       
       g_object_set_data(G_OBJECT(widget), "GridProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyGrid), NULL); 

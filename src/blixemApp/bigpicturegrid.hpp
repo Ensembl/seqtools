@@ -55,6 +55,11 @@
 class GridProperties
 {
 public:
+  GridProperties(GtkWidget *widget_in, 
+                 GtkWidget *bigPicture_in,
+                 gulong exposeHandlerId_in,
+                 BlxStrand strand_in);
+
   GtkWidget *widget;       /* The grid widget */
   GtkWidget *bigPicture;   /* The big picture that this grid belongs to */
     
