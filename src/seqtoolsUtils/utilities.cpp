@@ -139,7 +139,7 @@ static void onDestroyCustomWidget(GtkWidget *widget)
   CallbackData *callbackData = widgetGetCallbackData(widget);
   if (callbackData)
     {
-      g_free(callbackData);
+      delete callbackData;
       g_object_set_data(G_OBJECT(widget), "callbackData", NULL);
     }
 }
@@ -1313,7 +1313,7 @@ void createBlxColor(GArray *defaultColors,
   else
     {
       reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
-      g_free(result);
+      delete result;
       result = NULL;
     }
   
@@ -2219,7 +2219,7 @@ void widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback func, gpointer
       CallbackData *callbackData = widgetGetCallbackData(widget);
       
       if (!callbackData)
-        callbackData = (CallbackData*)g_malloc(sizeof *callbackData);
+        callbackData = new CallbackData;
       
       callbackData->func = func;
       callbackData->data = data;
@@ -3378,7 +3378,7 @@ void getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble 
 /* Create a handle. A handle is just a GSList so should be initialised to NULL */
 BlxHandle handleCreate()
 {
-  BlxHandle handle = (BlxHandle)g_malloc(sizeof(BlxHandleStruct));
+  BlxHandle handle = new BlxHandleStruct;
   handle->memoryList = NULL;
   return handle;
 }
@@ -4006,7 +4006,7 @@ static void displayMessageAsList(GSList *messageList, const char *titlePrefix, c
  * message with the current system time. */
 static BlxMessage* createBlxMessage(const char *text, const GLogLevelFlags logLevel)
 {
-  BlxMessage *blxMessage = (BlxMessage*)g_malloc(sizeof(BlxMessage));
+  BlxMessage *blxMessage = new BlxMessage;
   
   blxMessage->text = g_strdup(text);
   blxMessage->timestamp = time(NULL);
@@ -4025,7 +4025,7 @@ static void destroyBlxMessage(BlxMessage **blxMessage)
           g_free((*blxMessage)->text);
         }
       
-      g_free(*blxMessage);
+      delete *blxMessage;
     }
 }
 

@@ -1226,7 +1226,7 @@ BlxStyle* createBlxStyle(const char *styleName,
 			 const char *lineColorUtrSelected, 
 			 GError **error)
 {
-  BlxStyle *style = (BlxStyle*)g_malloc(sizeof(BlxStyle));
+  BlxStyle *style = new BlxStyle;
   GError *tmpError = NULL;
 
   if (!styleName)
@@ -1269,7 +1269,7 @@ BlxStyle* createBlxStyle(const char *styleName,
 
   if (tmpError)
     {
-      g_free(style);
+      delete style;
       style = NULL;
       g_propagate_error(error, tmpError);
     }

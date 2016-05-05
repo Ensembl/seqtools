@@ -1433,7 +1433,7 @@ static void parseCigarStringMatch(GapStringData *data, const int numNucleotides,
   int newQ = *data->q + (data->qDirection * (numNucleotides - 1));
   int newS = *data->s + (data->sDirection * (numPeptides - 1));
   
-  CoordRange *newRange = (CoordRange*)g_malloc(sizeof(CoordRange));
+  CoordRange *newRange = new CoordRange;
   msp->gaps = g_slist_append(msp->gaps, newRange);
   
   newRange->qStart = *data->q;
@@ -1667,7 +1667,7 @@ static int validateNumTokens(char **tokens, const int minReqd, const int maxReqd
 /* Create a gff type with the given info and add it to the given list */
 static void addGffType(GSList **supportedTypes, const char *name, const char *soId, BlxMspType blxType)
 {
-  BlxGffType *gffType = (BlxGffType*)g_malloc(sizeof *gffType);
+  BlxGffType *gffType = new BlxGffType;
   
   gffType->name = g_strdup(name);
   gffType->soId = g_strdup(soId);
@@ -1688,7 +1688,7 @@ static void destroyGffType(BlxGffType **gffType)
       if ((*gffType)->soId)
         g_free((*gffType)->soId);
 
-      g_free(*gffType);
+      delete *gffType;
       *gffType = NULL;
     }
 }

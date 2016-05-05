@@ -1548,7 +1548,7 @@ static void destroyBelvuWindow(GtkWidget *belvuWindow)
       destroyBelvuContext(&properties->bc);
   
       /* Free the properties struct itself */
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(belvuWindow), "BelvuWindowProperties", NULL);
     }
@@ -1588,7 +1588,7 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow,
 {
   if (belvuWindow)
     {
-      BelvuWindowProperties *properties = (BelvuWindowProperties*)g_malloc(sizeof *properties);
+      BelvuWindowProperties *properties = new BelvuWindowProperties;
      
       properties->widget = belvuWindow;
       properties->bc = bc;
@@ -1625,7 +1625,7 @@ static void onDestroyGenericWindow(GtkWidget *window)
   if (properties)
     {
       /* Free the properties struct */
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(window), "GenericWindowProperties", NULL);
     }
@@ -1639,7 +1639,7 @@ static void genericWindowCreateProperties(GtkWidget *wrapWindow,
 {
   if (wrapWindow)
     {
-      GenericWindowProperties *properties = (GenericWindowProperties*)g_malloc(sizeof *properties);
+      GenericWindowProperties *properties = new GenericWindowProperties;
 
       properties->widget = wrapWindow;
       properties->bc = bc;

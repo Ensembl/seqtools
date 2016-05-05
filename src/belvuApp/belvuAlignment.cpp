@@ -106,7 +106,7 @@ static void onDestroyBelvuAlignment(GtkWidget *belvuAlignment)
         }
       
       /* Free the properties struct itself */
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(belvuAlignment), "BelvuAlignmentProperties", NULL);
     }
@@ -127,7 +127,7 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
 {
   if (belvuAlignment)
     {
-      BelvuAlignmentProperties *properties = (BelvuAlignmentProperties*)g_malloc(sizeof *properties);
+      BelvuAlignmentProperties *properties = new BelvuAlignmentProperties;
       
       properties->widget = belvuAlignment;
       properties->bc = bc;

@@ -218,7 +218,7 @@ static void onDestroyDotplot(GtkWidget *widget)
         properties->image = NULL;
       }
     
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "DotplotProperties", NULL);
     }
@@ -233,7 +233,7 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
                                                   const gboolean breaklinesOn,
                                                   const char *exportFileName)
 {
-  DotplotProperties *properties = (DotplotProperties*)g_malloc(sizeof *properties);
+  DotplotProperties *properties = new DotplotProperties;
 
   properties->widget = widget;
   properties->dotterWinCtx = dwc;

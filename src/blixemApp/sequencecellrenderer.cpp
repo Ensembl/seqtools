@@ -1471,7 +1471,7 @@ static void rendererDrawMsps(SequenceCellRenderer *renderer,
 
   if (data.selectionRange)
     {
-      g_free(data.selectionRange);
+      delete data.selectionRange;
       data.selectionRange = NULL;
     }
 }

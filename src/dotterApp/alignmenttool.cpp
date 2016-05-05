@@ -164,7 +164,7 @@ static void onDestroySequenceWidget(GtkWidget *widget)
   if (properties)
     {
       g_object_set_data(G_OBJECT(widget), "SequenceProperties", NULL);
-      g_free(properties);
+      delete properties;
       properties = NULL;
     }
 }
@@ -184,7 +184,7 @@ static void sequenceCreateProperties(GtkWidget *widget,
 {
   if (widget)
     {
-      SequenceProperties *properties = (SequenceProperties*)g_malloc(sizeof *properties);
+      SequenceProperties *properties = new SequenceProperties;
 
       properties->widget = widget;
       properties->seqName = seqName;
@@ -219,7 +219,7 @@ static void onDestroyAlignmentTool(GtkWidget *widget)
   if (properties)
     {
       g_object_set_data(G_OBJECT(widget), "AlignmentToolProperties", NULL);
-      g_free(properties);
+      delete properties;
       properties = NULL;
     }
 }
@@ -230,7 +230,7 @@ static void alignmentToolCreateProperties(GtkWidget *widget,
 {
   if (widget)
     {
-      AlignmentToolProperties *properties = (AlignmentToolProperties*)g_malloc(sizeof *properties);
+      AlignmentToolProperties *properties = new AlignmentToolProperties;
     
       properties->widget = widget;
       properties->alignmentWindow = alignmentWindow;

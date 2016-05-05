@@ -1201,7 +1201,7 @@ static void onDestroyGridHeader(GtkWidget *bigPicture)
   
   if (properties)
     {
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(bigPicture), "GridHeaderProperties", NULL);
     }
@@ -1211,7 +1211,7 @@ static void gridHeaderCreateProperties(GtkWidget *gridHeader, GtkWidget *bigPict
 {
   if (gridHeader)
     {
-      GridHeaderProperties *properties =(GridHeaderProperties*)g_malloc(sizeof *properties);
+      GridHeaderProperties *properties = new GridHeaderProperties;
 
       properties->widget = gridHeader;
       properties->bigPicture = bigPicture;

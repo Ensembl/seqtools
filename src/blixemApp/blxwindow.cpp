@@ -1983,7 +1983,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
   BlxContext *bc = blxWindowGetContext(blxWindow);
   
   /* Create the new group */
-  SequenceGroup *group = (SequenceGroup*)g_malloc(sizeof(SequenceGroup));
+  SequenceGroup *group = new SequenceGroup;
   
   group->seqList = seqList;
   group->ownsSeqNames = ownSeqNames;
@@ -4817,7 +4817,7 @@ static void onCopySeqDataMarkMenu(GtkAction *action, gpointer data)
 
       copySelectedSeqRangeToClipboard(blxWindow, fromIdx, toIdx);
 
-      g_free(range);
+      delete range;
     }
   else
     {
@@ -4843,7 +4843,7 @@ static void onCopyRefSeqDnaMenu(GtkAction *action, gpointer data)
 
       copyRefSeqToClipboard(blxWindow, fromIdx, toIdx);
 
-      g_free(range);
+      delete range;
     }
   else
     {
@@ -4870,7 +4870,7 @@ static void onCopyRefSeqDisplayMenu(GtkAction *action, gpointer data)
 
       copyRefSeqTranslationToClipboard(blxWindow, fromIdx, toIdx);
 
-      g_free(range);
+      delete range;
     }
   else
     {
@@ -5340,7 +5340,7 @@ static void onDestroyBlxWindow(GtkWidget *widget)
         }
       
       /* Free the properties struct itself */
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "BlxWindowProperties", NULL);
     }
@@ -5367,7 +5367,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
 {
   if (widget)
     {
-      BlxWindowProperties *properties = (BlxWindowProperties*)g_malloc(sizeof *properties);
+      BlxWindowProperties *properties = new BlxWindowProperties;
       
       properties->widget = widget;
       properties->blxContext = blxContext;

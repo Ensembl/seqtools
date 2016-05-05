@@ -108,14 +108,19 @@ using namespace std;
 #define DOCK_WINDOWS_DEFAULT TRUE
 #define MINIMISE_GREYRAMP_DEFAULT TRUE
 
-//typedef struct
+//class GeneDataStruct
 //{
+//public:
+//  GeneDataStruct() : name(NULL), start(0), end(0), strand(0), 
+//                     msp_start(NULL), msp_end(NULL), y_pos(0.0) {};
+//
 //  const char *name ;
 //  int start, end ;
 //  char strand ;
 //  MSP *msp_start, *msp_end ;
 //  float y_pos ;
-//} GeneDataStruct, *GeneData ;
+//};
+//typedef GeneDataStruct, *GeneData ;
 //
 //typedef struct
 //{
@@ -463,7 +468,7 @@ static void createDotterColors(DotterContext *dc)
   
   for ( ; i < DOTCOLOR_NUM_COLORS; ++i)
     {
-      BlxColor *blxColor = (BlxColor*)g_malloc(sizeof(BlxColor));
+      BlxColor *blxColor = new BlxColor;
       blxColor->name = NULL;
       blxColor->desc = NULL;
       g_array_append_val(dc->defaultColors, *blxColor);
@@ -705,7 +710,7 @@ static void destroyDotterContext(DotterContext **dc)
     destroyBlxSequenceList(&(*dc)->seqList);
     destroyDotterColors((*dc));
 
-    /* Free stuff g_malloc'ed in calling routine (usually dotterMain) */
+    /* Free stuff allocated in calling routine (usually dotterMain) */
     g_free((*dc)->refSeq);
     (*dc)->refSeq = NULL;
     
@@ -784,7 +789,7 @@ static void onDestroyDotterWindow(GtkWidget *dotterWindow)
             }
         }
 
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(dotterWindow), "DotterProperties", NULL);
     }
@@ -1004,7 +1009,7 @@ static void dotterCreateProperties(GtkWidget *dotterWindow,
 
   if (dotterWindow)
     {
-      DotterProperties *properties = (DotterProperties*)g_malloc(sizeof *properties);
+      DotterProperties *properties = new DotterProperties;
 
       properties->widget = dotterWindow;
       properties->greyrampTool = greyrampTool;
@@ -1886,7 +1891,7 @@ static void rmExp(void){}
 //       * otherwise record latest msp end position. */
 //      if (!gene_list || strncmp(mspGetSName(msp), curr_name, curr_length) != 0)
 //      {
-//        gene = g_new0(GeneDataStruct, 1) ;
+//        gene = new GeneDataStruct ;
 //        gene->name = mspGetSName(msp) ;
 //        gene->start = mspGetSStart(msp) ;
 //        gene->end = mspGetSEnd(msp) ;

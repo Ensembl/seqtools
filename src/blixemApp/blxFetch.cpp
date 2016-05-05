@@ -91,8 +91,15 @@ typedef enum
 
 
 /* Used to draw/update a progress meter, consider as private. */
-typedef struct
+class ProgressBarStruct
 {
+public:
+  ProgressBarStruct() 
+    : top_level(NULL), progress(NULL), label(NULL),
+      widget_destroy_handler_id(0), cancelled(false), seq_total(0), 
+      fetch_mode(BLXFETCH_MODE_NONE)
+  {};
+
   GtkWidget *top_level ;
   GtkWidget *progress ;
   GtkWidget *label ;
@@ -103,8 +110,9 @@ typedef struct
   gboolean cancelled ;
   int seq_total ;
   BlxFetchMode fetch_mode ;
-} ProgressBarStruct, *ProgressBar ;
+} ;
 
+typedef ProgressBarStruct *ProgressBar;
 
 enum {RCVBUFSIZE = 256} ;               /* size of receive buffer for socket fetch */
 
@@ -143,8 +151,14 @@ typedef struct GeneralFetchDataStructType
 #define PFETCH_FAILED_PREFIX "PFetch failed:"
 
 
-typedef struct PFetchDataStructType
+class PFetchDataStruct
 {
+public:
+  PFetchDataStruct()
+    : title(NULL), widget_destroy_handler_id(0), pfetch(NULL),
+      got_response(false), fetchMethod(NULL), user_fetch(NULL)
+  {};
+
   char *title;
 
   gulong widget_destroy_handler_id;
@@ -155,7 +169,9 @@ typedef struct PFetchDataStructType
   const BlxFetchMethod *fetchMethod;
   UserFetch *user_fetch;
 
-} PFetchDataStruct, *PFetchData ;
+};
+
+typedef PFetchDataStruct *PFetchData ;
 
 
 /* this holds info about an http fetch that is in progress */
@@ -1124,7 +1140,7 @@ static int socketConstruct(const char *ipAddress, int port, gboolean External, G
 
 
   /* Construct the server address structure */
-  servAddr = (struct sockaddr_in *) g_malloc (sizeof (struct sockaddr_in)) ;
+  servAddr = new struct sockaddr_in;
   hp = gethostbyname(ipAddress) ;
   
   if (!hp)
@@ -1148,7 +1164,7 @@ static int socketConstruct(const char *ipAddress, int port, gboolean External, G
       sock = -1 ;
     }
 
-  g_free (servAddr) ;
+  delete servAddr ;
 
   return sock ;
 }
@@ -1309,7 +1325,7 @@ static void handle_dialog_close(GtkWidget *dialog, gpointer user_data)
   if (pfetch_data->pfetch)
     delete pfetch_data->pfetch ;
 
-  g_free(pfetch_data) ;
+  delete pfetch_data ;
 
   return ;
 }
@@ -1507,7 +1523,7 @@ static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod,
 
 static ProgressBar makeProgressBar(int seq_total, const BlxFetchMode fetch_mode)
 {
-  ProgressBar bar = g_new0(ProgressBarStruct, 1) ;
+  ProgressBar bar = new ProgressBarStruct;
 
   bar->seq_total = seq_total ;
   bar->cancelled = FALSE;
@@ -1609,7 +1625,7 @@ static void destroyProgressCB(GtkWidget *widget, gpointer cb_data)
 {
   ProgressBar bar = (ProgressBar)cb_data ;
 
-  g_free(bar) ;
+  delete bar ;
 
   return ;
 }
@@ -1919,7 +1935,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
   else if (result)
     {
       /* Fetch method details are incomplete, so delete it. */
-      g_free(result);
+      delete result;
     }
   
   /* Clean up */
@@ -3212,7 +3228,7 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
   
   if (!tmpError)
     {
-      pfetch_data = g_new0(PFetchDataStruct, 1);
+      pfetch_data = new PFetchDataStruct;
 
       pfetch_data->fetchMethod = fetchMethod;
       pfetch_data->user_fetch = this;
@@ -3232,8 +3248,8 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
       /* Couldn't initiate the fetch; try again with a different fetch method */
       if (pfetch_data)
         {
-          g_free(pfetch_data->pfetch);
-          g_free(pfetch_data);
+          delete pfetch_data->pfetch;
+          delete pfetch_data;
           pfetch_data = NULL;
         }
 

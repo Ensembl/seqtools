@@ -554,7 +554,7 @@ int main(int argc, char **argv)
               }
             else if (stringsEqual(long_options[optionIndex].name, "fetch-server", TRUE))
               {
-                pfetch = (PfetchParams*)g_malloc(sizeof(PfetchParams)) ;
+                pfetch = new PfetchParams;
                 pfetch->net_id = strtok(optarg, ":") ;
                 pfetch->port = atoi(strtok(NULL, ":")) ;
               }                

@@ -344,7 +344,7 @@ void BlxContext::destroySequenceGroup(SequenceGroup **seqGroup)
           freeStringList(&(*seqGroup)->seqList, (*seqGroup)->ownsSeqNames);
         }
       
-      g_free(*seqGroup);
+      delete *seqGroup;
       *seqGroup = NULL;
     }
 }
@@ -400,7 +400,7 @@ void BlxContext::createColors(GtkWidget *widget)
   
   for ( ; i < BLXCOL_NUM_COLORS; ++i)
     {
-      BlxColor *blxColor = (BlxColor*)g_malloc(sizeof(BlxColor));
+      BlxColor *blxColor = new BlxColor;
       blxColor->name = NULL;
       blxColor->desc = NULL;
       g_array_append_val(defaultColors, *blxColor);

@@ -1017,7 +1017,7 @@ static void onDestroyTree(GtkWidget *widget)
 	  properties->treeColumnHeaderList = NULL;
 	}
     
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "TreeProperties", NULL);
     }
@@ -1032,7 +1032,7 @@ static void treeCreateProperties(GtkWidget *widget,
 {
   if (widget)
     { 
-      TreeProperties *properties = (TreeProperties*)g_malloc(sizeof *properties);
+      TreeProperties *properties = new TreeProperties;
 
       properties->widget = widget;
       properties->grid = grid;
@@ -1274,7 +1274,7 @@ static void treeHighlightSelectedBase(GtkWidget *tree, GdkDrawable *drawable)
           start = range->min();
           end = range->max();
           ok = TRUE;
-          g_free(range);
+          delete range;
         }
     }
   else if(detailViewGetSelectedIdxSet(detailView))
@@ -2726,7 +2726,7 @@ static TreeColumnHeaderInfo* createTreeColumnHeaderInfo(GtkWidget *headerWidget,
 							GList *columnIds, 
 							GtkCallback refreshFunc)
 {
-  TreeColumnHeaderInfo *headerInfo = (TreeColumnHeaderInfo*)g_malloc(sizeof(TreeColumnHeaderInfo));
+  TreeColumnHeaderInfo *headerInfo = new TreeColumnHeaderInfo;
   
   headerInfo->headerWidget = headerWidget;
   headerInfo->tree = tree;

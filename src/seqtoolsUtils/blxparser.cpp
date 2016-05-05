@@ -1162,7 +1162,7 @@ gboolean blxParseGaps(char **text, MSP *msp, const gboolean hasGapsTag)
 	    case 0:
 	    {
 	      /* First value is start of subject sequence range. Create the range struct */
-              currentGap = (CoordRange*)g_malloc0(sizeof(CoordRange));
+              currentGap = new CoordRange;
               msp->gaps = g_slist_append(msp->gaps, currentGap);
 	      currentGap->sStart = convertStringToInt(currentGapStr);
 	      break;

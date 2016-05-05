@@ -107,7 +107,7 @@ static void onDestroyConsPlot(GtkWidget *consPlot)
   if (properties)
     {
       /* Free the properties struct itself */
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(consPlot), "BelvuConsPlotProperties", NULL);
     }
@@ -122,7 +122,7 @@ static void consPlotCreateProperties(GtkWidget *consPlot,
 {
   if (consPlot)
     {
-      ConsPlotProperties *properties = (ConsPlotProperties*)g_malloc(sizeof *properties);
+      ConsPlotProperties *properties = new ConsPlotProperties;
 
       properties->widget = consPlot;
       properties->bc = bc;

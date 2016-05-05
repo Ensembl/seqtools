@@ -328,14 +328,17 @@ typedef enum
   } BlxResponseType;
 
 
-/* Struct to hold a pair of coordinate ranges, one holding ref seq coords, the other match coords */
-typedef struct _CoordRange
-  {
-    int qStart;     /* start coord on the reference (Query) seq */
-    int qEnd;       /* end coord on the reference (Query) seq */
-    int sStart;     /* start coord on the match (Subject) seq */
-    int sEnd;       /* end coord on the match (Subject) seq */
-  } CoordRange;
+/* Class to hold a pair of coordinate ranges, one holding ref seq coords, the other match coords */
+class CoordRange
+{
+public:
+  CoordRange() : qStart(0), qEnd(0), sStart(0), sEnd(0) {};
+  
+  int qStart;     /* start coord on the reference (Query) seq */
+  int qEnd;       /* end coord on the reference (Query) seq */
+  int sStart;     /* start coord on the match (Subject) seq */
+  int sEnd;       /* end coord on the match (Subject) seq */
+};
   
 
 /* Used to specify the degree of colinearity between two alignment blocks. */

@@ -686,7 +686,7 @@ static void onDestroyExonView(GtkWidget *exonView)
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   if (properties)
     {
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(exonView), "ExonViewProperties", NULL);
     }
@@ -698,7 +698,7 @@ static void exonViewCreateProperties(GtkWidget *exonView,
 {
   if (exonView)
     {
-      ExonViewProperties *properties = (ExonViewProperties*)g_malloc(sizeof *properties);
+      ExonViewProperties *properties = new ExonViewProperties;
       
       properties->widget              = exonView;
       properties->bigPicture	      = bigPicture;

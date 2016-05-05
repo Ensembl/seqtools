@@ -117,13 +117,13 @@ static void onDestroyGreyramp(GtkWidget *greyramp)
           for ( ; item; item = item->next)
             {
               CallbackItem *callbackItem = (CallbackItem*)(item->data);
-              g_free(callbackItem);
+              delete callbackItem;
             }
           
           g_slist_free(properties->callbackItems);
         }
       
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(greyramp), "GreyrampProperties", NULL);
     }
@@ -144,7 +144,7 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
 {
   if (greyramp)
     {
-      GreyrampProperties *properties =(GreyrampProperties*) g_malloc(sizeof *properties);
+      GreyrampProperties *properties = new GreyrampProperties;
 
       properties->widget = greyramp;
       properties->greyrampWindow = greyrampWindow;
@@ -249,7 +249,7 @@ void registerGreyrampCallback(GtkWidget *greyramp, GtkWidget *widget, GtkCallbac
 
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
   
-  CallbackItem *callbackItem = (CallbackItem*)g_malloc(sizeof *callbackItem);
+  CallbackItem *callbackItem = new CallbackItem;
   callbackItem->widget = widget;
   callbackItem->func = func;
   

@@ -41,7 +41,7 @@
 /* Create a fetch method struct */
 BlxFetchMethod* createBlxFetchMethod(const char *fetchName)
 {
-  BlxFetchMethod *result = (BlxFetchMethod*)g_malloc(sizeof *result);
+  BlxFetchMethod *result = new BlxFetchMethod;
 
   result->name = g_quark_from_string(fetchName);
   result->mode = BLXFETCH_MODE_NONE;

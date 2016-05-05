@@ -275,7 +275,7 @@ DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
       
   /* Allocate sortColumns array to be same length as columnList */
   const int numColumns = g_list_length(columnList_in);
-  sortColumns = (BlxColumnId*)g_malloc(numColumns * sizeof(BlxColumnId));
+  sortColumns = new BlxColumnId[numColumns];
       
   int i = 0;
   for ( ; i < numColumns; ++i)
@@ -1239,7 +1239,7 @@ static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
           string result_str = result_ss.str();
           feedbackBoxSetString(feedbackBox, DETAIL_VIEW_FEEDBACK_REF_COORD, result_str.c_str());
 
-          g_free(range);
+          delete range;
         }
     }
   else if (detailViewGetSelectedIdxSet(detailView))
@@ -1323,7 +1323,7 @@ static void feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
                 }
 
               if (range)
-                g_free(range);
+                delete range;
             }
           else if (detailViewGetSelectedIdxSet(detailView))
             {
@@ -1389,7 +1389,7 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
         {
           int depth = bc->calculateTotalDepth(range, strand);
           feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, depth);
-          g_free(range);
+          delete range;
         }
 
       feedbackBoxSetTooltip(feedbackBox, DETAIL_VIEW_FEEDBACK_DEPTH, DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP);
@@ -2411,7 +2411,7 @@ static gboolean mspIsSpliceSiteCanonicalOtherEnd(const MSP* const msp,
 /* Create a BlxSpliceSite and add it to the given list */
 static void addBlxSpliceSite(GSList **spliceSites, const char *donorSite, const char *acceptorSite, const gboolean bothReqd)
 {
-  BlxSpliceSite *spliceSite = (BlxSpliceSite*)g_malloc(sizeof(BlxSpliceSite));
+  BlxSpliceSite *spliceSite = new BlxSpliceSite;
 
   if (strlen(donorSite) < 2 || strlen(acceptorSite) < 2)
     {
@@ -2464,7 +2464,7 @@ static void destroyBlxSpliceSite(gpointer listItemData, gpointer data)
 {
   BlxSpliceSite *spliceSite = (BlxSpliceSite*)listItemData;
   
-  g_free(spliceSite);
+  delete spliceSite;
 }
 
 
@@ -3458,7 +3458,7 @@ static int getVariationRowNumber(const IntRange* const rangeIn, const int numRow
       if (!overlaps)
         {
           /* Doesn't overlap anything in this row; add it to the row and exit */
-          IntRange *range = (IntRange*)g_malloc(sizeof *range);
+          IntRange *range = new IntRange;
           range->set(rangeIn);
           ranges = g_slist_append(ranges, range);
           
@@ -3473,7 +3473,7 @@ static int getVariationRowNumber(const IntRange* const rangeIn, const int numRow
 
   /* If we get here, we didn't find a row that we don't overlap, so add a new row */
   GSList *ranges = NULL;
-  IntRange *range = (IntRange*)g_malloc(sizeof *range);
+  IntRange *range = new IntRange;
   range->set(rangeIn);
   ranges = g_slist_append(ranges, range);
   *rows = g_slist_append(*rows, ranges);
@@ -3496,7 +3496,10 @@ static void freeRowsList(GSList *rows)
       GSList *rangeItem = ranges;
       
       for ( ; rangeItem; rangeItem = rangeItem->next)
-        g_free(rangeItem->data);
+        {
+          IntRange *range = (IntRange*)(rangeItem->data);
+          delete range;
+        }
 
       g_slist_free(ranges);
     }
@@ -4120,7 +4123,7 @@ GType* columnListGetTypes(GList *columnList)
 
   if (len > 0)
     {
-      result = (GType*)g_malloc(len * sizeof(GType));
+      result = (GType*)g_malloc(sizeof(GType) * len);
 
       GList *item = columnList;
       int i = 0;
@@ -4331,7 +4334,7 @@ gboolean detailViewGetSelectedIdxRangeSet(GtkWidget *detailView)
 }
 
 /* Return the selection range in display coords. Allocates a  new IntRange* which should be
- * free'd by the caller with g_free() */
+ * free'd by the caller with delete */
 IntRange *detailViewGetSelectedDisplayIdxRange(GtkWidget *detailView)
 {
   IntRange *result = NULL;
@@ -4339,7 +4342,7 @@ IntRange *detailViewGetSelectedDisplayIdxRange(GtkWidget *detailView)
 
   if (properties && properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
     {
-      result = (IntRange*)g_malloc(sizeof *result);
+      result = new IntRange;
       result->set(properties->selectedRangeStart.displayIdx, properties->selectedRangeEnd.displayIdx);
     }
 
@@ -4347,7 +4350,7 @@ IntRange *detailViewGetSelectedDisplayIdxRange(GtkWidget *detailView)
 }
 
 /* Return the selection range in dna coords. Allocates a  new IntRange* which should be
- * free'd by the caller with g_free() */
+ * free'd by the caller with delete */
 IntRange *detailViewGetSelectedDnaIdxRange(GtkWidget *detailView)
 {
   IntRange *result = NULL;
@@ -4355,7 +4358,7 @@ IntRange *detailViewGetSelectedDnaIdxRange(GtkWidget *detailView)
 
   if (properties && properties->selectedRangeStart.isSet && properties->selectedRangeEnd.isSet)
     {
-      result = (IntRange*)g_malloc(sizeof *result);
+      result = new IntRange;
       result->set(properties->selectedRangeStart.dnaIdx, properties->selectedRangeEnd.dnaIdx);
     }
 
@@ -4444,7 +4447,7 @@ gboolean detailViewIsDisplayIdxSelected(GtkWidget *detailView, const int display
       if (range)
         {
           result = valueWithinRange(displayIdx, range);
-          g_free(range);
+          delete range;
         }
       else if (detailViewGetSelectedIdxSet(detailView))
         {
@@ -4471,7 +4474,7 @@ gboolean detailViewIsDnaIdxSelected(GtkWidget *detailView, const int dnaIdx)
         {
           /* Check if the coord is in the selection range */
           result = valueWithinRange(dnaIdx, range);
-          g_free(range);
+          delete range;
         }
       else if (detailViewGetSelectedIdxSet(detailView))
         {
@@ -4882,7 +4885,7 @@ static void panedWindowCreateProperties(GtkWidget *widget, const int splitterPos
 {
   if (widget)
     { 
-      PanedWindowProperties *properties = (PanedWindowProperties*)g_malloc(sizeof *properties);
+      PanedWindowProperties *properties = new PanedWindowProperties;
 
       properties->widget = widget;
       properties->splitterPos = splitterPos;
@@ -4910,7 +4913,7 @@ static void onDestroyPanedWindow(GtkWidget *widget)
 
   if (properties)
     {
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "DetailViewProperties", NULL);
     }

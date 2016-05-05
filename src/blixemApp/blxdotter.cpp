@@ -648,7 +648,7 @@ static void onDestroyDotterDialog(GtkWidget *dialog, gpointer data)
   
   if (dialogData)
     {
-      g_free(dialogData);
+      delete dialogData;
     }
 }
 
@@ -970,7 +970,7 @@ static GtkWidget* getOrCreateDotterDialog(GtkWidget *blxWindow,
 
       /* Create the dialog data struct first time round, but re-populate it each time. Create 
        * a destructor function that will free the struct. */
-      *dialogData_inout = (DotterDialogData*)g_malloc(sizeof(DotterDialogData));
+      *dialogData_inout = new DotterDialogData;
       dialogData = *dialogData_inout;
       dialogData->blxWindow = blxWindow;
       dialogData->notebookPage = 0;

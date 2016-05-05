@@ -780,7 +780,7 @@ gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 //  
 //  static int orderNum = 0; /* will increment this each time we add a feature series to the array */
 //  
-//  FeatureSeries *fs = g_malloc(sizeof(FeatureSeries));
+//  FeatureSeries *fs = new FeatureSeries;
 //  fs->on = 1;
 //  fs->y = 0.0;
 //  fs->xy = (msp->type == BLXMSP_XY_PLOT ? 1 : 0);
@@ -1664,7 +1664,7 @@ static void copyBlxSequenceNamedCds(const BlxSequence *src,
 
 BlxDataType* createBlxDataType()
 {
-  BlxDataType *result = (BlxDataType*)g_malloc(sizeof *result);
+  BlxDataType *result = new BlxDataType;
   
   result->name = 0;
   result->bulkFetch = NULL;
@@ -1690,7 +1690,7 @@ void destroyBlxDataType(BlxDataType **blxDataType)
   if (!blxDataType)
     return;
   
-  g_free((*blxDataType));
+  delete *blxDataType;
   *blxDataType = NULL;
 }
 
@@ -2151,7 +2151,7 @@ void destroyMspList(MSP **mspList)
     {
       fmsp = msp;
       msp = msp->next;
-      g_free(fmsp);
+      delete fmsp;
     }
   
   *mspList = NULL;
@@ -2180,7 +2180,10 @@ void destroyMspData(MSP *msp)
       /* free memory allocated for the gap ranges */
       GSList *item = msp->gaps;
       for ( ; item; item = item->next)
-        g_free(item->data);
+        {
+          CoordRange *range = (CoordRange*)(item->data);
+          delete range;
+        }
       
       g_slist_free(msp->gaps);
       msp->gaps = NULL;
@@ -3607,7 +3610,7 @@ void blxColumnCreate(BlxColumnId columnId,
     }
   
   /* Create the column info */
-  BlxColumnInfo *columnInfo = (BlxColumnInfo*)g_malloc(sizeof(BlxColumnInfo));
+  BlxColumnInfo *columnInfo = new BlxColumnInfo;
 
   static int columnIdx = 0;  
   columnInfo->columnIdx = columnIdx;

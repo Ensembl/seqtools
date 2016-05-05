@@ -2386,7 +2386,7 @@ void createBelvuColors(BelvuContext *bc)
   
   for ( ; i < BELCOLOR_NUM_COLORS; ++i)
     {
-      BlxColor *blxColor = (BlxColor*)g_malloc(sizeof(BlxColor));
+      BlxColor *blxColor = new BlxColor;
       blxColor->name = NULL;
       blxColor->desc = NULL;
       g_array_append_val(bc->defaultColors, *blxColor);
@@ -2412,7 +2412,7 @@ void createBelvuColors(BelvuContext *bc)
 /* Create the context, which contains all program-wide variables */
 BelvuContext* createBelvuContext()
 {
-  BelvuContext *bc = (BelvuContext*)g_malloc(sizeof *bc);
+  BelvuContext *bc = new BelvuContext;
   
   bc->belvuWindow = NULL;
   bc->spawnedWindows = NULL;
@@ -2564,7 +2564,7 @@ void destroyBelvuContext(BelvuContext **bc)
     if ((*bc)->bootstrapGroups)
       g_array_unref((*bc)->bootstrapGroups);
     
-    g_free(*bc);
+    delete *bc;
     *bc = NULL;
     }
 }

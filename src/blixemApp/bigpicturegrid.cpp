@@ -773,7 +773,7 @@ static void onDestroyGrid(GtkWidget *widget)
   
   if (properties)
     {
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "GridProperties", NULL);
     }
@@ -792,7 +792,7 @@ static void gridCreateProperties(GtkWidget *widget,
        * largest label value plus one (for a '%' character)
        * Add a fudge factor to give more space to allow for the fact that 
        * the calculated char width is approximate and may not give enough space */
-      GridProperties *properties = (GridProperties*)g_malloc(sizeof *properties);
+      GridProperties *properties = new GridProperties;
 
       properties->widget = widget;
       properties->bigPicture = bigPicture;
