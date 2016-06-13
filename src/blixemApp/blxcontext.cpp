@@ -317,6 +317,25 @@ BlxContext::~BlxContext()
 }
 
 
+/* Get the first group (or filter if isFilter) that is a quick group/filter */
+SequenceGroup* BlxContext::getQuickGroup(const bool isFilter)
+{
+  SequenceGroup *result = NULL;
+
+  for (GList *item = sequenceGroups; item; item = item->next)
+    {
+      SequenceGroup *group = (SequenceGroup*)(item->data);
+
+      if (group->isQuickGroup && group->isFilter == isFilter)
+        {
+          result = group;
+          break;
+        }
+    }
+
+  return result;
+}
+
 /* Free the memory used by the given sequence group and its members. */
 void BlxContext::destroySequenceGroup(SequenceGroup **seqGroup)
 {

@@ -86,6 +86,7 @@ public:
   int getDepth(const int coord, const char *base_char = NULL, const BlxStrand strand = BLXSTRAND_NONE);
   int getDepthForCounter(const int coord, const DepthCounter counter);
 
+  SequenceGroup* getQuickGroup(const bool isFilter);
   void destroySequenceGroup(SequenceGroup **seqGroup);
   void deleteAllSequenceGroups();
   void deleteAllQuickGroups();

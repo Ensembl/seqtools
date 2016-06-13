@@ -2430,6 +2430,9 @@ static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText,
   return seqList;
 }
 
+
+/* Create a group/filter from features on the clipboard. Adds to an existing quick group/filter
+ * if exists, otherwise creates one. */
 static void createGroupOrFilterFromClipboard(GtkClipboard *clipboard, 
                                              const char *clipboardText, 
                                              const bool isFilter,
@@ -2441,7 +2444,20 @@ static void createGroupOrFilterFromClipboard(GtkClipboard *clipboard,
   
   if (seqList)
     {
-      createSequenceGroup(blxWindow, seqList, FALSE, NULL, true, isFilter);
+      /* See if there's already a quick group/filter */
+      BlxContext *blxContext = blxWindowGetContext(blxWindow);
+      SequenceGroup *group = blxContext->getQuickGroup(isFilter);
+
+      if (group)
+        {
+          group->seqList = g_list_concat(group->seqList, seqList);
+          blxWindowGroupsChanged(blxWindow);
+        }
+      else
+        {
+          createSequenceGroup(blxWindow, seqList, FALSE, NULL, true, isFilter);
+        }
+
       refreshDialog(BLXDIALOG_GROUPS, blxWindow);
     }
 }
@@ -2497,9 +2513,10 @@ static void clearQuickGroups(GtkWidget *blxWindow, const bool refresh = true)
 
 /* This function creates a group (or filter, if filter=true) from features 
  * on the clipboard text (which should contain valid sequence name(s)). */
-static void createQuickGroup(GtkWidget *blxWindow, const bool isFilter)
+static void createQuickGroup(GtkWidget *blxWindow, const bool isFilter, const bool clearPrevious)
 {
-  clearQuickGroups(blxWindow, false) ;
+  if (clearPrevious)
+    clearQuickGroups(blxWindow, false) ;
 
   if (isFilter)
     requestPrimaryClipboardText(createFilterFromClipboard, blxWindow);
@@ -4760,14 +4777,14 @@ static void onEditGroupsMenu(GtkAction *action, gpointer data)
 static void onCreateQuickGroup(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  createQuickGroup(blxWindow, false);
+  createQuickGroup(blxWindow, false, true);
 }
 
 /* Called when the user selects the 'Create filter from clipboard' option */
 static void onCreateQuickFilter(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  createQuickGroup(blxWindow, true);
+  createQuickGroup(blxWindow, true, true);
 }
 
 /* Called when the user selects the 'Clear groups/filters' option */
@@ -5123,7 +5140,7 @@ static gboolean onKeyPressF(GtkWidget *window, const gboolean ctrlModifier, cons
     }
   else
     {
-      createQuickGroup(window, true);
+      createQuickGroup(window, true, !shiftModifier);
     }
 
   return TRUE;
@@ -5148,7 +5165,7 @@ static gboolean onKeyPressG(GtkWidget *window, const gboolean ctrlModifier, cons
   
   if (!ctrlModifier)
     {       
-      createQuickGroup(window, false);
+      createQuickGroup(window, false, !shiftModifier);
       result = TRUE;
     }
   
