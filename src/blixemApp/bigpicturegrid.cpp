@@ -161,17 +161,6 @@ static void calculateMspLineDimensions(GtkWidget *grid,
 }
 
 
-/* Returns true if sequences in the given group should be shown. */
-static gboolean isGroupVisible(const SequenceGroup* const group)
-{
-  gboolean result = TRUE;
-  
-  result = (!group || !group->hidden);
-  
-  return result;
-}
-
-
 /* Returns true if the given msp is displayed in the given grid, i.e. is the correct
  * strand, is not an intron or exon, and (if checkRange is true) is not out of range */
 static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean checkRange)
@@ -189,14 +178,7 @@ static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean c
     {
       bc = gridGetContext(grid) ;
       group = bc->getSequenceGroup(msp->sSequence) ;
-      result = isGroupVisible(group) ;
-    }
-
-  if (result)
-    {
-      /* If hiding ungrouped sequences and this is a sequence (i.e. match) without a group, hide it */
-      if (!group && bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS] && msp->sSequence->type == BLXSEQUENCE_MATCH)
-        result = FALSE ;
+      result = bc->isGroupVisible(group, msp->sSequence->type) ;
     }
   
   if (result)

@@ -43,6 +43,9 @@
 #include <blixemApp/blixem_.hpp>
 
 
+// We filter features based on different types; for now, just 'matches' and 'everything else'.
+enum class GroupType {NONE, MATCH, OTHER};
+
 
 class BlxContext
 {
@@ -86,6 +89,8 @@ public:
   int getDepth(const int coord, const char *base_char = NULL, const BlxStrand strand = BLXSTRAND_NONE);
   int getDepthForCounter(const int coord, const DepthCounter counter);
 
+  bool filterGroupType(const GroupType groupType) const;
+  bool isGroupVisible(const SequenceGroup *group, const BlxSequenceType feature_type = BLXSEQUENCE_UNSET) const;
   SequenceGroup* getQuickGroup(const bool isFilter);
   void destroySequenceGroup(SequenceGroup **seqGroup);
   void deleteAllSequenceGroups();

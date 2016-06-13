@@ -892,28 +892,12 @@ static gboolean isMspVisible(const MSP* const msp,
                              const gboolean seqSelected,
                              const SequenceGroup *group)
 {
-  g_return_val_if_fail(msp, FALSE) ;
+  g_return_val_if_fail(msp && msp->sSequence, FALSE) ;
 
   gboolean result = TRUE ;
 
-  /* If hiding ungrouped sequences and this is a sequence (i.e. match) without a group, hide it */
-  if (msp->sSequence && 
-      msp->sSequence->type == BLXSEQUENCE_MATCH &&
-      bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS] &&
-      !group)
-    {
-      result = FALSE ;
-    }
-
-  /* If hiding ungrouped features and this is feature (i.e. anything except a sequence) without
-   * a group, hide it */
-  if (msp->sSequence &&
-      msp->sSequence->type != BLXSEQUENCE_MATCH && 
-      bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] &&
-      !group)
-    {
-      result = FALSE ;
-    }
+  /* Check if the msp should be filtered out */
+  result = bc->isGroupVisible(group, msp->sSequence->type);
 
   if (result)
     {
@@ -923,17 +907,6 @@ static gboolean isMspVisible(const MSP* const msp,
       result = rangesOverlap(mspDisplayRange, displayRange);
     }
 
-  return result;
-}
-
-
-/* Returns true if sequences in the given group should be shown. */
-static gboolean isGroupVisible(const SequenceGroup* const group)
-{
-  gboolean result = TRUE;
-  
-  result = (!group || !group->hidden);
-  
   return result;
 }
 
@@ -959,7 +932,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
       const MSP *firstMsp = (const MSP*)(mspList->data);
       SequenceGroup *group = bc->getSequenceGroup(firstMsp->sSequence);
       
-      if (isGroupVisible(group))
+      if (bc->isGroupVisible(group))
 	{
 	  BlxContext *bc = treeGetContext(tree);
           GtkWidget *detailView = treeGetDetailView(tree);

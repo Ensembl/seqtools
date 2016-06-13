@@ -217,8 +217,8 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "View",             GTK_STOCK_FULLSCREEN,     "_View...",                 "V",                  "Edit view settings  V",                G_CALLBACK(onViewMenu)},
   { "CreateGroup",      NULL,                     "Create Custom Group...",   "<shift><control>G",  "Create group  Shift+Ctrl+G",           G_CALLBACK(onCreateGroupMenu)},
   { "EditGroups",       GTK_STOCK_EDIT,           "Edit _Groups...",          "<control>G",         "Edit groups  Ctrl+G",                  G_CALLBACK(onEditGroupsMenu)},
-  { "CreateQuickGroup", NULL,                     "Create group from clipboard", "G",               "Create a group based on features on the clipboard  G",  G_CALLBACK(onCreateQuickGroup)},
-  { "CreateQuickFilter",NULL,                     "Create filter from clipboard", "F",              "Create a filter based on features on the clipboard  F",  G_CALLBACK(onCreateQuickFilter)},
+  { "CreateQuickGroup", NULL,                     "Create group from clipboard", "G",               "Create a group based on features on the clipboard (clears existing group; hold shift to add to it)  G",  G_CALLBACK(onCreateQuickGroup)},
+  { "CreateQuickFilter",NULL,                     "Create filter from clipboard", "F",              "Create a filter based on features on the clipboard (clears existing filter; hold shift to add to it)  F",  G_CALLBACK(onCreateQuickFilter)},
   { "ClearQuickGroups", NULL,                     "Clear groups/filters",     "C",                  "Clear quick groups/filters  C",        G_CALLBACK(onClearQuickGroups)},
   { "DeselectAllRows",  NULL,                     "Deselect _all",            "<shift><control>A",  "Deselect all  Shift+Ctrl+A",           G_CALLBACK(onDeselectAllRows)},
 
@@ -2100,6 +2100,25 @@ static gboolean onGroupOrderChanged(GtkWidget *widget, const gint responseId, gp
 }
 
 
+/* This callback is called when the dialog settings are applied. It sets the filter
+ * status of the passed group based on the toggle button's state */
+static gboolean onGroupFilterToggled(GtkWidget *button, const gint responseId, gpointer data)
+{
+  gboolean result = TRUE;
+  
+  SequenceGroup *group = (SequenceGroup*)data;
+  group->isFilter = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+
+  /* Refilter trees and redraw all immediately show the new status */
+  GtkWidget *dialog = gtk_widget_get_toplevel(button);
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+
+  blxWindowGroupsChanged(blxWindow);
+  
+  return result;
+}
+
+
 /* This callback is called when the dialog settings are applied. It sets the hidden
  * status of the passed groupo based on the toggle button's state */
 static gboolean onGroupHiddenToggled(GtkWidget *button, const gint responseId, gpointer data)
@@ -2168,6 +2187,11 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
   gtk_entry_set_text(GTK_ENTRY(nameWidget), group->groupName);
   gtk_entry_set_activates_default(GTK_ENTRY(nameWidget), TRUE);
   widgetSetCallbackData(nameWidget, onGroupNameChanged, group);
+      
+  /* Add a check box for the 'isFilter' flag */
+  GtkWidget *isFilterWidget = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isFilterWidget), group->isFilter);
+  widgetSetCallbackData(isFilterWidget, onGroupFilterToggled, group);
       
   /* Add a check box for the 'hidden' flag */
   GtkWidget *isHiddenWidget = gtk_check_button_new();
@@ -2721,27 +2745,6 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
 }
 
 
-/* Callback for when the 'hide ungrouped sequences' option is changed */
-static gboolean onHideUngroupedChanged(GtkWidget *button, const gint responseId, gpointer data)
-{
-  setFlagFromButton(button, data);
-  
-  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  
-  refilterDetailView(detailView, NULL);
-
-  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
-  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
-  forceResize(bigPicture);
-
-  blxWindowRedrawAll(blxWindow);
-  
-  return TRUE;
-}
-
-
 /* Create the 'create group' tab of the groups dialog. Appends it to the notebook. */
 static void createCreateGroupTab(GtkNotebook *notebook, BlxContext *bc, GtkWidget *blxWindow)
 {
@@ -2781,24 +2784,12 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxContext *bc, GtkWidget
   /* Append the table as a new tab to the notebook */
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table), gtk_label_new("Edit groups"));
   
-  /* Add check buttons to turn on the 'hide ungrouped sequences/features' options */
-  GtkWidget *hideButton1 = gtk_check_button_new_with_mnemonic("_Hide all sequences not in a group");
-  GtkWidget *hideButton2 = gtk_check_button_new_with_mnemonic("_Hide all features not in a group");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton1), bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS]);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton2), bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES]);
-  widgetSetCallbackData(hideButton1, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_SEQS));
-  widgetSetCallbackData(hideButton2, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_FEATURES));
-
-  gtk_table_attach(table, hideButton1, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  ++row;
-  gtk_table_attach(table, hideButton2, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  ++row;
-  
   /* Add labels for each column in the table */
   gtk_table_attach(table, gtk_label_new("Group name"),    1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Hide"),          2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Highlight"),     3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Order"),         4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Filter"),        2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Hide"),          3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Highlight"),     4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Order"),         5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   ++row;
   
   /* Add a set of widgets for each group */
