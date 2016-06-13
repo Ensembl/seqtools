@@ -334,6 +334,10 @@ typedef struct _SequenceGroup
     GList *seqList;                /* list of BlxSequences */
     gboolean ownsSeqNames;         /* If true, the group will free the sequence names when it is destroyed */
     gboolean hidden;               /* true if the group should be hidden from the detail view */
+    gboolean isFilter;             /* true if this is a filter (i.e. hide everything not in a
+                                    * filter) */
+    gboolean isQuickGroup;         /* true if the group was created by a quick-group or
+                                    * quick-filter option */
     gboolean highlighted;          /* true if the group should be highlighted */
     GdkColor highlightColor;       /* the color to highlight the group's sequences in (in both the big picture and the detail view) */
   } SequenceGroup;

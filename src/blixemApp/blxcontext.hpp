@@ -88,6 +88,7 @@ public:
 
   void destroySequenceGroup(SequenceGroup **seqGroup);
   void deleteAllSequenceGroups();
+  void deleteAllQuickGroups();
 
 
   GtkWidget *statusBar;                   /* The Blixem window's status bar */
@@ -125,7 +126,6 @@ public:
     
   GList *selectedSeqs;                    /* A list of sequences that are selected (as BlxSequences) */
   GList *sequenceGroups;                  /* A list of SequenceGroups */
-  SequenceGroup *matchSetGroup;           /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
     
   DotterRefType dotterRefType;            /* Whether to dotter a ref seq range or a transcript */
   DotterMatchType dotterMatchType;        /* Saved type of match to call dotter on */

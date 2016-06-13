@@ -219,7 +219,6 @@ BlxContext::BlxContext(CommandLineOptions *options,
   
   selectedSeqs = NULL;
   sequenceGroups = NULL;
-  matchSetGroup = NULL;
   
   dotterRefType = BLXDOTTER_REF_AUTO;
   dotterMatchType = BLXDOTTER_MATCH_SELECTED;
@@ -326,12 +325,6 @@ void BlxContext::destroySequenceGroup(SequenceGroup **seqGroup)
       /* Remove it from the list of groups */
       sequenceGroups = g_list_remove(sequenceGroups, *seqGroup);
       
-      /* If this is pointed to by the match-set pointer, null it */
-      if (*seqGroup == matchSetGroup)
-        {
-          matchSetGroup = NULL;
-        }
-      
       /* Free the memory used by the group name */
       if ((*seqGroup)->groupName)
         {
@@ -367,6 +360,34 @@ void BlxContext::deleteAllSequenceGroups()
   /* Reset the hide-not-in-group flags otherwise we'll hide everything! */
   flags[BLXFLAG_HIDE_UNGROUPED_SEQS] = FALSE ;
   flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] = FALSE ;
+}
+
+
+/* Delete all "quick" groups and filters */
+void BlxContext::deleteAllQuickGroups()
+{
+  GList *groupItem = sequenceGroups;
+  
+  while (groupItem)
+    {
+      GList *nextItem = groupItem->next ;
+
+      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+
+      if (group->isQuickGroup)
+        {
+          destroySequenceGroup(&group);
+        }
+
+      groupItem = nextItem;
+    }
+  
+  if (g_list_length(sequenceGroups) == 0)
+    {
+      /* Reset the hide-not-in-group flags otherwise we'll hide everything! */
+      flags[BLXFLAG_HIDE_UNGROUPED_SEQS] = FALSE ;
+      flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] = FALSE ;
+    }
 }
 
 
