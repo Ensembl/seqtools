@@ -2191,16 +2191,19 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
   /* Add a check box for the 'isFilter' flag */
   GtkWidget *isFilterWidget = gtk_check_button_new();
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isFilterWidget), group->isFilter);
+  gtk_widget_set_tooltip_text(isFilterWidget, "If any Filter groups are set, Blixem will filter out features of the same type that are not in a Filter group");
   widgetSetCallbackData(isFilterWidget, onGroupFilterToggled, group);
       
   /* Add a check box for the 'hidden' flag */
   GtkWidget *isHiddenWidget = gtk_check_button_new();
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHiddenWidget), group->hidden);
+  gtk_widget_set_tooltip_text(isHiddenWidget, "Always hide features in this group");
   widgetSetCallbackData(isHiddenWidget, onGroupHiddenToggled, group);
 
   /* Add a check box for the 'highlighted' flag */
   GtkWidget *isHighlightedWidget = gtk_check_button_new();
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHighlightedWidget), group->highlighted);
+  gtk_widget_set_tooltip_text(isHighlightedWidget, "Highlight features that are in this group (use the colour selector to set the highlight color)");
   widgetSetCallbackData(isHighlightedWidget, onGroupHighlightedToggled, group);
       
   /* Show the group's order number in an editable text box */
@@ -2224,11 +2227,12 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
       
   /* Put everything in the table */
   gtk_table_attach(table, nameWidget,               1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, isHiddenWidget,   2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, isHighlightedWidget,      3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, orderWidget,              4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, colorButton,              5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, deleteButton,             6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, isFilterWidget,           2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, isHiddenWidget,           3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, isHighlightedWidget,      4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, orderWidget,              5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, colorButton,              6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, deleteButton,             7, 8, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
 }
 
 
@@ -2773,7 +2777,7 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxContext *bc, GtkWidget
 {
   const int numRows = g_list_length(bc->sequenceGroups) + 4; /* +4 for: header; delete-all button;
                                                                 hide-all-seqs; hide-all-features */
-  const int numCols = 6;
+  const int numCols = 7;
   const int xpad = DEFAULT_TABLE_XPAD;
   const int ypad = DEFAULT_TABLE_YPAD;
   int row = 1;
