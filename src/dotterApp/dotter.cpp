@@ -2799,9 +2799,7 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
     /* Ignore header ... */
     while (!feof(fil) && *line == '#')
       {
-        char *dummy ;
-
-        dummy = fgets(line, 1024, fil);
+        fgets(line, 1024, fil);
       }
 
     /* Read in the pairwise scores */
