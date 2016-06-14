@@ -273,6 +273,7 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const 
     *cp = 0;
 
   msp->qRange.set(pos, pos);
+  msp->sRange.set(0, 0);
   msp->fsColor = 0;
   msp->type = BLXMSP_FS_SEG;
   msp->score = 100.0;

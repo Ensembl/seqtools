@@ -1584,8 +1584,8 @@ static void parseFsSeg(char *line,
   
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_FS_SEG, NULL, NULL,
                           UNSET_INT, UNSET_INT, 0, 
-                          NULL, qName, qStart, qEnd, BLXSTRAND_NONE, 1, 
-                          series, NULL, qStart, qEnd, BLXSTRAND_NONE, NULL, 0, lookupTable, NULL, &error);
+                          NULL, qName, qStart, qStart, BLXSTRAND_NONE, 1, 
+                          series, NULL, qStart, qStart, BLXSTRAND_NONE, NULL, 0, lookupTable, NULL, &error);
 
   /* Parse in additional feature-series info */
   parseLook(msp, look);
