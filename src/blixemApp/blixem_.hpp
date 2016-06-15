@@ -40,6 +40,7 @@
 
 #include <gtk/gtk.h>
 #include <config.h>
+
 #include <seqtoolsUtils/utilities.hpp>
 #include <seqtoolsUtils/blxmsp.hpp>
 #include <seqtoolsUtils/version.hpp>
