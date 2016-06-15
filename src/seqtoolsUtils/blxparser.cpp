@@ -136,42 +136,6 @@ enum Colour    {WHITE, BLACK, LIGHTGRAY, DARKGRAY,
 		BACKCOLOR	/* pseudocolor to force box->bcol after graphColor() */
                } ;
 
-static const char *colorNames[NUM_TRUECOLORS] =
-  {
-    "WHITE", 
-    "BLACK", 
-    "LIGHTGRAY", 
-    "DARKGRAY",
-    "RED", 
-    "GREEN", 
-    "BLUE",
-    "YELLOW", 
-    "CYAN", 
-    "MAGENTA",
-    "LIGHTRED", 
-    "LIGHTGREEN", 
-    "LIGHTBLUE",
-    "DARKRED", 
-    "DARKGREEN", 
-    "DARKBLUE",
-    "PALERED", 
-    "PALEGREEN", 
-    "PALEBLUE",
-    "PALEYELLOW", 
-    "PALECYAN", 
-    "PALEMAGENTA",
-    "BROWN", 
-    "ORANGE", 
-    "PALEORANGE",
-    "PURPLE", 
-    "VIOLET", 
-    "PALEVIOLET",
-    "GRAY", 
-    "PALEGRAY",
-    "CERISE", 
-    "MIDBLUE"
-};
-
 
 /* Get the factor to multiply match coords by to get display coords */
 static int getResFactorFromMode(const BlxBlastMode blastMode)
@@ -538,21 +502,6 @@ char *readFastaSeq(FILE *seqfile, char *seqName, int *startCoord, int *endCoord,
  *               Internal functions.
  *************************************************/
 
-/* Parse a string that contains a color name from our internally-defined list of accepted
- * colors. */
-static int parseColor(char *s) 
-{
-  int i;
-
-  for (i = 0; i < NUM_TRUECOLORS; i++) 
-    {
-      if (!strcasecmp(colorNames[i], s)) 
-        break;
-    }
-    
-  return i;
-}
-
 /* Parse a line that contains shape information about a curve. */
 static BlxCurveShape parseShape(char *s) 
 {
@@ -575,15 +524,16 @@ static void parseLook(MSP *msp, char *s)
 
     cp = strtok(s2, "," );
     while (cp) {
-	
-	if (parseColor(cp) != NUM_TRUECOLORS) {
-	    msp->fsColor = parseColor(cp);
+
+        if (gdk_color_parse(cp, &msp->fsColor)) {
+          gboolean failures[1];
+          gdk_colormap_alloc_colors(gdk_colormap_get_system(), &msp->fsColor, 1, TRUE, TRUE, failures);
 	}
 	else if (parseShape(cp) != BLXCURVE_BADSHAPE) {
 	    msp->fsShape = parseShape(cp);
 	}
 	else 
-	    g_critical("Unrecognised Look: %s", cp);
+	    g_critical("Unrecognised Look: %s\n", cp);
 	
 	cp = strtok(0, "," );
     }
@@ -1584,8 +1534,8 @@ static void parseFsSeg(char *line,
   
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_FS_SEG, NULL, NULL,
                           UNSET_INT, UNSET_INT, 0, 
-                          NULL, qName, qStart, qEnd, BLXSTRAND_NONE, 1, 
-                          series, NULL, qStart, qEnd, BLXSTRAND_NONE, NULL, 0, lookupTable, NULL, &error);
+                          NULL, qName, qStart, qStart, BLXSTRAND_NONE, 1, 
+                          series, NULL, qStart, qStart, BLXSTRAND_NONE, NULL, 0, lookupTable, NULL, &error);
 
   /* Parse in additional feature-series info */
   parseLook(msp, look);

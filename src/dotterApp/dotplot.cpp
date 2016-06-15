@@ -53,7 +53,6 @@ using namespace std;
 #define PIXELS_PER_MARK_Y                           50    /* number of pixels between each major tick mark on the y scale */
 #define CROSSHAIR_TEXT_PADDING                      5     /* padding between the crosshair and the coord display text */ 
 #define ANNOTATION_LABEL_PADDING		    5	  /* padding around annotation labels, if shown */
-#define ANNOTATION_LABEL_LEN			    8	  /* number of chars to allow to show for annotation labels */
 
 /* max width / height to allow for a gdk image. Guesstimate based on the fact that 
  * it blacks out the lower part of the plot (overdraws on it?) if we allow more than this.
@@ -2132,6 +2131,37 @@ static void calculateScaleProperties(GtkWidget *dotplot,
 }
 
 
+/* Utility to get max breakpoint label size */
+int getMaxBreakpointLabelSize(GtkWidget *dotplot, DotterContext *dc)
+{
+  int max_len = 0;
+
+  cairo_surface_t *surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, 500, 500);
+  cairo_t *cr = cairo_create (surface);  
+
+  PangoLayout *layout = pango_cairo_create_layout(cr);
+  pango_layout_set_font_description(layout, dotplot->style->font_desc);
+
+  for (MSP *msp = dc->mspList; msp; msp = msp->next)
+    {
+      if (msp->type == BLXMSP_FS_SEG && msp->desc)
+        {
+          int len = 0;
+          pango_layout_set_text(layout, msp->desc, -1);
+          pango_layout_get_pixel_size(layout, &len, NULL);
+
+          if (len > max_len)
+            max_len = len;
+        }
+    }
+
+  cairo_destroy(cr);
+  cairo_surface_destroy(surface);
+
+  return max_len;
+}
+
+
 /* Utility to get the total height required for the dotplot */
 int getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties)
 {
@@ -2141,6 +2171,7 @@ int getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties)
 
   PangoLayout *layout = pango_cairo_create_layout(cr);
   pango_layout_set_text(layout, properties->dotterWinCtx->dotterCtx->matchSeqName, -1);
+  pango_layout_set_font_description(layout, dotplot->style->font_desc);
 
   /* use the text WIDTH as the height, because it will be rotated vertically */
   int height = 0;
@@ -2160,8 +2191,10 @@ int getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties)
     
   if (properties->breaklinesOn && properties->hozLabelsOn)
     {
-      /* Add space for breakline labels */
-      result += properties->dotterWinCtx->dotterCtx->charHeight + (2 * ANNOTATION_LABEL_PADDING);
+      /* Add space for breakline labels. They are rotated 90 degrees so we need to 
+       * add enough height for the full label length */
+      const int labelSize = getMaxBreakpointLabelSize(dotplot, properties->dotterWinCtx->dotterCtx) ;
+      result += labelSize + ANNOTATION_LABEL_PADDING;
     }      
 
   return result;
@@ -2178,8 +2211,8 @@ int getDotplotWidth(GtkWidget *dotplot, DotplotProperties *properties)
   if (properties->breaklinesOn && properties->vertLabelsOn)
     {
       /* Add space for breakline labels */
-      result += (properties->dotterWinCtx->dotterCtx->charWidth * ANNOTATION_LABEL_LEN) + 
-                (2 * ANNOTATION_LABEL_PADDING);
+      const int labelSize = getMaxBreakpointLabelSize(dotplot, properties->dotterWinCtx->dotterCtx) ;
+      result += labelSize + ANNOTATION_LABEL_PADDING;
     }
   
   return result;
@@ -2488,19 +2521,35 @@ static void drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable)
 
 
 /* Draw an individual breakline */
-static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotProperties *properties, GdkDrawable *drawable, GdkGC *gc)
+static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotProperties *properties, GdkDrawable *drawable)
 {
   g_assert(msp && msp->type == BLXMSP_FS_SEG);
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+  DotterWindowContext *dwc = properties->dotterWinCtx;
 
   /* The q range min and max should be the same coord */
   if (msp->qRange.min() != msp->qRange.max())
     g_warning("Breakline coords should be the same but min=%d and max=%d\n", msp->qRange.min(), msp->qRange.max());
 
-  /* See if this msp is the vertical or horizontal sequence. It could be both for a self comparison. */
+  /* See if this msp is the vertical or horizontal sequence. It could be both for a self comparison. 
+   * We check if the name matches the sequence name or the values @1 or @2 for hoz and vert resp. */
   gboolean horizontal = (msp->qname && strcmp(msp->qname, dc->refSeqName) == 0);
   gboolean vertical = (msp->qname && strcmp(msp->qname, dc->matchSeqName) == 0);
   
+  vertical |= (msp->qname && strcmp(msp->qname, "@2") == 0);
+  
+  if(msp->qname && strcmp(msp->qname, "@1") == 0)
+    {
+      horizontal = TRUE;
+      if (dwc->selfComp)
+        vertical = TRUE;
+    }
+
+  /* Set the line color */
+  GdkGC *gc = gdk_gc_new(drawable);
+  gdk_gc_set_line_attributes(gc, SCALE_LINE_WIDTH, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
+  gdk_gc_set_foreground(gc, &msp->fsColor);
+
   if (horizontal)
     {
       /* Find the x position of this coord and draw a vertical line here */
@@ -2517,8 +2566,10 @@ static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotPrope
           cairo_t *cr = gdk_cairo_create(drawable);
           PangoLayout *layout = pango_cairo_create_layout(cr);
           pango_layout_set_text(layout, msp->desc, -1);
+          pango_layout_set_font_description(layout, dotplot->style->font_desc);
 
           cairo_move_to (cr, ex, ey);
+          cairo_rotate(cr, 1.5708); //rotate by 90 degrees
           pango_cairo_show_layout(cr, layout);
 
 	  g_object_unref(layout);
@@ -2549,6 +2600,7 @@ static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotPrope
           cairo_t *cr = gdk_cairo_create(drawable);
           PangoLayout *layout = pango_cairo_create_layout(cr);
           pango_layout_set_text(layout, msp->desc, -1);
+          pango_layout_set_font_description(layout, dotplot->style->font_desc);
 
           cairo_move_to (cr, ex, ey);
           pango_cairo_show_layout(cr, layout);
@@ -2557,6 +2609,8 @@ static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotPrope
           cairo_destroy(cr);
 	}
     }
+
+  g_object_unref(gc);
 }
 
 
@@ -2570,24 +2624,15 @@ static void drawBreaklines(GtkWidget *dotplot, GdkDrawable *drawable)
   
   if (properties->breaklinesOn)
     {
-      GdkGC *gc = gdk_gc_new(drawable);
-
-      gdk_gc_set_line_attributes(gc, SCALE_LINE_WIDTH, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
-      GdkColor *color = getGdkColor(DOTCOLOR_BREAKLINE, dc->defaultColors, FALSE, dwc->usePrintColors);
-      gdk_gc_set_foreground(gc, color);
-
-      /* Loop through all MSPs and draw any that are segment ends */
       const MSP* msp = dc->mspList;
     
       for ( ; msp; msp = msp->next)
 	{
 	  if (msp->type == BLXMSP_FS_SEG)
 	    {
-	      drawBreakline(msp, dotplot, properties, drawable, gc);
+	      drawBreakline(msp, dotplot, properties, drawable);
 	    }
-	}
-      
-      g_object_unref(gc);
+	}      
     }  
 }
 

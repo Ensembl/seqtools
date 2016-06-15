@@ -1965,7 +1965,6 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
 
   /* Create the child process */
   GPid childPid = 0;
-  GIOStatus status = G_IO_STATUS_NORMAL;
   gsize bytes_written = 0;
   GError *tmpError = NULL;
   
@@ -1992,10 +1991,10 @@ gboolean callDotterExternal(GtkWidget *blxWindow,
       /* Pass the sequences */
       DEBUG_OUT("Piping sequences to dotter...\n");
 
-      status = g_io_channel_write_chars(ioChannel, seq1, seq1Range->length(), &bytes_written, &tmpError);
+      g_io_channel_write_chars(ioChannel, seq1, seq1Range->length(), &bytes_written, &tmpError);
 
       if (!tmpError)
-        status = g_io_channel_write_chars(ioChannel, seq2, seq2Range->length(), &bytes_written, &tmpError);
+        g_io_channel_write_chars(ioChannel, seq2, seq2Range->length(), &bytes_written, &tmpError);
 
       DEBUG_OUT("...done\n");
     }

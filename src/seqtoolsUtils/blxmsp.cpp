@@ -2113,7 +2113,6 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->style = NULL;
   
   msp->fs = NULL;
-  msp->fsColor = 0;
   msp->fsShape = BLXCURVE_BADSHAPE;
   
   msp->xy = NULL;
