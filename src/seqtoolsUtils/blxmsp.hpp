@@ -315,7 +315,7 @@ typedef struct _MSP
   
   /* obsolete? */
   FeatureSeries     *fs;           /* Feature series that this MSP belongs to */
-  int               fsColor;       /* Color to draw this MSP in the feature series */
+  GdkColor          fsColor;       /* Color to draw this MSP in the feature series */
   BlxCurveShape     fsShape;       /* Shape data for drawing feature series curves, i.e. XY type PARTIAL or INTERPOLATE shapes */
   GArray            *xy;            /* For XY plot feature series */
 } MSP ;
