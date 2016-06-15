@@ -459,10 +459,11 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
     {
       /* Check if it's already cached */
       std::map<GQuark, BlxDataType*>::iterator iter = g_dataTypes.find(dataType) ;
-      result = iter->second ;
 
-      if (!result)
+      if (iter != g_dataTypes.end())
         {
+          result = iter->second ;
+
           /* look it up in the config file and if we find it then create a new BlxDataType struct for it. */
           const gchar *typeName = g_quark_to_string(dataType);
 
