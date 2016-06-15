@@ -43,6 +43,9 @@
 #include <blixemApp/blixem_.hpp>
 
 
+// We filter features based on different types; for now, just 'matches' and 'everything else'.
+enum class GroupType {NONE, MATCH, OTHER};
+
 
 class BlxContext
 {
@@ -86,8 +89,12 @@ public:
   int getDepth(const int coord, const char *base_char = NULL, const BlxStrand strand = BLXSTRAND_NONE);
   int getDepthForCounter(const int coord, const DepthCounter counter);
 
+  bool filterGroupType(const GroupType groupType) const;
+  bool isGroupVisible(const SequenceGroup *group, const BlxSequenceType feature_type = BLXSEQUENCE_UNSET) const;
+  SequenceGroup* getQuickGroup(const bool isFilter);
   void destroySequenceGroup(SequenceGroup **seqGroup);
   void deleteAllSequenceGroups();
+  void deleteAllQuickGroups();
 
 
   GtkWidget *statusBar;                   /* The Blixem window's status bar */
@@ -125,7 +132,6 @@ public:
     
   GList *selectedSeqs;                    /* A list of sequences that are selected (as BlxSequences) */
   GList *sequenceGroups;                  /* A list of SequenceGroups */
-  SequenceGroup *matchSetGroup;           /* A special group that can be created/deleted quickly from the 'toggle match set' shortcuts */
     
   DotterRefType dotterRefType;            /* Whether to dotter a ref seq range or a transcript */
   DotterMatchType dotterMatchType;        /* Saved type of match to call dotter on */

@@ -54,6 +54,39 @@ using namespace std;
 namespace // unnamed namespace
 {
 
+
+/* Return the group type based on a feature type. Returns NONE if featureType unset */
+GroupType getGroupType(const BlxSequenceType featureType)
+{
+  GroupType result = GroupType::NONE;
+  
+  if (featureType == BLXSEQUENCE_MATCH)
+    result = GroupType::MATCH;
+  else if (featureType != BLXSEQUENCE_UNSET)
+    result = GroupType::OTHER;
+
+  return result;
+}
+
+
+/* Return the group type */
+GroupType getGroupType(const SequenceGroup *group)
+{
+  GroupType result = GroupType::NONE;
+  
+  // Find the type based on the feature types in the blxsequence list.
+  if (group && group->seqList && g_list_length(group->seqList) > 0)
+    {
+      /* Get type from first item in list (assume all in group are the same
+       * - may not be true so this could be improved, maybe with a 'mixed' type) */
+      BlxSequence *firstSeq = (BlxSequence*)(group->seqList->data);
+      result = getGroupType(firstSeq->type);
+    }
+
+  return result;
+}
+
+
 /* This returns the name for the given flag enum. It returns null if the name
  * has not been set. This is used to save settings in the config file; only 
  * flags whose name is set in this function will be saved. */
@@ -219,7 +252,6 @@ BlxContext::BlxContext(CommandLineOptions *options,
   
   selectedSeqs = NULL;
   sequenceGroups = NULL;
-  matchSetGroup = NULL;
   
   dotterRefType = BLXDOTTER_REF_AUTO;
   dotterMatchType = BLXDOTTER_MATCH_SELECTED;
@@ -318,6 +350,86 @@ BlxContext::~BlxContext()
 }
 
 
+/* Return true if we should filter features of the given type */
+bool BlxContext::filterGroupType(const GroupType groupType) const
+{
+  bool result = false;
+
+  if (groupType == GroupType::NONE)
+    {
+      // If a type wasn't specified then assume this means we're not bothered about checking
+      // against type and display everything.
+      result = false;
+    }
+  else
+    {
+      // Loop through all groups and see if any are filtering groups of this type
+      for (GList *item = sequenceGroups; item; item = item->next)
+        {
+          SequenceGroup *group = (SequenceGroup*)(item->data);
+
+          if (group->isFilter && getGroupType(group) == groupType)
+            {
+              result = true;
+              break;
+            }
+        }
+    }
+
+  return result;
+}
+
+
+/* Return true if the given group should be displayed */
+bool BlxContext::isGroupVisible(const SequenceGroup *group, const BlxSequenceType featureType) const
+{
+  bool result = false;
+
+  if (group && group->hidden)
+    {
+      // always hide
+      result = false;
+    }
+  else if (group && group->isFilter)
+    {
+      // always show because this group is itself a filter
+      result = true;
+    }
+  else if (group)
+    {
+      // This group isn't itself a filter, so we'll only show it if we're not filtering out
+      // features of this type
+      result = !filterGroupType(getGroupType(group));
+    }
+  else
+    {
+      // Decide what to do with ungrouped features based on the feature type
+      result = !filterGroupType(getGroupType(featureType));
+    }
+
+  return result;
+}
+
+
+/* Get the first group (or filter if isFilter) that is a quick group/filter */
+SequenceGroup* BlxContext::getQuickGroup(const bool isFilter)
+{
+  SequenceGroup *result = NULL;
+
+  for (GList *item = sequenceGroups; item; item = item->next)
+    {
+      SequenceGroup *group = (SequenceGroup*)(item->data);
+
+      if (group->isQuickGroup && group->isFilter == isFilter)
+        {
+          result = group;
+          break;
+        }
+    }
+
+  return result;
+}
+
 /* Free the memory used by the given sequence group and its members. */
 void BlxContext::destroySequenceGroup(SequenceGroup **seqGroup)
 {
@@ -325,12 +437,6 @@ void BlxContext::destroySequenceGroup(SequenceGroup **seqGroup)
     {
       /* Remove it from the list of groups */
       sequenceGroups = g_list_remove(sequenceGroups, *seqGroup);
-      
-      /* If this is pointed to by the match-set pointer, null it */
-      if (*seqGroup == matchSetGroup)
-        {
-          matchSetGroup = NULL;
-        }
       
       /* Free the memory used by the group name */
       if ((*seqGroup)->groupName)
@@ -363,10 +469,27 @@ void BlxContext::deleteAllSequenceGroups()
   
   g_list_free(sequenceGroups);
   sequenceGroups = NULL;
+}
+
+
+/* Delete all "quick" groups and filters */
+void BlxContext::deleteAllQuickGroups()
+{
+  GList *groupItem = sequenceGroups;
   
-  /* Reset the hide-not-in-group flags otherwise we'll hide everything! */
-  flags[BLXFLAG_HIDE_UNGROUPED_SEQS] = FALSE ;
-  flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] = FALSE ;
+  while (groupItem)
+    {
+      GList *nextItem = groupItem->next ;
+
+      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+
+      if (group->isQuickGroup)
+        {
+          destroySequenceGroup(&group);
+        }
+
+      groupItem = nextItem;
+    }
 }
 
 

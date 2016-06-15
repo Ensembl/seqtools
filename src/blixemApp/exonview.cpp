@@ -166,17 +166,6 @@ static gboolean calculateExonIntronDimensions(const MSP* const msp,
 }
 
 
-/* Returns true if sequences in the given group should be shown. */
-static gboolean isGroupVisible(const SequenceGroup* const group)
-{
-  gboolean result = TRUE;
-  
-  result = (!group || !group->hidden);
-  
-  return result;
-}
-
-
 /* Returns true if the given MSP should be shown in this exon view */
 static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand, BlxContext *bc)
 {
@@ -193,11 +182,7 @@ static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand, BlxCon
   if (showMsp)
     {
       SequenceGroup *group = bc->getSequenceGroup(msp->sSequence) ;
-      showMsp &= isGroupVisible(group) ;
-
-      /* If hiding ungrouped features and this is a feature (i.e. not a match) without a group, hide it */
-      if (!group && bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] && msp->sSequence->type != BLXSEQUENCE_MATCH)
-        showMsp = FALSE ;
+      showMsp &= bc->isGroupVisible(group, msp->sSequence->type) ;
     }
 
   return showMsp;

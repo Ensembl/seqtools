@@ -312,8 +312,6 @@ typedef enum
     BLXFLAG_OPTIONAL_COLUMNS,       /* Gets set to true if the optional columns have been loaded */
     BLXFLAG_SHOW_CDS,               /* True if CDS/UTR regions should be shown; false if plain exons should be shown */
     BLXFLAG_NEGATE_COORDS,          /* True if coords should be negated when display is reversed (so coords appear to increase left-to-right when really they decrease) */
-    BLXFLAG_HIDE_UNGROUPED_SEQS,    /* Hide all sequences that are not in a group (unless their group is also hidden) */
-    BLXFLAG_HIDE_UNGROUPED_FEATURES,/* Hide all features that are not in a group (unless their group is also hidden) */
     BLXFLAG_SAVE_TEMP_FILES,        /* save any temporary files that blixem creates, e.g. the GFF file created by the region-fetch fetch mode */
     BLXFLAG_ABBREV_TITLE,           /* whether to abbreviate the window titles to save space */
     BLXFLAG_LINK_FEATURES,          /* whether features with the same name should be linked */
@@ -334,6 +332,10 @@ typedef struct _SequenceGroup
     GList *seqList;                /* list of BlxSequences */
     gboolean ownsSeqNames;         /* If true, the group will free the sequence names when it is destroyed */
     gboolean hidden;               /* true if the group should be hidden from the detail view */
+    gboolean isFilter;             /* true if this is a filter (i.e. hide everything not in a
+                                    * filter) */
+    gboolean isQuickGroup;         /* true if the group was created by a quick-group or
+                                    * quick-filter option */
     gboolean highlighted;          /* true if the group should be highlighted */
     GdkColor highlightColor;       /* the color to highlight the group's sequences in (in both the big picture and the detail view) */
   } SequenceGroup;

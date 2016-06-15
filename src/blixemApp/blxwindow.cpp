@@ -62,7 +62,6 @@ using namespace std;
 #define DEFAULT_SCROLL_STEP_INCREMENT    5    /* how many bases the scrollbar scrolls by for each increment */
 #define DEFAULT_WINDOW_WIDTH_FRACTION    0.9  /* what fraction of the screen size the blixem window width defaults to */
 #define DEFAULT_WINDOW_HEIGHT_FRACTION   0.6  /* what fraction of the screen size the blixem window height defaults to */
-#define MATCH_SET_GROUP_NAME             "Match set"
 #define LOAD_DATA_TEXT                   "Load optional\ndata"
 #define DEFAULT_TABLE_XPAD               2    /* default x-padding to use in tables */
 #define DEFAULT_TABLE_YPAD               2    /* default y-padding to use in tables */
@@ -134,7 +133,9 @@ static void                       onToggleStrandMenu(GtkAction *action, gpointer
 static void                       onViewMenu(GtkAction *action, gpointer data);
 static void                       onCreateGroupMenu(GtkAction *action, gpointer data);
 static void                       onEditGroupsMenu(GtkAction *action, gpointer data);
-static void                       onToggleMatchSet(GtkAction *action, gpointer data);
+static void                       onCreateQuickGroup(GtkAction *action, gpointer data);
+static void                       onCreateQuickFilter(GtkAction *action, gpointer data);
+static void                       onClearQuickGroups(GtkAction *action, gpointer data);
 static void                       onDotterMenu(GtkAction *action, gpointer data);
 static void                       onCloseAllDottersMenu(GtkAction *action, gpointer data);
 static void                       onSelectFeaturesMenu(GtkAction *action, gpointer data);
@@ -182,6 +183,7 @@ static void                       saveBlixemSettings(GtkWidget *blxWindow);
 /* Standard menu entries */
 static const GtkActionEntry mainMenuEntries[] = {
   { "CopyMenuAction",   NULL, "Copy"},
+  { "GroupMenuAction",  NULL, "Group/Filter"},
 
   { "Quit",             GTK_STOCK_QUIT,           "_Quit",                    "<control>Q",         "Quit  Ctrl+Q",                         G_CALLBACK(onQuit)},
   { "Help",             GTK_STOCK_HELP,           "_Help",                    "<control>H",         "Display help  Ctrl+H",                 G_CALLBACK(onHelpMenu)},
@@ -213,9 +215,11 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "ToggleStrand",     GTK_STOCK_REFRESH,        "Toggle strand",            "T",                  "Toggle the active strand  T",          G_CALLBACK(onToggleStrandMenu)},
 
   { "View",             GTK_STOCK_FULLSCREEN,     "_View...",                 "V",                  "Edit view settings  V",                G_CALLBACK(onViewMenu)},
-  { "CreateGroup",      NULL,                     "Create Group...",          "<shift><control>G",  "Create group  Shift+Ctrl+G",           G_CALLBACK(onCreateGroupMenu)},
+  { "CreateGroup",      NULL,                     "Create Custom Group...",   "<shift><control>G",  "Create group  Shift+Ctrl+G",           G_CALLBACK(onCreateGroupMenu)},
   { "EditGroups",       GTK_STOCK_EDIT,           "Edit _Groups...",          "<control>G",         "Edit groups  Ctrl+G",                  G_CALLBACK(onEditGroupsMenu)},
-  { "ToggleMatchSet",   NULL,                     "Toggle _match set group",  "G",                  "Create/clear the match set group  G",  G_CALLBACK(onToggleMatchSet)},
+  { "CreateQuickGroup", NULL,                     "Create group from clipboard", "G",               "Create a group based on features on the clipboard (clears existing group; hold shift to add to it)  G",  G_CALLBACK(onCreateQuickGroup)},
+  { "CreateQuickFilter",NULL,                     "Create filter from clipboard", "F",              "Create a filter based on features on the clipboard (clears existing filter; hold shift to add to it)  F",  G_CALLBACK(onCreateQuickFilter)},
+  { "ClearQuickGroups", NULL,                     "Clear groups/filters",     "C",                  "Clear quick groups/filters  C",        G_CALLBACK(onClearQuickGroups)},
   { "DeselectAllRows",  NULL,                     "Deselect _all",            "<shift><control>A",  "Deselect all  Shift+Ctrl+A",           G_CALLBACK(onDeselectAllRows)},
 
   { "Dotter",           NULL,                     "_Dotter...",               "<control>D",         "Start Dotter  Ctrl+D",                 G_CALLBACK(onDotterMenu)},
@@ -251,9 +255,13 @@ static const char standardMenuDescription[] =
 "        <menuitem action='CopyRefSeqDisplay'/>"
 "      </menu>"
 "      <menuitem action='View'/>"
-"      <menuitem action='CreateGroup'/>"
-"      <menuitem action='EditGroups'/>"
-"      <menuitem action='ToggleMatchSet'/>"
+"      <menu action='GroupMenuAction'>"
+"        <menuitem action='CreateQuickGroup'/>"
+"        <menuitem action='CreateQuickFilter'/>"
+"        <menuitem action='ClearQuickGroups'/>"
+"        <menuitem action='CreateGroup'/>"
+"        <menuitem action='EditGroups'/>"
+"      </menu>"
 "      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
@@ -581,19 +589,9 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
   BlxContext *blxContext = blxWindowGetContext(blxWindow);
   GList *groupList = blxContext->sequenceGroups;
   
-  if (g_list_length(groupList) > 1)
+  if (g_list_length(groupList) >= 1)
     {
       result = TRUE;
-    }
-  else if (g_list_length(groupList) == 1)
-    {
-      /* Only one group. If it's the match set group, check it has sequences */
-      SequenceGroup *group = (SequenceGroup*)(groupList->data);
-      
-      if (group != blxContext->matchSetGroup || g_list_length(group->seqList) > 0)
-        {
-          result = TRUE;
-        }
     }
   
   return result;
@@ -1978,7 +1976,12 @@ static void blxWindowGroupsChanged(GtkWidget *blxWindow)
  * will take ownership of the sequence names and free them when it is destroyed. 
  * Caller can optionally provide the group name; if not provided, a default name
  * will be allocated. */
-static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, const gboolean ownSeqNames, const char *groupName)
+static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, 
+                                          GList *seqList, 
+                                          const gboolean ownSeqNames, 
+                                          const char *groupName,
+                                          const bool isQuickGroup = false,
+                                          const bool isFilter = false)
 {
   BlxContext *bc = blxWindowGetContext(blxWindow);
   
@@ -1988,6 +1991,8 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
   group->seqList = seqList;
   group->ownsSeqNames = ownSeqNames;
   group->hidden = FALSE;
+  group->isQuickGroup = isQuickGroup;
+  group->isFilter = isFilter;
   
   /* Find a unique ID */
   GList *lastItem = g_list_last(bc->sequenceGroups);
@@ -2022,7 +2027,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
   /* Set the default highlight color. */
   group->highlighted = TRUE;
 
-  BlxColorId colorId = (groupName && !strcmp(groupName, MATCH_SET_GROUP_NAME)) ? BLXCOLOR_MATCH_SET : BLXCOLOR_GROUP;
+  BlxColorId colorId = BLXCOLOR_GROUP;
   GdkColor *color = getGdkColor(colorId, bc->defaultColors, FALSE, bc->usePrintColors);
   group->highlightColor = *color;
 
@@ -2095,6 +2100,25 @@ static gboolean onGroupOrderChanged(GtkWidget *widget, const gint responseId, gp
 }
 
 
+/* This callback is called when the dialog settings are applied. It sets the filter
+ * status of the passed group based on the toggle button's state */
+static gboolean onGroupFilterToggled(GtkWidget *button, const gint responseId, gpointer data)
+{
+  gboolean result = TRUE;
+  
+  SequenceGroup *group = (SequenceGroup*)data;
+  group->isFilter = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+
+  /* Refilter trees and redraw all immediately show the new status */
+  GtkWidget *dialog = gtk_widget_get_toplevel(button);
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+
+  blxWindowGroupsChanged(blxWindow);
+  
+  return result;
+}
+
+
 /* This callback is called when the dialog settings are applied. It sets the hidden
  * status of the passed groupo based on the toggle button's state */
 static gboolean onGroupHiddenToggled(GtkWidget *button, const gint responseId, gpointer data)
@@ -2158,54 +2182,57 @@ static gboolean onGroupColorChanged(GtkWidget *button, const gint responseId, gp
  * widget at the given row. */
 static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, GtkTable *table, const int row, const int xpad, const int ypad)
 {
-  BlxContext *blxContext = blxWindowGetContext(blxWindow);
-  
-  /* Only show the special 'match set' group if it has some sequences */
-  if (group != blxContext->matchSetGroup || g_list_length(group->seqList) > 0)
-    {
-      /* Show the group's name in a text box that the user can edit */
-      GtkWidget *nameWidget = gtk_entry_new();
-      gtk_entry_set_text(GTK_ENTRY(nameWidget), group->groupName);
-      gtk_entry_set_activates_default(GTK_ENTRY(nameWidget), TRUE);
-      widgetSetCallbackData(nameWidget, onGroupNameChanged, group);
+  /* Show the group's name in a text box that the user can edit */
+  GtkWidget *nameWidget = gtk_entry_new();
+  gtk_entry_set_text(GTK_ENTRY(nameWidget), group->groupName);
+  gtk_entry_set_activates_default(GTK_ENTRY(nameWidget), TRUE);
+  widgetSetCallbackData(nameWidget, onGroupNameChanged, group);
       
-      /* Add a check box for the 'hidden' flag */
-      GtkWidget *isHiddenWidget = gtk_check_button_new();
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHiddenWidget), group->hidden);
-      widgetSetCallbackData(isHiddenWidget, onGroupHiddenToggled, group);
+  /* Add a check box for the 'isFilter' flag */
+  GtkWidget *isFilterWidget = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isFilterWidget), group->isFilter);
+  gtk_widget_set_tooltip_text(isFilterWidget, "If any Filter groups are set, Blixem will filter out features of the same type that are not in a Filter group");
+  widgetSetCallbackData(isFilterWidget, onGroupFilterToggled, group);
+      
+  /* Add a check box for the 'hidden' flag */
+  GtkWidget *isHiddenWidget = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHiddenWidget), group->hidden);
+  gtk_widget_set_tooltip_text(isHiddenWidget, "Always hide features in this group");
+  widgetSetCallbackData(isHiddenWidget, onGroupHiddenToggled, group);
 
-      /* Add a check box for the 'highlighted' flag */
-      GtkWidget *isHighlightedWidget = gtk_check_button_new();
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHighlightedWidget), group->highlighted);
-      widgetSetCallbackData(isHighlightedWidget, onGroupHighlightedToggled, group);
+  /* Add a check box for the 'highlighted' flag */
+  GtkWidget *isHighlightedWidget = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHighlightedWidget), group->highlighted);
+  gtk_widget_set_tooltip_text(isHighlightedWidget, "Highlight features that are in this group (use the colour selector to set the highlight color)");
+  widgetSetCallbackData(isHighlightedWidget, onGroupHighlightedToggled, group);
       
-      /* Show the group's order number in an editable text box */
-      GtkWidget *orderWidget = gtk_entry_new();
+  /* Show the group's order number in an editable text box */
+  GtkWidget *orderWidget = gtk_entry_new();
 
-      char *orderStr = convertIntToString(group->order);
-      gtk_entry_set_text(GTK_ENTRY(orderWidget), orderStr);
-      g_free(orderStr);
+  char *orderStr = convertIntToString(group->order);
+  gtk_entry_set_text(GTK_ENTRY(orderWidget), orderStr);
+  g_free(orderStr);
       
-      gtk_entry_set_activates_default(GTK_ENTRY(orderWidget), TRUE);
-      gtk_widget_set_size_request(orderWidget, 30, -1);
-      widgetSetCallbackData(orderWidget, onGroupOrderChanged, group);
+  gtk_entry_set_activates_default(GTK_ENTRY(orderWidget), TRUE);
+  gtk_widget_set_size_request(orderWidget, 30, -1);
+  widgetSetCallbackData(orderWidget, onGroupOrderChanged, group);
 
-      /* Show the group's highlight color in a button that will also launch a color-picker */
-      GtkWidget *colorButton = gtk_color_button_new_with_color(&group->highlightColor);
-      widgetSetCallbackData(colorButton, onGroupColorChanged, group);
+  /* Show the group's highlight color in a button that will also launch a color-picker */
+  GtkWidget *colorButton = gtk_color_button_new_with_color(&group->highlightColor);
+  widgetSetCallbackData(colorButton, onGroupColorChanged, group);
       
-      /* Create a button that will delete this group */
-      GtkWidget *deleteButton = gtk_button_new_from_stock(GTK_STOCK_DELETE);
-      g_signal_connect(G_OBJECT(deleteButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroup), group);
+  /* Create a button that will delete this group */
+  GtkWidget *deleteButton = gtk_button_new_from_stock(GTK_STOCK_DELETE);
+  g_signal_connect(G_OBJECT(deleteButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroup), group);
       
-      /* Put everything in the table */
-      gtk_table_attach(table, nameWidget,               1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, isHiddenWidget,   2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, isHighlightedWidget,      3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, orderWidget,              4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, colorButton,              5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, deleteButton,             6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-    }
+  /* Put everything in the table */
+  gtk_table_attach(table, nameWidget,               1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, isFilterWidget,           2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, isHiddenWidget,           3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, isHighlightedWidget,      4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, orderWidget,              5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, colorButton,              6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, deleteButton,             7, 8, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
 }
 
 
@@ -2432,43 +2459,52 @@ static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText,
 }
 
 
-/* Callback function to be used when requesting text from the clipboard to be used
- * to create the 'match set' group from the paste text */
-static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+/* Create a group/filter from features on the clipboard. Adds to an existing quick group/filter
+ * if exists, otherwise creates one. */
+static void createGroupOrFilterFromClipboard(GtkClipboard *clipboard, 
+                                             const char *clipboardText, 
+                                             const bool isFilter,
+                                             gpointer data)
 {
   /* Get the list of sequences to include */
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GList *seqList = getSeqStructsFromText(blxWindow, clipboardText, BLXCOL_SEQNAME, NULL);
   
-  /* If a group already exists, replace its list. Otherwise create the group. */
   if (seqList)
     {
+      /* See if there's already a quick group/filter */
       BlxContext *blxContext = blxWindowGetContext(blxWindow);
-      
-      if (!blxContext->matchSetGroup)
+      SequenceGroup *group = blxContext->getQuickGroup(isFilter);
+
+      if (group)
         {
-          blxContext->matchSetGroup = createSequenceGroup(blxWindow, seqList, FALSE, MATCH_SET_GROUP_NAME);
+          group->seqList = g_list_concat(group->seqList, seqList);
+          blxWindowGroupsChanged(blxWindow);
         }
       else
         {
-          if (blxContext->matchSetGroup->seqList)
-            {
-              g_list_free(blxContext->matchSetGroup->seqList);
-            }
-          
-          blxContext->matchSetGroup->seqList = seqList;
+          createSequenceGroup(blxWindow, seqList, FALSE, NULL, true, isFilter);
         }
-      
-      /* Reset the highlighted/hidden properties to make sure the group is initially visible */
-      blxContext->matchSetGroup->highlighted = TRUE;
-      blxContext->matchSetGroup->hidden = FALSE;
 
-      blxWindowGroupsChanged(blxWindow);
-      
-      /* Refresh the groups dialog, if it happens to be open */
       refreshDialog(BLXDIALOG_GROUPS, blxWindow);
     }
 }
+
+
+/* Callback function to be used when requesting text from the clipboard to be used
+ * to create a group from the paste text */
+static void createGroupFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+{
+  createGroupOrFilterFromClipboard(clipboard, clipboardText, false, data) ;
+}
+
+/* Callback function to be used when requesting text from the clipboard to be used
+ * to create a filter from the paste text */
+static void createFilterFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+{
+  createGroupOrFilterFromClipboard(clipboard, clipboardText, true, data) ;
+}
+
 
 
 /* Callback function to be used when requesting text from the clipboard to be used
@@ -2488,28 +2524,32 @@ void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, g
 }
 
 
-/* This function toggles the match set.  That is, if the match set (a special 
- * group) exists then it deletes it; if it does not exist, then it creates it
- * from the current clipboard text (which should contain valid sequence name(s)). */
-static void toggleMatchSet(GtkWidget *blxWindow)
+/* Clear all groups that were created by the quick-group or quick-filter options */
+static void clearQuickGroups(GtkWidget *blxWindow, const bool refresh = true)
 {
   BlxContext *blxContext = blxWindowGetContext(blxWindow);
-  
-  if (blxContext->matchSetGroup && blxContext->matchSetGroup->seqList)
-    {
-      /* Clear the list of names only (don't delete the group, because we want to
-       * keep any changes the user made (e.g. to the group color etc.) for next time. */
-      g_list_free(blxContext->matchSetGroup->seqList);
-      blxContext->matchSetGroup->seqList = NULL;
-      blxWindowGroupsChanged(blxWindow);
 
-      /* Refresh the groups dialog, if it happens to be open */
+  blxContext->deleteAllQuickGroups();
+  
+  if (refresh)
+    {
+      blxWindowGroupsChanged(blxWindow);
       refreshDialog(BLXDIALOG_GROUPS, blxWindow);
     }
+}
+
+
+/* This function creates a group (or filter, if filter=true) from features 
+ * on the clipboard text (which should contain valid sequence name(s)). */
+static void createQuickGroup(GtkWidget *blxWindow, const bool isFilter, const bool clearPrevious)
+{
+  if (clearPrevious)
+    clearQuickGroups(blxWindow, false) ;
+
+  if (isFilter)
+    requestPrimaryClipboardText(createFilterFromClipboard, blxWindow);
   else
-    {
-      requestPrimaryClipboardText(createMatchSetFromClipboard, blxWindow);
-    }
+    requestPrimaryClipboardText(createGroupFromClipboard, blxWindow);
 }
 
 
@@ -2709,27 +2749,6 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
 }
 
 
-/* Callback for when the 'hide ungrouped sequences' option is changed */
-static gboolean onHideUngroupedChanged(GtkWidget *button, const gint responseId, gpointer data)
-{
-  setFlagFromButton(button, data);
-  
-  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  
-  refilterDetailView(detailView, NULL);
-
-  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
-  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
-  forceResize(bigPicture);
-
-  blxWindowRedrawAll(blxWindow);
-  
-  return TRUE;
-}
-
-
 /* Create the 'create group' tab of the groups dialog. Appends it to the notebook. */
 static void createCreateGroupTab(GtkNotebook *notebook, BlxContext *bc, GtkWidget *blxWindow)
 {
@@ -2758,7 +2777,7 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxContext *bc, GtkWidget
 {
   const int numRows = g_list_length(bc->sequenceGroups) + 4; /* +4 for: header; delete-all button;
                                                                 hide-all-seqs; hide-all-features */
-  const int numCols = 6;
+  const int numCols = 7;
   const int xpad = DEFAULT_TABLE_XPAD;
   const int ypad = DEFAULT_TABLE_YPAD;
   int row = 1;
@@ -2769,24 +2788,12 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxContext *bc, GtkWidget
   /* Append the table as a new tab to the notebook */
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table), gtk_label_new("Edit groups"));
   
-  /* Add check buttons to turn on the 'hide ungrouped sequences/features' options */
-  GtkWidget *hideButton1 = gtk_check_button_new_with_mnemonic("_Hide all sequences not in a group");
-  GtkWidget *hideButton2 = gtk_check_button_new_with_mnemonic("_Hide all features not in a group");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton1), bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS]);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton2), bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES]);
-  widgetSetCallbackData(hideButton1, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_SEQS));
-  widgetSetCallbackData(hideButton2, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_FEATURES));
-
-  gtk_table_attach(table, hideButton1, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  ++row;
-  gtk_table_attach(table, hideButton2, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  ++row;
-  
   /* Add labels for each column in the table */
   gtk_table_attach(table, gtk_label_new("Group name"),    1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Hide"),          2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Highlight"),     3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Order"),         4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Filter"),        2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Hide"),          3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Highlight"),     4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Order"),         5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   ++row;
   
   /* Add a set of widgets for each group */
@@ -4761,11 +4768,26 @@ static void onEditGroupsMenu(GtkAction *action, gpointer data)
   showGroupsDialog(blxWindow, TRUE, TRUE);
 }
 
-/* Called when the user selects the 'Toggle match set' option, or hits the relevant shortcut key */
-static void onToggleMatchSet(GtkAction *action, gpointer data)
+/* Called when the user selects the 'Create group from clipboard' option */
+static void onCreateQuickGroup(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  toggleMatchSet(blxWindow);
+  createQuickGroup(blxWindow, false, true);
+}
+
+/* Called when the user selects the 'Create filter from clipboard' option */
+static void onCreateQuickFilter(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  createQuickGroup(blxWindow, true, true);
+}
+
+/* Called when the user selects the 'Clear groups/filters' option */
+static void onClearQuickGroups(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+
+  clearQuickGroups(blxWindow);
 }
 
 /* Called when the user selects the Settings menu option, or hits the Settings shortcut key */
@@ -5113,7 +5135,7 @@ static gboolean onKeyPressF(GtkWidget *window, const gboolean ctrlModifier, cons
     }
   else
     {
-      requestPrimaryClipboardText(findSeqsFromClipboard, window);
+      createQuickGroup(window, true, !shiftModifier);
     }
 
   return TRUE;
@@ -5138,7 +5160,7 @@ static gboolean onKeyPressG(GtkWidget *window, const gboolean ctrlModifier, cons
   
   if (!ctrlModifier)
     {       
-      toggleMatchSet(window);
+      createQuickGroup(window, false, !shiftModifier);
       result = TRUE;
     }
   
