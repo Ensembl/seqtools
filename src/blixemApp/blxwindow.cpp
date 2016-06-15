@@ -2508,9 +2508,25 @@ static void createFilterFromClipboard(GtkClipboard *clipboard, const char *clipb
 
 
 /* Callback function to be used when requesting text from the clipboard to be used
- * to find and select sequences based on the paste text. Scrolls the first selected
+ * to find sequences based on the paste text. Scrolls the first selected
  * match into view. */
 void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+{
+  /* Get the list of sequences to include */
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  GList *seqList = getSeqStructsFromText(blxWindow, clipboardText, BLXCOL_SEQNAME, NULL);
+  
+  if (seqList)
+    {
+      blxWindowSetSelectedSeqList(blxWindow, seqList);
+    }
+}
+
+
+/* Callback function to be used when requesting text from the clipboard to be used
+ * to find and select sequences based on the paste text. Scrolls the first selected
+ * match into view. */
+void findAndSelectSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
 {
   /* Get the list of sequences to include */
   GtkWidget *blxWindow = GTK_WIDGET(data);
@@ -5120,7 +5136,7 @@ static gboolean onKeyPressV(GtkWidget *window, const gboolean ctrlModifier, cons
   if (ctrlModifier)
     {
       /* Paste from the default clipboard */
-      requestDefaultClipboardText(findSeqsFromClipboard, window);
+      requestDefaultClipboardText(findAndSelectSeqsFromClipboard, window);
       result = TRUE;
     }
   
@@ -6790,6 +6806,9 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
   calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
   forceResize(bigPicture);
+
+  /* If the primary clipboard contains features, select them on startup */
+  requestPrimaryClipboardText(findSeqsFromClipboard, window);
   
   return window;
 }
