@@ -135,7 +135,7 @@ static void                       onCreateGroupMenu(GtkAction *action, gpointer 
 static void                       onEditGroupsMenu(GtkAction *action, gpointer data);
 static void                       onCreateQuickGroup(GtkAction *action, gpointer data);
 static void                       onCreateQuickFilter(GtkAction *action, gpointer data);
-static void                       onClearQuickGroups(GtkAction *action, gpointer data);
+static void                       onClearGroups(GtkAction *action, gpointer data);
 static void                       onDotterMenu(GtkAction *action, gpointer data);
 static void                       onCloseAllDottersMenu(GtkAction *action, gpointer data);
 static void                       onSelectFeaturesMenu(GtkAction *action, gpointer data);
@@ -219,7 +219,7 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "EditGroups",       GTK_STOCK_EDIT,           "Edit _Groups...",          "<control>G",         "Edit groups  Ctrl+G",                  G_CALLBACK(onEditGroupsMenu)},
   { "CreateQuickGroup", NULL,                     "Create group from clipboard", "G",               "Create a group based on features on the clipboard (clears existing group; hold shift to add to it)  G",  G_CALLBACK(onCreateQuickGroup)},
   { "CreateQuickFilter",NULL,                     "Create filter from clipboard", "F",              "Create a filter based on features on the clipboard (clears existing filter; hold shift to add to it)  F",  G_CALLBACK(onCreateQuickFilter)},
-  { "ClearQuickGroups", NULL,                     "Clear groups/filters", "C",                      "Clear quick groups/filters  C",        G_CALLBACK(onClearQuickGroups)},
+  { "ClearGroups",      NULL,                     "Clear groups/filters", "C",                      "Disable all groups/filters (you can re-enable them from the Groups dialog)  C",        G_CALLBACK(onClearGroups)},
   { "DeselectAllRows",  NULL,                     "Deselect _all",            "<shift><control>A",  "Deselect all  Shift+Ctrl+A",           G_CALLBACK(onDeselectAllRows)},
 
   { "Dotter",           NULL,                     "_Dotter...",               "<control>D",         "Start Dotter  Ctrl+D",                 G_CALLBACK(onDotterMenu)},
@@ -258,7 +258,7 @@ static const char standardMenuDescription[] =
 "      <menu action='GroupMenuAction'>"
 "        <menuitem action='CreateQuickGroup'/>"
 "        <menuitem action='CreateQuickFilter'/>"
-"        <menuitem action='ClearQuickGroups'/>"
+"        <menuitem action='ClearGroups'/>"
 "        <menuitem action='CreateGroup'/>"
 "        <menuitem action='EditGroups'/>"
 "      </menu>"
@@ -2550,12 +2550,12 @@ void findAndSelectSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboa
 }
 
 
-/* Clear all groups that were created by the quick-group or quick-filter options */
-static void clearQuickGroups(GtkWidget *blxWindow, const bool refresh = true)
+/* Disable all groups/filters */
+static void clearGroups(GtkWidget *blxWindow, const bool refresh = true)
 {
   BlxContext *blxContext = blxWindowGetContext(blxWindow);
 
-  blxContext->disableAllQuickGroups();
+  blxContext->disableAllGroups();
   
   if (refresh)
     {
@@ -4811,11 +4811,11 @@ static void onCreateQuickFilter(GtkAction *action, gpointer data)
 }
 
 /* Called when the user selects the 'Clear groups/filters' option */
-static void onClearQuickGroups(GtkAction *action, gpointer data)
+static void onClearGroups(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
 
-  clearQuickGroups(blxWindow);
+  clearGroups(blxWindow);
 }
 
 /* Called when the user selects the Settings menu option, or hits the Settings shortcut key */
