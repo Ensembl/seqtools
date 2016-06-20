@@ -2830,11 +2830,14 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxContext *bc, GtkWidget
   const int ypad = DEFAULT_TABLE_YPAD;
   int row = 1;
   
-  /* Put everything in a table */
+  /* Put everything in a table inside a scrolled window */
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), GTK_WIDGET(table));
   
   /* Append the table as a new tab to the notebook */
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table), gtk_label_new("Edit groups"));
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(scrollWin), gtk_label_new("Edit groups"));
   
   /* Add labels for each column in the table */
   gtk_table_attach(table, gtk_label_new("Group name"),    1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
@@ -2914,6 +2917,11 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
   gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
   g_signal_connect(notebook, "switch-page", G_CALLBACK(onSwitchPageGroupsDialog), dialog);
   
+  int width = 450, height = 300;
+  int maxwidth = width, maxheight = height;
+  gbtools::GUIGetTrueMonitorSizeFraction(dialog, 0.33, 0.33, &maxwidth, &maxheight);
+  gtk_window_set_default_size(GTK_WINDOW(dialog), std::min(width, maxwidth), std::min(height, maxheight));
+
   gtk_widget_show_all(dialog);
 
   if (editGroups && notebook && blxWindowGroupsExist(blxWindow))
