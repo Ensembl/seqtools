@@ -460,11 +460,16 @@ void BlxContext::destroySequenceGroup(SequenceGroup **seqGroup)
 void BlxContext::deleteAllSequenceGroups()
 {
   GList *groupItem = sequenceGroups;
+  GList *nextItem = NULL;
   
-  for ( ; groupItem; groupItem = groupItem->next)
+  while (groupItem)
     {
+      nextItem = groupItem->next; // groupItem gets invalidated by destroySequenceGroup
+
       SequenceGroup *group = (SequenceGroup*)(groupItem->data);
       destroySequenceGroup(&group);
+
+      groupItem = nextItem;
     }
   
   g_list_free(sequenceGroups);
@@ -485,6 +490,7 @@ void BlxContext::disableAllGroups()
 
       group->isFilter = FALSE;
       group->highlighted = FALSE;
+      group->hidden = FALSE;
 
       groupItem = nextItem;
     }
@@ -508,6 +514,7 @@ void BlxContext::disableAllQuickGroups()
         {
           group->isFilter = FALSE;
           group->highlighted = FALSE;
+          group->hidden = FALSE;
           group->isQuickGroup = FALSE;
         }
 
@@ -1063,6 +1070,44 @@ BlxSequence* BlxContext::getSelectedTranscript(int *num_transcripts) const
 
   if (num_transcripts)
     *num_transcripts = num_found;
+
+  return result;
+}
+
+
+// Return a set of all the different sources for the selected features
+std::set<GQuark> BlxContext::getSelectedSources() const
+{
+  std::set<GQuark> result;
+
+  for (GList *item = selectedSeqs; item; item = item->next)
+    {
+      const BlxSequence* blxSeq = (const BlxSequence*)(item->data);
+      const char *source = blxSequenceGetSource(blxSeq);
+
+      if (source)
+        result.insert(g_quark_from_string(source));
+    }
+
+  return result;
+}
+
+
+// Return a list of all features (BlxSequences) in the given sources
+GList* BlxContext::getFeaturesInSourceList(std::set<GQuark> sources) const
+{
+  GList *result = NULL;
+
+  // For now simply loop through all features and check source (could probably improve efficiency
+  // by using featureLists and checking by type)
+  for (GList *item = matchSeqs; item; item = item->next)
+    {
+      BlxSequence* blxSeq = (BlxSequence*)(item->data);
+      const char *source = blxSequenceGetSource(blxSeq);
+      
+      if (sources.find(g_quark_from_string(source)) != sources.end())
+        result = g_list_append(result, blxSeq);
+    }
 
   return result;
 }

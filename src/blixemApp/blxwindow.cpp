@@ -136,6 +136,7 @@ static void                       onEditGroupsMenu(GtkAction *action, gpointer d
 static void                       onCreateQuickGroup(GtkAction *action, gpointer data);
 static void                       onCreateQuickFilter(GtkAction *action, gpointer data);
 static void                       onClearGroups(GtkAction *action, gpointer data);
+static void                       onHideSources(GtkAction *action, gpointer data);
 static void                       onDotterMenu(GtkAction *action, gpointer data);
 static void                       onCloseAllDottersMenu(GtkAction *action, gpointer data);
 static void                       onSelectFeaturesMenu(GtkAction *action, gpointer data);
@@ -218,8 +219,9 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "CreateGroup",      NULL,                     "Create Custom Group...",   "<shift><control>G",  "Create group  Shift+Ctrl+G",           G_CALLBACK(onCreateGroupMenu)},
   { "EditGroups",       GTK_STOCK_EDIT,           "Edit _Groups...",          "<control>G",         "Edit groups  Ctrl+G",                  G_CALLBACK(onEditGroupsMenu)},
   { "CreateQuickGroup", NULL,                     "Create group from clipboard", "G",               "Create a group based on features on the clipboard (clears existing group; hold shift to add to it)  G",  G_CALLBACK(onCreateQuickGroup)},
-  { "CreateQuickFilter",NULL,                     "Create filter from clipboard", "F",              "Create a filter based on features on the clipboard (clears existing filter; hold shift to add to it)  F",  G_CALLBACK(onCreateQuickFilter)},
-  { "ClearGroups",      NULL,                     "Clear groups/filters", "C",                      "Disable all groups/filters (you can re-enable them from the Groups dialog)  C",        G_CALLBACK(onClearGroups)},
+  { "CreateQuickFilter",NULL,                     "Create filter from clipboard","F",               "Create a filter based on features on the clipboard (clears existing filter; hold shift to add to it)  F",  G_CALLBACK(onCreateQuickFilter)},
+  { "HideSources",      NULL,                     "Hide source(s)",           "H",                  "Hide the selected source(s)  H",        G_CALLBACK(onHideSources)},
+  { "ClearGroups",      NULL,                     "Clear groups/filters",     "C",                  "Disable all groups/filters (you can re-enable them from the Groups dialog)  C",        G_CALLBACK(onClearGroups)},
   { "DeselectAllRows",  NULL,                     "Deselect _all",            "<shift><control>A",  "Deselect all  Shift+Ctrl+A",           G_CALLBACK(onDeselectAllRows)},
 
   { "Dotter",           NULL,                     "_Dotter...",               "<control>D",         "Start Dotter  Ctrl+D",                 G_CALLBACK(onDotterMenu)},
@@ -258,6 +260,7 @@ static const char standardMenuDescription[] =
 "      <menu action='GroupMenuAction'>"
 "        <menuitem action='CreateQuickGroup'/>"
 "        <menuitem action='CreateQuickFilter'/>"
+"        <menuitem action='HideSources'/>"
 "        <menuitem action='ClearGroups'/>"
 "        <menuitem action='CreateGroup'/>"
 "        <menuitem action='EditGroups'/>"
@@ -1981,7 +1984,9 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow,
                                           const gboolean ownSeqNames, 
                                           const char *groupName,
                                           const bool isQuickGroup = false,
-                                          const bool isFilter = false)
+                                          const bool isFilter = false,
+                                          const bool highlight = true,
+                                          const bool hide = false)
 {
   BlxContext *bc = blxWindowGetContext(blxWindow);
   
@@ -1990,7 +1995,8 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow,
   
   group->seqList = seqList;
   group->ownsSeqNames = ownSeqNames;
-  group->hidden = FALSE;
+  group->hidden = hide;
+  group->highlighted = highlight;
   group->isQuickGroup = isQuickGroup;
   group->isFilter = isFilter;
   
@@ -2009,7 +2015,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow,
 
   if (groupName)
     {
-      group->groupName = g_strdup(groupName);
+      group->groupName = g_strdup_printf("%s%d", groupName, group->groupId);
     }
   else
     {
@@ -2029,14 +2035,7 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow,
    * as the ID number, so groups are sorted in the order they were added */
   group->order = group->groupId;
 
-  /* Set the default highlight color. Note that for normal groups we highlight the features by
-   * default so the user can differentiate them; for filters we don't bother because they will
-   * only see filtered features anyway */
-  if (isFilter)
-    group->highlighted = FALSE;
-  else
-    group->highlighted = TRUE;
-
+  /* Set the default highlight color */
   BlxColorId colorId = BLXCOLOR_GROUP;
   GdkColor *color = getGdkColor(colorId, bc->defaultColors, FALSE, bc->usePrintColors);
   group->highlightColor = *color;
@@ -2493,7 +2492,7 @@ static void createGroupOrFilterFromClipboard(GtkClipboard *clipboard,
         }
       else
         {
-          createSequenceGroup(blxWindow, seqList, FALSE, NULL, true, isFilter);
+          createSequenceGroup(blxWindow, seqList, FALSE, NULL, true, isFilter, !isFilter, false);
         }
 
       refreshDialog(BLXDIALOG_GROUPS, blxWindow);
@@ -2546,6 +2545,27 @@ void findAndSelectSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboa
     {
       blxWindowSetSelectedSeqList(blxWindow, seqList);
       firstMatch(blxWindowGetDetailView(blxWindow), seqList, FALSE);
+    }
+}
+
+
+static void hideSelectedSources(GtkWidget *blxWindow, const bool refresh = true)
+{
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
+  g_return_if_fail(blxContext);
+
+  std::set<GQuark> sourceList = blxContext->getSelectedSources();
+  GList *seqList = blxContext->getFeaturesInSourceList(sourceList);
+
+  if (seqList)
+    {
+      createSequenceGroup(blxWindow, seqList, FALSE, "HideSource", false, false, false, true);
+  
+      if (refresh)
+        {
+          blxWindowGroupsChanged(blxWindow);
+          refreshDialog(BLXDIALOG_GROUPS, blxWindow);
+        }
     }
 }
 
@@ -4808,6 +4828,14 @@ static void onCreateQuickFilter(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
   createQuickGroup(blxWindow, true, true);
+}
+
+/* Called when the user selects the 'Hide source(s)' option */
+static void onHideSources(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+
+  hideSelectedSources(blxWindow);
 }
 
 /* Called when the user selects the 'Clear groups/filters' option */
