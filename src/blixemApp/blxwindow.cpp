@@ -2024,8 +2024,13 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow,
    * as the ID number, so groups are sorted in the order they were added */
   group->order = group->groupId;
 
-  /* Set the default highlight color. */
-  group->highlighted = TRUE;
+  /* Set the default highlight color. Note that for normal groups we highlight the features by
+   * default so the user can differentiate them; for filters we don't bother because they will
+   * only see filtered features anyway */
+  if (isFilter)
+    group->highlighted = FALSE;
+  else
+    group->highlighted = TRUE;
 
   BlxColorId colorId = BLXCOLOR_GROUP;
   GdkColor *color = getGdkColor(colorId, bc->defaultColors, FALSE, bc->usePrintColors);
