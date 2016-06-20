@@ -94,7 +94,8 @@ public:
   SequenceGroup* getQuickGroup(const bool isFilter);
   void destroySequenceGroup(SequenceGroup **seqGroup);
   void deleteAllSequenceGroups();
-  void deleteAllQuickGroups();
+  void disableAllGroups();
+  void disableAllQuickGroups();
 
 
   GtkWidget *statusBar;                   /* The Blixem window's status bar */

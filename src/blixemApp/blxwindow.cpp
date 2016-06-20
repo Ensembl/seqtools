@@ -219,7 +219,7 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "EditGroups",       GTK_STOCK_EDIT,           "Edit _Groups...",          "<control>G",         "Edit groups  Ctrl+G",                  G_CALLBACK(onEditGroupsMenu)},
   { "CreateQuickGroup", NULL,                     "Create group from clipboard", "G",               "Create a group based on features on the clipboard (clears existing group; hold shift to add to it)  G",  G_CALLBACK(onCreateQuickGroup)},
   { "CreateQuickFilter",NULL,                     "Create filter from clipboard", "F",              "Create a filter based on features on the clipboard (clears existing filter; hold shift to add to it)  F",  G_CALLBACK(onCreateQuickFilter)},
-  { "ClearQuickGroups", NULL,                     "Clear groups/filters",     "C",                  "Clear quick groups/filters  C",        G_CALLBACK(onClearQuickGroups)},
+  { "ClearQuickGroups", NULL,                     "Clear groups/filters", "C",                      "Clear quick groups/filters  C",        G_CALLBACK(onClearQuickGroups)},
   { "DeselectAllRows",  NULL,                     "Deselect _all",            "<shift><control>A",  "Deselect all  Shift+Ctrl+A",           G_CALLBACK(onDeselectAllRows)},
 
   { "Dotter",           NULL,                     "_Dotter...",               "<control>D",         "Start Dotter  Ctrl+D",                 G_CALLBACK(onDotterMenu)},
@@ -2014,10 +2014,15 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow,
   else
     {
       /* Create a default name based on the unique ID */
-      char formatStr[] = "Group%d";
-      const int nameLen = strlen(formatStr) + numDigitsInInt(group->groupId);
-      group->groupName = (char*)g_malloc(nameLen * sizeof(*group->groupName));
-      sprintf(group->groupName, formatStr, group->groupId);
+      std::stringstream ss;
+      if (isFilter)
+        ss << "Filter";
+      else
+        ss << "Group";
+          
+      ss << group->groupId;
+      
+      group->groupName = g_strdup(ss.str().c_str());
     }
   
   /* Set the order number. For simplicity, set the default order to be the same
@@ -2550,7 +2555,7 @@ static void clearQuickGroups(GtkWidget *blxWindow, const bool refresh = true)
 {
   BlxContext *blxContext = blxWindowGetContext(blxWindow);
 
-  blxContext->deleteAllQuickGroups();
+  blxContext->disableAllQuickGroups();
   
   if (refresh)
     {
@@ -2564,9 +2569,11 @@ static void clearQuickGroups(GtkWidget *blxWindow, const bool refresh = true)
  * on the clipboard text (which should contain valid sequence name(s)). */
 static void createQuickGroup(GtkWidget *blxWindow, const bool isFilter, const bool clearPrevious)
 {
-  if (clearPrevious)
-    clearQuickGroups(blxWindow, false) ;
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
 
+  if (clearPrevious)
+    blxContext->disableAllQuickGroups();
+  
   if (isFilter)
     requestPrimaryClipboardText(createFilterFromClipboard, blxWindow);
   else

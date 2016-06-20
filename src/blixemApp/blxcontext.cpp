@@ -472,8 +472,29 @@ void BlxContext::deleteAllSequenceGroups()
 }
 
 
-/* Delete all "quick" groups and filters */
-void BlxContext::deleteAllQuickGroups()
+/* Disable all groups and filters, i.e. turn off filtering and highlighting. */
+void BlxContext::disableAllGroups()
+{
+  GList *groupItem = sequenceGroups;
+  
+  while (groupItem)
+    {
+      GList *nextItem = groupItem->next ;
+
+      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+
+      group->isFilter = FALSE;
+      group->highlighted = FALSE;
+
+      groupItem = nextItem;
+    }
+}
+
+
+/* Disable all "quick" groups and filters, i.e. turn off filtering and highlighting. Also resets
+ * the 'quick group' flag so they become a normal group (at the moment we have a concept of only
+ * one quick group at a time). */
+void BlxContext::disableAllQuickGroups()
 {
   GList *groupItem = sequenceGroups;
   
@@ -485,7 +506,9 @@ void BlxContext::deleteAllQuickGroups()
 
       if (group->isQuickGroup)
         {
-          destroySequenceGroup(&group);
+          group->isFilter = FALSE;
+          group->highlighted = FALSE;
+          group->isQuickGroup = FALSE;
         }
 
       groupItem = nextItem;
