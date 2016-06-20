@@ -41,6 +41,7 @@
 
 #include <gtk/gtk.h>
 #include <blixemApp/blixem_.hpp>
+#include <set>
 
 
 // We filter features based on different types; for now, just 'matches' and 'everything else'.
@@ -75,6 +76,8 @@ public:
   SequenceGroup *getSequenceGroup(const BlxSequence *seqToFind) const;
   GList *getSelectedSeqsByType(const BlxSequenceType type) const;
   BlxSequence* getSelectedTranscript(int *num_transcripts) const;
+  std::set<GQuark> getSelectedSources() const;
+  GList* getFeaturesInSourceList(std::set<GQuark> sources) const;
 
   void highlightBoxCalcBorders(GdkRectangle *drawingRect, GdkRectangle *highlightRect, 
                                const IntRange *fullRange, const IntRange *highlightRange, 
