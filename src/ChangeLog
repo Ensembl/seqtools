@@ -1,3 +1,10 @@
+2016-06-21  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-102-gc940 - Update RT and git commit reports
+ src/ChangeLog                                  | 185 +++++++++++++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |  10 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |  12 +-
+ 3 files changed, 203 insertions(+), 4 deletions(-)
+
 2016-06-20  Gemma Guest  <gb10@sanger.ac.uk>
  Merge branch 'feature/groups' into develop
 2016-06-20  Gemma Guest  <gb10@sanger.ac.uk>
