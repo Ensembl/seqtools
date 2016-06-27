@@ -1,9 +1,13 @@
 
 Git commits for  from commit "production" until commit "release/4.43.0"
 
-4306b12 2016-05-03 Attempt to fix crash on mac - REGRESSION FIX
-0f579a2 2016-04-18 Fix a typo which was causing drag-and-drop to fail - REGRESSION FIX
-744cb30 2016-04-18 Fix a memory corruption crash on blixem startup - REGRESSION FIX
+c940ac7 2016-06-20 Merge branch 'feature/groups' into develop
+3715b99 2016-06-20 Merge branch 'feature/groups' into develop
+c47482c 2016-06-20 Merge branch 'feature/groups' into develop
+3d0d754 2016-06-15 Fix error with bad access - REGRESSION FIX
+ee1bbb9 2016-06-15 Merge branch 'feature/groups' into develop
+59d8df7 2016-06-15 Merge branch 'feature/dotter_sfs' into develop
+ad1f840 2016-06-15 Merge branch 'feature/groups' into develop
 2680452 2016-04-08 Fix a bug with big picture sections slightly misaligned - REGRESSION FIX
 139c6f5 2016-04-08 Merge branch 'feature/coverage' into develop - NEW FEATURE 'Detail view coverage'
 

@@ -463,7 +463,9 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
       if (iter != g_dataTypes.end())
         {
           result = iter->second ;
-
+        }
+      else
+        {
           /* look it up in the config file and if we find it then create a new BlxDataType struct for it. */
           const gchar *typeName = g_quark_to_string(dataType);
 

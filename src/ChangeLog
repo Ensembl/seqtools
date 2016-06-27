@@ -1,3 +1,195 @@
+2016-06-22  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-103-g89545 - Update RT and git commit reports
+ src/ChangeLog                                  | 7 +++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+2016-06-21  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-102-gc940 - Update RT and git commit reports
+ src/ChangeLog                                  | 185 +++++++++++++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |  10 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |  12 +-
+ 3 files changed, 203 insertions(+), 4 deletions(-)
+
+2016-06-20  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'feature/groups' into develop
+2016-06-20  Gemma Guest  <gb10@sanger.ac.uk>
+ Add groups list to scrolled window - WIP
+ src/blixemApp/blxwindow.cpp | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+2016-06-20  Gemma Guest  <gb10@sanger.ac.uk>
+ Add option to hide a source - WIP
+ src/blixemApp/blxcontext.cpp | 47 ++++++++++++++++++++++++++++++++++++-
+ src/blixemApp/blxcontext.hpp |  3 +++
+ src/blixemApp/blxwindow.cpp  | 56 +++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 91 insertions(+), 15 deletions(-)
+
+2016-06-20  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'feature/groups' into develop
+2016-06-20  Gemma Guest  <gb10@sanger.ac.uk>
+ Clear all groups not just quick groups - WIP
+ src/blixemApp/blxwindow.cpp | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+2016-06-20  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'feature/groups' into develop
+2016-06-20  Gemma Guest  <gb10@sanger.ac.uk>
+ Don't lose groups/filters when clearing - WIP
+ src/blixemApp/blxcontext.cpp | 29 ++++++++++++++++++++++++++---
+ src/blixemApp/blxcontext.hpp |  3 ++-
+ src/blixemApp/blxwindow.cpp  | 23 +++++++++++++++--------
+ 3 files changed, 43 insertions(+), 12 deletions(-)
+
+2016-06-20  Gemma Guest  <gb10@sanger.ac.uk>
+ Don't highlight filtered seqs by default - WIP
+ src/blixemApp/blxwindow.cpp | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+2016-06-15  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix error with bad access - REGRESSION FIX
+ src/seqtoolsUtils/blxGff3Parser.cpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+2016-06-15  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'feature/groups' into develop
+2016-06-15  Gemma Guest  <gb10@sanger.ac.uk>
+ Select clipboard features on startup
+ src/blixemApp/blixem_.hpp   |  1 +
+ src/blixemApp/blxwindow.cpp | 23 +++++++++++++++++++++--
+ src/blixemApp/blxwindow.hpp |  1 +
+ 3 files changed, 23 insertions(+), 2 deletions(-)
+
+2016-06-15  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'feature/dotter_sfs' into develop
+2016-06-15  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix badly displayed labels
+ src/blixemApp/blxdotter.cpp     |  5 +--
+ src/dotterApp/dotplot.cpp       | 81 ++++++++++++++++++++++++++++++++---------
+ src/dotterApp/dotterMain.cpp    |  7 +++-
+ src/seqtoolsUtils/blxmsp.cpp    |  1 -
+ src/seqtoolsUtils/blxmsp.hpp    |  2 +-
+ src/seqtoolsUtils/blxparser.cpp | 60 +++---------------------------
+ 6 files changed, 76 insertions(+), 80 deletions(-)
+
+2016-06-14  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix minor compilation warning
+ src/dotterApp/dotter.cpp | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+2016-06-14  Gemma Guest  <gb10@sanger.ac.uk>
+ Minor fix to dotter feature series
+ src/dotterApp/dotterMain.cpp    | 1 +
+ src/seqtoolsUtils/blxparser.cpp | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+2016-06-15  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'feature/groups' into develop
+2016-06-13  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix edit groups dialog - REGRESSION FIX
+ src/blixemApp/blxwindow.cpp | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
+
+2016-06-13  Gemma Guest  <gb10@sanger.ac.uk>
+ Replace old filter-ungrouped flags - WIP
+ src/blixemApp/bigpicturegrid.cpp |  20 +-------
+ src/blixemApp/blixem_.hpp        |   2 -
+ src/blixemApp/blxcontext.cpp     | 105 +++++++++++++++++++++++++++++++++++----
+ src/blixemApp/blxcontext.hpp     |   5 ++
+ src/blixemApp/blxwindow.cpp      |  69 +++++++++++--------------
+ src/blixemApp/detailviewtree.cpp |  35 ++-----------
+ src/blixemApp/exonview.cpp       |  17 +------
+ 7 files changed, 135 insertions(+), 118 deletions(-)
+
+2016-06-13  Gemma Guest  <gb10@sanger.ac.uk>
+ Add option to add to existing quick group/filter - WIP
+ src/blixemApp/blxcontext.cpp | 19 +++++++++++++++++++
+ src/blixemApp/blxcontext.hpp |  1 +
+ src/blixemApp/blxwindow.cpp  | 31 ++++++++++++++++++++++++-------
+ 3 files changed, 44 insertions(+), 7 deletions(-)
+
+2016-06-13  Gemma Guest  <gb10@sanger.ac.uk>
+ Replace match set group with 'quick' groups and filters - WIP
+ src/blixemApp/blixem_.hpp    |   4 +
+ src/blixemApp/blxcontext.cpp |  35 +++++--
+ src/blixemApp/blxcontext.hpp |   2 +-
+ src/blixemApp/blxwindow.cpp  | 226 ++++++++++++++++++++++---------------------
+ 4 files changed, 151 insertions(+), 116 deletions(-)
+
+2016-05-18  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix compile error if no sqlite3 - BUILD
+ src/blixemApp/blxFetchDb.cpp | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)
+
+2016-05-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix use of uninitialised variable - TRIVIAL
+ src/blixemApp/bigpicturegrid.cpp | 42 +++++++++++++++++++++++++++++-----------
+ src/blixemApp/bigpicturegrid.hpp |  5 +++++
+ 2 files changed, 36 insertions(+), 11 deletions(-)
+
+2016-05-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix call to invalid handler on exit - WIP
+ src/blixemApp/blxmain.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+2016-05-05  Gemma Guest  <gb10@sanger.ac.uk>
+ Replace malloc with new for structs/classes - WIP
+ src/belvuApp/belvu.cpp                 |  6 ++---
+ src/belvuApp/belvuAlignment.cpp        |  4 ++--
+ src/belvuApp/belvuConsPlot.cpp         |  4 ++--
+ src/belvuApp/belvuTree.cpp             |  8 +++----
+ src/belvuApp/belvuWindow.cpp           |  8 +++----
+ src/blixemApp/bigpicture.cpp           |  4 ++--
+ src/blixemApp/bigpicturegrid.cpp       |  4 ++--
+ src/blixemApp/blxFetch.cpp             | 42 +++++++++++++++++++++++-----------
+ src/blixemApp/blxcontext.cpp           |  4 ++--
+ src/blixemApp/blxdotter.cpp            |  4 ++--
+ src/blixemApp/blxmain.cpp              |  2 +-
+ src/blixemApp/blxview.cpp              |  4 ++--
+ src/blixemApp/blxwindow.cpp            | 12 +++++-----
+ src/blixemApp/detailview.cpp           | 39 ++++++++++++++++---------------
+ src/blixemApp/detailviewtree.cpp       |  8 +++----
+ src/blixemApp/exonview.cpp             |  4 ++--
+ src/blixemApp/sequencecellrenderer.cpp |  2 +-
+ src/dotterApp/alignmenttool.cpp        |  8 +++----
+ src/dotterApp/dotplot.cpp              |  4 ++--
+ src/dotterApp/dotter.cpp               | 19 +++++++++------
+ src/dotterApp/greyramptool.cpp         |  8 +++----
+ src/dotterApp/seqtoolsExonView.cpp     |  4 ++--
+ src/seqtoolsUtils/blxGff3Parser.cpp    |  6 ++---
+ src/seqtoolsUtils/blxmsp.cpp           | 15 +++++++-----
+ src/seqtoolsUtils/blxparser.cpp        |  2 +-
+ src/seqtoolsUtils/seqtoolsFetch.cpp    |  2 +-
+ src/seqtoolsUtils/utilities.cpp        | 12 +++++-----
+ src/seqtoolsUtils/utilities.hpp        | 19 ++++++++-------
+ 28 files changed, 144 insertions(+), 114 deletions(-)
+
+2016-05-04  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'release/4.43.0' into develop
+2016-05-04  Gemma Guest  <gb10@sanger.ac.uk>
+ Further fix to possible memory corruption - WIP
+ src/dotterApp/dotter.cpp | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+2016-05-04  Gemma Guest  <gb10@sanger.ac.uk>
+ Attempt to fix memory corruption on mac - WIP
+ src/blixemApp/blxwindow.cpp     |  6 ++++--
+ src/seqtoolsUtils/blxmsp.cpp    |  9 +++++----
+ src/seqtoolsUtils/utilities.cpp | 10 ----------
+ src/seqtoolsUtils/utilities.hpp |  4 ----
+ 4 files changed, 9 insertions(+), 20 deletions(-)
+
+2016-05-04  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix compile errors when debug enabled - WIP
+ src/blixemApp/detailview.cpp       | 4 ++--
+ src/dotterApp/seqtoolsExonView.cpp | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+2016-05-04  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-70-g1b86 - Update RT and git commit reports
+ src/ChangeLog | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
 2016-05-04  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.42.1-69-g4306 - Update RT and git commit reports
  src/ChangeLog                                  | 16 ++++++++++++++++
@@ -60,6 +252,8 @@
  2 files changed, 9 insertions(+), 1 deletion(-)
 
 2016-04-22  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'release/4.43.0' into develop
+2016-04-22  Gemma Guest  <gb10@sanger.ac.uk>
  Merge branch 'production' into release/4.43.0
 2016-04-18  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.42.0-58-g0f579 - Update RT and git commit reports
@@ -67,6 +261,8 @@
  src/build/release_docs/GIT_COMMITS.txt |  1 +
  2 files changed, 13 insertions(+)
 
+2016-04-18  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'release/4.43.0' into develop
 2016-04-18  Gemma Guest  <gb10@sanger.ac.uk>
  Fix a typo which was causing drag-and-drop to fail - REGRESSION FIX
  src/blixemApp/blxwindow.cpp | 3 ++-
@@ -79,6 +275,8 @@
  src/build/release_docs/RT_TICKETS_RESOLVED.txt |  2 +-
  3 files changed, 19 insertions(+), 1 deletion(-)
 
+2016-04-18  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'release/4.43.0' into develop
 2016-04-18  Gemma Guest  <gb10@sanger.ac.uk>
  Fix a memory corruption crash on blixem startup - REGRESSION FIX
  src/blixemApp/blxwindow.cpp | 24 ++++++++++++------------
