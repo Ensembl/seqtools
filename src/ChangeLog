@@ -1,3 +1,14 @@
+2016-06-27  Gemma Guest  <gb10@sanger.ac.uk>
+ Fix bug finding data type - REGRESSION FIX
+ src/seqtoolsUtils/blxGff3Parser.cpp | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+2016-06-24  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-104-gb8ea - Update RT and git commit reports
+ src/ChangeLog                                  | 6 ++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
 2016-06-22  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.42.1-103-g89545 - Update RT and git commit reports
  src/ChangeLog                                  | 7 +++++++
