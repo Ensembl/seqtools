@@ -121,6 +121,6 @@ fi
 # then for now we just run autoconf
 echo "Running: autoreconf -fi -v"
 autoreconf -fi -v || echo "autoreconf failed...."
-
+echo "Done"
 
 
