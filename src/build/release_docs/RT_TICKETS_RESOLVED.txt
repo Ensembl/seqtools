@@ -1,5 +1,5 @@
 
-Request Tracker Tickets Resolved from 11/03/2016 to 24/06/2016
+Request Tracker Tickets Resolved from 11/03/2016 to 05/07/2016
 
 ticket/530118
 id: ticket/530118

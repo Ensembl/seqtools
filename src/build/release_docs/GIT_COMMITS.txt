@@ -1,6 +1,8 @@
 
 Git commits for  from commit "production" until commit "release/4.43.0"
 
+eacf06c 2016-06-30 Update to fixes etc. for this releaes. - DOC
+a491dec 2016-06-27 Fix bug finding data type - REGRESSION FIX
 c940ac7 2016-06-20 Merge branch 'feature/groups' into develop
 3715b99 2016-06-20 Merge branch 'feature/groups' into develop
 c47482c 2016-06-20 Merge branch 'feature/groups' into develop
