@@ -1,3 +1,13 @@
+2016-06-30  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Update to fixes etc. for this releaes. - DOC
+ src/doc/User_doc/release_notes.html | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+2016-06-29  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-108-g8fb3b - Update RT and git commit reports
+ src/ChangeLog | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
 2016-06-29  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.42.1-107-ga06d - Update RT and git commit reports
  src/ChangeLog                                  | 7 +++++++
