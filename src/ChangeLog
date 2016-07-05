@@ -1,3 +1,10 @@
+2016-07-05  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-110-geacf0 - Update RT and git commit reports
+ src/ChangeLog                                  | 10 ++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |  1 +
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |  2 +-
+ 3 files changed, 12 insertions(+), 1 deletion(-)
+
 2016-06-30  Ed Griffiths  <edgrif@sanger.ac.uk>
  Update to fixes etc. for this releaes. - DOC
  src/doc/User_doc/release_notes.html | 5 +++++
