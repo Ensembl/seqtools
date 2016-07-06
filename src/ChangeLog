@@ -1,3 +1,10 @@
+2016-07-05  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Merge branch 'release/4.43.0' into develop
+2016-07-05  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-111-g00f2 - Update RT and git commit reports
+ src/ChangeLog | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
 2016-07-05  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.42.1-110-geacf0 - Update RT and git commit reports
  src/ChangeLog                                  | 10 ++++++++++
@@ -21,6 +28,21 @@
  src/build/release_docs/RT_TICKETS_RESOLVED.txt | 2 +-
  2 files changed, 8 insertions(+), 1 deletion(-)
 
+2016-06-29  Gemma Guest  <gb10@sanger.ac.uk>
+ Logging - TRIVIAL
+ src/autogen.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+2016-06-29  Gemma Guest  <gb10@sanger.ac.uk>
+ Logging - TRIVIAL
+ src/autogen.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+2016-06-29  Gemma Guest  <gb10@sanger.ac.uk>
+ Logging - TRIVIAL
+ src/autogen.sh | 1 +
+ 1 file changed, 1 insertion(+)
+
 2016-06-27  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.42.1-106-ga491 - Update RT and git commit reports
  src/ChangeLog                                  | 11 +++++++++++
@@ -28,6 +50,8 @@
  src/build/release_docs/RT_TICKETS_RESOLVED.txt |  2 +-
  3 files changed, 13 insertions(+), 1 deletion(-)
 
+2016-06-27  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'release/4.43.0' into develop
 2016-06-27  Gemma Guest  <gb10@sanger.ac.uk>
  Fix bug finding data type - REGRESSION FIX
  src/seqtoolsUtils/blxGff3Parser.cpp | 4 +++-
