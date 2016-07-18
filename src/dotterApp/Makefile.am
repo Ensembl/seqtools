@@ -4,7 +4,7 @@ SUBDIRS = .
 include $(top_srcdir)/Makefile.am.common
 
 # there's a problem on ubuntu 14 with finding X11 so this is a hopefully temporary hack...
-X_LIB = -lX11 -lm
+#X_LIB = -lX11 -lm
 
 bin_PROGRAMS = dotter
 dotter_SOURCES = dotterMain.cpp greyramptool.cpp alignmenttool.cpp dotplot.cpp dotter.cpp dotterKarlin.cpp seqtoolsExonView.cpp dotter_.hpp dotter.hpp seqtoolsExonView.hpp 

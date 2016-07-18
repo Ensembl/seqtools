@@ -11,7 +11,7 @@ include $(top_srcdir)/Makefile.am.common
 #endif
 
 # there's a problem on ubuntu 14 with finding X11 so this is a hopefully temporary hack...
-X_LIB = -lX11 -lm
+#X_LIB = -lX11 -lm
 
 bin_PROGRAMS = belvu
 belvu_SOURCES = belvuMain.cpp belvu_.hpp belvu.cpp belvuWindow.hpp belvuWindow.cpp belvuAlignment.hpp belvuAlignment.cpp belvuTree.hpp belvuTree.cpp belvuConsPlot.hpp belvuConsPlot.cpp

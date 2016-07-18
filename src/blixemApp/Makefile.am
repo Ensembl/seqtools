@@ -4,7 +4,7 @@ SUBDIRS = .
 include $(top_srcdir)/Makefile.am.common
 
 # there's a problem on ubuntu 14 with finding X11 so this is a hopefully temporary hack...
-X_LIB = -lX11 -lm
+#X_LIB = -lX11 -lm
 
 blixem_CPPFLAGS = $(AM_CPPFLAGS)
 BLX_LIBS = $(top_builddir)/seqtoolsUtils/libSeqtoolsUtils.a
