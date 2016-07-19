@@ -1,3 +1,40 @@
+2016-07-14  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-121-ga2cdc - Update RT and git commit reports
+ src/ChangeLog                                  | 6 ++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt | 3 ++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+2016-07-08  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-120-g943b - Update RT and git commit reports
+ src/ChangeLog                                  | 5 +++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+2016-07-07  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-119-g08c2 - Update RT and git commit reports
+ src/ChangeLog | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+2016-07-07  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-118-ge73e - Update RT and git commit reports
+ src/ChangeLog                                  | 7 +++++++
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+2016-07-06  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-117-g6b78 - Update RT and git commit reports
+ src/ChangeLog                                  | 24 ++++++++++++++++++++++++
+ src/build/release_docs/GIT_COMMITS.txt         |  2 --
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |  2 +-
+ 3 files changed, 25 insertions(+), 3 deletions(-)
+
+2016-07-05  Ed Griffiths  <edgrif@sanger.ac.uk>
+ Merge branch 'release/4.43.0' into develop
+2016-07-05  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.42.1-111-g00f2 - Update RT and git commit reports
+ src/ChangeLog | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
 2016-07-05  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.42.1-110-geacf0 - Update RT and git commit reports
  src/ChangeLog                                  | 10 ++++++++++
@@ -21,6 +58,21 @@
  src/build/release_docs/RT_TICKETS_RESOLVED.txt | 2 +-
  2 files changed, 8 insertions(+), 1 deletion(-)
 
+2016-06-29  Gemma Guest  <gb10@sanger.ac.uk>
+ Logging - TRIVIAL
+ src/autogen.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+2016-06-29  Gemma Guest  <gb10@sanger.ac.uk>
+ Logging - TRIVIAL
+ src/autogen.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+2016-06-29  Gemma Guest  <gb10@sanger.ac.uk>
+ Logging - TRIVIAL
+ src/autogen.sh | 1 +
+ 1 file changed, 1 insertion(+)
+
 2016-06-27  zmap  <zmap@sanger.ac.uk>
  SeqTools version 4.42.1-106-ga491 - Update RT and git commit reports
  src/ChangeLog                                  | 11 +++++++++++
@@ -28,6 +80,8 @@
  src/build/release_docs/RT_TICKETS_RESOLVED.txt |  2 +-
  3 files changed, 13 insertions(+), 1 deletion(-)
 
+2016-06-27  Gemma Guest  <gb10@sanger.ac.uk>
+ Merge branch 'release/4.43.0' into develop
 2016-06-27  Gemma Guest  <gb10@sanger.ac.uk>
  Fix bug finding data type - REGRESSION FIX
  src/seqtoolsUtils/blxGff3Parser.cpp | 4 +++-
