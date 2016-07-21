@@ -3352,19 +3352,39 @@ const char* findFixedWidthFont(GtkWidget *widget)
 
 
 /* Utility to get the character width and height of a given pango font */
-void getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble *width, gdouble *height)
+void getFontCharSize(GtkWidget *widget,
+                     PangoFontDescription *fontDesc,
+                     gdouble *width,
+                     gdouble *height,
+                     gboolean fixedWidthFont)
 {
   PangoContext *context = gtk_widget_get_pango_context(widget);
   PangoFontMetrics *metrics = pango_context_get_metrics(context, fontDesc, pango_context_get_language(context));
-  
-  if (height)
+
+  if (fixedWidthFont)
     {
-      *height = (gdouble)(pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / (gdouble)PANGO_SCALE;
+      /* All chars are the same width so create a layout containing one char and find its
+       * size. It is important that we get an accurate width for fixed-width fonts because it is
+       * used to calculate character positions (for non-fixed-width fonts the approximate method
+       * below is probably better to get a representative size). */
+      PangoLayout *layout = gtk_widget_create_pango_layout(widget, "a");
+      pango_layout_set_font_description(layout, widget->style->font_desc);
+      int width_i = 0, height_i = 0;
+      pango_layout_get_pixel_size(layout, &width_i, &height_i);
+
+      if (width)
+        *width = (gdouble)width_i;
+
+      if (height)
+        *height = (gdouble)height_i;
     }
-  
-  if (width)
+  else
     {
-      *width = (gdouble)pango_font_metrics_get_approximate_digit_width(metrics) / (gdouble)PANGO_SCALE;
+      if (height)
+        *height = (gdouble)(pango_font_metrics_get_ascent (metrics) + pango_font_metrics_get_descent (metrics)) / (gdouble)PANGO_SCALE;
+  
+      if (width)
+        *width = (gdouble)pango_font_metrics_get_approximate_digit_width(metrics) / (gdouble)PANGO_SCALE;
     }
   
   pango_font_metrics_unref(metrics);

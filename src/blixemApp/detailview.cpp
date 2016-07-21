@@ -3814,7 +3814,7 @@ static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *
 {
   /* Calculate the row height from the font size */
   gdouble charWidth, charHeight;
-  getFontCharSize(detailView, fontDesc, &charWidth, &charHeight);
+  getFontCharSize(detailView, fontDesc, &charWidth, &charHeight, TRUE);
   
   /* Cache these results, because we use them often for calculations */
   DetailViewProperties *properties = detailViewGetProperties(detailView);

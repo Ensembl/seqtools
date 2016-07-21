@@ -177,7 +177,7 @@ void onBelvuAlignmentFontSizeChanged(GtkWidget *belvuAlignment)
   if (!properties || !properties->seqArea)
     return;
   
-  getFontCharSize(properties->seqArea, properties->seqArea->style->font_desc, &properties->charWidth, &properties->charHeight);
+  getFontCharSize(properties->seqArea, properties->seqArea->style->font_desc, &properties->charWidth, &properties->charHeight, TRUE);
 
   /* Update the column padding, which is based on the character width. We use
    * slightly different padding if the view is wrapped because we don't draw 
