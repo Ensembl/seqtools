@@ -357,27 +357,27 @@ const IntRange* mspGetMatchCoords(const MSP* const msp)
 /* Return the length of the range of alignment coords on the ref seq */
 int mspGetQRangeLen(const MSP* const msp)
 {
-  return msp->qRange.max - msp->qRange.min + 1;
+  return msp->qRange.length();
 }
 
 /* Return the length of the range of alignment coords on the match seq */
 int mspGetSRangeLen(const MSP* const msp)
 {
-  return msp->sRange.max - msp->sRange.min + 1;
+  return msp->sRange.length();
 }
 
 /* Get the start (5 prime) coord of the alignment on the reference sequence. This is
  * the lowest value coord if the strand is forwards or the highest if it is reverse. */
 int mspGetQStart(const MSP* const msp)
 {
-  return (mspGetRefStrand(msp) == BLXSTRAND_REVERSE ? msp->qRange.max : msp->qRange.min);
+  return (mspGetRefStrand(msp) == BLXSTRAND_REVERSE ? msp->qRange.max() : msp->qRange.min());
 }
 
 /* Get the end (3 prime) coord of the alignment on the reference sequence. This is
  * the highest value coord if the strand is forwards or the lowest if it is reverse. */
 int mspGetQEnd(const MSP* const msp)
 {
-  return (mspGetRefStrand(msp) == BLXSTRAND_REVERSE ? msp->qRange.min : msp->qRange.max);
+  return (mspGetRefStrand(msp) == BLXSTRAND_REVERSE ? msp->qRange.min() : msp->qRange.max());
 }
 
 /* Get the start coord of the alignment on the match sequence. This is
@@ -385,7 +385,7 @@ int mspGetQEnd(const MSP* const msp)
  * or the highest value coord otherwise. */
 int mspGetSStart(const MSP* const msp)
 {
-  return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.min : msp->sRange.max);
+  return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.min() : msp->sRange.max());
 }
 
 /* Get the end coord of the alignment on the match sequence. This is
@@ -393,7 +393,7 @@ int mspGetSStart(const MSP* const msp)
  * or the lowest value coord otherwise. */
 int mspGetSEnd(const MSP* const msp)
 {
-  return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.max : msp->sRange.min);
+  return (mspGetMatchStrand(msp) == mspGetRefStrand(msp) ? msp->sRange.max() : msp->sRange.min());
 }
 
 
@@ -691,11 +691,11 @@ char *mspGetCoordsAsString(const MSP* const msp)
     {
       GString *resultStr = g_string_new("");
 
-      /* If both s coords are UNSET_INT then they are not relevant, so exclude them */
-      if (msp->sRange.min == UNSET_INT && msp->sRange.max == UNSET_INT)
-        g_string_append_printf(resultStr, "%d,%d", msp->qRange.min, msp->qRange.max);
+      /* If the s coords are unset then they are not relevant, so exclude them */
+      if (!msp->sRange.isSet())
+        g_string_append_printf(resultStr, "%d,%d", msp->qRange.min(), msp->qRange.max());
       else
-        g_string_append_printf(resultStr, "%d,%d[%d,%d]", msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
+        g_string_append_printf(resultStr, "%d,%d[%d,%d]", msp->qRange.min(), msp->qRange.max(), msp->sRange.min(), msp->sRange.max());
       
       result = g_string_free(resultStr, FALSE);
     }
@@ -780,7 +780,7 @@ gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 //  
 //  static int orderNum = 0; /* will increment this each time we add a feature series to the array */
 //  
-//  FeatureSeries *fs = g_malloc(sizeof(FeatureSeries));
+//  FeatureSeries *fs = new FeatureSeries;
 //  fs->on = 1;
 //  fs->y = 0.0;
 //  fs->xy = (msp->type == BLXMSP_XY_PLOT ? 1 : 0);
@@ -923,7 +923,7 @@ gboolean mspCoordInPolyATail(const int coord, const MSP* const msp)
    * max coord if we're on the forward strand or less than the min coord if on the reverse). */
   //result &= ((mspGetRefStrand(msp) == BLXSTRAND_FORWARD && coord > msp->displayRange.max) ||
   //           (mspGetRefStrand(msp) == BLXSTRAND_REVERSE && coord < msp->displayRange.min));
-  result &= coord > msp->displayRange.max;
+  result &= coord > msp->displayRange.max();
 
   return result;
 }
@@ -1075,13 +1075,27 @@ int blxSequenceGetLength(const BlxSequence *seq)
  * given reference sequence strand */
 int blxSequenceGetStart(const BlxSequence *seq, const BlxStrand strand)
 {
-  return (strand == BLXSTRAND_REVERSE ? seq->qRangeRev.min : seq->qRangeFwd.min);
+  int result = UNSET_INT;
+
+  if (strand == BLXSTRAND_REVERSE && seq->qRangeRev.isSet())
+    result = seq->qRangeRev.min();
+  else if (seq->qRangeFwd.isSet())
+    result = seq->qRangeFwd.min();
+
+  return result;
 }
 
 /* Get the end extend of the sequence on the ref sequence */
 int blxSequenceGetEnd(const BlxSequence *seq, const BlxStrand strand)
 {
-  return (strand == BLXSTRAND_FORWARD ? seq->qRangeRev.max : seq->qRangeFwd.max);
+  int result = UNSET_INT;
+
+  if (strand == BLXSTRAND_REVERSE && seq->qRangeRev.isSet())
+    result = seq->qRangeRev.max();
+  else if (seq->qRangeFwd.isSet())
+    result = seq->qRangeFwd.max();
+
+  return result;
 }
 
 /* Get the sequence data for the given blxsequence */
@@ -1472,7 +1486,7 @@ void destroyBlxSequence(BlxSequence *seq)
       if (seq->idTag)
         g_free(seq->idTag);
           
-      g_free(seq);
+      delete seq;
     }
 }
 
@@ -1588,7 +1602,7 @@ void blxSequenceSetColumn(BlxSequence *seq, const char *colName, const char *val
 /* Utility to create a BlxSequence with the given name. */
 BlxSequence* createEmptyBlxSequence()
 {
-  BlxSequence *seq = (BlxSequence*)g_malloc(sizeof(BlxSequence));
+  BlxSequence *seq = new BlxSequence;
   
   seq->type = BLXSEQUENCE_UNSET;
   seq->dataType = NULL;
@@ -1650,7 +1664,7 @@ static void copyBlxSequenceNamedCds(const BlxSequence *src,
 
 BlxDataType* createBlxDataType()
 {
-  BlxDataType *result = (BlxDataType*)g_malloc(sizeof *result);
+  BlxDataType *result = new BlxDataType;
   
   result->name = 0;
   result->bulkFetch = NULL;
@@ -1676,7 +1690,7 @@ void destroyBlxDataType(BlxDataType **blxDataType)
   if (!blxDataType)
     return;
   
-  g_free((*blxDataType));
+  delete *blxDataType;
   *blxDataType = NULL;
 }
 
@@ -1694,14 +1708,14 @@ static gint compareMsps(const MSP* const msp1, const MSP* const msp2)
   
   if (result == 0)
     {
-      if (msp1->qRange.min == msp2->qRange.min)
+      if (msp1->qRange.min() == msp2->qRange.min())
         {
           /* Sort by type. Lower type numbers should appear first. */
           result = msp2->type - msp1->type;
         }
       else 
         {
-          result = msp1->qRange.min -  msp2->qRange.min;
+          result = msp1->qRange.min() -  msp2->qRange.min();
         }
     }
 
@@ -1790,7 +1804,7 @@ void writeTranscriptToOutput(GIOChannel *ioChannel,
         {
           /* It's possible that some exons may be out of bounds: clip them, or if completely out
            * of range ignore this exon. */
-          if (msp->qRange.min < refSeqRange->max && msp->qRange.max > refSeqRange->min)
+          if (msp->qRange.min() < refSeqRange->max() && msp->qRange.max() > refSeqRange->min())
             {
               ++numMsps;
             }
@@ -1831,10 +1845,10 @@ void writeTranscriptToOutput(GIOChannel *ioChannel,
         {
           /* It's possible that some exons may be out of bounds: clip them, or if completely out
            * of range ignore this exon. */
-          if (msp->qRange.min < refSeqRange->max && msp->qRange.max > refSeqRange->min)
+          if (msp->qRange.min() < refSeqRange->max() && msp->qRange.max() > refSeqRange->min())
             {
               const int start = i + 1;
-              const int end = start + getRangeLength(&msp->qRange) - 1;
+              const int end = start + msp->qRange.length() - 1;
 
               char *tmpStr = g_strdup_printf("%d %f %f %d %d %d %d %d %d %d", 
                                              msp->type,
@@ -1844,8 +1858,8 @@ void writeTranscriptToOutput(GIOChannel *ioChannel,
                                              //          msp->fsColor, 
                                              start,
                                              end,
-                                             msp->sRange.min,
-                                             msp->sRange.max,
+                                             msp->sRange.min(),
+                                             msp->sRange.max(),
                                              msp->qStrand,
                                              msp->qFrame);
 
@@ -1969,17 +1983,17 @@ void writeMspToOutput(GIOChannel *ioChannel, const MSP* const msp, GError **erro
   GError *tmpError = NULL;
 
   char *tmpStr = g_strdup_printf("%d %f %f %d %d %d %d %d %d %d", 
-                  msp->type,
-                  msp->score, 
-                  msp->id,
-                  msp->phase,
-                  //          msp->fsColor, 
-                  msp->qRange.min,
-                  msp->qRange.max,
-                  msp->sRange.min,
-                  msp->sRange.max,
-                  msp->qStrand,
-                  msp->qFrame);
+                                 msp->type,
+                                 msp->score, 
+                                 msp->id,
+                                 msp->phase,
+                                 //          msp->fsColor, 
+                                 msp->qRange.min(),
+                                 msp->qRange.max(),
+                                 msp->sRange.min(),
+                                 msp->sRange.max(),
+                                 msp->qStrand,
+                                 msp->qFrame);
 
   g_io_channel_write_chars(ioChannel, tmpStr, -1, NULL, &tmpError);
   g_free(tmpStr);
@@ -2023,14 +2037,14 @@ void readMspFromText(MSP *msp, char *text)
   const int qStart = strtol(curChar, &curChar, 10); 
   nextChar(&curChar);
   const int qEnd = strtol(curChar, &curChar, 10); 
-  intrangeSetValues(&msp->qRange, qStart, qEnd);
+  msp->qRange.set(qStart, qEnd);
 
   /* match seq range */
   nextChar(&curChar);
   const int sStart = strtol(curChar, &curChar, 10); 
   nextChar(&curChar);
   const int sEnd = strtol(curChar, &curChar, 10); 
-  intrangeSetValues(&msp->sRange, sStart, sEnd);
+  msp->sRange.set(sStart, sEnd);
   
   nextChar(&curChar);
   msp->qStrand = (BlxStrand)strtol(curChar, &curChar, 10);
@@ -2074,7 +2088,7 @@ static void insertMsp(MSP *msp, MSP **mspList, MSP **lastMsp)
  * add it to a feature list yet because we don't know its type. Returns a pointer to the newly-created MSP */
 MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
 {
-  MSP *msp = (MSP *)g_malloc(sizeof(MSP));
+  MSP *msp = new MSP;
   
   int i = 0;
   for ( ; i < BLXMODEL_NUM_MODELS; ++i)
@@ -2091,27 +2105,14 @@ MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
   msp->qname = NULL;
   msp->qFrame = UNSET_INT;
   
-  msp->qRange.min = 0;
-  msp->qRange.max = 0;
-  msp->displayRange.min = 0;
-  msp->displayRange.max = 0;
-  msp->fullRange.min = 0;
-  msp->fullRange.max = 0;
-  
   msp->sSequence = NULL;
   msp->sname = msp->sname_orig = NULL;
-  
-  msp->sRange.min = 0;
-  msp->sRange.max = 0;
-  msp->fullSRange.min = 0;
-  msp->fullSRange.max = 0;
   
   msp->desc = NULL;
   
   msp->style = NULL;
   
   msp->fs = NULL;
-  msp->fsColor = 0;
   msp->fsShape = BLXCURVE_BADSHAPE;
   
   msp->xy = NULL;
@@ -2149,7 +2150,7 @@ void destroyMspList(MSP **mspList)
     {
       fmsp = msp;
       msp = msp->next;
-      g_free(fmsp);
+      delete fmsp;
     }
   
   *mspList = NULL;
@@ -2178,7 +2179,10 @@ void destroyMspData(MSP *msp)
       /* free memory allocated for the gap ranges */
       GSList *item = msp->gaps;
       for ( ; item; item = item->next)
-        g_free(item->data);
+        {
+          CoordRange *range = (CoordRange*)(item->data);
+          delete range;
+        }
       
       g_slist_free(msp->gaps);
       msp->gaps = NULL;
@@ -2244,8 +2248,8 @@ MSP* createNewMsp(GArray* featureLists[],
   msp->sname_orig = sName_orig ? g_strdup(sName_orig) : NULL;
 
   
-  intrangeSetValues(&msp->qRange, qStart, qEnd);  
-  intrangeSetValues(&msp->sRange, sStart, sEnd);
+  msp->qRange.set(qStart, qEnd);  
+  msp->sRange.set(sStart, sEnd);
 
   /* For exons, introns and basic features, the s strand is not applicable. We always want the exon
    * to be in the same direction as the ref sequence, so set the match seq strand to be 
@@ -2308,8 +2312,8 @@ MSP* copyMsp(const MSP* const src,
   msp->sname = src->sname ? g_strdup(src->sname) : NULL;
   msp->sname_orig = src->sname_orig ? g_strdup(src->sname_orig) : NULL;
   
-  intrangeSetValues(&msp->qRange, src->qRange.min, src->qRange.max);  
-  intrangeSetValues(&msp->sRange, src->sRange.min, src->sRange.max);
+  msp->qRange.set(src->qRange);  
+  msp->sRange.set(src->sRange);
   
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
   if (addToParent && src->sSequence)
@@ -2378,11 +2382,11 @@ static void setExonChildList(MSP *exon,
            * exon and "save" the cds to check against later exons. We should only have one cds in
            * this case (we should verify this but don't at the moment). */
           if (rangesOverlap(&cds->qRange, &exon->qRange) &&
-              (cds->qRange.min < exon->qRange.min || cds->qRange.max > exon->qRange.max))
+              (cds->qRange.min() < exon->qRange.min() || cds->qRange.max() > exon->qRange.max()))
             {
               /* Replace the original cds with a new one truncated to this exon */
-              int start = max(cds->qRange.min, exon->qRange.min);
-              int end = min(cds->qRange.max, exon->qRange.max);
+              int start = max(cds->qRange.min(), exon->qRange.min());
+              int end = min(cds->qRange.max(), exon->qRange.max());
               MSP *newCds = createMissingMsp(BLXMSP_CDS, start, end, cds->qname, cds->qFrame, cds->style, cds->sSequence, 
                                              featureLists, lastMsp, mspList, seqList, columnList, lookupTable, &tmpError);
               reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
@@ -2475,17 +2479,17 @@ static void createMissingCdsUtr(MSP *exon,
   MSP *startMsp = (MSP*)(g_list_first(*childList)->data);
   MSP *endMsp = (MSP*)(g_list_last(*childList)->data);
   
-  if (exon->qRange.min < startMsp->qRange.min)
+  if (exon->qRange.min() < startMsp->qRange.min())
     {
       const BlxMspType type = (startMsp->type == BLXMSP_CDS ? BLXMSP_UTR : BLXMSP_CDS);
-      MSP *result = createMissingMsp(type, exon->qRange.min, startMsp->qRange.min - 1, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, error);
+      MSP *result = createMissingMsp(type, exon->qRange.min(), startMsp->qRange.min() - 1, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, error);
       *childList = g_list_append(*childList, result);
     }
 
-  if (exon->qRange.max > endMsp->qRange.max)
+  if (exon->qRange.max() > endMsp->qRange.max())
     {
       const BlxMspType type = (endMsp->type == BLXMSP_CDS ? BLXMSP_UTR : BLXMSP_CDS);
-      MSP *result = createMissingMsp(type, endMsp->qRange.max + 1, exon->qRange.max, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, error);
+      MSP *result = createMissingMsp(type, endMsp->qRange.max() + 1, exon->qRange.max(), exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, error);
       *childList = g_list_append(*childList, result);
     }
 }
@@ -2503,7 +2507,7 @@ static void createMissingUtr(MSP *exon,
                              GHashTable *lookupTable,
                              GError **error)
 {
-  MSP *result = createMissingMsp(BLXMSP_UTR, exon->qRange.min, exon->qRange.max, exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, error);
+  MSP *result = createMissingMsp(BLXMSP_UTR, exon->qRange.min(), exon->qRange.max(), exon->qname, exon->qFrame, exon->style, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, error);
   *childList = g_list_append(*childList, result);
 }
 
@@ -2525,7 +2529,7 @@ static MSP* createMissingExon(GList *childList,
   MSP *startMsp = (MSP*)(g_list_first(childList)->data);
   MSP *endMsp = (MSP*)(g_list_last(childList)->data);
   
-  MSP *result = createMissingMsp(BLXMSP_EXON, startMsp->qRange.min, endMsp->qRange.max, startMsp->qname, startMsp->qFrame, startMsp->style, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, error);
+  MSP *result = createMissingMsp(BLXMSP_EXON, startMsp->qRange.min(), endMsp->qRange.max(), startMsp->qname, startMsp->qFrame, startMsp->style, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, error);
   return result;
 }
 
@@ -2620,7 +2624,7 @@ static void constructExonData(BlxSequence *blxSeq,
             {
               /* No previous msp; check if we're at the first exon and if so whether
                * there's a gap between it and the start of the transcript */
-              foundGap = blxSequenceGetStart(blxSeq, blxSeq->strand) < msp->qRange.min;
+              foundGap = blxSequenceGetStart(blxSeq, blxSeq->strand) < msp->qRange.min();
             }
           
           if (foundGap || msp == NULL)
@@ -2630,34 +2634,31 @@ static void constructExonData(BlxSequence *blxSeq,
               createMissingExonCdsUtr(&curExon, &curChildMsps, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, &tmpError);
               reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
               
-              IntRange newRange = {UNSET_INT, UNSET_INT};
+              IntRange newRange;
               
               if (prevExon && curExon && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
                   /* Create an intron to span the gap */
-                  newRange.min = prevExon->qRange.max + 1;
-                  newRange.max = curExon->qRange.min - 1;
+                  newRange.set(prevExon->qRange.max() + 1, curExon->qRange.min() - 1);
                 }
-              else if (!prevExon && curExon && blxSequenceGetStart(blxSeq, blxSeq->strand) < curExon->qRange.min && 
+              else if (!prevExon && curExon && blxSequenceGetStart(blxSeq, blxSeq->strand) < curExon->qRange.min() && 
 		       !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
                   /* Create an intron at the start */
-                  newRange.min = blxSequenceGetStart(blxSeq, blxSeq->strand);
-                  newRange.max = curExon->qRange.min - 1;
+                  newRange.set(blxSequenceGetStart(blxSeq, blxSeq->strand), curExon->qRange.min() - 1);
                 }
-              else if (msp == NULL && curExon && blxSequenceGetEnd(blxSeq, blxSeq->strand) > curExon->qRange.max &&
+              else if (msp == NULL && curExon && blxSequenceGetEnd(blxSeq, blxSeq->strand) > curExon->qRange.max() &&
 		       !mspIsIntron(prevMsp))
                 {
                   /* Create an intron at the end */
-                  newRange.min = curExon->qRange.max + 1;
-                  newRange.max = blxSequenceGetEnd(blxSeq, blxSeq->strand);
+                  newRange.set(curExon->qRange.max() + 1, blxSequenceGetEnd(blxSeq, blxSeq->strand));
                 }
               
-              if (curExon && newRange.min != UNSET_INT && newRange.max != UNSET_INT)
+              if (curExon && newRange.isSet())
                 {
                   createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_INTRON, NULL, blxSequenceGetSource(blxSeq), 
                                curExon->score, curExon->id, 0, blxSeq->idTag, 
-                               curExon->qname, newRange.min, newRange.max, blxSeq->strand, curExon->qFrame, 
+                               curExon->qname, newRange.min(), newRange.max(), blxSeq->strand, curExon->qFrame, 
                                blxSequenceGetName(blxSeq), blxSequenceGetName(blxSeq),
                                UNSET_INT, UNSET_INT, blxSeq->strand, NULL, 
                                0, lookupTable, blxSeq, &tmpError);
@@ -2785,8 +2786,8 @@ static void adjustMspCoordsByOffset(MSP *msp, const int offset)
     {
       /* Convert the input coords (which are 1-based within the ref sequence section
        * that we're dealing with) to "real" coords (i.e. coords that the user will see). */
-      msp->qRange.min += offset;
-      msp->qRange.max += offset;
+      msp->qRange.set(msp->qRange.min() + offset,
+                      msp->qRange.max() + offset);
       
       /* Gap coords are also 1-based, so convert those too */
       GSList *rangeItem = msp->gaps;
@@ -2806,10 +2807,17 @@ static void adjustMspCoordsByOffset(MSP *msp, const int offset)
  * of the first/last MSP in the sequence */
 static void findSequenceExtents(BlxSequence *blxSeq)
 {
-  blxSeq->qRangeFwd.min = findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_FORWARD);
-  blxSeq->qRangeFwd.max = findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_FORWARD);
-  blxSeq->qRangeRev.min = findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_REVERSE);
-  blxSeq->qRangeRev.max = findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_REVERSE);
+  int start = findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_FORWARD);
+  int end = findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_FORWARD);
+
+  //if (start != UNSET_INT && end != UNSET_INT)
+  blxSeq->qRangeFwd.set(start, end);
+
+  start = findMspListQExtent(blxSeq->mspList, TRUE, BLXSTRAND_REVERSE);
+  end = findMspListQExtent(blxSeq->mspList, FALSE, BLXSTRAND_REVERSE);
+
+  //if (start != UNSET_INT && end != UNSET_INT)
+  blxSeq->qRangeRev.set(start, end);
 }
 
 
@@ -2894,7 +2902,7 @@ static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFr
 	       * so we must use the reading frame that was passed in the file. However, this used to assume that the first base
 	       * in the ref seq was base 1 in reading frame 1, which is not always the case (we now calculate the correct reading frame
 	       * based on mod3 of the coord). Therefore, we must offset the given frame if the first coord is not base1 in frame1. */
-	      const int startCoord = (msp->qStrand == BLXSTRAND_REVERSE ? refSeqRange->max : refSeqRange->min);
+	      const int startCoord = (msp->qStrand == BLXSTRAND_REVERSE ? refSeqRange->max() : refSeqRange->min());
 	      const int offset = getOffsetToCodonStart(startCoord, numFrames, msp->qStrand);
 	      msp->qFrame += offset;
 	      
@@ -2905,7 +2913,7 @@ static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFr
 	      
 	      if (msp->qFrame != frame && seqType == BLXSEQ_PEPTIDE)
 		{
-		  g_warning("MSP '%s' (q=%d-%d; s=%d-%d) has reading frame '%d' but calculated frame was '%d'\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max, msp->qFrame, frame);
+		  g_warning("MSP '%s' (q=%d-%d; s=%d-%d) has reading frame '%d' but calculated frame was '%d'\n", mspGetSName(msp), msp->qRange.min(), msp->qRange.max(), msp->sRange.min(), msp->sRange.max(), msp->qFrame, frame);
 		}
 	    }
 	  else
@@ -2918,7 +2926,7 @@ static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFr
       
       if (msp->qFrame == UNSET_INT)
 	{
-	  g_warning("Reading frame could not be calculated for MSP '%s' (q=%d-%d; s=%d-%d) - setting to 1.\n", mspGetSName(msp), msp->qRange.min, msp->qRange.max, msp->sRange.min, msp->sRange.max);
+	  g_warning("Reading frame could not be calculated for MSP '%s' (q=%d-%d; s=%d-%d) - setting to 1.\n", mspGetSName(msp), msp->qRange.min(), msp->qRange.max(), msp->sRange.min(), msp->sRange.max());
 	  msp->qFrame = 1;
 	}
     }
@@ -3017,16 +3025,16 @@ int findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand s
 	{      
 	  if (first)
 	    {
-	      result = findMin ? msp->qRange.min : msp->qRange.max;
+	      result = findMin ? msp->qRange.min() : msp->qRange.max();
 	      first = FALSE;
 	    }
-	  else if (findMin && msp->qRange.min < result)
+	  else if (findMin && msp->qRange.min() < result)
 	    {
-	      result = msp->qRange.min;
+	      result = msp->qRange.min();
 	    }
-	  else if (!findMin && msp->qRange.max > result)
+	  else if (!findMin && msp->qRange.max() > result)
 	    {
-	      result = msp->qRange.max;
+	      result = msp->qRange.max();
 	    }
 	}
     }
@@ -3049,16 +3057,16 @@ int findMspListSExtent(GList *mspList, const gboolean findMin)
       
       if (first)
 	{
-	  result = findMin ? msp->sRange.min : msp->sRange.max;
+	  result = findMin ? msp->sRange.min() : msp->sRange.max();
 	  first = FALSE;
 	}
-      else if (findMin && msp->sRange.min < result)
+      else if (findMin && msp->sRange.min() < result)
 	{
-	  result = msp->sRange.min;
+	  result = msp->sRange.min();
 	}
-      else if (!findMin && msp->sRange.max > result)
+      else if (!findMin && msp->sRange.max() > result)
 	{
-	  result = msp->sRange.max;
+	  result = msp->sRange.max();
 	}
     }
   
@@ -3122,9 +3130,9 @@ ColinearityType mspIsColinear(const MSP* const msp1, const MSP* const msp2)
       msp1->sSequence && msp2->sSequence && 
       msp1->sSequence->strand == msp2->sSequence->strand)
     {
-      if (msp2->sRange.min < msp1->sRange.max)
+      if (msp2->sRange.min() < msp1->sRange.max())
         result = COLINEAR_NOT;
-      else if (msp2->sRange.min == msp1->sRange.max + 1)
+      else if (msp2->sRange.min() == msp1->sRange.max() + 1)
         result = COLINEAR_PERFECT;
       else
         result = COLINEAR_IMPERFECT;
@@ -3601,7 +3609,7 @@ void blxColumnCreate(BlxColumnId columnId,
     }
   
   /* Create the column info */
-  BlxColumnInfo *columnInfo = (BlxColumnInfo*)g_malloc(sizeof(BlxColumnInfo));
+  BlxColumnInfo *columnInfo = new BlxColumnInfo;
 
   static int columnIdx = 0;  
   columnInfo->columnIdx = columnIdx;
@@ -3689,13 +3697,13 @@ char *blxSequenceGetSplicedSequence(const BlxSequence* const blxSeq,
       /* Ignore msps that have child msps (we just want to export the child msps) */
       if (mspIsBoxFeature(msp) && !msp->childMsps)
         {
-          int i = msp->qRange.min - refSeqRange->min; /* convert to 0-based index into ref seq */
+          int i = msp->qRange.min() - refSeqRange->min(); /* convert to 0-based index into ref seq */
 
           /* It's possible that some exons may be out of bounds: clip them. */
           if (i < 0)
             i = 0;
           
-          int iMax = msp->qRange.max - refSeqRange->min;
+          int iMax = msp->qRange.max() - refSeqRange->min();
           if (iMax >= refSeqLen)
             iMax = refSeqLen - 1;
 

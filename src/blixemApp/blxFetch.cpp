@@ -58,6 +58,7 @@
 #include <blixemApp/blxwindow.hpp>
 #include <blixemApp/detailview.hpp>
 #include <blixemApp/blixem_.hpp>
+#include <blixemApp/blxcontext.hpp>
 
 #ifdef PFETCH_HTML 
 #include <gbtools/gbtoolsPfetch.hpp>
@@ -90,8 +91,15 @@ typedef enum
 
 
 /* Used to draw/update a progress meter, consider as private. */
-typedef struct
+class ProgressBarStruct
 {
+public:
+  ProgressBarStruct() 
+    : top_level(NULL), progress(NULL), label(NULL),
+      widget_destroy_handler_id(0), cancelled(false), seq_total(0), 
+      fetch_mode(BLXFETCH_MODE_NONE)
+  {};
+
   GtkWidget *top_level ;
   GtkWidget *progress ;
   GtkWidget *label ;
@@ -102,8 +110,9 @@ typedef struct
   gboolean cancelled ;
   int seq_total ;
   BlxFetchMode fetch_mode ;
-} ProgressBarStruct, *ProgressBar ;
+} ;
 
+typedef ProgressBarStruct *ProgressBar;
 
 enum {RCVBUFSIZE = 256} ;               /* size of receive buffer for socket fetch */
 
@@ -142,8 +151,14 @@ typedef struct GeneralFetchDataStructType
 #define PFETCH_FAILED_PREFIX "PFetch failed:"
 
 
-typedef struct PFetchDataStructType
+class PFetchDataStruct
 {
+public:
+  PFetchDataStruct()
+    : title(NULL), widget_destroy_handler_id(0), pfetch(NULL),
+      got_response(false), fetchMethod(NULL), user_fetch(NULL)
+  {};
+
   char *title;
 
   gulong widget_destroy_handler_id;
@@ -154,7 +169,9 @@ typedef struct PFetchDataStructType
   const BlxFetchMethod *fetchMethod;
   UserFetch *user_fetch;
 
-} PFetchDataStruct, *PFetchData ;
+};
+
+typedef PFetchDataStruct *PFetchData ;
 
 
 /* this holds info about an http fetch that is in progress */
@@ -1123,7 +1140,7 @@ static int socketConstruct(const char *ipAddress, int port, gboolean External, G
 
 
   /* Construct the server address structure */
-  servAddr = (struct sockaddr_in *) g_malloc (sizeof (struct sockaddr_in)) ;
+  servAddr = new struct sockaddr_in;
   hp = gethostbyname(ipAddress) ;
   
   if (!hp)
@@ -1147,7 +1164,7 @@ static int socketConstruct(const char *ipAddress, int port, gboolean External, G
       sock = -1 ;
     }
 
-  g_free (servAddr) ;
+  delete servAddr ;
 
   return sock ;
 }
@@ -1308,7 +1325,7 @@ static void handle_dialog_close(GtkWidget *dialog, gpointer user_data)
   if (pfetch_data->pfetch)
     delete pfetch_data->pfetch ;
 
-  g_free(pfetch_data) ;
+  delete pfetch_data ;
 
   return ;
 }
@@ -1506,7 +1523,7 @@ static gboolean parsePfetchHtmlBuffer(const BlxFetchMethod* const fetchMethod,
 
 static ProgressBar makeProgressBar(int seq_total, const BlxFetchMode fetch_mode)
 {
-  ProgressBar bar = g_new0(ProgressBarStruct, 1) ;
+  ProgressBar bar = new ProgressBarStruct;
 
   bar->seq_total = seq_total ;
   bar->cancelled = FALSE;
@@ -1608,7 +1625,7 @@ static void destroyProgressCB(GtkWidget *widget, gpointer cb_data)
 {
   ProgressBar bar = (ProgressBar)cb_data ;
 
-  g_free(bar) ;
+  delete bar ;
 
   return ;
 }
@@ -1918,7 +1935,7 @@ static void readFetchMethodStanza(GKeyFile *key_file,
   else if (result)
     {
       /* Fetch method details are incomplete, so delete it. */
-      g_free(result);
+      delete result;
     }
   
   /* Clean up */
@@ -3105,7 +3122,7 @@ UserFetch::UserFetch(const BlxSequence *blxSeq_in,
  * they should remain as NULL in all other cases. */
 void UserFetch::performFetch()
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   g_return_if_fail(blxSeq && bc);
  
   ++attempt;
@@ -3192,7 +3209,7 @@ void UserFetch::setTextBuffer(GtkTextBuffer *text_buffer_in)
 bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
 {
   gboolean ok = 0;
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   PFetchData pfetch_data = NULL ;
   GError *tmpError = NULL;
   GString *command = NULL;
@@ -3211,7 +3228,7 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
   
   if (!tmpError)
     {
-      pfetch_data = g_new0(PFetchDataStruct, 1);
+      pfetch_data = new PFetchDataStruct;
 
       pfetch_data->fetchMethod = fetchMethod;
       pfetch_data->user_fetch = this;
@@ -3231,8 +3248,8 @@ bool UserFetch::httpFetchSequence(const BlxFetchMethod *fetchMethod)
       /* Couldn't initiate the fetch; try again with a different fetch method */
       if (pfetch_data)
         {
-          g_free(pfetch_data->pfetch);
-          g_free(pfetch_data);
+          delete pfetch_data->pfetch;
+          delete pfetch_data;
           pfetch_data = NULL;
         }
 
@@ -3316,7 +3333,7 @@ void UserFetch::wwwFetchSequence(const BlxFetchMethod *fetchMethod)
 {
   if (displayResults)
     {
-      BlxViewContext *bc = blxWindowGetContext(blxWindow);
+      BlxContext *bc = blxWindowGetContext(blxWindow);
 
       GError *error = NULL;
       
@@ -3354,7 +3371,7 @@ void UserFetch::wwwFetchSequence(const BlxFetchMethod *fetchMethod)
  * the results in a dialog. */
 void UserFetch::commandFetchSequence(const BlxFetchMethod *fetchMethod)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   GError *error = NULL;
   GString *command = NULL;
   GString *resultText = NULL;
@@ -3411,7 +3428,7 @@ void UserFetch::internalFetchSequence(const BlxFetchMethod *fetchMethod)
 
       if (displayResults)
         {
-          BlxViewContext *bc = blxWindowGetContext(blxWindow);
+          BlxContext *bc = blxWindowGetContext(blxWindow);
           char *title = g_strdup_printf("%s%s", blxGetTitlePrefix(bc), seqName ? seqName : "");
           displayFetchResults(title, result, blxWindow, dialog, &text_buffer);
           g_free(title);
@@ -3432,7 +3449,7 @@ void UserFetch::internalFetchSequence(const BlxFetchMethod *fetchMethod)
 /* Use the given socket-fetch method to fetch an entry and optionally display the results. */
 void UserFetch::socketFetchSequence(const BlxFetchMethod *fetchMethod)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   GError *error = NULL;
   GString *resultText = NULL;
   GString *command = NULL;
@@ -3484,7 +3501,7 @@ void UserFetch::sqliteFetchSequence(const BlxFetchMethod *fetchMethod)
   GError *tmpError = NULL;
   sqliteValidateFetchMethod(fetchMethod, &tmpError);
     
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   GString *query = NULL;
   
   if (!tmpError)

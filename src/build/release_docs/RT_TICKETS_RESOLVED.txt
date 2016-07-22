@@ -1,13 +1,14 @@
 
-Request Tracker Tickets Resolved from 10/02/2016 to 23/03/2016
+Request Tracker Tickets Resolved from 11/03/2016 to 21/07/2016
 
-ticket/519841
-id: ticket/519841
+[tviewsrv get_rt_tickets.sh (08:08:38)]  /software/bin/rt is there !!
+ticket/530118
+id: ticket/530118
 Queue: seqtools
-Subject: Installation of SeqTools
-Requestors: alistair.macdougall@ebi.ac.uk
+Subject: disabling dotter alignment tool
+Requestors: m.hobbs@garvan.org.au
 Owner: gb10
-Resolved: Wed Mar 09 17:04:40 2016
+Resolved: Thu May 19 09:23:33 2016
 CF.{zmapace_gitcommit}: 
 CF.{zmapace_resolve_version}: 
 

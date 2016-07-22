@@ -136,42 +136,6 @@ enum Colour    {WHITE, BLACK, LIGHTGRAY, DARKGRAY,
 		BACKCOLOR	/* pseudocolor to force box->bcol after graphColor() */
                } ;
 
-static const char *colorNames[NUM_TRUECOLORS] =
-  {
-    "WHITE", 
-    "BLACK", 
-    "LIGHTGRAY", 
-    "DARKGRAY",
-    "RED", 
-    "GREEN", 
-    "BLUE",
-    "YELLOW", 
-    "CYAN", 
-    "MAGENTA",
-    "LIGHTRED", 
-    "LIGHTGREEN", 
-    "LIGHTBLUE",
-    "DARKRED", 
-    "DARKGREEN", 
-    "DARKBLUE",
-    "PALERED", 
-    "PALEGREEN", 
-    "PALEBLUE",
-    "PALEYELLOW", 
-    "PALECYAN", 
-    "PALEMAGENTA",
-    "BROWN", 
-    "ORANGE", 
-    "PALEORANGE",
-    "PURPLE", 
-    "VIOLET", 
-    "PALEVIOLET",
-    "GRAY", 
-    "PALEGRAY",
-    "CERISE", 
-    "MIDBLUE"
-};
-
 
 /* Get the factor to multiply match coords by to get display coords */
 static int getResFactorFromMode(const BlxBlastMode blastMode)
@@ -295,24 +259,23 @@ static void parseFileOrBuffer(MSP **MSPlist, FILE *file, const char *buffer_in, 
 
   if (seq1Range)
     {
-      if (seq1Range->min == UNSET_INT && seq1Range->max == UNSET_INT && *seq1)
+      if (!seq1Range->isSet() && *seq1)
 	{
 	  /* The seq1 range was not parsed from the file; set the default range to be 1 -> strlen */
-	  seq1Range->min = 1;
-	  seq1Range->max = strlen(*seq1);
+	  seq1Range->set(1, strlen(*seq1));
 	}
       else if (*seq1)
 	{
 	  /* Check that the range is the same length as the sequence */
 	  int len = strlen(*seq1);
-	  if (getRangeLength(seq1Range) > len)
+	  if (seq1Range->length() > len)
 	    {
-	      g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d. Limiting end of sequence range to %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len, seq1Range->min + len - 1);
-	      seq1Range->max = seq1Range->min + len - 1;
+	      g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d. Limiting end of sequence range to %d.\n", seq1Range->min(), seq1Range->max(), seq1Range->length(), len, seq1Range->min() + len - 1);
+	      seq1Range->setMax(seq1Range->min() + len - 1);
 	    }
-	  else if (getRangeLength(seq1Range) < len)
+	  else if (seq1Range->length() < len)
 	    {
-	      g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d.\n", seq1Range->min, seq1Range->max, getRangeLength(seq1Range), len);
+	      g_warning("Sequence range in features file was %d -> %d (len=%d) but parsed sequence length is %d.\n", seq1Range->min(), seq1Range->max(), seq1Range->length(), len);
 	    }
 	}
     }
@@ -539,21 +502,6 @@ char *readFastaSeq(FILE *seqfile, char *seqName, int *startCoord, int *endCoord,
  *               Internal functions.
  *************************************************/
 
-/* Parse a string that contains a color name from our internally-defined list of accepted
- * colors. */
-static int parseColor(char *s) 
-{
-  int i;
-
-  for (i = 0; i < NUM_TRUECOLORS; i++) 
-    {
-      if (!strcasecmp(colorNames[i], s)) 
-        break;
-    }
-    
-  return i;
-}
-
 /* Parse a line that contains shape information about a curve. */
 static BlxCurveShape parseShape(char *s) 
 {
@@ -576,15 +524,16 @@ static void parseLook(MSP *msp, char *s)
 
     cp = strtok(s2, "," );
     while (cp) {
-	
-	if (parseColor(cp) != NUM_TRUECOLORS) {
-	    msp->fsColor = parseColor(cp);
+
+        if (gdk_color_parse(cp, &msp->fsColor)) {
+          gboolean failures[1];
+          gdk_colormap_alloc_colors(gdk_colormap_get_system(), &msp->fsColor, 1, TRUE, TRUE, failures);
 	}
 	else if (parseShape(cp) != BLXCURVE_BADSHAPE) {
 	    msp->fsShape = parseShape(cp);
 	}
 	else 
-	    g_critical("Unrecognised Look: %s", cp);
+	    g_critical("Unrecognised Look: %s\n", cp);
 	
 	cp = strtok(0, "," );
     }
@@ -814,7 +763,7 @@ static void parseEXBLXSEQBL(GArray* featureLists[],
     {
       if (!blxParseGaps(&seq_pos, msp, FALSE))
         {
-          g_error("Incomplete MSP gap data for MSP '%s' [%d - %d]\n", msp->sname, msp->sRange.min, msp->sRange.max) ;
+          g_error("Incomplete MSP gap data for MSP '%s' [%d - %d]\n", msp->sname, msp->sRange.min(), msp->sRange.max()) ;
         }
     }
   
@@ -1163,7 +1112,7 @@ gboolean blxParseGaps(char **text, MSP *msp, const gboolean hasGapsTag)
 	    case 0:
 	    {
 	      /* First value is start of subject sequence range. Create the range struct */
-              currentGap = (CoordRange*)g_malloc0(sizeof(CoordRange));
+              currentGap = new CoordRange;
               msp->gaps = g_slist_append(msp->gaps, currentGap);
 	      currentGap->sStart = convertStringToInt(currentGapStr);
 	      break;
@@ -1449,7 +1398,7 @@ static gboolean parseHeaderLine(char *line, BlxBlastMode *blastMode, MSP *msp, I
             }
           else
             {
-              intrangeSetValues(seq1Range, qStart, qEnd);
+              seq1Range->set(qStart, qEnd);
             }
         }
 	
@@ -1585,8 +1534,8 @@ static void parseFsSeg(char *line,
   
   MSP *msp = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_FS_SEG, NULL, NULL,
                           UNSET_INT, UNSET_INT, 0, 
-                          NULL, qName, qStart, qEnd, BLXSTRAND_NONE, 1, 
-                          series, NULL, qStart, qEnd, BLXSTRAND_NONE, NULL, 0, lookupTable, NULL, &error);
+                          NULL, qName, qStart, qStart, BLXSTRAND_NONE, 1, 
+                          series, NULL, qStart, qStart, BLXSTRAND_NONE, NULL, 0, lookupTable, NULL, &error);
 
   /* Parse in additional feature-series info */
   parseLook(msp, look);

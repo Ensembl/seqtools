@@ -119,7 +119,8 @@ fi
 
 
 # then for now we just run autoconf
+echo "seqtools running: autoreconf -fi -v"
 autoreconf -fi -v || echo "autoreconf failed...."
-
+echo "Done"
 
 

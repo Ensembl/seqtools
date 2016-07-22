@@ -36,12 +36,14 @@
  */
 
 #include <blixemApp/blxwindow.hpp>
+#include <blixemApp/blxcontext.hpp>
 #include <blixemApp/detailview.hpp>
 #include <blixemApp/detailviewtree.hpp>
 #include <blixemApp/bigpicture.hpp>
 #include <blixemApp/blxdotter.hpp>
 #include <blixemApp/exonview.hpp>
 #include <blixemApp/coverageview.hpp>
+#include <blixemApp/blxpanel.hpp>
 #include <seqtoolsUtils/utilities.hpp>
 #include <seqtoolsUtils/blxGff3Parser.hpp>
 #include <seqtoolsUtils/blxmsp.hpp>
@@ -60,7 +62,6 @@ using namespace std;
 #define DEFAULT_SCROLL_STEP_INCREMENT    5    /* how many bases the scrollbar scrolls by for each increment */
 #define DEFAULT_WINDOW_WIDTH_FRACTION    0.9  /* what fraction of the screen size the blixem window width defaults to */
 #define DEFAULT_WINDOW_HEIGHT_FRACTION   0.6  /* what fraction of the screen size the blixem window height defaults to */
-#define MATCH_SET_GROUP_NAME             "Match set"
 #define LOAD_DATA_TEXT                   "Load optional\ndata"
 #define DEFAULT_TABLE_XPAD               2    /* default x-padding to use in tables */
 #define DEFAULT_TABLE_YPAD               2    /* default y-padding to use in tables */
@@ -75,26 +76,28 @@ typedef struct _CompareSeqData
   {
     const char *searchStr;    /* the string to search for */
     BlxColumnId searchCol;    /* the column ID, which defines what data to search e.g. Name or Tissue Type */
-    BlxViewContext *bc;       /* the main context */
+    BlxContext *bc;       /* the main context */
     GList *matchList;         /* resulting list of all BlxSequences that match */
     GError *error;
   } SeqSearchData;
 
 
 /* Properties specific to the blixem window */
-typedef struct _BlxWindowProperties
-  {
-    GtkWidget *bigPicture;          /* The top section of the view, showing a "big picture" overview of the alignments */
-    GtkWidget *detailView;          /* The bottom section of the view, showing a detailed list of the alignments */
-    GtkWidget *mainmenu;            /* The main menu */
-    GtkWidget *seqHeaderMenu;      /* The context menu for tree headers */
-    GtkActionGroup *actionGroup;    /* The action-group for the menus */
+class BlxWindowProperties
+{
+public:
+  GtkWidget *widget;
+  GtkWidget *bigPicture;          /* The top section of the view, showing a "big picture" overview of the alignments */
+  GtkWidget *detailView;          /* The bottom section of the view, showing a detailed list of the alignments */
+  GtkWidget *mainmenu;            /* The main menu */
+  GtkWidget *seqHeaderMenu;      /* The context menu for tree headers */
+  GtkActionGroup *actionGroup;    /* The action-group for the menus */
 
-    BlxViewContext *blxContext;       /* The blixem view context */
+  BlxContext *blxContext;       /* The blixem view context */
 
-    GtkPageSetup *pageSetup;          /* Page setup for printing */
-    GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
-  } BlxWindowProperties;
+  GtkPageSetup *pageSetup;          /* Page setup for printing */
+  GtkPrintSettings *printSettings;  /* Used so that we can re-use the same print settings as a previous print */
+};
 
 
 /* Local function declarations */
@@ -130,7 +133,10 @@ static void                       onToggleStrandMenu(GtkAction *action, gpointer
 static void                       onViewMenu(GtkAction *action, gpointer data);
 static void                       onCreateGroupMenu(GtkAction *action, gpointer data);
 static void                       onEditGroupsMenu(GtkAction *action, gpointer data);
-static void                       onToggleMatchSet(GtkAction *action, gpointer data);
+static void                       onCreateQuickGroup(GtkAction *action, gpointer data);
+static void                       onCreateQuickFilter(GtkAction *action, gpointer data);
+static void                       onClearGroups(GtkAction *action, gpointer data);
+static void                       onHideSources(GtkAction *action, gpointer data);
 static void                       onDotterMenu(GtkAction *action, gpointer data);
 static void                       onCloseAllDottersMenu(GtkAction *action, gpointer data);
 static void                       onSelectFeaturesMenu(GtkAction *action, gpointer data);
@@ -162,9 +168,7 @@ static GList*                     findSeqsFromList(GtkWidget *blxWindow, const c
 static int                        getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginning, const gboolean searchLeft);
 static GList*                     findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, const gboolean rememberSearch, const gboolean findAgain, GError **error);
 static GtkWidget*                 dialogChildGetBlxWindow(GtkWidget *child);
-static void                       killAllSpawned(BlxViewContext *bc);
-static void                       calculateDepth(BlxViewContext *bc, const int numUnalignedBases);
-static gdouble                    calculateMspData(MSP *mspList, BlxViewContext *bc);
+static gdouble                    calculateMspData(MSP *mspList, BlxContext *bc);
 
 static gboolean                   setFlagFromButton(GtkWidget *button, gpointer data);
 static void                       copySelectedSeqDataToClipboard(GtkWidget *blxWindow);
@@ -180,6 +184,7 @@ static void                       saveBlixemSettings(GtkWidget *blxWindow);
 /* Standard menu entries */
 static const GtkActionEntry mainMenuEntries[] = {
   { "CopyMenuAction",   NULL, "Copy"},
+  { "GroupMenuAction",  NULL, "Group/Filter"},
 
   { "Quit",             GTK_STOCK_QUIT,           "_Quit",                    "<control>Q",         "Quit  Ctrl+Q",                         G_CALLBACK(onQuit)},
   { "Help",             GTK_STOCK_HELP,           "_Help",                    "<control>H",         "Display help  Ctrl+H",                 G_CALLBACK(onHelpMenu)},
@@ -211,9 +216,12 @@ static const GtkActionEntry mainMenuEntries[] = {
   { "ToggleStrand",     GTK_STOCK_REFRESH,        "Toggle strand",            "T",                  "Toggle the active strand  T",          G_CALLBACK(onToggleStrandMenu)},
 
   { "View",             GTK_STOCK_FULLSCREEN,     "_View...",                 "V",                  "Edit view settings  V",                G_CALLBACK(onViewMenu)},
-  { "CreateGroup",      NULL,                     "Create Group...",          "<shift><control>G",  "Create group  Shift+Ctrl+G",           G_CALLBACK(onCreateGroupMenu)},
+  { "CreateGroup",      NULL,                     "Create Custom Group...",   "<shift><control>G",  "Create group  Shift+Ctrl+G",           G_CALLBACK(onCreateGroupMenu)},
   { "EditGroups",       GTK_STOCK_EDIT,           "Edit _Groups...",          "<control>G",         "Edit groups  Ctrl+G",                  G_CALLBACK(onEditGroupsMenu)},
-  { "ToggleMatchSet",   NULL,                     "Toggle _match set group",  "G",                  "Create/clear the match set group  G",  G_CALLBACK(onToggleMatchSet)},
+  { "CreateQuickGroup", NULL,                     "Create group from clipboard", "G",               "Create a group based on features on the clipboard (clears existing group; hold shift to add to it)  G",  G_CALLBACK(onCreateQuickGroup)},
+  { "CreateQuickFilter",NULL,                     "Create filter from clipboard","F",               "Create a filter based on features on the clipboard (clears existing filter; hold shift to add to it)  F",  G_CALLBACK(onCreateQuickFilter)},
+  { "HideSources",      NULL,                     "Hide source(s)",           "H",                  "Hide the selected source(s)  H",        G_CALLBACK(onHideSources)},
+  { "ClearGroups",      NULL,                     "Clear groups/filters",     "C",                  "Disable all groups/filters (you can re-enable them from the Groups dialog)  C",        G_CALLBACK(onClearGroups)},
   { "DeselectAllRows",  NULL,                     "Deselect _all",            "<shift><control>A",  "Deselect all  Shift+Ctrl+A",           G_CALLBACK(onDeselectAllRows)},
 
   { "Dotter",           NULL,                     "_Dotter...",               "<control>D",         "Start Dotter  Ctrl+D",                 G_CALLBACK(onDotterMenu)},
@@ -249,9 +257,14 @@ static const char standardMenuDescription[] =
 "        <menuitem action='CopyRefSeqDisplay'/>"
 "      </menu>"
 "      <menuitem action='View'/>"
-"      <menuitem action='CreateGroup'/>"
-"      <menuitem action='EditGroups'/>"
-"      <menuitem action='ToggleMatchSet'/>"
+"      <menu action='GroupMenuAction'>"
+"        <menuitem action='CreateQuickGroup'/>"
+"        <menuitem action='CreateQuickFilter'/>"
+"        <menuitem action='HideSources'/>"
+"        <menuitem action='ClearGroups'/>"
+"        <menuitem action='CreateGroup'/>"
+"        <menuitem action='EditGroups'/>"
+"      </menu>"
 "      <menuitem action='DeselectAllRows'/>"
 "      <separator/>"
 "      <menuitem action='Dotter'/>"
@@ -419,9 +432,9 @@ static void scrollToExtremity(GtkWidget *blxWindow, const gboolean moveLeft, con
       const IntRange* const fullRange = blxWindowGetFullRange(blxWindow);
 
       if (moveLeft)
-        setDetailViewStartIdx(detailView, fullRange->min, seqType);
+        setDetailViewStartIdx(detailView, fullRange->min(), seqType);
       else
-        setDetailViewEndIdx(detailView, fullRange->max, seqType);
+        setDetailViewEndIdx(detailView, fullRange->max(), seqType);
     }
 }
 
@@ -576,22 +589,12 @@ static gboolean blxWindowGroupsExist(GtkWidget *blxWindow)
 {
   gboolean result = FALSE;
   
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   GList *groupList = blxContext->sequenceGroups;
   
-  if (g_list_length(groupList) > 1)
+  if (g_list_length(groupList) >= 1)
     {
       result = TRUE;
-    }
-  else if (g_list_length(groupList) == 1)
-    {
-      /* Only one group. If it's the match set group, check it has sequences */
-      SequenceGroup *group = (SequenceGroup*)(groupList->data);
-      
-      if (group != blxContext->matchSetGroup || g_list_length(group->seqList) > 0)
-        {
-          result = TRUE;
-        }
     }
   
   return result;
@@ -643,7 +646,7 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
                                         int *start_out,
                                         int *end_out)
 {
-  BlxViewContext *bc = blxWindowGetContext(window);
+  BlxContext *bc = blxWindowGetContext(window);
   
   char *title = g_strdup_printf("%sLoad Non-Native File", blxGetTitlePrefix(bc));
 
@@ -668,8 +671,8 @@ static gboolean showNonNativeFileDialog(GtkWidget *window,
   
   GtkWidget *sourceEntry = createTextEntryString("");
   GtkWidget *label2 = gtk_label_new("\n\nRegion to fetch data for:");
-  GtkWidget *startEntry = createTextEntryInt(bc->refSeqRange.min);
-  GtkWidget *endEntry = createTextEntryInt(bc->refSeqRange.max);
+  GtkWidget *startEntry = createTextEntryInt(bc->refSeqRange.min());
+  GtkWidget *endEntry = createTextEntryInt(bc->refSeqRange.max());
   
   GtkTable *table = GTK_TABLE(gtk_table_new(5, 2, FALSE));
   gtk_container_add(contentArea, GTK_WIDGET(table));
@@ -723,11 +726,11 @@ static void loadNonNativeFile(const char *filename,
                               const IntRange* const refSeqRange,
                               GError **error)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   GKeyFile *keyFile = blxGetConfig();
 
   GString *source = NULL;
-  int start = bc->refSeqRange.min, end = bc->refSeqRange.max;
+  int start = bc->refSeqRange.min(), end = bc->refSeqRange.max();
   
   if (!showNonNativeFileDialog(blxWindow, filename, &source, &start, &end))
     return;
@@ -792,16 +795,56 @@ static void loadNonNativeFile(const char *filename,
 }
 
 
+/* Utility to call the updateDepth functions for any coverage views we have */
+static void updateCoverageDepth(GtkWidget *blxWindow)
+{
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+
+  if (properties)
+    {
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+
+      if (bpProperties && bpProperties->coverageViewProperties())
+        bpProperties->coverageViewProperties()->updateDepth();
+
+      DetailViewProperties *dvProperties = detailViewGetProperties(properties->detailView);
+
+      if (dvProperties && dvProperties->coverageViewProperties())
+        dvProperties->coverageViewProperties()->updateDepth();
+    }
+}
+
+
+/* Utility to hide any coverage views we have */
+static void coverageSetHidden(GtkWidget *blxWindow, const bool hide)
+{
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+
+  if (properties)
+    {
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      DetailViewProperties *dvProperties = detailViewGetProperties(properties->detailView);
+
+      if (bpProperties && bpProperties->coverageViewProperties())
+        widgetSetHidden(bpProperties->coverageViewProperties()->widget(), hide);
+
+      if (dvProperties && dvProperties->coverageViewProperties())
+        widgetSetHidden(dvProperties->coverageViewProperties()->widget(), hide);
+    }
+}
+
+
 /* Dynamically load in additional features from a file. (should be called after
  * blixem's GUI has already started up, rather than during start-up where normal
  * feature-loading happens) */
 static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, const char *buffer, GError **error)
 {
-  /* Must be passed either a filename or buffer */
-  if (!filename && !buffer)
-    return;
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  /* Must be passed either a filename or buffer */
+  g_return_if_fail(filename || buffer);
+  g_return_if_fail(bc);
+
   GKeyFile *keyFile = blxGetConfig();
   
   /* We'll load the features from the file into some temporary lists */
@@ -875,8 +918,8 @@ static void dynamicLoadFeaturesFile(GtkWidget *blxWindow, const char *filename, 
       callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
 
       /* Recalculate the coverage */
-      calculateDepth(bc, numUnalignedBases);
-      updateCoverageDepth(blxWindowGetCoverageView(blxWindow), bc);
+      bc->calculateDepth(numUnalignedBases);
+      updateCoverageDepth(blxWindow);
   
       /* Re-calculate the height of the exon views */
       GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
@@ -1150,7 +1193,7 @@ static void createExonButtons(GtkWidget *exonView, const char *visLabel, const c
 /* Shows the "View panes" dialog. This dialog allows the user to show/hide certain portions of the window. */
 void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_VIEW;
   GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
@@ -1213,10 +1256,12 @@ void showViewPanesDialog(GtkWidget *blxWindow, const gboolean bringToFront)
       createTreeVisibilityButton(dv, blxWindowGetInactiveStrand(blxWindow), frame, dvSubBox);
     }
   
-  /* Coverage view */
-  GtkWidget *coverageView = bigPictureGetCoverageView(bp);
+  /* Coverage views */
+  GtkWidget *bpCoverageView = blxWindowGetBigPictureCoverageView(blxWindow);
+  GtkWidget *dvCoverageView = blxWindowGetDetailViewCoverageView(blxWindow);
   GtkWidget *coverageVbox = createVBoxWithBorder(contentArea, borderWidth, TRUE, "Coverage view");
-  createVisibilityButton(coverageView, "Show _coverage view", coverageVbox);
+  createVisibilityButton(bpCoverageView, "Show _coverage view (big picture)", coverageVbox);
+  createVisibilityButton(dvCoverageView, "Show _coverage view (detail view)", coverageVbox);
 
   
   gtk_widget_show_all(dialog);
@@ -1271,7 +1316,7 @@ static GList* findSeqsFromColumn(GtkWidget *blxWindow, const char *inputText, co
   /* Loop through all the sequences and see if the sequence data for this column
    * matches the search string */
   GList *seqList = blxWindowGetAllMatchSeqs(blxWindow);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   SeqSearchData searchData = {searchStr, searchCol, bc, NULL, NULL};
   
   g_list_foreach(seqList, getSequencesThatMatch, &searchData);
@@ -1515,7 +1560,7 @@ static void blxWindowFindDnaString(GtkWidget *blxWindow,
   const int searchStrIncrement = searchLeft ? -1 : 1;
   
   /* Values increase left-to-right in normal display or right-to-left in reversed display */
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   const gboolean searchForward = (searchLeft == bc->displayRev);
   const int refSeqIncrement = searchForward ? 1 : -1;
   
@@ -1526,7 +1571,7 @@ static void blxWindowFindDnaString(GtkWidget *blxWindow,
   int searchStrIdx = searchStart;
   int matchStart = UNSET_INT;
   
-  while (refSeqIdx >= bc->refSeqRange.min && refSeqIdx <= bc->refSeqRange.max && searchStrIdx >= 0 && searchStrIdx <= searchStrMax)
+  while (refSeqIdx >= bc->refSeqRange.min() && refSeqIdx <= bc->refSeqRange.max() && searchStrIdx >= 0 && searchStrIdx <= searchStrMax)
     {
       const char refSeqBase = getSequenceIndex(bc->refSeq, refSeqIdx, complement, &bc->refSeqRange, BLXSEQ_DNA);
       char searchStrBase = convertBaseToCorrectCase(searchStr[searchStrIdx], BLXSEQ_DNA);      
@@ -1599,11 +1644,11 @@ static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginni
 {
   int result = UNSET_INT;
   
-  const BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  const BlxContext *bc = blxWindowGetContext(blxWindow);
   
   if (startBeginning)
     {
-      result = (searchLeft == bc->displayRev) ? bc->refSeqRange.min : bc->refSeqRange.max;
+      result = (searchLeft == bc->displayRev) ? bc->refSeqRange.min() : bc->refSeqRange.max();
     }
   else  
     {
@@ -1627,7 +1672,7 @@ static int getSearchStartCoord(GtkWidget *blxWindow, const gboolean startBeginni
         {
           /* The start display coord is the min coord if we're searching left and the max if searching right. */
           const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
-          result = searchLeft ? displayRange->max : displayRange->min;
+          result = searchLeft ? displayRange->max() : displayRange->min();
         }
 
       /* Convert the display coord to a nucleotide coord */
@@ -1705,7 +1750,7 @@ static void createSearchColumnCombo(GtkTable *table, const int col, const int ro
   
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow());
 
   createSortBox(GTK_BOX(hbox), detailView, BLXCOL_SEQNAME, columnList, "Search column: ", TRUE);  
 }
@@ -1752,7 +1797,7 @@ static void onDestroyFindDialog(GtkWidget *widget, gpointer data)
 /* Show the 'Find' dialog */
 void showFindDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_FIND;
   GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
@@ -1840,7 +1885,7 @@ void showInfoDialog(GtkWidget *blxWindow)
   int width = blxWindow->allocation.width * 0.7;
   int height = blxWindow->allocation.height * 0.9;
   
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
   /* Compile the message text from the selected sequence(s) */
   GString *resultStr = g_string_new("");
@@ -1884,98 +1929,23 @@ static void toggleBumpState(GtkWidget *blxWindow)
  *                    Group sequences menu                 *
  ***********************************************************/
 
-/* Utility to free the given list of  strings and (if the option is true) all
- * of its data items as well. */
-static void freeStringList(GList **stringList, const gboolean freeDataItems)
-{
-  if (stringList && *stringList)
-    {
-      if (freeDataItems)
-        {
-          GList *item = *stringList;
-          for ( ; item; item = item->next)
-            {
-              char *strData = (char*)(item->data);
-              g_free(strData);
-              item->data = NULL;
-            }
-        }
-      
-      g_list_free(*stringList);
-      *stringList = NULL;
-    }
-}
-
-
-/* Free the memory used by the given sequence group and its members. */
-static void destroySequenceGroup(BlxViewContext *bc, SequenceGroup **seqGroup)
-{
-  if (seqGroup && *seqGroup)
-    {
-      /* Remove it from the list of groups */
-      bc->sequenceGroups = g_list_remove(bc->sequenceGroups, *seqGroup);
-      
-      /* If this is pointed to by the match-set pointer, null it */
-      if (*seqGroup == bc->matchSetGroup)
-        {
-          bc->matchSetGroup = NULL;
-        }
-      
-      /* Free the memory used by the group name */
-      if ((*seqGroup)->groupName)
-        {
-          g_free((*seqGroup)->groupName);
-        }
-      
-      /* Free the list of sequences */
-      if ((*seqGroup)->seqList)
-        {
-          freeStringList(&(*seqGroup)->seqList, (*seqGroup)->ownsSeqNames);
-        }
-      
-      g_free(*seqGroup);
-      *seqGroup = NULL;
-    }
-}
-
-
 /* Delete a single group */
 static void blxWindowDeleteSequenceGroup(GtkWidget *blxWindow, SequenceGroup *group)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   
   if (blxContext->sequenceGroups)
     {
-      destroySequenceGroup(blxContext, &group);
+      blxContext->destroySequenceGroup(&group);
       blxWindowGroupsChanged(blxWindow);
     }
 }
 
 
-/* Delete all groups */
-static void blxContextDeleteAllSequenceGroups(BlxViewContext *bc)
-{
-  GList *groupItem = bc->sequenceGroups;
-  
-  for ( ; groupItem; groupItem = groupItem->next)
-    {
-      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      destroySequenceGroup(bc, &group);
-    }
-  
-  g_list_free(bc->sequenceGroups);
-  bc->sequenceGroups = NULL;
-  
-  /* Reset the hide-not-in-group flags otherwise we'll hide everything! */
-  bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS] = FALSE ;
-  bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES] = FALSE ;
-}
-
-
 static void blxWindowDeleteAllSequenceGroups(GtkWidget *blxWindow)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  blxContextDeleteAllSequenceGroups(bc);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
+  bc->deleteAllSequenceGroups();
   blxWindowGroupsChanged(blxWindow);
 }
 
@@ -2009,16 +1979,26 @@ static void blxWindowGroupsChanged(GtkWidget *blxWindow)
  * will take ownership of the sequence names and free them when it is destroyed. 
  * Caller can optionally provide the group name; if not provided, a default name
  * will be allocated. */
-static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, const gboolean ownSeqNames, const char *groupName)
+static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, 
+                                          GList *seqList, 
+                                          const gboolean ownSeqNames, 
+                                          const char *groupName,
+                                          const bool isQuickGroup = false,
+                                          const bool isFilter = false,
+                                          const bool highlight = true,
+                                          const bool hide = false)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   
   /* Create the new group */
-  SequenceGroup *group = (SequenceGroup*)g_malloc(sizeof(SequenceGroup));
+  SequenceGroup *group = new SequenceGroup;
   
   group->seqList = seqList;
   group->ownsSeqNames = ownSeqNames;
-  group->hidden = FALSE;
+  group->hidden = hide;
+  group->highlighted = highlight;
+  group->isQuickGroup = isQuickGroup;
+  group->isFilter = isFilter;
   
   /* Find a unique ID */
   GList *lastItem = g_list_last(bc->sequenceGroups);
@@ -2035,25 +2015,28 @@ static SequenceGroup* createSequenceGroup(GtkWidget *blxWindow, GList *seqList, 
 
   if (groupName)
     {
-      group->groupName = g_strdup(groupName);
+      group->groupName = g_strdup_printf("%s%d", groupName, group->groupId);
     }
   else
     {
       /* Create a default name based on the unique ID */
-      char formatStr[] = "Group%d";
-      const int nameLen = strlen(formatStr) + numDigitsInInt(group->groupId);
-      group->groupName = (char*)g_malloc(nameLen * sizeof(*group->groupName));
-      sprintf(group->groupName, formatStr, group->groupId);
+      std::stringstream ss;
+      if (isFilter)
+        ss << "Filter";
+      else
+        ss << "Group";
+          
+      ss << group->groupId;
+      
+      group->groupName = g_strdup(ss.str().c_str());
     }
   
   /* Set the order number. For simplicity, set the default order to be the same
    * as the ID number, so groups are sorted in the order they were added */
   group->order = group->groupId;
 
-  /* Set the default highlight color. */
-  group->highlighted = TRUE;
-
-  BlxColorId colorId = (groupName && !strcmp(groupName, MATCH_SET_GROUP_NAME)) ? BLXCOLOR_MATCH_SET : BLXCOLOR_GROUP;
+  /* Set the default highlight color */
+  BlxColorId colorId = BLXCOLOR_GROUP;
   GdkColor *color = getGdkColor(colorId, bc->defaultColors, FALSE, bc->usePrintColors);
   group->highlightColor = *color;
 
@@ -2126,6 +2109,25 @@ static gboolean onGroupOrderChanged(GtkWidget *widget, const gint responseId, gp
 }
 
 
+/* This callback is called when the dialog settings are applied. It sets the filter
+ * status of the passed group based on the toggle button's state */
+static gboolean onGroupFilterToggled(GtkWidget *button, const gint responseId, gpointer data)
+{
+  gboolean result = TRUE;
+  
+  SequenceGroup *group = (SequenceGroup*)data;
+  group->isFilter = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+
+  /* Refilter trees and redraw all immediately show the new status */
+  GtkWidget *dialog = gtk_widget_get_toplevel(button);
+  GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(GTK_WINDOW(dialog)));
+
+  blxWindowGroupsChanged(blxWindow);
+  
+  return result;
+}
+
+
 /* This callback is called when the dialog settings are applied. It sets the hidden
  * status of the passed groupo based on the toggle button's state */
 static gboolean onGroupHiddenToggled(GtkWidget *button, const gint responseId, gpointer data)
@@ -2189,54 +2191,57 @@ static gboolean onGroupColorChanged(GtkWidget *button, const gint responseId, gp
  * widget at the given row. */
 static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, GtkTable *table, const int row, const int xpad, const int ypad)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  
-  /* Only show the special 'match set' group if it has some sequences */
-  if (group != blxContext->matchSetGroup || g_list_length(group->seqList) > 0)
-    {
-      /* Show the group's name in a text box that the user can edit */
-      GtkWidget *nameWidget = gtk_entry_new();
-      gtk_entry_set_text(GTK_ENTRY(nameWidget), group->groupName);
-      gtk_entry_set_activates_default(GTK_ENTRY(nameWidget), TRUE);
-      widgetSetCallbackData(nameWidget, onGroupNameChanged, group);
+  /* Show the group's name in a text box that the user can edit */
+  GtkWidget *nameWidget = gtk_entry_new();
+  gtk_entry_set_text(GTK_ENTRY(nameWidget), group->groupName);
+  gtk_entry_set_activates_default(GTK_ENTRY(nameWidget), TRUE);
+  widgetSetCallbackData(nameWidget, onGroupNameChanged, group);
       
-      /* Add a check box for the 'hidden' flag */
-      GtkWidget *isHiddenWidget = gtk_check_button_new();
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHiddenWidget), group->hidden);
-      widgetSetCallbackData(isHiddenWidget, onGroupHiddenToggled, group);
+  /* Add a check box for the 'isFilter' flag */
+  GtkWidget *isFilterWidget = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isFilterWidget), group->isFilter);
+  gtk_widget_set_tooltip_text(isFilterWidget, "If any Filter groups are set, Blixem will filter out features of the same type that are not in a Filter group");
+  widgetSetCallbackData(isFilterWidget, onGroupFilterToggled, group);
+      
+  /* Add a check box for the 'hidden' flag */
+  GtkWidget *isHiddenWidget = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHiddenWidget), group->hidden);
+  gtk_widget_set_tooltip_text(isHiddenWidget, "Always hide features in this group");
+  widgetSetCallbackData(isHiddenWidget, onGroupHiddenToggled, group);
 
-      /* Add a check box for the 'highlighted' flag */
-      GtkWidget *isHighlightedWidget = gtk_check_button_new();
-      gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHighlightedWidget), group->highlighted);
-      widgetSetCallbackData(isHighlightedWidget, onGroupHighlightedToggled, group);
+  /* Add a check box for the 'highlighted' flag */
+  GtkWidget *isHighlightedWidget = gtk_check_button_new();
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(isHighlightedWidget), group->highlighted);
+  gtk_widget_set_tooltip_text(isHighlightedWidget, "Highlight features that are in this group (use the colour selector to set the highlight color)");
+  widgetSetCallbackData(isHighlightedWidget, onGroupHighlightedToggled, group);
       
-      /* Show the group's order number in an editable text box */
-      GtkWidget *orderWidget = gtk_entry_new();
+  /* Show the group's order number in an editable text box */
+  GtkWidget *orderWidget = gtk_entry_new();
 
-      char *orderStr = convertIntToString(group->order);
-      gtk_entry_set_text(GTK_ENTRY(orderWidget), orderStr);
-      g_free(orderStr);
+  char *orderStr = convertIntToString(group->order);
+  gtk_entry_set_text(GTK_ENTRY(orderWidget), orderStr);
+  g_free(orderStr);
       
-      gtk_entry_set_activates_default(GTK_ENTRY(orderWidget), TRUE);
-      gtk_widget_set_size_request(orderWidget, 30, -1);
-      widgetSetCallbackData(orderWidget, onGroupOrderChanged, group);
+  gtk_entry_set_activates_default(GTK_ENTRY(orderWidget), TRUE);
+  gtk_widget_set_size_request(orderWidget, 30, -1);
+  widgetSetCallbackData(orderWidget, onGroupOrderChanged, group);
 
-      /* Show the group's highlight color in a button that will also launch a color-picker */
-      GtkWidget *colorButton = gtk_color_button_new_with_color(&group->highlightColor);
-      widgetSetCallbackData(colorButton, onGroupColorChanged, group);
+  /* Show the group's highlight color in a button that will also launch a color-picker */
+  GtkWidget *colorButton = gtk_color_button_new_with_color(&group->highlightColor);
+  widgetSetCallbackData(colorButton, onGroupColorChanged, group);
       
-      /* Create a button that will delete this group */
-      GtkWidget *deleteButton = gtk_button_new_from_stock(GTK_STOCK_DELETE);
-      g_signal_connect(G_OBJECT(deleteButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroup), group);
+  /* Create a button that will delete this group */
+  GtkWidget *deleteButton = gtk_button_new_from_stock(GTK_STOCK_DELETE);
+  g_signal_connect(G_OBJECT(deleteButton), "clicked", G_CALLBACK(onButtonClickedDeleteGroup), group);
       
-      /* Put everything in the table */
-      gtk_table_attach(table, nameWidget,               1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, isHiddenWidget,   2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, isHighlightedWidget,      3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, orderWidget,              4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, colorButton,              5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-      gtk_table_attach(table, deleteButton,             6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-    }
+  /* Put everything in the table */
+  gtk_table_attach(table, nameWidget,               1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, isFilterWidget,           2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, isHiddenWidget,           3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, isHighlightedWidget,      4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, orderWidget,              5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, colorButton,              6, 7, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, deleteButton,             7, 8, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
 }
 
 
@@ -2244,13 +2249,13 @@ static void createEditGroupWidget(GtkWidget *blxWindow, SequenceGroup *group, Gt
  * needs the context for its data) */
 static const char* blxSequenceGetColumnData(const BlxSequence* const blxSeq, 
                                             const BlxColumnId columnId,
-                                            const BlxViewContext *bc)
+                                            const BlxContext *bc)
 {
   const char *result = NULL;
 
   if (columnId == BLXCOL_GROUP)
     {
-      const SequenceGroup *group = blxContextGetSequenceGroup(bc, blxSeq);
+      const SequenceGroup *group = bc->getSequenceGroup(blxSeq);
 
       if (group)
         result = group->groupName;
@@ -2335,7 +2340,7 @@ static gboolean onAddGroupFromSelection(GtkWidget *button, const gint responseId
       GtkWindow *dialogWindow = GTK_WINDOW(gtk_widget_get_toplevel(button));
       GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
-      BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+      BlxContext *blxContext = blxWindowGetContext(blxWindow);
       
       if (g_list_length(blxContext->selectedSeqs) > 0)
         {
@@ -2405,7 +2410,7 @@ static gboolean onAddGroupFromText(GtkWidget *button, const gint responseId, gpo
  * strings. */
 static GList* getSeqStructsFromSearchStringList(GList *searchStringList, 
                                                 GList *seqList, 
-                                                BlxViewContext *bc, 
+                                                BlxContext *bc, 
                                                 const BlxColumnId searchCol,
                                                 GError **error)
 {
@@ -2437,13 +2442,14 @@ static GList* getSeqStructsFromSearchStringList(GList *searchStringList,
  * (which may be a multi-line list; one search string per line). */
 static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText, const BlxColumnId searchCol, GError **error)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
+
   GError *tmpError = NULL;
 
   GList *searchStringList = parseMatchList(inputText);
 
   /* Extract the entries from the list that are sequences that blixem knows about */
-  GList *matchSeqs = blxWindowGetAllMatchSeqs(blxWindow);
+  GList *matchSeqs = bc->matchSeqs;
   GList *seqList = getSeqStructsFromSearchStringList(searchStringList, matchSeqs, bc, searchCol, &tmpError);
 
   if (tmpError)
@@ -2462,41 +2468,66 @@ static GList* getSeqStructsFromText(GtkWidget *blxWindow, const char *inputText,
 }
 
 
-/* Callback function to be used when requesting text from the clipboard to be used
- * to create the 'match set' group from the paste text */
-static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+/* Create a group/filter from features on the clipboard. Adds to an existing quick group/filter
+ * if exists, otherwise creates one. */
+static void createGroupOrFilterFromClipboard(GtkClipboard *clipboard, 
+                                             const char *clipboardText, 
+                                             const bool isFilter,
+                                             gpointer data)
 {
   /* Get the list of sequences to include */
   GtkWidget *blxWindow = GTK_WIDGET(data);
   GList *seqList = getSeqStructsFromText(blxWindow, clipboardText, BLXCOL_SEQNAME, NULL);
   
-  /* If a group already exists, replace its list. Otherwise create the group. */
   if (seqList)
     {
-      BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-      
-      if (!blxContext->matchSetGroup)
+      /* See if there's already a quick group/filter */
+      BlxContext *blxContext = blxWindowGetContext(blxWindow);
+      SequenceGroup *group = blxContext->getQuickGroup(isFilter);
+
+      if (group)
         {
-          blxContext->matchSetGroup = createSequenceGroup(blxWindow, seqList, FALSE, MATCH_SET_GROUP_NAME);
+          group->seqList = g_list_concat(group->seqList, seqList);
+          blxWindowGroupsChanged(blxWindow);
         }
       else
         {
-          if (blxContext->matchSetGroup->seqList)
-            {
-              g_list_free(blxContext->matchSetGroup->seqList);
-            }
-          
-          blxContext->matchSetGroup->seqList = seqList;
+          createSequenceGroup(blxWindow, seqList, FALSE, NULL, true, isFilter, !isFilter, false);
         }
-      
-      /* Reset the highlighted/hidden properties to make sure the group is initially visible */
-      blxContext->matchSetGroup->highlighted = TRUE;
-      blxContext->matchSetGroup->hidden = FALSE;
 
-      blxWindowGroupsChanged(blxWindow);
-      
-      /* Refresh the groups dialog, if it happens to be open */
       refreshDialog(BLXDIALOG_GROUPS, blxWindow);
+    }
+}
+
+
+/* Callback function to be used when requesting text from the clipboard to be used
+ * to create a group from the paste text */
+static void createGroupFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+{
+  createGroupOrFilterFromClipboard(clipboard, clipboardText, false, data) ;
+}
+
+/* Callback function to be used when requesting text from the clipboard to be used
+ * to create a filter from the paste text */
+static void createFilterFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+{
+  createGroupOrFilterFromClipboard(clipboard, clipboardText, true, data) ;
+}
+
+
+
+/* Callback function to be used when requesting text from the clipboard to be used
+ * to find sequences based on the paste text. Scrolls the first selected
+ * match into view. */
+void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+{
+  /* Get the list of sequences to include */
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  GList *seqList = getSeqStructsFromText(blxWindow, clipboardText, BLXCOL_SEQNAME, NULL);
+  
+  if (seqList)
+    {
+      blxWindowSetSelectedSeqList(blxWindow, seqList);
     }
 }
 
@@ -2504,7 +2535,7 @@ static void createMatchSetFromClipboard(GtkClipboard *clipboard, const char *cli
 /* Callback function to be used when requesting text from the clipboard to be used
  * to find and select sequences based on the paste text. Scrolls the first selected
  * match into view. */
-void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
+void findAndSelectSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, gpointer data)
 {
   /* Get the list of sequences to include */
   GtkWidget *blxWindow = GTK_WIDGET(data);
@@ -2518,28 +2549,55 @@ void findSeqsFromClipboard(GtkClipboard *clipboard, const char *clipboardText, g
 }
 
 
-/* This function toggles the match set.  That is, if the match set (a special 
- * group) exists then it deletes it; if it does not exist, then it creates it
- * from the current clipboard text (which should contain valid sequence name(s)). */
-static void toggleMatchSet(GtkWidget *blxWindow)
+static void hideSelectedSources(GtkWidget *blxWindow, const bool refresh = true)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  
-  if (blxContext->matchSetGroup && blxContext->matchSetGroup->seqList)
-    {
-      /* Clear the list of names only (don't delete the group, because we want to
-       * keep any changes the user made (e.g. to the group color etc.) for next time. */
-      g_list_free(blxContext->matchSetGroup->seqList);
-      blxContext->matchSetGroup->seqList = NULL;
-      blxWindowGroupsChanged(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
+  g_return_if_fail(blxContext);
 
-      /* Refresh the groups dialog, if it happens to be open */
+  std::set<GQuark> sourceList = blxContext->getSelectedSources();
+  GList *seqList = blxContext->getFeaturesInSourceList(sourceList);
+
+  if (seqList)
+    {
+      createSequenceGroup(blxWindow, seqList, FALSE, "HideSource", false, false, false, true);
+  
+      if (refresh)
+        {
+          blxWindowGroupsChanged(blxWindow);
+          refreshDialog(BLXDIALOG_GROUPS, blxWindow);
+        }
+    }
+}
+
+
+/* Disable all groups/filters */
+static void clearGroups(GtkWidget *blxWindow, const bool refresh = true)
+{
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
+
+  blxContext->disableAllGroups();
+  
+  if (refresh)
+    {
+      blxWindowGroupsChanged(blxWindow);
       refreshDialog(BLXDIALOG_GROUPS, blxWindow);
     }
+}
+
+
+/* This function creates a group (or filter, if filter=true) from features 
+ * on the clipboard text (which should contain valid sequence name(s)). */
+static void createQuickGroup(GtkWidget *blxWindow, const bool isFilter, const bool clearPrevious)
+{
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
+
+  if (clearPrevious)
+    blxContext->disableAllQuickGroups();
+  
+  if (isFilter)
+    requestPrimaryClipboardText(createFilterFromClipboard, blxWindow);
   else
-    {
-      requestPrimaryClipboardText(createMatchSetFromClipboard, blxWindow);
-    }
+    requestPrimaryClipboardText(createGroupFromClipboard, blxWindow);
 }
 
 
@@ -2594,7 +2652,7 @@ static void onButtonClickedDeleteAllGroups(GtkWidget *button, gpointer data)
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
 
   /* Ask the user if they're sure */
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   char *title = g_strdup_printf("%sDelete groups", blxGetTitlePrefix(bc));
   gint response = runConfirmationBox(blxWindow, title, "This will delete ALL groups. Are you sure?");
   g_free(title);
@@ -2622,7 +2680,7 @@ static void onButtonClickedDeleteGroup(GtkWidget *button, gpointer data)
   char messageText[strlen(formatStr) + strlen(group->groupName)];
   sprintf(messageText, formatStr, group->groupName);
   
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   char *title = g_strdup_printf("%sDelete group", blxGetTitlePrefix(bc));
   gint response = runConfirmationBox(blxWindow, title, messageText);
   g_free(title);
@@ -2739,29 +2797,8 @@ void onResponseGroupsDialog(GtkDialog *dialog, gint responseId, gpointer data)
 }
 
 
-/* Callback for when the 'hide ungrouped sequences' option is changed */
-static gboolean onHideUngroupedChanged(GtkWidget *button, const gint responseId, gpointer data)
-{
-  setFlagFromButton(button, data);
-  
-  GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
-  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  GtkWidget *bigPicture = blxWindowGetBigPicture(blxWindow);
-  
-  refilterDetailView(detailView, NULL);
-
-  calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
-  calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
-  forceResize(bigPicture);
-
-  blxWindowRedrawAll(blxWindow);
-  
-  return TRUE;
-}
-
-
 /* Create the 'create group' tab of the groups dialog. Appends it to the notebook. */
-static void createCreateGroupTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWidget *blxWindow)
+static void createCreateGroupTab(GtkNotebook *notebook, BlxContext *bc, GtkWidget *blxWindow)
 {
   const int numRows = 3;
   const int numCols = 2;
@@ -2784,39 +2821,30 @@ static void createCreateGroupTab(GtkNotebook *notebook, BlxViewContext *bc, GtkW
 
 
 /* Create the 'edit groups' tab of the groups dialog. Appends it to the given notebook. */
-static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWidget *blxWindow)
+static void createEditGroupsTab(GtkNotebook *notebook, BlxContext *bc, GtkWidget *blxWindow)
 {
   const int numRows = g_list_length(bc->sequenceGroups) + 4; /* +4 for: header; delete-all button;
                                                                 hide-all-seqs; hide-all-features */
-  const int numCols = 6;
+  const int numCols = 7;
   const int xpad = DEFAULT_TABLE_XPAD;
   const int ypad = DEFAULT_TABLE_YPAD;
   int row = 1;
   
-  /* Put everything in a table */
+  /* Put everything in a table inside a scrolled window */
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
+  GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), GTK_WIDGET(table));
   
   /* Append the table as a new tab to the notebook */
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(table), gtk_label_new("Edit groups"));
-  
-  /* Add check buttons to turn on the 'hide ungrouped sequences/features' options */
-  GtkWidget *hideButton1 = gtk_check_button_new_with_mnemonic("_Hide all sequences not in a group");
-  GtkWidget *hideButton2 = gtk_check_button_new_with_mnemonic("_Hide all features not in a group");
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton1), bc->flags[BLXFLAG_HIDE_UNGROUPED_SEQS]);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hideButton2), bc->flags[BLXFLAG_HIDE_UNGROUPED_FEATURES]);
-  widgetSetCallbackData(hideButton1, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_SEQS));
-  widgetSetCallbackData(hideButton2, onHideUngroupedChanged, GINT_TO_POINTER(BLXFLAG_HIDE_UNGROUPED_FEATURES));
-
-  gtk_table_attach(table, hideButton1, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  ++row;
-  gtk_table_attach(table, hideButton2, 1, 2, row, row + 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
-  ++row;
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), GTK_WIDGET(scrollWin), gtk_label_new("Edit groups"));
   
   /* Add labels for each column in the table */
   gtk_table_attach(table, gtk_label_new("Group name"),    1, 2, row, row + 1, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Hide"),          2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Highlight"),     3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
-  gtk_table_attach(table, gtk_label_new("Order"),         4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Filter"),        2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Hide"),          3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Highlight"),     4, 5, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+  gtk_table_attach(table, gtk_label_new("Order"),         5, 6, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
   ++row;
   
   /* Add a set of widgets for each group */
@@ -2843,7 +2871,7 @@ static void createEditGroupsTab(GtkNotebook *notebook, BlxViewContext *bc, GtkWi
  * otherwise the 'Create Groups' tab is shown. */
 void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gboolean bringToFront)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_GROUPS;
   GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
@@ -2889,6 +2917,11 @@ void showGroupsDialog(GtkWidget *blxWindow, const gboolean editGroups, const gbo
   gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(blxWindow));
   g_signal_connect(notebook, "switch-page", G_CALLBACK(onSwitchPageGroupsDialog), dialog);
   
+  int width = 450, height = 300;
+  int maxwidth = width, maxheight = height;
+  gbtools::GUIGetTrueMonitorSizeFraction(dialog, 0.33, 0.33, &maxwidth, &maxheight);
+  gtk_window_set_default_size(GTK_WINDOW(dialog), std::min(width, maxwidth), std::min(height, maxheight));
+
   gtk_widget_show_all(dialog);
 
   if (editGroups && notebook && blxWindowGroupsExist(blxWindow))
@@ -2937,7 +2970,7 @@ static GtkWidget* dialogChildGetBlxWindow(GtkWidget *child)
 static gboolean setFlagFromButton(GtkWidget *button, gpointer data)
 {
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   
   BlxFlag flag = (BlxFlag)GPOINTER_TO_INT(data);
   const gboolean newValue = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
@@ -3095,7 +3128,7 @@ static void widgetSetSensitive(GtkWidget *widget, gpointer data)
 static void onButtonClickedLoadOptional(GtkWidget *button, gpointer data)
 {
   GtkWidget *blxWindow = dialogChildGetBlxWindow(button);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
   /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
   GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
@@ -3171,7 +3204,7 @@ static GtkWidget* createColumnLoadDataButton(GtkTable *table,
                                              int xpad,
                                              int ypad)
 {
-  BlxViewContext *bc = blxWindowGetContext(detailViewGetBlxWindow(detailView));
+  BlxContext *bc = blxWindowGetContext(detailViewGetBlxWindow(detailView));
   const gboolean dataLoaded = bc->flags[BLXFLAG_OPTIONAL_COLUMNS];
 
   /* Create the button */
@@ -3344,10 +3377,10 @@ static gboolean onMinPercentIdChanged(GtkWidget *widget, const gint responseId, 
 /* Callback to be called when the user has changed the depth-per-cell on the coverage view */
 static gboolean onDepthPerCellChanged(GtkWidget *widget, const gint responseId, gpointer data)
 {
-  GtkWidget *coverageView = GTK_WIDGET(data);  
+  CoverageViewProperties *coverageViewP = (CoverageViewProperties*)data;  
   const char *text = gtk_entry_get_text(GTK_ENTRY(widget));
   const gdouble newValue = g_strtod(text, NULL);
-  return coverageViewSetDepthPerCell(coverageView, newValue);
+  return coverageViewP->setDepthPerCell(newValue);
 }
 
 
@@ -3429,9 +3462,10 @@ static void createGridSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
 
 
 /* Create a set of widgets to allow the user to edit coverage-view properties */
-static void createCoverageSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture)
+static void createCoverageSettingsButtons(GtkWidget *parent, GtkWidget *bigPicture, GtkWidget *detailView)
 {
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
+  BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+  DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
   
   /* Group these buttons in a frame */
   GtkWidget *frame = gtk_frame_new("Coverage section");
@@ -3439,9 +3473,14 @@ static void createCoverageSettingsButtons(GtkWidget *parent, GtkWidget *bigPictu
   
   /* Arrange the widgets horizontally */
   GtkWidget *hbox = createHBoxWithBorder(frame, 12, FALSE, NULL);
-  const double rangePerCell = coverageViewGetDepthPerCell(properties->coverageView);
   
-  createTextEntry(hbox, "Depth per cell", rangePerCell, onDepthPerCellChanged, properties->coverageView);
+  createTextEntry(hbox, "Depth per cell (big picture)", 
+                  bpProperties->coverageViewProperties()->depthPerCell(),
+                  onDepthPerCellChanged, bpProperties->coverageViewProperties());
+
+  createTextEntry(hbox, "Depth per cell (detail view)", 
+                  dvProperties->coverageViewProperties()->depthPerCell(),
+                  onDepthPerCellChanged, dvProperties->coverageViewProperties());
 }
 
 
@@ -3495,7 +3534,7 @@ static void createColorButton(GtkTable *table, GdkColor *color, BlxResponseCallb
 /* Create buttons for the user to be able to change the blixem colour settings */
 static void createColorButtons(GtkWidget *parent, GtkWidget *blxWindow, const int borderWidth)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   
   /* put all the colors in a table. Put the table in a scrolled window, because
    * there are likely to be many rows */
@@ -3628,7 +3667,7 @@ static void onToggleShowUnalignedSelected(GtkWidget *button, gpointer data)
 
 /* Create the check button for the 'limit number of unaligned bases' option on the settings dialog
  * and pack it into the given container. */
-static void createLimitUnalignedBasesButton(GtkContainer *parent, GtkWidget *detailView, BlxViewContext *bc)
+static void createLimitUnalignedBasesButton(GtkContainer *parent, GtkWidget *detailView, BlxContext *bc)
 {
   /* Create an hbox for the "limit to so-many bases" option, which has a check button, text
    * entry and some labels. Pack the hbox into the given parent. */
@@ -3671,7 +3710,7 @@ static void createLimitUnalignedBasesButton(GtkContainer *parent, GtkWidget *det
  * active. Returns the container for the sub-options, which should be packed with the sub-option widgets. */
 static GtkContainer* createParentCheckButton(GtkWidget *parent, 
                                              GtkWidget *detailView,
-                                             BlxViewContext *bc,
+                                             BlxContext *bc,
                                              const char *label,
                                              const char *tooltip,
                                              const BlxFlag flag,
@@ -3728,7 +3767,7 @@ void refreshDialog(const BlxDialogId dialogId, GtkWidget *blxWindow)
    * case the user looks at it again. */
   if (blxWindow)
     {
-      BlxViewContext *bc = blxWindowGetContext(blxWindow);
+      BlxContext *bc = blxWindowGetContext(blxWindow);
       GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
       
       if (dialog && GTK_WIDGET_VISIBLE(dialog))
@@ -3797,7 +3836,7 @@ static void onResponseFontSelectionDialog(GtkDialog *dialog, gint responseId, gp
 
       if (!ok)
         {
-          BlxViewContext *bc = blxWindowGetContext(blxWindow);
+          BlxContext *bc = blxWindowGetContext(blxWindow);
 
           char *msg = g_strdup_printf("Selected font '%s' is not a fixed-width font. Matches may not appear correctly aligned. Are you sure you want to continue?", fontName);
           char *title = g_strdup_printf("%sWarning", blxGetTitlePrefix(bc));
@@ -3893,7 +3932,7 @@ void onResponseSettingsDialog(GtkDialog *dialog, gint responseId, gpointer data)
 /* Show/refresh the "Settings" dialog. */
 void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_SETTINGS;
   GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
@@ -4085,7 +4124,7 @@ void showSettingsDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   createGridSettingsButtons(displayBox, bigPicture);
 
-  createCoverageSettingsButtons(displayBox, bigPicture);
+  createCoverageSettingsButtons(displayBox, bigPicture, detailView);
 
 
   /* COLUMNS PAGE */
@@ -4190,7 +4229,7 @@ static gboolean onSortOrderChanged(GtkWidget *widget, const gint responseId, gpo
 {
   GtkWidget *detailView = GTK_WIDGET(data);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow());
 
   if (GTK_WIDGET_REALIZED(detailView) && GTK_IS_CONTAINER(widget))
     {
@@ -4314,7 +4353,7 @@ static void onAddNewSortByBox(GtkButton *button, gpointer data)
   GtkWidget *blxWindow = GTK_WIDGET(gtk_window_get_transient_for(dialogWindow));
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow());
 
   /* Add another sort-by box to the container */
   createSortBox(box, detailView, BLXCOL_NONE, columnList, "then by", FALSE);
@@ -4326,7 +4365,7 @@ static void onAddNewSortByBox(GtkButton *button, gpointer data)
 /* Show/refresh the "Sort" dialog. */
 void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   const BlxDialogId dialogId = BLXDIALOG_SORT;
   GtkWidget *dialog = getPersistentDialog(bc->dialogList, dialogId);
   
@@ -4366,7 +4405,7 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
   DetailViewProperties *dvProperties = detailViewGetProperties(detailView);
-  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow);
+  GList *columnList = blxWindowGetColumnList(dvProperties->blxWindow());
   const int numColumns = g_list_length(columnList);
 
   /* Add a drop-down for each sort column that is currently specified (or just
@@ -4426,7 +4465,7 @@ void showSortDialog(GtkWidget *blxWindow, const gboolean bringToFront)
 
 static void getStats(GtkWidget *blxWindow, GString *result, MSP *MSPlist)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
   /* Compile data for sequences */
   int totalNumSeqs = 0;             /* total number of sequences */
@@ -4484,7 +4523,7 @@ static void getStats(GtkWidget *blxWindow, GString *result, MSP *MSPlist)
 static void showStatsDialog(GtkWidget *blxWindow, MSP *MSPlist)
 {
   /* Create a dialog widget with an OK button */
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   char *title = g_strdup_printf("%sStatistics", blxGetTitlePrefix(bc));
 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
@@ -4785,11 +4824,34 @@ static void onEditGroupsMenu(GtkAction *action, gpointer data)
   showGroupsDialog(blxWindow, TRUE, TRUE);
 }
 
-/* Called when the user selects the 'Toggle match set' option, or hits the relevant shortcut key */
-static void onToggleMatchSet(GtkAction *action, gpointer data)
+/* Called when the user selects the 'Create group from clipboard' option */
+static void onCreateQuickGroup(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  toggleMatchSet(blxWindow);
+  createQuickGroup(blxWindow, false, true);
+}
+
+/* Called when the user selects the 'Create filter from clipboard' option */
+static void onCreateQuickFilter(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+  createQuickGroup(blxWindow, true, true);
+}
+
+/* Called when the user selects the 'Hide source(s)' option */
+static void onHideSources(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+
+  hideSelectedSources(blxWindow);
+}
+
+/* Called when the user selects the 'Clear groups/filters' option */
+static void onClearGroups(GtkAction *action, gpointer data)
+{
+  GtkWidget *blxWindow = GTK_WIDGET(data);
+
+  clearGroups(blxWindow);
 }
 
 /* Called when the user selects the Settings menu option, or hits the Settings shortcut key */
@@ -4836,12 +4898,12 @@ static void onCopySeqDataMarkMenu(GtkAction *action, gpointer data)
 
   if (range)
     {
-      const int fromIdx = range->min;
-      const int toIdx = range->max;
+      const int fromIdx = range->min();
+      const int toIdx = range->max();
 
       copySelectedSeqRangeToClipboard(blxWindow, fromIdx, toIdx);
 
-      g_free(range);
+      delete range;
     }
   else
     {
@@ -4862,12 +4924,12 @@ static void onCopyRefSeqDnaMenu(GtkAction *action, gpointer data)
 
   if (range)
     {
-      const int fromIdx = range->min;
-      const int toIdx = range->max;
+      const int fromIdx = range->min();
+      const int toIdx = range->max();
 
       copyRefSeqToClipboard(blxWindow, fromIdx, toIdx);
 
-      g_free(range);
+      delete range;
     }
   else
     {
@@ -4889,12 +4951,12 @@ static void onCopyRefSeqDisplayMenu(GtkAction *action, gpointer data)
 
   if (range)
     {
-      const int fromIdx = range->min;
-      const int toIdx = range->max;
+      const int fromIdx = range->min();
+      const int toIdx = range->max();
 
       copyRefSeqTranslationToClipboard(blxWindow, fromIdx, toIdx);
 
-      g_free(range);
+      delete range;
     }
   else
     {
@@ -4931,7 +4993,7 @@ static void onDotterMenu(GtkAction *action, gpointer data)
 static void onCloseAllDottersMenu(GtkAction *action, gpointer data)
 {
   GtkWidget *blxWindow = GTK_WIDGET(data);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
   /* Check if there are actually any spawned processes */
   if (g_slist_length(bc->spawnedProcesses) > 0)
@@ -4941,7 +5003,7 @@ static void onCloseAllDottersMenu(GtkAction *action, gpointer data)
 
       if (responseId == GTK_RESPONSE_ACCEPT)
         {
-          killAllSpawned(bc);
+          bc->killAllSpawned();
         }
     }
   else
@@ -5122,7 +5184,7 @@ static gboolean onKeyPressV(GtkWidget *window, const gboolean ctrlModifier, cons
   if (ctrlModifier)
     {
       /* Paste from the default clipboard */
-      requestDefaultClipboardText(findSeqsFromClipboard, window);
+      requestDefaultClipboardText(findAndSelectSeqsFromClipboard, window);
       result = TRUE;
     }
   
@@ -5137,7 +5199,7 @@ static gboolean onKeyPressF(GtkWidget *window, const gboolean ctrlModifier, cons
     }
   else
     {
-      requestPrimaryClipboardText(findSeqsFromClipboard, window);
+      createQuickGroup(window, true, !shiftModifier);
     }
 
   return TRUE;
@@ -5162,7 +5224,7 @@ static gboolean onKeyPressG(GtkWidget *window, const gboolean ctrlModifier, cons
   
   if (!ctrlModifier)
     {       
-      toggleMatchSet(window);
+      createQuickGroup(window, false, !shiftModifier);
       result = TRUE;
     }
   
@@ -5290,7 +5352,7 @@ static BlxWindowProperties* blxWindowGetProperties(GtkWidget *widget)
   return properties;
 }
 
-BlxViewContext* blxWindowGetContext(GtkWidget *blxWindow)
+BlxContext* blxWindowGetContext(GtkWidget *blxWindow)
 {
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
   return properties ? properties->blxContext : NULL;
@@ -5298,143 +5360,9 @@ BlxViewContext* blxWindowGetContext(GtkWidget *blxWindow)
 
 GList* blxWindowGetColumnList(GtkWidget *blxWindow)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   return (bc ? bc->columnList : NULL);
 }
-
-/* Kill all processes spawned from blixem */
-static void killAllSpawned(BlxViewContext *bc)
-{
-  GSList *processes = bc->spawnedProcesses;
-  
-  for ( ; processes; processes = processes->next)
-    {
-      pid_t pid = GPOINTER_TO_INT(processes->data);
-      kill(pid, 9);
-    }
-    
-  if (bc->spawnedProcesses)
-    {
-      g_slist_free(bc->spawnedProcesses);
-      bc->spawnedProcesses = NULL;
-    }
-}
-
-
-/* utility to free the given pointer and set it to null */
-static void freeAndNull(gpointer *ptr)
-{
-  if (ptr && *ptr)
-    {
-      g_free(*ptr);
-      *ptr = NULL;
-    }
-}
-
-
-static void destroyBlxContext(BlxViewContext **bcPtr)
-{
-  if (bcPtr && *bcPtr)
-    {
-      BlxViewContext *bc = *bcPtr;
-
-      /* Free allocated strings */
-      freeAndNull((gpointer*)(&bc->dataset));
-      freeAndNull((gpointer*)(&bc->refSeqName));
-
-      /* Free table of fetch methods and the fetch-method structs */
-      /* to do */
-      
-      /* Free the list of selected sequence names (not the names themselves
-       * because we don't own them). */
-      if (bc->selectedSeqs)
-        {
-          g_list_free(bc->selectedSeqs);
-          bc->selectedSeqs = NULL;
-        }
-      
-      blxContextDeleteAllSequenceGroups(bc);
-
-      /* Free the color array */
-      if (bc->defaultColors)
-        {
-          int i = BLXCOLOR_MIN + 1;
-          for (; i < BLXCOL_NUM_COLORS; ++i)
-            {
-              BlxColor *blxColor = &g_array_index(bc->defaultColors, BlxColor, i);
-              destroyBlxColor(blxColor);
-            }
-
-          g_array_free(bc->defaultColors, TRUE);
-          bc->defaultColors = NULL;
-        }
-
-      /* destroy the feature lists. note that the stored msps are owned
-      * by the msplist, not by the feature lists */
-      int typeId = 0;
-      for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
-        g_array_free(bc->featureLists[typeId], FALSE);
-      
-      destroyMspList(&(bc->mspList));
-      destroyBlxSequenceList(&(bc->matchSeqs));
-      blxDestroyGffTypeList(&(bc->supportedTypes));
-      killAllSpawned(bc);
-      
-      /* Free the context struct itself */
-      g_free(bc);
-      *bcPtr = NULL;
-    }
-}
-
-
-/* This returns the name for the given flag enum. It returns null if the name
- * has not been set. This is used to save settings in the config file; only 
- * flags whose name is set in this function will be saved. */
-static const char* getFlagName(const BlxFlag flag)
-{
-  /* Create an array of names for all of the relevant settings */
-  static const char* names[BLXFLAG_NUM_FLAGS] = {0, 0};
-  
-  if (!names[1]) /* only populate it once */
-    {
-      names[BLXFLAG_HIGHLIGHT_DIFFS] = SETTING_NAME_HIGHLIGHT_DIFFS;
-      names[BLXFLAG_HIGHLIGHT_VARIATIONS] = SETTING_NAME_HIGHLIGHT_VARIATIONS;
-      names[BLXFLAG_SHOW_VARIATION_TRACK] = SETTING_NAME_SHOW_VARIATION_TRACK;
-      names[BLXFLAG_SHOW_UNALIGNED] = SETTING_NAME_SHOW_UNALIGNED;
-      names[BLXFLAG_SHOW_UNALIGNED_SELECTED] = SETTING_NAME_SHOW_UNALIGNED_SELECTED;
-      names[BLXFLAG_LIMIT_UNALIGNED_BASES] = SETTING_NAME_LIMIT_UNALIGNED_BASES;
-      names[BLXFLAG_SHOW_POLYA_SITE] = SETTING_NAME_SHOW_POLYA_SITE;
-      names[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = SETTING_NAME_SHOW_POLYA_SITE_SELECTED;
-      names[BLXFLAG_SHOW_POLYA_SIG] = SETTING_NAME_SHOW_POLYA_SIG;
-      names[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = SETTING_NAME_SHOW_POLYA_SIG_SELECTED;
-      names[BLXFLAG_SHOW_SPLICE_SITES] = SETTING_NAME_SHOW_SPLICE_SITES;
-      names[BLXFLAG_SHOW_MAYBE_CANONICAL] = SETTING_NAME_SHOW_MAYBE_CANONICAL;
-      names[BLXFLAG_SHOW_COLINEARITY] = SETTING_NAME_SHOW_COLINEARITY;
-      names[BLXFLAG_SHOW_COLINEARITY_SELECTED] = SETTING_NAME_SHOW_COLINEARITY_SELECTED;
-    }
-
-  if (flag <= BLXFLAG_MIN || flag >= BLXFLAG_NUM_FLAGS)
-    return NULL;
-  else
-    return names[flag];
-}
-
-
-/* Called by saveBlixemSettings; does the work to save the boolean flags */
-static void saveBlixemSettingsFlags(BlxViewContext *bc, GKeyFile *key_file)
-{
-  /* loop through each (save-able) setting */
-  int flag = BLXFLAG_MIN + 1;
-  
-  for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
-    {
-      const char *flagName = getFlagName((BlxFlag)flag);
-
-      if (flagName)
-        g_key_file_set_integer(key_file, SETTINGS_GROUP, flagName, bc->flags[flag]);
-    }
-}
-
 
 /* This function saves all of blixem's customisable settings to
  * a config file. */
@@ -5443,7 +5371,7 @@ static void saveBlixemSettings(GtkWidget *blxWindow)
   g_return_if_fail(blxWindow);
 
   char *filename = g_strdup_printf("%s/%s", g_get_home_dir(), BLIXEM_SETTINGS_FILE);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
   GKeyFile *key_file = g_key_file_new();
   GKeyFileFlags flags = G_KEY_FILE_NONE;
@@ -5454,7 +5382,7 @@ static void saveBlixemSettings(GtkWidget *blxWindow)
   g_message("Saving Blixem settings to '%s'.\n", filename);
 
   /* Write the settings */
-  saveBlixemSettingsFlags(blxWindowGetContext(blxWindow), key_file);
+  bc->saveSettingsFlags(key_file);
   g_key_file_set_integer(key_file, SETTINGS_GROUP, SETTING_NAME_SQUASH_MATCHES, (bc->modelId == BLXMODEL_SQUASHED));
   detailViewSaveProperties(blxWindowGetDetailView(blxWindow), key_file);
 
@@ -5475,7 +5403,8 @@ static void onDestroyBlxWindow(GtkWidget *widget)
   
   if (properties)
     {
-      destroyBlxContext(&properties->blxContext);
+      delete properties->blxContext;
+      properties->blxContext = NULL;
 
       if (properties->mainmenu)
         {
@@ -5497,7 +5426,7 @@ static void onDestroyBlxWindow(GtkWidget *widget)
         }
       
       /* Free the properties struct itself */
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "BlxWindowProperties", NULL);
     }
@@ -5509,498 +5438,9 @@ static void onDestroyBlxWindow(GtkWidget *widget)
 }
 
 
-/* Create the colors that blixem will use for various specific purposes */
-static void createBlxColors(BlxViewContext *bc, GtkWidget *widget)
-{
-  /* Initialise the array with empty BlxColor structs */
-  bc->defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), BLXCOL_NUM_COLORS);
-  int i = BLXCOLOR_MIN + 1;
-  
-  for ( ; i < BLXCOL_NUM_COLORS; ++i)
-    {
-      BlxColor *blxColor = (BlxColor*)g_malloc(sizeof(BlxColor));
-      blxColor->name = NULL;
-      blxColor->desc = NULL;
-      g_array_append_val(bc->defaultColors, *blxColor);
-    }
-  
-  /* Get the default background color of our widgets (i.e. that inherited from the theme).
-   * Convert it to a string so we can use the same creation function as the other colors */
-  char *defaultBgColorStr = convertColorToString(&widget->style->bg[GTK_STATE_NORMAL]);
-  createBlxColor(bc->defaultColors, BLXCOLOR_BACKGROUND, "Background", "Background color", defaultBgColorStr, BLX_WHITE, "#bdbdbd", NULL);
-  
-  /* reference sequence */
-  createBlxColor(bc->defaultColors, BLXCOLOR_REF_SEQ, "Reference sequence", "Default background color for the reference sequence", BLX_YELLOW, BLX_VERY_LIGHT_GREY, BLX_DARK_YELLOW, NULL);
-  
-  /* matches */
-  createBlxColor(bc->defaultColors, BLXCOLOR_MATCH, "Exact match", "Exact match", BLX_LIGHT_CYAN, BLX_LIGHT_GREY, BLX_CYAN, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_CONS, "Conserved match", "Conserved match", BLX_VIOLET, BLX_VERY_LIGHT_GREY, BLX_DARK_VIOLET, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MISMATCH, "Mismatch", "Mismatch", "#FFFFFF", BLX_WHITE, "#FED4EA", NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_INSERTION, "Insertion", "Insertion", "#9E00FF", BLX_VERY_DARK_GREY, NULL, NULL);
-  
-  /* exons */
-  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_START, "Exon start", "Exon start boundary", BLX_BLUE, BLX_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_END, "Exon end", "Exon end boundary", BLX_DARK_BLUE, BLX_GREY, NULL, NULL);
-
-  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_FILL, "Exon fill color", "Exon fill color in big picture", BLX_PALE_YELLOW, BLX_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_EXON_LINE, "Exon line color", "Exon line color in big picture", BLX_BLUE, BLX_VERY_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_CDS_FILL, "CDS fill color", "Coding section fill color in big picture", BLX_LIGHT_GREEN, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_CDS_LINE, "CDS line color", "Coding section line color in big picture", BLX_DARK_GREEN, BLX_DARK_GREY, BLX_VERY_DARK_GREEN, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_UTR_FILL, "Exon fill color (UTR)", "Untranslated region fill color in big picture", BLX_LIGHT_RED, BLX_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_UTR_LINE, "Exon line color (UTR)", "Untranslated region line color in big picture", BLX_DARK_RED, BLX_VERY_DARK_GREY, BLX_VERY_DARK_RED, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_PARTIAL_EXON_CROSSHATCH, "Cross-hatch line color for partial exons", "Line color of cross-hatch highlighting for partial exons", BLX_GREY, BLX_GREY, NULL, NULL);
-  
-  /* codons */
-  createBlxColor(bc->defaultColors, BLXCOLOR_CODON, "Codon nucleotides", "Codon nucleotides", BLX_SKY_BLUE, BLX_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MET, "MET codons", "MET codons", BLX_LAWN_GREEN, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_STOP, "STOP codons", "MET codons", BLX_SALMON_RED, BLX_LIGHT_GREY, NULL, NULL);
-  
-  /* SNPs */
-  createBlxColor(bc->defaultColors, BLXCOLOR_SNP, "SNPs", "SNPs", BLX_ORANGE, BLX_GREY, NULL, NULL);
-
-  /* Big Picture */
-  createBlxColor(bc->defaultColors, BLXCOLOR_GRID_LINE, "Grid lines", "Big Picture grid lines", BLX_YELLOW, BLX_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_GRID_TEXT, "Grid text", "Big Picture grid text", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_HIGHLIGHT_BOX, "Highlight box", "Highlight box in the big picture", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_PREVIEW_BOX, "Preview box", "Preview box in the big picture", BLX_BLACK, BLX_BLACK, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MSP_LINE, "Big picture match line", "Color of the lines representing matches in the Big Picture", BLX_BLACK, BLX_BLACK, BLX_CYAN, BLX_GREY);
-
-  /* groups */
-  createBlxColor(bc->defaultColors, BLXCOLOR_GROUP, "Default group color", "Default highlight color for a new group", BLX_ORANGE_RED, BLX_VERY_LIGHT_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MATCH_SET, "Default match set color", "Default color for the match set group (applies only when it is created for the first time or after being deleted)", BLX_RED, BLX_VERY_LIGHT_GREY, NULL, NULL);
-
-  /* colinearity */
-  createBlxColor(bc->defaultColors, BLXCOLOR_COLINEAR_PERFECT, "Perfect colinearity", "Color of lines joining alignment blocks with perfect colinearity", BLX_DARK_GREEN, BLX_LIGHT_GREY, BLX_DARK_GREEN, BLX_LIGHT_GREY);
-  createBlxColor(bc->defaultColors, BLXCOLOR_COLINEAR_IMPERFECT, "Imperfect colinearity", "Color of lines joining alignment blocks with imperfect colinearity", BLX_ORANGE, BLX_GREY, BLX_ORANGE, BLX_GREY);
-  createBlxColor(bc->defaultColors, BLXCOLOR_COLINEAR_NOT, "Not colinear", "Color of lines joining alignment blocks that are not colinear", BLX_RED, BLX_DARK_GREY, BLX_RED, BLX_DARK_GREY);
-
-  /* polyA features */
-  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_TAIL, "polyA tail", "polyA tail", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_SIGNAL, "polyA signal", "polyA signal", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_SIGNAL_ANN, "Annotated polyA signal", "Annotated polyA signal", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_POLYA_SITE_ANN, "Annotated polyA site", "Annotated polyA site", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-
-  /* misc */
-  createBlxColor(bc->defaultColors, BLXCOLOR_UNALIGNED_SEQ, "Unaligned sequence", "Addition sequence in the match that is not part of the alignment", "#FFC432", BLX_WHITE, "#FFE8AD", NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_CANONICAL, "Canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are canonical", BLX_GREEN, BLX_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_NON_CANONICAL, "Non-canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they are not canonical", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_MAYBE_CANONICAL, "\"Maybe\" canonical intron bases", "The two bases at the start/end of the intron for the selected MSP are colored this color if they would be canonical if they were on the other strand", BLX_ORANGE, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_TREE_GRID_LINES, "Tree grid lines", "Tree grid lines", BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY, BLX_VERY_DARK_GREY);
-  createBlxColor(bc->defaultColors, BLXCOLOR_CLIP_MARKER, "Clipped-match indicator", "Marker to indicate a match has been clipped to the display range", BLX_RED, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_COVERAGE_PLOT, "Coverage plot", "Coverage plot", BLX_ROYAL_BLUE, BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_ASSEMBLY_GAP, "Assembly gaps", "Highlight color for assembly gaps", "#D14553", BLX_DARK_GREY, NULL, NULL);
-  createBlxColor(bc->defaultColors, BLXCOLOR_SELECTION, "Selection color", "Highlight color for selections", BLX_DARK_GREY, BLX_DARK_GREY, NULL, NULL);
-  
-  g_free(defaultBgColorStr);
-}
-
-
-/* Whether to include the given msp type in depth coverage calculations */
-static gboolean includeTypeInCoverage(BlxMspType mspType)
-{
-  return (mspType == BLXMSP_MATCH);
-}
-
-
-/* Utility to get the depth-counter enum from the given character */
-static DepthCounter getDepthCounterForChar(const char c, const BlxStrand strand)
-{
-  DepthCounter result = DEPTHCOUNTER_NONE;
-
-  switch (c)
-    {
-    case 'a': //fall through
-    case 'A': 
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_A_R;
-      else
-        result = DEPTHCOUNTER_A_F;
-      break;
-    case 'c': //fall through 
-    case 'C': 
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_C_R;
-      else
-        result = DEPTHCOUNTER_C_F;
-      break;
-    case 'g':  //fall through
-    case 'G': 
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_G_R; 
-      else
-        result = DEPTHCOUNTER_G_F; 
-      break;
-    case 'u':  //fall through
-    case 'U':   //fall through
-    case 't':  //fall through
-    case 'T': 
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_T_R; 
-      else
-        result = DEPTHCOUNTER_T_F; 
-      break;
-    case 'n':  //fall through
-    case 'N': 
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_N_R; 
-      else
-        result = DEPTHCOUNTER_N_F; 
-      break;
-    case '.': // indicates a gap
-      if (strand == BLXSTRAND_REVERSE)
-        result = DEPTHCOUNTER_GAP_R; 
-      else
-        result = DEPTHCOUNTER_GAP_F; 
-      break;
-    default:
-      break;
-    }
-
-  return result;
-}
-
-
-/* Calculate the depth of coverage of short-reads for each reference sequence display coord.
- * depthArray must be the same length as displayRange. */
-static void calculateDepth(BlxViewContext *bc, const int numUnalignedBases)
-{
-  /* Allocate the depth array, if null */
-  const int displayLen = getRangeLength(&bc->fullDisplayRange);
-  
-  if (displayLen < 1)
-    return; 
-  
-  bc->depthArray[DEPTHCOUNTER_ALL_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_GAP_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_A_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_C_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_G_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_T_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_N_F] = (int*)g_malloc0(sizeof(int) * displayLen);
-  
-  bc->depthArray[DEPTHCOUNTER_ALL_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_GAP_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_A_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_C_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_G_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_T_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  bc->depthArray[DEPTHCOUNTER_N_R] = (int*)g_malloc0(sizeof(int) * displayLen);
-  
-  /* Initialise each entry to zero */  
-  int i = 0;
-  for ( ; i < displayLen; ++i)
-    {
-      bc->depthArray[DEPTHCOUNTER_ALL_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_GAP_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_A_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_C_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_G_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_T_F][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_N_F][i] = 0;
-
-      bc->depthArray[DEPTHCOUNTER_ALL_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_GAP_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_A_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_C_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_G_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_T_R][i] = 0;
-      bc->depthArray[DEPTHCOUNTER_N_R][i] = 0;
-    }
-  
-  /* Loop through all MSP lists */
-  int mspType = 0;
-  
-  for ( ; mspType < BLXMSP_NUM_TYPES; ++mspType)
-    {
-      /* Only include MSPs of relevant types */
-      if (!includeTypeInCoverage((BlxMspType)mspType))
-        continue;
-      
-      /* Loop through all MSPs in this list */
-      GArray *mspArray = bc->featureLists[mspType];
-      const int fullDisplayLen = getRangeLength(&bc->fullDisplayRange);
-    
-      i = 0;
-      const MSP *msp = mspArrayIdx(mspArray, i);
-  
-      for ( ; msp; msp = mspArrayIdx(mspArray, ++i))
-        {
-          /* For each ref-seq coord that this alignment spans, increment the depth */
-          int alignIdx = msp->displayRange.min;
-          int qIdx = msp->qRange.min;
-
-          for ( ; alignIdx <= msp->displayRange.max; ++alignIdx, ++qIdx)
-            {
-              /* Convert the msp coord to a zero-based coord. Note that parts of the
-               * msp range may be outside the ref seq range. */
-              const int displayIdx = alignIdx - bc->fullDisplayRange.min;
-
-              if (displayIdx >= 0 && displayIdx < fullDisplayLen)
-                {
-                  /* Increment the main counter */
-                  if (msp->qStrand == BLXSTRAND_REVERSE)
-                    bc->depthArray[DEPTHCOUNTER_ALL_R][displayIdx] += 1;
-                  else
-                    bc->depthArray[DEPTHCOUNTER_ALL_F][displayIdx] += 1;
-
-                  /* Find the match sequence base at this coord */
-                  int sIdx = 0;
-                  const char *seq = mspGetMatchSeq(msp);
-
-                  if (mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
-                    {
-                      /* Check we have the sequence. If not then don't do anything (this will
-                       * show up as "unknown" in the read depth display) */
-                      if (seq)
-                        {
-                          DepthCounter counter = getDepthCounterForChar(seq[sIdx - 1], msp->qStrand); // sIdx is 1-based
-
-                          if (counter != DEPTHCOUNTER_NONE)
-                            bc->depthArray[counter][displayIdx] += 1;
-                        }
-                    }
-                  else
-                    {
-                      /* No base here so it must be a gap in the match sequence */
-                      if (msp->qStrand == BLXSTRAND_REVERSE)
-                        bc->depthArray[DEPTHCOUNTER_GAP_R][displayIdx] += 1;
-                      else
-                        bc->depthArray[DEPTHCOUNTER_GAP_F][displayIdx] += 1;
-                    }
-                }
-            }
-        }
-    } 
-  
-  /* Find the max and min depth (total depth over both strands) */
-  bc->minDepth = bc->depthArray[DEPTHCOUNTER_ALL_F][0] + bc->depthArray[DEPTHCOUNTER_ALL_R][0];
-  bc->maxDepth = bc->minDepth;
-  
-  for (i = 1 ; i < displayLen; ++i)
-    {
-      const int cur_depth = bc->depthArray[DEPTHCOUNTER_ALL_F][i] + bc->depthArray[DEPTHCOUNTER_ALL_R][i];
-
-      if (cur_depth < bc->minDepth)
-        bc->minDepth = cur_depth;
-      
-      if (cur_depth > bc->maxDepth)
-        bc->maxDepth = cur_depth;
-    }  
-}
-
-
-/* Calculate the total depth of coverage of short-reads for the given range of ref seq coords.
- * depthArray must be the same length as displayRange. */
-int blxContextCalculateTotalDepth(BlxViewContext *bc, const IntRange *range, const BlxStrand strand)
-{
-  int depth = 0;
-
-  /* Loop through all MSP lists */
-  for (int mspType = 0 ; mspType < BLXMSP_NUM_TYPES; ++mspType)
-    {
-      /* Only include MSPs of relevant types */
-      if (!includeTypeInCoverage((BlxMspType)mspType))
-        continue;
-      
-      /* Loop through all MSPs in this list */
-      GArray *mspArray = bc->featureLists[mspType];
-    
-      int i = 0;
-      for (const MSP *msp = mspArrayIdx(mspArray, i); msp; msp = mspArrayIdx(mspArray, ++i))
-        {
-          /* If the alignment is in our range, increment the depth. Only include msps on the
-           * given strand (or both strands if given strand is "none") */
-          if ((strand == BLXSTRAND_NONE || msp->qStrand == strand) &&
-              rangesOverlap(range, &msp->displayRange))
-            ++depth;
-        }
-    } 
-
-  return depth;
-}
-
-
-/* Called on startup to set the initial state of the flags. Gets the state for
- * the settings from the config file if specified, otherwises uses hard-coded
- * defaults. */
-static void initialiseFlags(BlxViewContext *blxContext, CommandLineOptions *options)
-{
-  /* Initialise all the flags to false */
-  int flag = BLXFLAG_MIN + 1;
-  for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
-    {
-      blxContext->flags[flag] = FALSE;
-    }
-  
-  /* Set any specific flags that we want initialised to TRUE */
-  blxContext->flags[BLXFLAG_LIMIT_UNALIGNED_BASES] = TRUE;
-  blxContext->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED] = TRUE;
-  blxContext->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED] = TRUE;
-  blxContext->flags[BLXFLAG_SHOW_SPLICE_SITES] = TRUE;
-  blxContext->flags[BLXFLAG_NEGATE_COORDS] = options->negateCoords;
-  blxContext->flags[BLXFLAG_HIGHLIGHT_DIFFS] = options->highlightDiffs;
-  blxContext->flags[BLXFLAG_SAVE_TEMP_FILES] = options->saveTempFiles;
-  blxContext->flags[BLXFLAG_ABBREV_TITLE] = options->abbrevTitle;
-}
-
-
-/* load settings from the config file */
-static void loadBlixemSettings(BlxViewContext *blxContext)
-{
-  /* Override the defaults settings with those given in the config file, if any */
-  GKeyFile *key_file = blxGetConfig();
-
-  if (!key_file)
-    return;
-  
-  GError *error = NULL;
-
-  /* squash-matches */
-  int squashMatches = g_key_file_get_integer(blxGetConfig(), SETTINGS_GROUP, SETTING_NAME_SQUASH_MATCHES, &error);
-  
-  if (error)
-    {
-      /* we don't care if it wasn't found; just clear the error */
-      g_error_free(error);
-      error = NULL;
-    }
-  else
-    {
-      blxContext->modelId = squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
-    }
-
-  /* loop through all the flags and see if any of them are given */
-  int flag = BLXFLAG_MIN + 1;
-  
-  for ( ; flag < BLXFLAG_NUM_FLAGS; ++flag)
-    {
-      const char *flagName = getFlagName((BlxFlag)flag);
-      
-      if (flagName)
-        {
-          int result = g_key_file_get_integer(key_file, SETTINGS_GROUP, flagName, &error);
-          
-          if (error)
-            {
-              g_error_free(error);
-              error = NULL;
-            }
-          else
-            {
-              blxContext->flags[flag] = result;
-            }
-        }
-    }
-}
-
-
-
-static BlxViewContext* blxWindowCreateContext(CommandLineOptions *options,
-                                              const IntRange* const refSeqRange,
-                                              const IntRange* const fullDisplayRange,
-                                              const char *paddingSeq,
-                                              GArray* featureLists[],
-                                              GList *seqList,
-                                              GSList *supportedTypes,
-                                              GtkWidget *widget,
-                                              GtkWidget *statusBar,
-                                              const gboolean External,
-                                              GSList *styles)
-{
-  BlxViewContext *blxContext = (BlxViewContext*)g_malloc(sizeof *blxContext);
-  
-  blxContext->statusBar = statusBar;
-  
-  blxContext->refSeq = options->refSeq;
-  blxContext->refSeqName = options->refSeqName ? g_strdup(options->refSeqName) : g_strdup("Blixem-seq");
-  blxContext->refSeqRange.min = refSeqRange->min;
-  blxContext->refSeqRange.max = refSeqRange->max;
-  blxContext->fullDisplayRange.min = fullDisplayRange->min;
-  blxContext->fullDisplayRange.max = fullDisplayRange->max;
-  blxContext->refSeqOffset = options->refSeqOffset;
-  blxContext->optionalColumns = options->optionalColumns;
-
-  blxContext->mspList = options->mspList;
-  blxContext->columnList = options->columnList;
-  blxContext->styles = styles;
-  
-  int typeId = 0;
-  for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
-    {
-      blxContext->featureLists[typeId] = featureLists[typeId];
-    }
-  
-  blxContext->geneticCode = options->geneticCode;
-  blxContext->blastMode = options->blastMode;
-  blxContext->seqType = options->seqType;
-  blxContext->numFrames = options->numFrames;
-  blxContext->paddingSeq = paddingSeq;
-  blxContext->bulkFetchDefault = options->bulkFetchDefault;
-  blxContext->userFetchDefault = options->userFetchDefault;
-  blxContext->optionalFetchDefault = options->optionalFetchDefault;
-  blxContext->fetchMethods = options->fetchMethods;
-  blxContext->dataset = g_strdup(options->dataset);
-  blxContext->matchSeqs = seqList;
-  blxContext->supportedTypes = supportedTypes;
-  
-  blxContext->displayRev = FALSE;
-  blxContext->external = External;
-  
-  blxContext->selectedSeqs = NULL;
-  blxContext->sequenceGroups = NULL;
-  blxContext->matchSetGroup = NULL;
-  
-  blxContext->dotterRefType = BLXDOTTER_REF_AUTO;
-  blxContext->dotterMatchType = BLXDOTTER_MATCH_SELECTED;
-  blxContext->dotterAdhocSeq = NULL;
-  blxContext->dotterHsps = FALSE;
-  blxContext->dotterSleep = FALSE;
-  blxContext->dotterStart = UNSET_INT;
-  blxContext->dotterEnd = UNSET_INT;
-  blxContext->dotterZoom = 0;
-  
-  blxContext->defaultColors = NULL;
-  blxContext->usePrintColors = FALSE;
-  blxContext->windowColor = options->windowColor;
-  
-  createBlxColors(blxContext, widget);
-  
-  initialiseFlags(blxContext, options);
-    
-  /* Null out all the entries in the dialogs list */
-  int dialogId = 0;
-  for ( ; dialogId < BLXDIALOG_NUM_DIALOGS; ++dialogId)
-    {
-      blxContext->dialogList[dialogId] = NULL;
-    }
-    
-  blxContext->spawnedProcesses = NULL;
-  blxContext->minDepth = 0;
-  blxContext->maxDepth = 0;
-
-  for (int counter = DEPTHCOUNTER_NONE + 1; counter < DEPTHCOUNTER_NUM_ITEMS; ++counter)
-    blxContext->depthArray[counter] = NULL;
- 
-  loadBlixemSettings(blxContext);
-
-  /* do this after loading settings because the passed-in squashed 
-   * matches option should override the saved option in the settings */
-  blxContext->modelId = options->squashMatches ? BLXMODEL_SQUASHED : BLXMODEL_NORMAL;
-
-  blxContext->fetch_debug = options->fetch_debug;
-
-#ifdef PFETCH_HTML
-  blxContext->ipresolve = options->ipresolve;
-  blxContext->cainfo = options->cainfo;
-#endif
-
-  return blxContext;
-}
-
-
 /* Create the properties struct and initialise all values. */
 static void blxWindowCreateProperties(CommandLineOptions *options,
-                                      BlxViewContext *blxContext,
+                                      BlxContext *blxContext,
                                       GtkWidget *widget, 
                                       GtkWidget *bigPicture, 
                                       GtkWidget *detailView,
@@ -6013,8 +5453,9 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
 {
   if (widget)
     {
-      BlxWindowProperties *properties = (BlxWindowProperties*)g_malloc(sizeof *properties);
+      BlxWindowProperties *properties = new BlxWindowProperties;
       
+      properties->widget = widget;
       properties->blxContext = blxContext;
 
       properties->bigPicture = bigPicture;
@@ -6038,7 +5479,7 @@ static void blxWindowCreateProperties(CommandLineOptions *options,
 
 gboolean blxWindowGetDisplayRev(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->displayRev : FALSE;
 }
 
@@ -6054,10 +5495,36 @@ GtkWidget* blxWindowGetDetailView(GtkWidget *blxWindow)
   return properties ? properties->detailView : NULL;
 }
 
-GtkWidget* blxWindowGetCoverageView(GtkWidget *blxWindow)
+GtkWidget* blxWindowGetBigPictureCoverageView(GtkWidget *blxWindow)
 {
+  GtkWidget *coverageView = NULL;
   BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
-  return properties ? bigPictureGetCoverageView(properties->bigPicture) : NULL;
+
+  if (properties && properties->bigPicture)
+    {
+      BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
+      
+      if (bpProperties)
+        coverageView = bpProperties->coverageView();
+    }
+
+  return coverageView;
+}
+
+GtkWidget* blxWindowGetDetailViewCoverageView(GtkWidget *blxWindow)
+{
+  GtkWidget *coverageView = NULL;
+  BlxWindowProperties *properties = blxWindowGetProperties(blxWindow);
+
+  if (properties && properties->detailView)
+    {
+      DetailViewProperties *dvProperties = detailViewGetProperties(properties->detailView);
+      
+      if (dvProperties)
+        coverageView = dvProperties->coverageView();
+    }
+
+  return coverageView;
 }
 
 GtkWidget* blxWindowGetMainMenu(GtkWidget *blxWindow)
@@ -6074,85 +5541,85 @@ GtkWidget* blxWindowGetSeqHeaderMenu(GtkWidget *blxWindow)
 
 BlxBlastMode blxWindowGetBlastMode(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->blastMode : (BlxBlastMode)0;
 }
 
 char * blxWindowGetRefSeq(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->refSeq : NULL;
 }
 
 const char * blxWindowGetRefSeqName(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->refSeqName : NULL;
 }
 
 char** blxWindowGetGeneticCode(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->geneticCode : NULL;
 }
 
 MSP* blxWindowGetMspList(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->mspList : NULL;
 }
 
 GList* blxWindowGetAllMatchSeqs(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->matchSeqs : NULL;
 }
 
 BlxSeqType blxWindowGetSeqType(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->seqType : BLXSEQ_NONE;
 }
 
 IntRange* blxWindowGetFullRange(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? &blxContext->fullDisplayRange : NULL;
 }
 
 IntRange* blxWindowGetRefSeqRange(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? &blxContext->refSeqRange : NULL;
 }
 
 int blxWindowGetNumFrames(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->numFrames : UNSET_INT;
 }
 
 int blxWindowGetDotterStart(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->dotterStart : UNSET_INT;
 }
 
 int blxWindowGetDotterEnd(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->dotterEnd : UNSET_INT;
 }
 
 int blxWindowGetDotterZoom(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->dotterZoom : UNSET_INT;
 }
 
 const char* blxWindowGetPaddingSeq(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->paddingSeq : NULL;
 }
 
@@ -6174,16 +5641,16 @@ gboolean blxWindowGetNegateCoords(GtkWidget *blxWindow)
   /* We negate coords (literally just stick a '-' on the front) for display purposes if the
    * display is reversed and the negate-coords option is enabled. This gives the effect that coords
    * always increase left-to-right, whereas when the display is reversed they really decrease. */
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   return (bc->displayRev && bc->flags[BLXFLAG_NEGATE_COORDS]);
 }
 
 /* Get the column info for a particular column */
-BlxColumnInfo *getColumnInfo(GList *columnList, const BlxColumnId columnId)
+BlxColumnInfo *getColumnInfo(const GList *columnList, const BlxColumnId columnId)
 {
   BlxColumnInfo *result = NULL;
   
-  GList *listItem = columnList;
+  const GList *listItem = columnList;
   
   for ( ; listItem; listItem = listItem->next)
   {
@@ -6199,188 +5666,11 @@ BlxColumnInfo *getColumnInfo(GList *columnList, const BlxColumnId columnId)
 }
 
 
-BlxStrand blxContextGetActiveStrand(BlxViewContext *bc)
-{
-  BlxStrand result = BLXSTRAND_NONE;
-
-  if (bc)
-    result = bc->displayRev ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
-  
-  return result;
-}
-
-
-/* Utility to get the value from the depth array at the given coord for the given
- * counter. Validates the coord and counter are valid. The coord should be in display coords. */
-static int getDepth(BlxViewContext *bc, const int coord, const DepthCounter counter)
-{
-  int result = 0;
-
-  g_return_val_if_fail(bc && 
-                       valueWithinRange(coord, &bc->fullDisplayRange) &&
-                       counter > DEPTHCOUNTER_NONE &&
-                       counter < DEPTHCOUNTER_NUM_ITEMS &&
-                       bc->depthArray[counter] != NULL,
-                       result);
-
-  int idx = invertCoord(coord, &bc->fullDisplayRange, bc->displayRev); // invert if display reversed
-  idx -= bc->fullDisplayRange.min; // make 0-based
-
-  result = bc->depthArray[counter][idx];
-
-  return result;
-}
-
-
-/* Return the read depth at the given display coord */
-int blxContextGetDepth(BlxViewContext *bc, 
-                       const int coord, 
-                       const char *base_char,
-                       const BlxStrand strand)
-{
-  int result = 0;
-  g_return_val_if_fail(bc && 
-                       coord >= bc->fullDisplayRange.min &&
-                       coord <= bc->fullDisplayRange.max, 
-                       result);
-
-  if (base_char && strand == BLXSTRAND_NONE)
-    {
-      /* Get the depth for the specific base for both strands */
-      DepthCounter counter_f = getDepthCounterForChar(*base_char, BLXSTRAND_FORWARD);
-      DepthCounter counter_r = getDepthCounterForChar(*base_char, BLXSTRAND_REVERSE);
-      
-      result = 
-        getDepth(bc, coord, counter_f) +
-        getDepth(bc, coord, counter_r);
-    }
-  else if (base_char && strand != BLXSTRAND_NONE)
-    {
-      /* Get the depth for the specific base and given strand */
-      DepthCounter counter = getDepthCounterForChar(*base_char, strand);
-      result = getDepth(bc, coord, counter);
-    }
-  else if (strand == BLXSTRAND_NONE)
-    {
-      /* Get the depth for all reads for both strands */
-      result = 
-        getDepth(bc, coord, DEPTHCOUNTER_ALL_F) + 
-        getDepth(bc, coord, DEPTHCOUNTER_ALL_R);
-    }
-  else if (strand == BLXSTRAND_FORWARD)
-    {
-      /* Get the depth for all reads for the forward strand */
-      result = getDepth(bc, coord, DEPTHCOUNTER_ALL_F);
-    }
-  else if (strand == BLXSTRAND_REVERSE)
-    {
-      /* Get the depth for all reads for the reverse strand */
-      result = getDepth(bc, coord, DEPTHCOUNTER_ALL_R);
-    }
-  else
-    {
-      /* All possible conditions should be covered above */
-      g_warn_if_reached();
-    }
-
-  return result;
-}
-
 /* Returns the list of all sequence groups */
 GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext->sequenceGroups;
-}
-
-/* Returns the group that the given sequence belongs to, if any (assumes the sequence
- * is only in one group; otherwise it just returns the first group it finds). */
-SequenceGroup *blxContextGetSequenceGroup(const BlxViewContext *bc, const BlxSequence *seqToFind)
-{
-  SequenceGroup *result = NULL;
-  
-  if (!seqToFind)
-    return result;
-  
-  /* Loop through all the groups until we find this sequence in one */
-  GList *groupItem = bc->sequenceGroups;
-  for ( ; groupItem; groupItem = groupItem->next)
-    {
-      /* See if our sequence struct is in this group's list */
-      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
-      GList *foundItem = g_list_find(group->seqList, seqToFind);
-      
-      if (foundItem)
-        {
-          result = group;
-          break;
-        }
-    }
-  
-  return result;
-}
-
-
-/* Return a list of all selected features of the given type. Result should be free'd by caller
- * using g_list_free */
-GList *blxContextGetSelectedSeqsByType(const BlxViewContext *blxContext, const BlxSequenceType type)
-{
-  GList *result = NULL;
-
-  GList *list_item = blxContext->selectedSeqs;
-  
-  for ( ; list_item; list_item = list_item->next)
-    {
-      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
-      
-      if (curSeq->type == type)
-        {
-          result = g_list_append(result, curSeq);
-        }
-    }
-
-  return result;
-}
-
-
-/* If there is one (and only one) selected transcript then return it; otherwise return null. If
- * num_transcripts is given then return the number of selected transcripts. */
-BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext, int *num_transcripts)
-{
-  BlxSequence *result = NULL;
-
-  GList *list_item = blxContext->selectedSeqs;
-  int num_found = 0;
-  
-  for ( ; list_item; list_item = list_item->next)
-    {
-      BlxSequence *curSeq = (BlxSequence*)(list_item->data);
-      
-      if (curSeq->type == BLXSEQUENCE_TRANSCRIPT)
-        {
-          ++num_found;
-          
-          if (result)
-            {
-              /* Found more than one - don't know which to choose so return null */
-              result = NULL;
-
-              /* If we don't need to return the count, then exit now */
-              if (!num_transcripts)
-                break;
-            }
-          else
-            {
-              /* First one found: set the result. Continue to make sure there aren't any more */
-              result = curSeq;
-            }
-        }
-    }
-
-  if (num_transcripts)
-    *num_transcripts = num_found;
-
-  return result;
 }
 
 
@@ -6388,14 +5678,14 @@ BlxSequence* blxContextGetSelectedTranscript(const BlxViewContext *blxContext, i
  * is only in one group; otherwise it just returns the first group it finds). */
 SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
-  return blxContextGetSequenceGroup(bc, seqToFind);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
+  return bc->getSequenceGroup(seqToFind);
 }
 
 
 static gboolean blxWindowGetUsePrintColors(GtkWidget *blxWindow)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   return bc->usePrintColors;
 }
 
@@ -6403,7 +5693,7 @@ static gboolean blxWindowGetUsePrintColors(GtkWidget *blxWindow)
 /* This should be called whenever the background color has changed */
 static void onUpdateBackgroundColor(GtkWidget *blxWindow)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
   GdkColor *defaultBgColor = getGdkColor(BLXCOLOR_BACKGROUND, bc->defaultColors, FALSE, bc->usePrintColors);
   setWidgetBackgroundColor(blxWindow, defaultBgColor);
@@ -6415,7 +5705,7 @@ static void onUpdateBackgroundColor(GtkWidget *blxWindow)
 /* This sets the 'use print colors' flag and then updates the display */
 static void blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean usePrintColors)
 {
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   bc->usePrintColors = usePrintColors;
   onUpdateBackgroundColor(blxWindow);
 }
@@ -6428,7 +5718,7 @@ static void blxWindowSetUsePrintColors(GtkWidget *blxWindow, const gboolean useP
 /* Return all the selected sequences */
 GList* blxWindowGetSelectedSeqs(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   return blxContext ? blxContext->selectedSeqs : NULL;
 }
 
@@ -6439,8 +5729,8 @@ GList *blxWindowGetSelectedSeqsByType(GtkWidget *blxWindow, const BlxSequenceTyp
 {
   GList *result = NULL;
 
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  result = blxContextGetSelectedSeqsByType(blxContext, type);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
+  result = blxContext->getSelectedSeqsByType(type);
 
   return result;
 }
@@ -6450,8 +5740,8 @@ BlxSequence* blxWindowGetSelectedTranscript(GtkWidget *blxWindow)
 {
   BlxSequence *result = NULL;
 
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  result = blxContextGetSelectedTranscript(blxContext, NULL);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
+  result = blxContext->getSelectedTranscript(NULL);
 
   return result;
 }
@@ -6567,7 +5857,7 @@ static void copySelectedSeqRangeToClipboard(GtkWidget *blxWindow, const int from
 
       if (sequence)
         {
-          BlxViewContext *bc = blxWindowGetContext(blxWindow);
+          BlxContext *bc = blxWindowGetContext(blxWindow);
           const gboolean reverse = (bc->displayRev != (seq->strand == BLXSTRAND_REVERSE));
           int fromIdx = fromIdx_in;
           int toIdx = toIdx_in;
@@ -6689,15 +5979,15 @@ static char* getRefSeqSegment(GtkWidget *blxWindow, const int fromIdx_in, const 
   char *result = NULL;
 
   const char *refSeq = blxWindowGetRefSeq(blxWindow);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
   if (refSeq)
     {
       /* Need to get 0-based indices */
       const IntRange* const refSeqRange = blxWindowGetRefSeqRange(blxWindow);
       
-      const int fromIdx = min(fromIdx_in, toIdx_in) - refSeqRange->min;
-      const int toIdx = max(fromIdx_in, toIdx_in) - refSeqRange->min;
+      const int fromIdx = min(fromIdx_in, toIdx_in) - refSeqRange->min();
+      const int toIdx = max(fromIdx_in, toIdx_in) - refSeqRange->min();
       const int len = toIdx - fromIdx + 1;
 
       /* Warn user if they're about to copy a large sequence */
@@ -6762,7 +6052,7 @@ static void copyRefSeqTranslationToClipboard(GtkWidget *blxWindow, const int fro
 {
   DEBUG_ENTER("copyRefSeqTranslationToClipboard()");
 
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
 
   if (bc && detailView)
@@ -6821,7 +6111,7 @@ static void copyRefSeqTranslationToClipboard(GtkWidget *blxWindow, const int fro
 void blxWindowSelectionChanged(GtkWidget *blxWindow)
 {
   GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
-  BlxViewContext *bc = blxWindowGetContext(blxWindow);
+  BlxContext *bc = blxWindowGetContext(blxWindow);
 
   if ((bc->flags[BLXFLAG_SHOW_UNALIGNED] && bc->flags[BLXFLAG_SHOW_UNALIGNED_SELECTED]) ||
       (bc->flags[BLXFLAG_SHOW_POLYA_SITE] && bc->flags[BLXFLAG_SHOW_POLYA_SITE_SELECTED]))
@@ -6851,7 +6141,7 @@ void blxWindowSelectSeq(GtkWidget *blxWindow, BlxSequence *seq)
 {
   if (!blxWindowIsSeqSelected(blxWindow, seq))
     {
-      BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+      BlxContext *blxContext = blxWindowGetContext(blxWindow);
       blxContext->selectedSeqs = g_list_append(blxContext->selectedSeqs, seq);
       blxWindowSelectionChanged(blxWindow);
     }
@@ -6863,7 +6153,7 @@ void blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList)
 {
   blxWindowDeselectAllSeqs(blxWindow);
 
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
   blxContext->selectedSeqs = seqList;
 
   blxWindowSelectionChanged(blxWindow);
@@ -6873,7 +6163,7 @@ void blxWindowSetSelectedSeqList(GtkWidget *blxWindow, GList *seqList)
 /* Call this function to deselect the given sequence */
 void blxWindowDeselectSeq(GtkWidget *blxWindow, BlxSequence *seq)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
 
   /* See if it's in the list and, if so, get a pointer to the list element */
   GList *foundSeq = g_list_find(blxContext->selectedSeqs, seq);
@@ -6889,7 +6179,7 @@ void blxWindowDeselectSeq(GtkWidget *blxWindow, BlxSequence *seq)
 /* Call this function to deselect all sequences */
 void blxWindowDeselectAllSeqs(GtkWidget *blxWindow)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
 
   if (g_list_length(blxContext->selectedSeqs) > 0)
     {
@@ -6899,25 +6189,11 @@ void blxWindowDeselectAllSeqs(GtkWidget *blxWindow)
     }
 }
 
-
-gboolean blxContextIsSeqSelected(const BlxViewContext* const bc, const BlxSequence *seq)
-{
-  GList *foundItem = NULL;
-  
-  if (bc && seq)
-    {
-      foundItem = g_list_find(bc->selectedSeqs, seq);
-    }
-  
-  return (foundItem != NULL);
-}
-
-
 /* Returns true if the given sequence is selected */
 gboolean blxWindowIsSeqSelected(GtkWidget *blxWindow, const BlxSequence *seq)
 {
-  BlxViewContext *blxContext = blxWindowGetContext(blxWindow);
-  return blxContextIsSeqSelected(blxContext, seq);
+  BlxContext *blxContext = blxWindowGetContext(blxWindow);
+  return blxContext->isSeqSelected(seq);
 }
 
 
@@ -7050,7 +6326,7 @@ static void setStyleProperties(GtkWidget *widget, char *windowColor)
 
 /* Create the main menu */
 static void createMainMenu(GtkWidget *window,
-                           BlxViewContext *bc,
+                           BlxContext *bc,
                            GtkWidget **mainmenu,
                            GtkWidget **seqHeaderMenu,
                            GtkWidget **toolbar,
@@ -7103,7 +6379,7 @@ static void createMainMenu(GtkWidget *window,
  * not use that...why reinvent the wheel......
  * 
  * */
-static void calcID(MSP *msp, BlxViewContext *bc)
+static void calcID(MSP *msp, BlxContext *bc)
 {
   const gboolean sForward = (mspGetMatchStrand(msp) == BLXSTRAND_FORWARD);
   const gboolean qForward = (mspGetRefStrand(msp) == BLXSTRAND_FORWARD);
@@ -7121,8 +6397,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
            * strand. This means that where there is no gaps array the comparison is trivial
            * as coordinates can be ignored and the two sequences just whipped through. */
           GError *error = NULL;
-          IntRange qRange;
-          intrangeSetValues(&qRange, msp->qRange.min, msp->qRange.max); /* make a copy because it will be updated */
+          IntRange qRange(msp->qRange); /* make a copy because it will be updated */
           
           char *refSeqSegment = getSequenceSegment(bc->refSeq,
                                                    &qRange,
@@ -7141,7 +6416,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           
           if (!refSeqSegment)
             {
-              prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", mspGetSName(msp), msp->sRange.min, msp->sRange.max);
+              prefixError(error, "Failed to calculate ID for sequence '%s' (match coords = %d - %d). ", mspGetSName(msp), msp->sRange.min(), msp->sRange.max());
               reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
               return;
             }
@@ -7174,7 +6449,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
           if (numGaps == 0)
             {
               /* Ungapped alignments. */
-              totalNumChars = (qRange.max - qRange.min + 1) / bc->numFrames;
+              totalNumChars = qRange.length() / bc->numFrames;
 
               if (bc->blastMode == BLXMODE_TBLASTN || bc->blastMode == BLXMODE_TBLASTX)
                 {
@@ -7192,7 +6467,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                   int i = 0;
                   for ( ; i < totalNumChars; i++)
                     {
-                      int sIndex = sForward ? msp->sRange.min + i - 1 : msp->sRange.max - i - 1;
+                      int sIndex = sForward ? msp->sRange.min() + i - 1 : msp->sRange.max() - i - 1;
                       if (toupper(matchSeq[sIndex]) == toupper(refSeqSegment[i]))
                         {
                           numMatchingChars++;
@@ -7232,7 +6507,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
                       /* Note that refSeqSegment is just the section of the ref seq relating to this msp.
                        * We need to translate the first coord in the range (which is in terms of the full
                        * reference sequence) into coords in the cut-down ref sequence. */
-                      int q_start = qForward ? (qRangeMin - qRange.min) / bc->numFrames : (qRange.max - qRangeMax) / bc->numFrames;
+                      int q_start = qForward ? (qRangeMin - qRange.min()) / bc->numFrames : (qRange.max() - qRangeMax) / bc->numFrames;
                       const int qLen = strlen(refSeqSegment);
                       
                       /* We can index sseq directly (but we need to adjust by 1 for zero-indexing). We'll loop forwards
@@ -7272,7 +6547,7 @@ static void calcID(MSP *msp, BlxViewContext *bc)
 /* Calculate the ID and q frame for the given MSP and store 
  * them in the MSP struct. Returns the calculated ID (or UNSET_INT if this msp
  * is not a blast match). */
-static void calcMspData(MSP *msp, BlxViewContext *bc)
+static void calcMspData(MSP *msp, BlxContext *bc)
 {  
   /* Calculate the ID */
   if (mspIsBlastMatch(msp))
@@ -7282,7 +6557,7 @@ static void calcMspData(MSP *msp, BlxViewContext *bc)
 }
 
 
-static gdouble calculateMspData(MSP *mspList, BlxViewContext *bc)
+static gdouble calculateMspData(MSP *mspList, BlxContext *bc)
 {
   MSP *msp = mspList;
   gdouble lowestId = -1.0;
@@ -7304,16 +6579,16 @@ static gdouble calculateMspData(MSP *mspList, BlxViewContext *bc)
 /* Calculate the reference sequence range from the range and offset given in 
  * the option. Also translate this to display coords. */
 static void calculateRefSeqRange(CommandLineOptions *options,
-                                 IntRange *refSeqRange,
-                                 IntRange *fullDisplayRange)
+                                 IntRange &refSeqRange,
+                                 IntRange &fullDisplayRange)
 {
   
   /* Offset the reference sequence range, if an offset was specified. */ 
-  refSeqRange->min = options->refSeqRange.min + options->refSeqOffset;
-  refSeqRange->max = options->refSeqRange.max + options->refSeqOffset;
+  refSeqRange.set(options->refSeqRange);
+  refSeqRange.set(refSeqRange.min() + options->refSeqOffset,
+                  refSeqRange.max() + options->refSeqOffset);
   
-  fullDisplayRange->min = refSeqRange->min;
-  fullDisplayRange->max = refSeqRange->max;
+  fullDisplayRange.set(refSeqRange);
   
   if (options->seqType == BLXSEQ_PEPTIDE)
     {
@@ -7321,29 +6596,29 @@ static void calculateRefSeqRange(CommandLineOptions *options,
         * base 1 in frame 1. This makes the display easier because we can always just
         * start drawing from the 1st base in the reference sequence. */
       int base = UNSET_INT;
-      convertDnaIdxToDisplayIdx(refSeqRange->min, options->seqType, 1, options->numFrames, FALSE, refSeqRange, &base);
+      convertDnaIdxToDisplayIdx(refSeqRange.min(), options->seqType, 1, options->numFrames, FALSE, &refSeqRange, &base);
       
       int offset = (options->numFrames - base + 1);
       
       if (offset >= options->numFrames)
           offset -= options->numFrames;
       
-      refSeqRange->min += offset;
+      refSeqRange.setMin(refSeqRange.min() + offset);
       options->refSeq = options->refSeq + offset;
       
       /* Now do the same for when the ref seq is reversed */
-      convertDnaIdxToDisplayIdx(refSeqRange->max, options->seqType, 1, options->numFrames, TRUE, refSeqRange, &base);
+      convertDnaIdxToDisplayIdx(refSeqRange.max(), options->seqType, 1, options->numFrames, TRUE, &refSeqRange, &base);
       offset = (options->numFrames - base + 1);
       
       if (offset >= options->numFrames) 
           offset -= options->numFrames;
       
-      refSeqRange->max -= offset;
-      options->refSeq[refSeqRange->max - refSeqRange->min + 1] = '\0';
+      refSeqRange.setMax(refSeqRange.max() - offset);
+      options->refSeq[refSeqRange.length()] = '\0';
       
       /* Now calculate the full display range in display coords */
-      fullDisplayRange->min = convertDnaIdxToDisplayIdx(refSeqRange->min, options->seqType, 1, options->numFrames, FALSE, refSeqRange, NULL);
-      fullDisplayRange->max = convertDnaIdxToDisplayIdx(refSeqRange->max, options->seqType, 1, options->numFrames, FALSE, refSeqRange, NULL);
+      fullDisplayRange.setMin(convertDnaIdxToDisplayIdx(refSeqRange.min(), options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL));
+      fullDisplayRange.setMax(convertDnaIdxToDisplayIdx(refSeqRange.max(), options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL));
     }  
 }
 
@@ -7360,30 +6635,30 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   IntRange refSeqRange;
   IntRange fullDisplayRange;
   
-  calculateRefSeqRange(options, &refSeqRange, &fullDisplayRange);
+  calculateRefSeqRange(options, refSeqRange, fullDisplayRange);
   
   g_message("Reference sequence [%d - %d], display range [%d - %d]\n", 
-            refSeqRange.min, refSeqRange.max, fullDisplayRange.min, fullDisplayRange.max);
+            refSeqRange.min(), refSeqRange.max(), fullDisplayRange.min(), fullDisplayRange.max());
   
   /* Offset the start coords, if applicable, and convert it to display coords */
   int startCoord = options->startCoord + options->refSeqOffset;
   if (options->seqType == BLXSEQ_PEPTIDE)
     startCoord = convertDnaIdxToDisplayIdx(startCoord, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
 
-  if (options->bigPictRange.min != UNSET_INT && options->bigPictRange.max != UNSET_INT)
+  if (options->bigPictRange.isSet())
     {
       /* Apply any offset */
-      options->bigPictRange.min += options->refSeqOffset;
-      options->bigPictRange.max += options->refSeqOffset;
+      options->bigPictRange.set(options->bigPictRange.min() + options->refSeqOffset,
+                                options->bigPictRange.max() + options->refSeqOffset);
 
       /* Make sure the big picture range is not outside our ref seq range */
-      boundsLimitRange(&options->bigPictRange, &refSeqRange, FALSE);
+      options->bigPictRange.boundsLimit(&refSeqRange, FALSE);
 
       if (options->seqType == BLXSEQ_PEPTIDE)
         {
           /* Convert to peptide coords */
-          options->bigPictRange.min = convertDnaIdxToDisplayIdx(options->bigPictRange.min, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
-          options->bigPictRange.max = convertDnaIdxToDisplayIdx(options->bigPictRange.max, options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL);
+          options->bigPictRange.setMin(convertDnaIdxToDisplayIdx(options->bigPictRange.min(), options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL));
+          options->bigPictRange.setMax(convertDnaIdxToDisplayIdx(options->bigPictRange.max(), options->seqType, 1, options->numFrames, FALSE, &refSeqRange, NULL));
         }
     }
   
@@ -7410,23 +6685,23 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Create the widgets. We need a single adjustment for the entire detail view, which will also be referenced
    * by the big picture view, so create it first. */
   GtkAdjustment *detailAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, /* initial value = 0 */
-                                                                      fullDisplayRange.min, /* lower value */
-                                                                      fullDisplayRange.max, /* upper value */
+                                                                      fullDisplayRange.min(), /* lower value */
+                                                                      fullDisplayRange.max(), /* upper value */
                                                                       DEFAULT_SCROLL_STEP_INCREMENT, /* step increment used for mouse wheel scrolling */
                                                                       0,   /* page increment dynamically set based on display range */
                                                                       0)); /* page size dunamically set based on display range */
   
-  BlxViewContext *blxContext = blxWindowCreateContext(options, 
-                                                      &refSeqRange, 
-                                                      &fullDisplayRange, 
-                                                      paddingSeq, 
-                                                      featureLists,
-                                                      seqList, 
-                                                      supportedTypes,
-                                                      window, 
-                                                      statusBar,
-                                                      External,
-                                                      styles);
+  BlxContext *blxContext = new BlxContext(options, 
+                                          &refSeqRange, 
+                                          &fullDisplayRange, 
+                                          paddingSeq, 
+                                          featureLists,
+                                          seqList, 
+                                          supportedTypes,
+                                          window, 
+                                          statusBar,
+                                          External,
+                                          styles);
 
   /* Create the main menu */
   GtkWidget *mainmenu = NULL;
@@ -7442,12 +6717,10 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   /* Create the two main sections - the big picture and detail view - in a paned window */
   GtkWidget *panedWin = gtk_vpaned_new();
   gtk_box_pack_start(GTK_BOX(vbox), panedWin, TRUE, TRUE, 0);
-
-  GtkWidget *coverageView = createCoverageView(window, blxContext);
   
   GtkWidget *bigPicture = createBigPicture(window,
+                                           blxContext,
                                            GTK_CONTAINER(panedWin),
-                                           coverageView,
                                            &fwdStrandGrid, 
                                            &revStrandGrid,
                                            &options->bigPictRange,
@@ -7456,6 +6729,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
                                            lowestId);
 
   GtkWidget *detailView = createDetailView(window,
+                                           blxContext,
                                            GTK_CONTAINER(panedWin),
                                            toolbar,
 					   detailAdjustment, 
@@ -7472,10 +6746,6 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 					   options->initSortColumn,
                                            options->optionalColumns,
                                            options->windowColor);
-
-  
-  /* Add the coverage view underneath the main panes */
-  gtk_box_pack_start(GTK_BOX(vbox), coverageView, FALSE, FALSE, DEFAULT_COVERAGE_VIEW_BORDER);
 
   
   /* Create a custom scrollbar for scrolling the sequence column and put it at the bottom of the window */
@@ -7506,16 +6776,19 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(onKeyPressBlxWindow), NULL);
   
   
+  const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
+  cacheMspDisplayRanges(blxContext, numUnalignedBases);
+
   /* Add the MSP's to the trees and sort them by the initial sort mode. This must
    * be done after all widgets have been created, because it accesses their properties.*/
   detailViewAddMspData(detailView, options->mspList, seqList);
-  
+  detailViewUpdateMspLengths(detailView, numUnalignedBases);
+
   /* Updated the cached display range and full extents of the MSPs */
-  detailViewUpdateMspLengths(detailView, detailViewGetNumUnalignedBases(detailView));
-  const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
-  cacheMspDisplayRanges(blxContext, numUnalignedBases);
-  calculateDepth(blxContext, numUnalignedBases);
-  updateCoverageDepth(coverageView, blxContext);
+  if (blxContext)
+    blxContext->calculateDepth(numUnalignedBases);
+
+  updateCoverageDepth(window);
   
   /* Set the detail view font (again, this accesses the widgets' properties). */
   updateDetailViewFontDesc(detailView);
@@ -7535,7 +6808,7 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
 
   /* Hide the coverage view by default (unless told to display it) */
   if (!options->coverageOn)
-    widgetSetHidden(coverageView, TRUE);
+    coverageSetHidden(window, TRUE);
   
   /* The trees use the normal model by default, so if we're starting in 
    * 'squash matches' mode we need to change the model */
@@ -7581,6 +6854,9 @@ GtkWidget* createBlxWindow(CommandLineOptions *options,
   calculateExonViewHeight(bigPictureGetFwdExonView(bigPicture));
   calculateExonViewHeight(bigPictureGetRevExonView(bigPicture));
   forceResize(bigPicture);
+
+  /* If the primary clipboard contains features, select them on startup */
+  requestPrimaryClipboardText(findSeqsFromClipboard, window);
   
   return window;
 }

@@ -224,8 +224,10 @@ typedef struct _DotterWindowContext
   } DotterWindowContext;
 
 
-typedef struct _DotplotScaleProperties
+class DotplotScaleProperties
 {
+public:
+  GtkWidget *widget;                  /* The dotplot scale widget */
   int basesPerMark;                   /* how many bases per major tickmark */
   int basesPerSubmark;                /* how many bases per minor tickmark */
   int numMarks;                       /* how many major tickmarks there are */
@@ -235,55 +237,57 @@ typedef struct _DotplotScaleProperties
   int startCoord;                     /* the overall start coord */
   int endCoord;                       /* the overall end coord */
   GArray *labels;
-} DotplotScaleProperties;
+};
 
 
-typedef struct _DotplotProperties
-  {
-    DotterWindowContext *dotterWinCtx;  /* pointer to the dotter context for the window that this tool belongs to */
-    GdkRectangle plotRect;              /* the space where the dot plot will be */
-    GtkWidget *hozExons1;               /* shows main strand exons for horizontal sequence */
-    GtkWidget *hozExons2;               /* shows other strand exons for horizontal sequence */
-    GtkWidget *vertExons1;              /* shows main strand exons for vertical sequence */
-    GtkWidget *vertExons2;              /* shows other strand exons for vertical sequence */
+class DotplotProperties
+{
+public:
+  GtkWidget *widget;                  /* The dotplot widget */
+  DotterWindowContext *dotterWinCtx;  /* pointer to the dotter context for the window that this tool belongs to */
+  GdkRectangle plotRect;              /* the space where the dot plot will be */
+  GtkWidget *hozExons1;               /* shows main strand exons for horizontal sequence */
+  GtkWidget *hozExons2;               /* shows other strand exons for horizontal sequence */
+  GtkWidget *vertExons1;              /* shows main strand exons for vertical sequence */
+  GtkWidget *vertExons2;              /* shows other strand exons for vertical sequence */
     
-    gulong greyMap[NUM_COLORS];         /* maps weight -> pixel value. fixed mapping in pseudo colour displays
-     variable mapping in truecolor displays */
-    GdkColor greyRamp[NUM_COLORS];      /* 256 grey colors, black->white, only used in true color displays */
-    GdkColormap *colorMap;              /* the greyramp colormap */
+  gulong greyMap[NUM_COLORS];         /* maps weight -> pixel value. fixed mapping in pseudo colour displays
+                                         variable mapping in truecolor displays */
+  GdkColor greyRamp[NUM_COLORS];      /* 256 grey colors, black->white, only used in true color displays */
+  GdkColormap *colorMap;              /* the greyramp colormap */
     
-    int imageWidth;
-    int imageHeight;
-    GdkImage *image;                    /* the greyramp image */
+  int imageWidth;
+  int imageHeight;
+  GdkImage *image;                    /* the greyramp image */
     
-    double expResScore;
-    int pixelFac;
-    int slidingWinSize;
+  double expResScore;
+  int pixelFac;
+  int slidingWinSize;
     
-    /* Dynamic properties: */
-    unsigned char *pixelmap;            /* source data for drawing the dot-plot */
-    unsigned char *hspPixmap;           /* source data for drawing the HSP dot-plot */
+  /* Dynamic properties: */
+  unsigned char *pixelmap;            /* source data for drawing the dot-plot */
+  unsigned char *hspPixmap;           /* source data for drawing the HSP dot-plot */
     
-    gboolean crosshairOn;               /* whether to show the crosshair that marks the position of the currently-selected coord */
-    gboolean crosshairCoordsOn;         /* whether to display the crosshair label */
-    gboolean crosshairFullscreen;       /* whether to show the crosshair over the whole widget or just within the dot-plot rectangle */
+  gboolean crosshairOn;               /* whether to show the crosshair that marks the position of the currently-selected coord */
+  gboolean crosshairCoordsOn;         /* whether to display the crosshair label */
+  gboolean crosshairFullscreen;       /* whether to show the crosshair over the whole widget or just within the dot-plot rectangle */
     
-    gboolean pixelmapOn;                /* whether to show the dot-plot pixelmap or not */
-    DotterHspMode hspMode;              /* how (and whether) to show high-scoring pairs from Blast */
+  gboolean pixelmapOn;                /* whether to show the dot-plot pixelmap or not */
+  DotterHspMode hspMode;              /* how (and whether) to show high-scoring pairs from Blast */
     
-    gboolean gridlinesOn;               /* whether to show grid lines */
-    gboolean breaklinesOn;              /* whether to show break-lines between sequences */
-    gboolean hozLabelsOn;               /* whether to show labels for features on the horizontal sequence */
-    gboolean vertLabelsOn;              /* whether to show labels for features on the vertical sequence */
+  gboolean gridlinesOn;               /* whether to show grid lines */
+  gboolean breaklinesOn;              /* whether to show break-lines between sequences */
+  gboolean hozLabelsOn;               /* whether to show labels for features on the horizontal sequence */
+  gboolean vertLabelsOn;              /* whether to show labels for features on the vertical sequence */
     
-    GdkPoint dragStart;                 /* start point for mid-click drag */
-    GdkPoint dragEnd;                   /* end point for mid-click drag */
+  GdkPoint dragStart;                 /* start point for mid-click drag */
+  GdkPoint dragEnd;                   /* end point for mid-click drag */
 
-    const char *exportFileName;         /* file to export the plot to if in batch "export to pdf" mode */
+  const char *exportFileName;         /* file to export the plot to if in batch "export to pdf" mode */
 
-    DotplotScaleProperties hozScale;    /* horizontal scale properties */
-    DotplotScaleProperties vertScale;   /* vertical scale properties */
-  } DotplotProperties;
+  DotplotScaleProperties hozScale;    /* horizontal scale properties */
+  DotplotScaleProperties vertScale;   /* vertical scale properties */
+};
 
 
 

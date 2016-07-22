@@ -273,8 +273,6 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
 {
   options->refSeq = NULL;
   options->refSeqName = refSeqName;
-  options->refSeqRange.min = UNSET_INT;
-  options->refSeqRange.max = UNSET_INT;
   options->refSeqOffset = 0;
   options->startCoord = 1;
   options->startCoordSet = FALSE;
@@ -283,8 +281,6 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->geneticCode = stdcode1;
   options->activeStrand = BLXSTRAND_FORWARD;
   options->bigPictZoom = 10;          
-  options->bigPictRange.min = UNSET_INT;
-  options->bigPictRange.max = UNSET_INT;
   
   options->zoomWhole = FALSE;
   options->bigPictON = TRUE;          
@@ -558,7 +554,7 @@ int main(int argc, char **argv)
               }
             else if (stringsEqual(long_options[optionIndex].name, "fetch-server", TRUE))
               {
-                pfetch = (PfetchParams*)g_malloc(sizeof(PfetchParams)) ;
+                pfetch = new PfetchParams;
                 pfetch->net_id = strtok(optarg, ":") ;
                 pfetch->port = atoi(strtok(NULL, ":")) ;
               }                
@@ -642,14 +638,14 @@ int main(int argc, char **argv)
             if (cp)
               {
                 int coord2 = atoi(cp + 1);
-                intrangeSetValues(&options.bigPictRange, coord1, coord2);
+                options.bigPictRange.set(coord1, coord2);
                 
                 /* If the start coord hasn't already been specified on the
                  * command line, base the default start on the centre of the
                  * big picture range (can still be overridden if start coord
                  * arg is found later) */
                 if (!options.startCoordSet)
-                  options.startCoord = getRangeCentre(&options.bigPictRange);
+                  options.startCoord = options.bigPictRange.centre();
               }
             else
               {
@@ -820,7 +816,7 @@ int main(int argc, char **argv)
       options.refSeq = readFastaSeq(seqfile, options.refSeqName, &startCoord, &endCoord, options.seqType);
       
       if (startCoord != UNSET_INT && endCoord != UNSET_INT)
-        intrangeSetValues(&options.refSeqRange, startCoord, endCoord);
+        options.refSeqRange.set(startCoord, endCoord);
       
       if (seqfile != stdin)
         fclose(seqfile);
@@ -830,10 +826,9 @@ int main(int argc, char **argv)
     g_error("No reference sequence supplied.");
   
   /* If the ref seq range still has not been set, use 1-based coords */
-  if (options.refSeqRange.min == UNSET_INT && options.refSeqRange.max == UNSET_INT)
+  if (!options.refSeqRange.isSet())
     {
-      options.refSeqRange.min = 1;
-      options.refSeqRange.max = strlen(options.refSeq);
+      options.refSeqRange.set(1, strlen(options.refSeq));
     }
 
   if (FSfile && FSfile != stdin)
@@ -899,7 +894,7 @@ int main(int argc, char **argv)
   g_free(config_file);
   g_hash_table_unref(lookupTable);
 
-  g_message("Exiting Blixem\n");
+  printf("Exiting Blixem\n");
   return (EXIT_SUCCESS) ;
 }
 

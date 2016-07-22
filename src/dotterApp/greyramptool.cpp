@@ -66,32 +66,34 @@ typedef struct _CallbackItem
 } CallbackItem;
 
 
-typedef struct _GreyrampProperties
-  {
-    GtkWidget *greyrampWindow;          /* the toplevel window the greyrampTool will be in IF
-                                         * undocked from the main window */
-    DotterWindowContext *dwc;
-    GdkRectangle gradientRect;          /* the area where the gradient ectangle is drawn */
+class GreyrampProperties
+{
+public:
+  GtkWidget *widget;
+  GtkWidget *greyrampWindow;          /* the toplevel window the greyrampTool will be in IF
+                                       * undocked from the main window */
+  DotterWindowContext *dwc;
+  GdkRectangle gradientRect;          /* the area where the gradient ectangle is drawn */
     
-    GtkWidget *whiteSpinButton;         /* spin button to control the position of the white point in the gradient */
-    GtkWidget *blackSpinButton;         /* spin button to control the position of the black point in the gradient */
+  GtkWidget *whiteSpinButton;         /* spin button to control the position of the white point in the gradient */
+  GtkWidget *blackSpinButton;         /* spin button to control the position of the black point in the gradient */
     
-    int blackPoint;                     /* current position for the black point */
-    int whitePoint;                     /* current position for the white point */
-    int lastBlackPoint;                 /* the previous value for the black-point spin button (so we can undo) */
-    int lastWhitePoint;                 /* the previous value for the white-point spin button (so we can undo) */
+  int blackPoint;                     /* current position for the black point */
+  int whitePoint;                     /* current position for the white point */
+  int lastBlackPoint;                 /* the previous value for the black-point spin button (so we can undo) */
+  int lastWhitePoint;                 /* the previous value for the white-point spin button (so we can undo) */
     
-    gboolean swapValues;                /* top and bottom values are swapped (i.e. so top is max and bottom is min) */
+  gboolean swapValues;                /* top and bottom values are swapped (i.e. so top is max and bottom is min) */
 
-    gboolean draggingWhite;             /* set to true when dragging the white-point marker */
-    gboolean draggingBlack;             /* set to true when dragging the black-point marker */
-    gboolean draggingThreshold;         /* set to true when dragging the threshold marker */
-    gint dragXPos;                      /* x position of where the drag started */
+  gboolean draggingWhite;             /* set to true when dragging the white-point marker */
+  gboolean draggingBlack;             /* set to true when dragging the black-point marker */
+  gboolean draggingThreshold;         /* set to true when dragging the threshold marker */
+  gint dragXPos;                      /* x position of where the drag started */
     
-    GSList *callbackItems;              /* a list of callbacks to be called when the greyramp is updated */
+  GSList *callbackItems;              /* a list of callbacks to be called when the greyramp is updated */
 
-    int greyrampMinDist;                /* minimum dist between black and white point */
-  } GreyrampProperties;
+  int greyrampMinDist;                /* minimum dist between black and white point */
+};
 
 
 /***********************************************************
@@ -115,13 +117,13 @@ static void onDestroyGreyramp(GtkWidget *greyramp)
           for ( ; item; item = item->next)
             {
               CallbackItem *callbackItem = (CallbackItem*)(item->data);
-              g_free(callbackItem);
+              delete callbackItem;
             }
           
           g_slist_free(properties->callbackItems);
         }
       
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(greyramp), "GreyrampProperties", NULL);
     }
@@ -142,8 +144,9 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
 {
   if (greyramp)
     {
-      GreyrampProperties *properties =(GreyrampProperties*) g_malloc(sizeof *properties);
+      GreyrampProperties *properties = new GreyrampProperties;
 
+      properties->widget = greyramp;
       properties->greyrampWindow = greyrampWindow;
       properties->dwc = dwc;
       properties->gradientRect.x = gradientRect->x;
@@ -246,7 +249,7 @@ void registerGreyrampCallback(GtkWidget *greyramp, GtkWidget *widget, GtkCallbac
 
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
   
-  CallbackItem *callbackItem = (CallbackItem*)g_malloc(sizeof *callbackItem);
+  CallbackItem *callbackItem = new CallbackItem;
   callbackItem->widget = widget;
   callbackItem->func = func;
   

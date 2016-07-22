@@ -36,10 +36,12 @@
  */
 
 #include <blixemApp/bigpicture.hpp>
+#include <blixemApp/blxcontext.hpp>
 #include <blixemApp/blxwindow.hpp>
 #include <blixemApp/detailview.hpp>
 #include <blixemApp/exonview.hpp>
 #include <blixemApp/coverageview.hpp>
+#include <blixemApp/blxpanel.hpp>
 #include <seqtoolsUtils/utilities.hpp>
 #include <math.h>
 #include <stdlib.h>
@@ -49,7 +51,6 @@
 using namespace std;
 
 
-#define DEFAULT_PREVIEW_BOX_LINE_WIDTH  1
 #define DEFAULT_GRID_NUM_HEADER_LINES   1	  /* the default number of lines of text in the grid header */
 #define DEFAULT_GRID_HEADER_Y_PAD	0	  /* the default y padding around the grid header */
 #define DEFAULT_LABEL_X_PADDING		5	  /* padding around the grid labels */
@@ -59,8 +60,6 @@ using namespace std;
 #define DEFAULT_PERCENT_ID_PER_CELL	20	  /* the default %ID per vertical cell to show in the grids */
 #define DEFAULT_GRID_PERCENT_ID_MAX	100	  /* default maximum %ID to show on the scale */
 #define MIN_NUM_V_CELLS			1	  /* minimum number of vertical cells to show in the grid */
-#define DEFAULT_HIGHLIGHT_BOX_Y_PAD	2	  /* this provides space between highlight box and the top/bottom of the grid */
-#define MIN_HIGHLIGHT_BOX_WIDTH         5         /* minimum width of the highlight box */
 #define GRID_SCALE_MIN_ID_PER_CELL      0.1       /* minimum %ID per grid cell */
 #define GRID_SCALE_MIN                  0         /* minimum possible value for grid scale */
 #define GRID_SCALE_MAX                  100       /* maximum possible value for grid scale */
@@ -91,7 +90,7 @@ void bigPictureRedrawAll(GtkWidget *bigPicture)
   widgetClearCachedDrawable(properties->revStrandGrid, NULL);
   widgetClearCachedDrawable(properties->fwdExonView, NULL);
   widgetClearCachedDrawable(properties->revExonView, NULL);
-  coverageViewRedraw(properties->coverageView);
+  properties->coverageViewProperties()->redraw();
   
   gtk_widget_queue_draw(bigPicture);
 }
@@ -104,7 +103,7 @@ static void bigPictureRefreshAll(GtkWidget *bigPicture)
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
 
   gtk_widget_queue_draw(bigPicture);
-  gtk_widget_queue_draw(properties->coverageView);
+  gtk_widget_queue_draw(properties->coverageView());
 }
 
 
@@ -114,13 +113,13 @@ void calculateBigPictureCellSize(GtkWidget *bigPicture, BigPictureProperties *pr
 {
   DEBUG_ENTER("calculateBigPictureCellSize");
 
-  BlxViewContext *bc = blxWindowGetContext(properties->blxWindow);
+  BlxContext *bc = blxWindowGetContext(properties->blxWindow());
   GtkWidget *header = properties->header;
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
   
   /* Calculate the number of bases per cell and round it to a "nice" value from our stored list */
-  const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
-  const int displayEnd = convertDisplayIdxToDnaIdx(properties->displayRange.max, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int displayStart = convertDisplayIdxToDnaIdx(properties->displayRange.min(), bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int displayEnd = convertDisplayIdxToDnaIdx(properties->displayRange.max(), bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   const int displayWidth = abs(displayEnd - displayStart); /* use abs because can be negative if display reversed */
   
   const int defaultBasesPerCell = ceil((double)(displayWidth) / DEFAULT_GRID_NUM_HOZ_CELLS);
@@ -201,7 +200,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 					const GdkColor* const lineColor,
                                         const gboolean abbrev)
 {
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  BlxContext *bc = bigPictureGetContext(bigPicture);
   GridHeaderProperties *headerProperties = gridHeaderGetProperties(header);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
   
@@ -213,7 +212,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
   
   /* Get the first base index and round it to a nice round number. We'll offset all of the gridlines 
    * by the distance between this and the real start coord. */
-  const int firstBaseIdx = roundToValue(bc->displayRev ? dnaDispRange.max : dnaDispRange.min, bpProperties->roundTo);
+  const int firstBaseIdx = roundToValue(bc->displayRev ? dnaDispRange.max() : dnaDispRange.min(), bpProperties->roundTo);
   
   /* Calculate the top and bottom heights for the lines. */
   const gint bottomBorder = headerProperties->headerRect.y + headerProperties->headerRect.height;
@@ -259,7 +258,7 @@ static void drawVerticalGridLineHeaders(GtkWidget *header,
 void drawVerticalGridLines(GdkRectangle *drawingRect,
 			   GdkRectangle *highlightRect,
 			   const int yPadding,
-			   BlxViewContext *bc,
+			   BlxContext *bc,
 			   BigPictureProperties *bpProperties,
 			   GdkDrawable *drawable)
 {
@@ -271,7 +270,7 @@ void drawVerticalGridLines(GdkRectangle *drawingRect,
   
   /* Get the first base index (in terms of the nucleotide coords) and round it to a nice round
    * number. We'll offset all of the gridlines by the distance between this and the real start coord. */
-  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min, bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
+  const int realFirstBaseIdx = convertDisplayIdxToDnaIdx(bpProperties->displayRange.min(), bc->seqType, 1, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
   const int firstBaseIdx = roundToValue(realFirstBaseIdx, bpProperties->roundTo);
   
   /* Calculate the top and bottom heights for the lines. */
@@ -309,7 +308,7 @@ gint bigPictureGetCellHeight(GtkWidget *bigPicture)
 {
   /* Base the cell height on the font height */
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return roundNearest(properties->charHeight + (gdouble)(2 * DEFAULT_LABEL_Y_PADDING));
+  return roundNearest(properties->charHeight() + (gdouble)(2 * DEFAULT_LABEL_Y_PADDING));
 }
 
 
@@ -317,7 +316,7 @@ gint bigPictureGetCellHeight(GtkWidget *bigPicture)
 void drawHorizontalGridLines(GtkWidget *widget,
 			     GtkWidget *bigPicture,
 			     GdkRectangle *drawingRect,
-			     BlxViewContext *bc,
+			     BlxContext *bc,
 			     BigPictureProperties *bpProperties,
 			     GdkDrawable *drawable,
 			     const gint numCells, 
@@ -403,7 +402,7 @@ static void redrawBigPictureGridHeader(GtkWidget *header)
 static void drawBigPictureGridHeader(GtkWidget *header, GdkDrawable *drawable, GdkGC *gc)
 {
   GridHeaderProperties *properties = gridHeaderGetProperties(header);
-  BlxViewContext *bc = bigPictureGetContext(properties->bigPicture);
+  BlxContext *bc = bigPictureGetContext(properties->bigPicture);
   
   /* Set the drawing properties */
   gdk_gc_set_subwindow(gc, GDK_INCLUDE_INFERIORS);
@@ -435,53 +434,17 @@ void calculateGridHeaderBorders(GtkWidget *header)
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   
   /* Calculate the size of the grid header (zero height if it does not have one) */
-  properties->headerRect.x = roundNearest(bigPictureProperties->charWidth * (gdouble)bigPictureProperties->leftBorderChars);
+  properties->headerRect.x = roundNearest(bigPictureProperties->contentXPos());
   properties->headerRect.y = 0;
-  properties->headerRect.width = header->allocation.width - properties->headerRect.x;
+  properties->headerRect.width = bigPictureProperties->contentWidth();
   properties->headerRect.height = properties->refButton->allocation.height + (properties->headerYPad * 2);
   
-  properties->markerHeight = properties->headerRect.height - roundNearest(bigPictureProperties->charHeight * (gdouble)properties->numHeaderLines);
+  properties->markerHeight = properties->headerRect.height - roundNearest(bigPictureProperties->charHeight() * (gdouble)properties->numHeaderLines);
   if (properties->markerHeight < 0)
     properties->markerHeight = 0;
   
   gtk_layout_set_size(GTK_LAYOUT(header), header->allocation.width, properties->headerRect.height);
   gtk_widget_set_size_request(header, 0, properties->headerRect.height);
-}
-
-
-void calculateHighlightBoxBorders(GdkRectangle *drawingRect, 
-				  GdkRectangle *highlightRect,
-				  GtkWidget *bigPicture,
-				  const int yPadding)
-{
-  /* Calculate how many pixels from the left edge of the widget to the first base in the range. Truncating
-   * the double to an int after the multiplication means we can be up to 1 pixel out, but this should be fine. */
-  GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
-  GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
-
-  if (adjustment)
-    {
-      BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
-      BlxViewContext *bc = bigPictureGetContext(bigPicture);
-      
-      /* Get the big picture display range in dna coords */
-      IntRange bpRange;
-      convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
-      
-      /* Get the detail view display range in dna coords */
-      IntRange dvRange;
-      convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
-      
-      /* Get the x coords for the start and end of the detail view display range */
-      const int x1 = convertBaseIdxToRectPos(dvRange.min, drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
-      const int x2 = convertBaseIdxToRectPos(dvRange.max + 1, drawingRect, &bpRange, TRUE, bc->displayRev, TRUE);
-      
-      highlightRect->x = min(x1, x2);
-      highlightRect->y = 0;
-      
-      highlightRect->width = abs(x1 - x2);
-      highlightRect->height = drawingRect->height + roundNearest(bpProperties->charHeight / 2.0) + yPadding + (2 * bpProperties->highlightBoxYPad);
-    }
 }
 
 
@@ -502,16 +465,20 @@ static void addChildToBigPicture(GtkWidget *container, GtkWidget *child, gboolea
  * bigPicture container, and that the properties have been set for all 3 widgets. */
 void refreshGridOrder(GtkWidget *bigPicture)
 {
+  BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
+
   GtkWidget *fwdStrandGrid = bigPictureGetFwdGrid(bigPicture);
   GtkWidget *revStrandGrid = bigPictureGetRevGrid(bigPicture);
   GtkWidget *fwdExonView = bigPictureGetFwdExonView(bigPicture);
   GtkWidget *revExonView = bigPictureGetRevExonView(bigPicture);
+  GtkWidget *coverageView = bpProperties->coverageView();
   
   /* Increase the reference count to make sure the widgets aren't destroyed when we remove them. */
   g_object_ref(fwdStrandGrid);
   g_object_ref(revStrandGrid);
   g_object_ref(fwdExonView);
   g_object_ref(revExonView);
+  g_object_ref(coverageView);
   
   /* Find the direct container of the grids etc and remove them */
   GtkWidget *bpContainer = getNamedChildWidget(bigPicture, BIG_PICTURE_WIDGET_NAME);
@@ -519,6 +486,7 @@ void refreshGridOrder(GtkWidget *bigPicture)
   gtk_container_remove(GTK_CONTAINER(bpContainer), revStrandGrid);
   gtk_container_remove(GTK_CONTAINER(bpContainer), fwdExonView);
   gtk_container_remove(GTK_CONTAINER(bpContainer), revExonView);
+  gtk_container_remove(GTK_CONTAINER(bpContainer), coverageView);
   
   /* Add them back, with the forward-strand grid at the top and the reverse-strand grid
    * at the bottom, or vice versa if the strands are toggled. */
@@ -536,6 +504,9 @@ void refreshGridOrder(GtkWidget *bigPicture)
       addChildToBigPicture(bpContainer, revExonView, FALSE);
       addChildToBigPicture(bpContainer, revStrandGrid, FALSE);
     }
+
+  /* Coverage view is always at the bottom for now because it covers both strands */
+  addChildToBigPicture(bpContainer, coverageView, FALSE);
   
   /* Decrease the ref count again */
   g_object_unref(fwdStrandGrid);
@@ -557,7 +528,8 @@ static void updateHighlightBox(GtkWidget *bigPicture, BigPictureProperties *prop
 {
   callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridHighlightBoxBorders);
   callFuncOnAllBigPictureExonViews(bigPicture, (gpointer)calculateExonViewHighlightBoxBorders);
-  calculateCoverageViewHighlightBoxBorders(properties->coverageView);
+  
+  properties->coverageViewProperties()->calculateHighlightBoxBorders();
 }
 
 
@@ -577,7 +549,7 @@ static void onBigPictureRangeChanged(GtkWidget *bigPicture, BigPictureProperties
   bigPictureRedrawAll(bigPicture);
 
   /* Refresh the dotter dialog, if it's open, because it may be tracking the big picture range */
-  refreshDialog(BLXDIALOG_DOTTER, properties->blxWindow);
+  refreshDialog(BLXDIALOG_DOTTER, properties->blxWindow());
 }
 
 
@@ -591,43 +563,40 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
 {
   DEBUG_ENTER("setBigPictureDisplayRange");
 
-  GtkWidget *detailView = blxWindowGetDetailView(properties->blxWindow);
+  GtkWidget *detailView = blxWindowGetDetailView(properties->blxWindow());
   IntRange *detailViewRange = detailViewGetDisplayRange(detailView);
 
   IntRange *displayRange = &properties->displayRange;
-  IntRange *fullRange = blxWindowGetFullRange(properties->blxWindow);
+  IntRange *fullRange = blxWindowGetFullRange(properties->blxWindow());
   
-  int detailViewWidth = detailViewRange->max - detailViewRange->min;
-  int maxWidth = fullRange->max - fullRange->min;
+  int detailViewWidth = detailViewRange->max() - detailViewRange->min();
+  int maxWidth = fullRange->max() - fullRange->min();
   
   gboolean changedRange = FALSE;
 
   if (width < detailViewWidth)
     {
       /* Don't display less than the detail view range */
-      displayRange->min = detailViewRange->min;
-      displayRange->max = detailViewRange->max;
-      width = displayRange->max - displayRange->min;
+      displayRange->set(detailViewRange);
+      width = displayRange->max() - displayRange->min();
       changedRange = TRUE;
     }
   else if (width >= maxWidth)
     {
       /* Don't display more than the full range of the reference sequence */
-      changedRange = displayRange->min != fullRange->min || displayRange->max != fullRange->max;
-      
-      displayRange->min = fullRange->min;
-      displayRange->max = fullRange->max;
+      changedRange = displayRange->min() != fullRange->min() || displayRange->max() != fullRange->max();
+      displayRange->set(fullRange);
     }
   else if (keepCentered)
     {
       /* Keep the view centred on what's visible in the detail view */
-      const int newcentre = getRangeCentre(detailViewRange);
+      const int newcentre = detailViewRange->centre();
 
       /* Try to display an equal amount either side of the centre */
       const int offset = roundNearest((double)width / 2.0);
 
-      displayRange->min = newcentre - offset;
-      displayRange->max = displayRange->min + width;
+      displayRange->setMin(newcentre - offset);
+      displayRange->setMax(displayRange->min() + width); // uses updated min
       
       changedRange = TRUE;
     }
@@ -642,33 +611,33 @@ static void setBigPictureDisplayRange(GtkWidget *bigPicture,
        * the original range. NOTE: disabled the border because it messes up the
        * initial big picture range when it is specified using the zoom-range arg */
       const gdouble borderFraction = 0.0;
-      int border = getRangeLength(displayRange) * borderFraction;
+      int border = displayRange->length() * borderFraction;
 
-      if (getRangeLength(detailViewRange) > width - (2 * border))
+      if (detailViewRange->length() > width - (2 * border))
         border = 0;
       
-      int offset = (displayRange->min + border) - detailViewRange->min;
+      int offset = (displayRange->min() + border) - detailViewRange->min();
       
       if (offset > 0)
         {
-          displayRange->min -= offset;
-          displayRange->max = displayRange->min + width;
+          displayRange->setMin(displayRange->min() - offset);
+          displayRange->setMax(displayRange->min() + width); //uses the updated min
           changedRange = TRUE;
         }
       
-      offset = detailViewRange->max - (displayRange->max - border);
+      offset = detailViewRange->max() - (displayRange->max() - border);
       
       if (offset > 0)
         {
-          displayRange->max += offset;
-          displayRange->min = displayRange->max - width;
+          displayRange->setMax(displayRange->max() + offset);
+          displayRange->setMin(displayRange->max() - width); //uses the updated max
           changedRange = TRUE;
         }
     }
 
   if (changedRange)
     {
-      boundsLimitRange(displayRange, fullRange, TRUE);
+      displayRange->boundsLimit(fullRange, TRUE);
       onBigPictureRangeChanged(bigPicture, properties);
     }
   
@@ -687,52 +656,9 @@ void refreshBigPictureDisplayRange(GtkWidget *bigPicture, const gboolean keepCen
   DEBUG_ENTER("refreshBigPictureDisplayRange");
 
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  IntRange *bpRange = &properties->displayRange;
-  
-  GtkWidget *detailView = blxWindowGetDetailView(properties->blxWindow);
-  IntRange *dvRange = detailViewGetDisplayRange(detailView);
-  
-  if (bpRange->min == UNSET_INT && bpRange->max == UNSET_INT) /* check both in case UNSET_INT is a real coord for one end! */
-    {
-      /* This is the first time we've refreshed the detail view range. Set the
-       * initial big picture range width to be a ratio of the detail view range width. */
-      const int width = (dvRange->max - dvRange->min) * bigPictureGetInitialZoom(bigPicture);
-      setBigPictureDisplayRange(bigPicture, properties, width, TRUE);
-    }
-  else
-    {
-      /* Call set-width (but just use the existing width) to force the required updates. */
-      const int width = bpRange->max - bpRange->min;
-      setBigPictureDisplayRange(bigPicture, properties, width, keepCentered);
-    }
+  properties->refreshDisplayRange(keepCentered);
   
   DEBUG_EXIT("refreshBigPictureDisplayRange returning");
-}
-
-
-/* Given the centre x coord of a rectangle and its width, find the x coord of the 
- * left edge. If an outer rectangle is given, limit the coord so that the
- * rectangle lies entirely within the outer rect. */
-int getLeftCoordFromCentre(const int centreCoord, const int width, const GdkRectangle *outerRect)
-{
-  int leftCoord = centreCoord - roundNearest((double)width / 2.0);
-  
-  if (outerRect)
-    {
-      if (leftCoord < outerRect->x) 
-	leftCoord = outerRect->x;
-      else
-	{
-	  int leftCoordMax = outerRect->x + outerRect->width - width;
-	  
-	  if (leftCoord > leftCoordMax) 
-	    {
-	      leftCoord = leftCoordMax;
-	    }
-	}
-    }
-  
-  return leftCoord;
 }
 
 
@@ -771,11 +697,11 @@ void zoomBigPicture(GtkWidget *bigPicture, const gboolean zoomIn)
   
   if (zoomIn)
     {
-      newWidth = roundNearest(((double)(displayRange->max - displayRange->min)) / 2.0);
+      newWidth = roundNearest(((double)(displayRange->max() - displayRange->min())) / 2.0);
     }
   else
     {
-      newWidth = (displayRange->max - displayRange->min) * 2;
+      newWidth = (displayRange->max() - displayRange->min()) * 2;
     }
 
   setBigPictureDisplayRange(bigPicture, properties, newWidth, TRUE);
@@ -788,12 +714,12 @@ void zoomWholeBigPicture(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   IntRange *displayRange = &properties->displayRange;
-  IntRange *fullRange = blxWindowGetFullRange(properties->blxWindow);
+  IntRange *fullRange = blxWindowGetFullRange(properties->blxWindow());
   
   /* Check we're not already showing the whole range */
-  if (displayRange->min != fullRange->min || displayRange->max != fullRange->max)
+  if (displayRange->min() != fullRange->min() || displayRange->max() != fullRange->max())
     {
-      setBigPictureDisplayRange(bigPicture, properties, fullRange->max - fullRange->min, TRUE);
+      setBigPictureDisplayRange(bigPicture, properties, fullRange->max() - fullRange->min(), TRUE);
       calculateBigPictureCellSize(bigPicture, properties);
     }
 }
@@ -837,7 +763,7 @@ static void updateOnPercentIdChanged(GtkWidget *bigPicture)
   
           callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridBorders);
           callFuncOnAllBigPictureGrids(bigPicture, (gpointer)calculateGridHighlightBoxBorders);
-          calculateCoverageViewBorders(properties->coverageView);
+          properties->coverageViewProperties()->calculateBorders();
   
           bigPictureRedrawAll(bigPicture);
         }
@@ -855,7 +781,7 @@ void bigPicturePrepareForPrinting(GtkWidget *bigPicture)
   
   callFuncOnAllBigPictureGrids(bigPicture, (gpointer)gridPrepareForPrinting);
   callFuncOnAllBigPictureExonViews(bigPicture, (gpointer)exonViewPrepareForPrinting);
-  coverageViewPrepareForPrinting(properties->coverageView);
+  properties->coverageViewProperties()->prepareForPrinting();
 }
 
 
@@ -916,21 +842,20 @@ static gboolean onExposeGridHeader(GtkWidget *header, GdkEventExpose *event, gpo
 void scrollBigPictureLeftStep(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  BlxContext *bc = bigPictureGetContext(bigPicture);
   
   IntRange *displayRange = &properties->displayRange;
   
-  if (displayRange->min > bc->fullDisplayRange.min)
+  if (displayRange->min() > bc->fullDisplayRange.min())
     {
       /* Check we can scroll the full increment amount. If not, scroll to the end of the full range */
-      int diff = getRangeLength(displayRange) / BLX_SCROLL_INCREMENT_RATIO;
+      int diff = displayRange->length() / BLX_SCROLL_INCREMENT_RATIO;
 
-      if (displayRange->min - diff < bc->fullDisplayRange.min)
-        diff = displayRange->min - bc->fullDisplayRange.min;
+      if (displayRange->min() - diff < bc->fullDisplayRange.min())
+        diff = displayRange->min() - bc->fullDisplayRange.min();
 
       /* Update the range */
-      displayRange->min -= diff;
-      displayRange->max -= diff;
+      displayRange->set(displayRange->min() - diff, displayRange->max() - diff);
 
       /* Update */
       onBigPictureRangeChanged(bigPicture, properties);
@@ -947,22 +872,21 @@ void scrollBigPictureLeftStep(GtkWidget *bigPicture)
 void scrollBigPictureRightStep(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
+  BlxContext *bc = bigPictureGetContext(bigPicture);
   
   IntRange *displayRange = &properties->displayRange;
   
   /* Check we're not already at the max of the full range. */
-  if (displayRange->max < bc->fullDisplayRange.max)
+  if (displayRange->max() < bc->fullDisplayRange.max())
     {
       /* Check we can scroll the full increment amount. If not, scroll to the end of the full range */
-      int diff = getRangeLength(displayRange) / BLX_SCROLL_INCREMENT_RATIO;
+      int diff = displayRange->length() / BLX_SCROLL_INCREMENT_RATIO;
 
-      if (displayRange->max + diff > bc->fullDisplayRange.max)
-        diff = bc->fullDisplayRange.max - displayRange->max;
+      if (displayRange->max() + diff > bc->fullDisplayRange.max())
+        diff = bc->fullDisplayRange.max() - displayRange->max();
 
       /* Adjust the range */
-      displayRange->min += diff;
-      displayRange->max += diff;
+      displayRange->set(displayRange->min() + diff, displayRange->max() + diff);
 
       /* Update */
       onBigPictureRangeChanged(bigPicture, properties);
@@ -972,150 +896,6 @@ void scrollBigPictureRightStep(GtkWidget *bigPicture)
       /* Scroll the detail view too if necessary to keep it visible */
       detailViewScrollToKeepInRange(bigPictureGetDetailView(bigPicture), displayRange);
     }
-}
-
-
-/* Convert an x coord in the given rectangle to a base index (in nucleotide coords) */
-static gint convertRectPosToBaseIdx(const gint x, 
-                                    const GdkRectangle* const displayRect,  
-                                    const IntRange* const dnaDispRange,
-                                    const gboolean displayRev)
-{
-  gint result = UNSET_INT;
-  
-  gdouble distFromEdge = (gdouble)(x - displayRect->x);
-  int basesFromEdge = (int)(distFromEdge / pixelsPerBase(displayRect->width, dnaDispRange));
-
-  if (displayRev)
-    {
-      result = dnaDispRange->max - basesFromEdge;
-    }
-  else
-    {
-      result = dnaDispRange->min + basesFromEdge;
-    }
-  
-  return result;
-}
-
-
-/* Draw the preview box on the given drawable within the boundaries of the given displayRect.
- * The boundaries of the preview box are given by highlightRect.
- * Only does anything if the preview box centre is set. */
-void drawPreviewBox(GtkWidget *bigPicture, 
-                    GdkDrawable *drawable, 
-                    GdkRectangle *displayRect, 
-                    GdkRectangle *highlightRect)
-{
-  BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
-  
-  if (!bpProperties->displayPreviewBox)
-    {
-      return;
-    }
-
-  /* Get the display range in dna coords */
-  IntRange dnaDispRange;
-  convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
-  
-  /* Find the x coord for the left edge of the preview box (or the right edge, if
-   * the display is right-to-left). */
-  int x = getLeftCoordFromCentre(bpProperties->previewBoxCentre, highlightRect->width, displayRect);
-  
-  /* Convert it to the base index and back again so that we get it rounded to the position of
-   * the nearest base. */
-  int baseIdx = convertRectPosToBaseIdx(x, displayRect, &dnaDispRange, bc->displayRev);
-  int xRounded = convertBaseIdxToRectPos(baseIdx, displayRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
-  
-  /* The other dimensions of the preview box are the same as the current highlight box. */
-  GdkRectangle previewRect = {xRounded, highlightRect->y, highlightRect->width, highlightRect->height};
-
-  GdkColor *previewBoxColor = getGdkColor(BLXCOLOR_PREVIEW_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
-
-  drawHighlightBox(drawable, &previewRect, bpProperties->previewBoxLineWidth, previewBoxColor);
-}
-
-
-/* Show a preview box centred on the given x coord. If init is true, we're initialising
- * a drag; otherwise, we're already dragging */
-void showPreviewBox(GtkWidget *bigPicture, const int x, const gboolean init, const int offset)
-{
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  
-  if (init)
-    {
-      properties->displayPreviewBox = TRUE;
-      properties->previewBoxOffset = offset;
-
-      static GdkCursor *cursor = NULL;
-      cursor = gdk_cursor_new(GDK_FLEUR);
-
-      GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
-      gdk_window_set_cursor(blxWindow->window, cursor);
-    }
-
-  /* We might get called by a drag operation where the preview box drag has not been
-   * initialised; just ignore it */
-  if (!properties->displayPreviewBox)
-    return;
-
-  /* Whether dragging or initialising, we need to update the position */
-  properties->previewBoxCentre = x + properties->previewBoxOffset;
-
-  /* Refresh all child widgets, and also the coverage view (which may not
-   * be a child of the big picture) */
-  gtk_widget_queue_draw(bigPicture);
-  gtk_widget_queue_draw(properties->coverageView);
-}
-
-
-/* Scroll the big picture so that it is centred on the current preview box position, and clear
- * the preview box. (Do nothing if preview box is not currently shown.)  */
-void acceptAndClearPreviewBox(GtkWidget *bigPicture, const int xCentreIn, GdkRectangle *displayRect, GdkRectangle *highlightRect)
-{
-  BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
-  GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
-
-  gdk_window_set_cursor(blxWindow->window, NULL);
-
-  if (!bpProperties->displayPreviewBox)
-    return;
-
-  /* Apply any offset required to get the real centre coord */
-  const int xCentre = xCentreIn + bpProperties->previewBoxOffset;
-  
-  /* Get the display range in dna coords */
-  BlxViewContext *bc = bigPictureGetContext(bigPicture);
-  IntRange dnaDispRange;
-  convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dnaDispRange);
-  
-  /* Find the base index where the new scroll range will start. This is the leftmost
-   * edge of the preview box if numbers increase in the normal left-to-right direction, 
-   * or the rightmost edge if the display is reversed. */
-  const int x = getLeftCoordFromCentre(xCentre, highlightRect->width, displayRect);
-  int baseIdx = convertRectPosToBaseIdx(x, displayRect, &dnaDispRange, bc->displayRev);
-  
-  /* Subtract 1 if the display is reversed to give the base to the right of x, rather than the base to the left of x */
-  if (bc->displayRev)
-    --baseIdx;
-  
-  /* Reset the preview box status. We don't need to un-draw it because we
-   * will redraw the whole big picture below. */
-  bpProperties->displayPreviewBox = FALSE;
-  bpProperties->previewBoxOffset = 0;
-  
-  /* Update the detail view's scroll pos to start at the new base. The base index is in terms of
-   * the nucleotide coords so we need to convert to display coords */
-  const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, bc->seqType, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
-  
-  GtkWidget *detailView = bigPictureGetDetailView(bigPicture);
-  setDetailViewStartIdx(detailView, displayIdx, bc->seqType);
-  
-  /* Re-centre the big picture */
-  refreshBigPictureDisplayRange(bigPicture, TRUE);
-  
-  gtk_widget_queue_draw(bigPicture);
 }
 
 
@@ -1194,6 +974,141 @@ static void onSizeAllocateBigPicture(GtkWidget *bigPicture, GtkAllocation *alloc
 
 
 /***********************************************************
+ *                 Class member functions                  *
+ ***********************************************************/
+
+BigPictureProperties::BigPictureProperties(GtkWidget *bigPicture_in, 
+                                           GtkWidget *blxWindow_in, 
+                                           BlxContext *bc_in,
+                                           CoverageViewProperties *coverageViewP_in, 
+                                           GtkWidget *header_in, 
+                                           GtkWidget *fwdStrandGrid_in,
+                                           GtkWidget *revStrandGrid_in,
+                                           GtkWidget *fwdExonView_in,
+                                           GtkWidget *revExonView_in,
+                                           int previewBoxCentre_in,
+                                           const IntRange* const initRange_in,
+                                           const IntRange* const fullRange_in,
+                                           const int initialZoom_in,
+                                           const gdouble lowestId_in) :
+  BlxPanel(bigPicture_in, blxWindow_in, bc_in, coverageViewP_in, previewBoxCentre_in)
+{
+  header = header_in;
+  fwdStrandGrid = fwdStrandGrid_in;
+  revStrandGrid = revStrandGrid_in;
+  fwdExonView = fwdExonView_in;
+  revExonView = revExonView_in;
+
+  numHCells = UNSET_INT;
+  basesPerCell = UNSET_INT;
+  roundTo = 25;
+      
+  numVCells = UNSET_INT;
+  idPerCell = DEFAULT_PERCENT_ID_PER_CELL;
+  percentIdRange.min = lowestId_in;
+  percentIdRange.max = (gdouble)DEFAULT_GRID_PERCENT_ID_MAX;
+
+  leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 2; /* Extra fudge factor because
+                                                                        char width is approx */
+  initialZoom = initialZoom_in;
+      
+  if (initRange_in->isSet())
+    displayRange.set(initRange_in);
+  else
+    displayRange.set(fullRange_in);
+      
+  /* Create the list of "nice round values" to round the grid header values to.
+   * Create the list in reverse order (i.e. highest values first). */
+  roundValues = NULL;
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(25));
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(50));
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(100));
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(125));
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(150));
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(250));
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(500));
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(1000));
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(2500));
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(5000));
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(10000));
+  roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(25000));
+}
+
+BigPictureProperties::~BigPictureProperties()
+{
+  if (roundValues)
+    {
+      g_slist_free(roundValues);
+      roundValues = NULL;
+    }
+}
+
+double BigPictureProperties::contentXPos() const
+{
+  return ((double)leftBorderChars * charWidth());
+}
+
+
+double BigPictureProperties::contentWidth() const
+{
+  double result = 0.0;
+
+  /* The big picture content covers the whole allocation minus the left border */
+  if (widget())
+    result = widget()->allocation.width - contentXPos();
+
+  return result;
+}
+
+
+/* Return the range that should be highlighted by the highlight box, i.e. the 
+ * detail-view range */
+const IntRange *BigPictureProperties::highlightRange() const
+{
+  const IntRange *result = NULL;
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow());
+
+  if (detailView)
+    result = detailViewGetDisplayRange(detailView);
+
+  return result;
+}
+
+
+void BigPictureProperties::refreshDisplayRange(const bool keepCentered)
+{
+  IntRange *bpRange = &displayRange;
+  
+  GtkWidget *detailView = blxWindowGetDetailView(blxWindow());
+  IntRange *dvRange = detailViewGetDisplayRange(detailView);
+  
+  if (!bpRange->isSet())
+    {
+      /* This is the first time we've refreshed the detail view range. Set the
+       * initial big picture range width to be a ratio of the detail view range width. */
+      const int width = (dvRange->max() - dvRange->min()) * bigPictureGetInitialZoom(widget());
+      setBigPictureDisplayRange(widget(), this, width, TRUE);
+    }
+  else
+    {
+      /* Call set-width (but just use the existing width) to force the required updates. */
+      const int width = bpRange->max() - bpRange->min();
+      setBigPictureDisplayRange(widget(), this, width, keepCentered);
+    }
+}
+
+/* Perform any required updates after the highlight box has been moved */
+void BigPictureProperties::onHighlightBoxMoved(const int displayIdx, const BlxSeqType seqType)
+{
+  /* The highlight box represents the detail-view range. If it has moved, we need to scroll
+   * the detail view itself to match its new position. */
+  GtkWidget *detailView = bigPictureGetDetailView(widget());
+  setDetailViewStartIdx(detailView, displayIdx, seqType);
+}
+
+
+
+/***********************************************************
  *                       Properties                        *
  ***********************************************************/
 
@@ -1208,7 +1123,7 @@ BigPictureProperties* bigPictureGetProperties(GtkWidget *bigPicture)
   return properties;
 }
 
-BlxViewContext* bigPictureGetContext(GtkWidget *bigPicture)
+BlxContext* bigPictureGetContext(GtkWidget *bigPicture)
 {
   GtkWidget *blxWindow = bigPictureGetBlxWindow(bigPicture);
   return blxWindowGetContext(blxWindow);
@@ -1232,92 +1147,51 @@ static void onDestroyBigPicture(GtkWidget *bigPicture)
   
   if (properties)
     {
-      if (properties->roundValues)
-	{
-	  g_slist_free(properties->roundValues);
-	  properties->roundValues = NULL;
-	}
-      
-      g_free(properties);
-      properties = NULL;
+      delete properties;
       g_object_set_data(G_OBJECT(bigPicture), "BigPictureProperties", NULL);
     }
 }
 
 
-static void bigPictureCreateProperties(GtkWidget *bigPicture, 
-				       GtkWidget *blxWindow, 
-                                       GtkWidget *coverageView, 
-				       GtkWidget *header, 
-				       GtkWidget *fwdStrandGrid,
-				       GtkWidget *revStrandGrid,
-				       GtkWidget *fwdExonView,
-				       GtkWidget *revExonView,
-				       int previewBoxCentre,
-                                       const IntRange* const initRange,
-                                       const IntRange* const fullRange,
-				       const int initialZoom,
-				       const gdouble lowestId)
+static BigPictureProperties* bigPictureCreateProperties(GtkWidget *bigPicture, 
+                                                        GtkWidget *blxWindow, 
+                                                        BlxContext *bc,
+                                                        CoverageViewProperties *coverageViewP, 
+                                                        GtkWidget *header, 
+                                                        GtkWidget *fwdStrandGrid,
+                                                        GtkWidget *revStrandGrid,
+                                                        GtkWidget *fwdExonView,
+                                                        GtkWidget *revExonView,
+                                                        int previewBoxCentre,
+                                                        const IntRange* const initRange,
+                                                        const IntRange* const fullRange,
+                                                        const int initialZoom,
+                                                        const gdouble lowestId)
 {
+  BigPictureProperties *properties = NULL;
+
   if (bigPicture)
     { 
-      BigPictureProperties *properties = (BigPictureProperties*)g_malloc(sizeof *properties);
-      
-      properties->blxWindow = blxWindow;
-      properties->header = header;
-      properties->coverageView = coverageView;
-      properties->fwdStrandGrid = fwdStrandGrid;
-      properties->revStrandGrid = revStrandGrid;
-      properties->fwdExonView = fwdExonView;
-      properties->revExonView = revExonView;
-      
-      properties->numHCells = UNSET_INT;
-      properties->basesPerCell = UNSET_INT;
-      properties->roundTo = 25;
-      
-      properties->numVCells = UNSET_INT;
-      properties->idPerCell = DEFAULT_PERCENT_ID_PER_CELL;
-      properties->percentIdRange.min = lowestId;
-      properties->percentIdRange.max = (gdouble)DEFAULT_GRID_PERCENT_ID_MAX;
-
-      properties->displayPreviewBox = FALSE;
-      properties->previewBoxOffset = 0;
-      properties->previewBoxCentre = previewBoxCentre;
-      properties->leftBorderChars = numDigitsInInt(DEFAULT_GRID_PERCENT_ID_MAX) + 2; /* Extra fudge factor because char width is approx */
-      properties->highlightBoxMinWidth = MIN_HIGHLIGHT_BOX_WIDTH;
-      properties->previewBoxLineWidth = DEFAULT_PREVIEW_BOX_LINE_WIDTH;
-      properties->highlightBoxYPad = DEFAULT_HIGHLIGHT_BOX_Y_PAD;
-      properties->initialZoom = initialZoom;
-      
-      /* Set the initial big picture range from that requested. Note that the
-       * intput range may be UNSE_INTs, in which case these values will be
-       * initialized when the detail view size is first allocated, based on
-       * the "initial zoom level" which is a ratio of the detail view range. */
-      properties->displayRange.min = initRange->min;
-      properties->displayRange.max = initRange->max;
-
-      /* Calculate the font size */
-      getFontCharSize(bigPicture, bigPicture->style->font_desc, &properties->charWidth, &properties->charHeight);
-      
-      /* Create the list of "nice round values" to round the grid header values to.
-       * Create the list in reverse order (i.e. highest values first). */
-      properties->roundValues = NULL;
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(25));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(50));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(100));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(125));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(150));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(250));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(500));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(1000));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(2500));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(5000));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(10000));
-      properties->roundValues = g_slist_prepend(properties->roundValues, GINT_TO_POINTER(25000));
+      properties = new BigPictureProperties(bigPicture, 
+                                            blxWindow, 
+                                            bc,
+                                            coverageViewP, 
+                                            header, 
+                                            fwdStrandGrid,
+                                            revStrandGrid,
+                                            fwdExonView,
+                                            revExonView,
+                                            previewBoxCentre,
+                                            initRange,
+                                            fullRange,
+                                            initialZoom,
+                                            lowestId);
       
       g_object_set_data(G_OBJECT(bigPicture), "BigPictureProperties", properties);
       g_signal_connect(G_OBJECT(bigPicture), "destroy", G_CALLBACK(onDestroyBigPicture), NULL); 
     }
+
+  return properties;
 }
 
 
@@ -1327,7 +1201,7 @@ static void onDestroyGridHeader(GtkWidget *bigPicture)
   
   if (properties)
     {
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(bigPicture), "GridHeaderProperties", NULL);
     }
@@ -1337,8 +1211,9 @@ static void gridHeaderCreateProperties(GtkWidget *gridHeader, GtkWidget *bigPict
 {
   if (gridHeader)
     {
-      GridHeaderProperties *properties =(GridHeaderProperties*)g_malloc(sizeof *properties);
-      
+      GridHeaderProperties *properties = new GridHeaderProperties;
+
+      properties->widget = gridHeader;
       properties->bigPicture = bigPicture;
       properties->refButton = refButton;
       properties->numHeaderLines = DEFAULT_GRID_NUM_HEADER_LINES;
@@ -1355,7 +1230,7 @@ static void gridHeaderCreateProperties(GtkWidget *gridHeader, GtkWidget *bigPict
 GtkWidget* bigPictureGetBlxWindow(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return properties ? properties->blxWindow : NULL;
+  return properties ? properties->blxWindow() : NULL;
 }
 
 GtkWidget* bigPictureGetDetailView(GtkWidget *bigPicture)
@@ -1401,12 +1276,6 @@ GtkWidget* bigPictureGetRevExonView(GtkWidget *bigPicture)
 {
   BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
   return properties ? properties->revExonView : NULL;
-}
-
-GtkWidget* bigPictureGetCoverageView(GtkWidget *bigPicture)
-{
-  BigPictureProperties *properties = bigPictureGetProperties(bigPicture);
-  return properties ? properties->coverageView : NULL;
 }
 
 GtkWidget* bigPictureGetActiveExonView(GtkWidget *bigPicture)
@@ -1606,8 +1475,8 @@ static GtkWidget *createBigPictureGridHeader(GtkWidget *bigPicture)
 
 
 GtkWidget* createBigPicture(GtkWidget *blxWindow, 
+                            BlxContext *bc,
 			    GtkContainer *parent,
-                            GtkWidget *coverageView,
 			    GtkWidget **fwdStrandGrid, 
 			    GtkWidget **revStrandGrid,
                             const IntRange* const initRange,
@@ -1625,42 +1494,51 @@ GtkWidget* createBigPicture(GtkWidget *blxWindow,
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(bigPicture), vbox);
   gtk_widget_set_name(vbox, BIG_PICTURE_WIDGET_NAME);
   
-  /* Our big picture needs to have a header plus 3 panes:
-   * 1. the top grid (fwd strand);
-   * 2. the exon view; and
-   * 3. bottom grid (reverse strand) */
+  /* Our big picture needs to have a header plus 4 panes:
+   * 1. the top grid (fwd strand)
+   * 2. the exon view
+   * 3. bottom grid (reverse strand) 
+   * 4. coverage view 
+   */
   
   GtkWidget *header = createBigPictureGridHeader(bigPicture);
   addChildToBigPicture(vbox, header, FALSE);
 
   *fwdStrandGrid = createBigPictureGrid(bigPicture, BLXSTRAND_FORWARD);
   *revStrandGrid = createBigPictureGrid(bigPicture, BLXSTRAND_REVERSE);
-
   GtkWidget *fwdExonView = createExonView(bigPicture, BLXSTRAND_FORWARD);
   GtkWidget *revExonView = createExonView(bigPicture, BLXSTRAND_REVERSE);
+
+  /* Create the coverage view. */
+  CoverageViewProperties *coverageViewP = createCoverageView(blxWindow, bc);
   
   /* By default, make the forward strand the top grid */
   addChildToBigPicture(vbox, *fwdStrandGrid, FALSE);
   addChildToBigPicture(vbox, fwdExonView, FALSE);
   addChildToBigPicture(vbox, revExonView, FALSE);
   addChildToBigPicture(vbox, *revStrandGrid, FALSE);
+  addChildToBigPicture(vbox, coverageViewP->widget(), FALSE);
 
   g_signal_connect(G_OBJECT(bigPicture), "size-allocate", G_CALLBACK(onSizeAllocateBigPicture), NULL);
 
-  /* Set the big picture properties */
-  bigPictureCreateProperties(bigPicture, 
-			     blxWindow,
-                             coverageView,
-			     header, 
-			     *fwdStrandGrid,
-			     *revStrandGrid,
-			     fwdExonView,
-			     revExonView,
-			     UNSET_INT,
-                             initRange,
-                             fullRange,
-			     initialZoom,
-			     lowestId);
+  /* Create the big picture properties. */
+  BigPictureProperties *properties = bigPictureCreateProperties(bigPicture, 
+                                                                blxWindow,
+                                                                bc,
+                                                                coverageViewP,
+                                                                header, 
+                                                                *fwdStrandGrid,
+                                                                *revStrandGrid,
+                                                                fwdExonView,
+                                                                revExonView,
+                                                                UNSET_INT,
+                                                                initRange,
+                                                                fullRange,
+                                                                initialZoom,
+                                                                lowestId);
+
+  /* Set a pointer to the parent big picture panel */
+  coverageViewP->setPanel(properties);
   
   return bigPicture;
 }

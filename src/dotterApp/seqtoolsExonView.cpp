@@ -261,8 +261,8 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
       drawn = TRUE;
 
       /* The grid pos for coords gives the left/top edge of the coord, so draw to max + 1 to be inclusive */
-      const int qStart = msp->qRange.min;
-      const int qEnd = msp->qRange.max + 1;
+      const int qStart = msp->qRange.min(true);
+      const int qEnd = msp->qRange.max(true);
 
       /* Get the length-ways position (technically this will actually be y for the vertical sequence) */
       const gint x1 = convertBaseIdxToRectPos(qStart, data->exonViewRect, data->qRange, data->horizontal, data->dc->hozScaleRev, FALSE);
@@ -548,7 +548,7 @@ static void onDestroyExonView(GtkWidget *exonView)
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   if (properties)
     {
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(exonView), "ExonViewProperties", NULL);
     }
@@ -567,7 +567,7 @@ static void exonViewCreateProperties(GtkWidget *exonView,
 {
   if (exonView)
     {
-      ExonViewProperties *properties = (ExonViewProperties*)g_malloc(sizeof *properties);
+      ExonViewProperties *properties = new ExonViewProperties;
       
       properties->parent	      = parent;
       properties->refreshFunc	      = refreshFunc;
@@ -721,7 +721,7 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
                                 const gboolean showCrosshair,
                                 GtkWidget **exonViewOut)
 {
-  DEBUG_ENTER("createDotterExonView(width=%d, height=%d, qRange=%d %d)", width, height, qRange->min, qRange->max);
+  DEBUG_ENTER("createDotterExonView(width=%d, height=%d, qRange=%d %d)", width, height, qRange->min(), qRange->max());
 
   DotterContext *dc = dwc->dotterCtx;
   

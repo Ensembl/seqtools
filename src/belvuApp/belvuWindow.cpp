@@ -74,21 +74,25 @@ typedef struct _ColorChangeData
 
 
 /* Properties specific to the belvu window */
-typedef struct _BelvuWindowProperties
-  {
-    BelvuContext *bc;                   /* The belvu context */
-    GtkWidget *statusBar;               /* Message bar at the bottom of the main window */
-    GtkWidget *feedbackBox;             /* Feedback area showing info about the current selction */
-    GtkActionGroup *actionGroup;
-  } BelvuWindowProperties;
+class BelvuWindowProperties
+{
+public:
+  GtkWidget *widget;                  /* The belvu window */
+  BelvuContext *bc;                   /* The belvu context */
+  GtkWidget *statusBar;               /* Message bar at the bottom of the main window */
+  GtkWidget *feedbackBox;             /* Feedback area showing info about the current selction */
+  GtkActionGroup *actionGroup;
+};
 
 
 /* Properties for generic windows */
-typedef struct _GenericWindowProperties
-  {
-    BelvuContext *bc;                   /* The belvu context */
-    GtkActionGroup *actionGroup;
-  } GenericWindowProperties;
+class GenericWindowProperties
+{
+public:
+  GtkWidget *widget;                  /* The window */
+  BelvuContext *bc;                   /* The belvu context */
+  GtkActionGroup *actionGroup;
+};
 
 
 
@@ -1544,7 +1548,7 @@ static void destroyBelvuWindow(GtkWidget *belvuWindow)
       destroyBelvuContext(&properties->bc);
   
       /* Free the properties struct itself */
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(belvuWindow), "BelvuWindowProperties", NULL);
     }
@@ -1584,8 +1588,9 @@ static void belvuWindowCreateProperties(GtkWidget *belvuWindow,
 {
   if (belvuWindow)
     {
-      BelvuWindowProperties *properties = (BelvuWindowProperties*)g_malloc(sizeof *properties);
-      
+      BelvuWindowProperties *properties = new BelvuWindowProperties;
+     
+      properties->widget = belvuWindow;
       properties->bc = bc;
       properties->statusBar = statusBar;
       properties->feedbackBox = feedbackBox;
@@ -1620,7 +1625,7 @@ static void onDestroyGenericWindow(GtkWidget *window)
   if (properties)
     {
       /* Free the properties struct */
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(window), "GenericWindowProperties", NULL);
     }
@@ -1634,8 +1639,9 @@ static void genericWindowCreateProperties(GtkWidget *wrapWindow,
 {
   if (wrapWindow)
     {
-      GenericWindowProperties *properties = (GenericWindowProperties*)g_malloc(sizeof *properties);
-      
+      GenericWindowProperties *properties = new GenericWindowProperties;
+
+      properties->widget = wrapWindow;
       properties->bc = bc;
       properties->actionGroup = actionGroup;
 

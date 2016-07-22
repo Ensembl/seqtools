@@ -202,7 +202,7 @@ static void setDefaultOptions(DotterOptions *options)
   options->crickOnly = FALSE;
   options->hspsOnly = FALSE;
   options->swapGreyramp = FALSE;
-  options->breaklinesOn = FALSE;
+  options->breaklinesOn = TRUE;
   options->hozScaleRev = FALSE;
   options->vertScaleRev = FALSE;
   options->negateCoords = FALSE;
@@ -272,10 +272,14 @@ static void addBreakline (MSP **MSPlist, char *name, char *desc, int pos, const 
   if ((cp = (char *)strchr(msp->desc, '\n')))
     *cp = 0;
 
-  msp->qRange.min = msp->qRange.max = pos;
-  msp->fsColor = 0;
+  msp->qRange.set(pos, pos);
+  msp->sRange.set(0, 0);
   msp->type = BLXMSP_FS_SEG;
   msp->score = 100.0;
+
+  gdk_color_parse("#00ff00", &msp->fsColor);
+  gboolean failures[1];
+  gdk_colormap_alloc_colors(gdk_colormap_get_system(), &msp->fsColor, 1, TRUE, TRUE, failures);
 //   insertFS(msp, "chain_separator");
 }		      
 

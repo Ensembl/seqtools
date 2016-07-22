@@ -52,6 +52,10 @@
 #include <gtk/gtk.h>
 #include <seqtoolsUtils/utilities.hpp>
 #include <blixemApp/blxwindow.hpp>
+#include <blixemApp/blxpanel.hpp>
+
+
+class CoverageViewProperties;
 
 
 #define SNP_TRACK_HEADER_NAME           "SNP track header"
@@ -100,15 +104,41 @@ typedef struct _DetailViewIndex
 
 
 /* Essential info required by the the detail view */
-typedef struct _DetailViewProperties
+class DetailViewProperties : public BlxPanel
 {
-  GtkWidget *blxWindow;                /* The main blixem window that this view belongs to */
+public:
+  // Constructors
+  DetailViewProperties(GtkWidget *detailView_in,
+                       GtkWidget *blxWindow_in,
+                       BlxContext *bc_in,
+                       CoverageViewProperties *coverageViewP_in, 
+                       GtkCellRenderer *renderer_in,
+                       GList *fwdStrandTrees_in,
+                       GList *revStrandTrees_in,
+                       GtkWidget *feedbackBox_in,
+                       GtkWidget *statusBar_in,
+                       GList *columnList_in,
+                       GtkAdjustment *adjustment_in, 
+                       const int startCoord_in,
+                       const BlxColumnId sortColumn_in);
+
+  ~DetailViewProperties();
+
+  // Access
+  double charWidth() const;
+  double charHeight() const;
+  double contentXPos() const;
+  double contentWidth() const;
+
+  // Update
+  void setFontSize(const double charWidth, const double charHeight);
+
+  // Member variables
   GtkCellRenderer *renderer;           /* The cell renderer that renders the sequences */
   GtkAdjustment *adjustment;           /* The scroll adjustment control for the detail view */
 
   GtkWidget *feedbackBox;              /* A text box that feeds back info to the user about the currently selected items */
   GtkWidget *statusBar;                /* A status bar that feeds back info to the user about the currently moused-over items */
-  GList *columnList;                   /* A list of details about all the columns in the detail view */    
   BlxColumnId* sortColumns;            /* Array of columns to sort by, in order of priority. The length of this array will be set to the same length as columnList */
     
   GList *fwdStrandTrees;               /* A list of all the trees that show the forward strand of the ref seq */
@@ -117,8 +147,6 @@ typedef struct _DetailViewProperties
   int cellXPadding;                    /* The x padding between the tree cell background area and their drawing area */
   int cellYPadding;                    /* The y padding between the tree cell background area and their drawing area */
         
-  IntRange displayRange;               /* The currently-displayed range of bases in the reference sequence */
-
   DetailViewIndex selectedRangeInit;   /* Caches the initial selected index when selecting a range */
   DetailViewIndex selectedRangeStart;  /* The currently-selected range start (if shift-selecting) */
   DetailViewIndex selectedRangeEnd;    /* The currently-selected range end (if shift-selecting) */
@@ -131,17 +159,18 @@ typedef struct _DetailViewProperties
 
   int snpConnectorHeight;              /* The height of the connector between the SNP track and the DNA base track */
   int numUnalignedBases;               /* If the display-unaligned-sequence option is on, this specifies how many additional bases to show at each end of the alignment */
-
-  /* Cached font sizes, needed often for calculations. */
-  gdouble charHeight;
-  gdouble charWidth;
         
   int exonBoundaryLineWidth;                 /* line width for exon boundaries */
   GdkLineStyle exonBoundaryLineStyle;        /* line style for exon boundaries */
   GdkLineStyle exonBoundaryLineStylePartial; /* line style for exon boundaries (where the boundary is part-way through a codon) */
     
-  GSList *spliceSites;           /* List of splice sites that can be found and highlighted by Blixem */
-} DetailViewProperties;
+  GSList *spliceSites;           /* List of splice sites that can be found and highlighted by
+                                    Blixem */
+
+private:
+  double m_charWidth;
+  double m_charHeight;
+};
 
 
 typedef struct _DrawBaseData
@@ -296,7 +325,7 @@ int                     seqColHeaderGetBase(GtkWidget *header, const int frame, 
 
 GHashTable*             getRefSeqBasesToHighlight(GtkWidget *detailView, const IntRange* const displayRange, const BlxSeqType seqType, const BlxStrand strand);
 
-void                    drawColumnSeparatorLine(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const BlxViewContext *bc);
+void                    drawColumnSeparatorLine(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const BlxContext *bc);
 gboolean                onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data);
 
 gint                    sortByColumnCompareFunc(GList *mspGList1,
@@ -304,7 +333,7 @@ gint                    sortByColumnCompareFunc(GList *mspGList1,
                                                 GtkWidget *detailView, 
                                                 const BlxColumnId sortColumn);
 
-void                    drawHeaderChar(BlxViewContext *bc,
+void                    drawHeaderChar(BlxContext *bc,
                                        DetailViewProperties *properties,
                                        GdkDrawable *drawable,
                                        GdkGC *gc,
@@ -314,6 +343,7 @@ void                    drawHeaderChar(BlxViewContext *bc,
                                        DrawBaseData *baseData);
 
 GtkWidget*              createDetailView(GtkWidget *blxWindow,
+                                         BlxContext *bc,
                                          GtkContainer *parent,
                                          GtkWidget *toolbar,
                                          GtkAdjustment *adjustment, 

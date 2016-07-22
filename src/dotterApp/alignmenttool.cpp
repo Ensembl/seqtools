@@ -81,8 +81,10 @@ NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
 typedef gboolean (*ExposeFunc)(GtkWidget *widget, GdkEventExpose *event, gpointer data);
 
 
-typedef struct _SequenceProperties
+class SequenceProperties
 {
+public:
+  GtkWidget *widget;
   const char *seqName;
   const char *sequence;
   BlxSeqType seqType;               /* whether this sequence is in nucleotide or peptide coords */
@@ -94,11 +96,13 @@ typedef struct _SequenceProperties
   gboolean scaleReversed;           /* whether the scale for this sequence is shown reversed (i.e. high-to-low rather than low-to-high) */
   GSList *compSeqs;                 /* list of other sequence widgets that this sequence will be compared against */
   gboolean horizontal;              /* true if this is the horizontal (ref) seq, false if it's the vertical (match) seq */
-} SequenceProperties;
+};
 
 
-typedef struct _AlignmentToolProperties
+class AlignmentToolProperties
 {
+public:
+  GtkWidget *widget;
   GtkWidget *alignmentWindow;      /* the toplevel window the greyrampTool will be in IF
                                     * undocked from the main window */
   int alignmentLen;                 /* the number of coords wide the alignment too displays */
@@ -114,7 +118,7 @@ typedef struct _AlignmentToolProperties
   DotterWindowContext *dotterWinCtx;
 
   gboolean spliceSitesOn;
-} AlignmentToolProperties;
+};
 
 
 
@@ -160,7 +164,7 @@ static void onDestroySequenceWidget(GtkWidget *widget)
   if (properties)
     {
       g_object_set_data(G_OBJECT(widget), "SequenceProperties", NULL);
-      g_free(properties);
+      delete properties;
       properties = NULL;
     }
 }
@@ -180,8 +184,9 @@ static void sequenceCreateProperties(GtkWidget *widget,
 {
   if (widget)
     {
-      SequenceProperties *properties = (SequenceProperties*)g_malloc(sizeof *properties);
-      
+      SequenceProperties *properties = new SequenceProperties;
+
+      properties->widget = widget;
       properties->seqName = seqName;
       properties->sequence = sequence;
       properties->seqType = seqType;
@@ -193,9 +198,8 @@ static void sequenceCreateProperties(GtkWidget *widget,
       properties->compSeqs = compSeqs;
       properties->horizontal = horizontal;
 
-      intrangeSetValues(&properties->fullRangeDisplayCoords,
-                        getSequenceStart(properties, dc, TRUE),
-                        getSequenceEnd(properties, dc, TRUE));
+      properties->fullRangeDisplayCoords.set(getSequenceStart(properties, dc, TRUE),
+                                             getSequenceEnd(properties, dc, TRUE));
       
       g_object_set_data(G_OBJECT(widget), "SequenceProperties", properties);
       g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroySequenceWidget), NULL); 
@@ -215,7 +219,7 @@ static void onDestroyAlignmentTool(GtkWidget *widget)
   if (properties)
     {
       g_object_set_data(G_OBJECT(widget), "AlignmentToolProperties", NULL);
-      g_free(properties);
+      delete properties;
       properties = NULL;
     }
 }
@@ -226,21 +230,18 @@ static void alignmentToolCreateProperties(GtkWidget *widget,
 {
   if (widget)
     {
-      AlignmentToolProperties *properties = (AlignmentToolProperties*)g_malloc(sizeof *properties);
+      AlignmentToolProperties *properties = new AlignmentToolProperties;
     
+      properties->widget = widget;
       properties->alignmentWindow = alignmentWindow;
       properties->dotterWinCtx = dotterWinCtx;
       properties->alignmentLen = DEFAULT_ALIGNMENT_LENGTH;
-      properties->refDisplayRange.min = 0;
-      properties->refDisplayRange.max = 20;
-      properties->matchDisplayRange.min = 0;
-      properties->matchDisplayRange.max = 20; /* to do: put real values in here for the ranges */
+      properties->refDisplayRange.set(0, 20);
+      properties->matchDisplayRange.set(0, 20); /* to do: put real values in here for the ranges */
 
       properties->dragging = FALSE;
       properties->dragStart = 0;
       properties->selectionWidget = NULL;
-      properties->selectionRange.min = UNSET_INT;
-      properties->selectionRange.max = UNSET_INT;
       
       properties->spliceSitesOn = TRUE;
 
@@ -398,7 +399,7 @@ static gboolean onMouseMoveSequence(GtkWidget *sequenceWidget, GdkEventMotion *e
         {
           const int newCoord = getCoordAtPos(event->x, sequenceWidget, alignmentTool);
       
-          intrangeSetValues(&atProperties->selectionRange, atProperties->dragStart, newCoord);
+          atProperties->selectionRange.set(atProperties->dragStart, newCoord);
           widgetClearCachedDrawable(sequenceWidget, NULL);
           gtk_widget_queue_draw(sequenceWidget);
       
@@ -459,13 +460,13 @@ void updateAlignmentRange(GtkWidget *alignmentTool, DotterWindowContext *dwc)
        * will be correct whether we're displaying nucleotides or peptides.) */
       int len = properties->alignmentLen * getResFactor(dc, TRUE);
       int offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, TRUE);
-      properties->refDisplayRange.min = dwc->refCoord - offset;
-      properties->refDisplayRange.max = properties->refDisplayRange.min + len;
+      properties->refDisplayRange.setMin(dwc->refCoord - offset);
+      properties->refDisplayRange.setMax(properties->refDisplayRange.min() + len); //uses updated min
 
       len = properties->alignmentLen * getResFactor(dc, FALSE);
       offset = ceil((double)properties->alignmentLen / 2.0) * getResFactor(dc, FALSE);
-      properties->matchDisplayRange.min = dwc->matchCoord - offset;
-      properties->matchDisplayRange.max = properties->matchDisplayRange.min + len;
+      properties->matchDisplayRange.setMin(dwc->matchCoord - offset);
+      properties->matchDisplayRange.setMax(properties->matchDisplayRange.min() + len); //uses updated min
     }
 }
 
@@ -747,21 +748,21 @@ static void drawSequenceSpliceSites(GdkDrawable *drawable,
         }
 
       /* If the splice site adjacent to the start coord is within range then highlight it */
-      if (valueWithinRange(msp->qRange.min - 1, seq1->displayRange) || 
-          valueWithinRange(msp->qRange.min - 2, seq1->displayRange))
+      if (valueWithinRange(msp->qRange.min() - 1, seq1->displayRange) || 
+          valueWithinRange(msp->qRange.min() - 2, seq1->displayRange))
         {
           /* Get the leftmost coord (for rev strand this is the max of the two coords) */
-          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.min - 1 : msp->qRange.min - 2;
+          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.min() - 1 : msp->qRange.min() - 2;
           gboolean isStart = (seq1->strand == BLXSTRAND_FORWARD);
           highlightSpliceSite(seq1, atProperties, dwc, coord, isStart, gc, drawable);
         }
 
       /* If the splice site adjacent to the end coord is within range then highlight it */
-      if (valueWithinRange(msp->qRange.max + 1, seq1->displayRange) || 
-          valueWithinRange(msp->qRange.max + 2, seq1->displayRange))
+      if (valueWithinRange(msp->qRange.max() + 1, seq1->displayRange) || 
+          valueWithinRange(msp->qRange.max() + 2, seq1->displayRange))
         {
           /* Get the leftmost coord (for rev strand this is the max of the two coords) */
-          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.max + 2 : msp->qRange.max + 1;
+          int coord = seq1->strand == BLXSTRAND_REVERSE ? msp->qRange.max() + 2 : msp->qRange.max() + 1;
           gboolean isEnd = (seq1->strand == BLXSTRAND_FORWARD);
           highlightSpliceSite(seq1, atProperties, dwc, coord, !isEnd, gc, drawable);
         }
@@ -926,7 +927,7 @@ static void drawSequenceHeader(GtkWidget *widget,
   const IntRange* const displayRange = horizontal ? &properties->refDisplayRange : &properties->matchDisplayRange;
   
   /* Find the position to display at. Find the position of the char at this coord */
-  const int displayIdx = convertToDisplayIdx(coord - displayRange->min, horizontal, dc, 1, NULL) - 1;
+  const int displayIdx = convertToDisplayIdx(coord - displayRange->min(), horizontal, dc, 1, NULL) - 1;
   int x = (int)((gdouble)displayIdx * dc->charWidth);
   int y = 0;
 
@@ -970,7 +971,7 @@ static int getDisplayStart(SequenceProperties *properties, DotterContext *dc)
   g_return_val_if_fail(properties && dc, 0) ;
 
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
-  int displayStart = forward ? properties->displayRange->min : properties->displayRange->max;
+  int displayStart = forward ? properties->displayRange->min() : properties->displayRange->max();
 
   displayStart = convertToDisplayIdx(displayStart, properties->horizontal, dc, properties->frame, NULL);
 
@@ -985,7 +986,7 @@ static int getDisplayEnd(SequenceProperties *properties, DotterContext *dc)
   g_return_val_if_fail(properties && dc, 0) ;
 
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
-  int displayEnd = forward ? properties->displayRange->max : properties->displayRange->min;
+  int displayEnd = forward ? properties->displayRange->max() : properties->displayRange->min();
 
   displayEnd = convertToDisplayIdx(displayEnd, properties->horizontal, dc, properties->frame, NULL);
 
@@ -1004,7 +1005,7 @@ static int getSequenceStart(SequenceProperties *properties, DotterContext *dc, c
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
 
   /* Get the start coord of the sequence data */
-  int seqStart = forward ? properties->fullRange->min : properties->fullRange->max;
+  int seqStart = forward ? properties->fullRange->min() : properties->fullRange->max();
   
   /* Offset this coord so that we have the first coord that starts our reading frame */
   int reqdFrame = properties->frame;
@@ -1037,7 +1038,7 @@ static int getSequenceEnd(SequenceProperties *properties, DotterContext *dc, con
   const gboolean forward = (properties->strand == BLXSTRAND_FORWARD);
 
   /* Get the end coord of the sequence data */
-  int seqEnd = forward ? properties->fullRange->max : properties->fullRange->min;
+  int seqEnd = forward ? properties->fullRange->max() : properties->fullRange->min();
   
   /* Offset this coord so that we have the last coord that ends our reading frame */
   int reqdFrame = properties->frame;
@@ -1204,8 +1205,8 @@ void alignmentToolCopySeln(GtkWidget* alignmentTool)
     {
       /* copy the selection to the clipboard */
       char *text = getSequenceBetweenCoords(atProperties->selectionWidget,
-                                            atProperties->selectionRange.min,
-                                            atProperties->selectionRange.max,
+                                            atProperties->selectionRange.min(),
+                                            atProperties->selectionRange.max(),
                                             atProperties->dotterWinCtx);
 
       setDefaultClipboardText(text);
@@ -1230,8 +1231,8 @@ void alignmentToolCopySelnCoords(GtkWidget *alignmentTool)
           DotterContext *dc = atProperties->dotterWinCtx->dotterCtx;
 
           /* Convert the selected coords to dna coords */
-          int start = convertToDnaIdx(atProperties->selectionRange.min, properties->horizontal, dc, properties->frame, 1);
-          int end = convertToDnaIdx(atProperties->selectionRange.max, properties->horizontal, dc, properties->frame, dc->numFrames);
+          int start = convertToDnaIdx(atProperties->selectionRange.min(), properties->horizontal, dc, properties->frame, 1);
+          int end = convertToDnaIdx(atProperties->selectionRange.max(), properties->horizontal, dc, properties->frame, dc->numFrames);
 
           /* Negate the coords for display, if necessary */
           start = getDisplayCoord(start, dc, properties->horizontal);
@@ -1269,8 +1270,7 @@ static void sequenceInitiateDragging(GtkWidget *sequenceWidget, GtkWidget *align
   /* flag that we should highlight the selected sequence (clear any current selection first) */
   alignmentToolClearSequenceSelection(alignmentTool);
   
-  atProperties->selectionRange.min = atProperties->dragStart;
-  atProperties->selectionRange.max = atProperties->dragStart;
+  atProperties->selectionRange.set(atProperties->dragStart, atProperties->dragStart);
 
   setSelectionWidget(atProperties, sequenceWidget);
 }
@@ -1338,13 +1338,13 @@ static void selectVisibleSequence(GtkWidget *sequenceWidget, GtkWidget *alignmen
   boundsLimitValue(&start, &properties->fullRangeDisplayCoords);
   boundsLimitValue(&end, &properties->fullRangeDisplayCoords);
   
-  intrangeSetValues(&atProperties->selectionRange, start, end);
+  atProperties->selectionRange.set(start, end);
   setSelectionWidget(atProperties, sequenceWidget);
 
   /* copy the selection to the primary clipboard */
   char *result = getSequenceBetweenCoords(sequenceWidget,
-                                          atProperties->selectionRange.min,
-                                          atProperties->selectionRange.max,
+                                          atProperties->selectionRange.min(),
+                                          atProperties->selectionRange.max(),
                                           atProperties->dotterWinCtx);
   
   setPrimaryClipboardText(result);
@@ -1422,7 +1422,7 @@ static void highlightSpliceSite(SequenceProperties *seq1,
   /* check if it's canonical (green if yes, red if not) */
   DotterColorId colorId = DOTCOLOR_NON_CANONICAL;
 
-  int seqIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->fullRange->max - coord : coord - seq1->fullRange->min);
+  int seqIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->fullRange->max() - coord : coord - seq1->fullRange->min());
 
   if (isStart && strncasecmp(&seq1->sequence[seqIdx], "ag", 2) == 0)
     colorId = DOTCOLOR_CANONICAL;
@@ -1432,7 +1432,7 @@ static void highlightSpliceSite(SequenceProperties *seq1,
   GdkColor *color = getGdkColor(colorId, dc->defaultColors, FALSE, dwc->usePrintColors);
   gdk_gc_set_foreground(gc, color);
 
-  int displayIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->displayRange->max - coord : coord - seq1->displayRange->min - 1);
+  int displayIdx = (seq1->strand == BLXSTRAND_REVERSE ? seq1->displayRange->max() - coord : coord - seq1->displayRange->min() - 1);
   const int x = (int)((gdouble)displayIdx * dc->charWidth);
   gdk_draw_rectangle(drawable, gc, TRUE, x, 0, ceil(dc->charWidth * 2), roundNearest(dc->charHeight));
 }

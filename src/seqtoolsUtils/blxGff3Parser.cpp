@@ -339,17 +339,17 @@ void parseGff3Header(const int lineNum,
       
       if (!tmpError && refSeqRange)
         {
-          if (refSeqRange->min == UNSET_INT && refSeqRange->max == UNSET_INT)
+          if (!refSeqRange->isSet())
             {
               /* Range is currently unset, so set it */
-              intrangeSetValues(refSeqRange, qStart, qEnd);
+              refSeqRange->set(qStart, qEnd);
             }
-          else if (qStart > refSeqRange->max || qEnd < refSeqRange->min)
+          else if (qStart > refSeqRange->max() || qEnd < refSeqRange->min())
             {
               /* GFF file range does not overlap the existing range, so we can't load this file */
               g_set_error(&tmpError, BLX_GFF3_ERROR, BLX_GFF3_ERROR_OUT_OF_RANGE, 
                           "GFF file range [%d,%d] does not overlap the reference sequence range [%d,%d]",
-                          qStart, qEnd, refSeqRange->min, refSeqRange->max);
+                          qStart, qEnd, refSeqRange->min(), refSeqRange->max());
             }
         }
     }
@@ -459,9 +459,12 @@ BlxDataType* getBlxDataType(GQuark dataType, const char *source, GKeyFile *keyFi
     {
       /* Check if it's already cached */
       std::map<GQuark, BlxDataType*>::iterator iter = g_dataTypes.find(dataType) ;
-      result = iter->second ;
 
-      if (!result)
+      if (iter != g_dataTypes.end())
+        {
+          result = iter->second ;
+        }
+      else
         {
           /* look it up in the config file and if we find it then create a new BlxDataType struct for it. */
           const gchar *typeName = g_quark_to_string(dataType);
@@ -832,7 +835,7 @@ void parseFastaSeqHeader(char *line, const int lineNum,
    * items if so) */
   if (status && numFound == 3 && refSeqRange)
     {
-      intrangeSetValues(refSeqRange, startCoord, endCoord);
+      refSeqRange->set(startCoord, endCoord);
     }
 
   /* Now allocate memory for the sequence data (if the sequence is not already populated) */
@@ -942,10 +945,9 @@ static void parseGffColumns(GString *line_string,
 
       /* We can only check the range if the refseqrange is set... */
       if (!typeIsExon(gffData->mspType) && !typeIsIntron(gffData->mspType) && !typeIsTranscript(gffData->mspType) &&
-          refSeqRange && (refSeqRange->min != UNSET_INT || refSeqRange->max != UNSET_INT))
+          refSeqRange && refSeqRange->isSet())
         {
-          IntRange featureRange;
-          intrangeSetValues(&featureRange, gffData->qStart, gffData->qEnd); /* makes sure min < max */
+          IntRange featureRange(gffData->qStart, gffData->qEnd); /* make sure min < max */
           
           if (!rangesOverlap(&featureRange, refSeqRange))
             g_set_error(&tmpError, BLX_GFF3_ERROR, BLX_GFF3_ERROR_OUT_OF_RANGE, "Feature is outside the reference sequence range.\n");
@@ -1326,8 +1328,8 @@ static void parseGapString(char *text,
 
   /* Start at one beyond the edge of the range, because it will be incremented (or decremented if
    * direction is reverse) when we construct the first range. */
-  int q = qForward ? msp->qRange.min - 1 : msp->qRange.max + 1;
-  int s = sForward ? msp->sRange.min - 1 : msp->sRange.max + 1;
+  int q = qForward ? msp->qRange.min() - 1 : msp->qRange.max() + 1;
+  int s = sForward ? msp->sRange.min() - 1 : msp->sRange.max() + 1;
   
   GError *tmpError = NULL;
 
@@ -1434,7 +1436,7 @@ static void parseCigarStringMatch(GapStringData *data, const int numNucleotides,
   int newQ = *data->q + (data->qDirection * (numNucleotides - 1));
   int newS = *data->s + (data->sDirection * (numPeptides - 1));
   
-  CoordRange *newRange = (CoordRange*)g_malloc(sizeof(CoordRange));
+  CoordRange *newRange = new CoordRange;
   msp->gaps = g_slist_append(msp->gaps, newRange);
   
   newRange->qStart = *data->q;
@@ -1455,27 +1457,27 @@ static void parseCigarStringIntron(GapStringData *data, const int numNucleotides
   
   /* end current msp at the current coords */
   if (data->qDirection > 0)
-    msp->qRange.max = *data->q;
+    msp->qRange.setMax(*data->q);
   else
-    msp->qRange.min = *data->q;
+    msp->qRange.setMin(*data->q);
   
   if (data->sDirection > 0)
-    msp->sRange.max = *data->s;
+    msp->sRange.setMax(*data->s);
   else
-    msp->sRange.min = *data->s;
+    msp->sRange.setMin(*data->s);
   
   /* start new msp at new coords */
   *data->q += data->qDirection * numNucleotides;
   
   if (data->qDirection > 0)
-    newMsp->qRange.min = *data->q + 1;
+    newMsp->qRange.setMin(*data->q + 1);
   else
-    newMsp->qRange.max = *data->q - 1;
+    newMsp->qRange.setMax(*data->q - 1);
   
   if (data->sDirection > 0)
-    newMsp->sRange.min = *data->s + 1;
+    newMsp->sRange.setMin(*data->s + 1);
   else
-    newMsp->sRange.max = *data->s - 1;
+    newMsp->sRange.setMax(*data->s - 1);
   
   *data->msp = newMsp;
 }
@@ -1668,7 +1670,7 @@ static int validateNumTokens(char **tokens, const int minReqd, const int maxReqd
 /* Create a gff type with the given info and add it to the given list */
 static void addGffType(GSList **supportedTypes, const char *name, const char *soId, BlxMspType blxType)
 {
-  BlxGffType *gffType = (BlxGffType*)g_malloc(sizeof *gffType);
+  BlxGffType *gffType = new BlxGffType;
   
   gffType->name = g_strdup(name);
   gffType->soId = g_strdup(soId);
@@ -1689,7 +1691,7 @@ static void destroyGffType(BlxGffType **gffType)
       if ((*gffType)->soId)
         g_free((*gffType)->soId);
 
-      g_free(*gffType);
+      delete *gffType;
       *gffType = NULL;
     }
 }

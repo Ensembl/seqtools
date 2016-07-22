@@ -66,28 +66,30 @@ static void                         calculateConsPlotBorders(GtkWidget *consPlot
  *                         Properties                      *
  ***********************************************************/
 
-/* Properties specific to the belvu window */
-typedef struct _ConsPlotProperties
-  {
-    BelvuContext *bc;                   /* The belvu context */
-    GtkActionGroup *actionGroup;
+/* Properties specific to belvu's conservation plot window */
+class ConsPlotProperties
+{
+public:
+  GtkWidget *widget;                  /* The conservation plot window */
+  BelvuContext *bc;                   /* The belvu context */
+  GtkActionGroup *actionGroup;
     
-    GtkWidget *drawingArea;             /* The drawing widget */
-    GdkRectangle headerRect;            /* Space for drawing the header line */
-    GdkRectangle plotRect;              /* Space for drawing the main plot */
-    GdkRectangle yScaleRect;            /* Space for drawing the y scale */
-    GdkRectangle xScaleRect;            /* Space for drawing the y scale */
+  GtkWidget *drawingArea;             /* The drawing widget */
+  GdkRectangle headerRect;            /* Space for drawing the header line */
+  GdkRectangle plotRect;              /* Space for drawing the main plot */
+  GdkRectangle yScaleRect;            /* Space for drawing the y scale */
+  GdkRectangle xScaleRect;            /* Space for drawing the y scale */
     
-    int windowSize;                     /* Size of the sliding window used for smothing the profile */
-    int lineWidth;                      /* Line width of the plot */
-    double xScale;                      /* Used for scaling the x axis */
-    double yScale;                      /* Used for scaling the y axis */
+  int windowSize;                     /* Size of the sliding window used for smothing the profile */
+  int lineWidth;                      /* Line width of the plot */
+  double xScale;                      /* Used for scaling the x axis */
+  double yScale;                      /* Used for scaling the y axis */
     
-    double maxcons;                     /* maximum conservation */
-    double mincons;                     /* minimum conservation */
-    double avgcons;                     /* average conservation */
-    double *smooth;                     /* Used for calculating the smoothed profile */
-  } ConsPlotProperties;
+  double maxcons;                     /* maximum conservation */
+  double mincons;                     /* minimum conservation */
+  double avgcons;                     /* average conservation */
+  double *smooth;                     /* Used for calculating the smoothed profile */
+};
 
 
 /* Properties for generic windows */
@@ -105,7 +107,7 @@ static void onDestroyConsPlot(GtkWidget *consPlot)
   if (properties)
     {
       /* Free the properties struct itself */
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(consPlot), "BelvuConsPlotProperties", NULL);
     }
@@ -120,8 +122,9 @@ static void consPlotCreateProperties(GtkWidget *consPlot,
 {
   if (consPlot)
     {
-      ConsPlotProperties *properties = (ConsPlotProperties*)g_malloc(sizeof *properties);
-      
+      ConsPlotProperties *properties = new ConsPlotProperties;
+
+      properties->widget = consPlot;
       properties->bc = bc;
       properties->actionGroup = actionGroup;
 

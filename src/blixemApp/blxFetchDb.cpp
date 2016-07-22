@@ -46,9 +46,9 @@
 #include <errno.h>
 #include <signal.h>
 
-//#ifdef SQLITE3
+#ifdef SQLITE3
 #include <sqlite3.h>
-//#endif
+#endif
 
 #include <seqtoolsUtils/utilities.hpp>
 #include <blixemApp/blixem_.hpp>
@@ -65,8 +65,6 @@ typedef struct _SqliteFetchData
 } SqliteFetchData;
 
 
-
-//#ifdef SQLITE3
 
 /********************/
 /* Local functions */
@@ -180,7 +178,7 @@ void sqliteRequest(const char *database, const char *query, SqliteFunc callbackF
 {
   DEBUG_ENTER("sqliteRequest");
 
-  //#ifdef SQLITE3
+#ifdef SQLITE3
   sqlite3 *db;
 
   int rc = sqlite3_open(database, &db);
@@ -204,9 +202,9 @@ void sqliteRequest(const char *database, const char *query, SqliteFunc callbackF
     }
 
   sqlite3_close(db);
-//#else
-//  g_set_error(error, BLX_ERROR, 1, "SQLite not available: sqlite3 may not be installed on your system, or has not been compiled into the package correctly.\n");
-//#endif
+#else
+  g_set_error(error, BLX_ERROR, 1, "SQLite not available: sqlite3 may not be installed on your system, or has not been compiled into the package correctly.\n");
+#endif
 
   DEBUG_EXIT("sqliteRequest");
 }
@@ -229,8 +227,6 @@ void sqliteValidateFetchMethod(const BlxFetchMethod* const fetchMethod, GError *
     }
 }
 
-
-//#endif
 
 
 /********************/

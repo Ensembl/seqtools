@@ -58,8 +58,10 @@ static void               bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkCol
 
 
 /* Properties specific to the belvu alignment */
-typedef struct _BelvuAlignmentProperties
+class BelvuAlignmentProperties
 {
+public:
+  GtkWidget *widget;
   BelvuContext *bc;                 /* The belvu context */
   
   GtkWidget *columnsArea;           /* Drawing widget for the columns (i.e. name and coord columns) */
@@ -79,7 +81,7 @@ typedef struct _BelvuAlignmentProperties
   
   gdouble charWidth;                /* The width of each character in the display */
   gdouble charHeight;               /* The height of each character in the display */
-} BelvuAlignmentProperties;
+};
 
 
 /***********************************************************
@@ -104,7 +106,7 @@ static void onDestroyBelvuAlignment(GtkWidget *belvuAlignment)
         }
       
       /* Free the properties struct itself */
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(belvuAlignment), "BelvuAlignmentProperties", NULL);
     }
@@ -125,8 +127,9 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
 {
   if (belvuAlignment)
     {
-      BelvuAlignmentProperties *properties = (BelvuAlignmentProperties*)g_malloc(sizeof *properties);
+      BelvuAlignmentProperties *properties = new BelvuAlignmentProperties;
       
+      properties->widget = belvuAlignment;
       properties->bc = bc;
       properties->columnsArea = columnsArea;
       properties->columnsHeader = columnsHeader;

@@ -53,7 +53,6 @@ using namespace std;
 #define PIXELS_PER_MARK_Y                           50    /* number of pixels between each major tick mark on the y scale */
 #define CROSSHAIR_TEXT_PADDING                      5     /* padding between the crosshair and the coord display text */ 
 #define ANNOTATION_LABEL_PADDING		    5	  /* padding around annotation labels, if shown */
-#define ANNOTATION_LABEL_LEN			    8	  /* number of chars to allow to show for annotation labels */
 
 /* max width / height to allow for a gdk image. Guesstimate based on the fact that 
  * it blacks out the lower part of the plot (overdraws on it?) if we allow more than this.
@@ -218,7 +217,7 @@ static void onDestroyDotplot(GtkWidget *widget)
         properties->image = NULL;
       }
     
-      g_free(properties);
+      delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "DotplotProperties", NULL);
     }
@@ -233,8 +232,9 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
                                                   const gboolean breaklinesOn,
                                                   const char *exportFileName)
 {
-  DotplotProperties *properties = (DotplotProperties*)g_malloc(sizeof *properties);
-  
+  DotplotProperties *properties = new DotplotProperties;
+
+  properties->widget = widget;
   properties->dotterWinCtx = dwc;
   properties->hozExons1 = NULL;
   properties->hozExons2 = NULL;
@@ -674,13 +674,13 @@ static gboolean onButtonReleaseDotplot(GtkWidget *dotplot, GdkEventButton *event
 	  getCoordsFromPos(dotplot, properties->dragEnd.x, properties->dragEnd.y, &qEnd, &sEnd);
 
 	  IntRange qRange, sRange;
-	  intrangeSetValues(&qRange, qStart, qEnd);
-	  intrangeSetValues(&sRange, sStart, sEnd);
+	  qRange.set(qStart, qEnd);
+	  sRange.set(sStart, sEnd);
 	
           /* Ignore small mouse moves as they are likely to be accidental or cancelled clicks */
-          if (qRange.max - qRange.min > 10 && sRange.max - sRange.min > 10)
+          if (qRange.max() - qRange.min() > 10 && sRange.max() - sRange.min() > 10)
             {
-	      g_debug("Calling dotter internally with the range: q=%d %d, s=%d %d\n", qRange.min, qRange.max, sRange.min, sRange.max);
+	      g_debug("Calling dotter internally with the range: q=%d %d, s=%d %d\n", qRange.min(), qRange.max(), sRange.min(), sRange.max());
               callDotterInternal(dc, &qRange, &sRange, zoomFactor, properties->breaklinesOn) ;
             }
         }
@@ -732,7 +732,7 @@ static int getImageDimension(DotplotProperties *properties, const gboolean horiz
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   
   const IntRange* const seqRange = horizontal ? &dwc->refSeqRange : &dwc->matchSeqRange;
-  const int seqLen = getRangeLength(seqRange);
+  const int seqLen = seqRange->length();
   DEBUG_OUT("Sequence length = %d\n", seqLen);
   
   int imageLen = (int)ceil((double)seqLen / getScaleFactor(properties, horizontal));
@@ -758,7 +758,7 @@ static void initCrosshairCoords(const int qcenter, const int scenter, DotterWind
     }
   else
     {
-      dwc->refCoord = getRangeCentre(&dwc->refSeqRange);
+      dwc->refCoord = dwc->refSeqRange.centre();
     }
   
   if (valueWithinRange(qcenter, &dwc->matchSeqRange))
@@ -767,7 +767,7 @@ static void initCrosshairCoords(const int qcenter, const int scenter, DotterWind
     }
   else
     {
-      dwc->matchCoord = getRangeCentre(&dwc->matchSeqRange);
+      dwc->matchCoord = dwc->matchSeqRange.centre();
     }
 }
 
@@ -1159,7 +1159,7 @@ static char getHozSeqBase(DotterWindowContext *dwc, const int idx, const int fra
   else
     {
       /* Reverse the sequence if the scale is reversed */
-      const int coord = dc->hozScaleRev ? dwc->refSeqRange.max - idx : dwc->refSeqRange.min + idx;
+      const int coord = dc->hozScaleRev ? dwc->refSeqRange.max() - idx : dwc->refSeqRange.min() + idx;
       
       /* Complement the sequence if it's the reverse strand */
       const gboolean complement = (dc->refSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->hozScaleRev);
@@ -1178,7 +1178,7 @@ static char getVertSeqBase(DotterWindowContext *dwc, const int idx)
   DotterContext *dc = dwc->dotterCtx;
 
   /* Reverse the sequence if the scale is reversed. */
-  const int coord = dc->vertScaleRev ? dwc->matchSeqRange.max - idx : dwc->matchSeqRange.min + idx;
+  const int coord = dc->vertScaleRev ? dwc->matchSeqRange.max() - idx : dwc->matchSeqRange.min() + idx;
 
   const gboolean complement = (dc->matchSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->vertScaleRev);
   
@@ -1323,12 +1323,12 @@ static void doCalculateImage(const BlxStrand qStrand,
   DotterContext *dc = dwc->dotterCtx;
   const int pixelmapLen = properties->imageWidth * properties->imageHeight;
 
-  register int qIdx, sIdx, qmax, dotpos, dotposq, dotposs;
+  int qIdx, sIdx, qmax, dotpos, dotposq, dotposs;
   
-  register int *newsum;	/* The current row of scores being calculated */
-  register int *oldsum;	/* Remembers the previous row of calculated scores */
-  register int *delrow;	/* Pointer to the row in scoreVec to subtract */
-  register int *addrow;	/* Pointer to the row in scoreVec to add */
+  int *newsum;	/* The current row of scores being calculated */
+  int *oldsum;	/* Remembers the previous row of calculated scores */
+  int *delrow;	/* Pointer to the row in scoreVec to subtract */
+  int *addrow;	/* Pointer to the row in scoreVec to add */
   
   /* Reset the sum vectors */
   int idx = 0;
@@ -1341,8 +1341,8 @@ static void doCalculateImage(const BlxStrand qStrand,
   /* Get the range of valid calculations (excluding the initial sliding window size, where we don't have enough 
    * info to calculate the average properly - exclude the winsize at the start if fwd or the end if reverse) */
   IntRange validRange;
-  validRange.min = (qStrand == BLXSTRAND_REVERSE ? 0 : properties->slidingWinSize);
-  validRange.max = (qStrand == BLXSTRAND_REVERSE ? slen - properties->slidingWinSize : slen);
+  validRange.set(qStrand == BLXSTRAND_REVERSE ? 0 : properties->slidingWinSize,
+                 qStrand == BLXSTRAND_REVERSE ? slen - properties->slidingWinSize : slen);
   
   /* Re-populate the score vector for this reading frame */
   populateScoreVec(dwc, vecLen, pepQSeqLen, frame, pepQSeqOffset, getTranslationTable(dc->displaySeqType, qStrand), scoreVec);
@@ -1476,16 +1476,16 @@ static void calculateImage(DotplotProperties *properties)
 
   g_assert(properties->slidingWinSize > 0);
   
-  register int qIdx, sIdx;     /* Loop variables */
-  register int dotpos;
+  int qIdx, sIdx;     /* Loop variables */
+  int dotpos;
   
   BlxHandle handle = handleCreate();
   
   /* Extract some often-used data */
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  const int qlen = getRangeLength(&dwc->refSeqRange);
-  const int slen = getRangeLength(&dwc->matchSeqRange);
+  const int qlen = dwc->refSeqRange.length();
+  const int slen = dwc->matchSeqRange.length();
   const int win2 = properties->slidingWinSize/2;
 
   /* Print some statistics about what we're about to do */
@@ -1493,8 +1493,8 @@ static void calculateImage(DotplotProperties *properties)
   
   /* Find the offset of the current display range within the full range of the bit of reference sequence we have */
   const int qOffset = dc->refSeqStrand == BLXSTRAND_REVERSE 
-    ? dc->refSeqFullRange.max - dwc->refSeqRange.max
-    : dwc->refSeqRange.min - dc->refSeqFullRange.min;
+    ? dc->refSeqFullRange.max() - dwc->refSeqRange.max()
+    : dwc->refSeqRange.min() - dc->refSeqFullRange.min();
   
   /* Convert from nucleotides to peptides, if applicable */
   const int resFactor = (dc->blastMode == BLXMODE_BLASTX ? dc->numFrames : 1);
@@ -2104,16 +2104,16 @@ static void calculateScaleProperties(GtkWidget *dotplot,
   if (reversedScale)
     {
       /* Horizontal scale is reversed. 	Round the max coord down to the nearest basesPerSubmark */
-      scale->startCoord = displayRange->max;
-      scale->endCoord = displayRange->min;
+      scale->startCoord = displayRange->max();
+      scale->endCoord = displayRange->min();
       scale->firstSubmarkCoord = (int)((double)scale->startCoord / (double)scale->basesPerSubmark) * scale->basesPerSubmark;
       firstMarkCoord = (int)((double)scale->startCoord / (double)scale->basesPerMark) * scale->basesPerMark;
     }
   else
     {
       /* Round the min coord up to the nearest basesPerSubmark */
-      scale->startCoord = displayRange->min;
-      scale->endCoord = displayRange->max;
+      scale->startCoord = displayRange->min();
+      scale->endCoord = displayRange->max();
       scale->firstSubmarkCoord = ceil((double)scale->startCoord / (double)scale->basesPerSubmark) * scale->basesPerSubmark;
       firstMarkCoord = ceil((double)scale->startCoord / (double)scale->basesPerMark) * scale->basesPerMark;
     }
@@ -2131,6 +2131,37 @@ static void calculateScaleProperties(GtkWidget *dotplot,
 }
 
 
+/* Utility to get max breakpoint label size */
+int getMaxBreakpointLabelSize(GtkWidget *dotplot, DotterContext *dc)
+{
+  int max_len = 0;
+
+  cairo_surface_t *surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, 500, 500);
+  cairo_t *cr = cairo_create (surface);  
+
+  PangoLayout *layout = pango_cairo_create_layout(cr);
+  pango_layout_set_font_description(layout, dotplot->style->font_desc);
+
+  for (MSP *msp = dc->mspList; msp; msp = msp->next)
+    {
+      if (msp->type == BLXMSP_FS_SEG && msp->desc)
+        {
+          int len = 0;
+          pango_layout_set_text(layout, msp->desc, -1);
+          pango_layout_get_pixel_size(layout, &len, NULL);
+
+          if (len > max_len)
+            max_len = len;
+        }
+    }
+
+  cairo_destroy(cr);
+  cairo_surface_destroy(surface);
+
+  return max_len;
+}
+
+
 /* Utility to get the total height required for the dotplot */
 int getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties)
 {
@@ -2140,6 +2171,7 @@ int getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties)
 
   PangoLayout *layout = pango_cairo_create_layout(cr);
   pango_layout_set_text(layout, properties->dotterWinCtx->dotterCtx->matchSeqName, -1);
+  pango_layout_set_font_description(layout, dotplot->style->font_desc);
 
   /* use the text WIDTH as the height, because it will be rotated vertically */
   int height = 0;
@@ -2159,8 +2191,10 @@ int getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties)
     
   if (properties->breaklinesOn && properties->hozLabelsOn)
     {
-      /* Add space for breakline labels */
-      result += properties->dotterWinCtx->dotterCtx->charHeight + (2 * ANNOTATION_LABEL_PADDING);
+      /* Add space for breakline labels. They are rotated 90 degrees so we need to 
+       * add enough height for the full label length */
+      const int labelSize = getMaxBreakpointLabelSize(dotplot, properties->dotterWinCtx->dotterCtx) ;
+      result += labelSize + ANNOTATION_LABEL_PADDING;
     }      
 
   return result;
@@ -2177,8 +2211,8 @@ int getDotplotWidth(GtkWidget *dotplot, DotplotProperties *properties)
   if (properties->breaklinesOn && properties->vertLabelsOn)
     {
       /* Add space for breakline labels */
-      result += (properties->dotterWinCtx->dotterCtx->charWidth * ANNOTATION_LABEL_LEN) + 
-                (2 * ANNOTATION_LABEL_PADDING);
+      const int labelSize = getMaxBreakpointLabelSize(dotplot, properties->dotterWinCtx->dotterCtx) ;
+      result += labelSize + ANNOTATION_LABEL_PADDING;
     }
   
   return result;
@@ -2487,19 +2521,35 @@ static void drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable)
 
 
 /* Draw an individual breakline */
-static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotProperties *properties, GdkDrawable *drawable, GdkGC *gc)
+static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotProperties *properties, GdkDrawable *drawable)
 {
   g_assert(msp && msp->type == BLXMSP_FS_SEG);
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+  DotterWindowContext *dwc = properties->dotterWinCtx;
 
   /* The q range min and max should be the same coord */
-  if (msp->qRange.min != msp->qRange.max)
-    g_warning("Breakline coords should be the same but min=%d and max=%d\n", msp->qRange.min, msp->qRange.max);
+  if (msp->qRange.min() != msp->qRange.max())
+    g_warning("Breakline coords should be the same but min=%d and max=%d\n", msp->qRange.min(), msp->qRange.max());
 
-  /* See if this msp is the vertical or horizontal sequence. It could be both for a self comparison. */
+  /* See if this msp is the vertical or horizontal sequence. It could be both for a self comparison. 
+   * We check if the name matches the sequence name or the values @1 or @2 for hoz and vert resp. */
   gboolean horizontal = (msp->qname && strcmp(msp->qname, dc->refSeqName) == 0);
   gboolean vertical = (msp->qname && strcmp(msp->qname, dc->matchSeqName) == 0);
   
+  vertical |= (msp->qname && strcmp(msp->qname, "@2") == 0);
+  
+  if(msp->qname && strcmp(msp->qname, "@1") == 0)
+    {
+      horizontal = TRUE;
+      if (dwc->selfComp)
+        vertical = TRUE;
+    }
+
+  /* Set the line color */
+  GdkGC *gc = gdk_gc_new(drawable);
+  gdk_gc_set_line_attributes(gc, SCALE_LINE_WIDTH, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
+  gdk_gc_set_foreground(gc, &msp->fsColor);
+
   if (horizontal)
     {
       /* Find the x position of this coord and draw a vertical line here */
@@ -2516,8 +2566,10 @@ static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotPrope
           cairo_t *cr = gdk_cairo_create(drawable);
           PangoLayout *layout = pango_cairo_create_layout(cr);
           pango_layout_set_text(layout, msp->desc, -1);
+          pango_layout_set_font_description(layout, dotplot->style->font_desc);
 
           cairo_move_to (cr, ex, ey);
+          cairo_rotate(cr, 1.5708); //rotate by 90 degrees
           pango_cairo_show_layout(cr, layout);
 
 	  g_object_unref(layout);
@@ -2548,6 +2600,7 @@ static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotPrope
           cairo_t *cr = gdk_cairo_create(drawable);
           PangoLayout *layout = pango_cairo_create_layout(cr);
           pango_layout_set_text(layout, msp->desc, -1);
+          pango_layout_set_font_description(layout, dotplot->style->font_desc);
 
           cairo_move_to (cr, ex, ey);
           pango_cairo_show_layout(cr, layout);
@@ -2556,6 +2609,8 @@ static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotPrope
           cairo_destroy(cr);
 	}
     }
+
+  g_object_unref(gc);
 }
 
 
@@ -2569,24 +2624,15 @@ static void drawBreaklines(GtkWidget *dotplot, GdkDrawable *drawable)
   
   if (properties->breaklinesOn)
     {
-      GdkGC *gc = gdk_gc_new(drawable);
-
-      gdk_gc_set_line_attributes(gc, SCALE_LINE_WIDTH, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
-      GdkColor *color = getGdkColor(DOTCOLOR_BREAKLINE, dc->defaultColors, FALSE, dwc->usePrintColors);
-      gdk_gc_set_foreground(gc, color);
-
-      /* Loop through all MSPs and draw any that are segment ends */
       const MSP* msp = dc->mspList;
     
       for ( ; msp; msp = msp->next)
 	{
 	  if (msp->type == BLXMSP_FS_SEG)
 	    {
-	      drawBreakline(msp, dotplot, properties, drawable, gc);
+	      drawBreakline(msp, dotplot, properties, drawable);
 	    }
-	}
-      
-      g_object_unref(gc);
+	}      
     }  
 }
 
@@ -2783,10 +2829,10 @@ static void getMspScreenCoords(const MSP* const msp, DotplotProperties *properti
 {
   const gboolean sameDirection = (mspGetRefStrand(msp) == mspGetMatchStrand(msp));
 
-  const int qStart = msp->qRange.min;
-  const int qEnd = msp->qRange.max;
-  const int sStart = sameDirection ? msp->sRange.min : msp->sRange.max;
-  const int sEnd = sameDirection ? msp->sRange.max : msp->sRange.min;
+  const int qStart = msp->qRange.min();
+  const int qEnd = msp->qRange.max();
+  const int sStart = sameDirection ? msp->sRange.min() : msp->sRange.max();
+  const int sEnd = sameDirection ? msp->sRange.max() : msp->sRange.min();
 
   getPosFromCoords(properties, qStart, sStart, sx, sy);
   getPosFromCoords(properties, qEnd, sEnd, ex, ey);
@@ -2971,7 +3017,7 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
 	  if (byterev)
 	    for (col = 0 ; col < image->width; col++)
 	      { 
-		register guint32 pixel = properties->greyMap[*sptr++];
+		guint32 pixel = properties->greyMap[*sptr++];
 		*ptr++ = ((pixel & 0xff00) >> 8) | ((pixel & 0xff) << 8);
 	      }
 	  else
@@ -2986,7 +3032,7 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
 	  guint8 *sptr = ((guint8 *)pixmap) +row * image->width;
 	  for (col = 0 ; col < image->width; col++)
 	    {
-	      register guint32 pixel = properties->greyMap[*sptr++]; 
+	      guint32 pixel = properties->greyMap[*sptr++]; 
 	      *ptr++ = (guint8)pixel;
 	      *ptr++ = (guint8)(pixel>>8);
 	      *ptr++ = (guint8)(pixel>>16); 
@@ -3001,7 +3047,7 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
 	  if (byterev)
 	    for (col = 0 ; col < image->width; col++)
 	      { 
-		register guint32 pixel = properties->greyMap[*sptr++];
+		guint32 pixel = properties->greyMap[*sptr++];
 		*ptr++ = 
                 ((pixel & 0xff000000) >> 24) |
                 ((pixel & 0xff0000) >> 8) |
@@ -3074,11 +3120,11 @@ static void getCoordsFromPos(GtkWidget *dotplot, const int x, const int y,
   
   if (dc->hozScaleRev)
     {
-      *refCoord = dwc->refSeqRange.max - numBasesHoz;
+      *refCoord = dwc->refSeqRange.max() - numBasesHoz;
     }
   else
     {
-      *refCoord = dwc->refSeqRange.min + numBasesHoz;
+      *refCoord = dwc->refSeqRange.min() + numBasesHoz;
     }
 
   /* Round to nearest whole pixel and limit to valid range */
@@ -3090,11 +3136,11 @@ static void getCoordsFromPos(GtkWidget *dotplot, const int x, const int y,
   
   if (dc->vertScaleRev)
     {
-      *matchCoord = dwc->matchSeqRange.max - numBasesVert;
+      *matchCoord = dwc->matchSeqRange.max() - numBasesVert;
     }
   else
     {
-      *matchCoord = dwc->matchSeqRange.min + numBasesVert;
+      *matchCoord = dwc->matchSeqRange.min() + numBasesVert;
     }
   
   /* Round to nearest whole pixel and limit to valid range */
@@ -3127,17 +3173,17 @@ static void getPosFromCoords(DotplotProperties *properties, int qCoord, int sCoo
   if (x)
     {
       if (dc->hozScaleRev)
-	*x = properties->plotRect.x + (dwc->refSeqRange.max - qCoord) / hScaleFactor;
+	*x = properties->plotRect.x + (dwc->refSeqRange.max() - qCoord) / hScaleFactor;
       else
-	*x = properties->plotRect.x + (qCoord - dwc->refSeqRange.min) / hScaleFactor;
+	*x = properties->plotRect.x + (qCoord - dwc->refSeqRange.min()) / hScaleFactor;
     }
   
   if (y)
     {
       if (dc->vertScaleRev)
-	*y = properties->plotRect.y + (dwc->matchSeqRange.max - sCoord) / vScaleFactor;
+	*y = properties->plotRect.y + (dwc->matchSeqRange.max() - sCoord) / vScaleFactor;
       else
-	*y = properties->plotRect.y + (sCoord - dwc->matchSeqRange.min) / vScaleFactor;
+	*y = properties->plotRect.y + (sCoord - dwc->matchSeqRange.min()) / vScaleFactor;
     }
 }
 
