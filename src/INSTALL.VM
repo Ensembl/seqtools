@@ -1,0 +1,159 @@
+
+INSTALLING SEQTOOLS USING A VIRTUAL MACHINE
+=======================================
+
+To install SeqTools on an unsupported platform you can use a program such as
+VirtualBox to provide a virtual machine (VM).
+
+Our recommendation is to use VirtualBox running an Ubuntu 14.04 VM (this is
+currently our primary supported architecture).
+
+Note that installing VirtualBox requires administration priviliges, so you may
+want to ask your Systems department to install it for you.
+
+
+INSTALLING UBUNTU IN VIRTUALBOX
+===============================
+
+1. Install VirtualBox.
+
+   Go to https://www.virtualbox.org/wiki/Downloads.
+
+   Under 'VirtualBox binaries' and 'VirtualBox platform packages' select the
+   relevant version and save it.
+
+   Run the downloaded VirtualBox installer, accepting all of the default
+   options.
+
+2. Download an Ubuntu image.
+
+   Go to http://releases.ubuntu.com/14.01/ 
+  
+   Under 'Desktop image' click the link '64-bit PC (AMD64) desktop image' and
+   select 'Save'. Save it to a location where you will be able to find it later.
+
+3. Create an Ubuntu VM.
+
+   Start VirtualBox and click 'New' in the toolbar at the top to create a new
+   VM. Enter a name for the VM, select the Type as 'Linux' and the Version as
+   'Ubuntu(64-bit)'. Accepting the defaults for the rest of the installation
+   should be fine.
+
+4. Install Ubuntu in the VM.
+
+   In VirtualBox's main window, make sure your new VM is selected in the left
+   hand pane and click 'Start'. This will open a new window for the VM. When
+   prompted to select an Ubuntu image, use file you downloaded in Step 2.
+
+   When the installer begins, click 'Install Ubuntu'. Check the requirements
+   when prompted. Tick 'Download updates while installing', and optionally tick
+   'Install 3rd party software' if you want that software to be included.
+
+   On the next page, accept the defaults and click 'Install Now'. Click
+   'Continue' on the confirmation dialog about partitioning the disk. You will
+   be asked to enter various information and set up a user account during the
+   installation.
+
+   Note that the installation will warn you about deleting all files on your
+   hard disk; this is referring to the virtual hard disk, which is just a file
+   on your computer, not your real hard disk. Similarly, the message about
+   partitioning the disk this will only affect the virtual hard disk.
+
+5. Restart the VM. 
+
+   After the installation has finished, you will be asked if you want to restart
+   the computer.  Click 'Restart Now'. (This will just restart the VM, not your
+   host machine.)
+
+   If the VM window does not close automatically then close it using the X
+   button on the title bar and select 'Power off the machine' in the
+   confirmation dialog. You should then be returned to the VirtualBox main
+   window.
+
+   Click 'Start' in the toolbar to restart the VM. You should now be asked to
+   log in when the VM starts.
+
+6. Install the 'guest additions'.
+
+   This is required to be able to use the full screen mode (recommended). In the
+   menu at the top of the VM window, click 'Devices' and select 'Insert Guest
+   Additions CD image...'. Click 'Run' on the confirmation dialog. Enter your
+   password if required to authenticate the installation. When prompted, press
+   Return to close the installation window.
+
+   You now need to restart the VM again to apply the guest additions. Click the
+   icon in the top-right corner of the VM (usually a power symbol) and click
+   'Shut Down' (clicking Shut Down again in the confirmation). In the VirtualBox
+   window, click Start to restart.
+
+7. Full screen mode.
+
+   In the VM window's menu, click 'View' and then 'Full-screen Mode'. You will
+   be informed about how to exit full-screen mode - make a note of the keyboard
+   shortcut to do this (this is typically the right Ctrl key and
+   F). Alternatively, you can access the VM window's menu by moving the mouse
+   pointer to the middle-bottom of the screen.
+
+8. Open the Terminal.
+
+   You will need to use the Terminal to install SeqTools. You can find the Terminal
+   application using the Search button (usually the top item in the Launcher bar
+   on the left). Just search for the text 'terminal' and then click the Terminal
+   application.
+
+   It is useful to lock the Terminal application to the Launcher: you can do
+   this by right-clicking on its icon in the Launcher when Terminal is open and
+   selecting 'Lock to Launcher'.
+
+9. Install SeqTools's dependencies. 
+
+   In a Terminal, type the following command to install the dependencies
+   required by SeqTools (note that this may ask for your password):
+    
+   sudo apt-get install libcurl4-gnutls-dev libgtk2.0-dev libglib2.0-dev \
+   libreadline6-dev libsqlite3-dev
+
+
+INSTALLING SEQTOOLS
+===================
+
+When installation of the Ubuntu VM is complete, type the following commands in a
+Terminal, replacing XXX with the version of SeqTools you want to download:
+
+    wget ftp://ftp.sanger.ac.uk/pub/resources/software/seqtools/PRODUCTION/seqtools-XXX.tar.gz
+    tar -xf seqtools-XXX.tar.gz
+    cd seqtools-XXX
+    ./configure
+    make
+    make install
+
+
+To install in a different location, or for help with dependencies or for more
+detailed instructions on configure see the tips below and also the INSTALL file
+in this directory.
+
+
+Tips
+----
+
+You may need to run make install using sudo if you do not have root privileges,
+i.e.:
+
+    sudo make install
+
+Alternatively, to install to a different location (e.g. one not requiring root
+privileges), use the --prefix argument when you run ./configure. For example,
+the following command would set the install location to foo/bar in your home
+directory:
+
+    ./configure --prefix=~/foo/bar
+
+If GTK+ is not in the default location then you may need to pass its location to
+the configure script. GTK+ is usually installed in /usr/lib, /usr/local/lib,
+/opt/lib or /opt/local/lib. If GTK+ is in e.g. /opt/local/lib then you would
+call configure with the following arguments:
+
+    ./configure PKG_CONFIG_PATH=/opt/local/lib/pkgconfig LDFLAGS="-Xlinker \
+    -rpath -Xlinker /opt/local/lib"
+
+
