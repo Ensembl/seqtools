@@ -27,7 +27,7 @@ INSTALLING UBUNTU IN VIRTUALBOX
 
 2. Download an Ubuntu image.
 
-   Go to http://releases.ubuntu.com/14.01/ 
+   Go to http://releases.ubuntu.com/14.04/ 
   
    Under 'Desktop image' click the link '64-bit PC (AMD64) desktop image' and
    select 'Save'. Save it to a location where you will be able to find it later.
