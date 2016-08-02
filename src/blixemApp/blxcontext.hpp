@@ -73,7 +73,8 @@ public:
 
   // Query
   bool isSeqSelected(const BlxSequence *seq) const;
-  SequenceGroup *getSequenceGroup(const BlxSequence *seqToFind) const;
+  SequenceGroup *getFirstSequenceGroup(const BlxSequence *seqToFind) const;
+  std::list<const SequenceGroup*> getSequenceGroups(const BlxSequence *seqToFind) const;
   GList *getSelectedSeqsByType(const BlxSequenceType type) const;
   BlxSequence* getSelectedTranscript(int *num_transcripts) const;
   std::set<GQuark> getSelectedSources() const;
@@ -94,6 +95,7 @@ public:
 
   bool filterGroupType(const GroupType groupType) const;
   bool isGroupVisible(const SequenceGroup *group, const BlxSequenceType feature_type = BLXSEQUENCE_UNSET) const;
+  bool isGroupVisible(std::list<const SequenceGroup*> groups, const BlxSequenceType featureType) const;
   SequenceGroup* getQuickGroup(const bool isFilter);
   void destroySequenceGroup(SequenceGroup **seqGroup);
   void deleteAllSequenceGroups();

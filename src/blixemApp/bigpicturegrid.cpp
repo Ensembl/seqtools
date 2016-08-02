@@ -167,7 +167,7 @@ static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean c
 {
   gboolean result = FALSE ; 
 
-  SequenceGroup *group = NULL ;
+  list<const SequenceGroup*> groups ;
   BlxContext *bc = NULL ;
 
   /* First check strand and type */
@@ -177,8 +177,8 @@ static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean c
   if (result)
     {
       bc = gridGetContext(grid) ;
-      group = bc->getSequenceGroup(msp->sSequence) ;
-      result = bc->isGroupVisible(group, msp->sSequence->type) ;
+      groups = bc->getSequenceGroups(msp->sSequence) ;
+      result = bc->isGroupVisible(groups, msp->sSequence->type) ;
     }
   
   if (result)

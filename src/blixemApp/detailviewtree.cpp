@@ -890,14 +890,14 @@ static gboolean isMspVisible(const MSP* const msp,
 			     const IntRange* const displayRange,
 			     const int numUnalignedBases,
                              const gboolean seqSelected,
-                             const SequenceGroup *group)
+                             list<const SequenceGroup*> groups)
 {
   g_return_val_if_fail(msp && msp->sSequence, FALSE) ;
 
   gboolean result = TRUE ;
 
   /* Check if the msp should be filtered out */
-  result = bc->isGroupVisible(group, msp->sSequence->type);
+  result = bc->isGroupVisible(groups, msp->sSequence->type);
 
   if (result)
     {
@@ -930,9 +930,9 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
        * don't check this here because this function is called many times so we
        * avoid any unnecessary checks.) */
       const MSP *firstMsp = (const MSP*)(mspList->data);
-      SequenceGroup *group = bc->getSequenceGroup(firstMsp->sSequence);
+      list <const SequenceGroup*> groups = bc->getSequenceGroups(firstMsp->sSequence);
       
-      if (bc->isGroupVisible(group))
+      if (bc->isGroupVisible(groups, firstMsp->sSequence->type))
 	{
 	  BlxContext *bc = treeGetContext(tree);
           GtkWidget *detailView = treeGetDetailView(tree);
@@ -950,7 +950,7 @@ static gboolean isTreeRowVisible(GtkTreeModel *model, GtkTreeIter *iter, gpointe
 	    {
 	      const MSP* msp = (const MSP*)(mspListItem->data);
 	      
-              if (isMspVisible(msp, bc, frame, displayRange, dvProperties->numUnalignedBases, seqSelected, group))
+              if (isMspVisible(msp, bc, frame, displayRange, dvProperties->numUnalignedBases, seqSelected, groups))
 		{
 		  bDisplay = TRUE;
 		  break;

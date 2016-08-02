@@ -2255,7 +2255,7 @@ static const char* blxSequenceGetColumnData(const BlxSequence* const blxSeq,
 
   if (columnId == BLXCOL_GROUP)
     {
-      const SequenceGroup *group = bc->getSequenceGroup(blxSeq);
+      const SequenceGroup *group = bc->getFirstSequenceGroup(blxSeq);
 
       if (group)
         result = group->groupName;
@@ -5679,7 +5679,7 @@ GList *blxWindowGetSequenceGroups(GtkWidget *blxWindow)
 SequenceGroup *blxWindowGetSequenceGroup(GtkWidget *blxWindow, const BlxSequence *seqToFind)
 {
   BlxContext *bc = blxWindowGetContext(blxWindow);
-  return bc->getSequenceGroup(seqToFind);
+  return bc->getFirstSequenceGroup(seqToFind);
 }
 
 
