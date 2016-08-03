@@ -571,7 +571,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
       const char *fontFamily = findFixedWidthFont(tmp);
       result->fontDesc = pango_font_description_from_string(fontFamily);
       pango_font_description_set_size(result->fontDesc, pango_font_description_get_size(tmp->style->font_desc));
-      getFontCharSize(tmp, result->fontDesc, &result->charWidth, &result->charHeight, TRUE);
+      getFontCharSize(tmp, result->fontDesc, &result->charWidth, &result->charHeight);
       gtk_widget_destroy(tmp);
     }
   else

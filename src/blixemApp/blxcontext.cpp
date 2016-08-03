@@ -299,7 +299,7 @@ BlxContext::BlxContext(CommandLineOptions *options,
 
   /* Calculate the font size */
   if (widget_in)
-    getFontCharSize(widget_in, widget_in->style->font_desc, &m_charWidth, &m_charHeight, TRUE);
+    getFontCharSize(widget_in, widget_in->style->font_desc, &m_charWidth, &m_charHeight);
 
 }
 
