@@ -57,3 +57,7 @@ the lifebuoy icon on the toolbar or the Ctrl-H shortcut key.
 
 Sample data and examples can be found in the 'examples' directory.
 
+
+Note that you need to have XQuartz or X11 running to run GTK programs on a
+Mac. These may be installed by default on your machine. If not, you can download
+XQuartz from here: https://www.xquartz.org/

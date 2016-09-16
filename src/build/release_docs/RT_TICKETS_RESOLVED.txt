@@ -1,17 +1,7 @@
 
-Request Tracker Tickets Resolved from 11/03/2016 to 21/07/2016
+Request Tracker Tickets Resolved from 05/07/2016 to 13/09/2016
 
-[tviewsrv get_rt_tickets.sh (08:08:38)]  /software/bin/rt is there !!
-ticket/530118
-id: ticket/530118
-Queue: seqtools
-Subject: disabling dotter alignment tool
-Requestors: m.hobbs@garvan.org.au
-Owner: gb10
-Resolved: Thu May 19 09:23:33 2016
-CF.{zmapace_gitcommit}: 
-CF.{zmapace_resolve_version}: 
-
+[tviewsrv get_rt_tickets.sh (14:17:05)]  /software/bin/rt is there !!
 
 End of Request Tracker tickets
 

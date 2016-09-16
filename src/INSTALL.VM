@@ -133,6 +133,26 @@ detailed instructions on configure see the tips below and also the INSTALL file
 in this directory.
 
 
+Environment
+-----------
+
+Before running the programs, you need to set the DISPLAY environment variable to
+tell GTK which screen to use. Typically you would set this to ":0" (without the
+quotes) to mean the first display on the local machine.
+
+To do this automatically every time you open a new terminal, you can add it to
+your profile using the following command (this only needs to be done once and
+will then affect all new terminals):
+
+In bash:
+
+  echo "export DISPLAY=:0" >> ~/.bash_profile
+
+or in csh:
+
+  echo "setenv DISPLAY :0" >> ~/.cshrc
+
+
 Tips
 ----
 
