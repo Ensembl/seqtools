@@ -1,6 +1,7 @@
 
 Git commits for  from commit "production" until commit "release/4.44.0"
 
+0f811f8 2016-09-16 Add environment and X11 to instructions - DOC
 82fc393 2016-08-03 Fix regression from 1e60e02 - REGRESSION FIX
 3352633 2016-08-02 Fix problems with multiple groups - BUG FIX
 d11a7aa 2016-07-28 Add VirtualBox installation instructions - DOC
