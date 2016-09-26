@@ -1,3 +1,23 @@
+2016-09-16  Gemma Guest  <gb10@sanger.ac.uk>
+ Update release notes - DOC
+ src/doc/User_doc/release_notes.html | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)
+
+2016-09-16  Gemma Guest  <gb10@sanger.ac.uk>
+ Add environment and X11 to instructions - DOC
+ src/INSTALL.VM    | 20 ++++++++++++++++++++
+ src/INSTALL.linux | 25 +++++++++++++++++++++++++
+ src/INSTALL.mac   | 31 +++++++++++++++++++++++++++++++
+ src/README        |  4 ++++
+ 4 files changed, 80 insertions(+)
+
+2016-09-13  zmap  <zmap@sanger.ac.uk>
+ SeqTools version 4.43.0-10-g2cfb - Update RT and git commit reports
+ src/ChangeLog                                  | 933 ++-----------------------
+ src/build/release_docs/GIT_COMMITS.txt         |  15 +-
+ src/build/release_docs/RT_TICKETS_RESOLVED.txt |  14 +-
+ 3 files changed, 57 insertions(+), 905 deletions(-)
+
 2016-08-11  Ed Griffiths  <edgrif@sanger.ac.uk>
  Move to c++11 standard. - BUILD
  src/Makefile.am.common | 2 +-
