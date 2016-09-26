@@ -411,6 +411,36 @@ bool BlxContext::isGroupVisible(const SequenceGroup *group, const BlxSequenceTyp
 }
 
 
+/* Return true if a feature that is in several given groups should be displayed */
+bool BlxContext::isGroupVisible(list<const SequenceGroup*> groups, const BlxSequenceType featureType) const
+{
+  bool visible = false;
+
+  if (groups.empty())
+    {
+      // Decide what to do with ungrouped features based on the feature type
+      visible = !filterGroupType(getGroupType(featureType));
+    }
+
+  for (auto group : groups)
+    {
+      // If any group is hidden, hide the feature
+      // Otherwise, if any group is visible, show the feature
+      if (group->hidden)
+        {
+          visible = false;
+          break;
+        }
+      else if (isGroupVisible(group, featureType))
+        {
+          visible = true;
+        }
+    }
+
+  return visible;
+}
+
+
 /* Get the first group (or filter if isFilter) that is a quick group/filter */
 SequenceGroup* BlxContext::getQuickGroup(const bool isFilter)
 {
@@ -984,9 +1014,8 @@ bool BlxContext::isSeqSelected(const BlxSequence *seq) const
 }
 
 
-/* Returns the group that the given sequence belongs to, if any (assumes the sequence
- * is only in one group; otherwise it just returns the first group it finds). */
-SequenceGroup *BlxContext::getSequenceGroup(const BlxSequence *seqToFind) const
+/* Returns the first group that the given sequence belongs to, if any (null if none). */
+SequenceGroup *BlxContext::getFirstSequenceGroup(const BlxSequence *seqToFind) const
 {
   SequenceGroup *result = NULL;
   
@@ -1005,6 +1034,32 @@ SequenceGroup *BlxContext::getSequenceGroup(const BlxSequence *seqToFind) const
         {
           result = group;
           break;
+        }
+    }
+  
+  return result;
+}
+
+
+/* Returns the groups that the given sequence belongs to, if any (empty list if none) */
+list<const SequenceGroup*> BlxContext::getSequenceGroups(const BlxSequence *seqToFind) const
+{
+  list<const SequenceGroup*> result;
+  
+  if (!seqToFind)
+    return result;
+  
+  /* Loop through all the groups until we find this sequence in one */
+  GList *groupItem = sequenceGroups;
+  for ( ; groupItem; groupItem = groupItem->next)
+    {
+      /* See if our sequence struct is in this group's list */
+      SequenceGroup *group = (SequenceGroup*)(groupItem->data);
+      GList *foundItem = g_list_find(group->seqList, seqToFind);
+      
+      if (foundItem)
+        {
+          result.push_back(group);
         }
     }
   

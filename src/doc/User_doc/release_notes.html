@@ -9,12 +9,29 @@
 
 <h4>Version 4.44.0</h4>
 <ul>
-  <li>disabling dotter alignment tool (RT:530118) 
+  <li>Blixem
+  <ul>
+    <li>Features can now be added to multiple different groups/filters.
+  </ul>
+  <li>Belvu
+  <ul>
+    <li>Fix a problem where column highlighting can get out of sync with the text.
+  </ul>
 </ul>
 
 <h4>Version 4.43.0</h4>
 <ul>
-  <li>Installation bug fix (RT:519841) 
+  <li>Blixem
+  <ul>
+    <li>Add an option to show the coverage view aligned in the detail section, as well as the overview section.
+    <li>Select clipboard features on start up, e.g. if you start blixem from selected features in zmap, then those features will be selected on start-up in blixem. You can then press 'g' or 'f' to group or filter those features.
+    <li>Improve group/filter functionality. Add shortcut keys to quickly group/filter/hide the selected features. See the new Group/Filter submenu on the right-click menu. Note that these keys work on the clipboard text so they can also be used to group/filter features that you have selected in zmap. 
+  </ul>
+  <li>Dotter
+    <ul>
+      <li>Fix a bug where SFS files were not being loaded. Note that the colour scheme has changed and you now need to use X11 color names or hex values in the file (see https://en.wikipedia.org/wiki/X11_color_names)
+      <li>Fix a problem where breakline labels were overlapping or not completely displayed.
+    </ul>
 </ul>
 
 <h4>Version 4.42.1</h4>
@@ -24,7 +41,10 @@
 
 <h4>Version 4.42.0</h4>
 <ul>
-  <li>Added a feedback box to show the read depth at the selected coord. Hover over this box to see the specific base support (i.e. the number of A/C/G/Ts).
+  <li>Blixem
+  <ul>
+    <li>Added a feedback box to show the read depth at the selected coord. Hover over this box to see the specific base support (i.e. the number of A/C/G/Ts).
+  </ul>
 </ul>
 
 <h4>Version 4.41.0</h4>
@@ -35,8 +55,11 @@
 
 <h4>Version 4.40.0</h4>
 <ul>
-  <li>Blixem can now accept a 'command' tag in a gff line for a region feature. The given command should return gff and will be run by blixem on the given region.
-  <li>Blixem now supports fetching sequence data over https.
+  <li>Blixem
+  <ul>
+    <li>Blixem can now accept a 'command' tag in a gff line for a region feature. The given command should return gff and will be run by blixem on the given region.
+    <li>Blixem now supports fetching sequence data over https.
+  </ul>
 </ul>
 
 <h4>Version 4.39.3</h4>

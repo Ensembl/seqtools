@@ -1530,7 +1530,7 @@ static SequenceGroup* mspListContainsGroupedMsp(GList *mspList, const BlxContext
   for ( ; mspItem && !group; mspItem = mspItem->next)
     {
       const MSP* const msp = (const MSP*)(mspItem->data);
-      group = bc->getSequenceGroup(msp->sSequence);
+      group = bc->getFirstSequenceGroup(msp->sSequence);
     }
   
   return group;

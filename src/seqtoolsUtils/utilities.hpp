@@ -582,7 +582,7 @@ gchar*                    getSequenceSegment(const char* const dnaSequence,
 
 const char*                        findFixedWidthFont(GtkWidget *widget);
 const char*                        findFixedWidthFontFamily(GtkWidget *widget, GList *pref_families);
-void                               getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble *width, gdouble *height);
+void                               getFontCharSize(GtkWidget *widget, PangoFontDescription *fontDesc, gdouble *width, gdouble *height, const gboolean fixedWidthFont = FALSE);
 
 GtkWidget*                         createToolbarHandle();
 GtkToolItem*                       addToolbarWidget(GtkToolbar *toolbar, GtkWidget *widget, const int position);
