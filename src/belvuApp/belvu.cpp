@@ -2501,8 +2501,8 @@ BelvuContext* createBelvuContext()
   bc->fileName = NULL;
   bc->dirName = NULL;
   bc->organismLabel[0] = 'O';
-  bc->organismLabel[0] = 'S';   
-  bc->organismLabel[0] = '\0'; 
+  bc->organismLabel[1] = 'S';   
+  bc->organismLabel[2] = '\0'; 
   
   bc->conservCount = NULL;
   bc->colorMap = NULL;
@@ -4416,7 +4416,6 @@ static void readMul(BelvuContext *bc, FILE *pipe)
 	  /* Store all annotation lines in a list. Prepend the items because that
 	   * is more efficient, and then reverse the list at the end */
 	  bc->annotationList = g_slist_prepend(bc->annotationList, g_strdup(line));
-          parseMulAnnotationLine(bc, line);
         }
       else if (!strncmp(line, "#=GC ", 5) || 
                !strncmp(line, "#=GR ", 5) || 
@@ -4451,6 +4450,14 @@ static void readMul(BelvuContext *bc, FILE *pipe)
 
   g_slist_free(alnList);
   alnList = NULL;
+
+  /* Loop through all the annotation lines and parse them (must be done after adding alignment
+   * lines) */
+  for (GSList *annItem = bc->annotationList; annItem; annItem = annItem->next)
+    {
+      char *line = (char*)(annItem->data) ;
+      parseMulAnnotationLine(bc, line);
+    }
   
 /* For debugging * /
    for (i = 0; i < nseq; i++) {
