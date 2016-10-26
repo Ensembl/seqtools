@@ -4244,9 +4244,15 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
       ALN *aln = createEmptyAln();
       
       aln->organism = valuep; /* Find organism string in permanent stack */
-      g_array_append_val(bc->organismArr, aln);
-      g_array_sort(bc->organismArr, organism_order);
-          
+
+      /* Add to organisms array, if not already there */
+      int org_idx = 0 ;
+      if (!alnArrayFind(bc->organismArr, aln, &org_idx, organism_order))
+        {
+          g_array_append_val(bc->organismArr, aln);
+          g_array_sort(bc->organismArr, organism_order);
+        }
+ 
       if (strchr(cp, '/') && strchr(cp, '-'))
         {
           str2aln(bc, namep, aln);
