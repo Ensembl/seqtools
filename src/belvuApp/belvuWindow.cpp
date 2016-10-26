@@ -3543,9 +3543,12 @@ static void createOrganismWindow(BelvuContext *bc)
   /* Set layout size big enough to fit all organisms */
   gdouble width = 0, height = 0;
   getFontCharSize(drawing, drawing->style->font_desc, &width, &height);
-  width *= (bc->maxNameLen + 1);
+  width *= (bc->maxOrganismLen + 1);
   height *= (bc->organismArr->len + 1);
   gtk_layout_set_size(GTK_LAYOUT(drawing), width, height);
+
+  /* Add some padding in the main window for space around the layout etc. */
+  gtk_window_set_default_size(GTK_WINDOW(bc->orgsWindow), width + 20, height + 20) ;
   
   /* Set default background color */
   GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, bc->defaultColors, FALSE, FALSE);

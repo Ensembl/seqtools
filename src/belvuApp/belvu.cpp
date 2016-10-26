@@ -4251,6 +4251,12 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
         {
           g_array_append_val(bc->organismArr, aln);
           g_array_sort(bc->organismArr, organism_order);
+          
+          /* Set the max organism name length */
+          int organismLen = strlen(aln->organism);
+
+          if (organismLen > bc->maxOrganismLen)
+            bc->maxOrganismLen = organismLen ;
         }
  
       if (strchr(cp, '/') && strchr(cp, '-'))
