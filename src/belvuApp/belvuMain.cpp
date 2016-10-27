@@ -355,7 +355,7 @@ static void showCompiledInfo()
 
 
 /* Convert swissprot name suffixes to organisms */
-static void suffix2organism(GArray *alignArr, GArray *organismArr) 
+static void suffix2organism(BelvuContext *bc, GArray *alignArr, GArray *organismArr) 
 {
   int i = 0;
   char *cp = NULL;
@@ -384,6 +384,12 @@ static void suffix2organism(GArray *alignArr, GArray *organismArr)
 	    
               g_array_append_val(organismArr, organism);
               g_array_sort(organismArr, organism_order);
+
+              // Calculate the max organism name len
+              const int organismLen = strlen(alnp->organism) ;
+
+              if (organismLen > bc->maxOrganismLen)
+                bc->maxOrganismLen = organismLen ;
             }
           else
             {
@@ -780,7 +786,7 @@ int main(int argc, char **argv)
     }
   
   if (bc->organismArr->len == 0)
-    suffix2organism(bc->alignArr, bc->organismArr);
+    suffix2organism(bc, bc->alignArr, bc->organismArr);
   
   setOrganismColors(bc->organismArr);
   
