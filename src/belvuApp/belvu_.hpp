@@ -351,6 +351,7 @@ typedef struct BelvuContextStruct
   int maxLen;                      /* number of columns in alignment */
   int maxTreeWidth;
   int maxNameLen;                  /* Max string length of any sequence name */
+  int maxOrganismLen;              /* Max string length of any organism name */
   int maxStartLen;                 /* Max string length of any sequence start */
   int maxEndLen;                   /* Max string length of any sequence end */
   int maxScoreen;                  /* Max string length of any sequence score */

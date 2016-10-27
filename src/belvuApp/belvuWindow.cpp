@@ -3463,8 +3463,9 @@ static void drawOrganisms(GtkWidget *widget, GdkDrawable *drawable, BelvuContext
       convertColorNumToGdkColor(alnp->color, FALSE, &color);
       gdk_gc_set_foreground(gc, &color);
     
-      drawText(widget, drawable, gc, x, y, alnp->organism, NULL, NULL);
-    
+      int text_width = 0;
+      drawText(widget, drawable, gc, x, y, alnp->organism, &text_width, NULL);
+
       y += charHeight;
     }
  
@@ -3543,9 +3544,17 @@ static void createOrganismWindow(BelvuContext *bc)
   /* Set layout size big enough to fit all organisms */
   gdouble width = 0, height = 0;
   getFontCharSize(drawing, drawing->style->font_desc, &width, &height);
-  width *= (bc->maxNameLen + 1);
+  width *= (bc->maxOrganismLen + 1);
   height *= (bc->organismArr->len + 1);
-  gtk_layout_set_size(GTK_LAYOUT(drawing), width, height);
+
+  /* The size is only approximate (especially the width), so add a sizeable buffer (e.g. double
+   * it). It's important the layout is not too small but doesn't matter if it's too big (because
+   * it will be in a scrollwin)  */
+  gtk_layout_set_size(GTK_LAYOUT(drawing), width * 2, height + 10);
+
+  /* Add some padding in the main window for space around the layout etc. It doesn't matter too
+   * much if this is too small because the window is resizable */
+  gtk_window_set_default_size(GTK_WINDOW(bc->orgsWindow), width * 2 + 20, height + 20) ;
   
   /* Set default background color */
   GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, bc->defaultColors, FALSE, FALSE);

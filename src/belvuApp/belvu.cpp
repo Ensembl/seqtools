@@ -2501,8 +2501,8 @@ BelvuContext* createBelvuContext()
   bc->fileName = NULL;
   bc->dirName = NULL;
   bc->organismLabel[0] = 'O';
-  bc->organismLabel[0] = 'S';   
-  bc->organismLabel[0] = '\0'; 
+  bc->organismLabel[1] = 'S';   
+  bc->organismLabel[2] = '\0'; 
   
   bc->conservCount = NULL;
   bc->colorMap = NULL;
@@ -4244,9 +4244,21 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
       ALN *aln = createEmptyAln();
       
       aln->organism = valuep; /* Find organism string in permanent stack */
-      g_array_append_val(bc->organismArr, aln);
-      g_array_sort(bc->organismArr, organism_order);
+
+      /* Add to organisms array, if not already there */
+      int org_idx = 0 ;
+      if (!alnArrayFind(bc->organismArr, aln, &org_idx, organism_order))
+        {
+          g_array_append_val(bc->organismArr, aln);
+          g_array_sort(bc->organismArr, organism_order);
           
+          /* Set the max organism name length */
+          int organismLen = strlen(aln->organism);
+
+          if (organismLen > bc->maxOrganismLen)
+            bc->maxOrganismLen = organismLen ;
+        }
+ 
       if (strchr(cp, '/') && strchr(cp, '-'))
         {
           str2aln(bc, namep, aln);
@@ -4416,7 +4428,6 @@ static void readMul(BelvuContext *bc, FILE *pipe)
 	  /* Store all annotation lines in a list. Prepend the items because that
 	   * is more efficient, and then reverse the list at the end */
 	  bc->annotationList = g_slist_prepend(bc->annotationList, g_strdup(line));
-          parseMulAnnotationLine(bc, line);
         }
       else if (!strncmp(line, "#=GC ", 5) || 
                !strncmp(line, "#=GR ", 5) || 
@@ -4451,6 +4462,14 @@ static void readMul(BelvuContext *bc, FILE *pipe)
 
   g_slist_free(alnList);
   alnList = NULL;
+
+  /* Loop through all the annotation lines and parse them (must be done after adding alignment
+   * lines) */
+  for (GSList *annItem = bc->annotationList; annItem; annItem = annItem->next)
+    {
+      char *line = (char*)(annItem->data) ;
+      parseMulAnnotationLine(bc, line);
+    }
   
 /* For debugging * /
    for (i = 0; i < nseq; i++) {

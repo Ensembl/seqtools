@@ -355,7 +355,7 @@ static void showCompiledInfo()
 
 
 /* Convert swissprot name suffixes to organisms */
-static void suffix2organism(GArray *alignArr, GArray *organismArr) 
+static void suffix2organism(BelvuContext *bc, GArray *alignArr, GArray *organismArr) 
 {
   int i = 0;
   char *cp = NULL;
@@ -384,6 +384,12 @@ static void suffix2organism(GArray *alignArr, GArray *organismArr)
 	    
               g_array_append_val(organismArr, organism);
               g_array_sort(organismArr, organism_order);
+
+              // Calculate the max organism name len
+              const int organismLen = strlen(alnp->organism) ;
+
+              if (organismLen > bc->maxOrganismLen)
+                bc->maxOrganismLen = organismLen ;
             }
           else
             {
@@ -550,6 +556,8 @@ int main(int argc, char **argv)
    * There are two handlers: the default one for all non-critical messages, which will just log
    * output to the console, and one for critical messages and errors, which will display a 
    * pop-up message (the idea being that we don't bother the user unless it's something serious).
+   * Note that the latter needs to display a gtk dialog so can't be set up until after gtk_init
+   * has been called.
    * 
    * All errors and warnings will be sent to stderr, as will info messages (g_message_info).
    * Program output destined for stdout should use g_message.
@@ -570,8 +578,6 @@ int main(int argc, char **argv)
   msgData.statusBar = NULL;
 
   g_log_set_default_handler(defaultMessageHandler, &msgData);
-  g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION), 
-                    popupMessageHandler, &msgData);
 
 
   /* Initialise up the context with default values */
@@ -585,8 +591,6 @@ int main(int argc, char **argv)
   setTreeScaleCorr(bc, bc->treeMethod);
   
   
-  char *OrganismLabel = g_strdup("OS");
-    
   gboolean verbose = FALSE;
   gboolean init_rmPartial = FALSE;
   
@@ -635,7 +639,7 @@ int main(int argc, char **argv)
           case 'L': markupColorCodesFile = g_strdup(optarg);            break;
           case 'm': readMatchFile = g_strdup(optarg);                   break;
           case 'n':  makeNRinit = atof(optarg);                         break;
-          case 'O': strncpy(OrganismLabel, optarg, 2);                  break;
+          case 'O': strncpy(bc->organismLabel, optarg, 2);              break;
           case 'o': output_format = g_strdup(optarg);                   break;
           case 'P': init_rmPartial = TRUE;                              break;
           case 'Q': init_rmGappyColumns = atof(optarg);                 break;
@@ -782,7 +786,7 @@ int main(int argc, char **argv)
     }
   
   if (bc->organismArr->len == 0)
-    suffix2organism(bc->alignArr, bc->organismArr);
+    suffix2organism(bc, bc->alignArr, bc->organismArr);
   
   setOrganismColors(bc->organismArr);
   
@@ -965,6 +969,10 @@ int main(int argc, char **argv)
   /* We've finished all of the command-line-only options so now initialise the GTK GUI */
   gtk_init(&argc, &argv);
 
+  /* After gtk_init is called, we can start using the popup message handler */
+  g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION), 
+                    popupMessageHandler, &msgData);
+
   /* Update bits of the context that require the display to be initialised */
   bc->removeSeqsCursor = gdk_cursor_new(GDK_PIRATE);
   bc->busyCursor = gdk_cursor_new(GDK_WATCH);
@@ -1011,7 +1019,5 @@ int main(int argc, char **argv)
       gtk_main();
     }
 
-  g_free(OrganismLabel) ;
-  
   return(EXIT_SUCCESS) ;
 }
