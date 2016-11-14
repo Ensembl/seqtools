@@ -5,7 +5,6 @@ SUBDIRS = .
 EXTRA_DIST = belvuApp.html \
 blixemApp.html \
 dotterApp.html \
-libpfetch.html \
 seqtoolsUtils.html
 
 # Extra files to remove for the maintainer-clean target.
