@@ -506,7 +506,7 @@ tataataatcctccaggccctatgccactcctctttattcagccagttca
 \end{quote}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Configuration file]{Configuration file}}
-{Blixem supports {\textquotedblleft}.ini-style{\textquotedblright}
+{Blixem supports {\textquotedblleft}\texttt{.ini-style}{\textquotedblright}
 configuration files which are used to specify user options and to tell
 Blixem how to handle particular types of data. Blixem can accept
 config files by one or both of the following methods:}
@@ -514,19 +514,22 @@ config files by one or both of the following methods:}
 \liststyleLi
 \begin{itemize}
 \item {
-A default config file called \textstyleSourceText{\textrm{.blixemrc}}
+A default config file called \textstyleSourceText{\texttt{.blixemrc}}
 located in the user{\textquotesingle}s home directory. }
 \item {
 A file passed on the command-line using the
-\textstyleSourceText{\textrm{{}-c}} argument. The contents of this file
+\textstyleSourceText{\texttt{{}-c}} argument. The contents of this file
 will take priority if there are any clashes with the default file. }
 \end{itemize}
 
-{The default config file is generally used for display settings that are
-set from the Settings dialog. Blixem saves display settings to this
-file on exit, so it will be created the first time Blixem exits if it
-does not already exist. You can also edit this file by hand or add
-system settings to it such as the fetch methods if you wish. }
+{The default config file is generally used for display preferences that are
+  modified from the Settings dialog within Blixem. Blixem saves these
+  preferences to the \texttt{.blixemrc} file if the user clicks Save on the Settings
+  dialog, creating the file if it does not exist. You can also edit this file by
+  hand or add system settings to it such as the fetch methods if you wish,
+  although it is best not to edit the file by hand unless you are sure what you
+  are doing. If you want to revert to the default settings, you can simply
+  delete this file.}
 
 \bigskip
 
@@ -537,7 +540,7 @@ options (commonly the data-handling properties). }
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Program defaults]{Program defaults}}
 \hypertarget{RefHeading37691724351149}{}{
 Defaults for the program can be specified in the
-\textstyleSourceText{\textrm{[blixem]}} stanza. The properties that can
+\textstyleSourceText{\texttt{[blixem]}} stanza. The properties that can
 be set are described below. }
 
 \bigskip
@@ -594,6 +597,7 @@ try.}
 \bigskip
 
 {\textstyleSourceText{\textrm{\textbf{user-fetch}}}\textbf{ }}
+\label{section:user-fetch}
 
 {This specifies the default method to use when the user interactively
 fetches a sequence from within Blixem, i.e. by double-clicking on a
@@ -657,6 +661,7 @@ al fill white ; selected fill #ffddcc ;
 Note that selection colors will be calculated automatically if they are not specified (a darker shade of the default color will be used when the feature is selected).
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Fetch methods ]{Fetch methods }}
+\label{section:fetch-methods}
 {These stanzas define custom methods for fetching sequence data. Each
 fetch method must specify the \textstyleSourceText{fetch-mode} key,
 which determines what type of fetch to perform. Other keys depend on
@@ -715,7 +720,7 @@ authorized{\textquotedbl}}\texttt{ }}
 
 {
 The \textstyleSourceText{request} and
-\textstyleSourceText{\textrm{args}} values can include the following
+\textstyleSourceText{\texttt{args}} values can include the following
 substitution symbols, which will be populated by blixem at run time.
 Use \texttt{\%\%} to represent a normal \texttt{\%} character. }
 
@@ -1818,20 +1823,24 @@ dialogs such as the Groups or Find dialog by using Ctrl-V.}
 
 \liststyleWWviiiNumxvi
 \begin{itemize}
-\item {Double-click a row to fetch a match sequence{\textquoteright}s EMBL
-file.}
+\item {Double-click a row to fetch a match sequence{\textquoteright}s EMBL. You
+    must have a fetch method specified in the configuration file. See the
+    \ref{section:user-fetch}user-fetch (p\pageref{section:user-fetch}) and
+    fetch-methods\ref{section:fetch-methods} (p\pageref{section:fetch-methods})
+    sections for details about how to set up the fetch methods. }
 \end{itemize}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Grouping sequences]{Grouping sequences}}
-\hypertarget{RefHeading2041056909880}{}{
-Alignments can be grouped together so that they can be
-sorted/highlighted/hidden etc.}
+\hypertarget{RefHeading2041056909880}{}
+
+{Features can be grouped together so that various operations can be performed on
+  them. They can be filtered, sorted, highlighted or hidden.}
 
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Creating a group from a selection]{Creating a group from a selection}}
 \hypertarget{RefHeading2061056909880}{}\liststyleWWviiiNumxvi
 \begin{itemize}
 \item {Select the sequences you wish to include in the group by left-clicking their rows in the detail view. Multiple rows can be selected by holding the Ctrl or Shift keys while clicking.}
-\item {Right-click and select {\textquotesingle}Create Group{\textquotesingle}, or use the Shift-Ctrl-G shortcut key. (Note that Ctrl-G will also shortcut to here if no groups currently exist.)}
+\item {Right-click and select {\textquotesingle}Gropu/Filter->Create custom group{\textquotesingle}, or use the Shift-Ctrl-G shortcut key. (Note that Ctrl-G will also shortcut to here if no groups currently exist.)}
 \item {Ensure that the {\textquotesingle}From selection{\textquotesingle} radio button is selected, and click {\textquotesingle}OK{\textquotesingle} or {\textquoteleft}Apply{\textquoteright}. If you click {\textquoteleft}Apply{\textquoteright}, you will be shown the group you just created so that you can edit it. If you click {\textquoteleft}OK{\textquoteright} the group will be created with the
 default properties.}
 \end{itemize}
