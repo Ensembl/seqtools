@@ -17,6 +17,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb,amsfonts,textcomp}
 \usepackage{color}
+\usepackage{xcolor}
 \usepackage{array}
 \usepackage{supertabular}
 \usepackage{hhline}
@@ -24,6 +25,9 @@
 \usepackage{titlesec}
 \hypersetup{pdftex, colorlinks=true, linkcolor=blue, citecolor=blue, filecolor=blue, urlcolor=blue, pdftitle=Blixem User Manual, pdfauthor=Gemma Barson, pdfsubject=, pdfkeywords=}
 \usepackage[pdftex]{graphicx}
+\usepackage{parskip}
+\usepackage{listings}
+\usepackage{url}
 % Paragraph styles
 \setlength{\parindent}{0pt}
 % Text styles
@@ -1789,7 +1793,7 @@ Text can be pasted from the default clipboard into text entry boxes on
 dialogs such as the Groups or Find dialog by using Ctrl-V.}
 \end{itemize}
 
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Sorting alignments]{Sorting alignments}}
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Sorting features]{Sorting features}}
 \hypertarget{RefHeading2001056909880}{}\liststyleWWviiiNumxxvi
 
 \begin{figure}
@@ -1806,14 +1810,14 @@ dialogs such as the Groups or Find dialog by using Ctrl-V.}
 \item {You may optionally sort by further columns. You can sort by as many columns as you wish by adding further drop-down boxes using the Add button.}
 \item {The default sort order may be ascending or descending depending on what makes most sense for the selected column: e.g. sorting by position is \textit{ascending} by default, but sorting by score or ID is \textit{descending}.}
 \item {To get the inverse of the default sort order, select the {\textquoteleft}Invert sort order{\textquoteright} option on the Sort dialog.}
-\item {Alignments can also be sorted by group. Alignments that are part of a group will then be listed first (before any that are not in a group), and ordered according to the group{\textquoteright}s order number. See the Groups section for more details.}
+\item {Features can also be sorted by group. Features that are part of a group will then be listed first (before any that are not in a group), and ordered according to the group{\textquoteright}s order number. See the Groups section for more details.}
 \end{itemize}
 
 \begin{figure}
 \centering
 \color[rgb]{0.30980393,0.5058824,0.7411765}
 \includegraphics[width=13.721cm,height=2.164cm]{img_view_sort_by_group.png}
-\caption{Alignment list sorted by group}
+\caption{Features in the detail view sorted by group}
 \end{figure}
 
 \bigskip
@@ -1823,26 +1827,58 @@ dialogs such as the Groups or Find dialog by using Ctrl-V.}
 
 \liststyleWWviiiNumxvi
 \begin{itemize}
-\item {Double-click a row to fetch a match sequence{\textquoteright}s EMBL. You
-    must have a fetch method specified in the configuration file. See the
-    \ref{section:user-fetch}user-fetch (p\pageref{section:user-fetch}) and
-    fetch-methods\ref{section:fetch-methods} (p\pageref{section:fetch-methods})
-    sections for details about how to set up the fetch methods. }
+\item {Double-click a row to fetch a match sequence{\textquoteright}s EMBL. You must have a fetch method specified in the configuration file. See the \ref{section:user-fetch}user-fetch (p\pageref{section:user-fetch}) and fetch-methods\ref{section:fetch-methods} (p\pageref{section:fetch-methods}) sections for details about how to set up the fetch methods. }
 \end{itemize}
 
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Grouping sequences]{Grouping sequences}}
+{\color[rgb]{0.30980393,0.5058824,0.7411765}
+\subsection[Group, filter and hide features]{Group, filter and hide features}}
 \hypertarget{RefHeading2041056909880}{}
 
-{Features can be grouped together so that various operations can be performed on
-  them. They can be filtered, sorted, highlighted or hidden.}
+{Features can be grouped together so that various operations can be performed on them. They can be filtered, sorted, highlighted or hidden.}
 
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Creating a group from a selection]{Creating a group from a selection}}
+{\color[rgb]{0.30980393,0.5058824,0.7411765}
+\subsubsection[Create a group from the current selection/clipboard]{Create a group from the current selection/clipboard}}
+\hypertarget{RefHeading2121056909880}{}\liststyleWWviiiNumxvi
+\begin{itemize}
+\item {You can quickly create a group from a current selection/clipboard (e.g. selected features in ZMap, which will be on the clipboard, or the current selection in Blixem).}
+\item {To create the group, select the required features and then select {\textquotesingle}Group/Filters -> Create group from clipboard{\textquotesingle} from the right-click menu in Blixem, or hit the {\textquotesingle}g{\textquotesingle} shortcut key. The selected features will be highlighted in red.}
+\item {To replace the group, simply repeat the operation with a different selection.}
+\item {To clear the group, choose the {\textquotesingle}Group/Filters -> Clear groups/filters{\textquotesingle} option from the right-click menu, or hit the {\textquotesingle}c{\textquotesingle} shortcut key.}
+\item {You can edit the group's highlight colour and other properties by editing the group (see the Edit Groups section on p\pageref{section:edit_group}).}
+\end{itemize}
+
+{\color[rgb]{0.30980393,0.5058824,0.7411765}
+\subsubsection[Create a filter from the current selection/clipboard]{Create a filter from the current selection/clipboard}}
+\hypertarget{RefHeading2121056909880}{}\liststyleWWviiiNumxvi
+\begin{itemize}
+\item {You can quickly create a filter from a current selection/clipboard (e.g. selected features in ZMap, which will be on the clipboard, or the current selection in Blixem).}
+\item {To create the filter, select the required features and then select {\textquotesingle}Group/Filters -> Create filter from clipboard{\textquotesingle} from the right-click menu in Blixem, or hit the {\textquotesingle}f{\textquotesingle} shortcut key. The selected features will remain displayed but all other features of the same type will be hidden. Note that features of a different type will remain displayed because you may want to filter out e.g. alignments but leave transcripts displayed.}
+\item {To clear the filter, choose the {\textquotesingle}Group/Filters -> Clear groups/filters{\textquotesingle} option from the right-click menu, or hit the {\textquotesingle}c{\textquotesingle} shortcut key.}
+\item {You can temporarily disable the filter, or recover a cleared filter, from the Edit Groups dialog (p\pageref{section:edit_group}). A filter is essentially just a group with the Filter flag set and can be edited like any other group.}
+\end{itemize}
+
+{\color[rgb]{0.30980393,0.5058824,0.7411765}
+\subsubsection[Hide the selected source(s)]{Hide the selected source(s)}}
+\hypertarget{RefHeading2121056909880}{}\liststyleWWviiiNumxvi
+\begin{itemize}
+\item {You can hide all features from one or more sources.}
+\item {Select one or more features from the source(s) you want to hide. Then select the {\textquotesingle}Group/Filters -> Hide source(s){\textquotesingle} option from the right-click menu, or hit the {\textquotesingle}h{\textquotesingle} shortcut key.}
+\item {All features with the same source(s) as the selected features will be hidden.}
+\item {To undo all hide operations, choose the {\textquotesingle}Group/Filters -> Clear groups/filters{\textquotesingle} option from the right-click menu, or hit the {\textquotesingle}c{\textquotesingle} shortcut key. This will re-show all hidden sources, and will also clear any groups/filters that have been created.}
+\item {Hidden features are added to a group that has the Hide flag set. To temporarily undo a specific hide operation, you can edit the group using the Edit Groups dialog (p\pageref{section:edit_group}).}
+\end{itemize}
+
+{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Creating a group from a selection]{Creating a custom group/filter}}
 \hypertarget{RefHeading2061056909880}{}\liststyleWWviiiNumxvi
 \begin{itemize}
-\item {Select the sequences you wish to include in the group by left-clicking their rows in the detail view. Multiple rows can be selected by holding the Ctrl or Shift keys while clicking.}
-\item {Right-click and select {\textquotesingle}Gropu/Filter->Create custom group{\textquotesingle}, or use the Shift-Ctrl-G shortcut key. (Note that Ctrl-G will also shortcut to here if no groups currently exist.)}
-\item {Ensure that the {\textquotesingle}From selection{\textquotesingle} radio button is selected, and click {\textquotesingle}OK{\textquotesingle} or {\textquoteleft}Apply{\textquoteright}. If you click {\textquoteleft}Apply{\textquoteright}, you will be shown the group you just created so that you can edit it. If you click {\textquoteleft}OK{\textquoteright} the group will be created with the
-default properties.}
+\item {The {\textquotesingle}g {\textquotesingle} and {\textquotesingle}f {\textquotesingle} shortcut keys allow you to quickly create a group or filter from the current selection with a default highlight colour, filter flag etc.}
+\item {To create a group/filter with different properties, you can use the Groups dialog (figure \ref{img_dialog_groups}).}
+\item {To create a custom group/filter, choose the {\textquotesingle}Group/Filter -> Create custom group... {\textquotesingle} option from the right-click menu, or press {\textquotesingle}Shift-Ctrl-G{\textquotesingle}.}
+\item {To create a group from the current selection, ensure {\textquotesingle}Use current selection{\textquotesingle} is selected and click OK.}
+\item {To create a group from a search, select the {\textquotesingle}Text search{\textquotesingle} or {\textquotesingle}List search{\textquotesingle} option and enter the text to search for. Select the field you want to search in the drop-down box at the bottom, and click OK, e.g. you can search for all features with one of a number of source names.}
+\item {To create a group from the current selection, ensure {\textquotesingle}Use current selection{\textquotesingle} is selected and click OK.}
+\item {The group will be created with the default highlight colour. If you click Apply instead of OK, you will be presented with the Edit Group tab of the dialog, where you can edit the group's properties.}
+\item {To create a group from the current selection, ensure {\textquotesingle}Use current selection{\textquotesingle} is selected and click OK (see the Edit Groups section on p\pageref{section:edit_group}).}
 \end{itemize}
 
 \begin{figure}
@@ -1850,25 +1886,8 @@ default properties.}
 \color[rgb]{0.30980393,0.5058824,0.7411765}
 \includegraphics[width=11.95cm,height=7.084cm]{img_dialog_groups.png}
 \caption{Groups dialog - create group}
+\label{img_dialog_groups}
 \end{figure}
-
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Creating a group from a search]{Creating a group from a search}}
-\hypertarget{RefHeading33212258250716}{}\liststyleWWviiiNumxvi
-\begin{itemize}
-\item {
-Right-click and select {\textquotesingle}Create Group{\textquotesingle},
-or use the Shift-Ctrl-G shortcut key. (Or Ctrl-G if no groups currently
-exist.)}
-\item {
-Select the {\textquotesingle}Text search{\textquotesingle} or
-{\textquotesingle}List search{\textquotesingle} radio button and enter
-some text to search for.}
-\item {
-Select the column that you wish to search in the drop-down box at the
-bottom.}
-\item {
-Click OK or Apply.}
-\end{itemize}
 
 \bigskip
 
@@ -1883,24 +1902,10 @@ Notes}
 \item {You may paste sequence names directly from another compatible program (e.g. ZMap): click on the feature in ZMap and then middle-click in the text box on the Groups dialog. (Grouping in Blixem works on the sequence name alone, so the feature coords output by ZMap will be ignored.)}
 \end{itemize}
 
-{\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Creating a temporary
-{\textquotesingle}match{}-set{\textquotesingle} group from the current
-selection]{Creating a temporary
-{\textquotesingle}match-set{\textquotesingle} group from the current
-selection}}
-\hypertarget{RefHeading2121056909880}{}\liststyleWWviiiNumxvi
-\begin{itemize}
-\item {You can quickly create a group from a current selection (e.g. selected features in ZMap or just the current selection in Blixem) using the {\textquotesingle}Toggle match set{\textquotesingle} option.}
-\item {To create a match-set group, select the required items and then select {\textquotesingle}Toggle match set{\textquotesingle} from the right-click menu in Blixem, or hit the {\textquotesingle}g{\textquotesingle} shortcut key.}
-\item {To clear the match-set group, choose the {\textquotesingle}Toggle match set{\textquotesingle} option again, or hit the {\textquotesingle}g{\textquotesingle} shortcut key again.}
-\item {While it is enabled (i.e. toggled on), the match-set group can be edited like any other group, via the {\textquotesingle}Edit Groups{\textquotesingle} dialog. Any settings you change (e.g. highlight colour) will be saved even if the match-set group is toggled off and then on again.}
-\item {If you delete the match-set group using the {\textquotesingle}Edit Groups{\textquotesingle} dialog, all of its settings will be lost; you will get the default settings again the next time you enable the match-set group. To avoid this, disable it by toggling it off using the {\textquotesingle}Toggle match set{\textquotesingle} menu option (or {\textquotesingle}g{\textquotesingle} shortcut key) rather than by deleting it in the Groups dialog.}
-\end{itemize}
-
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsubsection[Editing groups]{Editing groups}}
-\hypertarget{RefHeading2141056909880}{}{
-To edit a group, right-click and select {\textquotesingle}Edit
-Groups{\textquotesingle}, or use the Ctrl-G shortcut key.}
+\hypertarget{RefHeading2141056909880}{}
+\label{section:edit_group}
+{To edit one or more groups, right-click and select {\textquotesingle}Edit Groups{\textquotesingle}, or use the Ctrl-G shortcut key.}
 
 \begin{figure}
 \centering
@@ -1916,31 +1921,14 @@ You can change the following properties for a group. Click on Apply or OK to app
 \begin{flushleft}
 \tablehead{}
 \begin{supertabular}{p{3.1069999cm}p{11.479cm}}
-\bfseries Name &
- You can specify a more meaningful name to help
-you identify the group.\\
-\bfseries Hide &
- Tick this box to hide the alignments in the
-alignment lists.\\
-\bfseries Highlight &
- Tick this box to highlight the alignments.\\
-\bfseries Colour &
- The colour the group will be highlighted in, if
-{\textquotesingle}Highlight{\textquotesingle} is enabled. The default
-colour for all groups is orange, so you may wish to change this if you
-want different groups to be highlighted in different colours.\\
-\bfseries Order &
- When sorting by Group, alignments in a group
-with a lower order number will appear before those with a higher order
-number (or vice versa if sort order is inverted). Alignments in a group
-will appear before alignments that are not in a group.\\
+\bfseries Name & You can specify a more meaningful name to help you identify the group.\\
+\bfseries Filter & Tick this box to treat the group as a filter. This means that features in this group will be displayed but other features of the same type (e.g. alignments) will not be shown unless they are also in a filter.\\
+\bfseries Hide & Tick this box to hide all of the features in the group.\\
+\bfseries Highlight & Tick this box to highlight the features in the group in the highlight colour.\\
+\bfseries Colour & This determines the colour that the group's features will be highlighted in, if {\textquotesingle}Highlight{\textquotesingle} is ticked. The default colour for all groups is red, so you may wish to change this if you want different groups to be highlighted in different colours.\\
+\bfseries Order & When sorting by Group, alignments in a group with a lower order number will appear before those with a higher order number (or vice versa if sort order is inverted). Alignments in a group will appear before alignments that are not in a group.\\
 \end{supertabular}
 \end{flushleft}
-
-\bigskip
-
-You can also hide all sequences that are not part of a group by ticking the {\textquotesingle}Hide all sequences not in a group{\textquotesingle} option. This is a quick way of filtering sequences to show only those that you are interested in; any sequences that are not part of a group will be hidden. Note that any sequences in a hidden group will also still be hidden.
-
 
 \bigskip
 
@@ -1953,8 +1941,7 @@ To delete a single group, click on the
 {\textquotesingle}Delete{\textquotesingle} button next to the group you
 wish to delete.}
 \item {
-To delete all groups, click on the {\textquotesingle}Delete all
-groups{\textquotesingle} button.}
+To delete all groups, click on the {\textquotesingle}Delete all groups{\textquotesingle} button. This is the quickest way to clear all filtering/grouping/hiding.}
 \end{itemize}
 {\color[rgb]{0.30980393,0.5058824,0.7411765}\subsection[Running dotter]{Running dotter}}
 \hypertarget{RefHeading2161056909880}{}\liststyleWWviiiNumxxxvii
