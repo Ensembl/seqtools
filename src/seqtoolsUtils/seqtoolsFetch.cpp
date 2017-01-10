@@ -1,6 +1,6 @@
 /*  File: seqtoolsFetch.cpp
  *  Author: Gemma Guest, 2015-12-21
- *  Copyright (c) 2015 Genome Research Ltd
+ *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

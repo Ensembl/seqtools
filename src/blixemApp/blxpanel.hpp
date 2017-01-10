@@ -1,6 +1,6 @@
 /*  File: blxpanel.hpp
  *  Author: Gemma Barson, 2016-04-07
- *  Copyright (c) 2016 Genome Research Ltd
+ *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
