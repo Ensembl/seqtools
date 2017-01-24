@@ -67,14 +67,15 @@ function fetch_lib
 
 
 
-# Should gbtools be installed ? Default is "no"
-gbtools_install='no'
+# Should gbtools be installed ? Default is 'yes'
+gbtools_install='yes'
 
 
 
-while getopts ":g" opt ; do
+while getopts ":gz" opt ; do
     case $opt in
-	g  ) gbtools_install='yes' ;;
+        g  ) gbtools_install='yes' ;;
+        z  ) gbtools_install='no' ;;
     esac
 done
 
