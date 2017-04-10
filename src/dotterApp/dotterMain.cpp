@@ -123,6 +123,12 @@
   -s <int>, --vertical-offset=<int>\n\
     Vertical_sequence offset\n\
 \n\
+  -x <int>, --black-point=<int>\n\
+    Black point value\n\
+\n\
+  -y <int>, --white-point=<int>\n\
+    White point value\n\
+\n\
   --horizontal-type=p|d\n\
     Horizontal_sequence type ('p' for peptide or 'd' for DNA)\n\
 \n\
@@ -172,6 +178,8 @@ static void setDefaultOptions(DotterOptions *options)
 {
   options->qoffset = 0;
   options->soffset = 0;
+  options->bpoint = 40;
+  options->wpoint = 100;
   options->selfcall = FALSE;
   options->qlen = UNSET_INT;
   options->slen = UNSET_INT;
@@ -392,6 +400,8 @@ int main(int argc, char **argv)
       {"crick-only",            no_argument,        0, 'c'},
       {"horizontal-offset",     required_argument,  0, 'q'},
       {"vertical-offset",       required_argument,  0, 's'},
+      {"black-point",           required_argument,  0, 'x'},
+      {"white-point",           required_argument,  0, 'y'},
       {"horizontal-type",       required_argument,  0, 0},
       {"vertical-type",         required_argument,  0, 0},
       {"negate-coords",         no_argument,        0, 'N'},
@@ -400,7 +410,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
     };
 
-  const char  *optstring="b:cDe:f:F:hHil:M:m:Np:q:Rrs:SvW:wz:";
+  const char  *optstring="b:cDe:f:F:hHil:M:m:Np:q:Rrs:SvW:wx:y:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -480,6 +490,8 @@ int main(int argc, char **argv)
             options.winsize = (char*)g_malloc(strlen(optarg)+1);
             strcpy(options.winsize, optarg);               break;
           case 'w': options.watsonOnly = TRUE;             break;
+          case 'x': options.bpoint = atoi(optarg);        break;
+          case 'y': options.wpoint = atoi(optarg);        break;
           case 'z': options.dotterZoom = atoi(optarg);     break;
           default : g_error("Illegal option\n");
         }

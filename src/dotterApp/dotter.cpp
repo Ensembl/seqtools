@@ -189,6 +189,8 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        const int zoomFacIn,
                                        const int qcenter,
                                        const int scenter,
+                                       const int bpoint,
+                                       const int wpoint,
                                        const gboolean greyramSwap,
                                        char *windowColor);
 
@@ -1169,6 +1171,8 @@ void dotter (const BlxBlastMode blastMode,
                        options->dotterZoom,
                        qcenter,
                        scenter,
+                       options->bpoint,
+                       options->wpoint,
                        options->swapGreyramp,
                        options->windowColor);
 
@@ -1192,6 +1196,8 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        const int zoomFacIn,
                                        const int qcenter,
                                        const int scenter,
+                                       const int bpoint,
+                                       const int wpoint,
                                        const gboolean greyrampSwap,
                                        char *windowColor)
 {
@@ -1219,8 +1225,8 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
       GtkWidget *greyrampContainer = gtk_frame_new(NULL); /* container for when docked */
       gtk_frame_set_shadow_type(GTK_FRAME(greyrampContainer), GTK_SHADOW_NONE);
       GtkWidget *greyrampWindow = NULL; /* container for when undocked */
-      GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, 40, 100, greyrampSwap, &greyrampWindow);
-      GtkWidget *greyrampToolMinimised = createGreyrampToolMinimised(dotterWinCtx, 40, 100);
+      GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, bpoint, wpoint, greyrampSwap, &greyrampWindow);
+      GtkWidget *greyrampToolMinimised = createGreyrampToolMinimised(dotterWinCtx, bpoint, wpoint);
       registerGreyrampCallback(greyrampTool, dotplot, dotplotUpdateGreymap);
       registerGreyrampCallback(greyrampToolMinimised, dotplot, dotplotUpdateGreymap);
       blxSetWidgetColor(greyrampWindow, windowColor);
@@ -1300,7 +1306,7 @@ void callDotterInternal(DotterContext *dc,
                         const gboolean breaklinesOn)
 {
   DotterWindowContext *dwc = createDotterWindowContext(dc, refSeqRange, matchSeqRange, zoomFactor, TRUE);
-  createDotterInstance(dc, dwc, NULL, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, FALSE, NULL);
+  createDotterInstance(dc, dwc, NULL, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, 0, 0, FALSE, NULL);
 }
 
 

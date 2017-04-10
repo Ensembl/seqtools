@@ -61,6 +61,8 @@ typedef struct _DotterOptions
   {
     int qoffset;              /* qoffset + 1 gives the value of the first coord on the ref seq */
     int soffset;              /* soffset + 1 gives the value of the first coord on the match seq */
+    int bpoint;               /* black point */
+    int wpoint;               /* white point */
     gboolean selfcall;        /* whether called internally, i.e. so that features/sequences will be piped into dotter rather than read from files */
     int qlen;                 /* length of the ref seq */
     int slen;                 /* length of the match seq */
