@@ -68,12 +68,14 @@ function fetch_lib
 
 
 # Should gbtools be installed ? Default is 'yes'
+checkout_only='no'
 gbtools_install='yes'
 
 
 
-while getopts ":gz" opt ; do
+while getopts ":cgz" opt ; do
     case $opt in
+        c  ) checkout_only='yes' ;;
         g  ) gbtools_install='yes' ;;
         z  ) gbtools_install='no' ;;
     esac
@@ -107,6 +109,17 @@ if [[ "$gbtools_install" == "yes" ]] ; then
 fi
 
 
+# Sometimes we want a tree containing any necessary subdirectories (aceconn etc)
+# but don't want to run any autoconf stuff.
+#
+if [ "$checkout_only" = 'yes' ] ; then
+  echo "Subdirectories installed, exiting before autoreconf."
+
+  exit 0
+fi
+
+
+
 # If the gbtools autogen.sh script exists then run that. This is necessary
 # for gbtools to create its gbtools_version.m4 file.
 #
@@ -124,4 +137,6 @@ echo "seqtools running: autoreconf -fi -v"
 autoreconf -fi -v || echo "autoreconf failed...."
 echo "Done"
 
+
+exit 0
 
