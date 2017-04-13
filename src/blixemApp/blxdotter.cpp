@@ -1850,7 +1850,7 @@ static GIOChannel* callDotterChildProcess(GtkWidget *blxWindow,
   if (seq1DisplayRev)			    argList = g_slist_append(argList, g_strdup("--reverse-h-display"));
   if (seq2DisplayRev)			    argList = g_slist_append(argList, g_strdup("--reverse-v-display"));
   if (hspsOnly)				    argList = g_slist_append(argList, g_strdup("-H"));
-  if (sleep)				    argList = g_slist_append(argList, g_strdup("--sleep=15"));
+  if (sleep)				    argList = g_slist_append(argList, g_strdup("--sleep=30"));
   if (bc->flags[BLXFLAG_NEGATE_COORDS])	    argList = g_slist_append(argList, g_strdup("-N"));
 
   /* now tell Dotter that we're calling it internally from another SeqTools
