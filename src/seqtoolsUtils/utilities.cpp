@@ -741,7 +741,7 @@ void IntRange::boundsLimit(const IntRange* const limit, const gboolean maintainL
 /* Utility to return the length of the given range */
 int IntRange::length() const
 {
-  return (m_max - m_min + 1);
+  return ((m_max - m_min) + 1) ;
 }
 
 /* Utility to return the centre value of the given range (rounded down if an odd number) */
@@ -750,7 +750,7 @@ int IntRange::centre() const
   return m_min + ((m_max - m_min) / 2);
 }
 
-/* Make sure max and min are the correct way round */
+/* Make sure min and max are the correct way round */
 void IntRange::sort(const bool forwards)
 {
   sortValues(&m_min, &m_max, forwards);

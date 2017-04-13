@@ -257,7 +257,7 @@ public:
   bool setMin(const int val);
   bool setMax(const int val);
 
-  void sort(const bool forwards = false);
+  void sort(const bool forwards = true);
   void boundsLimit(const IntRange* const limit, const gboolean maintainLen);
 
 private:
