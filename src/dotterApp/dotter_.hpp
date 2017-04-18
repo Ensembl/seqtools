@@ -141,6 +141,7 @@ typedef enum
   } DotterDialogId;
 
 
+
 /* General properties for the dotter session. These settings are common to all dotter windows
  * open for the same process (i.e. if you start a sub-dotter from within dotter it will inherit
  * these properties). */
@@ -382,7 +383,8 @@ void                setHspMode(GtkWidget *dotplot, DotterHspMode hspMode);
 void                refreshDotplot(GtkWidget *dotplot);
 void                redrawDotplot(GtkWidget *dotplot);
 void                recalcDotplot(GtkWidget *dotplot);
-void                savePlot(GtkWidget *dotplot, DotplotProperties *properties, const char *saveFileName, GError **error);
+void                savePlot(GtkWidget *dotplot, DotplotProperties *properties,
+                             const char *saveFileName, DotterSaveFormatType saveFormat, GError **error);
 void                exportPlot(GtkWidget *dotplot, GtkWindow *window, const char *exportFileName, GError **error);
 void                loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error);
 

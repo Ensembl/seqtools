@@ -66,8 +66,11 @@
   -h, --help\n\
     Show this usage information\n\
 \n\
+  -a <file>, --batch-ascii=<file>\n\
+    Batch mode; save dot matrix as Ascii text to <file>\n\
+\n\
   -b <file>, --batch-save=<file>\n\
-    Batch mode; save dot matrix to <file>\n\
+    Batch mode; save dot matrix as binary to <file>\n\
 \n\
   -e <file>, --batch-export=<file>\n\
     Batch mode; export plot to PDF file <file>\n\
@@ -189,7 +192,8 @@ static void setDefaultOptions(DotterOptions *options)
   options->seqInSFS = 0;
   
   options->memoryLimit = 0.0;
-  
+
+  options->saveFormat = DOTSAVE_BINARY ;
   options->savefile = NULL;
   options->exportfile = NULL;
   options->loadfile = NULL;
@@ -381,6 +385,7 @@ int main(int argc, char **argv)
       {"reverse-v-display",	no_argument,        &vertScaleRev, 1},
 
       {"help",                  no_argument,        0, 'h'},
+      {"batch-ascii",           required_argument,  0, 'a'},
       {"batch-save",            required_argument,  0, 'b'},
       {"batch-export",          required_argument,  0, 'e'},
       {"load",                  required_argument,  0, 'l'},
@@ -410,7 +415,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
     };
 
-  const char  *optstring="b:cDe:f:F:hHil:M:m:Np:q:Rrs:SvW:wx:y:z:";
+  const char  *optstring="a:b:cDe:f:F:hHil:M:m:Np:q:Rrs:SvW:wx:y:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -457,7 +462,8 @@ int main(int argc, char **argv)
 	  case '?':
             break; /* getopt_long already printed an error message */
 	  
-          case 'b': options.savefile = g_strdup(optarg);   break;
+          case 'a': options.saveFormat = DOTSAVE_ASCII ; options.savefile = g_strdup(optarg);   break;
+          case 'b': options.saveFormat = DOTSAVE_BINARY ; options.savefile = g_strdup(optarg);   break;
           case 'c': options.crickOnly = TRUE;              break;
           case 'D': options.mirrorImage = FALSE;           break;
           case 'e': options.exportfile = g_strdup(optarg); break;

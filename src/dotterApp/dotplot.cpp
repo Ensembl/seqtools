@@ -175,11 +175,13 @@ static void                       calculateImage(DotplotProperties *properties);
 static void                       drawDotplot(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable);
 static void                       clearPixmaps(DotplotProperties *properties);
-
-
+static bool saveAsBinaray(FILE *saveFile, DotplotProperties *properties, GError **error) ;
+static bool saveAsAscii(FILE *saveFile, DotplotProperties *properties, GError **error) ;
 #ifdef ALPHA
 static void                       reversebytes(void *ptr, int n);
 #endif
+
+
 
 /***********************************************************
  *                          Properties                     *
@@ -883,7 +885,8 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
     {
       /* Batch mode: save the dot matrix;  */
       GError *error = NULL;
-      savePlot(dotplot, properties, saveFileName, &error);
+
+      savePlot(dotplot, properties, saveFileName, DOTSAVE_BINARY, &error);
       
       prefixError(error, "Error saving dot plot. ");
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
@@ -1776,12 +1779,25 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
 }
 
 
-/* savePlot writes a 1 byte unsigned-char at the start of the file to indicate the file format. 
- * It then writes various parameters (as determined by that format) and then the dot-matrix itself.
+/* savePlot writes a file in the format:
+ *
+ * 1 byte unsigned-char at the start of the file to indicate the file format.
+ *
+ * It then writes various parameters (as determined by that format, see below) 
+ *
+ * and then the dot-matrix itself.
+ *
+ * This data is all written one byte after the other with no padding, i.e. it's a
+ * very "binary" format !
  *
  * The format char is one of the following:
- *   '1'  The original format, with the following fields: format (uchar), zoom (int), image width (int), image height (int) 
- *   '2'  In addition to the format '1' fields: pixelFac (int), win size (int), matrix name len (int), matrix name (MNlen chars) 
+ *
+ *   '1'  The original format, with the following fields: 
+ *             format (uchar), zoom (int), image width (int), image height (int) 
+ *
+ *   '2'  In addition to the format '1' fields: 
+ *             pixelFac (int), win size (int), matrix name len (int), matrix name (MNlen chars) 
+ *
  *   '3'  as format 2 but changed zoom from int to gdouble 
  *
  * Note that formats 1 and 2 used to assume that the 'int' date type was always 4 bytes. We now make
@@ -1789,19 +1805,16 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
  * on any system.  The standard for chars/uchars (1 byte) and doubles/gdoubles (8 bytes) should be 
  * consistent for all systems so we don't need to worry about those.
  */
-void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *saveFileName, GError **error)
+void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn,
+              const char *saveFileName, DotterSaveFormatType saveFormat,
+              GError **error)
 {
   /* We may be passed the properties as null if we are given the dotplot. */
   DotplotProperties *properties = propertiesIn ? propertiesIn : dotplotGetProperties(dotplot);
-  
+  bool ok ;
+
   g_assert(properties);
   
-  DotterWindowContext *dwc = properties->dotterWinCtx;
-  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-
-  /* This is the latest file format number. Increment this if you change anything that will break
-   * compatibility with the current format. */
-  unsigned char format = 3;
 
   gboolean batch = (saveFileName ? TRUE : FALSE); /* whether this is part of a batch process */
 
@@ -1832,72 +1845,17 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
   else
     {
       g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_OPENING_FILE, "No file name specified.\n");
+
       return;
     }
+
+  if (saveFormat == DOTSAVE_BINARY)
+    ok = saveAsBinaray(saveFile, properties, error) ;
+  else
+    ok = saveAsAscii(saveFile, properties, error) ;
+
+
   
-  /* Get the length of the matrix name */
-  const gint32 MNlen = strlen(dc->matrixName);
-  gint32 MNlenSave = MNlen;
-  
-#ifdef ALPHA
-  reversebytes(&dwc->zoomFactor, sizeof(gdouble));
-  reversebytes(&properties->imageWidth, sizeof(gint32));
-  reversebytes(&properties->imageHeight, sizeof(gint32));
-  reversebytes(&pixelFac, sizeof(gint32));
-  reversebytes(&slidingWinSize, sizeof(gint32));
-  reversebytes(&MNlenSave, sizeof(gint32));
-#endif
-  
-  gboolean ok = fwrite(&format, 1, sizeof(unsigned char), saveFile) == sizeof(unsigned char);
-  ok &= fwrite(&dwc->zoomFactor, 1, sizeof(gdouble), saveFile) == sizeof(gdouble);
-  ok &= fwrite(&properties->imageWidth, 1, sizeof(gint32), saveFile) == sizeof(gint32);
-  ok &= fwrite(&properties->imageHeight, 1, sizeof(gint32), saveFile) == sizeof(gint32);
-  ok &= fwrite(&properties->pixelFac,  1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
-  ok &= fwrite(&properties->slidingWinSize, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
-  ok &= fwrite(&MNlenSave, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
-  ok &= fwrite(dc->matrixName, sizeof(char), MNlen, saveFile) == sizeof(char) * MNlen; /* New feature of format 2  */
-  
-  
-  /* Loop through the matrix and write the values to the file */
-  int i = 0;
-  int j = 0;
-  gint32 mtx = 0;
-  
-  for (i = 0; i < 24; i++)
-    {
-      for (j = 0; j < 24; j++)
-        {
-          mtx = dc->matrix[i][j];
-#ifdef ALPHA
-          reversebytes(&mtx, sizeof(gint32));
-#endif
-          ok &= fwrite(&mtx, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
-        }
-    }
-  
-#ifdef ALPHA
-  reversebytes(&dwc->zoomFactor, sizeof(gdouble));
-  reversebytes(&properties->imageWidth, sizeof(gint32));
-  reversebytes(&properties->imageHeight, sizeof(gint32));
-  reversebytes(&pixelFac, sizeof(gint32));
-  reversebytes(&slidingWinSize, sizeof(gint32));
-#endif
-  
-  
-  /* Loop through the dotplot values and write them to file */
-  const int imgSize = properties->imageWidth * properties->imageHeight;
-  
-  for (i = 0; i < imgSize; i++)
-    {
-      unsigned char pixelVal = properties->pixelmap[i];
-#ifdef ALPHA
-      reversebytes(&pixelVal, sizeof(unsigned char));
-#endif
-      ok &= fwrite(&pixelVal, 1, sizeof(unsigned char), saveFile) == sizeof(unsigned char); 
-    }
-  
-  
-//  ok &= fwrite(properties->pixelmap, sizeof(unsigned char), imgSize, saveFile) == imgSize;
   
   if (!ok)
     {
@@ -1906,6 +1864,8 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
   
   fclose(saveFile);
   saveFile = 0;
+
+  return ;
 }
 
 
@@ -3248,5 +3208,175 @@ static void reversebytes(void *ptr, int n)
   for(i=0; i<n; i++) *cp++ = copy[n-i-1];
 }
 #endif
+
+
+
+
+
+static bool saveAsBinaray(FILE *saveFile, DotplotProperties *properties, GError **error)
+{
+
+  bool ok = FALSE ;
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+
+  /* This is the latest file format number. Increment this if you change anything that will break
+   * compatibility with the current format. */
+  unsigned char format = 3;
+
+  /* Get the length of the matrix name */
+  const gint32 MNlen = strlen(dc->matrixName);
+  gint32 MNlenSave = MNlen;
+  
+#ifdef ALPHA
+  reversebytes(&dwc->zoomFactor, sizeof(gdouble));
+  reversebytes(&properties->imageWidth, sizeof(gint32));
+  reversebytes(&properties->imageHeight, sizeof(gint32));
+  reversebytes(&pixelFac, sizeof(gint32));
+  reversebytes(&slidingWinSize, sizeof(gint32));
+  reversebytes(&MNlenSave, sizeof(gint32));
+#endif
+  
+  ok = fwrite(&format, 1, sizeof(unsigned char), saveFile) == sizeof(unsigned char);
+  ok &= fwrite(&dwc->zoomFactor, 1, sizeof(gdouble), saveFile) == sizeof(gdouble);
+  ok &= fwrite(&properties->imageWidth, 1, sizeof(gint32), saveFile) == sizeof(gint32);
+  ok &= fwrite(&properties->imageHeight, 1, sizeof(gint32), saveFile) == sizeof(gint32);
+  ok &= fwrite(&properties->pixelFac,  1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+  ok &= fwrite(&properties->slidingWinSize, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+  ok &= fwrite(&MNlenSave, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+  ok &= fwrite(dc->matrixName, sizeof(char), MNlen, saveFile) == sizeof(char) * MNlen; /* New feature of format 2  */
+  
+  
+  /* Loop through the matrix and write the values to the file */
+  int i = 0;
+  int j = 0;
+  gint32 mtx = 0;
+  
+  for (i = 0; i < 24; i++)
+    {
+      for (j = 0; j < 24; j++)
+        {
+          mtx = dc->matrix[i][j];
+#ifdef ALPHA
+          reversebytes(&mtx, sizeof(gint32));
+#endif
+          ok &= fwrite(&mtx, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+        }
+    }
+  
+#ifdef ALPHA
+  reversebytes(&dwc->zoomFactor, sizeof(gdouble));
+  reversebytes(&properties->imageWidth, sizeof(gint32));
+  reversebytes(&properties->imageHeight, sizeof(gint32));
+  reversebytes(&pixelFac, sizeof(gint32));
+  reversebytes(&slidingWinSize, sizeof(gint32));
+#endif
+  
+  
+  /* Loop through the dotplot values and write them to file */
+  const int imgSize = properties->imageWidth * properties->imageHeight;
+  
+  for (i = 0; i < imgSize; i++)
+    {
+      unsigned char pixelVal = properties->pixelmap[i];
+#ifdef ALPHA
+      reversebytes(&pixelVal, sizeof(unsigned char));
+#endif
+      ok &= fwrite(&pixelVal, 1, sizeof(unsigned char), saveFile) == sizeof(unsigned char); 
+    }
+  
+  
+//  ok &= fwrite(properties->pixelmap, sizeof(unsigned char), imgSize, saveFile) == imgSize;
+  
+  return ok ;
+}
+
+
+
+static bool saveAsAscii(FILE *saveFile, DotplotProperties *properties, GError **error)
+{
+  bool result = true ;
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+
+  /* This is the latest file format number. Increment this if you change anything that will break
+   * compatibility with the current format. */
+  unsigned int format = 3;
+
+  int index ;  
+  int i;
+  int j;
+  gint32 mtx;
+
+
+  if (!(result = (fprintf(saveFile, "Format\t%d\n", format) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "Zoom\t%g\n", dwc->zoomFactor) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "Width\t%d\n", properties->imageWidth) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "Height\t%d\n", properties->imageHeight) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "Factor\t%d\n", properties->pixelFac) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "WindowSize\t%d\n", properties->slidingWinSize) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "MatrixName\t%s\n", dc->matrixName) != 0)))
+    goto failure ;
+  
+  
+  /* Loop through the matrix and write the values to the file */
+  i = 0;
+  j = 0;
+  mtx = 0;
+  
+  if (!(result = (fprintf(saveFile, "%s\n", "ScoreMatrix") != 0)))
+    goto failure ;
+  
+  for (i = 0; i < 24; i++)
+    {
+      for (j = 0; j < 24; j++)
+        {
+          mtx = dc->matrix[i][j];
+
+          if (!(result = (fprintf(saveFile, "%d\t", mtx) != 0)))
+            goto failure ;
+        }
+
+      if (!(result = (fprintf(saveFile, "%s\n", "") != 0)))
+        goto failure ;
+
+    }
+  
+  /* Loop through the dotplot values and write them to file */
+  
+  if (!(result = (fprintf(saveFile, "%s\n", "PlotValues") != 0)))
+    goto failure ;
+  
+  for (index = 0, i = 0; i < properties->imageHeight; i++)
+    {
+      for (j = 0; j < properties->imageWidth; j++)
+        {
+          unsigned int pixelVal = properties->pixelmap[index];
+
+          if (!(result = (fprintf(saveFile, "%d\t", pixelVal) != 0)))
+            goto failure ;
+
+          index++ ;
+        }
+
+      if (!(result = (fprintf(saveFile, "%s\n", "") != 0)))
+        goto failure ;
+
+    }
+  
+
+  // May jump to here on failure.
+ failure:
+
+  
+  return result ;
+}
+
 
 

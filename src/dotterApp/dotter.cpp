@@ -197,6 +197,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
 static void                       onQuitMenu(GtkAction *action, gpointer data);
 static void                       onCloseMenu(GtkAction *action, gpointer data);
 static void                       onSavePlotMenu(GtkAction *action, gpointer data);
+static void                       onSaveAsciiPlotMenu(GtkAction *action, gpointer data);
 static void                       onExportPlotMenu(GtkAction *action, gpointer data);
 static void                       onPrintMenu(GtkAction *action, gpointer data);
 static void                       onSettingsMenu(GtkAction *action, gpointer data);
@@ -233,7 +234,8 @@ static const GtkActionEntry menuEntries[] = {
 
 { "Quit",           GTK_STOCK_QUIT,         "_Quit all dotters",      "<control>Q", "Quit all dotters",           G_CALLBACK(onQuitMenu)},
 { "Close",          GTK_STOCK_CLOSE,        "_Close this dotter",     "<control>W", "Close this dotter",          G_CALLBACK(onCloseMenu)},
-{ "SavePlot",       GTK_STOCK_SAVE,         "_Save plot",             NULL,         "Save plot",                  G_CALLBACK(onSavePlotMenu)},
+{ "SavePlot",       GTK_STOCK_SAVE,         "_Save plot",             NULL,         "Save plot for Reload",       G_CALLBACK(onSavePlotMenu)},
+{ "SaveAsciiPlot",  GTK_STOCK_SAVE,         "_SaveAscii plot",        NULL,         "Save plot as Text",          G_CALLBACK(onSaveAsciiPlotMenu)},
 { "ExportPlot",     NULL,                   "_Export plot",           NULL,         "Export plot",                G_CALLBACK(onExportPlotMenu)},
 { "Print",          GTK_STOCK_PRINT,        "_Print...",              "<control>P", "Print",                      G_CALLBACK(onPrintMenu)},
 { "Settings",       GTK_STOCK_PREFERENCES,  "Settings",               "<control>S", "Set dotter parameters",      G_CALLBACK(onSettingsMenu)},
@@ -283,6 +285,7 @@ static const char mainMenuDescription[] =
 "  <menubar name='MenuBar'>"
 "    <menu action='FileMenuAction'>"
 "      <menuitem action='SavePlot'/>"
+"      <menuitem action='SaveAsciiPlot'/>"
 "      <menuitem action='ExportPlot'/>"
 "      <separator/>"
 "      <menuitem action='Print'/>"
@@ -329,6 +332,7 @@ static const char mainMenuDescription[] =
 "    <menuitem action='Quit'/>"
 "    <menuitem action='Help'/>"
 "    <menuitem action='SavePlot'/>"
+"    <menuitem action='SaveAsciiPlot'/>"
 "    <menuitem action='Print'/>"
 "    <separator/>"
 "    <menuitem action='Settings'/>"
@@ -3102,7 +3106,19 @@ static void onSavePlotMenu(GtkAction *action, gpointer data)
   DotterProperties *properties = dotterGetProperties(dotterWindow);
 
   GError *error = NULL;
-  savePlot(properties->dotplot, NULL, NULL, &error);
+  savePlot(properties->dotplot, NULL, NULL, DOTSAVE_BINARY, &error);
+  
+  prefixError(error, "Error saving plot. ");
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+}
+
+static void onSaveAsciiPlotMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+
+  GError *error = NULL;
+  savePlot(properties->dotplot, NULL, NULL, DOTSAVE_ASCII, &error);
   
   prefixError(error, "Error saving plot. ");
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
