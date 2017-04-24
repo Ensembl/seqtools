@@ -67,16 +67,20 @@ function fetch_lib
 
 
 
-# Should gbtools be installed ? Default is 'yes'
 checkout_only='no'
+
+git_location='git.internal.sanger.ac.uk:/repos/git/annotools'
+
+# gbtools stuff.
 gbtools_install='yes'
+gbtools_repo='gbtools'
 
 
-
-while getopts ":cgz" opt ; do
+while getopts ":cgr:z" opt ; do
     case $opt in
         c  ) checkout_only='yes' ;;
         g  ) gbtools_install='yes' ;;
+        r  ) git_location=$OPTARG ;;
         z  ) gbtools_install='no' ;;
     esac
 done
@@ -104,7 +108,7 @@ if [[ "$gbtools_install" == "yes" ]] ; then
 
   clean_lib 'gbtools' ./gbtools
 
-  fetch_lib git.internal.sanger.ac.uk:/repos/git/annotools/gbtools  'gbtools'
+  fetch_lib "$git_location/$gbtools_repo" 'gbtools'
 
 fi
 
