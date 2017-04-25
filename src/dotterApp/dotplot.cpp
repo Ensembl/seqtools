@@ -1702,9 +1702,9 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
           int i = 0;
           int j = 0;
           
-          for (i = 0; i < 24; i++)
+          for (i = 0; i < CONS_MATRIX_SIZE; i++)
             {
-              for (j = 0; j < 24; j++) 
+              for (j = 0; j < CONS_MATRIX_SIZE; j++) 
                 {
                   gint32 matrixVal;
                   ok &= fread(&matrixVal, 1, sizeof(gint32), loadFile) == sizeof(gint32); 
@@ -3252,9 +3252,9 @@ static bool saveAsBinaray(FILE *saveFile, DotplotProperties *properties, GError 
   int j = 0;
   gint32 mtx = 0;
   
-  for (i = 0; i < 24; i++)
+  for (i = 0; i < CONS_MATRIX_SIZE; i++)
     {
-      for (j = 0; j < 24; j++)
+      for (j = 0; j < CONS_MATRIX_SIZE; j++)
         {
           mtx = dc->matrix[i][j];
 #ifdef ALPHA
@@ -3330,12 +3330,12 @@ static bool saveAsAscii(FILE *saveFile, DotplotProperties *properties, GError **
   j = 0;
   mtx = 0;
   
-  if (!(result = (fprintf(saveFile, "%s\n", "ScoreMatrix") != 0)))
+  if (!(result = (fprintf(saveFile, "%s %d %d\n", "ScoreMatrix", CONS_MATRIX_SIZE, CONS_MATRIX_SIZE) != 0)))
     goto failure ;
   
-  for (i = 0; i < 24; i++)
+  for (i = 0; i < CONS_MATRIX_SIZE; i++)
     {
-      for (j = 0; j < 24; j++)
+      for (j = 0; j < CONS_MATRIX_SIZE; j++)
         {
           mtx = dc->matrix[i][j];
 
@@ -3349,8 +3349,8 @@ static bool saveAsAscii(FILE *saveFile, DotplotProperties *properties, GError **
     }
   
   /* Loop through the dotplot values and write them to file */
-  
-  if (!(result = (fprintf(saveFile, "%s\n", "PlotValues") != 0)))
+  if (!(result = (fprintf(saveFile, "%s %d %d\n",
+                          "PlotValues", properties->imageWidth, properties->imageHeight) != 0)))
     goto failure ;
   
   for (index = 0, i = 0; i < properties->imageHeight; i++)

@@ -337,7 +337,7 @@ OKExit:
 
 
 /* Adapted from blastp.c */
-int winsizeFromlambdak(gint32 mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq, 
+int winsizeFromlambdak(gint32 mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE], int *tob, int abetsize, const char *qseq, const char *sseq, 
 		       double *exp_res_score, double *Lambda)
 {
     gint32 

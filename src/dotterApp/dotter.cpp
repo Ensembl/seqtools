@@ -151,9 +151,9 @@ public:
 /* Local function declarations */
 
 static void showSettingsDialog(GtkWidget *dotterWindow);
-static void readmtx(int mtx[24][24], char *mtxfile);
-static void mtxcpy(int mtx[24][24], int BLOSUM62[24][24]);
-static void DNAmatrix(int mtx[24][24]);
+static void readmtx(int mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE], char *mtxfile);
+static void mtxcpy(int mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE], int BLOSUM62[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE]);
+static void DNAmatrix(int mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE]);
 //static void drawAllFeatures(MSP *msp) ;
 //static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth) ;
 //gint compareMSPs(gconstpointer a, gconstpointer b) ;
@@ -378,7 +378,7 @@ static const char mainMenuDescription[] =
 
 /* Global variables */
 
-static int    MATRIX[24][24];
+static int    MATRIX[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE];
 //              MSPoffset,      /* Difference between real MSP coord and coord stored in MSP */
 //              HSPgaps = 0.
 //              fsBoxStart,
@@ -400,7 +400,7 @@ static int    MATRIX[24][24];
 /*  BLOSUM62 930809
 
      A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V   B   Z   X  \* */ 
-int BLOSUM62[24][24] = {
+int BLOSUM62[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE] = {
   {  4, -1, -2, -2,  0, -1, -1,  0, -2, -1, -1, -1, -1, -2, -1,  1,  0, -3, -2,  0, -2, -1,  0, -4 },
   { -1,  5,  0, -2, -3,  1,  0, -2,  0, -3, -2,  2, -1, -3, -2, -1, -1, -3, -2, -3, -1,  0, -1, -4 },
   { -2,  0,  6,  1, -3,  0,  0,  0,  1, -3, -3,  0, -2, -3, -2,  1,  0, -4, -2, -3,  3,  0, -1, -4 },
@@ -546,7 +546,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
                                           const BlxStrand matchSeqStrand,
                                           MSP *mspList,
                                           GList *seqList,
-                                          int matrix[24][24],
+                                          int matrix[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE],
                                           char *matrixName)
 {
   DEBUG_ENTER("createDotterContext");
@@ -2784,7 +2784,7 @@ static void refreshAll(GtkWidget *dotterWindow, gpointer data)
 }
 
 
-static void readmtx(int MATRIX[24][24], char *mtxfile)
+static void readmtx(int MATRIX[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE], char *mtxfile)
 {
     FILE *fil;
     int row, col;
@@ -2810,13 +2810,13 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
       }
 
     /* Read in the pairwise scores */
-    for (row = 0; row < 24; row++)
+    for (row = 0; row < CONS_MATRIX_SIZE; row++)
     {
         if (!(fgets(line, 1024, fil)))
-            g_error("Wrong number of rows in matrix file: %d (should be 24).\n", row);
+          g_error("Wrong number of rows in matrix file: %d (should be %d).\n", row, CONS_MATRIX_SIZE);
 
         p = strtok(line, " \t\n");
-        for (col = 0; col < 24; col++) 
+        for (col = 0; col < CONS_MATRIX_SIZE; col++) 
         {
             while (*p == '*' || isalpha((int) *p))
                 p = strtok(NULL, " \t\n");
@@ -2834,17 +2834,17 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
     fclose(fil);
 }
 
-static void mtxcpy(int dest[24][24], int src[24][24])
+static void mtxcpy(int dest[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE], int src[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE])
 {
     int i, j;
 
-    for (i = 0 ; i < 24 ; i++)
-        for (j = 0 ; j < 24 ; j++)
+    for (i = 0 ; i < CONS_MATRIX_SIZE ; i++)
+        for (j = 0 ; j < CONS_MATRIX_SIZE ; j++)
             dest[i][j] = src[i][j];
 }
 
 
-static void DNAmatrix(int mtx[24][24])
+static void DNAmatrix(int mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE])
 {
     int i, j;
 

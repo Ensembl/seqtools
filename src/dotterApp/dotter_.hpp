@@ -141,6 +141,7 @@ typedef enum
   } DotterDialogId;
 
 
+#define CONS_MATRIX_SIZE 24
 
 /* General properties for the dotter session. These settings are common to all dotter windows
  * open for the same process (i.e. if you start a sub-dotter from within dotter it will inherit
@@ -151,7 +152,7 @@ typedef struct _DotterContext
   BlxSeqType displaySeqType;                /* whether the display shows sequences as nucleotide or peptide */
   int numFrames;                            /* the number of reading frames */
   char **geneticCode;                       /* code used to translate nucleotide triplets to amino acids */
-  gint32 matrix[24][24];                    /* matrix for determining conserved matches */
+  gint32 matrix[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE];        /* matrix for determining conserved matches */
   char *matrixName;                         /* matrix name */
   MSP *mspList;                             /* list of all MSPs in dotter */
   GList *seqList;                           /* list of all matches sequences as BlxSequences */
@@ -298,7 +299,8 @@ const char*         dotterGetCommentsString(void);
 const char*         dotterGetLicenseString(void);
 const char*         dotterGetVersionString(void);
 
-int                 winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq, 
+int                 winsizeFromlambdak(int mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE],
+                                       int *tob, int abetsize, const char *qseq, const char *sseq, 
                                        double *exp_res_score, double *Lambda);
 
 void                argvAdd(int *argc, char ***argv, const char *s);
