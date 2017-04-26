@@ -59,6 +59,7 @@ typedef enum _DotterExportFormat
 // 
 typedef enum
   {
+    DOTSAVE_INVALID,
     DOTSAVE_BINARY,                                         // Original binary format.
     DOTSAVE_ASCII                                           // Text/tab/line separated format.
   } DotterSaveFormatType ;

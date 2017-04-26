@@ -815,6 +815,7 @@ static GdkImage* createImage(DotplotProperties *properties)
 static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc, 
                                            const char *loadFileName,
                                            const char *saveFileName,
+                                           const DotterSaveFormatType saveFormat,
                                            const char *exportFileName,
                                            const gboolean hspsOn,
                                            const gboolean breaklinesOn,
@@ -886,7 +887,7 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
       /* Batch mode: save the dot matrix;  */
       GError *error = NULL;
 
-      savePlot(dotplot, properties, saveFileName, DOTSAVE_BINARY, &error);
+      savePlot(dotplot, properties, saveFileName, saveFormat, &error);
       
       prefixError(error, "Error saving dot plot. ");
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
@@ -1010,6 +1011,7 @@ static void createDotterExonViews(GtkWidget *dotplot,
 GtkWidget* createDotplot(DotterWindowContext *dwc, 
                          const char *loadFileName,
                          const char *saveFileName,
+                         const DotterSaveFormatType saveFormat,
                          const char *exportFileName,
                          const gboolean hspsOn,
                          const gboolean breaklinesOn,
@@ -1023,7 +1025,7 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
   DEBUG_ENTER("createDotplot");
 
   /* Create the actual drawing area for the dot plot */
-  *dotplot = createDotplotDrawingArea(dwc, loadFileName, saveFileName, exportFileName, hspsOn, breaklinesOn, initWinsize, pixelFacIn, zoomFacIn, qcenter, scenter);
+  *dotplot = createDotplotDrawingArea(dwc, loadFileName, saveFileName, saveFormat, exportFileName, hspsOn, breaklinesOn, initWinsize, pixelFacIn, zoomFacIn, qcenter, scenter);
 
   /* Create and realise the container widgets etc. only if not in batch mode, or if
    * in batch mode and exporting to PDF (which requires the widget to draw itself). */

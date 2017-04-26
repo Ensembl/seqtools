@@ -346,6 +346,7 @@ void                alignmentToolClearSequenceSelection(GtkWidget *alignmentTool
 GtkWidget*          createDotplot(DotterWindowContext *dwc, 
                                   const char *loadFileName,
                                   const char *saveFileName,
+                                  const DotterSaveFormatType saveFormat,
                                   const char *exportFileName,
                                   const gboolean hspsOn,
                                   const gboolean breaklinesOn,

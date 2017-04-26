@@ -181,6 +181,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        DotterWindowContext *dotterWinCtx,
                                        const char *loadFileName,
                                        const char *saveFileName,
+                                       const DotterSaveFormatType saveFormat,
                                        const char *exportFileName,
                                        const gboolean hspsOn,
                                        const gboolean breaklinesOn,
@@ -1093,15 +1094,15 @@ static void setInitSelectedCoords(GtkWidget *dotterWindow, const int refCoord, c
 
 
 
-void dotter (const BlxBlastMode blastMode,
-             DotterOptions *options,
-             const BlxStrand refSeqStrand,
-             const BlxStrand matchSeqStrand,
-              int   qcenter,
-              int   scenter,
-              MSP  *mspList,
-              GList *seqList,
-             int   MSPoff)
+void dotter(const BlxBlastMode blastMode,
+            DotterOptions *options,
+            const BlxStrand refSeqStrand,
+            const BlxStrand matchSeqStrand,
+            int   qcenter,
+            int   scenter,
+            MSP  *mspList,
+            GList *seqList,
+            int   MSPoff)
 {
   DEBUG_ENTER("dotter(mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d)",
               blastMode, options->qname, options->qoffset, refSeqStrand, options->sname, options->soffset, matchSeqStrand);
@@ -1167,6 +1168,7 @@ void dotter (const BlxBlastMode blastMode,
                        dotterWinCtx,
                        options->loadfile,
                        options->savefile,
+                       options->saveFormat,
                        options->exportfile,
                        options->hspsOnly,
                        options->breaklinesOn,
@@ -1192,6 +1194,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        DotterWindowContext *dotterWinCtx,
                                        const char *loadFileName,
                                        const char *saveFileName,
+                                       const DotterSaveFormatType saveFormat,
                                        const char *exportFileName,
                                        const gboolean hspsOn,
                                        const gboolean breaklinesOn,
@@ -1213,6 +1216,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
   GtkWidget *dotplotWidget = createDotplot(dotterWinCtx, 
                                            loadFileName,
                                            saveFileName,
+                                           saveFormat,
                                            exportFileName,
                                            hspsOn,
                                            breaklinesOn,
@@ -1310,7 +1314,11 @@ void callDotterInternal(DotterContext *dc,
                         const gboolean breaklinesOn)
 {
   DotterWindowContext *dwc = createDotterWindowContext(dc, refSeqRange, matchSeqRange, zoomFactor, TRUE);
-  createDotterInstance(dc, dwc, NULL, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, 0, 0, FALSE, NULL);
+
+  createDotterInstance(dc, dwc, NULL, NULL, DOTSAVE_INVALID, NULL,
+                       FALSE, breaklinesOn, NULL, 0, 0, 0, 0, 0, 0, FALSE, NULL);
+
+  return;
 }
 
 
