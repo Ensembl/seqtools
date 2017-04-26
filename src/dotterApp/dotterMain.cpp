@@ -499,7 +499,13 @@ int main(int argc, char **argv)
           case 'x': options.bpoint = atoi(optarg);        break;
           case 'y': options.wpoint = atoi(optarg);        break;
           case 'z': options.dotterZoom = atoi(optarg);     break;
-          default : g_error("Illegal option\n");
+          default :
+            {
+              g_message("Illegal option\n"); 
+              showUsageText(EXIT_FAILURE);
+              exit(EXIT_FAILURE);
+              break ;
+            }
         }
     }
 
@@ -573,7 +579,9 @@ int main(int argc, char **argv)
       /* The input arguments (following the options) are: qname, qlen, sname, slen. */
       if (argc - optind < 5 || argc - optind > 5)
         {
-          g_error("Incorrect number of arguments passed to dotter from internal program call\n"); 
+          g_message("Incorrect number of arguments passed to dotter from internal program call\n"); 
+          showUsageText(EXIT_FAILURE);
+          exit(EXIT_FAILURE);
         }
       
       options.qname = g_strdup(argv[optind]);
@@ -591,14 +599,16 @@ int main(int argc, char **argv)
       int l = fread(options.qseq, 1, options.qlen, stdin); 
       if (l != options.qlen) 
         {
-          g_error("Only read %d chars to qseq, expected %d\n", l, options.qlen);
+          g_message("Only read %d chars to qseq, expected %d\n", l, options.qlen);
+          exit(EXIT_FAILURE);
         }
       options.qseq[options.qlen] = 0;
 
       l = fread(options.sseq, 1, options.slen, stdin);
       if (l != options.slen) 
         {
-          g_error("Only read %d chars to sseq, expected %d\n", l, options.slen);
+          g_message("Only read %d chars to sseq, expected %d\n", l, options.slen);
+          exit(EXIT_FAILURE);
         }
       options.sseq[options.slen] = 0;
       DEBUG_OUT("...done.\n");
@@ -669,7 +679,8 @@ int main(int argc, char **argv)
 
       if(!(qfile = fopen(argv[optind], "r"))) 
         {
-          g_error("Cannot open %s\n", argv[optind]); 
+          g_message("Cannot open %s\n", argv[optind]); 
+          exit(EXIT_FAILURE);
         }
     
       qfilename = argv[optind];
@@ -688,7 +699,8 @@ int main(int argc, char **argv)
 
       if (!(sfile = fopen(argv[optind+1], "r"))) 
         {
-          g_error("Cannot open %s\n", argv[optind+1]); 
+          g_message("Cannot open %s\n", argv[optind+1]); 
+          exit(EXIT_FAILURE);
         }
     
       sfilename = argv[optind+1];
@@ -846,7 +858,8 @@ int main(int argc, char **argv)
         }
       else if(!(file = fopen(options.FSfilename, "r")))
         {
-          g_error("Cannot open %s\n", options.FSfilename);
+          g_message("Cannot open %s\n", options.FSfilename);
+          exit(EXIT_FAILURE);
         }
       
       GSList *supportedTypes = blxCreateSupportedGffTypeList(BLXSEQ_NONE);
@@ -899,7 +912,8 @@ int main(int argc, char **argv)
     }
   else
     {
-      g_error("Illegal sequence types: Protein vs. DNA - turn arguments around!\n");
+      g_message("Illegal sequence types: Protein vs. DNA - turn arguments around!\n");
+      exit(EXIT_FAILURE);
     }
     
   /* Add -install for private colormaps */
