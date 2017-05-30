@@ -69,7 +69,8 @@ function fetch_lib
 
 checkout_only='no'
 
-git_location='git.internal.sanger.ac.uk:/repos/git/annotools'
+#git_location='git.internal.sanger.ac.uk:/repos/git/annotools'
+git_location='git@github.com:Ensembl'
 
 # gbtools stuff.
 gbtools_install='yes'
@@ -108,7 +109,7 @@ if [[ "$gbtools_install" == "yes" ]] ; then
 
   clean_lib 'gbtools' ./gbtools
 
-  fetch_lib "$git_location/$gbtools_repo" 'gbtools'
+  fetch_lib "$git_location/$gbtools_repo" 'gbtools' '-b develop'
 
 fi
 
