@@ -1,5 +1,6 @@
 /*  File: seqtoolsExonView.c
  *  Author: Gemma Barson, 2009-12-24
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -48,17 +49,17 @@ typedef struct _ExonViewProperties
     GtkCallback refreshFunc;	      /* Callback function to call on the parent when we require a refresh */
     DotterContext *dc;		      /* Dotter session context */
     DotterWindowContext *dwc;	      /* Dotter window context */
-  
+
     BlxStrand strand;                 /* Which strand of the sequence this view displays exons for */
     gboolean horizontal;              /* Whether these exons are for the horizontal or vertical sequence  */
     const IntRange* qRange;           /* the range of ref seq coords the exon view displays, in nucleotide coords */
-    
+
     gboolean bumped;		      /* Whether the exon view is expanded (bumped) or compressed */
     int yPad;			      /* y padding */
-    
+
     GdkRectangle exonViewRect;	      /* The drawing area for the exon view */
-    int exonHeight;                   /* the height of an individual exon */ 
-    
+    int exonHeight;                   /* the height of an individual exon */
+
     gboolean showCrosshair;           /* Flag that indicates whether we should draw the crosshair */
   } ExonViewProperties;
 
@@ -74,7 +75,7 @@ typedef struct _DrawData
 
     GdkRectangle *exonViewRect;
     const IntRange* const qRange;
-    
+
     int yPad;			      /* y padding */
     int y;			      /* y position to draw this exon at (constant if view compressed; increases if view bumped) */
     int height;			      /* height of exon box */
@@ -97,11 +98,11 @@ static void                     drawExonView(GtkWidget *exonView, GdkDrawable *d
  ***********************************************************/
 
 /* Draw an exon */
-static void drawExon(const MSP* const msp, 
-                     DrawData *data, 
-                     const BlxSequence *blxSeq, 
-                     const gboolean isSelected, 
-                     const gint x, 
+static void drawExon(const MSP* const msp,
+                     DrawData *data,
+                     const BlxSequence *blxSeq,
+                     const gboolean isSelected,
+                     const gint x,
                      const gint y,
                      const gint widthIn,
                      const gint heightIn)
@@ -110,10 +111,10 @@ static void drawExon(const MSP* const msp,
   gint xStart = x;
   gint xEnd = x + widthIn;
   gint width = widthIn;
-  
+
   const gint xMin = (data->horizontal ? data->exonViewRect->x : data->exonViewRect->y);
   const gint xMax = xMin + (data->horizontal ? data->exonViewRect->width : data->exonViewRect->height);
-  
+
   if (xStart <= xMax && xEnd >= xMin)
     {
       if (xStart < xMin)
@@ -139,19 +140,19 @@ static void drawExon(const MSP* const msp,
           height = width;
           width = heightIn;
         }
-      
+
       /* Draw the fill rectangle */
       const GdkColor *fillColor = mspGetColor(msp, data->dc->defaultColors, DOTCOLOR_BACKGROUND, blxSeq, isSelected, data->dwc->usePrintColors, TRUE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, fillColor);
       gdk_draw_rectangle(data->drawable, data->gc, TRUE, xStart, yStart, width, height);
-      
+
       /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
       const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, DOTCOLOR_BACKGROUND, blxSeq, isSelected, data->dwc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, lineColor);
       gdk_draw_rectangle(data->drawable, data->gc, FALSE, xStart, yStart, width, height);
     }
 }
-  
+
 
 static void swapValues(int *val1, int*val2)
 {
@@ -169,24 +170,24 @@ static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const g
    * y values that are in range so don't bother checking them. */
   const gint xMin = data->horizontal ? clipRect->x : clipRect->y;
   const gint xMax = xMin + (data->horizontal ? clipRect->width : clipRect->height);
-  
+
   if (x1 <= xMax && x2 >= xMin)
     {
       int xStart = x1;
       int xEnd = x2;
       int yStart = y1;
       int yEnd = y2;
-      
+
       /* Clip the start/end x values if out of range */
       if (xStart < xMin)
         {
           const int origWidth = abs(xEnd - xStart);
-        
+
           xStart = xMin;
 
           const int newWidth = abs(xEnd - xStart);
           const int newHeight = roundNearest((double)(yEnd - yStart) * (double)newWidth / (double)origWidth); /* negative if yend < ystart */
-          
+
           yStart = yEnd - newHeight;
         }
 
@@ -198,30 +199,30 @@ static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const g
 
           const int newWidth = abs(xEnd - xStart);
           const int newHeight = roundNearest((double)(yEnd - yStart) * (double)newWidth / (double)origWidth);
-          
+
           yEnd = yStart + newHeight;
         }
-      
+
       /* Swap x and y if we're drawing the view vertically rather than horizontally */
       if (!data->horizontal)
         {
           swapValues(&xStart, &yStart);
           swapValues(&xEnd, &yEnd);
         }
-      
+
       gdk_draw_line(data->drawable, data->gc, xStart, yStart, xEnd, yEnd);
     }
 }
 
 
 /* Draw an intron */
-static void drawIntron(const MSP* const msp, 
-                       DrawData *data, 
-                       const BlxSequence *blxSeq, 
-                       const gboolean isSelected, 
-                       const gint xIn, 
-                       const gint yIn, 
-                       const gint widthIn, 
+static void drawIntron(const MSP* const msp,
+                       DrawData *data,
+                       const BlxSequence *blxSeq,
+                       const gboolean isSelected,
+                       const gint xIn,
+                       const gint yIn,
+                       const gint widthIn,
                        const gint heightIn)
 {
   const GdkColor *lineColor = mspGetColor(msp, data->dc->defaultColors, DOTCOLOR_BACKGROUND, blxSeq, isSelected, data->dwc->usePrintColors, FALSE, DOTCOLOR_EXON_FILL, DOTCOLOR_EXON_LINE, DOTCOLOR_CDS_FILL, DOTCOLOR_CDS_LINE, DOTCOLOR_UTR_FILL, DOTCOLOR_UTR_LINE);
@@ -235,7 +236,7 @@ static void drawIntron(const MSP* const msp,
   const int yOffset = roundNearest((double)heightIn / 2.0);
   int yTop = data->horizontal ? yIn : yIn + heightIn;
   int yBottom = yIn + yOffset;
-  
+
   /* Draw the first section, from the given x to the mid point, sloping up */
   int xStart = xIn;
   int xEnd = xStart + roundNearest((double)widthIn / 2.0);
@@ -252,7 +253,7 @@ static void drawIntron(const MSP* const msp,
 static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean isSelected, const BlxSequence *blxSeq)
 {
   gboolean drawn = FALSE;
-  
+
   if (rangesOverlap(&msp->qRange, data->qRange))
     {
       drawn = TRUE;
@@ -264,12 +265,12 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
       /* Get the length-ways position (technically this will actually be y for the vertical sequence) */
       const gint x1 = convertBaseIdxToRectPos(qStart, data->exonViewRect, data->qRange, data->horizontal, data->dc->hozScaleRev, FALSE);
       const gint x2 = convertBaseIdxToRectPos(qEnd, data->exonViewRect, data->qRange, data->horizontal, data->dc->hozScaleRev, FALSE);
-      
+
       gint x = min(x1, x2);
       gint width = abs(x1 - x2);
       gint y = data->y + data->yPad;
       gint height = data->height;
-      
+
       if (mspIsBoxFeature(msp))
 	{
 	  drawExon(msp, data, blxSeq, isSelected, x, y, width, height);
@@ -279,7 +280,7 @@ static gboolean drawExonIntron(const MSP *msp, DrawData *data, const gboolean is
 	  drawIntron(msp, data, blxSeq, isSelected, x, y, width, height);
 	}
     }
-    
+
   return drawn;
 }
 
@@ -289,10 +290,10 @@ static gboolean showMspInExonView(const MSP *msp, DrawData *drawData)
 {
   /* Check it's an exon or intron */
   gboolean showMsp = mspIsBoxFeature(msp) || mspIsIntron(msp);
-  
+
   /* Check it's in a visible layer */
   showMsp &= mspLayerIsVisible(msp);
-  
+
   /* Check it's the correct strand */
   showMsp &= (mspGetRefStrand(msp) == drawData->strand);
 
@@ -301,7 +302,7 @@ static gboolean showMspInExonView(const MSP *msp, DrawData *drawData)
     showMsp &= stringsEqual(msp->qname, drawData->dc->refSeqName, FALSE);
   else
     showMsp &= stringsEqual(msp->qname, drawData->dc->matchSeqName, FALSE);
-  
+
   return showMsp;
 }
 
@@ -314,23 +315,23 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
 
   const gboolean isSelected = FALSE; /* selections not implemented in dotter yet */
   gboolean seqDrawn = FALSE;
-  
+
   if (!drawData->normalOnly || !isSelected)
     {
       /* Loop through all msps in this sequence */
       GList *mspListItem = seq->mspList;
-  
+
       for ( ; mspListItem; mspListItem = mspListItem->next)
 	{
 	  MSP *msp = (MSP*)(mspListItem->data);
-      
+
 	  if (showMspInExonView(msp, drawData))
 	    {
 	      seqDrawn |= drawExonIntron(msp, drawData, isSelected, seq);
 	    }
 	}
     }
-  
+
   /* If the view is bumped, increase the y-coord for the next sequence */
   if (seqDrawn && drawData->bumped)
     {
@@ -342,21 +343,21 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
 static void drawCrosshair(GtkWidget *exonView, GdkDrawable *drawable, GdkGC *gc)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
-  
+
   if (properties->showCrosshair)
     {
       DotterContext *dc = properties->dc;
       DotterWindowContext *dwc = properties->dwc;
-      
+
       const gdouble scaleFactor = dwc->zoomFactor * getResFactor(dc, properties->horizontal);
       const int coord = getSelectedCoord(dwc, properties->horizontal);
-      
+
       /* Work out the distance from the left/top edge of the rect */
       const int distFromEdge = abs(coord - getStartCoord(dwc, properties->horizontal)) / scaleFactor;
 
       GdkColor *color = getGdkColor(DOTCOLOR_CROSSHAIR, dc->defaultColors, FALSE, dwc->usePrintColors);
       gdk_gc_set_foreground(gc, color);
-      
+
       if (properties->horizontal)
         {
           /* Draw a vertical line at x */
@@ -378,13 +379,13 @@ static void drawCrosshair(GtkWidget *exonView, GdkDrawable *drawable, GdkGC *gc)
 void exonViewPrepareForPrinting(GtkWidget *exonView)
 {
   GdkDrawable *drawable = widgetGetDrawable(exonView);
-  
+
   if (!drawable)
     {
       drawable = createBlankPixmap(exonView);
       drawExonView(exonView, drawable);
     }
-  
+
   if (drawable)
     {
       GdkGC *gc = gdk_gc_new(drawable);
@@ -398,7 +399,7 @@ void exonViewPrepareForPrinting(GtkWidget *exonView)
 static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
 {
   DEBUG_ENTER("drawExonView");
-  
+
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   DotterContext *dc = properties->dc;
 
@@ -408,20 +409,20 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
    * edges" to make sure intron lines have the correct slope etc.) */
   gdk_gc_set_clip_origin(gc, 0, 0);
   gdk_gc_set_clip_rectangle(gc, &properties->exonViewRect);
-  
+
   /* Draw the exons and introns. Since we could have a lot of them in the loop, extract all the
    * info we need now and pass it around so we don't have to look for this stuff each time. */
-  
+
   DrawData drawData = {
     properties->parent,
     drawable,
     gc,
     properties->dc,
     properties->dwc,
-    
+
     &properties->exonViewRect,
     properties->qRange,
-    
+
     properties->yPad,
     properties->horizontal ? properties->exonViewRect.y : properties->exonViewRect.x,
     properties->exonHeight,
@@ -431,7 +432,7 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     properties->bumped,
     FALSE
   };
-  
+
   /* Loop through all sequences, drawing all msps that are exons/introns */
   GList *seqList = dc->seqList;
   g_list_foreach(seqList, drawExonIntronItem, &drawData);
@@ -449,21 +450,21 @@ void calculateDotterExonViewHeight(GtkWidget *exonView)
   /* Calculate the height based on how many exon lines will actually be drawn */
   int numExons = 0;
   int maxExons = properties->bumped ? UNSET_INT : 1; /* unset means no limit */
-  
+
   /* Loop through all sequences */
   GList *seqItem = dc->seqList;
-  
+
   for ( ; seqItem; seqItem = seqItem->next)
     {
       /* Loop through all msps */
       const BlxSequence *seq = (BlxSequence*)(seqItem->data);
       GList *mspItem = seq->mspList;
-      
+
       for ( ; mspItem; mspItem = mspItem->next)
 	{
 	  const MSP *msp = (const MSP*)(mspItem->data);
-	  
-	  if ((mspIsBoxFeature(msp) || mspIsIntron(msp)) && 
+
+	  if ((mspIsBoxFeature(msp) || mspIsIntron(msp)) &&
               mspGetRefStrand(msp) == properties->strand &&
 	      rangesOverlap(&msp->qRange, properties->qRange))
             {
@@ -471,14 +472,14 @@ void calculateDotterExonViewHeight(GtkWidget *exonView)
               break; /* break inner loop and move to next sequence */
             }
 	}
-      
+
       /* Break after we've found the maximum number of lines, if a max is specified */
       if (maxExons != UNSET_INT && numExons >= maxExons)
 	{
 	  break;
 	}
     }
-  
+
   if (properties->horizontal)
     {
       properties->exonViewRect.height = (numExons * (properties->exonHeight + 2 * properties->yPad)) + (2 * properties->yPad);
@@ -499,7 +500,7 @@ void calculateDotterExonViewBorders(GtkWidget *exonView, const int width, const 
   DEBUG_ENTER("calculateDotterExonViewBorders(width=%d, height=%d)", width, height);
 
   ExonViewProperties *properties = exonViewGetProperties(exonView);
-  
+
   /* Calculate the area where the exon view will be drawn */
   if (properties->horizontal)
     {
@@ -515,10 +516,10 @@ void calculateDotterExonViewBorders(GtkWidget *exonView, const int width, const 
       properties->exonViewRect.width = properties->exonHeight + (2 * properties->yPad);
       properties->exonViewRect.height = height;
     }
-  
+
   gtk_layout_set_size(GTK_LAYOUT(exonView), properties->exonViewRect.x + properties->exonViewRect.width, properties->exonViewRect.y + properties->exonViewRect.height);
   gtk_widget_set_size_request(exonView, properties->exonViewRect.x + properties->exonViewRect.width, properties->exonViewRect.y + properties->exonViewRect.height);
-  
+
   /* If the display is bumped, we need to do more work to determine the height
    * because it depends on the number of exons that are visible */
   if (properties->bumped)
@@ -526,7 +527,7 @@ void calculateDotterExonViewBorders(GtkWidget *exonView, const int width, const 
 
   widgetClearCachedDrawable(exonView, NULL);
   gtk_widget_queue_draw(exonView);
-  
+
   DEBUG_OUT("seq horizontal=%d, x=%d, y=%d, w=%d, h=%d\n", properties->horizontal, properties->exonViewRect.x, properties->exonViewRect.y, properties->exonViewRect.width, properties->exonViewRect.height);
   DEBUG_EXIT("calculateDotterExonViewBorders returning ");
 }
@@ -551,8 +552,8 @@ static void onDestroyExonView(GtkWidget *exonView)
     }
 }
 
-static void exonViewCreateProperties(GtkWidget *exonView, 
-				     GtkWidget *parent, 
+static void exonViewCreateProperties(GtkWidget *exonView,
+				     GtkWidget *parent,
 				     GtkCallback refreshFunc,
                                      const gboolean horizontal,
 				     const BlxStrand strand,
@@ -565,7 +566,7 @@ static void exonViewCreateProperties(GtkWidget *exonView,
   if (exonView)
     {
       ExonViewProperties *properties = new ExonViewProperties;
-      
+
       properties->parent	      = parent;
       properties->refreshFunc	      = refreshFunc;
       properties->dc		      = dc;
@@ -574,10 +575,10 @@ static void exonViewCreateProperties(GtkWidget *exonView,
       properties->strand	      = strand;
       properties->horizontal          = horizontal;
       properties->qRange	      = qRange;
-      
+
       properties->bumped	      = FALSE;
       properties->yPad		      =	DEFAULT_EXON_YPAD;
-      
+
       properties->exonViewRect.x      = 0;
       properties->exonViewRect.y      = DEFAULT_EXON_YPAD;
       properties->exonViewRect.width  = width;
@@ -585,7 +586,7 @@ static void exonViewCreateProperties(GtkWidget *exonView,
 
       properties->exonHeight          = DEFAULT_EXON_HEIGHT;
       properties->showCrosshair       = showCrosshair;
-      
+
       gtk_widget_set_size_request(exonView, 0, DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
 
       g_object_set_data(G_OBJECT(exonView), "ExonViewProperties", properties);
@@ -610,12 +611,12 @@ void exonViewSetBumped(GtkWidget *exonView, const gboolean bumped)
       properties->yPad = DEFAULT_EXON_YPAD_BUMPED;
       properties->exonHeight = DEFAULT_EXON_HEIGHT_BUMPED;
     }
-  else 
+  else
     {
       properties->yPad = DEFAULT_EXON_YPAD;
       properties->exonHeight = DEFAULT_EXON_HEIGHT;
     }
-  
+
   calculateDotterExonViewHeight(exonView);
 
   /* Refresh the parent */
@@ -649,26 +650,26 @@ void exonViewSetShowCrosshair(GtkWidget *exonView, const gboolean showCrosshair)
 static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpointer data)
 {
   GdkDrawable *drawable = widgetGetDrawable(exonView);
-  
+
   if (!drawable)
     {
       /* Create a pixmap and draw the exon view onto it */
       drawable = createBlankPixmap(exonView);
       drawExonView(exonView, drawable);
     }
-  
+
   if (drawable)
-    {  
+    {
       /* Push the pixmap onto the screen */
       GdkDrawable *window = GTK_LAYOUT(exonView)->bin_window;
-      
+
       GdkGC *gc = gdk_gc_new(window);
 
       gdk_draw_drawable(window, gc, drawable, 0, 0, 0, 0, -1, -1);
 
       /* Draw the crosshair over the top */
       drawCrosshair(exonView, window, gc);
-      
+
       g_object_unref(gc);
     }
 
@@ -707,10 +708,10 @@ static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, 
 
 /* Create the part of the view that will show the exons. Returns the outermost container of the
  * exon and sets the exonViewOut output arg to the actual layout widget for the exon view. */
-GtkWidget *createDotterExonView(GtkWidget *parent, 
+GtkWidget *createDotterExonView(GtkWidget *parent,
 				GtkCallback refreshFunc,
                                 const gboolean horizontal,
-				const BlxStrand strand, 
+				const BlxStrand strand,
 				DotterWindowContext *dwc,
 				const int width,
                                 const int height,
@@ -721,18 +722,18 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
   DEBUG_ENTER("createDotterExonView(width=%d, height=%d, qRange=%d %d)", width, height, qRange->min(), qRange->max());
 
   DotterContext *dc = dwc->dotterCtx;
-  
+
   GtkWidget *exonView = gtk_layout_new(NULL, NULL);
   gtk_widget_set_name(exonView, SEQTOOLS_EXON_VIEW_NAME);
 
   if (exonViewOut)
     *exonViewOut = exonView;
-  
+
   /* Connect signals */
   gtk_widget_add_events(exonView, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(exonView, GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(exonView, GDK_POINTER_MOTION_MASK);
-  
+
   g_signal_connect(G_OBJECT(exonView),	"expose-event",		G_CALLBACK(onExposeExonView),	      NULL);
   g_signal_connect(G_OBJECT(exonView),	"size-allocate",	G_CALLBACK(onSizeAllocateExonView),   NULL);
   g_signal_connect(G_OBJECT(exonView),	"button-press-event",   G_CALLBACK(onButtonPressExonView),    NULL);
@@ -741,7 +742,7 @@ GtkWidget *createDotterExonView(GtkWidget *parent,
 
   exonViewCreateProperties(exonView, parent, refreshFunc, horizontal, strand, dc, dwc, width, qRange, showCrosshair);
   calculateDotterExonViewBorders(exonView, width, height);
-  
+
   DEBUG_EXIT("createDotterExonView returning ");
   return exonView;
 }

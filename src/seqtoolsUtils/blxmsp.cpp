@@ -1,5 +1,6 @@
 /*  File: blxmsp.c
  *  Author: Gemma Barson, 2010-09-02
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -48,10 +49,10 @@ using namespace std;
 static int g_MaxMspLen = 0;                   /* max length in display coords of all MSPs in the detail-view */
 static BlxDataType *g_DefaultDataType = NULL; /* data type containing default values; used if sequences do not have a data-type specified */
 
-/* The config value keys for each flag in BlxDataType. 
+/* The config value keys for each flag in BlxDataType.
  * Use NULL if you don't want the value to be configurable via the config file.
  * THIS ARRAY MUST BE UPDATED IF YOU ADD ITEMS TO THE MspFlag ENUM */
-static const char* g_MspFlagConfigKeys[] = 
+static const char* g_MspFlagConfigKeys[] =
   {
     "dummy", /* dummy value for MSPFLAG_MIN */
 
@@ -60,15 +61,15 @@ static const char* g_MspFlagConfigKeys[] =
     "squash-identical-features",
     "strand-specific",
     "show-reverse-strand",
-    
+
     "dummy" /* dummy value for MSPFLAG_NUM_FLAGS */
   };
 
 
-static void addBlxSequences(const char *name, const char *name_orig, const char *idTag, 
-                            BlxStrand strand, BlxDataType *dataType, const char *source, 
-                            GArray *featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList, 
-                            GList *columnList, char *sequence, 
+static void addBlxSequences(const char *name, const char *name_orig, const char *idTag,
+                            BlxStrand strand, BlxDataType *dataType, const char *source,
+                            GArray *featureLists[], MSP **lastMsp, MSP **mspList, GList **seqList,
+                            GList *columnList, char *sequence,
                             MSP *msp, GHashTable *lookupTable, BlxSequence *blxSeq, GError **error);
 static void findSequenceExtents(BlxSequence *blxSeq);
 static MSP* createMissingMsp(const BlxMspType newType,
@@ -77,10 +78,10 @@ static MSP* createMissingMsp(const BlxMspType newType,
                              const char *qname,
                              const int newFrame,
                              BlxStyle *newStyle,
-                             BlxSequence *blxSeq, 
-                             GArray* featureLists[], 
-                             MSP **lastMsp, 
-                             MSP **mspList, 
+                             BlxSequence *blxSeq,
+                             GArray* featureLists[],
+                             MSP **lastMsp,
+                             MSP **mspList,
                              GList **seqList,
                              GList *columnList,
                              GHashTable *lookupTable,
@@ -176,24 +177,24 @@ gboolean mspIsExon(const MSP* const msp)
 gboolean mspLayerIsVisible(const MSP* const msp)
 {
   gboolean result = TRUE;
-  
+
   /* Currently only applicable to exons. Show plain exons OR their CDS/UTR sections,
-   * but not both. The plan is to add some options to toggle layers on and off, but for 
+   * but not both. The plan is to add some options to toggle layers on and off, but for
    * now just hard code this. */
   if (msp->type == BLXMSP_EXON)
     {
       result = FALSE;
     }
-  
+
   return result;
 }
 
 
-/* Determine whether the given MSP is in a coding region or untranslated region. For 
+/* Determine whether the given MSP is in a coding region or untranslated region. For
  * exons, this is determined by the exon type. For introns, we have to look at the
  * adjacent exons to determine whether to show them as CDS or UTR - only show it as
  * CDS if there is a CDS exon on both sides of the intron. */
-static const GdkColor* mspGetIntronColor(const MSP* const msp, 
+static const GdkColor* mspGetIntronColor(const MSP* const msp,
                                          GArray *defaultColors,
                                          const int defaultColorId,
                                          const BlxSequence *blxSeq,
@@ -208,20 +209,20 @@ static const GdkColor* mspGetIntronColor(const MSP* const msp,
                                          const int utrLineColorId)
 {
   const GdkColor *result = NULL;
-  
+
   /* Find the nearest exons before and after this MSP */
   const MSP *prevExon = NULL;
   const MSP *nextExon = NULL;
-  
+
   GList *mspItem = blxSeq->mspList;
   for ( ; mspItem; mspItem = mspItem->next)
     {
     const MSP *curMsp = (const MSP *)(mspItem->data);
-    
+
     if (mspIsExon(curMsp) && mspLayerIsVisible(curMsp))
       {
       const int curOffset = mspGetQStart(curMsp) - mspGetQStart(msp);
-      
+
       if (curOffset < 0 && (!prevExon || curOffset > mspGetQStart(prevExon) - mspGetQStart(msp)))
 	{
 	/* Current MSP is before our MSP and is the smallest offset so far */
@@ -234,10 +235,10 @@ static const GdkColor* mspGetIntronColor(const MSP* const msp,
 	}
       }
     }
-  
+
   gboolean prevIsUtr = prevExon && prevExon->type == BLXMSP_UTR;
   gboolean nextIsUtr = nextExon && nextExon->type == BLXMSP_UTR;
-  
+
   /* if either exon is UTR, the intron is UTR */
   if (prevIsUtr)
     {
@@ -265,7 +266,7 @@ static const GdkColor* mspGetIntronColor(const MSP* const msp,
     else
       result = getGdkColor(exonLineColorId, defaultColors, selected, usePrintColors);
     }
-  
+
   return result;
 }
 
@@ -292,7 +293,7 @@ gboolean mspIsVariation(const MSP* const msp)
 gboolean mspIsZeroLenVariation(const MSP* const msp)
 {
   gboolean result = mspIsVariation(msp);
-  
+
   if (result)
     {
       const char *seq = mspGetMatchSeq(msp);
@@ -313,14 +314,14 @@ gboolean mspHasSName(const MSP* const msp)
   return TRUE;
 }
 
-/* Whether the MSP requires subject sequence coords to be set. Only matches 
+/* Whether the MSP requires subject sequence coords to be set. Only matches
  * and box features have coords on the subject sequence. (to do: is this optional for exons?) */
 gboolean mspHasSCoords(const MSP* const msp)
 {
   return mspIsBoxFeature(msp) || mspIsBlastMatch(msp);
 }
 
-/* Whether the MSP requires subject sequence strand to be set. Only matches 
+/* Whether the MSP requires subject sequence strand to be set. Only matches
  * require strand on the subject sequence, although exons may have them set. */
 gboolean mspHasSStrand(const MSP* const msp)
 {
@@ -336,7 +337,7 @@ gboolean mspHasSSeq(const MSP* const msp)
 
 
 /***********************************************************
- *		MSP data access functions		   * 
+ *		MSP data access functions		   *
  ***********************************************************/
 
 /* Get the range of coords of the alignment on the reference sequence */
@@ -386,7 +387,7 @@ int mspGetSStart(const MSP* const msp)
 }
 
 /* Get the end coord of the alignment on the match sequence. This is
- * the highest value coord if the match strand is in the same direction as the ref seq strand, 
+ * the highest value coord if the match strand is in the same direction as the ref seq strand,
  * or the lowest value coord otherwise. */
 int mspGetSEnd(const MSP* const msp)
 {
@@ -399,7 +400,7 @@ int mspGetSEnd(const MSP* const msp)
 const char *mspGetSName(const MSP* const msp)
 {
   const char *result = NULL;
-  
+
   if (msp)
     {
       if (msp->sname && msp->sname[0] != 0)
@@ -411,7 +412,7 @@ const char *mspGetSName(const MSP* const msp)
           result = blxSequenceGetName(msp->sSequence);
         }
     }
-  
+
   return result;
 }
 
@@ -419,7 +420,7 @@ const char *mspGetSName(const MSP* const msp)
 const char *mspGetSNameOrig(const MSP* const msp)
 {
   const char *result = NULL;
-  
+
   if (msp)
     {
       if (msp->sname_orig && *(msp->sname_orig))
@@ -427,7 +428,7 @@ const char *mspGetSNameOrig(const MSP* const msp)
           result = msp->sname_orig;
         }
     }
-  
+
   return result;
 }
 
@@ -442,7 +443,7 @@ int mspGetMatchSeqLen(const MSP* const msp)
 int mspGetRefFrame(const MSP* const msp, const BlxSeqType seqType)
 {
   int result = UNSET_INT;
-  
+
   if (seqType == BLXSEQ_DNA)
     {
     /* Ignore the frame in  the msp. For DNA matches we only have one frame on each strand. */
@@ -452,7 +453,7 @@ int mspGetRefFrame(const MSP* const msp, const BlxSeqType seqType)
     {
     result = msp->qFrame;
     }
-  
+
   return result;
 }
 
@@ -466,11 +467,11 @@ const char* mspGetRefName(const MSP* const msp)
 BlxStrand mspGetRefStrand(const MSP* const msp)
 {
   BlxStrand result = msp->qStrand;
-  
+
   /* If not strand specific, always return the forward strand */
   if (!mspGetFlag(msp, MSPFLAG_STRAND_SPECIFIC))
     result = BLXSTRAND_FORWARD;
-  
+
   return result;
 }
 
@@ -482,7 +483,7 @@ BlxStrand mspGetMatchStrand(const MSP* const msp)
   /* If not strand specific, always return the forward strand */
   if (!mspGetFlag(msp, MSPFLAG_STRAND_SPECIFIC))
     result = BLXSTRAND_FORWARD;
-  
+
   return result;
 }
 
@@ -505,7 +506,7 @@ static BlxColor *styleGetBlxColor(BlxStyle *style,
                                   const bool utr)
 {
   BlxColor *blxColor = NULL;
-  
+
   if (fill)
     {
       if (utr)
@@ -530,26 +531,26 @@ static BlxColor *styleGetBlxColor(BlxStyle *style,
  * Note that this function may alter BlxColor structs to override transparent colors with
  * alternative colors if allowTransparency is false. It will only do this once for each BlxColor
  * and will set the overridden flag in the color to indicate that a color has been set. */
-static const GdkColor *styleGetColor(BlxStyle *style, 
-                                     const gboolean selected, 
+static const GdkColor *styleGetColor(BlxStyle *style,
+                                     const gboolean selected,
                                      const gboolean usePrintColors,
-                                     const gboolean fill, 
+                                     const gboolean fill,
                                      const gboolean utr,
                                      GArray *defaultColors,
                                      const int defaultColorId,
                                      bool allowTransparency)
 {
   GdkColor *result = NULL;
-  
+
   BlxColor *blxColor = styleGetBlxColor(style, fill, utr);
-  
-  /* If it's transparent, use the background color instead, unless 
+
+  /* If it's transparent, use the background color instead, unless
    * selected is true in which case we need to use the highlight color */
   if (blxColor && blxColor->transparent && !selected)
     {
       if (allowTransparency)
         {
-          /* We don't really handle transparency. Instead we return the background color, 
+          /* We don't really handle transparency. Instead we return the background color,
            * so that it appears transparent */
           result = getGdkColor(defaultColorId, defaultColors, selected, usePrintColors);
           blxColor = NULL ;
@@ -562,7 +563,7 @@ static const GdkColor *styleGetColor(BlxStyle *style,
       else
         {
           /* It's a bit ambiguous what to do here. We've been told not to make it transparent
-           * (probably because in the detail view empty boxes are not much use). For now, 
+           * (probably because in the detail view empty boxes are not much use). For now,
            * if the fill is transparent then replace it with a lighter version of the
            * border colour. If the border is transparent then replace with a darker version of the
            * fill colour. */
@@ -585,15 +586,15 @@ static const GdkColor *styleGetColor(BlxStyle *style,
 
 
 /* Get the color for drawing the given MSP (If 'selected' is true, returns
- * the color when the MSP is selected.). Returns the fill color if 'fill' is 
+ * the color when the MSP is selected.). Returns the fill color if 'fill' is
  * true, otherwise the line color. If allowTransparency is true then the returned color is the
  * same as the background if transparent; otherwise it is replaced with one of the default colors. */
-const GdkColor* mspGetColor(const MSP* const msp, 
-			    GArray *defaultColors, 
+const GdkColor* mspGetColor(const MSP* const msp,
+			    GArray *defaultColors,
                             const int defaultColorId,
 			    const BlxSequence *blxSeq,
-			    const gboolean selected, 
-			    const gboolean usePrintColors, 
+			    const gboolean selected,
+			    const gboolean usePrintColors,
 			    const gboolean fill,
 			    const int exonFillColorId,
 			    const int exonLineColorId,
@@ -604,12 +605,12 @@ const GdkColor* mspGetColor(const MSP* const msp,
                             const bool allowTransparency)
 {
   const GdkColor *result = NULL;
-  
+
   if (msp->style)
     {
       result = styleGetColor(msp->style, selected, usePrintColors, fill, msp->type == BLXMSP_UTR, defaultColors, defaultColorId, allowTransparency);
     }
-  
+
   if (!result)
     {
       /* Use the default color for this MSP's type */
@@ -627,21 +628,21 @@ const GdkColor* mspGetColor(const MSP* const msp,
         case BLXMSP_UTR:
           result = getGdkColor(fill ? utrFillColorId : utrLineColorId, defaultColors, selected, usePrintColors);
           break;
-      
+
           /* to do: mspGetIntronColor() is non-trivial, because it has to work out the color
            * from the adjacent exons. Since mspGetColor() is called many times on re-draw, it
-           * would be better to work out whether an intron is CDS or UTR during initialisation 
+           * would be better to work out whether an intron is CDS or UTR during initialisation
            * and use different types (e.g. BLXMSP_INTRON_CDS) that can be queried here to quickly
            * determine what color to use. */
         case BLXMSP_INTRON:
           result = mspGetIntronColor(msp, defaultColors, defaultColorId, blxSeq, selected, usePrintColors, fill, exonFillColorId, exonLineColorId, cdsFillColorId, cdsLineColorId, utrFillColorId, utrLineColorId);
           break;
-          
+
         default:
           break;
         };
     }
-  
+
   return result;
 }
 
@@ -683,7 +684,7 @@ const char *mspGetStrain(const MSP* const msp)
 char *mspGetCoordsAsString(const MSP* const msp)
 {
   char *result = NULL;
-  
+
   if (msp)
     {
       GString *resultStr = g_string_new("");
@@ -693,10 +694,10 @@ char *mspGetCoordsAsString(const MSP* const msp)
         g_string_append_printf(resultStr, "%d,%d", msp->qRange.min(), msp->qRange.max());
       else
         g_string_append_printf(resultStr, "%d,%d[%d,%d]", msp->qRange.min(), msp->qRange.max(), msp->sRange.min(), msp->sRange.max());
-      
+
       result = g_string_free(resultStr, FALSE);
     }
-  
+
   return result;
 }
 
@@ -713,14 +714,14 @@ gchar* mspGetTreePath(const MSP* const msp, BlxModelId modelId)
 //static gboolean fsArrayFindByName(GArray *fsArray, FeatureSeries *fs, int *index_out)
 //{
 //  gboolean result = FALSE;
-//  
+//
 //  if (fsArray)
 //    {
 //    int i = 0;
 //    for ( ; i < fsArray->len; ++i)
 //      {
 //      FeatureSeries *compareFs = &g_array_index(fsArray, FeatureSeries, i);
-//      
+//
 //      if (!fsSortByNameCompareFunc(fs, compareFs))
 //	{
 //	result = TRUE;
@@ -729,26 +730,26 @@ gchar* mspGetTreePath(const MSP* const msp, BlxModelId modelId)
 //	}
 //      }
 //    }
-//  
+//
 //  return result;
 //}
 
 
 /* Comparison function to sort two Feature Series by the order number stored in the FeatureSeries
- * struct. Returns -1 if the first item is before the second, 1 if the second is first, or 0 if 
+ * struct. Returns -1 if the first item is before the second, 1 if the second is first, or 0 if
  * they are equal.  */
 gint fsSortByOrderCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 {
   int result = 0;
-  
+
   FeatureSeries *fs1 = (FeatureSeries *)fs1_in;
   FeatureSeries *fs2 = (FeatureSeries *)fs2_in;
-  
+
   if (fs1->order < fs2->order)
     result = -1;
   else if (fs1->order > fs2->order)
     result = 1;
-  
+
   return result;
 }
 
@@ -758,9 +759,9 @@ gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 {
   FeatureSeries *fs1 = (FeatureSeries *)fs1_in;
   FeatureSeries *fs2 = (FeatureSeries *)fs2_in;
-  
+
   /*printf("%s - %s : %d\n", fs1->name, fs2->name,  strcmp(fs1->name, fs2->name));*/
-  
+
   return strcmp(fs1->name, fs2->name);
 }
 
@@ -770,20 +771,20 @@ gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
  * that too. */
 //void insertFS(MSP *msp, char *series)
 //{
-//  if (!fsArr) 
+//  if (!fsArr)
 //    {
 //    fsArr = g_array_sized_new(TRUE, FALSE, sizeof(FeatureSeries), 50);
 //    }
-//  
+//
 //  static int orderNum = 0; /* will increment this each time we add a feature series to the array */
-//  
+//
 //  FeatureSeries *fs = new FeatureSeries;
 //  fs->on = 1;
 //  fs->y = 0.0;
 //  fs->xy = (msp->type == BLXMSP_XY_PLOT ? 1 : 0);
-//  
+//
 //  fs->name = g_strdup(series);
-//  
+//
 //  int i;
 //  if (fsArrayFindByName(fsArr, fs, &i))
 //    {
@@ -796,10 +797,10 @@ gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 //    /* Remember the order we added them so we can sort by it again later. */
 //    orderNum++;
 //    fs->order = orderNum;
-//    
+//
 //    g_array_append_val(fsArr, *fs);
 //    //      g_array_sort(fsArr, fsSortByNameCompareFunc);
-//    
+//
 //    msp->fs = fs;
 //    }
 //}
@@ -810,10 +811,10 @@ gint fsSortByNameCompareFunc(gconstpointer fs1_in, gconstpointer fs2_in)
 MSP* mspArrayIdx(const GArray* const array, const int idx)
 {
   MSP *msp = NULL;
-  
+
   if (idx >= 0 && idx < (int)array->len)
     msp = g_array_index(array, MSP*, idx);
-  
+
   return msp;
 }
 
@@ -844,12 +845,12 @@ static int getNumPolyATailBasesToCheck()
 gboolean mspHasPolyATail(const MSP* const msp)
 {
   gboolean found = FALSE;
-  
+
   /* Only matches have polyA tails. */
   if (mspIsBlastMatch(msp))
     {
       const char *seq = mspGetMatchSeq(msp);
-      
+
       if (seq)
         {
           const int numRequired = getNumPolyATailBasesToCheck();
@@ -859,7 +860,7 @@ gboolean mspHasPolyATail(const MSP* const msp)
           BlxStrand qStrand = mspGetRefStrand(msp);
           int sCoord = mspGetSEnd(msp);
 
-          if (qStrand == sStrand) 
+          if (qStrand == sStrand)
             {
               ++sCoord; /* next coord after alignment block end */
               int sMax = mspGetSStart(msp);
@@ -885,7 +886,7 @@ gboolean mspHasPolyATail(const MSP* const msp)
             {
               --sCoord; /* next coord after alignment block end */
               int sMin = 1;
-              
+
               if (numRequired > 0)
                 sMin = sCoord - numRequired;
 
@@ -905,7 +906,7 @@ gboolean mspHasPolyATail(const MSP* const msp)
             }
         }
     }
-  
+
   return found;
 }
 
@@ -915,7 +916,7 @@ gboolean mspHasPolyATail(const MSP* const msp)
 gboolean mspCoordInPolyATail(const int coord, const MSP* const msp)
 {
   gboolean result = mspHasPolyATail(msp);
-  
+
   /* See if the coord is outside the 3' end of the alignment range (i.e. is greater than the
    * max coord if we're on the forward strand or less than the min coord if on the reverse). */
   //result &= ((mspGetRefStrand(msp) == BLXSTRAND_FORWARD && coord > msp->displayRange.max) ||
@@ -927,7 +928,7 @@ gboolean mspCoordInPolyATail(const int coord, const MSP* const msp)
 
 
 /***********************************************************
- *		      BlxSequence			   * 
+ *		      BlxSequence			   *
  ***********************************************************/
 
 /* Append the contents of the given text to the GString, if the text is non-null,
@@ -947,7 +948,7 @@ static void appendTextIfNonNull(GString *gstr, const char *separator, const char
 char* blxSequenceGetSummaryInfo(const BlxSequence* const blxSeq, GList *columnList)
 {
   char *result = NULL;
-  
+
   if (blxSeq)
     {
       GString *resultStr = g_string_new("");
@@ -960,7 +961,7 @@ char* blxSequenceGetSummaryInfo(const BlxSequence* const blxSeq, GList *columnLi
       for ( ; item; item = item->next)
         {
           BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
-          
+
           if (columnInfo->showSummary)
             {
               const char *valueText = blxSequenceGetValueAsString(blxSeq, columnInfo->columnId);
@@ -975,10 +976,10 @@ char* blxSequenceGetSummaryInfo(const BlxSequence* const blxSeq, GList *columnLi
                 }
             }
         }
-      
+
       result = g_string_free(resultStr, FALSE);
     }
-  
+
   return result;
 }
 
@@ -987,41 +988,41 @@ char* blxSequenceGetSummaryInfo(const BlxSequence* const blxSeq, GList *columnLi
 const char *blxSequenceGetName(const BlxSequence *seq)
 {
   const char *result = NULL;
-  
+
   if (seq)
     {
       result = blxSequenceGetValueAsString(seq, BLXCOL_SEQNAME);
-      
+
       if (!result && seq->idTag)
         result = seq->idTag;
 
       if (!result)
         g_warning("Sequence does not have a name specified.\n");
     }
-  
+
   return result;
 }
 
 /* Return the Source text of a BlxSequence, if it has one (note that it gets
- * this from the first MSP and does no checking whether other MSPs have the 
+ * this from the first MSP and does no checking whether other MSPs have the
  * same source or not). */
 const char *blxSequenceGetSource(const BlxSequence *seq)
 {
   const char *result = NULL;
-  
+
   if (seq)
     result = blxSequenceGetValueAsString(seq, BLXCOL_SOURCE);
-  
+
   return result;
 }
 
 /* Return the fetch method of a BlxSequence. If 'bulk' is true,
  * get the bulk-fetch method, otherwise the user-fetch method.
  * 'index' indicates which method to choose if multiple methods
- * are available; 0 is the first (preferred) method, 1 the second 
- * etc. If no fetch method is set, return the given default method 
+ * are available; 0 is the first (preferred) method, 1 the second
+ * etc. If no fetch method is set, return the given default method
  * instead (for index==0 only). Pass 'defaultMethod' as 0 if N/A. */
-GQuark blxSequenceGetFetchMethod(const BlxSequence *seq, 
+GQuark blxSequenceGetFetchMethod(const BlxSequence *seq,
                                  const gboolean bulk,
                                  const gboolean optionalColumns,
                                  const int index,
@@ -1039,16 +1040,16 @@ GQuark blxSequenceGetFetchMethod(const BlxSequence *seq,
         array = seq->dataType->bulkFetch;
       else
         array = seq->dataType->userFetch;
-      
+
       if (array && index >= 0 && index < (int)array->len)
         result = g_array_index(array, GQuark, index);
     }
 
-  if (!result && defaultMethods && index >= 0 && index < (int)defaultMethods->len) 
+  if (!result && defaultMethods && index >= 0 && index < (int)defaultMethods->len)
     {
       result = g_array_index(defaultMethods, GQuark, index);
     }
-  
+
   return result;
 }
 
@@ -1056,7 +1057,7 @@ GQuark blxSequenceGetFetchMethod(const BlxSequence *seq,
 int blxSequenceGetLength(const BlxSequence *seq)
 {
   int result = 0;
-  
+
   if (seq)
     {
       const char *sequence = blxSequenceGetSequence(seq);
@@ -1064,7 +1065,7 @@ int blxSequenceGetLength(const BlxSequence *seq)
       if (sequence)
         result = strlen(sequence);
     }
-  
+
   return result;
 }
 
@@ -1106,9 +1107,9 @@ const char *blxSequenceGetSequence(const BlxSequence *seq)
  * (i.e. the actual dna or peptide sequence string) */
 gboolean blxSequenceRequiresSeqData(const BlxSequence *seq)
 {
-  return (seq && 
-          (seq->type == BLXSEQUENCE_MATCH || 
-           seq->type == BLXSEQUENCE_VARIATION || 
+  return (seq &&
+          (seq->type == BLXSEQUENCE_MATCH ||
+           seq->type == BLXSEQUENCE_VARIATION ||
            seq->type == BLXSEQUENCE_REGION));
 }
 
@@ -1138,7 +1139,7 @@ gboolean blxSequenceRequiresColumnData(const BlxSequence *seq, const BlxColumnId
           result = blxSequenceRequiresSeqData(seq);
         }
     }
-  
+
   return result;
 }
 
@@ -1146,7 +1147,7 @@ gboolean blxSequenceRequiresColumnData(const BlxSequence *seq, const BlxColumnId
 GValue* blxSequenceGetValue(const BlxSequence *seq, const int columnId)
 {
   GValue *result = NULL;
-  
+
   if (seq && seq->values && columnId < (int)seq->values->len)
     result = &g_array_index(seq->values, GValue, columnId);
 
@@ -1227,7 +1228,7 @@ void blxSequenceSetValueFromString(const BlxSequence *seq, const int columnId, c
 const char* blxSequenceGetValueAsString(const BlxSequence *seq, const int columnId)
 {
   const char *result = NULL;
-  
+
   GValue *value = blxSequenceGetValue(seq, columnId);
 
   if (value)
@@ -1239,7 +1240,7 @@ const char* blxSequenceGetValueAsString(const BlxSequence *seq, const int column
       else if (G_VALUE_HOLDS_DOUBLE(value))
         result = convertDoubleToString(g_value_get_double(value), 2);
     }
-  
+
   /* Return null if it's an empty value (i.e. if it's unset) */
   if (result && *result == 0)
     result = NULL;
@@ -1254,12 +1255,12 @@ const char* blxSequenceGetColumn(const BlxSequence* const blxSeq, const BlxColum
   const char *result = NULL;
 
   GValue *value = blxSequenceGetValue(blxSeq, columnId);
-    
+
   if (value && G_VALUE_HOLDS_STRING(value))
     {
       result = g_value_get_string(value);
     }
-  
+
   return result;
 }
 
@@ -1295,23 +1296,23 @@ const char *blxSequenceGetStrain(const BlxSequence *seq)
 char *blxSequenceGetFasta(const BlxSequence *seq)
 {
   char *result = NULL;
-  
+
   if (seq)
     {
       const char *name = blxSequenceGetName(seq);
       const char *sequence = blxSequenceGetSequence(seq);
-      
+
       if (name && sequence)
         {
           result = g_strdup_printf(">%s\n%s", name, sequence);
         }
     }
-  
+
   return result;
 }
 
 
-/* Return all the stored info about a blx sequenece (description, organism, tissue type etc.) 
+/* Return all the stored info about a blx sequenece (description, organism, tissue type etc.)
  * in a single string. The result should be free'd by the caller using g_free. If 'allowNewlines'
  * is true the data is separated with newline characters, otherwise with tabs (i.e. pass as false
  * if returned string is to be shown as a single line). The dataLoaded flag should be passed as
@@ -1319,7 +1320,7 @@ char *blxSequenceGetFasta(const BlxSequence *seq)
 char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, GList *columnList)
 {
   char *result = NULL;
-  
+
   if (blxSeq)
     {
       GString *resultStr = g_string_new("");
@@ -1333,40 +1334,40 @@ char *blxSequenceGetInfo(BlxSequence *blxSeq, const gboolean allowNewlines, GLis
       for ( ; item; item = item->next)
         {
           BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
-          
+
           const char *valueText = blxSequenceGetValueAsString(blxSeq, columnInfo->columnId);
           const char *text = valueText ? valueText : "";
-              
+
           if (columnInfo->columnId == BLXCOL_SEQNAME)
             g_string_append_printf(resultStr, "%-*s  %s%c%c", titleWidth, columnInfo->title, text, strand, separator);
           else
             g_string_append_printf(resultStr, "%-*s  %s%c", titleWidth, columnInfo->title, text, separator);
         }
-      
+
       /* Loop through the child features and show their coords */
       const char *title = "Coords";
       g_string_append_printf(resultStr, "%-*s  ", titleWidth, title);
       GList *mspItem = blxSeq->mspList;
-      
+
       for ( ; mspItem; mspItem = mspItem->next)
         {
           const MSP* const msp = (const MSP*)(mspItem->data);
-          
+
           /* Don't show 'exon' msps because we show the exon's
            * individual 'cds' and 'utr' instead */
           if (msp->type != BLXMSP_EXON)
             {
               char *coordsStr = mspGetCoordsAsString(msp);
               g_string_append_printf(resultStr, "%s  ", coordsStr ? coordsStr : "");
-              
+
               if (coordsStr)
                 g_free(coordsStr);
             }
         }
-      
+
       result = g_string_free(resultStr, FALSE);
     }
-  
+
   return result;
 }
 
@@ -1375,51 +1376,51 @@ static BlxSequence* blxSequenceFindByName(const char *name, GList *allSeqs)
 {
   BlxSequence *result = NULL;
   GList *listItem = allSeqs;
-  
+
   for ( ; listItem; listItem = listItem->next)
     {
       BlxSequence *curSeq = (BlxSequence*)(listItem->data);
       const char *curName = blxSequenceGetName(curSeq);
-    
+
       if (name && stringsEqual(curName, name, FALSE))
         {
           result = curSeq;
           break;
         }
     }
-  
+
   return result;
 }
 
 
 /* Get the "parent" sequence of the given protein variant. Assumes the variant
- * contains a dash '-' in the name followed by the variant number as a digit. 
+ * contains a dash '-' in the name followed by the variant number as a digit.
  * e.g. SW:P51531-2.2. The function looks for a sequence with the same name but
  * with this dash and the following digit(s) (up to the end of the name or the '.'
  * if there is one) removed. Returns NULL if no parent was found. */
 BlxSequence* blxSequenceGetVariantParent(const BlxSequence *variant, GList *allSeqs)
 {
   BlxSequence *result = NULL;
-  
+
   const char *variantName = blxSequenceGetName(variant);
-  
+
   if (variantName)
     {
       char *parentName = g_strdup(variantName);
       char *insertPoint = strchr(parentName, '-');
-      
+
       if (insertPoint)
         {
           /* Replace '-' by terminating char, in case there's nothing else to copy in. */
           *insertPoint = '\0';
-          
+
           /* The insert point is where we'll copy into. Create another pointer that we'll increment
            * until we find a '.' and then we'll copy from that point. */
           char *copyPoint = insertPoint;
           ++copyPoint;
-          
+
           gboolean foundRestartPoint = FALSE; /* set to true when we find where to start copying from again */
-          
+
           while (copyPoint && *copyPoint != '\0')
             {
               if (foundRestartPoint)
@@ -1433,17 +1434,17 @@ BlxSequence* blxSequenceGetVariantParent(const BlxSequence *variant, GList *allS
                   *insertPoint = *copyPoint;
                   ++insertPoint;
                 }
-          
+
               ++copyPoint;
             }
-        
+
           *insertPoint = '\0';
-        
+
           result = blxSequenceFindByName(parentName, allSeqs);
           g_free(parentName);
         }
     }
-  
+
   return result;
 }
 
@@ -1452,13 +1453,13 @@ BlxSequence* blxSequenceGetVariantParent(const BlxSequence *variant, GList *allS
 void destroyBlxSequenceList(GList **seqList)
 {
   GList *seqItem = *seqList;
-  
+
   for ( ; seqItem; seqItem = seqItem->next)
     {
       BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
       destroyBlxSequence(blxSeq);
     }
-  
+
   g_list_free(*seqList);
   *seqList = NULL;
 }
@@ -1472,7 +1473,7 @@ void destroyBlxSequence(BlxSequence *seq)
       if (seq->values)
         {
           /* Free all column values */
-          int i = 0;      
+          int i = 0;
           for ( ; i < (int)seq->values->len; ++i)
             {
               GValue *value = &g_array_index(seq->values, GValue, i);
@@ -1482,7 +1483,7 @@ void destroyBlxSequence(BlxSequence *seq)
 
       if (seq->idTag)
         g_free(seq->idTag);
-          
+
       delete seq;
     }
 }
@@ -1497,7 +1498,7 @@ static void destroyMspFull(MSP *msp, BlxSequence *seq, GArray *featureLists[], M
   for ( ; i < array->len; ++i)
     {
       MSP *curMsp = g_array_index(array, MSP*, i);
-      
+
       if (curMsp == msp)
         {
           array = g_array_remove_index(array, i);
@@ -1505,7 +1506,7 @@ static void destroyMspFull(MSP *msp, BlxSequence *seq, GArray *featureLists[], M
         }
     }
   featureLists[msp->type] = array;
-  
+
   /* Remove from mspList */
   MSP *curMsp = *mspList;
   MSP *prevMsp = NULL;
@@ -1515,18 +1516,18 @@ static void destroyMspFull(MSP *msp, BlxSequence *seq, GArray *featureLists[], M
         {
           if (!prevMsp)
             *mspList = curMsp->next; /* Remove msp from start of list */
-          else 
+          else
             prevMsp->next = curMsp->next; /* Remove link to msp */
-          
+
           if (*lastMsp == msp)
             *lastMsp = prevMsp;  /* Update pointer to last msp */
 
           break;
         }
-      
+
       prevMsp = curMsp;
     }
-  
+
   /* Remove from the BlxSequence, if given */
   if (seq && seq->mspList)
     {
@@ -1552,7 +1553,7 @@ static void destroyBlxSequenceFull(BlxSequence *seq, GArray *featureLists[], MSP
 {
   /* destroy each msp */
   GList *mspItem = seq->mspList;
-  
+
   for ( ; mspItem; mspItem = mspItem->next)
     {
       MSP *msp = (MSP*)(mspItem->data);
@@ -1575,7 +1576,7 @@ void blxSequenceSetColumn(BlxSequence *seq, const char *colName, const char *val
 {
   if (!colName || !value)
     return;
-  
+
   gboolean found = FALSE;
 
   /* Loop through the column list and find the one with this name */
@@ -1583,14 +1584,14 @@ void blxSequenceSetColumn(BlxSequence *seq, const char *colName, const char *val
   for ( ; item && !found; item = item->next)
     {
       BlxColumnInfo *columnInfo = (BlxColumnInfo*)(item->data);
-      
+
       if (stringsEqual(colName, columnInfo->title, FALSE))
         {
           blxSequenceSetValueFromString(seq, columnInfo->columnId, value);
           found = TRUE;
         }
     }
-  
+
   if (!found)
     g_warning("Unrecognised column '%s'\n", colName);
 }
@@ -1600,7 +1601,7 @@ void blxSequenceSetColumn(BlxSequence *seq, const char *colName, const char *val
 BlxSequence* createEmptyBlxSequence()
 {
   BlxSequence *seq = new BlxSequence;
-  
+
   seq->type = BLXSEQUENCE_UNSET;
   seq->dataType = NULL;
   seq->idTag = NULL;
@@ -1615,18 +1616,18 @@ BlxSequence* createEmptyBlxSequence()
 
 /* Copies all fields in a sequence. Copies all MSPs apart from CDSs whose name does not match the
  * given quark */
-static void copyBlxSequenceNamedCds(const BlxSequence *src, 
+static void copyBlxSequenceNamedCds(const BlxSequence *src,
                                     const GQuark cdsQuark,
-                                    GArray *featureLists[], 
-                                    MSP **lastMsp, 
+                                    GArray *featureLists[],
+                                    MSP **lastMsp,
                                     MSP **mspList,
                                     GList **seqList,
                                     GList *columnList,
-                                    GHashTable *lookupTable, 
+                                    GHashTable *lookupTable,
                                     GError **error)
 {
   GError *tmpError = NULL;
-  
+
   /* We must give the new BlxSequence a unique id - use the cds name */
   const char *idTag = g_quark_to_string(cdsQuark);
 
@@ -1634,22 +1635,22 @@ static void copyBlxSequenceNamedCds(const BlxSequence *src,
   const char *source = blxSequenceGetSource(src);
   const BlxStrand sStrand = src->strand;
   BlxDataType *dataType = src->dataType;
-  
+
   /* Copy all MSPs except CDSs whose name does not match cdsQuark */
   GList *mspItem = src->mspList;
-  
+
   for ( ; mspItem && !tmpError; mspItem = mspItem->next)
     {
       const MSP* msp = (const MSP*)(mspItem->data);
-      
+
       if (msp->type != BLXMSP_CDS || g_quark_from_string(msp->sname) == cdsQuark)
         {
           MSP *newMsp = copyMsp(msp, featureLists, lastMsp, mspList, FALSE, FALSE);
 
           /* Add the new msp to the new blx sequence (this creates it if it does not exist
            * i.e. the first time we get here for this idTag) */
-          addBlxSequence(newMsp->sname, newMsp->sname_orig, idTag, sStrand, dataType, 
-                         source, seqList, columnList, 
+          addBlxSequence(newMsp->sname, newMsp->sname_orig, idTag, sStrand, dataType,
+                         source, seqList, columnList,
                          NULL, newMsp, lookupTable, NULL, &tmpError);
         }
     }
@@ -1662,7 +1663,7 @@ static void copyBlxSequenceNamedCds(const BlxSequence *src,
 BlxDataType* createBlxDataType()
 {
   BlxDataType *result = new BlxDataType;
-  
+
   result->name = 0;
   result->bulkFetch = NULL;
   result->userFetch = NULL;
@@ -1673,7 +1674,7 @@ BlxDataType* createBlxDataType()
     {
       result->flags[flag] = FALSE;
     }
-  
+
   /* Set any specific flags that we want to be true by default */
   result->flags[MSPFLAG_SQUASH_LINKED_FEATURES] = TRUE;
   result->flags[MSPFLAG_STRAND_SPECIFIC] = TRUE;
@@ -1686,7 +1687,7 @@ void destroyBlxDataType(BlxDataType **blxDataType)
 {
   if (!blxDataType)
     return;
-  
+
   delete *blxDataType;
   *blxDataType = NULL;
 }
@@ -1702,7 +1703,7 @@ const char* getDataTypeName(BlxDataType *blxDataType)
 static gint compareMsps(const MSP* const msp1, const MSP* const msp2)
 {
   gint result = 0;
-  
+
   if (result == 0)
     {
       if (msp1->qRange.min() == msp2->qRange.min())
@@ -1710,7 +1711,7 @@ static gint compareMsps(const MSP* const msp1, const MSP* const msp2)
           /* Sort by type. Lower type numbers should appear first. */
           result = msp2->type - msp1->type;
         }
-      else 
+      else
         {
           result = msp1->qRange.min() -  msp2->qRange.min();
         }
@@ -1720,7 +1721,7 @@ static gint compareMsps(const MSP* const msp1, const MSP* const msp2)
 }
 
 /* Compare the start position in the ref seq of two MSPs. Returns a negative value if a < b; zero
- * if a = b; positive value if a > b. Secondarily sorts by type in the order that types appear in 
+ * if a = b; positive value if a > b. Secondarily sorts by type in the order that types appear in
  * the BlxMspType enum. Note that this sorts first by strand. */
 gint compareFuncMspPos(gconstpointer a, gconstpointer b)
 {
@@ -1731,7 +1732,7 @@ gint compareFuncMspPos(gconstpointer a, gconstpointer b)
 
   /* First, sort by strand */
   result = (int)msp1->qStrand - (int)msp2->qStrand;
-  
+
   if (!result)
     result = compareMsps(msp1, msp2);
 
@@ -1739,9 +1740,9 @@ gint compareFuncMspPos(gconstpointer a, gconstpointer b)
 }
 
 
-/* Same as compareFuncMspPos but accepts pointers to MSP pointers (which is 
+/* Same as compareFuncMspPos but accepts pointers to MSP pointers (which is
  * what the GArray of MSPs holds). Note that this does NOT sort first by strand,
- * unlike compareFuncMspPos. This is important for the detail-view filtering 
+ * unlike compareFuncMspPos. This is important for the detail-view filtering
  * functions. */
 gint compareFuncMspArray(gconstpointer a, gconstpointer b)
 {
@@ -1755,7 +1756,7 @@ gint compareFuncMspArray(gconstpointer a, gconstpointer b)
 /* returns true if the given msp should be output when piping features to dotter */
 static gboolean outputMsp(const MSP* const msp, IntRange *range1, IntRange *range2)
 {
-  return ((msp->type == BLXMSP_FS_SEG || mspIsBoxFeature(msp) || mspIsIntron(msp) || mspIsBlastMatch(msp)) && 
+  return ((msp->type == BLXMSP_FS_SEG || mspIsBoxFeature(msp) || mspIsIntron(msp) || mspIsBlastMatch(msp)) &&
           (rangesOverlap(&msp->qRange, range1) || rangesOverlap(&msp->qRange, range2))
          );
 }
@@ -1765,24 +1766,24 @@ static gboolean outputMsp(const MSP* const msp, IntRange *range1, IntRange *rang
 static int countMspsToOutput(const BlxSequence* const blxSeq, IntRange *range1, IntRange *range2)
 {
   int numMsps = 0;
-  
+
   GList *mspItem = blxSeq->mspList;
   for ( ; mspItem; mspItem = mspItem->next)
     {
       const MSP* const msp = (const MSP*)(mspItem->data);
-      
+
       if (outputMsp(msp, range1, range2))
         ++numMsps;
     }
-  
+
   return numMsps;
 }
 
 
 /* write data for the given transcript to the given output pipe. */
 void writeTranscriptToOutput(GIOChannel *ioChannel,
-                             const BlxSequence* const blxSeq, 
-                             IntRange *range, 
+                             const BlxSequence* const blxSeq,
+                             IntRange *range,
                              const IntRange* const refSeqRange,
                              GError **error)
 {
@@ -1795,7 +1796,7 @@ void writeTranscriptToOutput(GIOChannel *ioChannel,
   for ( ; mspItem; mspItem = mspItem->next)
     {
       const MSP* msp = (const MSP*)(mspItem->data);
-      
+
       /* Only output exons. Also, if an exon has child msps then ignore it and only output the children */
       if (mspIsBoxFeature(msp) && !msp->childMsps)
         {
@@ -1824,17 +1825,17 @@ void writeTranscriptToOutput(GIOChannel *ioChannel,
   const char* transcriptName = blxSequenceGetName(blxSeq);
   stringProtect(ioChannel, transcriptName, &tmpError);
   stringProtect(ioChannel, blxSeq->idTag, &tmpError);
-      
+
   if (!tmpError)
     g_io_channel_write_unichar(ioChannel, '\n', &tmpError);
-  
+
   mspItem = blxSeq->mspList;
   int i = 0; /* keeps track of current transcript coord */
-  
+
   for ( ; mspItem && !tmpError; mspItem = mspItem->next)
     {
       const MSP* msp = (const MSP*)(mspItem->data);
-      
+
       /* Only output exons. Also, if an exon has child msps then ignore it: we will come across
        * the child msps themselves in the list so we don't want to output both the parent and the
        * child msps. */
@@ -1847,12 +1848,12 @@ void writeTranscriptToOutput(GIOChannel *ioChannel,
               const int start = i + 1;
               const int end = start + msp->qRange.length() - 1;
 
-              char *tmpStr = g_strdup_printf("%d %f %f %d %d %d %d %d %d %d", 
+              char *tmpStr = g_strdup_printf("%d %f %f %d %d %d %d %d %d %d",
                                              msp->type,
-                                             msp->score, 
+                                             msp->score,
                                              msp->id,
                                              msp->phase,
-                                             //          msp->fsColor, 
+                                             //          msp->fsColor,
                                              start,
                                              end,
                                              msp->sRange.min(),
@@ -1884,16 +1885,16 @@ void writeTranscriptToOutput(GIOChannel *ioChannel,
 
 /* write data from the given blxsequence to the given output pipe. if the ranges
  * are given, only outputs blxsequences that overlap either range */
-void writeBlxSequenceToOutput(GIOChannel *ioChannel, const BlxSequence *blxSeq, 
-                              IntRange *range1, IntRange *range2, 
+void writeBlxSequenceToOutput(GIOChannel *ioChannel, const BlxSequence *blxSeq,
+                              IntRange *range1, IntRange *range2,
                               GError **error)
 {
   GError *tmpError = NULL;
   gboolean outputSeq = (blxSeq && (blxSeq->type == BLXSEQUENCE_TRANSCRIPT || blxSeq->type == BLXSEQUENCE_MATCH));
-  
+
   int numMsps = countMspsToOutput(blxSeq, range1, range2);
   outputSeq &= numMsps > 0; /* only output the sequence if it has some valid msps */
-  
+
   if (outputSeq)
     {
       char *tmpStr = g_strdup_printf("%d %d %d",
@@ -1908,13 +1909,13 @@ void writeBlxSequenceToOutput(GIOChannel *ioChannel, const BlxSequence *blxSeq,
 
       if (!tmpError)
         g_io_channel_write_unichar(ioChannel, '\n', &tmpError);
-      
+
       /* now output the msps */
       GList *mspItem = blxSeq->mspList;
       for ( ; mspItem && !tmpError; mspItem = mspItem->next)
         {
           const MSP* const msp = (const MSP*)(mspItem->data);
-          
+
           if (outputMsp(msp, range1, range2))
             {
               writeMspToOutput(ioChannel, msp, &tmpError);
@@ -1941,19 +1942,19 @@ BlxSequence* readBlxSequenceFromText(char *text, int *numMsps)
   DEBUG_ENTER("readBlxSequenceFromText(text=%s)", text);
 
   char *curChar = text;
-  
+
   GError *error = NULL;
   BlxSequence *blxSeq = createEmptyBlxSequence();
-  
+
   if (error)
     {
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
       DEBUG_EXIT("readBlxSequenceFromText returning NULL");
       return NULL;
     }
-  
+
   nextChar(&curChar);
-  
+
   blxSeq->type = (BlxSequenceType)strtol(curChar, &curChar, 10);
   nextChar(&curChar);
 
@@ -1962,13 +1963,13 @@ BlxSequence* readBlxSequenceFromText(char *text, int *numMsps)
 
   *numMsps = strtol(curChar, &curChar, 10);
   nextChar(&curChar);
-  
+
   char *fullName = stringUnprotect(&curChar, NULL);
   blxSequenceSetValueFromString(blxSeq, BLXCOL_SEQNAME, fullName);
   g_free(fullName);
 
   blxSeq->idTag = stringUnprotect(&curChar, NULL);
-  
+
   DEBUG_EXIT("readBlxSequenceFromText returning numMsps=%d", *numMsps);
   return blxSeq;
 }
@@ -1979,12 +1980,12 @@ void writeMspToOutput(GIOChannel *ioChannel, const MSP* const msp, GError **erro
 {
   GError *tmpError = NULL;
 
-  char *tmpStr = g_strdup_printf("%d %f %f %d %d %d %d %d %d %d", 
+  char *tmpStr = g_strdup_printf("%d %f %f %d %d %d %d %d %d %d",
                                  msp->type,
-                                 msp->score, 
+                                 msp->score,
                                  msp->id,
                                  msp->phase,
-                                 //          msp->fsColor, 
+                                 //          msp->fsColor,
                                  msp->qRange.min(),
                                  msp->qRange.max(),
                                  msp->sRange.min(),
@@ -2031,18 +2032,18 @@ void readMspFromText(MSP *msp, char *text)
 
   /* ref seq range */
   nextChar(&curChar);
-  const int qStart = strtol(curChar, &curChar, 10); 
+  const int qStart = strtol(curChar, &curChar, 10);
   nextChar(&curChar);
-  const int qEnd = strtol(curChar, &curChar, 10); 
+  const int qEnd = strtol(curChar, &curChar, 10);
   msp->qRange.set(qStart, qEnd);
 
   /* match seq range */
   nextChar(&curChar);
-  const int sStart = strtol(curChar, &curChar, 10); 
+  const int sStart = strtol(curChar, &curChar, 10);
   nextChar(&curChar);
-  const int sEnd = strtol(curChar, &curChar, 10); 
+  const int sEnd = strtol(curChar, &curChar, 10);
   msp->sRange.set(sStart, sEnd);
-  
+
   nextChar(&curChar);
   msp->qStrand = (BlxStrand)strtol(curChar, &curChar, 10);
 
@@ -2062,18 +2063,18 @@ void readMspFromText(MSP *msp, char *text)
 static void insertMsp(MSP *msp, MSP **mspList, MSP **lastMsp)
 {
   /* Add it to the list */
-  if (!*mspList) 
+  if (!*mspList)
     {
       /* Nothing in list yet: make this the first entry */
       *mspList = msp;
     }
-  
+
   if (*lastMsp)
     {
       /* Tag it on to the end of the list */
       (*lastMsp)->next = msp;
     }
-  
+
   /* Make the 'lastMsp' pointer point to the new end of the list */
   *lastMsp = msp;
 }
@@ -2086,37 +2087,37 @@ static void insertMsp(MSP *msp, MSP **mspList, MSP **lastMsp)
 MSP* createEmptyMsp(MSP **lastMsp, MSP **mspList)
 {
   MSP *msp = new MSP;
-  
+
   int i = 0;
   for ( ; i < BLXMODEL_NUM_MODELS; ++i)
     msp->treePaths[i] = NULL;
 
   msp->next = NULL;
   msp->childMsps = NULL;
-  
+
   msp->type = BLXMSP_INVALID;
   msp->score = 0.0;
   msp->id = 0.0;
   msp->phase = 0;
-  
+
   msp->qname = NULL;
   msp->qFrame = UNSET_INT;
-  
+
   msp->sSequence = NULL;
   msp->sname = msp->sname_orig = NULL;
-  
+
   msp->desc = NULL;
-  
+
   msp->style = NULL;
-  
+
   msp->fs = NULL;
   msp->fsShape = BLXCURVE_BADSHAPE;
-  
+
   msp->xy = NULL;
   msp->gaps = NULL;
-  
+
   insertMsp(msp, mspList, lastMsp);
-  
+
   return msp;
 }
 
@@ -2140,7 +2141,7 @@ void destroyMspList(MSP **mspList)
     {
       destroyMspData(msp);
     }
-  
+
   /* Now free the MSPs themselves. */
   MSP *fmsp = NULL;
   for (msp = *mspList; msp; )
@@ -2149,9 +2150,9 @@ void destroyMspList(MSP **mspList)
       msp = msp->next;
       delete fmsp;
     }
-  
+
   *mspList = NULL;
-  
+
   return ;
 }
 
@@ -2163,7 +2164,7 @@ void destroyMspData(MSP *msp)
   freeStringPointer(&msp->sname);
   freeStringPointer(&msp->sname_orig);
   freeStringPointer(&msp->desc);
-  
+
   if (msp->gaps)
     {
       /* free the child msp list */
@@ -2180,11 +2181,11 @@ void destroyMspData(MSP *msp)
           CoordRange *range = (CoordRange*)(item->data);
           delete range;
         }
-      
+
       g_slist_free(msp->gaps);
       msp->gaps = NULL;
     }
-  
+
   if (msp->xy)
     {
       g_array_free(msp->xy, TRUE);
@@ -2198,10 +2199,10 @@ void destroyMspData(MSP *msp)
  * ('lastMsp') point to the new end of the list. We will hopefully get rid of mspList eventually
  * and replace it by featureLists. The new msp is added to the relevant list in the featureLists
  * array according to its type. Returns a pointer to the newly-created MSP. Also creates a BlxSequence
- * for this MSP's sequence name (or adds the MSP to the existing one, if it exists already), 
+ * for this MSP's sequence name (or adds the MSP to the existing one, if it exists already),
  * and adds that BlxSequence to the given seqList. Takes ownership of 'sequence'. */
 MSP* createNewMsp(GArray* featureLists[],
-                  MSP **lastMsp, 
+                  MSP **lastMsp,
                   MSP **mspList,
                   GList **seqList,
                   GList *columnList,
@@ -2224,50 +2225,50 @@ MSP* createNewMsp(GArray* featureLists[],
                   BlxStrand sStrand,
                   char *sequence,
                   const GQuark filename,
-                  GHashTable *lookupTable, 
+                  GHashTable *lookupTable,
                   BlxSequence *blxSeq,
                   GError **error)
 {
   MSP *msp = createEmptyMsp(lastMsp, mspList);
-  
+
   msp->type = mspType;
-  msp->score = score; 
-  msp->id = percentId; 
+  msp->score = score;
+  msp->id = percentId;
   msp->phase = phase;
   msp->filename = filename;
-  
+
   msp->qname = qName ? g_strdup(qName) : NULL;
-  
+
   msp->qFrame = qFrame;
   msp->qStrand = qStrand;
-  
+
   msp->sname = sName ? g_strdup(sName) : NULL;
   msp->sname_orig = sName_orig ? g_strdup(sName_orig) : NULL;
 
-  
-  msp->qRange.set(qStart, qEnd);  
+
+  msp->qRange.set(qStart, qEnd);
   msp->sRange.set(sStart, sEnd);
 
   /* For exons, introns and basic features, the s strand is not applicable. We always want the exon
-   * to be in the same direction as the ref sequence, so set the match seq strand to be 
+   * to be in the same direction as the ref sequence, so set the match seq strand to be
    * the same as the ref seq strand */
   if (mspIsBoxFeature(msp) || mspIsIntron(msp))
     {
       sStrand = qStrand;
     }
-  
+
   /* Add it to the relevant feature list. */
   featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
 
   /* For main feature types, add a new (or add to an existing) BlxSequence */
   if (typeIsBasic(mspType) ||
-      typeIsExon(mspType) || 
-      typeIsIntron(mspType) || 
-      typeIsMatch(mspType) || 
-      typeIsVariation(mspType) || 
+      typeIsExon(mspType) ||
+      typeIsIntron(mspType) ||
+      typeIsMatch(mspType) ||
+      typeIsVariation(mspType) ||
       typeIsRegion(mspType))
     {
-      addBlxSequences(msp->sname, msp->sname_orig, idTag, sStrand, dataType, source, 
+      addBlxSequences(msp->sname, msp->sname_orig, idTag, sStrand, dataType, source,
                       featureLists, lastMsp, mspList, seqList,
                       columnList, sequence, msp, lookupTable, blxSeq, error);
     }
@@ -2277,7 +2278,7 @@ MSP* createNewMsp(GArray* featureLists[],
       prefixError(*error, "Error creating MSP (ref seq='%s' [%d - %d], match seq = '%s' [%d - %d]). ",
                   qName, qStart, qEnd, sName, sStart, sEnd);
     }
-  
+
   return msp;
 }
 
@@ -2288,30 +2289,30 @@ MSP* createNewMsp(GArray* featureLists[],
  * if 'sort' is false (this is to avoid having to sort it every time if the caller intends to
  * re-sort the list later anyway) */
 MSP* copyMsp(const MSP* const src,
-             GArray* featureLists[],             
-             MSP **lastMsp, 
+             GArray* featureLists[],
+             MSP **lastMsp,
              MSP **mspList,
              const gboolean addToParent,
              const gboolean sort)
 {
   MSP *msp = createEmptyMsp(lastMsp, mspList);
-  
+
   msp->type = src->type;
-  msp->score = UNSET_INT; 
-  msp->id = UNSET_INT; 
+  msp->score = UNSET_INT;
+  msp->id = UNSET_INT;
   msp->phase = src->phase;
-  
+
   msp->qname = src->qname ? g_strdup(src->qname) : NULL;
-  
+
   msp->qFrame = src->qFrame;
   msp->qStrand = src->qStrand;
-  
+
   msp->sname = src->sname ? g_strdup(src->sname) : NULL;
   msp->sname_orig = src->sname_orig ? g_strdup(src->sname_orig) : NULL;
-  
-  msp->qRange.set(src->qRange);  
+
+  msp->qRange.set(src->qRange);
   msp->sRange.set(src->sRange);
-  
+
   /* For matches, exons and introns, add (or add to if already exists) a BlxSequence */
   if (addToParent && src->sSequence)
     {
@@ -2325,7 +2326,7 @@ MSP* copyMsp(const MSP* const src,
 
   /* Add it to the relevant feature list. */
   featureLists[msp->type] = g_array_append_val(featureLists[msp->type], msp);
-  
+
   return msp;
 }
 
@@ -2335,9 +2336,9 @@ MSP* copyMsp(const MSP* const src,
  * (and frees it if exon is null).
  * Exons and UTRs don't have phase, but we want to display them in the same reading frame
  * as the CDS in the same exon, if there is one; this function copies it to its siblings. */
-static void setExonChildList(MSP *exon, 
+static void setExonChildList(MSP *exon,
                              GList *childList,
-                             GArray* featureLists[], 
+                             GArray* featureLists[],
                              MSP **lastMsp,
                              MSP **mspList,
                              GList **seqList,
@@ -2354,20 +2355,20 @@ static void setExonChildList(MSP *exon,
   /* Take ownership of the child list */
   if (exon->childMsps)
     g_list_free(exon->childMsps);
-  
+
   exon->childMsps = childList;
-  
+
   /* Loop through and see if there's a CDS */
   GError *tmpError = NULL;
   int frame = UNSET_INT;
   int phase = UNSET_INT;
   gboolean found = FALSE;
-  
+
   GList *childItem = exon->childMsps;
   for ( ; childItem; childItem = childItem->next)
     {
       MSP *cds = (MSP*)(childItem->data);
-      
+
       if (cds->type == BLXMSP_CDS)
         {
           frame = cds->qFrame;
@@ -2384,7 +2385,7 @@ static void setExonChildList(MSP *exon,
               /* Replace the original cds with a new one truncated to this exon */
               int start = max(cds->qRange.min(), exon->qRange.min());
               int end = min(cds->qRange.max(), exon->qRange.max());
-              MSP *newCds = createMissingMsp(BLXMSP_CDS, start, end, cds->qname, cds->qFrame, cds->style, cds->sSequence, 
+              MSP *newCds = createMissingMsp(BLXMSP_CDS, start, end, cds->qname, cds->qFrame, cds->style, cds->sSequence,
                                              featureLists, lastMsp, mspList, seqList, columnList, lookupTable, &tmpError);
               reportAndClearIfError(&tmpError, G_LOG_LEVEL_WARNING);
 
@@ -2396,13 +2397,13 @@ static void setExonChildList(MSP *exon,
           break;
         }
     }
-  
+
   if (found)
     {
       /* Update the exon */
       exon->qFrame = frame;
       exon->phase = phase;
-      
+
       /* Loop through and update the other msps (i.e. exon and UTR get the same frame/phase info
          as the CDS) */
       for (childItem = exon->childMsps; childItem; childItem = childItem->next)
@@ -2422,40 +2423,40 @@ static MSP* createMissingMsp(const BlxMspType newType,
                              const char *qname,
                              const int newFrame,
                              BlxStyle *newStyle,
-                             BlxSequence *blxSeq, 
-                             GArray* featureLists[], 
-                             MSP **lastMsp, 
-                             MSP **mspList, 
+                             BlxSequence *blxSeq,
+                             GArray* featureLists[],
+                             MSP **lastMsp,
+                             MSP **mspList,
                              GList **seqList,
                              GList *columnList,
                              GHashTable *lookupTable,
                              GError **error)
 {
   MSP *result = NULL;
-  
+
   if (newType != BLXMSP_INVALID)
     {
       /* Create the new exon/cds/utr */
       DEBUG_OUT("Creating MSP for transcript '%s' of type %d.\n", blxSequenceGetName(blxSeq), newType);
-      
+
       GError *tmpError = NULL;
-      
+
       result = createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, newType, NULL, blxSequenceGetSource(blxSeq),
                             UNSET_INT, UNSET_INT, UNSET_INT, blxSeq->idTag,
                             qname, newStart, newEnd, blxSeq->strand, newFrame,
                             blxSequenceGetName(blxSeq), blxSequenceGetName(blxSeq),
                             UNSET_INT, UNSET_INT, blxSeq->strand, NULL,
                             0, lookupTable, blxSeq, &tmpError);
-      
+
       result->style = newStyle;
-      
+
       if (tmpError)
         {
           prefixError(tmpError, "Error constructing missing exon/cds/utr [type='%d']", newType);
           g_propagate_error(error, tmpError);
         }
     }
-  
+
   return result;
 }
 
@@ -2464,18 +2465,18 @@ static MSP* createMissingMsp(const BlxMspType newType,
  * at the startor end of the exon and, if so, construct a CDS/UTR to fill it. */
 static void createMissingCdsUtr(MSP *exon,
                                 GList **childList,
-                                BlxSequence *blxSeq, 
-                                GArray* featureLists[], 
-                                MSP **lastMsp, 
-                                MSP **mspList, 
-                                GList **seqList, 
+                                BlxSequence *blxSeq,
+                                GArray* featureLists[],
+                                MSP **lastMsp,
+                                MSP **mspList,
+                                GList **seqList,
                                 GList *columnList,
                                 GHashTable *lookupTable,
                                 GError **error)
 {
   MSP *startMsp = (MSP*)(g_list_first(*childList)->data);
   MSP *endMsp = (MSP*)(g_list_last(*childList)->data);
-  
+
   if (exon->qRange.min() < startMsp->qRange.min())
     {
       const BlxMspType type = (startMsp->type == BLXMSP_CDS ? BLXMSP_UTR : BLXMSP_CDS);
@@ -2495,11 +2496,11 @@ static void createMissingCdsUtr(MSP *exon,
 /* Create a UTR that spans the given exon, and add it to the given childList */
 static void createMissingUtr(MSP *exon,
                              GList **childList,
-                             BlxSequence *blxSeq, 
-                             GArray* featureLists[], 
-                             MSP **lastMsp, 
-                             MSP **mspList, 
-                             GList **seqList, 
+                             BlxSequence *blxSeq,
+                             GArray* featureLists[],
+                             MSP **lastMsp,
+                             MSP **mspList,
+                             GList **seqList,
                              GList *columnList,
                              GHashTable *lookupTable,
                              GError **error)
@@ -2512,11 +2513,11 @@ static void createMissingUtr(MSP *exon,
 /* Create an exon that spans the given child CDSs/UTRs. Must not be called with
  * an empty childList. */
 static MSP* createMissingExon(GList *childList,
-                              BlxSequence *blxSeq, 
-                              GArray* featureLists[], 
-                              MSP **lastMsp, 
-                              MSP **mspList, 
-                              GList **seqList, 
+                              BlxSequence *blxSeq,
+                              GArray* featureLists[],
+                              MSP **lastMsp,
+                              MSP **mspList,
+                              GList **seqList,
                               GList *columnList,
                               GHashTable *lookupTable,
                               GError **error)
@@ -2525,24 +2526,24 @@ static MSP* createMissingExon(GList *childList,
    * of increasing coords and should not overlap etc. */
   MSP *startMsp = (MSP*)(g_list_first(childList)->data);
   MSP *endMsp = (MSP*)(g_list_last(childList)->data);
-  
+
   MSP *result = createMissingMsp(BLXMSP_EXON, startMsp->qRange.min(), endMsp->qRange.max(), startMsp->qname, startMsp->qFrame, startMsp->style, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, error);
   return result;
 }
 
 
-/* Utility used by constructExonData to create a missing exon/cds/utr given 
+/* Utility used by constructExonData to create a missing exon/cds/utr given
  * two others out of the three - i.e. if we have an overlapping exon and cds we can
- * construct the corresponding utr. If created, the new msp is added to the given 
+ * construct the corresponding utr. If created, the new msp is added to the given
  * BlxSequence and the  MSP list. If a CDS is given and no UTR exists, assume the exon
  * spans the entire CDS (and similarly if a UTR is given but no CDS exists) */
-static void createMissingExonCdsUtr(MSP **exon, 
+static void createMissingExonCdsUtr(MSP **exon,
                                     GList **childList,
-                                    BlxSequence *blxSeq, 
-                                    GArray* featureLists[], 
-                                    MSP **lastMsp, 
-                                    MSP **mspList, 
-                                    GList **seqList, 
+                                    BlxSequence *blxSeq,
+                                    GArray* featureLists[],
+                                    MSP **lastMsp,
+                                    MSP **mspList,
+                                    GList **seqList,
                                     GList *columnList,
                                     GHashTable *lookupTable,
                                     GError **error)
@@ -2569,8 +2570,8 @@ static void createMissingExonCdsUtr(MSP **exon,
 /* Construct any missing exon data, i.e.
  *   - if we have a transcript and exons we can construct the introns;
  *   - if we have exons and CDSs we can construct the UTRs */
-static void constructExonData(BlxSequence *blxSeq, 
-                              GArray* featureLists[], 
+static void constructExonData(BlxSequence *blxSeq,
+                              GArray* featureLists[],
                               MSP **lastMsp,
                               MSP **mspList,
                               GList **seqList,
@@ -2578,31 +2579,31 @@ static void constructExonData(BlxSequence *blxSeq,
                               GHashTable *lookupTable)
 {
   GError *tmpError = NULL;
-  
+
   const MSP *prevMsp = NULL;
   const MSP *prevExon = NULL;
-  
+
   MSP *curExon = NULL;          /* the current exon we're looking at */
   GList *curChildMsps = NULL;   /* the child CDS/UTRs of the current exon */
   MSP *spanningCds = NULL;      /* hack to support invalid GFF used by zmap where a single CDS
                                  * spanning the entire range is given, rather than a separate CDS
                                  * feature for each exon */
-  
+
   /* Loop through all MSPs on this sequence (which must be sorted by position on the
-   * ref seq - createNewMsp automatically sorts them for us) and create any missing 
+   * ref seq - createNewMsp automatically sorts them for us) and create any missing
    * exon/cds/utr/introns. */
   GList *mspItem = blxSeq->mspList;
   gboolean finished = FALSE;
-  
+
   while (!finished)
     {
       MSP *msp = mspItem ? (MSP*)(mspItem->data) : NULL;
-      
+
       /* Only consider exons and introns */
       if (mspIsExon(msp) || mspIsIntron(msp) || !msp)
         {
           /* See if there was a gap between this exon and the previous one. There's a gap if
-           * we have two exons with space between them, or if we're at the first or last exon 
+           * we have two exons with space between them, or if we're at the first or last exon
            * and there's a gap to the end of the transcript. */
           gboolean foundGap = FALSE;
 
@@ -2623,22 +2624,22 @@ static void constructExonData(BlxSequence *blxSeq,
                * there's a gap between it and the start of the transcript */
               foundGap = blxSequenceGetStart(blxSeq, blxSeq->strand) < msp->qRange.min();
             }
-          
+
           if (foundGap || msp == NULL)
             {
               /* We've found a gap between exons, or reached the end. First, see if the current exon/cds or utr
                * is missing and construct it if possible. Also do this if we're at the last MSP. */
               createMissingExonCdsUtr(&curExon, &curChildMsps, blxSeq, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, &tmpError);
               reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
-              
+
               IntRange newRange;
-              
+
               if (prevExon && curExon && !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
                   /* Create an intron to span the gap */
                   newRange.set(prevExon->qRange.max() + 1, curExon->qRange.min() - 1);
                 }
-              else if (!prevExon && curExon && blxSequenceGetStart(blxSeq, blxSeq->strand) < curExon->qRange.min() && 
+              else if (!prevExon && curExon && blxSequenceGetStart(blxSeq, blxSeq->strand) < curExon->qRange.min() &&
 		       !mspIsIntron(msp) && !mspIsIntron(prevMsp))
                 {
                   /* Create an intron at the start */
@@ -2650,19 +2651,19 @@ static void constructExonData(BlxSequence *blxSeq,
                   /* Create an intron at the end */
                   newRange.set(curExon->qRange.max() + 1, blxSequenceGetEnd(blxSeq, blxSeq->strand));
                 }
-              
+
               if (curExon && newRange.isSet())
                 {
-                  createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_INTRON, NULL, blxSequenceGetSource(blxSeq), 
-                               curExon->score, curExon->id, 0, blxSeq->idTag, 
-                               curExon->qname, newRange.min(), newRange.max(), blxSeq->strand, curExon->qFrame, 
+                  createNewMsp(featureLists, lastMsp, mspList, seqList, columnList, BLXMSP_INTRON, NULL, blxSequenceGetSource(blxSeq),
+                               curExon->score, curExon->id, 0, blxSeq->idTag,
+                               curExon->qname, newRange.min(), newRange.max(), blxSeq->strand, curExon->qFrame,
                                blxSequenceGetName(blxSeq), blxSequenceGetName(blxSeq),
-                               UNSET_INT, UNSET_INT, blxSeq->strand, NULL, 
+                               UNSET_INT, UNSET_INT, blxSeq->strand, NULL,
                                0, lookupTable, blxSeq, &tmpError);
-                  
+
                   reportAndClearIfError(&tmpError, G_LOG_LEVEL_CRITICAL);
                 }
-              
+
               /* We're done with this exon, so set the exon's list of child msps
                * and reset the pointers */
               setExonChildList(curExon, curChildMsps, featureLists, lastMsp, mspList, seqList, columnList, lookupTable, &spanningCds);
@@ -2671,7 +2672,7 @@ static void constructExonData(BlxSequence *blxSeq,
               curExon = NULL;
               curChildMsps = NULL;
             }
-          
+
           if (msp && msp->type == BLXMSP_EXON)
             {
               curExon = msp;
@@ -2684,16 +2685,16 @@ static void constructExonData(BlxSequence *blxSeq,
             {
               curChildMsps = g_list_append(curChildMsps, msp);
             }
-          
+
           /* Remember the last MSP we saw */
           prevMsp = msp;
-          
+
           /* Proceed to the next MSP. We allow an extra loop with a NULL mspItem at the end, and then finish. */
           if (mspItem)
             mspItem = mspItem->next;
           else
             finished = TRUE;
-        } 
+        }
       else
         {
           /* Something that's not an exon/intron. Skip this BlxSequence. */
@@ -2710,7 +2711,7 @@ static void constructExonData(BlxSequence *blxSeq,
  *   - if we have multiple CDSs, copy the transcript so we can show each variant;
  *   - if we have a transcript and exons we can construct the introns;
  *   - if we have exons and CDSs we can construct the UTRs */
-static void constructTranscriptData(GArray* featureLists[], 
+static void constructTranscriptData(GArray* featureLists[],
                                     MSP **lastMsp,
                                     MSP **mspList,
                                     GList **seqList,
@@ -2750,7 +2751,7 @@ static void constructTranscriptData(GArray* featureLists[],
         {
           /* More than one variant: create copies of the transcript for each variant */
           GList *cdsItem = cdsList;
-  
+
           for ( ; cdsItem && !tmpError; cdsItem = cdsItem->next)
             {
               GQuark cdsQuark = GPOINTER_TO_INT(cdsItem->data);
@@ -2785,10 +2786,10 @@ static void adjustMspCoordsByOffset(MSP *msp, const int offset)
        * that we're dealing with) to "real" coords (i.e. coords that the user will see). */
       msp->qRange.set(msp->qRange.min() + offset,
                       msp->qRange.max() + offset);
-      
+
       /* Gap coords are also 1-based, so convert those too */
       GSList *rangeItem = msp->gaps;
-      
+
       for ( ; rangeItem; rangeItem = rangeItem->next)
         {
           CoordRange *curRange = (CoordRange*)(rangeItem->data);
@@ -2818,36 +2819,36 @@ static void findSequenceExtents(BlxSequence *blxSeq)
 }
 
 
-/* Get the offset required from the given base to give the coord that is the first base in 
+/* Get the offset required from the given base to give the coord that is the first base in
  * the first codon of reading frame 1 (or the last codon in reading frame 3 for the reverse strand) */
 static int getOffsetToCodonStart(const int coord, const int numFrames, const BlxStrand strand)
 {
   int offset = 0;
-  
+
   if (strand == BLXSTRAND_FORWARD)
     {
-      /* If the sequence is 
+      /* If the sequence is
        *     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ...
        * then the calculated base below will be
        *     0, 1, 2, 0, 1, 2, 0, 1, 2, 0,  1, ...
        * so we have to offset the coords by the following values to get to a base1 coord
        *     0, 2, 1, 0, 2, 1, 0, 2, 1, 0,  2, ...
        */
-      
+
       int base = ((coord - 1) % numFrames); /* 0, 1 or 2 */
       offset = numFrames - base;            /* 3, 2 or 1 */
-      
+
       if (offset >= numFrames)
 	offset -= numFrames;                /* 0, 2 or 1 */
     }
   else
     {
       /* I'm not sure if there is a convention for where the reading frame starts in the reverse
-       * strand, so I've made up my own convention. It essentially means that we want the first 
+       * strand, so I've made up my own convention. It essentially means that we want the first
        * coord in the reversed sequence to be the last base in the last reading frame, i.e. base 3 in frame 3.
        *
        * If the forward strand coords are
-       *             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 
+       *             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
        * then the have the following base numbers for each frame
        * frame 1:    1, 2, 3, 1, 2, 3, 1, 2, 3, 1,  2
        * frame 2:    3, 1, 2, 3, 1, 2, 3, 1, 2, 3,  1
@@ -2861,11 +2862,11 @@ static int getOffsetToCodonStart(const int coord, const int numFrames, const Blx
        * to get to a frame1-base2 coord are:
        *              0,  2, 1, 0, 2, 1, 0, 2, 1, 0, 2
        */
-      
+
       int base = (coord + 1) % numFrames;   /* 0, 2 or 1 */
       offset = base;
     }
-  
+
   return offset;
 }
 
@@ -2875,7 +2876,7 @@ static int getOffsetToCodonStart(const int coord, const int numFrames, const Blx
  * assumes a phase of 0 and gives a warning. */
 static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFrames, const IntRange* const refSeqRange)
 {
-  /* For matches and exons, calculate frame if the phase is known, because the old code that 
+  /* For matches and exons, calculate frame if the phase is known, because the old code that
    * used to pass the reading frame in exblx files seemed to occasionally pass an incorrect reading frame. */
   if (!mspIsIntron(msp))
     {
@@ -2883,14 +2884,14 @@ static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFr
        * plus (or minus) the phase (if non-zero), which initially gets stored in the qFrame field in the MSP... */
       const int direction = (msp->qStrand == BLXSTRAND_FORWARD ? 1 : -1);
       const int coord = mspGetQStart(msp) + (direction * msp->phase);
-      
+
       /* Find the reading frame that this coord belongs in. This is the same as the base number within
        * reading frame 1. */
       int frame = UNSET_INT;
       const gboolean invertCoords = (mspGetRefStrand(msp) == BLXSTRAND_REVERSE);
-      
+
       convertDnaIdxToDisplayIdx(coord, seqType, 1, numFrames, invertCoords, refSeqRange, &frame);
-      
+
       if (frame > 0)
 	{
 	  if (msp->qFrame > 0 && mspIsExon(msp))
@@ -2902,12 +2903,12 @@ static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFr
 	      const int startCoord = (msp->qStrand == BLXSTRAND_REVERSE ? refSeqRange->max() : refSeqRange->min());
 	      const int offset = getOffsetToCodonStart(startCoord, numFrames, msp->qStrand);
 	      msp->qFrame += offset;
-	      
+
 	      if (msp->qFrame > numFrames)
 		{
 		  msp->qFrame -= numFrames;
 		}
-	      
+
 	      if (msp->qFrame != frame && seqType == BLXSEQ_PEPTIDE)
 		{
 		  g_warning("MSP '%s' (q=%d-%d; s=%d-%d) has reading frame '%d' but calculated frame was '%d'\n", mspGetSName(msp), msp->qRange.min(), msp->qRange.max(), msp->sRange.min(), msp->sRange.max(), msp->qFrame, frame);
@@ -2915,12 +2916,12 @@ static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFr
 	    }
 	  else
 	    {
-	      /* We either have the new file format which provides phase or it's not an exon so phase 
+	      /* We either have the new file format which provides phase or it's not an exon so phase
 	       * is not applicable, so we can trust the calculated value. */
 	      msp->qFrame = frame;
 	    }
 	}
-      
+
       if (msp->qFrame == UNSET_INT)
 	{
 	  g_warning("Reading frame could not be calculated for MSP '%s' (q=%d-%d; s=%d-%d) - setting to 1.\n", mspGetSName(msp), msp->qRange.min(), msp->qRange.max(), msp->sRange.min(), msp->sRange.max());
@@ -2932,12 +2933,12 @@ static void calcReadingFrame(MSP *msp, const BlxSeqType seqType, const int numFr
 
 /* Should be called after all parsed data has been added to a BlxSequence. Calculates summary
  * data and the introns etc. */
-void finaliseBlxSequences(GArray* featureLists[], 
-			  MSP **mspList, 
-			  GList **seqList, 
+void finaliseBlxSequences(GArray* featureLists[],
+			  MSP **mspList,
+			  GList **seqList,
                           GList *columnList,
 			  const int offset,
-			  const BlxSeqType seqType, 
+			  const BlxSeqType seqType,
 			  const int numFrames,
 			  const IntRange* const refSeqRange,
 			  const gboolean calcFrame,
@@ -2953,26 +2954,26 @@ void finaliseBlxSequences(GArray* featureLists[],
   while (msp)
     {
       adjustMspCoordsByOffset(msp, offset);
-    
+
       if (calcFrame)
 	calcReadingFrame(msp, seqType, numFrames, refSeqRange);
-    
+
       msp = msp->next;
       if (msp)
         lastMsp = msp;
     }
-  
+
   /* Loop through all BlxSequences */
   GList *seqItem = *seqList;
-  
+
   for ( ; seqItem; seqItem = seqItem->next)
     {
-      /* So far we only have the forward strand version of each sequence. We must complement any 
+      /* So far we only have the forward strand version of each sequence. We must complement any
        * that need the reverse strand */
       BlxSequence *blxSeq = (BlxSequence*)(seqItem->data);
 
-      if (blxSeq && 
-          blxSeq->strand == BLXSTRAND_REVERSE && 
+      if (blxSeq &&
+          blxSeq->strand == BLXSTRAND_REVERSE &&
           blxSequenceGetFlag(blxSeq, MSPFLAG_STRAND_SPECIFIC) &&
           blxSequenceGetFlag(blxSeq, MSPFLAG_SHOW_REVERSE_STRAND) &&
           blxSequenceGetSequence(blxSeq))
@@ -3011,15 +3012,15 @@ int findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand s
 {
   int result = UNSET_INT;
   gboolean first = TRUE;
-  
+
   GList *mspItem = mspList;
-  
+
   for ( ; mspItem; mspItem = mspItem->next)
     {
       const MSP* const msp = (const MSP*)(mspItem->data);
-    
+
       if (msp->qStrand == strand || strand == BLXSTRAND_NONE)
-	{      
+	{
 	  if (first)
 	    {
 	      result = findMin ? msp->qRange.min() : msp->qRange.max();
@@ -3035,7 +3036,7 @@ int findMspListQExtent(GList *mspList, const gboolean findMin, const BlxStrand s
 	    }
 	}
     }
-  
+
   return result;
 }
 
@@ -3045,13 +3046,13 @@ int findMspListSExtent(GList *mspList, const gboolean findMin)
 {
   int result = UNSET_INT;
   gboolean first = TRUE;
-  
+
   GList *mspItem = mspList;
-  
+
   for ( ; mspItem; mspItem = mspItem->next)
     {
       const MSP* const msp = (const MSP*)(mspItem->data);
-      
+
       if (first)
 	{
 	  result = findMin ? msp->sRange.min() : msp->sRange.max();
@@ -3066,7 +3067,7 @@ int findMspListSExtent(GList *mspList, const gboolean findMin)
 	  result = msp->sRange.max();
 	}
     }
-  
+
   return result;
 }
 
@@ -3075,7 +3076,7 @@ int findMspListSExtent(GList *mspList, const gboolean findMin)
 gboolean mspFlagGetDefault(const MspFlag flag)
 {
   gboolean result = FALSE;
-  
+
   if (flag > MSPFLAG_MIN && flag < MSPFLAG_NUM_FLAGS)
     {
       /* The defaults are populated when we create a BlxDataType,
@@ -3083,7 +3084,7 @@ gboolean mspFlagGetDefault(const MspFlag flag)
        * is made a global so that we can also change the defaults. */
       if (!g_DefaultDataType)
         g_DefaultDataType = createBlxDataType();
-      
+
       if (g_DefaultDataType)
         result = g_DefaultDataType->flags[flag];
       else
@@ -3093,7 +3094,7 @@ gboolean mspFlagGetDefault(const MspFlag flag)
     {
       g_critical("Program error: attempt to use unknown MSP flag '%d'\n", flag);
     }
-  
+
   return result;
 }
 
@@ -3107,7 +3108,7 @@ void mspFlagSetDefault(const MspFlag flag, const gboolean value)
        * so create a dummy one so that we can access and set them. */
       if (!g_DefaultDataType)
         g_DefaultDataType = createBlxDataType();
-      
+
       if (g_DefaultDataType)
         g_DefaultDataType->flags[flag] = value;
     }
@@ -3123,8 +3124,8 @@ ColinearityType mspIsColinear(const MSP* const msp1, const MSP* const msp2)
 {
   ColinearityType result = COLINEAR_INVALID;
 
-  if (msp1 && msp2 && msp1->qStrand == msp2->qStrand && 
-      msp1->sSequence && msp2->sSequence && 
+  if (msp1 && msp2 && msp1->qStrand == msp2->qStrand &&
+      msp1->sSequence && msp2->sSequence &&
       msp1->sSequence->strand == msp2->sSequence->strand)
     {
       if (msp2->sRange.min() < msp1->sRange.max())
@@ -3145,7 +3146,7 @@ gboolean dataTypeGetFlag(const BlxDataType* const dataType, const MspFlag flag)
   gboolean result = mspFlagGetDefault(flag);
 
   if (flag > MSPFLAG_MIN && flag < MSPFLAG_NUM_FLAGS)
-    {  
+    {
       if (dataType)
         result = dataType->flags[flag];
     }
@@ -3153,7 +3154,7 @@ gboolean dataTypeGetFlag(const BlxDataType* const dataType, const MspFlag flag)
     {
       g_critical("Program error: attempt to use unknown MSP flag '%d'\n", flag);
     }
-  
+
   return result;
 }
 
@@ -3162,10 +3163,10 @@ gboolean dataTypeGetFlag(const BlxDataType* const dataType, const MspFlag flag)
 gboolean blxSequenceGetFlag(const BlxSequence* const blxSeq, const MspFlag flag)
 {
   gboolean result = mspFlagGetDefault(flag);
-  
+
   if (blxSeq)
     result = dataTypeGetFlag(blxSeq->dataType, flag);
-    
+
   return result;
 }
 
@@ -3174,10 +3175,10 @@ gboolean blxSequenceGetFlag(const BlxSequence* const blxSeq, const MspFlag flag)
 gboolean mspGetFlag(const MSP* const msp, const MspFlag flag)
 {
   gboolean result = mspFlagGetDefault(flag);
-  
+
   if (msp)
     result = blxSequenceGetFlag(msp->sSequence, flag);
-  
+
   return result;
 }
 
@@ -3185,7 +3186,7 @@ gboolean mspGetFlag(const MSP* const msp, const MspFlag flag)
 const char* mspFlagGetConfigKey(const MspFlag flag)
 {
   const char *result = NULL;
-  
+
   if (flag > MSPFLAG_MIN && flag < MSPFLAG_NUM_FLAGS)
     {
       /* To make sure we don't access the array out of bounds, loop
@@ -3205,14 +3206,14 @@ const char* mspFlagGetConfigKey(const MspFlag flag)
             {
               result = g_MspFlagConfigKeys[i];
               break;
-            }          
+            }
         }
     }
   else
     {
       g_critical("Program error: Tried to use an unknown MSP flag '%d'\n", flag);
     }
-  
+
   return result;
 }
 
@@ -3221,7 +3222,7 @@ const char* mspFlagGetConfigKey(const MspFlag flag)
 static BlxSequenceType getBlxSequenceTypeForMsp(const BlxMspType mspType)
 {
   BlxSequenceType result = BLXSEQUENCE_UNSET;
-  
+
   if (mspType == BLXMSP_MATCH)
     {
       result = BLXSEQUENCE_MATCH;
@@ -3249,15 +3250,15 @@ static GQuark getLookupKey(const char *text, const BlxStrand strand)
   char *keyStr = g_strdup_printf("%s%c", text, (strand == BLXSTRAND_FORWARD ? '+' : '-'));
   GQuark key = g_quark_from_string(keyStr);
   g_free(keyStr);
-  
+
   return key;
 }
 
 
-/* Utility to find a blxsequence with the given name/id/strand in the 
+/* Utility to find a blxsequence with the given name/id/strand in the
  * given hash table. Returns null if it is not there. */
 static BlxSequence* findBlxSequence(GHashTable *lookupTable,
-                                    const char *name, 
+                                    const char *name,
                                     const char *idTag,
                                     const BlxStrand strand,
                                     const gboolean linkFeaturesByName)
@@ -3304,7 +3305,7 @@ static gint columnIdCompareFunc(gconstpointer a, gconstpointer b)
 
 /* Create a new sequence with the given name and/or ID tag */
 static BlxSequence* createBlxSequence(const char *name,
-                                      const char *idTag, 
+                                      const char *idTag,
                                       const BlxStrand strand,
                                       BlxDataType *dataType,
                                       const char *source,
@@ -3327,7 +3328,7 @@ static BlxSequence* createBlxSequence(const char *name,
   /* Sort the columns by column ID (NOT column index) so that we
    * can easily index on the ID when looking up values in the array */
   columnList = g_list_sort(columnList, columnIdCompareFunc);
-  
+
   GList *item = columnList;
   for ( ; item; item = item->next)
     {
@@ -3336,13 +3337,13 @@ static BlxSequence* createBlxSequence(const char *name,
        * the display order, which is not relevant here. */
       BlxColumnInfo * columnInfo = (BlxColumnInfo*)(item->data);
       GType type = columnInfo->type;
-      
+
       /* Bit of a hack; the sequence column type is pointer because we
        * pass a pointer to the msp to the cell renderer, but here we want to
        * store the actual sequence string */
       if (columnInfo->columnId == BLXCOL_SEQUENCE)
         type = G_TYPE_STRING;
-      
+
       GValue value = {0};
       g_value_init(&value, type);
 
@@ -3363,19 +3364,19 @@ static BlxSequence* createBlxSequence(const char *name,
 /* Wrapper for addBlxSequence to add multiple sequences. The idTag might be a comma-separated
  * list of parent IDs, in which case we need to add the msp to multiple BlxSequences (creating
  * those BlxSequences if they don't exist. */
-static void addBlxSequences(const char *name, 
-                            const char *name_orig, 
-                            const char *idTag, 
+static void addBlxSequences(const char *name,
+                            const char *name_orig,
+                            const char *idTag,
                             BlxStrand strand,
                             BlxDataType *dataType,
                             const char *source,
                             GArray *featureLists[],
                             MSP **lastMsp,
                             MSP **mspList,
-                            GList **seqList, 
+                            GList **seqList,
                             GList *columnList,
-                            char *sequence, 
-                            MSP *msp_in, 
+                            char *sequence,
+                            MSP *msp_in,
                             GHashTable *lookupTable,
                             BlxSequence *blxSeq,
                             GError **error)
@@ -3396,10 +3397,10 @@ static void addBlxSequences(const char *name,
       char **tokens = g_strsplit_set(idTag, ",", -1);   /* -1 means do all tokens. */
       char **token = tokens;
       gboolean usedMsp = FALSE;
-      
+
       while (token && *token && **token && !tmpError)
         {
-          /* If we've already used the passed-in msp, then we need to make a copy of it to 
+          /* If we've already used the passed-in msp, then we need to make a copy of it to
            * add to the next BlxSequence (because the msp points to its BlxSequence so can't
            * be added to multiple BlxSequences, at least at the moment) */
           if (usedMsp)
@@ -3427,19 +3428,19 @@ static void addBlxSequences(const char *name,
 
 /* Add or create a BlxSequence struct, creating the BlxSequence if one does not
  * already exist for the MSP's sequence name. Seperate BlxSequence structs are created
- * for the forward and reverse strands of the same sequence. The passed-in sequence 
- * should always be forwards, and we reverse complement it here if we need the 
+ * for the forward and reverse strands of the same sequence. The passed-in sequence
+ * should always be forwards, and we reverse complement it here if we need the
  * reverse strand. Returns the new BlxSequence */
-BlxSequence* addBlxSequence(const char *name, 
-                            const char *name_orig, 
-			    const char *idTag, 
+BlxSequence* addBlxSequence(const char *name,
+                            const char *name_orig,
+			    const char *idTag,
 			    BlxStrand strand,
 			    BlxDataType *dataType,
                             const char *source,
-			    GList **seqList, 
+			    GList **seqList,
                             GList *columnList,
-			    char *sequence, 
-			    MSP *msp, 
+			    char *sequence,
+			    MSP *msp,
                             GHashTable *lookupTable,
                             BlxSequence *blxSeq_in,
                             GError **error)
@@ -3448,25 +3449,25 @@ BlxSequence* addBlxSequence(const char *name,
 
   if (blxSeq || name || idTag)
     {
-      /* If this is an exon, intron or basic feature the match strand is not applicable. The exon should 
+      /* If this is an exon, intron or basic feature the match strand is not applicable. The exon should
        * be in the same direction as the ref seq, so use the ref seq strand. */
       if (msp && (mspIsBoxFeature(msp) || mspIsIntron(msp)))
         {
           strand = msp->qStrand;
         }
-    
+
       /* See if this sequence already exists. This matches on name (if linkFeaturesByName is
        * true) or on tag, and strand. */
       gboolean linkFeaturesByName = dataTypeGetFlag(dataType, MSPFLAG_LINK_FEATURES_BY_NAME);
 
       if (!blxSeq)
         blxSeq = findBlxSequence(lookupTable, name, idTag, strand, linkFeaturesByName);
-      
+
       if (!blxSeq)
         {
           /* Create a new BlxSequence, and take ownership of the passed in sequence (if any) */
           blxSeq = createBlxSequence(name, idTag, strand, dataType, source, columnList);
-          
+
           /* Add it to the return sequence list (must append it because this function can be
            * called from within a loop which relies on new sequences being appended) */
           *seqList = g_list_prepend(*seqList, blxSeq);
@@ -3485,7 +3486,7 @@ BlxSequence* addBlxSequence(const char *name,
             blxSeq->dataType = dataType;
           else if (dataType && blxSeq->dataType != dataType)
             g_warning("Duplicate sequences have different data types [name=%s, ID=%s, strand=%d, orig type=%s, new type=%s].\n", name, idTag, strand, g_quark_to_string(blxSeq->dataType->name), g_quark_to_string(dataType->name));
-          
+
           const char *oldSource = blxSequenceGetSource(blxSeq);
 
           if (source && !oldSource)
@@ -3493,7 +3494,7 @@ BlxSequence* addBlxSequence(const char *name,
           else if (source && !stringsEqual(oldSource, source, FALSE))
             g_warning("Duplicate sequences have different sources [name=%s, ID=%s, strand=%d, orig source=%s, new source=%s].\n", name, idTag, strand, oldSource, source);
         }
-      
+
       if (name && !blxSequenceGetName(blxSeq))
 	{
 	  /* It's possible that the BlxSequence was created without a name if we found an
@@ -3504,24 +3505,24 @@ BlxSequence* addBlxSequence(const char *name,
           if (linkFeaturesByName)
             g_hash_table_insert(lookupTable, GINT_TO_POINTER(getLookupKey(name, strand)), blxSeq);
 	}
-      
+
       if (msp)
         {
           /* Add the MSP to the BlxSequence's list. Keep it sorted by position. */
           blxSeq->mspList = g_list_insert_sorted(blxSeq->mspList, msp, compareFuncMspPos);
           msp->sSequence = blxSeq;
-          
+
           if (blxSeq->type == BLXSEQUENCE_UNSET)
             {
               blxSeq->type = getBlxSequenceTypeForMsp(msp->type);
             }
           else if (blxSeq->type != getBlxSequenceTypeForMsp(msp->type))
             {
-              g_warning("Adding MSP of type %d to parent of type %d (expected parent type to be %d)\n", 
+              g_warning("Adding MSP of type %d to parent of type %d (expected parent type to be %d)\n",
 			msp->type, blxSeq->type, getBlxSequenceTypeForMsp(msp->type));
             }
         }
-      
+
       /* Add the sequence data */
       addBlxSequenceData(blxSeq, sequence, error);
     }
@@ -3529,14 +3530,14 @@ BlxSequence* addBlxSequence(const char *name,
     {
       g_set_error(error, BLX_ERROR, 1, "Sequence name or parent ID must be set.\n");
     }
-  
+
   return blxSeq;
 }
 
 
 /* Add the given sequence data to a BlxSequence. Validates that the existing sequence data is
  * either null or is the same as the new data; sets the given error if not. We claim ownership
- * of the given sequence data (either the BlxSequence owns it, or we delete it if it is not 
+ * of the given sequence data (either the BlxSequence owns it, or we delete it if it is not
  * required). The given sequence should always be the forward strand; we complement it ourselves
  * here if this BlxSequence requires the reverse strand. */
 void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
@@ -3545,11 +3546,11 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
     {
       return;
     }
-  
+
   gboolean sequenceUsed = FALSE;
 
   const char *oldSequence = blxSequenceGetSequence(blxSeq);
-  
+
   if (blxSeq && blxSequenceRequiresSeqData(blxSeq))
     {
       if (!oldSequence)
@@ -3566,8 +3567,8 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
               g_set_error(error, BLX_ERROR, BLX_ERROR_SEQ_DATA_MISMATCH, "Sequence data for '%s' does not match previously-found data.\n", blxSequenceGetName(blxSeq));
             }
         }
-    }      
-  
+    }
+
   if (!sequenceUsed)
     {
       g_free(sequence);
@@ -3580,7 +3581,7 @@ void addBlxSequenceData(BlxSequence *blxSeq, char *sequence, GError **error)
  ***********************************************************/
 
 /* Creates a data "column" from the given info and adds it to the columnList. */
-void blxColumnCreate(BlxColumnId columnId, 
+void blxColumnCreate(BlxColumnId columnId,
                      const gboolean createHeader,
                      const char *title,
                      GType type,
@@ -3598,17 +3599,17 @@ void blxColumnCreate(BlxColumnId columnId,
 {
   /* Create a simple label for the header (unless told not to) */
   GtkWidget *headerWidget = NULL;
-  
+
   if (createHeader)
     {
       headerWidget = createLabel(title, 0.0, 1.0, TRUE, TRUE, TRUE);
       gtk_widget_set_size_request(headerWidget, defaultWidth, -1);
     }
-  
+
   /* Create the column info */
   BlxColumnInfo *columnInfo = new BlxColumnInfo;
 
-  static int columnIdx = 0;  
+  static int columnIdx = 0;
   columnInfo->columnIdx = columnIdx;
   ++columnIdx;
 
@@ -3627,7 +3628,7 @@ void blxColumnCreate(BlxColumnId columnId,
   columnInfo->canShowSummary = canShowSummary;
   columnInfo->searchable = searchable;
   columnInfo->type = type;
-  
+
   /* Place it in the list. List must be sorted in the same order
    * as the GtkListStore or gtk_list_store_set fails */
   *columnList = g_list_insert_sorted(*columnList, columnInfo, columnIdxCompareFunc);
@@ -3650,7 +3651,7 @@ GList* blxSequenceConstructCdsList(BlxSequence *seq)
       for ( ; mspItem; mspItem = mspItem->next)
         {
           const MSP *msp = (const MSP*)(mspItem->data);
-          
+
           if (msp->type == BLXMSP_CDS)
             {
               GQuark name = 0;
@@ -3669,13 +3670,13 @@ GList* blxSequenceConstructCdsList(BlxSequence *seq)
 
 
 /***********************************************************
- *              Sequence manipulation                      * 
+ *              Sequence manipulation                      *
  ***********************************************************/
 
 /* Get the spliced sequence for a given transcript. The result should be free'd by the caller
  * with g_free. Returns null and sets the error if there was a problem. */
-char *blxSequenceGetSplicedSequence(const BlxSequence* const blxSeq, 
-                                    const char *refSeq, 
+char *blxSequenceGetSplicedSequence(const BlxSequence* const blxSeq,
+                                    const char *refSeq,
                                     const IntRange* const refSeqRange,
                                     GError **error)
 {
@@ -3684,13 +3685,13 @@ char *blxSequenceGetSplicedSequence(const BlxSequence* const blxSeq,
 
   GString *resultStr = g_string_new(NULL);
   const int refSeqLen = strlen(refSeq);
-  
+
   GList *mspItem = blxSeq->mspList;
-  
+
   for ( ; mspItem; mspItem = mspItem->next)
     {
       const MSP* msp = (const MSP*)(mspItem->data);
-      
+
       /* Ignore msps that have child msps (we just want to export the child msps) */
       if (mspIsBoxFeature(msp) && !msp->childMsps)
         {
@@ -3699,7 +3700,7 @@ char *blxSequenceGetSplicedSequence(const BlxSequence* const blxSeq,
           /* It's possible that some exons may be out of bounds: clip them. */
           if (i < 0)
             i = 0;
-          
+
           int iMax = msp->qRange.max() - refSeqRange->min();
           if (iMax >= refSeqLen)
             iMax = refSeqLen - 1;
@@ -3736,4 +3737,3 @@ char *blxSequenceGetSplicedSequence(const BlxSequence* const blxSeq,
 
   return result;
 }
-

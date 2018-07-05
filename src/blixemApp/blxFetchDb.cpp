@@ -1,5 +1,6 @@
 /*  File: blxFetchDb.c
  *  Author: Gemma Barson, 2012-08-06
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -30,7 +31,7 @@
  *
  * Description: Blixem functions for control of sequence fetching and
  *              display.
- *              
+ *
  *              Compiling with -DSQLITE3 includes code to issue
  *              fetch requests to an sqlite3 database.
  *              This requires sqlite3 libs to be installed.
@@ -77,7 +78,7 @@ static BlxSequence* findBlxSequence(const char *seqName, GList *seqList)
     {
       BlxSequence* blxSeq = (BlxSequence*)(item->data);
       const char *curName = blxSequenceGetName(blxSeq);
-      
+
       if (stringsEqual(curName, seqName, FALSE))
         result = blxSeq;
     }
@@ -137,7 +138,7 @@ static int populateResultsListCB(void *data, int argc, char **argv, char **azCol
     {
       nameCol = g_quark_from_string("Name");
     }
-  
+
   SqliteFetchData *fetchData = (SqliteFetchData*)data;
 
   /* Loop through the columns to find the name column,
@@ -148,7 +149,7 @@ static int populateResultsListCB(void *data, int argc, char **argv, char **azCol
   for (i = 0; i < argc && !blxSeq; ++i)
     {
       GQuark column = g_quark_from_string(azColName[i]);
-      
+
       if (column == nameCol)
         {
           blxSeq = findBlxSequence(argv[i], fetchData->seqList);
@@ -179,7 +180,7 @@ void sqliteRequest(const char *database, const char *query, SqliteFunc callbackF
   sqlite3 *db;
 
   int rc = sqlite3_open(database, &db);
-  
+
   if (rc)
     {
       fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
@@ -232,8 +233,8 @@ void sqliteValidateFetchMethod(const BlxFetchMethod* const fetchMethod, GError *
 
 
 /* Fetch multiple sequences using sqlite */
-void sqliteFetchSequences(GList *seqsToFetch, 
-                          const BlxFetchMethod* const fetchMethod, 
+void sqliteFetchSequences(GList *seqsToFetch,
+                          const BlxFetchMethod* const fetchMethod,
                           GList *columnList,
                           GError **error)
 {
@@ -241,7 +242,7 @@ void sqliteFetchSequences(GList *seqsToFetch,
 
   GError *tmpError = NULL;
   sqliteValidateFetchMethod(fetchMethod, &tmpError);
-    
+
   GString *query = NULL;
 
   if (!tmpError)
@@ -250,10 +251,10 @@ void sqliteFetchSequences(GList *seqsToFetch,
     }
 
   SqliteFetchData fetchData = {seqsToFetch, columnList};
-  
+
   if (query && !tmpError)
     {
-      sqliteRequest(fetchMethod->location, 
+      sqliteRequest(fetchMethod->location,
                     query->str,
                     populateResultsListCB,
                     &fetchData,
@@ -261,10 +262,9 @@ void sqliteFetchSequences(GList *seqsToFetch,
     }
 
   g_string_free(query, TRUE);
-  
+
   if (tmpError)
     g_propagate_error(error, tmpError);
 
   DEBUG_EXIT("sqliteFetchSequences");
 }
-

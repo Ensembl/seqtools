@@ -1,5 +1,6 @@
 /*  File: exonview.c
  *  Author: Gemma Barson, 2009-12-24
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -60,15 +61,15 @@ public:
   GtkWidget *widget;                  /* The exon view */
   GtkWidget *bigPicture;	      /* The big picture that this view belongs to */
   BlxStrand currentStrand;	      /* Which strand of the ref seq this view displays exons for */
-    
+
   gboolean expanded;		      /* Whether the exon view is expanded or compressed */
-    
+
   int yPad;			      /* y padding */
-    
+
   GdkRectangle exonViewRect;	      /* The drawing area for the exon view */
   GdkRectangle highlightRect;       /* The area that the highlight box will cover (indicating the current detail-view display range) */
-    
-  int exonHeight;                   /* the height of an individual exon */ 
+
+  int exonHeight;                   /* the height of an individual exon */
 };
 
 
@@ -105,8 +106,8 @@ static ExonViewProperties*	exonViewGetProperties(GtkWidget *exonView);
  *                       Utility functions                 *
  ***********************************************************/
 
-/* Calls the given function (passed as the data pointer) on the given widget 
- * if it is an exon view in the big picture view, or, if it is a container, 
+/* Calls the given function (passed as the data pointer) on the given widget
+ * if it is an exon view in the big picture view, or, if it is a container,
  * calls the function on all children/grandchildren/etc that are exon views */
 void callFuncOnAllBigPictureExonViews(GtkWidget *widget, gpointer data)
 {
@@ -123,15 +124,15 @@ void callFuncOnAllBigPictureExonViews(GtkWidget *widget, gpointer data)
 }
 
 
-static gboolean calculateExonIntronDimensions(const MSP* const msp, 
+static gboolean calculateExonIntronDimensions(const MSP* const msp,
                                               BlxContext *bc,
                                               const IntRange* const displayRange,
                                               GdkRectangle *exonViewRect,
-                                              int *x, 
+                                              int *x,
                                               int *width)
 {
   gboolean drawn = FALSE;
-  
+
   /* Find the coordinates of the start and end base in this msp, converting to display coords. Note
    * that display coords always increase from left-to-right, even if the actual coords are inverted. */
   const IntRange* const mspDisplayRange = mspGetDisplayRange(msp);
@@ -145,20 +146,20 @@ static gboolean calculateExonIntronDimensions(const MSP* const msp,
       convertDisplayRangeToDnaRange(displayRange, bc->seqType,
                                     bc->numFrames, bc->displayRev,
                                     &bc->refSeqRange, &dnaDispRange);
-      
+
       /* The grid pos for coords gives the left edge of the coord, so draw to max + 1 to be inclusive */
       const int qStart = msp->qRange.min(true, bc->displayRev);
       const int qEnd = msp->qRange.max(true, bc->displayRev);
-  
+
       const gint x1 = convertBaseIdxToRectPos(qStart, exonViewRect, &dnaDispRange,
                                               TRUE, bc->displayRev, FALSE);
-      const gint x2 = convertBaseIdxToRectPos(qEnd, exonViewRect, &dnaDispRange, 
+      const gint x2 = convertBaseIdxToRectPos(qEnd, exonViewRect, &dnaDispRange,
                                               TRUE, bc->displayRev, FALSE);
-      
+
       *x = min(x1, x2);
       *width = abs(x1 - x2);
     }
- 
+
   return drawn;
 }
 
@@ -168,10 +169,10 @@ static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand, BlxCon
 {
   /* Check it's an exon or intron */
   gboolean showMsp = mspIsBoxFeature(msp) || mspIsIntron(msp);
-  
+
   /* Check it's in a visible layer */
   showMsp &= mspLayerIsVisible(msp);
-  
+
   /* Check it's the correct strand */
   showMsp &= (mspGetRefStrand(msp) == strand);
 
@@ -188,7 +189,7 @@ static gboolean showMspInExonView(const MSP *msp, const BlxStrand strand, BlxCon
 
 /* Mark the given exon's transcript as selected if this exon contains the given coords.
  * Returns true if it was selected. */
-static gboolean selectExonIfContainsCoords(GtkWidget *exonView, 
+static gboolean selectExonIfContainsCoords(GtkWidget *exonView,
                                            ExonViewProperties *properties,
                                            BlxContext *bc,
                                            const IntRange* const displayRange,
@@ -200,12 +201,12 @@ static gboolean selectExonIfContainsCoords(GtkWidget *exonView,
                                            gboolean *drawn)
 {
   gboolean wasSelected = FALSE;
-  
-  if (showMspInExonView(msp, properties->currentStrand, bc) && 
+
+  if (showMspInExonView(msp, properties->currentStrand, bc) &&
       rangesOverlap(displayRange, mspGetDisplayRange(msp)))
     {
       *drawn = TRUE;
-      
+
       int mspX = UNSET_INT, mspWidth = UNSET_INT;
       calculateExonIntronDimensions(msp, bc, displayRange, &properties->exonViewRect, &mspX, &mspWidth);
 
@@ -213,14 +214,14 @@ static gboolean selectExonIfContainsCoords(GtkWidget *exonView,
 	{
 	  /* It's a hit. Select this sequence. */
 	  GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
-	  
+
 	  if (deselectOthers)
 	    {
 	      blxWindowDeselectAllSeqs(blxWindow);
 	    }
-	  
+
 	  blxWindowSelectSeq(blxWindow, msp->sSequence);
-	  
+
 	  /* Update the selected strand */
 	  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
           ExonViewProperties *properties = exonViewGetProperties(exonView);
@@ -232,16 +233,16 @@ static gboolean selectExonIfContainsCoords(GtkWidget *exonView,
 	  wasSelected = TRUE;
 	}
     }
-  
+
   return wasSelected;
 }
 
 
 /* Loop through all the msp lines for this grid and mark them as selected
  * if they contain the coords of the mouse press */
-static gboolean selectClickedExon(GtkWidget *exonView, 
-                                  GdkEventButton *event, 
-                                  const gboolean ctrlModifier, 
+static gboolean selectClickedExon(GtkWidget *exonView,
+                                  GdkEventButton *event,
+                                  const gboolean ctrlModifier,
                                   const gboolean shiftModifier)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
@@ -254,17 +255,17 @@ static gboolean selectClickedExon(GtkWidget *exonView,
 
   gboolean found = FALSE;
   int y = properties->yPad;
-  
+
   for ( ; seqItem && !found; seqItem = seqItem->next)
     {
       const BlxSequence* const seq = (const BlxSequence*)(seqItem->data);
       GList *mspItem = seq->mspList;
       gboolean drawn = FALSE;
-            
+
       for ( ; mspItem && !found; mspItem = mspItem->next)
         {
           const MSP* const msp = (const MSP*)(mspItem->data);
-          found = selectExonIfContainsCoords(exonView, properties, bc, 
+          found = selectExonIfContainsCoords(exonView, properties, bc,
                                              bigPictureGetDisplayRange(properties->bigPicture),
                                              msp, event->x, event->y, deselectOthers, y, &drawn);
         }
@@ -285,30 +286,30 @@ void calculateExonViewHeight(GtkWidget *exonView)
 
   BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
   const IntRange* const displayRange = &bpProperties->displayRange;
-  
+
   BlxContext *bc = blxWindowGetContext(bpProperties->blxWindow());
 
   /* Calculate the height based on how many exon lines will actually be drawn */
   int numExons = 0;
   int maxExons = properties->expanded ? UNSET_INT : 1; /* unset means no limit */
-  
+
   /* Loop through all sequences */
   GList *seqItem = bc->matchSeqs;
-  
+
   for ( ; seqItem; seqItem = seqItem->next)
     {
       /* Loop through all msps */
       const BlxSequence *seq = (BlxSequence*)(seqItem->data);
       GList *mspItem = seq->mspList;
-      
+
       for ( ; mspItem; mspItem = mspItem->next)
 	{
 	  const MSP *msp = (const MSP*)(mspItem->data);
-          
+
           if (showMspInExonView(msp, properties->currentStrand, bc))
 	    {
 	      const IntRange* const mspDisplayRange = mspGetDisplayRange(msp);
-              
+
               if (rangesOverlap(mspDisplayRange, displayRange))
 		{
 		  ++numExons;
@@ -316,23 +317,23 @@ void calculateExonViewHeight(GtkWidget *exonView)
 		}
 	    }
 	}
-      
+
       /* Break after we've found the maximum number of lines, if a max is specified */
       if (maxExons != UNSET_INT && numExons >= maxExons)
 	{
 	  break;
 	}
     }
-  
+
   const int newHeight = (numExons * (properties->exonHeight + properties->yPad)) + (2 * properties->yPad);
-  
+
   if (newHeight != properties->exonViewRect.height)
     {
       DEBUG_OUT("Setting new height = %d\n", newHeight);
       properties->exonViewRect.height = newHeight;
       gtk_widget_set_size_request(exonView, -1, properties->exonViewRect.height);
     }
-  
+
   DEBUG_EXIT("calculateExonViewHeight returning");
 }
 
@@ -341,7 +342,7 @@ void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   BlxContext *bc = bigPictureGetContext(properties->bigPicture);
-  
+
   /* Get the big picture display range in dna coords */
   IntRange bpRange;
   convertDisplayRangeToDnaRange(bigPictureGetDisplayRange(properties->bigPicture), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
@@ -350,14 +351,14 @@ void calculateExonViewHighlightBoxBorders(GtkWidget *exonView)
   IntRange dvRange;
   GtkWidget *detailView = bigPictureGetDetailView(properties->bigPicture);
   convertDisplayRangeToDnaRange(detailViewGetDisplayRange(detailView), bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &dvRange);
-  
+
   /* Calculate how many pixels from the left edge of the widget to the first base in the range. */
   const int x1 = convertBaseIdxToRectPos(dvRange.min(true, bc->displayRev), &properties->exonViewRect, &bpRange, TRUE, bc->displayRev, TRUE);
   const int x2 = convertBaseIdxToRectPos(dvRange.max(true, bc->displayRev), &properties->exonViewRect, &bpRange, TRUE, bc->displayRev, TRUE);
-  
+
   properties->highlightRect.x = min(x1, x2);
   properties->highlightRect.y = 0;
-  
+
   properties->highlightRect.width = abs(x1 - x2);
   properties->highlightRect.height = exonView->allocation.height;
 }
@@ -367,11 +368,11 @@ static void calculateExonViewBorders(GtkWidget *exonView)
 {
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
-  
+
   /* Calculate the size of the exon view */
   properties->exonViewRect.x = roundNearest(bigPictureProperties->contentXPos());
   properties->exonViewRect.width = bigPictureProperties->contentWidth();
-  
+
   /* Calculate the size of the highlight box */
   calculateExonViewHighlightBoxBorders(exonView);
 }
@@ -382,11 +383,11 @@ static void calculateExonViewBorders(GtkWidget *exonView)
  ***********************************************************/
 
 /* Draw an exon (well, any box-shaped feature, actually) */
-static void drawExon(const MSP* const msp, 
-                     DrawData *data, 
-                     const BlxSequence *blxSeq, 
-                     const gboolean isSelected, 
-                     const gint x, 
+static void drawExon(const MSP* const msp,
+                     DrawData *data,
+                     const BlxSequence *blxSeq,
+                     const gboolean isSelected,
+                     const gint x,
                      const gint y,
                      const gint widthIn,
                      const gint height)
@@ -395,10 +396,10 @@ static void drawExon(const MSP* const msp,
   gint xStart = x;
   gint xEnd = x + widthIn;
   gint width = widthIn;
-  
+
   const gint xMin = data->exonViewRect->x;
   const gint xMax = data->exonViewRect->x + data->exonViewRect->width;
-  
+
   if (xStart <= xMax && xEnd >= xMin)
     {
       if (xStart < xMin)
@@ -417,14 +418,14 @@ static void drawExon(const MSP* const msp,
       const GdkColor *fillColor = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, blxSeq, isSelected, data->bc->usePrintColors, TRUE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, fillColor);
       gdk_draw_rectangle(data->drawable, data->gc, TRUE, xStart, y, width, height);
-      
+
       /* Draw outline (exon box outline always the same (unselected) color; only intron lines change when selected) */
       const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, blxSeq, isSelected, data->bc->usePrintColors, FALSE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
       gdk_gc_set_foreground(data->gc, lineColor);
       gdk_draw_rectangle(data->drawable, data->gc, FALSE, xStart, y, width, height);
     }
 }
-  
+
 
 /* Utility to actually draw the line for an intron. Clips it if necessary, maintaining the same
  * angle for the line */
@@ -433,24 +434,24 @@ static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const g
   /* Only draw anything if at least part of the line is within range. We are only ever called with
    * y values that are in range so don't bother checking them. */
   const gint xMax = clipRect->x + clipRect->width;
-  
+
   if (x1 <= xMax && x2 >= clipRect->x)
     {
       int xStart = x1;
       int xEnd = x2;
       int yStart = y1;
       int yEnd = y2;
-      
+
       /* Clip the start/end x values if out of range */
       if (xStart < clipRect->x)
         {
           const int origWidth = abs(xEnd - xStart);
-        
+
           xStart = clipRect->x;
 
           const int newWidth = abs(xEnd - xStart);
           const int newHeight = roundNearest((double)(yEnd - yStart) * (double)newWidth / (double)origWidth); /* negative if yend < ystart */
-          
+
           yStart = yEnd - newHeight;
         }
 
@@ -462,23 +463,23 @@ static void drawIntronLine(DrawData *data, const gint x1, const gint y1, const g
 
           const int newWidth = abs(xEnd - xStart);
           const int newHeight = roundNearest((double)(yEnd - yStart) * (double)newWidth / (double)origWidth);
-          
+
           yEnd = yStart + newHeight;
         }
-        
+
       gdk_draw_line(data->drawable, data->gc, xStart, yStart, xEnd, yEnd);
     }
 }
 
 
 /* Draw an intron */
-static void drawIntron(const MSP* const msp, 
-                       DrawData *data, 
-                       const BlxSequence *blxSeq, 
-                       const gboolean isSelected, 
-                       const gint x, 
-                       const gint y, 
-                       const gint width, 
+static void drawIntron(const MSP* const msp,
+                       DrawData *data,
+                       const BlxSequence *blxSeq,
+                       const gboolean isSelected,
+                       const gint x,
+                       const gint y,
+                       const gint width,
                        const gint height)
 {
   const GdkColor *lineColor = mspGetColor(msp, data->bc->defaultColors, BLXCOLOR_BACKGROUND, blxSeq, isSelected, data->bc->usePrintColors, FALSE, BLXCOLOR_EXON_FILL, BLXCOLOR_EXON_LINE, BLXCOLOR_CDS_FILL, BLXCOLOR_CDS_LINE, BLXCOLOR_UTR_FILL, BLXCOLOR_UTR_LINE);
@@ -486,7 +487,7 @@ static void drawIntron(const MSP* const msp,
 
   int yTop = y;
   int yBottom = y + roundNearest((double)height / 2.0);
-  
+
   /* Draw the first section, from the given x to the mid point, sloping up */
   int xStart = x;
   int xEnd = x + roundNearest((double)width / 2.0);
@@ -500,14 +501,14 @@ static void drawIntron(const MSP* const msp,
 
 
 /* Draw the given exon/intron, if it is in range. Returns true if it was drawn */
-static gboolean drawExonIntron(const MSP *msp, 
+static gboolean drawExonIntron(const MSP *msp,
                                DrawData *data,
                                const gboolean isSelected,
                                const BlxSequence *blxSeq)
 {
   int x = UNSET_INT, width = UNSET_INT;
-  
-  gboolean drawn = calculateExonIntronDimensions(msp, data->bc, data->displayRange, 
+
+  gboolean drawn = calculateExonIntronDimensions(msp, data->bc, data->displayRange,
                                                  data->exonViewRect, &x, &width);
 
   if (drawn)
@@ -521,7 +522,7 @@ static gboolean drawExonIntron(const MSP *msp,
 	  drawIntron(msp, data, blxSeq, isSelected, x, data->y, width, data->height);
 	}
     }
-  
+
   return drawn;
 }
 
@@ -536,23 +537,23 @@ static void drawExonIntronItem(gpointer listItemData, gpointer data)
   const gboolean isSelected = blxWindowIsSeqSelected(drawData->blxWindow, seq);
   SequenceGroup *group = drawData->bc->getFirstSequenceGroup(seq);
   gboolean seqDrawn = FALSE;
-  
+
   if (!drawData->normalOnly || (!isSelected && !group))
     {
       /* Loop through all msps in this sequence */
       GList *mspListItem = seq->mspList;
-  
+
       for ( ; mspListItem; mspListItem = mspListItem->next)
 	{
 	  MSP *msp = (MSP*)(mspListItem->data);
-      
+
           if (showMspInExonView(msp, drawData->strand, drawData->bc))
 	    {
 	      seqDrawn |= drawExonIntron(msp, drawData, isSelected, seq);
 	    }
 	}
     }
-  
+
   /* If the view is expanded, increase the y-coord for the next sequence */
   if (seqDrawn && drawData->expanded)
     {
@@ -566,7 +567,7 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
 {
   GtkWidget *blxWindow = exonViewGetBlxWindow(exonView);
   BlxContext *bc = blxWindowGetContext(blxWindow);
-  
+
   ExonViewProperties *properties = exonViewGetProperties(exonView);
   const IntRange* const displayRange = bigPictureGetDisplayRange(properties->bigPicture);
 
@@ -574,20 +575,20 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   /* Get the display range in dna coords */
   IntRange bpRange;
   convertDisplayRangeToDnaRange(displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
-  
+
   GdkColor *gapColor = getGdkColor(BLXCOLOR_ASSEMBLY_GAP, bc->defaultColors, FALSE, bc->usePrintColors);
   drawAssemblyGaps(exonView, drawable, gapColor, bc->displayRev, &properties->exonViewRect, &bpRange, bc->featureLists[BLXMSP_GAP]);
-  
+
   /* Set a clip rectangle for drawing the exons and introns (because they are drawn "over the
    * edges" to make sure intron lines have the correct slope etc.) */
   GdkGC *gc = gdk_gc_new(drawable);
-  
+
   gdk_gc_set_clip_origin(gc, 0, 0);
   gdk_gc_set_clip_rectangle(gc, &properties->exonViewRect);
-  
+
   /* Draw the exons and introns. Since we could have a lot of them in the loop, extract all the
    * info we need now and pass it around so we don't have to look for this stuff each time. */
-  
+
   DrawData drawData = {
     drawable,
     gc,
@@ -606,13 +607,13 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
     properties->exonViewRect.y,
     properties->exonHeight
   };
-  
+
   /* If the view is compressed (i.e. exons will overlap each other), then
    * only draw "normal" MSPs the first time round, and draw grouped/selected
-   * MSPs afterwards, so that they appear on top. If the view is expanded, 
+   * MSPs afterwards, so that they appear on top. If the view is expanded,
    * we can draw them all in a single loop, because they will not overlap. */
   drawData.normalOnly = !properties->expanded;
-  
+
   /* Loop through all sequences, drawing all msps that are exons/introns */
   GList *seqList = blxWindowGetAllMatchSeqs(blxWindow);
   g_list_foreach(seqList, drawExonIntronItem, &drawData);
@@ -620,10 +621,10 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   if (!properties->expanded)
     {
       drawData.normalOnly = FALSE;
-  
+
       /* Draw all selected msps */
       g_list_foreach(bc->selectedSeqs, drawExonIntronItem, &drawData);
-      
+
       /* Increment the y value when finished, because we calculate the view height based on this */
       drawData.y += drawData.height + drawData.yPad;
     }
@@ -631,7 +632,7 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
   /* Set the height based on the height of the exons that were actually drawn */
   const int newHeight = drawData.y - properties->exonViewRect.y + drawData.yPad;
   gtk_layout_set_size(GTK_LAYOUT(exonView), exonView->allocation.width, newHeight);
-  
+
   g_object_unref(gc);
 }
 
@@ -641,12 +642,12 @@ static void drawExonView(GtkWidget *exonView, GdkDrawable *drawable)
 void exonViewPrepareForPrinting(GtkWidget *exonView)
 {
   GdkDrawable *drawable = widgetGetDrawable(exonView);
-  
+
   if (drawable)
     {
       ExonViewProperties *properties = exonViewGetProperties(exonView);
       BlxContext *bc = bigPictureGetContext(properties->bigPicture);
-      
+
       GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
       drawHighlightBox(drawable, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
     }
@@ -674,28 +675,28 @@ static void onDestroyExonView(GtkWidget *exonView)
     }
 }
 
-static void exonViewCreateProperties(GtkWidget *exonView, 
-				     GtkWidget *bigPicture, 
+static void exonViewCreateProperties(GtkWidget *exonView,
+				     GtkWidget *bigPicture,
 				     const BlxStrand currentStrand)
 {
   if (exonView)
     {
       ExonViewProperties *properties = new ExonViewProperties;
-      
+
       properties->widget              = exonView;
       properties->bigPicture	      = bigPicture;
       properties->currentStrand	      = currentStrand;
-      
+
       properties->expanded	      = FALSE;
       properties->yPad		      =	DEFAULT_EXON_YPAD;
-      
+
       properties->exonViewRect.x      = 0;
       properties->exonViewRect.y      = DEFAULT_EXON_YPAD;
       properties->exonViewRect.width  = 0;
       properties->exonViewRect.height = DEFAULT_EXON_HEIGHT;
 
       properties->exonHeight          = DEFAULT_EXON_HEIGHT;
-      
+
       gtk_widget_set_size_request(exonView, 0, DEFAULT_EXON_HEIGHT + (2 * DEFAULT_EXON_YPAD));
 
       g_object_set_data(G_OBJECT(exonView), "ExonViewProperties", properties);
@@ -732,12 +733,12 @@ void exonViewSetExpanded(GtkWidget *exonView, const gboolean expanded)
       properties->yPad = DEFAULT_EXON_YPAD_BUMPED;
       properties->exonHeight = DEFAULT_EXON_HEIGHT_BUMPED;
     }
-  else 
+  else
     {
       properties->yPad = DEFAULT_EXON_YPAD;
       properties->exonHeight = DEFAULT_EXON_HEIGHT;
     }
-  
+
   calculateExonViewHeight(exonView);
   forceResize(properties->bigPicture);
   bigPictureRedrawAll(properties->bigPicture);
@@ -759,35 +760,35 @@ void exonViewToggleExpanded(GtkWidget *exonView)
 static gboolean onExposeExonView(GtkWidget *exonView, GdkEventExpose *event, gpointer data)
 {
   GdkDrawable *drawable = widgetGetDrawable(exonView);
-  
+
   if (!drawable)
     {
       /* Create a pixmap and draw the exon view onto it */
       drawable = createBlankPixmap(exonView);
       drawExonView(exonView, drawable);
     }
-  
+
   if (drawable)
-    {  
+    {
       /* Push the pixmap onto the screen */
       GdkDrawable *window = GTK_LAYOUT(exonView)->bin_window;
-      
+
       GdkGC *gc = gdk_gc_new(window);
       gdk_draw_drawable(window, gc, drawable, 0, 0, 0, 0, -1, -1);
       g_object_unref(gc);
-      
+
       /* Draw the highlight box on top of it */
       ExonViewProperties *properties = exonViewGetProperties(exonView);
       BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
       BlxContext *bc = blxWindowGetContext(bpProperties->blxWindow());
-      
+
       GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
       drawHighlightBox(window, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
 
       /* Draw the preview box too, if it is set */
       bpProperties->drawPreviewBox(window, &properties->exonViewRect, &properties->highlightRect);
     }
-  
+
   return TRUE;
 }
 
@@ -796,7 +797,7 @@ static void onSizeAllocateExonView(GtkWidget *exonView, GtkAllocation *allocatio
   DEBUG_ENTER("onSizeAllocateExonView");
 
   calculateExonViewBorders(exonView);
-  
+
   DEBUG_EXIT("onSizeAllocateExonView returning");
 }
 
@@ -813,25 +814,25 @@ static gboolean onButtonPressExonView(GtkWidget *exonView, GdkEventButton *event
 
       handled = selectClickedExon(exonView, event, ctrlModifier, shiftModifier);
     }
-  
+
   ExonViewProperties *properties = exonViewGetProperties(exonView);
 
   if (event->button == 2 ||
-      (event->button == 1 && !handled && 
-       (event->type == GDK_2BUTTON_PRESS || 
+      (event->button == 1 && !handled &&
+       (event->type == GDK_2BUTTON_PRESS ||
         clickedInRect(event, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH))))
     {
       /* Draw the preview box (draw it on the other big picture components as well) */
       int x = event->x;
-      
+
       if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
         x = properties->highlightRect.x + properties->highlightRect.width / 2;
-      
+
       BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
       bpProperties->startPreviewBox(event->x, TRUE, x - event->x);
       handled = TRUE;
     }
-  
+
   return handled;
 }
 
@@ -844,7 +845,7 @@ static gboolean onButtonReleaseExonView(GtkWidget *exonView, GdkEventButton *eve
       BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
       bpProperties->finishPreviewBox(event->x, &properties->exonViewRect, &properties->highlightRect);
     }
-  
+
   return TRUE;
 }
 
@@ -858,7 +859,7 @@ static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, 
       BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
       bpProperties->startPreviewBox(event->x, FALSE, 0);
     }
-  
+
   return TRUE;
 }
 
@@ -869,7 +870,7 @@ static gboolean onMouseMoveExonView(GtkWidget *exonView, GdkEventMotion *event, 
 static gboolean onScrollExonView(GtkWidget *exonView, GdkEventScroll *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   switch (event->direction)
     {
       case GDK_SCROLL_LEFT:
@@ -878,7 +879,7 @@ static gboolean onScrollExonView(GtkWidget *exonView, GdkEventScroll *event, gpo
 	  handled = TRUE;
 	  break;
 	}
-	
+
       case GDK_SCROLL_RIGHT:
 	{
           scrollBigPictureRightStep(exonViewGetBigPicture(exonView));
@@ -892,7 +893,7 @@ static gboolean onScrollExonView(GtkWidget *exonView, GdkEventScroll *event, gpo
 	  break;
 	}
     };
-  
+
   return handled;
 }
 
@@ -912,7 +913,7 @@ GtkWidget *createExonView(GtkWidget *bigPicture, const BlxStrand currentStrand)
   gtk_widget_add_events(exonView, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(exonView, GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(exonView, GDK_POINTER_MOTION_MASK);
-  
+
   g_signal_connect(G_OBJECT(exonView),	"expose-event",		G_CALLBACK(onExposeExonView),	      NULL);
   g_signal_connect(G_OBJECT(exonView),	"size-allocate",	G_CALLBACK(onSizeAllocateExonView),   NULL);
   g_signal_connect(G_OBJECT(exonView),	"button-press-event",   G_CALLBACK(onButtonPressExonView),    NULL);

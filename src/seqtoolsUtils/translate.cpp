@@ -1,5 +1,6 @@
 /*  File: translate.c
  *  Author: sre, 1993-01-12
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -57,10 +58,10 @@ typedef enum
 /* THIS FILE NEEDS RENAMING TO SOMETHING LIKE utils.c */
 
 /* Function: Translate(char *seq, char **code)
- * 
+ *
  * Given a ptr to the start of a nucleic acid sequence, and a genetic code, translate the sequence
  * into amino acid sequence.
- * 
+ *
  * code is an array of 65 strings, representing the translations of the 64 codons, arranged in
  * order AAA, AAC, AAG, AAU, ..., UUA, UUC, UUG, UUU.  '*' or '***' is used to represent
  * termination codons, usually. The final string, code[64], is the code for an ambiguous amino
@@ -69,7 +70,7 @@ typedef enum
  * Because of the way space is allocated for the amino acid sequence, the amino acid strings
  * cannot be longer than 3 letters each. (I don't foresee using anything but the single- and
  * triple- letter codes.)
- * 
+ *
  * Returns a ptr to the translation string on success, or NULL on failure.
  */
 char *blxTranslate(const char *seq, char **code)
@@ -78,7 +79,7 @@ char *blxTranslate(const char *seq, char **code)
   int   codon;						    /* index for codon         */
   char *aaptr;						    /* ptr into aaseq */
   int   i;
-  
+
   if (seq && *seq)
     {
       aaseq = (char *)g_malloc(strlen(seq) + 1) ;
@@ -108,7 +109,7 @@ char *blxTranslate(const char *seq, char **code)
 	  strcpy(aaptr, code[codon]);
 	  aaptr += strlen(code[codon]);
 	}
-    }  
+    }
 
   return aaseq ;
 }
@@ -123,9 +124,9 @@ char complementChar(const char inputChar, GError **error)
   char result = '\0';
   char c = toupper(inputChar);
   int idx = 0;
-  
+
   for ( ; c != iupac[idx].sym && idx < IUPACSYMNUM; idx++);
-  
+
   if (idx >= IUPACSYMNUM)
     {
       /* not found; return original char */
@@ -135,11 +136,11 @@ char complementChar(const char inputChar, GError **error)
   else
     {
       result = iupac[idx].symcomp;
-      
+
       if (islower(inputChar))
         result = tolower(result);
     }
-  
+
   return result;
 }
 
@@ -147,9 +148,9 @@ char complementChar(const char inputChar, GError **error)
 /* All these calls need rationalising into a single function with options. */
 
 /* revComplement.c
- * 
+ *
  * Reverse complement of a IUPAC character string
- * 
+ *
  */
 /* Ratinalise this with my func. below..... */
 char *revComplement(char *comp, char *seq)
@@ -177,12 +178,12 @@ char *revComplement(char *comp, char *seq)
 
   return comp;
 }
-  
+
 
 /* blxComplement.c
- * 
+ *
  * Just complement of a IUPAC character string
- * 
+ *
  * Note that it overwrites calling string!!!! (revcomp doesn't)
  */
 void blxComplement(char *seq)
@@ -204,6 +205,3 @@ void blxComplement(char *seq)
 
   return ;
 }
-  
-
-

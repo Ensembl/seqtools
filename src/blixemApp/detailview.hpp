@@ -1,5 +1,6 @@
 /*  File: detailview.c
  *  Author: Gemma Barson, 2009-11-23
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -29,7 +30,7 @@
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
  * Description: The "detail view" section shows the sequence data in detail,
- *              down to the actual nucleotides and peptides. There is a 
+ *              down to the actual nucleotides and peptides. There is a
  *              separate section to show the alignments for each strand and
  *              (in protein mode) reading-frame. Each section is a list of
  *              alignments (called a "tree" in the code - see detailviewtree.h)
@@ -65,7 +66,7 @@ class CoverageViewProperties;
 /* Column name to use when multiple, duplicate reads with different names are
  * shown on the same row. Note that this is a printf format that must take the
  * number of reads as an integer argument. */
-#define DUPLICATE_READS_COLUMN_NAME               "(%d) matches" 
+#define DUPLICATE_READS_COLUMN_NAME               "(%d) matches"
 #define DUPLICATE_READS_COLUMN_NAME_SGL           "(%d) match" /* as above but for when there is just one read */
 
 
@@ -83,7 +84,7 @@ typedef struct _BlxSpliceSite
 
     char donorSiteRevComp[3];           /* Same as donorSite but revcomp'd */
     char acceptorSiteRevComp[3];        /* Same as acceptorSite but revcomp'd */
-    
+
     gboolean bothReqd;                  /* Whether both donor and acceptor sites must match in order to be considered canonical */
   } BlxSpliceSite;
 
@@ -108,14 +109,14 @@ public:
   DetailViewProperties(GtkWidget *detailView_in,
                        GtkWidget *blxWindow_in,
                        BlxContext *bc_in,
-                       CoverageViewProperties *coverageViewP_in, 
+                       CoverageViewProperties *coverageViewP_in,
                        GtkCellRenderer *renderer_in,
                        GList *fwdStrandTrees_in,
                        GList *revStrandTrees_in,
                        GtkWidget *feedbackBox_in,
                        GtkWidget *statusBar_in,
                        GList *columnList_in,
-                       GtkAdjustment *adjustment_in, 
+                       GtkAdjustment *adjustment_in,
                        const int startCoord_in,
                        const BlxColumnId sortColumn_in);
 
@@ -137,13 +138,13 @@ public:
   GtkWidget *feedbackBox;              /* A text box that feeds back info to the user about the currently selected items */
   GtkWidget *statusBar;                /* A status bar that feeds back info to the user about the currently moused-over items */
   BlxColumnId* sortColumns;            /* Array of columns to sort by, in order of priority. The length of this array will be set to the same length as columnList */
-    
+
   GList *fwdStrandTrees;               /* A list of all the trees that show the forward strand of the ref seq */
   GList *revStrandTrees;               /* A list of all the trees that show the reverse strand of the ref seq */
-    
+
   int cellXPadding;                    /* The x padding between the tree cell background area and their drawing area */
   int cellYPadding;                    /* The y padding between the tree cell background area and their drawing area */
-        
+
   DetailViewIndex selectedRangeInit;   /* Caches the initial selected index when selecting a range */
   DetailViewIndex selectedRangeStart;  /* The currently-selected range start (if shift-selecting) */
   DetailViewIndex selectedRangeEnd;    /* The currently-selected range end (if shift-selecting) */
@@ -156,11 +157,11 @@ public:
 
   int snpConnectorHeight;              /* The height of the connector between the SNP track and the DNA base track */
   int numUnalignedBases;               /* If the display-unaligned-sequence option is on, this specifies how many additional bases to show at each end of the alignment */
-        
+
   int exonBoundaryLineWidth;                 /* line width for exon boundaries */
   GdkLineStyle exonBoundaryLineStyle;        /* line style for exon boundaries */
   GdkLineStyle exonBoundaryLineStylePartial; /* line style for exon boundaries (where the boundary is part-way through a codon) */
-    
+
   GSList *spliceSites;           /* List of splice sites that can be found and highlighted by
                                     Blixem */
 
@@ -259,11 +260,11 @@ void                    zoomDetailView(GtkWidget *detailView, const gboolean zoo
 void                    updateDynamicColumnWidths(GtkWidget *detailView);
 void                    refilterDetailView(GtkWidget *detailView, const IntRange* const oldRange);
 
-void                    detailViewSetSelectedDisplayIdx(GtkWidget *detailView, 
-                                                        const int selectedBaseIdx, 
-                                                        const int frame, 
-                                                        const int baseNum, 
-                                                        const gboolean allowScroll, 
+void                    detailViewSetSelectedDisplayIdx(GtkWidget *detailView,
+                                                        const int selectedBaseIdx,
+                                                        const int frame,
+                                                        const int baseNum,
+                                                        const gboolean allowScroll,
                                                         const gboolean scrollMinimum,
                                                         const gboolean extend);
 
@@ -310,9 +311,9 @@ gboolean                onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose
 
 void                    selectClickedSnp(GtkWidget *snpTrack,
                                          GtkWidget *colHeader,
-                                         GtkWidget *detailView, 
-                                         const int xIn, 
-                                         const int yIn, 
+                                         GtkWidget *detailView,
+                                         const int xIn,
+                                         const int yIn,
                                          const gboolean expandSnps,
                                          const int clickedBase);
 
@@ -327,7 +328,7 @@ gboolean                onExposeGenericHeader(GtkWidget *headerWidget, GdkEventE
 
 gint                    sortByColumnCompareFunc(GList *mspGList1,
                                                 GList *mspGList2,
-                                                GtkWidget *detailView, 
+                                                GtkWidget *detailView,
                                                 const BlxColumnId sortColumn);
 
 void                    drawHeaderChar(BlxContext *bc,
@@ -343,8 +344,8 @@ GtkWidget*              createDetailView(GtkWidget *blxWindow,
                                          BlxContext *bc,
                                          GtkContainer *parent,
                                          GtkWidget *toolbar,
-                                         GtkAdjustment *adjustment, 
-                                         GtkWidget *fwdStrandGrid, 
+                                         GtkAdjustment *adjustment,
+                                         GtkWidget *fwdStrandGrid,
                                          GtkWidget *revStrandGrid,
                                          MSP *mspList,
                                          GList *columnList,
@@ -358,9 +359,9 @@ GtkWidget*              createDetailView(GtkWidget *blxWindow,
                                          const gboolean optionalDataLoaded,
                                          char *windowColor);
 
-GtkWidget*              createDetailViewScrollBar(GtkAdjustment *adjustment, 
+GtkWidget*              createDetailViewScrollBar(GtkAdjustment *adjustment,
                                                   GtkWidget *blxWindow);
 
-GtkWidget*              snpTrackCreatePanedWin(GtkWidget* detailView, GtkWidget *snpTrack, GtkWidget *otherWidget); 
+GtkWidget*              snpTrackCreatePanedWin(GtkWidget* detailView, GtkWidget *snpTrack, GtkWidget *otherWidget);
 
 #endif /* _detail_view_included_ */

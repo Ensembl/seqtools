@@ -1,5 +1,6 @@
 /*  File: bigpicturegrid.h
  *  Author: Gemma Barson, 2009-11-23
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -32,7 +33,7 @@
  *              alignments on a particular strand of the reference sequence.
  *              The x coord of the grid is the reference sequence coord and the
  *              y coord is the %ID of the alignment. An alignment is shown as
- *              a horizontal line between the start and end coords of the 
+ *              a horizontal line between the start and end coords of the
  *              match, at the y coord corresponding to the relevant %ID.
  *----------------------------------------------------------------------------
  */
@@ -52,23 +53,23 @@
 class GridProperties
 {
 public:
-  GridProperties(GtkWidget *widget_in, 
+  GridProperties(GtkWidget *widget_in,
                  GtkWidget *bigPicture_in,
                  gulong exposeHandlerId_in,
                  BlxStrand strand_in);
 
   GtkWidget *widget;       /* The grid widget */
   GtkWidget *bigPicture;   /* The big picture that this grid belongs to */
-    
+
   BlxStrand strand;	     /* Whether this grid shows the fwd or rev strand of the ref sequence. */
-    
+
   int mspLineHeight;	     /* The height of the msp lines */
-    
+
   int gridYPadding;	     /* The y padding around the grid */
-    
+
   gulong exposeHandlerId;  /* The handler ID for the expose event */
   gboolean ignoreSizeAlloc; /* Flag to indicate that we should ignore size allocation events */
-    
+
   GdkRectangle gridRect;
   GdkRectangle displayRect;
   GdkRectangle highlightRect;
@@ -83,15 +84,15 @@ GtkWidget*	    gridGetBigPicture(GtkWidget *grid);
 void		    calculateGridBorders(GtkWidget *grid);
 void		    calculateGridHighlightBoxBorders(GtkWidget *grid);
 
-void		    callFuncOnAllBigPictureGrids(GtkWidget *widget, 
+void		    callFuncOnAllBigPictureGrids(GtkWidget *widget,
 						 gpointer data);
 
-gint		    convertValueToGridPos(GtkWidget *grid, 
+gint		    convertValueToGridPos(GtkWidget *grid,
 					  const gdouble value);
 
 void                gridPrepareForPrinting(GtkWidget *grid);
 
-GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture, 
+GtkWidget*	    createBigPictureGrid(GtkWidget *bigPicture,
 					 BlxStrand strand);
 
 #endif /* _big_picture_grid_included_ */

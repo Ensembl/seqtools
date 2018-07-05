@@ -1,5 +1,6 @@
 /*  File: coverageview.c
  *  Author: Gemma Barson, 2011-03-21
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -57,7 +58,7 @@
  *                    Class member functions               *
  ***********************************************************/
 
-CoverageViewProperties::CoverageViewProperties(GtkWidget *widget_in, 
+CoverageViewProperties::CoverageViewProperties(GtkWidget *widget_in,
                                                GtkWidget *blxWindow_in,
                                                BlxContext *bc_in)
 {
@@ -70,7 +71,7 @@ CoverageViewProperties::CoverageViewProperties(GtkWidget *widget_in,
   m_viewYPadding = DEFAULT_COVERAGE_VIEW_Y_PADDING;
   m_numVCells = DEFAULT_NUM_V_CELLS;
   m_rangePerCell = 0;
-  
+
   if (bc_in)
     m_maxDepth = &bc_in->maxDepth;
 }
@@ -85,7 +86,7 @@ GtkWidget* CoverageViewProperties::widget()
 const IntRange* CoverageViewProperties::displayRange()
 {
   const IntRange *result = NULL;
-  
+
   // The range is the same as the parent panel
   if (m_panel)
     result = &m_panel->displayRange;
@@ -141,14 +142,14 @@ CoverageViewProperties* coverageViewGetProperties(GtkWidget *widget)
 
   if (widget)
     properties = (CoverageViewProperties*)(g_object_get_data(G_OBJECT(widget), "CoverageViewProperties"));
-  
+
   return properties;
 }
 
 static void onDestroyCoverageView(GtkWidget *widget)
 {
   CoverageViewProperties *properties = coverageViewGetProperties(widget);
-  
+
   if (properties)
     {
       delete properties;
@@ -157,18 +158,18 @@ static void onDestroyCoverageView(GtkWidget *widget)
     }
 }
 
-static CoverageViewProperties* coverageViewCreateProperties(GtkWidget *widget, 
+static CoverageViewProperties* coverageViewCreateProperties(GtkWidget *widget,
                                                             GtkWidget *blxWindow,
                                                             BlxContext *bc)
 {
   CoverageViewProperties *properties = NULL;
 
   if (widget)
-    { 
+    {
       properties = new CoverageViewProperties(widget, blxWindow, bc);
-      
+
       g_object_set_data(G_OBJECT(widget), "CoverageViewProperties", properties);
-      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyCoverageView), NULL); 
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyCoverageView), NULL);
     }
 
   return properties;
@@ -187,7 +188,7 @@ void CoverageViewProperties::updateDepth()
 {
   /* Set up a list of 'nice' values to round to for displaying labels */
   static GSList *roundValues = NULL;
-  
+
   if (!roundValues)
     {
       roundValues = g_slist_prepend(roundValues, GINT_TO_POINTER(1));
@@ -221,7 +222,7 @@ void CoverageViewProperties::updateDepth()
 
   if (!m_rangePerCell)
     {
-      /* First time round, calculate the range per cell, aiming for 
+      /* First time round, calculate the range per cell, aiming for
        * around 5 cells. (If we enter this function again, it's because the
        * user has manually entered the range per cell so we just need to calculate
        * the relevant number of cells) */
@@ -230,13 +231,13 @@ void CoverageViewProperties::updateDepth()
 
       /* Round the result and recalculate the number of cells */
       m_rangePerCell = roundUpToValueFromList(m_rangePerCell, roundValues, NULL);
-      
+
       if (m_rangePerCell < 1)
         m_rangePerCell = 1;
     }
-  
+
   m_numVCells = (gdouble)*m_maxDepth / m_rangePerCell;
-  
+
   recalculate();
 }
 
@@ -249,7 +250,7 @@ gboolean CoverageViewProperties::setDepthPerCell(const double depthPerCell_in)
 {
   if (depthPerCell_in <= 0.0)
     return FALSE;
-  
+
   m_rangePerCell = depthPerCell_in;
   updateDepth();
 
@@ -291,16 +292,16 @@ static void drawCoverageBar(const double x1,
       height = MIN_LINE_WIDTH;
       y1 = y2 - height;
     }
-  
+
   if (width <= 0)
     return;
-  
+
   cairo_rectangle(cr, x1 - MIN_LINE_WIDTH, y1, width + (2 * MIN_LINE_WIDTH), height);
   cairo_fill(cr);
 }
 
 
-/* Utility to get the max depth that the coverage view shows, based on 
+/* Utility to get the max depth that the coverage view shows, based on
  * the number of cells and the range per cell. Note that this returns the
  * max lable value, i.e. the value of the top gridline; the real max
  * depth may be slightly greater than this, and may extend above the top
@@ -337,17 +338,17 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
 
   const GdkColor *color = getGdkColor(BLXCOLOR_COVERAGE_PLOT, m_bc->defaultColors, FALSE, m_bc->usePrintColors);
   gdk_cairo_set_source_color(cr, color);
-  
+
   const double pixelsPerVal = (double)m_viewRect.height / (double)*m_maxDepth;
   const int bottomBorder = m_viewRect.y + m_viewRect.height;
-  
+
   /* Loop through each coord in the display range */
-  
+
   double startX = -1.0;
   double prevX = -1.0;
   double prevY = -1.0;
   int coord = dispRange->min();
-  
+
   for ( ; coord <= dispRange->max(); ++coord)
     {
       /* Get the x position for this coord (always pass displayRev as false because
@@ -373,7 +374,7 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
            * line at that y position. If there was only one position at the previous y value then
            * this will draw a single column in the bar chart (i.e. startX==prevX). */
           drawCoverageBar(startX, x, prevY, bottomBorder, cr);
-          
+
           /* If it's the last coord, also draw the current column, because there won't be another
            * loop to take care of this */
           if (coord == dispRange->max())
@@ -389,7 +390,7 @@ void CoverageViewProperties::drawPlot(GdkDrawable *drawable)
       prevX = x;
       prevY = y;
     }
-  
+
   cairo_destroy(cr);
 }
 
@@ -402,12 +403,12 @@ void CoverageViewProperties::draw(GdkDrawable *drawable)
   GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
   BigPictureProperties *bpProperties = bigPictureGetProperties(bigPicture);
 
-  drawVerticalGridLines(&m_viewRect, &m_highlightRect, 
+  drawVerticalGridLines(&m_viewRect, &m_highlightRect,
 			m_viewYPadding, m_bc, bpProperties, drawable);
-  
+
   drawHorizontalGridLines(m_widget, bigPicture, &m_viewRect, m_bc, bpProperties, drawable,
 			  (int)(m_numVCells), m_rangePerCell, (gdouble)*m_maxDepth, TRUE, "");
-  
+
   drawPlot(drawable);
 }
 
@@ -416,10 +417,10 @@ void CoverageViewProperties::draw(GdkDrawable *drawable)
  * selection range). (This is just a convenience way to call calculateHighlightBoxBorders
  * from an external function.) */
 void CoverageViewProperties::calculateHighlightBoxBorders()
-{  
+{
   if (m_bc)
     {
-      m_bc->highlightBoxCalcBorders(&m_displayRect, &m_highlightRect, 
+      m_bc->highlightBoxCalcBorders(&m_displayRect, &m_highlightRect,
                                     displayRange(), highlightRange(),
                                     0);
     }
@@ -431,14 +432,14 @@ void CoverageViewProperties::calculateBorders()
 {
   /* We should move cell height to BlxPanel so that we can get rid of references to big picture here */
   GtkWidget *bigPicture = blxWindowGetBigPicture(m_blxWindow);
-  
+
   /* Calculate the height based on the number of cells */
   const int height = ceil(m_numVCells * (double)bigPictureGetCellHeight(bigPicture));
   const int gridHeight = (int)m_numVCells * bigPictureGetCellHeight(bigPicture);
-  
+
   m_displayRect.x = roundNearest(contentXPos());
   m_displayRect.y = height - gridHeight;
-  
+
   m_viewRect.x = m_displayRect.x;
   m_viewRect.y = m_displayRect.y + HIGHLIGHT_BOX_Y_PAD + DEFAULT_COVERAGE_VIEW_Y_PADDING;
 
@@ -451,10 +452,10 @@ void CoverageViewProperties::calculateBorders()
 
   m_viewRect.width = m_displayRect.width;
   m_viewRect.height = gridHeight;
-  
+
   /* Get the boundaries of the highlight box */
   calculateHighlightBoxBorders();
-  
+
   /* Set the size request to our desired height. We want a fixed heigh but don't set the
    * width, because we want the user to be able to resize that. */
   gtk_widget_set_size_request(m_widget, 0, m_displayRect.height);
@@ -466,7 +467,7 @@ void CoverageViewProperties::calculateBorders()
 void CoverageViewProperties::prepareForPrinting()
 {
   GdkDrawable *drawable = widgetGetDrawable(m_widget);
-  
+
   if (drawable)
     {
       GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, m_bc->defaultColors, FALSE, m_bc->usePrintColors);
@@ -497,7 +498,7 @@ gboolean CoverageViewProperties::expose(GdkEventExpose *event, gpointer data)
   gboolean result = TRUE;
 
   GdkDrawable *window = GTK_LAYOUT(m_widget)->bin_window;
-  
+
   if (window)
     {
       GdkDrawable *bitmap = widgetGetDrawable(m_widget);
@@ -508,18 +509,18 @@ gboolean CoverageViewProperties::expose(GdkEventExpose *event, gpointer data)
 	  bitmap = createBlankPixmap(m_widget);
           draw(bitmap);
         }
-      
+
       if (bitmap)
         {
           /* Push the bitmap onto the window */
           GdkGC *gc = gdk_gc_new(window);
           gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
           g_object_unref(gc);
-          
+
           /* Draw the highlight box on top of it */
           GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, m_bc->defaultColors, FALSE, m_bc->usePrintColors);
           drawHighlightBox(window, &m_highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
-          
+
           /* Draw the preview box too, if set */
           if (m_panel)
             m_panel->drawPreviewBox(window, &m_viewRect, &m_highlightRect);
@@ -529,7 +530,7 @@ gboolean CoverageViewProperties::expose(GdkEventExpose *event, gpointer data)
 	  g_warning("Failed to draw coverageView [%p] - could not create bitmap.\n", m_widget);
 	}
     }
-  
+
   return result;
 }
 
@@ -555,28 +556,28 @@ static gboolean onButtonPressCoverageView(GtkWidget *coverageView, GdkEventButto
   return handled;
 }
 
-  
+
 gboolean CoverageViewProperties::buttonPress(GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   if (event->button == 2 ||
-      (event->button == 1 && !handled && 
-       (event->type == GDK_2BUTTON_PRESS || 
+      (event->button == 1 && !handled &&
+       (event->type == GDK_2BUTTON_PRESS ||
         clickedInRect(event, &m_highlightRect, HIGHLIGHT_BOX_MIN_WIDTH))))
     {
       /* Draw the preview box (draw it on the other big picture components as well) */
       int x = event->x;
-      
+
       if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
         x = m_highlightRect.x + m_highlightRect.width / 2;
-      
+
       if (m_panel)
         m_panel->startPreviewBox(event->x, TRUE, x - event->x);
 
       handled = TRUE;
     }
-  
+
   return handled;
 }
 
@@ -599,10 +600,10 @@ gboolean CoverageViewProperties::buttonRelease(GdkEventButton *event, gpointer d
       if (m_panel)
         m_panel->finishPreviewBox(event->x, &m_viewRect, &m_highlightRect);
     }
-  
+
   return TRUE;
 }
-  
+
 
 
 /* Implement custom scrolling for horizontal mouse wheel movements over the coverageView.
@@ -621,7 +622,7 @@ static gboolean onScrollCoverageView(GtkWidget *coverageView, GdkEventScroll *ev
 
 
 gboolean CoverageViewProperties::scroll(GdkEventScroll *event, gpointer data)
-{  
+{
   gboolean handled = FALSE;
 
   /* We should make the scroll functions here virtual functions that can be called from the base
@@ -635,21 +636,21 @@ gboolean CoverageViewProperties::scroll(GdkEventScroll *event, gpointer data)
       handled = TRUE;
       break;
     }
-      
+
     case GDK_SCROLL_RIGHT:
     {
       scrollBigPictureRightStep(blxWindowGetBigPicture(m_blxWindow));
       handled = TRUE;
       break;
     }
-      
+
     default:
     {
       handled = FALSE;
       break;
     }
   };
-  
+
   return handled;
 }
 
@@ -663,7 +664,7 @@ gboolean CoverageViewProperties::mouseMove(GdkEventMotion *event, gpointer data)
       if (m_panel)
         m_panel->startPreviewBox(event->x, FALSE, 0);
     }
-  
+
   return TRUE;
 }
 
@@ -684,7 +685,7 @@ static gboolean onMouseMoveCoverageView(GtkWidget *coverageView, GdkEventMotion 
  *                     Initialisation                      *
  ***********************************************************/
 
-CoverageViewProperties* createCoverageView(GtkWidget *blxWindow, 
+CoverageViewProperties* createCoverageView(GtkWidget *blxWindow,
                                            BlxContext *bc)
 {
   GtkWidget *coverageView = gtk_layout_new(NULL, NULL);
@@ -697,8 +698,8 @@ CoverageViewProperties* createCoverageView(GtkWidget *blxWindow,
   gtk_widget_add_events(coverageView, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(coverageView, GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(coverageView, GDK_POINTER_MOTION_MASK);
-  
-  g_signal_connect(G_OBJECT(coverageView), "expose-event",          G_CALLBACK(onExposeCoverageView),                 NULL);  
+
+  g_signal_connect(G_OBJECT(coverageView), "expose-event",          G_CALLBACK(onExposeCoverageView),                 NULL);
   g_signal_connect(G_OBJECT(coverageView), "size-allocate",	    G_CALLBACK(onSizeAllocateCoverageView),           NULL);
   g_signal_connect(G_OBJECT(coverageView), "button-press-event",    G_CALLBACK(onButtonPressCoverageView),	      NULL);
   g_signal_connect(G_OBJECT(coverageView), "button-release-event",  G_CALLBACK(onButtonReleaseCoverageView),	      NULL);
@@ -707,7 +708,6 @@ CoverageViewProperties* createCoverageView(GtkWidget *blxWindow,
 
   /* Set required data in the coverageView. */
   CoverageViewProperties *cvProperties = coverageViewCreateProperties(coverageView, blxWindow, bc);
-  
+
   return cvProperties;
 }
-

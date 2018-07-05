@@ -1,5 +1,6 @@
 /*  File: seqtoolsExonView.h
  *  Author: Gemma Barson, 2009-12-24
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -34,7 +35,7 @@
  *              contain much of the same code so the aim was to make these
  *              files generic enough for both Blixem and Dotter to use and to
  *              put them in the seqtoolsUtils library. Unfortunately due to
- *              time constraints this didn't happen, so these files still 
+ *              time constraints this didn't happen, so these files still
  *              contain some Dotter- and Blixem- specific stuff: in Dotter
  *              we need to draw the crosshair over the exon view; in Blixem
  *              we need to draw the highlight box to indicate the current
@@ -57,10 +58,10 @@
 
 
 /* Public function declarations */
-GtkWidget *createDotterExonView(GtkWidget *parent, 
+GtkWidget *createDotterExonView(GtkWidget *parent,
 				GtkCallback refreshFunc,
                                 const gboolean horizontal,
-				const BlxStrand strand, 
+				const BlxStrand strand,
 				DotterWindowContext *dwc,
 				const int width,
                                 const int height,

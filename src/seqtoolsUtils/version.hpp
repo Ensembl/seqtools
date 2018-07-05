@@ -1,5 +1,6 @@
 /*  File: version.h
  *  Author: Ed Griffiths
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -76,15 +77,15 @@ char *utAppGetCompileDate(void) { return UT_COMPILE_PHRASE " " __DATE__ " " __TI
 /*                                                                           */
 
 
-/*  Use UT_MAKESTRING to make strings out of #define'd numbers.          
- *  (required because of the way ANSI preprocessor handles strings)      
- *  e.g. UT_MAKESTRING(6)  produces "6"                                 */   
+/*  Use UT_MAKESTRING to make strings out of #define'd numbers.
+ *  (required because of the way ANSI preprocessor handles strings)
+ *  e.g. UT_MAKESTRING(6)  produces "6"                                 */
 #define UT_PUTSTRING(x) #x
 #define UT_MAKESTRING(x) UT_PUTSTRING(x)
 
 
 /* Make a single version number out of a version, release and update number.
- * NOTE that there should be no more than 100 (i.e. 0 - 99) revisions per    
+ * NOTE that there should be no more than 100 (i.e. 0 - 99) revisions per
  * version, or updates per revision, otherwise version will be wrong. */
 #define UT_MAKE_VERSION_NUMBER(VERSION, RELEASE, UPDATE) \
 ((VERSION * 10000) + (RELEASE * 100) + UPDATE)
@@ -132,24 +133,24 @@ TITLE" is distributed under the GNU Public License; see http://www.gnu.org/copyl
 
 #define AUTHOR_TEXT        "Gemma Barson <gb10@sanger.ac.uk>\n"\
                            "Erik Sonnhammer <Erik.Sonnhammer@sbc.su.se>"
-                           
+
 #define AUTHOR_TEXT_FULL   " Written by Gemma Barson <gb10@sanger.ac.uk>\n"\
                            " Based on original code by Erik Sonnhammer <Erik.Sonnhammer@sbc.su.se>"
-                           
 
 
-/*    Macro for creating a standard copyright string to be inserted into     
- *    compiled applications and libraries. The macro ensures a common        
- *    format for version numbers etc.                                        
- *                                                                           
- * The macro is a statement, NOT an expression, but does NOT require a       
- * terminating semi-colon. The macro should be coded like this:              
- *                                                                           
- *    UT_COPYRIGHT_STRING(prefix, title, description, copyright_years)       
- *                                                                           
- *    where  prefix is some a string locally used to prefix variables        
- *    where  title is a string of the form   "Appname  1.0.1"                
- *    where  description is of the form  "Application to blah, blah."        
+
+/*    Macro for creating a standard copyright string to be inserted into
+ *    compiled applications and libraries. The macro ensures a common
+ *    format for version numbers etc.
+ *
+ * The macro is a statement, NOT an expression, but does NOT require a
+ * terminating semi-colon. The macro should be coded like this:
+ *
+ *    UT_COPYRIGHT_STRING(prefix, title, description, copyright_years)
+ *
+ *    where  prefix is some a string locally used to prefix variables
+ *    where  title is a string of the form   "Appname  1.0.1"
+ *    where  description is of the form  "Application to blah, blah."
  *    and    copyright_years is of the form  "2010", "2008-2010", "2008, 2010" etc.
  */
 #define UT_COPYRIGHT(YEARS_STRING)                                                   \

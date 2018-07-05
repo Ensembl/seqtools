@@ -1,5 +1,6 @@
 /*  File: dotter_.h
  *  Author: esr, 1999-08-26
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -95,14 +96,14 @@ typedef enum _DotterHspMode
   } DotterHspMode;
 
 /* The following are used to define default colors for certain types of features in Dotter.
- * One of several different actual colors from the BlxColor struct may be used depending 
- * on state, e.g. we use a different color if "print colors" (i.e. black and 
+ * One of several different actual colors from the BlxColor struct may be used depending
+ * on state, e.g. we use a different color if "print colors" (i.e. black and
  * white mode) is on. */
 
-typedef enum 
+typedef enum
 {
   DOTCOLOR_MIN,                             /* dummy value so that we don't get a zero ID */
-  
+
   DOTCOLOR_BACKGROUND,                      /* background color for widgets */
   DOTCOLOR_MATCH,                           /* background color for an exact match */
   DOTCOLOR_CONS,                            /* background color for a conserved match */
@@ -122,7 +123,7 @@ typedef enum
   DOTCOLOR_BREAKLINE,                       /* the color of break-lines between sequences */
   DOTCOLOR_CANONICAL,
   DOTCOLOR_NON_CANONICAL,
-  
+
   DOTCOLOR_NUM_COLORS
 } DotterColorId;
 
@@ -133,10 +134,10 @@ typedef enum
 typedef enum
   {
     DOTDIALOG_NOT_PERSISTENT = 0,   /* Reserved for dialogs that do not have an entry in the array */
-    
+
     DOTDIALOG_HELP,                 /* The Help dialog */
     DOTDIALOG_SETTINGS,             /* The Settings dialog */
-    
+
     DOTDIALOG_NUM_DIALOGS           /* The number of dialogs. Must always be the last entry in this enum */
   } DotterDialogId;
 
@@ -160,11 +161,11 @@ typedef struct _DotterContext
 
   gboolean watsonOnly;                      /* true if we only display the watson strand */
   gboolean crickOnly;                       /* true if we only display the crick strand */
-  
+
   PangoFontDescription *fontDesc;           /* fixed-width font to use for alignment */
   gdouble charWidth;                        /* the fixed-width font width */
   gdouble charHeight;                       /* the fixed-width font height */
-  
+
   char *refSeqName;                         /* the reference sequence name */
   char *refSeq;                             /* the passed-in reference sequence */
   char *refSeqRev;                          /* the reverse-complement of refSeq (or NULL if not applicable) */
@@ -173,14 +174,14 @@ typedef struct _DotterContext
   BlxSeqType refSeqType;                    /* whether refSeq is in nucleotide or peptide coords */
 
   char* peptideSeqs[NUM_READING_FRAMES];    /* Array of 3 strings containing the 3 frame translations of the reference sequence */
-  
+
   char *matchSeqName;                       /* the match sequence name */
   char *matchSeq;                           /* the match sequence */
   char *matchSeqRev;                        /* the revsere-complemented match sequence (or NULL if not applicable) */
   IntRange matchSeqFullRange;               /* the full match sequence range passed to dotter on startup */
   BlxStrand matchSeqStrand;                 /* which strand of the match seq we were passed */
   BlxSeqType matchSeqType;                  /* whether matchSeq is in nucleotide or peptide coords */
-  
+
   gboolean hozScaleRev;                     /* true if horizontal coords should increase from right-to-left rather than left-to-right */
   gboolean vertScaleRev;                    /* true if vertical coords should increase from bottom-to-top rather than top-to-bottom */
   gboolean negateCoords;                    /* negate displayed coords if the scale is reversed, i.e. so coords still appear to increase left-to-right */
@@ -188,12 +189,12 @@ typedef struct _DotterContext
   gboolean abbrevTitle;                     /* abbreviate window titles to save space */
 
   double memoryLimit;                       /* maximum Mb allowed for dotplot */
-  
+
   int scaleWidth;                           /* width of the dotplot scale */
   int scaleHeight;                          /* height of the dotplot scale */
 
   GArray *defaultColors;                    /* Default colors used by Dotter */
-  
+
   BlxMessageData *msgData;                  /* Data to be passed to message handlers */
 } DotterContext;
 
@@ -202,18 +203,18 @@ typedef struct _DotterContext
 typedef struct _DotterWindowContext
   {
     DotterContext *dotterCtx;
-    
+
     IntRange refSeqRange;                     /* displayed ref seq range currently displayed in this window */
     IntRange matchSeqRange;                   /* displayed match seq range currently displayed in this window */
-    
+
     int refCoord;                             /* currently-selected ref seq coord */
     int matchCoord;                           /* currently-selected match seq coord */
-    
+
     gdouble zoomFactor;                       /* we divide by this to scale the dotplot, i.e. <1 zooms in, >1 zooms out */
     gboolean selfComp;                        /* true if we're comparing the same portion ref seq against itself */
-    
+
     GtkWidget *dialogList[DOTDIALOG_NUM_DIALOGS]; /* list of all persistent dialogs for this window */
-    
+
     GtkPrintSettings *printSettings;          /* print settings */
     GtkPageSetup *pageSetup;                  /* page setup for printing */
     gboolean usePrintColors;                  /* whether to use print colours */
@@ -249,36 +250,36 @@ public:
   GtkWidget *hozExons2;               /* shows other strand exons for horizontal sequence */
   GtkWidget *vertExons1;              /* shows main strand exons for vertical sequence */
   GtkWidget *vertExons2;              /* shows other strand exons for vertical sequence */
-    
+
   gulong greyMap[NUM_COLORS];         /* maps weight -> pixel value. fixed mapping in pseudo colour displays
                                          variable mapping in truecolor displays */
   GdkColor greyRamp[NUM_COLORS];      /* 256 grey colors, black->white, only used in true color displays */
   GdkColormap *colorMap;              /* the greyramp colormap */
-    
+
   int imageWidth;
   int imageHeight;
   GdkImage *image;                    /* the greyramp image */
-    
+
   double expResScore;
   int pixelFac;
   int slidingWinSize;
-    
+
   /* Dynamic properties: */
   unsigned char *pixelmap;            /* source data for drawing the dot-plot */
   unsigned char *hspPixmap;           /* source data for drawing the HSP dot-plot */
-    
+
   gboolean crosshairOn;               /* whether to show the crosshair that marks the position of the currently-selected coord */
   gboolean crosshairCoordsOn;         /* whether to display the crosshair label */
   gboolean crosshairFullscreen;       /* whether to show the crosshair over the whole widget or just within the dot-plot rectangle */
-    
+
   gboolean pixelmapOn;                /* whether to show the dot-plot pixelmap or not */
   DotterHspMode hspMode;              /* how (and whether) to show high-scoring pairs from Blast */
-    
+
   gboolean gridlinesOn;               /* whether to show grid lines */
   gboolean breaklinesOn;              /* whether to show break-lines between sequences */
   gboolean hozLabelsOn;               /* whether to show labels for features on the horizontal sequence */
   gboolean vertLabelsOn;              /* whether to show labels for features on the vertical sequence */
-    
+
   GdkPoint dragStart;                 /* start point for mid-click drag */
   GdkPoint dragEnd;                   /* end point for mid-click drag */
 
@@ -300,7 +301,7 @@ const char*         dotterGetLicenseString(void);
 const char*         dotterGetVersionString(void);
 
 int                 winsizeFromlambdak(int mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE],
-                                       int *tob, int abetsize, const char *qseq, const char *sseq, 
+                                       int *tob, int abetsize, const char *qseq, const char *sseq,
                                        double *exp_res_score, double *Lambda);
 
 void                argvAdd(int *argc, char ***argv, const char *s);
@@ -315,13 +316,13 @@ int                 getEndCoord(DotterWindowContext *dwc, const gboolean horizon
 int                 getSelectedCoord(DotterWindowContext *dwc, const gboolean horizontal);
 void                dotterEnableSelectionMenus(DotterWindowContext *dwc, const gboolean enable);
 
-void                callDotterInternal(DotterContext *dc, 
+void                callDotterInternal(DotterContext *dc,
                                        const IntRange* const refSeqRange,
                                        const IntRange* const matchSeqRange,
                                        const gdouble zoomFactor,
                                        const gboolean breaklinesOn);
 
-void                dotterSetToggleMenuStatus(DotterWindowContext *dwc, 
+void                dotterSetToggleMenuStatus(DotterWindowContext *dwc,
                                               const char *menuItem,
                                               const gboolean enable);
 
@@ -343,7 +344,7 @@ void                alignmentToolCopySelnCoords(GtkWidget *alignmentTool);
 void                alignmentToolClearSequenceSelection(GtkWidget *alignmentTool);
 
 /* dotplot.c */
-GtkWidget*          createDotplot(DotterWindowContext *dwc, 
+GtkWidget*          createDotplot(DotterWindowContext *dwc,
                                   const char *loadFileName,
                                   const char *saveFileName,
                                   const DotterSaveFormatType saveFormat,

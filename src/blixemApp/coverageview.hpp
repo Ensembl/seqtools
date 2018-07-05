@@ -1,5 +1,6 @@
 /*  File: coverageview.h
  *  Author: Gemma Barson, 2011-03-21
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -32,7 +33,7 @@
  *              coordinate in the reference sequence.
  *----------------------------------------------------------------------------
  */
- 
+
 #ifndef _coverage_view_h_included_
 #define _coverage_view_h_included_
 
@@ -47,8 +48,8 @@ class BlxPanel;
 class CoverageViewProperties
 {
 public:
-  CoverageViewProperties(GtkWidget *widget_in, 
-                         GtkWidget *blxWindow_in, 
+  CoverageViewProperties(GtkWidget *widget_in,
+                         GtkWidget *blxWindow_in,
                          BlxContext *bc);
 
   /* Access */
@@ -95,7 +96,7 @@ private:
   int m_viewYPadding;	     /* The y padding around the view rect */
   double m_numVCells;	     /* The number of cells to show vertically */
   gdouble m_rangePerCell;    /* The range of depth values shown per grid cell on the plot */
-    
+
   GdkRectangle m_viewRect;   /* The rectangle we draw in */
   GdkRectangle m_displayRect; /* The total display area */
   GdkRectangle m_highlightRect; /* The area that is highlighted (which indicates the detail-view

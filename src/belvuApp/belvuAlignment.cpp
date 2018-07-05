@@ -1,5 +1,6 @@
 /*  File: belvuAlignment.c
  *  Author: Gemma Barson, 2011-04-12
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -60,7 +61,7 @@ class BelvuAlignmentProperties
 public:
   GtkWidget *widget;
   BelvuContext *bc;                 /* The belvu context */
-  
+
   GtkWidget *columnsArea;           /* Drawing widget for the columns (i.e. name and coord columns) */
   GtkWidget *columnsHeader;         /* Drawing widget for the header for the the columns area */
   GtkWidget *seqArea;               /* Drawing widget for the actual sequence */
@@ -70,12 +71,12 @@ public:
   GdkRectangle seqHeaderRect;       /* Drawing area for the sequence header */
   GtkAdjustment *hAdjustment;       /* Controls horizontal scroll bar */
   GtkAdjustment *vAdjustment;       /* Controls vertical scroll bar */
-  
+
   int columnPadding;                /* Padding in between columns, in pixels */
   int nameColumnPadding;            /* Padding after name column, in pixels */
   char *title;                /* title to display at the top of the alignments */
   int wrapWidth;                    /* Number of characters after which to wrap (or UNSET_INT for no wrapping) */
-  
+
   gdouble charWidth;                /* The width of each character in the display */
   gdouble charHeight;               /* The height of each character in the display */
 };
@@ -101,7 +102,7 @@ static void onDestroyBelvuAlignment(GtkWidget *belvuAlignment)
           g_free(properties->title);
           properties->title = NULL;
         }
-      
+
       /* Free the properties struct itself */
       delete properties;
       properties = NULL;
@@ -111,7 +112,7 @@ static void onDestroyBelvuAlignment(GtkWidget *belvuAlignment)
 
 
 /* Create the properties struct and initialise all values. */
-static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment, 
+static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
                                            BelvuContext *bc,
                                            GtkWidget *columnsArea,
                                            GtkWidget *columnsHeader,
@@ -125,7 +126,7 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
   if (belvuAlignment)
     {
       BelvuAlignmentProperties *properties = new BelvuAlignmentProperties;
-      
+
       properties->widget = belvuAlignment;
       properties->bc = bc;
       properties->columnsArea = columnsArea;
@@ -137,7 +138,7 @@ static void belvuAlignmentCreateProperties(GtkWidget *belvuAlignment,
       properties->vAdjustment = vAdjustment;
       properties->title = g_strdup(title);
       properties->wrapWidth = wrapWidth;
-      
+
       properties->seqRect.x = 0;
       properties->seqRect.y = DEFAULT_YPAD;
       properties->seqHeaderRect.x = properties->seqRect.x;
@@ -170,14 +171,14 @@ void onBelvuAlignmentFontSizeChanged(GtkWidget *belvuAlignment)
     return;
 
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   if (!properties || !properties->seqArea)
     return;
-  
+
   getFontCharSize(properties->seqArea, properties->seqArea->style->font_desc, &properties->charWidth, &properties->charHeight, TRUE);
 
   /* Update the column padding, which is based on the character width. We use
-   * slightly different padding if the view is wrapped because we don't draw 
+   * slightly different padding if the view is wrapped because we don't draw
    * column separators */
   if (properties->wrapWidth != UNSET_INT) /* wrapped */
     {
@@ -189,8 +190,8 @@ void onBelvuAlignmentFontSizeChanged(GtkWidget *belvuAlignment)
       properties->columnPadding = (DEFAULT_PADDING_CHARS * properties->charWidth) / 2;
       properties->nameColumnPadding = 0;
     }
-  
-  
+
+
   /* The font size affects the height of the header line */
   properties->seqHeaderRect.height = properties->charHeight + DEFAULT_YPAD;
 
@@ -226,16 +227,16 @@ void belvuAlignmentRedrawAll(GtkWidget *belvuAlignment)
 
   if (properties->seqArea)
     widgetClearCachedDrawable(properties->seqArea, NULL);
-  
+
   if (properties->seqHeader)
     widgetClearCachedDrawable(properties->seqHeader, NULL);
-  
+
   if (properties->columnsArea)
     widgetClearCachedDrawable(properties->columnsArea, NULL);
 
   if (properties->columnsHeader)
     widgetClearCachedDrawable(properties->columnsHeader, NULL);
-  
+
   gtk_widget_queue_draw(belvuAlignment);
 }
 
@@ -244,26 +245,26 @@ void belvuAlignmentRedrawAll(GtkWidget *belvuAlignment)
 static void belvuAlignmentRedrawSequenceArea(GtkWidget *belvuAlignment)
 {
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   if (properties->seqArea)
     widgetClearCachedDrawable(properties->seqArea, NULL);
-  
+
   if (properties->seqHeader)
     widgetClearCachedDrawable(properties->seqHeader, NULL);
-  
+
   gtk_widget_queue_draw(belvuAlignment);
 }
 
 
 /* Find the background color of the given residue index i in the given alignment */
-static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, const gboolean isSelected, GdkColor *result) 
+static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, const gboolean isSelected, GdkColor *result)
 {
   int colorNum = 0;
   char *alnpSeq = alnGetSeq(alnp);
-  
+
   if (!alnpSeq || i >= alnGetSeqLen(alnp))
     colorNum = WHITE;
-  else if (bc->lowercaseOn && alnpSeq[i] >= 'a' && alnpSeq[i] <= 'z') 
+  else if (bc->lowercaseOn && alnpSeq[i] >= 'a' && alnpSeq[i] <= 'z')
     colorNum = ORANGE;
   else if (alnp->nocolor)
     colorNum = BOXCOLOR;
@@ -280,27 +281,27 @@ static void findResidueBGcolor(BelvuContext *bc, ALN* alnp, int i, const gboolea
 
 /* Draw a single row in the columns area */
 static void drawSingleColumn(GtkWidget *widget,
-                             GdkDrawable *drawable, 
+                             GdkDrawable *drawable,
                              BelvuAlignmentProperties *properties,
-                             ALN *alnp, 
+                             ALN *alnp,
                              const int lineNum)
 {
   int x = 0;
   const int y = properties->columnsRect.y + (properties->charHeight * lineNum);
-  
+
   const gboolean highlightAln = alignmentHighlighted(properties->bc, alnp);
   GdkGC *gc = gdk_gc_new(drawable);
-  
+
   if (highlightAln || alnp->color != WHITE)
     {
       /* Highlight the background */
       GdkColor bgColor;
       convertColorNumToGdkColor(alnp->color, highlightAln, &bgColor);
-      
+
       gdk_gc_set_foreground(gc, &bgColor);
       gdk_draw_rectangle(drawable, gc, TRUE, properties->columnsRect.x, y, properties->columnsRect.width, properties->charHeight);
     }
-  
+
   GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, highlightAln, FALSE);
   gdk_gc_set_foreground(gc, textColor);
 
@@ -311,7 +312,7 @@ static void drawSingleColumn(GtkWidget *widget,
       drawText(widget, drawable, gc, x, y, alnp->name, NULL, NULL);
       x += (properties->bc->maxNameLen * properties->charWidth) + properties->columnPadding;
     }
-  
+
   /* Draw the coords (but only if this is not GC markup; note that we always
    * draw the column separator lines for the coords, though) */
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
@@ -319,10 +320,10 @@ static void drawSingleColumn(GtkWidget *widget,
 
   if (alnp->markup != GC)
     drawIntAsText(widget, drawable, gc, x, y, alnp->start);
-  
+
   x += properties->columnPadding;
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
-  
+
   x += properties->columnPadding + properties->bc->maxEndLen * properties->charWidth; /* right-aligned */
 
   if (alnp->markup != GC)
@@ -330,19 +331,19 @@ static void drawSingleColumn(GtkWidget *widget,
 
   x += properties->columnPadding;
   gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
-  
+
   /* Draw the score, if displaying scores (and if not a markup row) */
   if (properties->bc->displayScores)
     {
       x += (properties->bc->maxScoreLen * properties->charWidth) + properties->columnPadding;
-      
+
       if (!alnp->markup)
         drawDoubleAsText(widget, drawable, gc, x, y, alnp->score);
-      
+
       x += properties->columnPadding;
       gdk_draw_line(drawable, gc, x, y, x, y + properties->charHeight);
     }
-  
+
   g_object_unref(gc);
 }
 
@@ -356,14 +357,14 @@ static gboolean alignmentSelected(BelvuContext *bc, ALN *alnp)
 
 
 /* Draw a single character in the given sequence. In standard mode, fgColorsOnly
- * should be false and the function will draw the background color for the 
+ * should be false and the function will draw the background color for the
  * base (and will not draw any text). This is because drawing each character
  * separately is slow, so all text in the default color is drawn at once
  * by the calling function.
  * However, if fgColorsOnly is true then this function checks if the required
  * foreground color is different to the default and, if so, draws the character
  * in that color. (It does not draw background colors in this mode.) */
-static void drawSequenceChar(BelvuAlignmentProperties *properties, 
+static void drawSequenceChar(BelvuAlignmentProperties *properties,
                              ALN *alnp,
                              const int colIdx,
                              const gboolean rowHighlighted,
@@ -372,7 +373,7 @@ static void drawSequenceChar(BelvuAlignmentProperties *properties,
                              GdkGC *gc,
                              GdkColor *defaultFgColor,
                              const gboolean fgColorsOnly,
-                             const int x, 
+                             const int x,
                              const int y)
 {
   if (!fgColorsOnly)
@@ -381,34 +382,34 @@ static void drawSequenceChar(BelvuAlignmentProperties *properties,
       GdkColor bgColor;
       findResidueBGcolor(properties->bc, alnp, colIdx, rowHighlighted, &bgColor);
       gdk_gc_set_foreground(gc, &bgColor);
-      
+
       gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
     }
   else if (colIdx < alnGetSeqLen(alnp) && colorByConservation(properties->bc))
     {
       /* Draw the text if it is in a different color to the default. This is only
-       * possible in color by conservation mode. We get the text colour from the 
+       * possible in color by conservation mode. We get the text colour from the
        * background color */
       GdkColor fgColor, bgColor;
       findResidueBGcolor(properties->bc, alnp, colIdx, rowHighlighted, &bgColor);
       bg2fgColor(properties->bc, &bgColor, &fgColor);
-      
+
       if (!colorsEqual(&fgColor, defaultFgColor))
         {
           gdk_gc_set_foreground(gc, &fgColor);
-          
+
           char displayText[2];
           displayText[0] = alnGetSeq(alnp)[colIdx];
           displayText[1] = '\0';
           drawText(widget, drawable, gc, x, y, displayText, NULL, NULL);
         }
     }
-  
+
 }
 
 
 /* Draw a single line in the sequence area.
- * 
+ *
  * This is rather convoluted in an attempt to maximise speed.  Drawing of text in
  * GTK is particularly slow, and is best done a whole line at a time, rather than
  * drawing individual characters.  The characters may each have a different background
@@ -421,29 +422,29 @@ static void drawSequenceChar(BelvuAlignmentProperties *properties,
  * characters have a different foreground colour and just draw those over the top.
 */
 static void drawSingleSequence(GtkWidget *widget,
-                                GdkDrawable *drawable, 
+                                GdkDrawable *drawable,
                                 BelvuAlignmentProperties *properties,
-                                ALN *alnp, 
+                                ALN *alnp,
                                 const int lineNum)
 {
   if (!alnGetSeq(alnp))
     return;
-  
+
   const int startX = properties->seqRect.x;
   int x = startX;
   const int y = properties->seqRect.y + (properties->charHeight * lineNum);
-  
+
   GdkGC *gc = gdk_gc_new(drawable);
   GtkAdjustment *hAdjustment = properties->hAdjustment;
-  
+
   GdkColor *defaultFgColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
-  
+
   /* Loop through each column in the current display range and color
    * the according to the relevant highlight color */
   int colIdx = hAdjustment->value;
   int iMax = min(properties->bc->maxLen, (int)hAdjustment->value + (int)hAdjustment->page_size);
   const gboolean rowHighlighted = alignmentSelected(properties->bc, alnp);
-  
+
   if (properties->bc->displayColors)
     {
       for ( ; colIdx < iMax; ++colIdx)
@@ -451,7 +452,7 @@ static void drawSingleSequence(GtkWidget *widget,
           drawSequenceChar(properties, alnp, colIdx, rowHighlighted, widget, drawable, gc, defaultFgColor, FALSE, x, y);
           x += properties->charWidth;
         }
-    }  
+    }
   else if (rowHighlighted)
     {
       /* We're not displaying colors for individual chars, but we still need to
@@ -459,36 +460,36 @@ static void drawSingleSequence(GtkWidget *widget,
       GdkColor color;
       convertColorNumToGdkColor(WHITE, TRUE, &color);
       gdk_gc_set_foreground(gc, &color);
-      
+
       gdk_draw_rectangle(drawable, gc, TRUE, startX, y, properties->seqRect.width, properties->charHeight);
     }
-  
-  
+
+
   /* Draw the sequence text (current display range only) */
   if (alnGetSeq(alnp))
     {
       GdkColor *textColor = getGdkColor(BELCOLOR_ALIGN_TEXT, properties->bc->defaultColors, FALSE, FALSE);
       gdk_gc_set_foreground(gc, textColor);
 
-      /* Start at the number of characters into the string where the horizontal 
+      /* Start at the number of characters into the string where the horizontal
        * scrollbar indicates we are (making sure that's not out of the end of the
        * string) */
       if ((int)hAdjustment->value < alnGetSeqLen(alnp))
         {
           char *cp = alnGetSeq(alnp) + (int)hAdjustment->value;
           char *displayText = g_strndup(cp, iMax - properties->hAdjustment->value);
-      
+
           drawText(widget, drawable, gc, startX, y, displayText, NULL, NULL);
-      
+
           g_free(displayText);
         }
     }
-  
+
   /* Loop again and draw any characters that are not in the default text color.
    * We don't draw every character individually because the pango layout calls
    * are expensive, but we can't really avoid it when some characters are in
    * difference colors.  (We could put markup in the pango layout instead, but
-   * generally the number of characters in a non-default color is small, so 
+   * generally the number of characters in a non-default color is small, so
    * this should be good enough for most cases.) */
   if (properties->bc->displayColors)
     {
@@ -497,23 +498,23 @@ static void drawSingleSequence(GtkWidget *widget,
           drawSequenceChar(properties, alnp, colIdx, rowHighlighted, widget, drawable, gc, defaultFgColor, TRUE, x, y);
           x += properties->charWidth;
         }
-    } 
-  
+    }
+
   g_object_unref(gc);
 }
 
 
 /* Return the foreground color selected for a given
-   background color in color-by-conservation mode 
+   background color in color-by-conservation mode
  */
 static void bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result)
 {
   int fgColorNum = BLACK; /* default colour for uncoloured or markup */
-  
+
   /* See if the given bgcolor matches the max-conservation background colour */
   int testColor = *getConsColor(bc, CONS_LEVEL_MAX, FALSE);
   convertColorNumToGdkColor(testColor, FALSE, result);
-  
+
   if (colorsEqual(bgColor, result))
     {
       fgColorNum = *getConsColor(bc, CONS_LEVEL_MAX, TRUE);
@@ -523,7 +524,7 @@ static void bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result)
       /* Try the mid-conservation colour */
       int testColor = *getConsColor(bc, CONS_LEVEL_MID, FALSE);
       convertColorNumToGdkColor(testColor, FALSE, result);
-      
+
       if (colorsEqual(bgColor, result))
         {
           fgColorNum = *getConsColor(bc, CONS_LEVEL_MID, TRUE);
@@ -533,7 +534,7 @@ static void bg2fgColor(BelvuContext *bc, GdkColor *bgColor, GdkColor *result)
           /* Lastly, try the low-conservation colour */
           int testColor = *getConsColor(bc, CONS_LEVEL_LOW, FALSE);
           convertColorNumToGdkColor(testColor, FALSE, result);
-          
+
           if (colorsEqual(bgColor, result))
             fgColorNum = *getConsColor(bc, CONS_LEVEL_LOW, TRUE);
         }
@@ -550,89 +551,89 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
    space, maxNameLen, 2xspace, maxEndLen, space, maxLen, maxEndLen
    i.e. 4 spaces
    */
-  
+
   int i, oldpos, collapseRes = 0, collapsePos = 0, collapseOn = 0;
   int numSpaces = WRAP_DISPLAY_PADDING_CHARS;
   char collapseStr[10],
   ch[2] = " ";
   static int *pos=0;                    /* Current residue position of sequence j */
-  
+
   GdkColor bgColor;
   GdkColor *pBgColor = &bgColor;
   GdkGC *gcText = gdk_gc_new(drawable);
   GdkGC *gc = gdk_gc_new(drawable);
-  
+
   BelvuContext *bc = properties->bc;
-  
-  
+
+
   /* Initialise the sequence and position array */
   char *seq = (char*)g_malloc(properties->wrapWidth + 1);
-  
-  if (!pos) 
+
+  if (!pos)
     pos = (int *)g_malloc(bc->alignArr->len * sizeof(int *));
-  
+
   int j = 0;
-  for (j = 0; j < (int)bc->alignArr->len; ++j) 
+  for (j = 0; j < (int)bc->alignArr->len; ++j)
     pos[j] = g_array_index(bc->alignArr, ALN*, j)->start;
-  
-  
+
+
   int paragraph = 0;
   int totCollapsed = 0;
   int line = 1; /* leave a blank line (line=0) at the top for spacing */
-  
+
   if (properties->title)
     {
       const int x = properties->columnPadding;
       const int y = line * properties->charHeight;
-      
+
       drawText(widget, drawable, gcText, x, y, properties->title, NULL, NULL);
       line += 2; /* increment, and also add another blank line for spacing */
     }
-  
+
   gboolean quit = FALSE;
   while (!quit && paragraph * properties->wrapWidth + totCollapsed < bc->maxLen)
     {
       gboolean emptyPara = TRUE;
-      
+
       for (j = 0; j < (int)bc->alignArr->len; ++j)
         {
           ALN *alnp = g_array_index(bc->alignArr, ALN*, j);
           char *alnpSeq = alnGetSeq(alnp);
-          
-          if (alnp->hide) 
+
+          if (alnp->hide)
             continue;
-          
-          int alnstart = paragraph*properties->wrapWidth +totCollapsed; 
+
+          int alnstart = paragraph*properties->wrapWidth +totCollapsed;
           int alnlen = ( (paragraph+1)*properties->wrapWidth +totCollapsed < bc->maxLen ? properties->wrapWidth : bc->maxLen - alnstart );
           int alnend = min(alnstart + alnlen, alnGetSeqLen(alnp));
-          
+
           gboolean emptyLine = TRUE;
-          for (i = alnstart; i < alnend; ++i) 
+          for (i = alnstart; i < alnend; ++i)
             {
-              if (alnpSeq && !isGap(alnpSeq[i]) && alnpSeq[i] != ' ') 
+              if (alnpSeq && !isGap(alnpSeq[i]) && alnpSeq[i] != ' ')
                 {
                   emptyLine = FALSE;
                   emptyPara = FALSE;
                   break;
                 }
             }
-          
-          if (!emptyLine) 
+
+          if (!emptyLine)
             {
               const int y = line * properties->charHeight;
-              
+
               if (y > properties->seqRect.y + properties->seqRect.height)
                 {
                   quit = TRUE;
                   break;
                 }
 
-              for (collapsePos = 0, oldpos = pos[j], i = alnstart; i < alnend; i++) 
-                {       
+              for (collapsePos = 0, oldpos = pos[j], i = alnstart; i < alnend; i++)
+                {
                   const int xpos = bc->maxNameLen + bc->maxEndLen + numSpaces + i - alnstart - collapsePos;
                   const int x = xpos * properties->charWidth;
-                  
-                  if (alnpSeq[i] == '[') 
+
+                  if (alnpSeq[i] == '[')
                     {
                       /* Experimental - collapse block: "[" -> Collapse start, "]" -> Collapse end, e.g.
                        1 S[..........]FKSJFE
@@ -643,8 +644,8 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                        1 S[  0]FKSJFE
                        2 L[ 10]KDEJHF
                        3 P[  4]FKEJFJ
-                       
-                       Minimum collapse = 5 chars. The system depends on absolute coherence in format; 
+
+                       Minimum collapse = 5 chars. The system depends on absolute coherence in format;
                        very strange results will be generated otherwise. Edges need to be avoided manually.
                        */
                       collapseOn = 1;
@@ -652,23 +653,23 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                       collapseRes = 0;
                       continue;
                     }
-                  
-                  if (alnpSeq[i] == ']') 
+
+                  if (alnpSeq[i] == ']')
                     {
                       collapseOn = 0;
                       collapsePos -= 4;
                       alnend -= 3;
-                      
+
                       sprintf(collapseStr, "[%3d]", collapseRes);
                       drawText(widget, drawable, gcText, x, y, collapseStr, NULL, NULL);
 
                       continue;
                     }
-                  
-                  if (collapseOn) 
+
+                  if (collapseOn)
                     {
                       collapsePos++;
-                      if (!isGap(alnpSeq[i])) 
+                      if (!isGap(alnpSeq[i]))
                         {
                           collapseRes++;
                           pos[j]++;
@@ -676,75 +677,75 @@ static void drawWrappedSequences(GtkWidget *widget, GdkDrawable *drawable, Belvu
                       alnend++;
                       continue;
                     }
-                  
-                  
-                  if (!isGap(alnpSeq[i]) && alnpSeq[i] != ' ') 
+
+
+                  if (!isGap(alnpSeq[i]) && alnpSeq[i] != ' ')
                     {
                       findResidueBGcolor(bc, alnp, i, FALSE, pBgColor);
                       gdk_gc_set_foreground(gc, pBgColor);
-                      
+
                       gdk_draw_rectangle(drawable, gc, TRUE, x, y, properties->charWidth, properties->charHeight);
-                      
+
                       pos[j]++;
                     }
-                  
+
                   /* Foreground color */
                   GdkColor fgColor;
                   if (colorByConservation(bc))
                     bg2fgColor(bc, pBgColor, &fgColor);
                   else
                     convertColorNumToGdkColor(BLACK, FALSE, &fgColor);
-                  
+
                   gdk_gc_set_foreground(gc, &fgColor);
 
                   *ch = alnpSeq[i];
                   drawText(widget, drawable, gc, x, y, ch, NULL, NULL);
                 }
-          
+
               drawText(widget, drawable, gcText, properties->charWidth, y, alnp->name, NULL, NULL);
-              
-              if (!alnp->markup) 
+
+              if (!alnp->markup)
                 {
                   char *tmpStr = g_strdup_printf("%*d", bc->maxEndLen, oldpos);
                   drawText(widget, drawable, gcText, (bc->maxNameLen + 3) * properties->charWidth, y, tmpStr, NULL, NULL);
                   g_free(tmpStr);
-                  
-                  if (alnend == bc->maxLen) 
+
+                  if (alnend == bc->maxLen)
                     {
                       char *tmpStr = g_strdup_printf("%-d", pos[j] - 1);
                       drawText(widget, drawable, gcText, (bc->maxNameLen + bc->maxEndLen + alnlen + 5) * properties->charWidth, y, tmpStr, NULL, NULL);
                       g_free(tmpStr);
                     }
                 }
-              
+
               line++;
             }
         }
 
       /* Move to next paragraph */
       paragraph++;
-      
+
       /* Add a blank line (unless nothing was drawn for this paragraph) */
       if (!emptyPara)
         line++;
-      
+
       totCollapsed += collapsePos;
     }
-  
+
   g_free(seq);
   g_object_unref(gc);
   g_object_unref(gcText);
 
   /* Set the layout size now we know how big it is */
   properties->seqRect.height = line * properties->charHeight;
-  
+
   gtk_layout_set_size(GTK_LAYOUT(properties->seqArea),
                       properties->seqRect.x + properties->seqRect.width,
                       properties->seqRect.y + properties->seqRect.height);
-  
+
   if (properties->hAdjustment)
     gtk_adjustment_changed(properties->hAdjustment); /* signal that the scroll range has changed */
-  
+
   if (properties->vAdjustment)
     gtk_adjustment_changed(properties->vAdjustment);
 }
@@ -759,18 +760,18 @@ static void drawBelvuColumnsHeader(GtkWidget *widget, GdkDrawable *drawable, Bel
   /* Draw the summary line, which shows the number of sequences & alignment length */
   int x = properties->columnPadding;
   int y = DEFAULT_YPAD;
-  
+
   char *tmpStr = g_strdup_printf("(%dx%d)", bc->alignArr->len, bc->maxLen);
-  
+
   drawText(widget, drawable, gc, x, y, tmpStr, NULL, NULL);
   y += properties->charHeight + DEFAULT_YPAD - 1;
-  
+
   g_free(tmpStr);
-  
+
   /* Draw a horizontal separator line */
   x = 0;
   gdk_draw_line(drawable, gc, x, y, x + properties->columnsRect.width, y);
-  
+
   g_object_unref(gc);
 }
 
@@ -782,15 +783,15 @@ static void drawBelvuColumns(GtkWidget *widget, GdkDrawable *drawable, BelvuAlig
 
   /* Draw each visible alignment */
   GtkAdjustment *vAdjustment = properties->vAdjustment;
-  
+
   int i = vAdjustment->value;
   int lineNum = 0;
   const int iMax = min((int)bc->alignArr->len, (int)vAdjustment->value + (int)vAdjustment->page_size);
-  
+
   for ( ; i < iMax; ++i)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
-      
+
       if (alnp && !alnp->hide)
         {
           drawSingleColumn(widget, drawable, properties, alnp, lineNum);
@@ -806,8 +807,8 @@ static void drawBelvuSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, Be
   /* The range starts at the current adjustment value (add one to make it a 1-based column number) */
   IntRange displayRange = {(int)(properties->hAdjustment->value + 1),
                            (int)min(properties->bc->maxLen, (int)properties->hAdjustment->value + (int)properties->hAdjustment->page_size)};
-  
-  drawHScale(widget, 
+
+  drawHScale(widget,
              drawable,
              &displayRange,
              &properties->seqHeaderRect,
@@ -824,13 +825,13 @@ static void drawBelvuSequenceHeader(GtkWidget *widget, GdkDrawable *drawable, Be
 static void drawSelectedColumn(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
 {
   BelvuContext *bc = properties->bc;
-  
+
   /* Quit if there is no column selected */
   if (bc->highlightedCol < 1)
     return;
 
   GtkAdjustment *hAdjustment = properties->hAdjustment;
-  
+
   const int iMin = properties->hAdjustment->value + 1;
   const int iMax = min(bc->maxLen, (int)hAdjustment->value + (int)hAdjustment->page_size + 1);
 
@@ -838,12 +839,12 @@ static void drawSelectedColumn(GtkWidget *widget, GdkDrawable *drawable, BelvuAl
   if (bc->highlightedCol < iMin || bc->highlightedCol > iMax)
     return;
 
-  /* Get the column number as a zero-based index in the current range and 
+  /* Get the column number as a zero-based index in the current range and
    * convert this to a distance from the left edge, which will be our x coord.
    * Add half a char's width to get the x coord at the centre of the char. */
   const int colIdx = bc->highlightedCol - iMin;
   const int x = properties->seqRect.x + (colIdx * properties->charWidth) + (properties->charWidth / 2);
-  
+
 
   /* Draw a vertical line at this index */
   GdkGC *gc = gdk_gc_new(drawable);
@@ -852,9 +853,9 @@ static void drawSelectedColumn(GtkWidget *widget, GdkDrawable *drawable, BelvuAl
   gdk_gc_set_foreground(gc, color);
   gdk_gc_set_function(gc, GDK_INVERT);
   gdk_draw_line(drawable, gc, x, 0, x, properties->seqRect.height);
-  
+
   g_object_unref(gc);
-  
+
 //  /* Draw a transparent box at this index */
 //  cairo_t *cr = gdk_cairo_create(drawable);
 //  gdk_cairo_set_source_color(cr, color);
@@ -869,18 +870,18 @@ static void drawSelectedColumn(GtkWidget *widget, GdkDrawable *drawable, BelvuAl
 static void drawBelvuSequence(GtkWidget *widget, GdkDrawable *drawable, BelvuAlignmentProperties *properties)
 {
   BelvuContext *bc = properties->bc;
-  
+
   /* Draw each visible alignment */
   GtkAdjustment *vAdjustment = properties->vAdjustment;
-  
+
   int i = vAdjustment->value;
   int lineNum = 0;
   const int iMax = min((int)bc->alignArr->len, (int)vAdjustment->value + (int)vAdjustment->page_size);
-  
+
   for ( ; i < iMax; ++i)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
-      
+
       if (alnp && !alnp->hide)
         {
           drawSingleSequence(widget, drawable, properties, alnp, lineNum);
@@ -900,14 +901,14 @@ static gboolean onExposeBelvuColumns(GtkWidget *widget, GdkEventExpose *event, g
     {
       GdkDrawable *bitmap = widgetGetDrawable(widget);
       BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-      
+
       if (!bitmap)
         {
           /* There isn't a bitmap yet. Create it now. */
           bitmap = createBlankSizedPixmap(widget, window, properties->columnsRect.width, properties->columnsRect.height);
           drawBelvuColumns(widget, bitmap, properties);
         }
-      
+
       if (bitmap)
         {
           /* Push the bitmap onto the window */
@@ -931,29 +932,29 @@ static gboolean onExposeBelvuSequence(GtkWidget *widget, GdkEventExpose *event, 
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
 
   GdkDrawable *window = GTK_LAYOUT(widget)->bin_window;
-  
+
   if (window)
     {
       GdkDrawable *bitmap = widgetGetDrawable(widget);
-      
+
       if (!bitmap)
         {
           /* There isn't a bitmap yet. Create it now. */
           bitmap = createBlankSizedPixmap(widget, window, properties->seqRect.width, properties->seqRect.height);
-          
+
           if (properties->wrapWidth == UNSET_INT)
             drawBelvuSequence(widget, bitmap, properties);
           else
             drawWrappedSequences(widget, bitmap, properties);
         }
-      
+
       if (bitmap)
         {
           /* Push the bitmap onto the window */
           GdkGC *gc = gdk_gc_new(window);
           gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
           g_object_unref(gc);
-          
+
           /* Draw the currently-selected column on top */
           drawSelectedColumn(widget, window, properties);
         }
@@ -962,7 +963,7 @@ static gboolean onExposeBelvuSequence(GtkWidget *widget, GdkEventExpose *event, 
           g_warning("Failed to draw Belvu alignment [%p] - could not create bitmap.\n", widget);
         }
     }
-  
+
   return TRUE;
 }
 
@@ -977,7 +978,7 @@ static gboolean onExposeBelvuSequenceHeader(GtkWidget *widget, GdkEventExpose *e
   if (window)
     {
       GdkDrawable *bitmap = widgetGetDrawable(widget);
-      
+
       if (!bitmap)
         {
           /* There isn't a bitmap yet. Create it now. */
@@ -996,7 +997,7 @@ static gboolean onExposeBelvuSequenceHeader(GtkWidget *widget, GdkEventExpose *e
           g_warning("Failed to draw Belvu alignment header [%p] - could not create bitmap.\n", widget);
         }
     }
-  
+
   return TRUE;
 }
 
@@ -1007,18 +1008,18 @@ static gboolean onExposeBelvuColumnsHeader(GtkWidget *widget, GdkEventExpose *ev
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
   GdkDrawable *window = widget->window;
-  
+
   if (window)
     {
       GdkDrawable *bitmap = widgetGetDrawable(widget);
-      
+
       if (!bitmap)
         {
           /* There isn't a bitmap yet. Create it now. */
           bitmap = createBlankSizedPixmap(widget, window, properties->seqRect.width, properties->seqRect.height);
           drawBelvuColumnsHeader(widget, bitmap, properties);
         }
-      
+
       if (bitmap)
         {
           /* Push the bitmap onto the window */
@@ -1031,7 +1032,7 @@ static gboolean onExposeBelvuColumnsHeader(GtkWidget *widget, GdkEventExpose *ev
           g_warning("Failed to draw Belvu columns header [%p] - could not create bitmap.\n", widget);
         }
     }
-  
+
   return TRUE;
 }
 
@@ -1044,7 +1045,7 @@ static void onHScrollPosChangedBelvuAlignment(GtkObject *object, gpointer data)
 {
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   if (properties->wrapWidth == UNSET_INT)
     {
       /* We need to clear and re-draw the sequence area (unless we're displaying
@@ -1059,7 +1060,7 @@ static void onVScrollPosChangedBelvuAlignment(GtkObject *object, gpointer data)
 {
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   if (properties->wrapWidth == UNSET_INT)
     {
       belvuAlignmentRedrawAll(belvuAlignment);
@@ -1094,16 +1095,16 @@ static void onVScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data
 {
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   /* Set the horizontal adjustment page size to be the number of characters
    * that will fit in the width */
   properties->vAdjustment->page_size = (int)(properties->seqArea->allocation.height / properties->charHeight);
   properties->vAdjustment->page_increment = properties->vAdjustment->page_size;
-  
+
   /* Make sure the scroll position still lies within upper - page_size. */
   if (properties->vAdjustment->value > properties->vAdjustment->upper - properties->vAdjustment->page_size)
     properties->vAdjustment->value = properties->vAdjustment->upper - properties->vAdjustment->page_size;
-  
+
   /* Make sure we're still within the lower limit */
   if (properties->vAdjustment->value < properties->vAdjustment->lower)
     properties->vAdjustment->value = properties->vAdjustment->lower;
@@ -1115,13 +1116,13 @@ static void onVScrollRangeChangedBelvuAlignment(GtkObject *object, gpointer data
 static void updateOnAlignmentSizeChanged(GtkWidget *belvuAlignment)
 {
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   if (properties->vAdjustment)
     {
       properties->vAdjustment->upper = properties->bc->alignArr->len + 1;
       gtk_adjustment_changed(properties->vAdjustment);
     }
-  
+
   if (properties->hAdjustment)
     {
       properties->hAdjustment->upper = properties->bc->maxLen;
@@ -1138,7 +1139,7 @@ void updateOnVScrollSizeChaged(GtkWidget *belvuAlignment)
 {
   /* Recalculate the borders, because the max name length etc. may have changed */
   calculateDrawingSizes(belvuAlignment);
-  
+
   /* Update the scroll ranges because the number of rows and columns may have changed */
   updateOnAlignmentSizeChanged(belvuAlignment);
 }
@@ -1169,7 +1170,7 @@ int belvuAlignmentGetWidth(GtkWidget *belvuAlignment)
 static int getAlignmentDisplayWidth(BelvuAlignmentProperties *properties)
 {
   int result = 0;
-  
+
   if (properties->wrapWidth == UNSET_INT)
     {
       /* Drawing can be very slow if we draw the full alignment, so we only
@@ -1183,19 +1184,19 @@ static int getAlignmentDisplayWidth(BelvuAlignmentProperties *properties)
        * in case the user specifies a very large width because this can cause
        * a badalloc crash if too big.) */
       result =
-        properties->columnPadding + (properties->bc->maxNameLen * properties->charWidth) + 
+        properties->columnPadding + (properties->bc->maxNameLen * properties->charWidth) +
         properties->nameColumnPadding + (properties->bc->maxEndLen * properties->charWidth) +
-        properties->columnPadding + (properties->wrapWidth * properties->charWidth) + 
-        properties->columnPadding + (properties->bc->maxEndLen * properties->charWidth) + 
+        properties->columnPadding + (properties->wrapWidth * properties->charWidth) +
+        properties->columnPadding + (properties->bc->maxEndLen * properties->charWidth) +
         properties->columnPadding + (properties->bc->maxScoreLen * properties->charWidth);
-      
+
       if (result > MAX_PIXMAP_WIDTH)
         {
           result = MAX_PIXMAP_WIDTH;
           g_warning("The alignment window is too large and will be clipped.\n");
         }
     }
-  
+
   return result;
 }
 
@@ -1203,31 +1204,31 @@ static int getAlignmentDisplayWidth(BelvuAlignmentProperties *properties)
 static int getAlignmentDisplayHeight(BelvuAlignmentProperties *properties)
 {
   int result = 0;
-  
+
   if (properties->wrapWidth == UNSET_INT)
     {
       result = properties->seqArea->allocation.height - DEFAULT_YPAD;
-    }  
+    }
   else
     {
       /* Divide the full sequence length by the display width to give the number
        * of paragraphs we require */
       const int numParagraphs = ceil((double)properties->bc->maxLen / (double)properties->wrapWidth);
       const int paragraphHeight = (properties->bc->alignArr->len + 1) * properties->charHeight;
-    
+
       result = paragraphHeight * numParagraphs;
-      
+
       /* Add space for the title, if given (one line for the title and one as a spacer) */
       if (properties->title)
         result += properties->charHeight * 2;
-      
+
       if (result > MAX_PIXMAP_HEIGHT)
         {
           result = MAX_PIXMAP_HEIGHT;
           g_warning("The alignment window is too large and will be clipped.\n");
         }
     }
-  
+
   return result;
 }
 
@@ -1238,9 +1239,9 @@ void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
 {
   if (!belvuAlignment)
     return;
-  
+
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   if (properties->columnsArea)
     {
       /* There is a separate drawing area for the columns that contain the row
@@ -1249,16 +1250,16 @@ void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
                                       (properties->bc->maxStartLen * properties->charWidth) + (2 * properties->columnPadding) +
                                       (properties->bc->maxEndLen * properties->charWidth) + (2 * properties->columnPadding) +
                                       properties->columnPadding;
-      
+
       if (properties->bc->displayScores)
         properties->columnsRect.width += (properties->bc->maxScoreLen * properties->charWidth) + (2 * properties->columnPadding);
 
       /* Set the height of the header line to the the same as the sequence header line */
       gtk_widget_set_size_request(properties->columnsHeader, -1, properties->seqHeaderRect.y + properties->seqHeaderRect.height);
-      
+
       /* Set the height and width of the drawing area */
       gtk_layout_set_size(GTK_LAYOUT(properties->columnsArea), properties->columnsRect.width, properties->columnsRect.height);
-      
+
       /* Force the width of the drawing widget to be the width of the drawing area */
       if (properties->columnsRect.width != properties->columnsArea->allocation.width)
         gtk_widget_set_size_request(properties->columnsArea, properties->columnsRect.width, -1);
@@ -1267,7 +1268,7 @@ void updateHeaderColumnsSize(GtkWidget *belvuAlignment)
 
 
 /* This function calculates the size of the drawing area for sequences based
- * on either a) the current allocated size of the sequence area or b) for a 
+ * on either a) the current allocated size of the sequence area or b) for a
  * wrapped alignment, the full size required to draw everything.
  * It also updates the height of the columns area, if applicable, so that it is
  * the same height as the sequence area. */
@@ -1275,14 +1276,14 @@ void calculateDrawingSizes(GtkWidget *belvuAlignment)
 {
   if (!belvuAlignment)
     return;
-  
+
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
 
   /* Recalculate the size of the drawing area for the sequences (both height
    * and width may have changed on a size-allocate) */
   properties->seqRect.width = getAlignmentDisplayWidth(properties);
   properties->seqRect.height = getAlignmentDisplayHeight(properties);
-  
+
   /* Update the size of the drawing widget and signal that the scroll range
    * has changed (n/a for wrapped view because this gets done by the draw function. */
   if (properties->wrapWidth == UNSET_INT)
@@ -1291,11 +1292,11 @@ void calculateDrawingSizes(GtkWidget *belvuAlignment)
 
       if (properties->hAdjustment)
         gtk_adjustment_changed(properties->hAdjustment); /* signal that the scroll range has changed */
-      
+
       if (properties->vAdjustment)
         gtk_adjustment_changed(properties->vAdjustment);
     }
-  
+
   /* Keep the sequence-header area the same width as the sequence area */
   properties->seqHeaderRect.width = properties->seqRect.width;
 
@@ -1312,7 +1313,7 @@ void calculateDrawingSizes(GtkWidget *belvuAlignment)
 static void onSizeAllocateBelvuAlignment(GtkWidget *widget, GtkAllocation *allocation, gpointer data)
 {
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
-  
+
   /* Update the size of the drawing areas */
   calculateDrawingSizes(belvuAlignment);
 }
@@ -1323,25 +1324,25 @@ static void onSizeAllocateBelvuAlignment(GtkWidget *widget, GtkAllocation *alloc
  ***********************************************************/
 
 void removeSelectedSequence(BelvuContext *bc, GtkWidget *belvuAlignment)
-{ 
-  if (!bc->selectedAln) 
+{
+  if (!bc->selectedAln)
     {
       g_critical("Please select a sequence to remove.\n");
       return;
     }
-  
+
   const int idx = bc->selectedAln->nr - 1;
   g_array_remove_index(bc->alignArr, idx);
   arrayOrder(bc->alignArr);
-  
+
   bc->saved = FALSE;
-  
+
   g_message("Removed %s/%d-%d.  %d sequences left.\n\n", bc->selectedAln->name, bc->selectedAln->start, bc->selectedAln->end, bc->alignArr->len);
-  
+
   bc->selectedAln = NULL;
-  
+
   rmFinaliseGapRemoval(bc);
-  updateOnVScrollSizeChaged(belvuAlignment);  
+  updateOnVScrollSizeChaged(belvuAlignment);
   onRowSelectionChanged(bc);
 }
 
@@ -1351,28 +1352,28 @@ void removeGappySeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const double c
 {
   rmGappySeqs(bc, cutoff);
   rmFinaliseGapRemoval(bc);
-  updateOnVScrollSizeChaged(belvuAlignment);  
+  updateOnVScrollSizeChaged(belvuAlignment);
 }
 
 /* Get rid of partial seqs. */
 void removePartialSeqs(BelvuContext *bc, GtkWidget *belvuAlignment)
 {
   rmPartialSeqs(bc);
-  updateOnVScrollSizeChaged(belvuAlignment);  
+  updateOnVScrollSizeChaged(belvuAlignment);
 }
 
 /* Get rid of redundant seqs (those that are more than the given % identical). */
 void removeRedundantSeqs(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff)
 {
   mkNonRedundant(bc, cutoff);
-  updateOnVScrollSizeChaged(belvuAlignment);  
+  updateOnVScrollSizeChaged(belvuAlignment);
 }
 
 /* Get rid of outlier seqs (those that are less than the given % identical to any other). */
 void removeOutliers(BelvuContext *bc, GtkWidget *belvuAlignment, const double cutoff)
 {
   rmOutliers(bc, cutoff);
-  updateOnVScrollSizeChaged(belvuAlignment);  
+  updateOnVScrollSizeChaged(belvuAlignment);
 }
 
 /* Get rid of seqs that have a score below the given value */
@@ -1388,11 +1389,11 @@ void removeByScore(BelvuContext *bc, GtkWidget *belvuAlignment, const double cut
  * highlighted sequence is visible */
 void centerHighlighted(BelvuContext *bc, GtkWidget *belvuAlignment)
 {
-  if (bc->selectedAln) 
+  if (bc->selectedAln)
     {
       BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
       GtkAdjustment *vAdjustment = properties->vAdjustment;
-      
+
       /* Create the range of y coords that we want to be in range */
       const int newIdx = bc->selectedAln->nr - 1;
       gtk_adjustment_clamp_page(vAdjustment, newIdx, newIdx + 1);
@@ -1409,7 +1410,7 @@ static void setAdjustmentValue(GtkAdjustment *adjustment, const int value)
   /* _set_value checks the lower limit, but we need to check the upper... */
   if (newValue > adjustment->upper - adjustment->page_size)
     newValue = adjustment->upper - adjustment->page_size;
-                     
+
   gtk_adjustment_set_value(adjustment, newValue);
 }
 
@@ -1491,19 +1492,19 @@ void hScrollLeftRight(GtkWidget *belvuAlignment, const gboolean left, const int 
 static void selectRowAtCoord(BelvuAlignmentProperties *properties, const int y)
 {
   BelvuContext *bc = properties->bc;
-  
+
   const int rowIdx = properties->vAdjustment->value + ((y - properties->seqRect.y) / properties->charHeight);
-  
+
   /* Set the selected alignment. Note that some alignments are hidden so
    * we need to count how many visible alignments there are up to this row. */
   int i = 0;
   int count = -1;
   bc->selectedAln = NULL;
-  
+
   for ( i = 0; i < (int)bc->alignArr->len; ++i)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
-      
+
       if (!alnp->hide)
         {
           ++count;
@@ -1532,11 +1533,11 @@ static void selectColumnAtCoord(BelvuAlignmentProperties *properties, const int 
   BelvuContext *bc = properties->bc;
 
   const int colIdx = getColumnAtCoord(properties, x);
-  
+
   if (colIdx >= 0 && colIdx < bc->maxLen)
     {
       bc->selectedCol = colIdx + properties->hAdjustment->value + 1;
-      
+
       if (highlightCol)
         bc->highlightedCol = bc->selectedCol;
       else
@@ -1549,10 +1550,10 @@ static void selectColumnAtCoord(BelvuAlignmentProperties *properties, const int 
 static gboolean onButtonPressColumnsArea(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   if (event->type == GDK_BUTTON_PRESS && event->button == 1)  /* single click left button */
     {
       /* Select the clicked row */
@@ -1567,13 +1568,13 @@ static gboolean onButtonPressColumnsArea(GtkWidget *widget, GdkEventButton *even
           /* Removed the clicked sequence (which will be the selected one) */
           removeSelectedSequence(properties->bc, belvuAlignment);
         }
-      else 
+      else
         {
           /* Fetch the clicked sequence (i.e. the currently selected one) */
           fetchAln(properties->bc, properties->bc->selectedAln);
         }
     }
-  
+
   return handled;
 }
 
@@ -1582,27 +1583,27 @@ static gboolean onButtonPressColumnsArea(GtkWidget *widget, GdkEventButton *even
 static gboolean onButtonPressSeqArea(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   if (event->type == GDK_BUTTON_PRESS &&
       (event->button == 1 || event->button == 2))  /* single click left or middle buttons */
     {
       /* If the middle button was pressed, highlight the selected column */
       const gboolean highlightCol = (event->button == 2);
-      
+
       /* If the left button was pressed, select the clicked row */
       if (event->button == 1)
         {
           selectRowAtCoord(properties, event->y);
           onRowSelectionChanged(properties->bc);
         }
-      
+
       /* Select the clicked column */
       selectColumnAtCoord(properties, event->x, highlightCol);
       onColSelectionChanged(properties->bc);
-      
+
       handled = TRUE;
     }
   else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* double click left button */
@@ -1612,13 +1613,13 @@ static gboolean onButtonPressSeqArea(GtkWidget *widget, GdkEventButton *event, g
           /* Removed the clicked sequence (i.e. the currently selected one) */
           removeSelectedSequence(properties->bc, belvuAlignment);
         }
-      else 
+      else
         {
           /* Fetch the clicked sequence (i.e. the currently selected one) */
           fetchAln(properties->bc, properties->bc->selectedAln);
         }
     }
-  
+
   return handled;
 }
 
@@ -1627,25 +1628,25 @@ static gboolean onButtonPressSeqArea(GtkWidget *widget, GdkEventButton *event, g
 static gboolean onButtonReleaseSeqArea(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   if (event->button == 2)  /* released middle button */
     {
       /* Scroll to centre on the current column */
       int colIdx = getColumnAtCoord(properties, event->x);
       double newValue = colIdx + properties->hAdjustment->value - (properties->hAdjustment->page_size / 2.0);
-      
+
       if (newValue > properties->hAdjustment->upper - properties->hAdjustment->page_size)
         newValue = properties->hAdjustment->upper - properties->hAdjustment->page_size;
-        
+
       gtk_adjustment_set_value(properties->hAdjustment, newValue);
-      
+
       /* Clear the current column highlihting */
       properties->bc->highlightedCol = 0;
       onColSelectionChanged(properties->bc);
-      
+
       handled = TRUE;
     }
   else if (event->type == GDK_2BUTTON_PRESS && event->button == 1) /* double click left button */
@@ -1656,7 +1657,7 @@ static gboolean onButtonReleaseSeqArea(GtkWidget *widget, GdkEventButton *event,
           removeSelectedSequence(properties->bc, belvuAlignment);
         }
     }
-  
+
   return handled;
 }
 
@@ -1665,19 +1666,19 @@ static gboolean onButtonReleaseSeqArea(GtkWidget *widget, GdkEventButton *event,
 static gboolean onMouseMoveSeqArea(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   if (event->state & GDK_BUTTON2_MASK) /* middle button pressed */
     {
       /* Update the selected/highlighted column */
       selectColumnAtCoord(properties, event->x, TRUE);
       onColSelectionChanged(properties->bc);
-      
+
       handled = TRUE;
     }
-  
+
   return handled;
 }
 
@@ -1686,10 +1687,10 @@ static gboolean onMouseMoveSeqArea(GtkWidget *widget, GdkEventMotion *event, gpo
 static gboolean onScrollAlignment(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   GtkWidget *belvuAlignment = GTK_WIDGET(data);
   BelvuAlignmentProperties *properties = belvuAlignmentGetProperties(belvuAlignment);
-  
+
   switch (event->direction)
     {
       /* left/right scrolling for sequence area or sequence header only */
@@ -1700,7 +1701,7 @@ static gboolean onScrollAlignment(GtkWidget *widget, GdkEventScroll *event, gpoi
           handled = TRUE;
           break;
         }
-        
+
       case GDK_SCROLL_RIGHT:
         {
           if (widget == properties->seqArea || widget == properties->seqHeader)
@@ -1717,7 +1718,7 @@ static gboolean onScrollAlignment(GtkWidget *widget, GdkEventScroll *event, gpoi
           handled = TRUE;
           break;
         }
-        
+
       case GDK_SCROLL_DOWN:
         {
           if (widget == properties->seqArea || widget == properties->columnsArea)
@@ -1725,14 +1726,14 @@ static gboolean onScrollAlignment(GtkWidget *widget, GdkEventScroll *event, gpoi
           handled = TRUE;
           break;
         }
-        
+
       default:
         {
           handled = FALSE;
           break;
         }
     };
-  
+
   return handled;
 }
 
@@ -1759,20 +1760,20 @@ static void setBelvuAlignmentStyle(BelvuContext *bc, GtkWidget *seqArea, GtkWidg
 GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int wrapWidth)
 {
   GtkWidget *belvuAlignment = NULL;      /* the outermost container */
-  
+
   GtkWidget *seqArea = NULL;             /* the "sequence area", which will draw the actual peptide sequences */
   GtkWidget *columnsArea = NULL;         /* optional "headers" column for drawing names, coords etc. */
   GtkWidget *seqHeader = NULL;       /* header for the sequence area */
   GtkWidget *columnsHeader = NULL;   /* header for the columns area */
-  
+
   GtkAdjustment *hAdjustment = NULL;
   GtkAdjustment *vAdjustment = NULL;
-  
+
   if (wrapWidth == UNSET_INT)
     {
       /* The standard (unwrapped) view. Two columns that share the same vertical
        * scrollbar but only the sequence area will have a horizontal scrollbar. */
-      
+
       /* Place everything in a table */
       belvuAlignment = gtk_table_new(3, 3, FALSE);
       const int xpad = 0, ypad = 0;
@@ -1782,15 +1783,15 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
       vAdjustment = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, bc->alignArr->len + 1, 1, 0, 0));
       GtkWidget *hScrollbar = gtk_hscrollbar_new(hAdjustment);
       GtkWidget *vScrollbar = gtk_vscrollbar_new(vAdjustment);
-      
+
       /* Create the drawing areas */
       seqArea = gtk_layout_new(NULL, NULL);
       columnsArea = gtk_layout_new(NULL, NULL);
-      
+
       /* Create a header widget for each drawing area */
       columnsHeader = gtk_drawing_area_new();
       seqHeader = gtk_drawing_area_new();
-      
+
       /* Place all the widgets in the table */
       gtk_table_attach(GTK_TABLE(belvuAlignment), columnsHeader,0, 1, 0, 1, GTK_FILL, GTK_SHRINK, xpad, ypad);
       gtk_table_attach(GTK_TABLE(belvuAlignment), columnsArea,  0, 1, 1, 2, GTK_FILL, (GtkAttachOptions)(GTK_EXPAND | GTK_FILL), xpad, ypad);
@@ -1801,14 +1802,14 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
 
       /* Connect signals */
       gtk_widget_add_events(columnsArea, GDK_BUTTON_PRESS_MASK);
-      g_signal_connect(G_OBJECT(columnsArea), "expose-event", G_CALLBACK(onExposeBelvuColumns), belvuAlignment);  
+      g_signal_connect(G_OBJECT(columnsArea), "expose-event", G_CALLBACK(onExposeBelvuColumns), belvuAlignment);
       g_signal_connect(G_OBJECT(columnsArea), "button-press-event", G_CALLBACK(onButtonPressColumnsArea), belvuAlignment);
       g_signal_connect(G_OBJECT(columnsArea), "scroll-event",  G_CALLBACK(onScrollAlignment), belvuAlignment);
-      
-      g_signal_connect(G_OBJECT(columnsHeader), "expose-event", G_CALLBACK(onExposeBelvuColumnsHeader), belvuAlignment);  
+
+      g_signal_connect(G_OBJECT(columnsHeader), "expose-event", G_CALLBACK(onExposeBelvuColumnsHeader), belvuAlignment);
 
       gtk_widget_add_events(seqHeader, GDK_BUTTON_PRESS_MASK);
-      g_signal_connect(G_OBJECT(seqHeader), "expose-event", G_CALLBACK(onExposeBelvuSequenceHeader), belvuAlignment);  
+      g_signal_connect(G_OBJECT(seqHeader), "expose-event", G_CALLBACK(onExposeBelvuSequenceHeader), belvuAlignment);
       g_signal_connect(G_OBJECT(seqHeader), "scroll-event",  G_CALLBACK(onScrollAlignment), belvuAlignment);
 
       gtk_widget_add_events(seqArea, GDK_BUTTON_RELEASE_MASK);
@@ -1835,15 +1836,15 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
       belvuAlignment = gtk_scrolled_window_new(NULL, NULL);
       gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(belvuAlignment), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
       gtk_container_add(GTK_CONTAINER(belvuAlignment), seqArea);
-      
+
       hAdjustment = gtk_layout_get_hadjustment(GTK_LAYOUT(seqArea));
       vAdjustment = gtk_layout_get_vadjustment(GTK_LAYOUT(seqArea));
     }
 
   gtk_widget_add_events(seqArea, GDK_BUTTON_PRESS_MASK);
-  g_signal_connect(G_OBJECT(seqArea), "expose-event",  G_CALLBACK(onExposeBelvuSequence), belvuAlignment);  
+  g_signal_connect(G_OBJECT(seqArea), "expose-event",  G_CALLBACK(onExposeBelvuSequence), belvuAlignment);
   g_signal_connect(G_OBJECT(seqArea), "size-allocate", G_CALLBACK(onSizeAllocateBelvuAlignment), belvuAlignment);
-  
+
   /* Set the style and properties */
   g_assert(belvuAlignment);
   setBelvuAlignmentStyle(bc, seqArea, columnsArea);
@@ -1851,8 +1852,3 @@ GtkWidget* createBelvuAlignment(BelvuContext *bc, const char* title, const int w
 
   return belvuAlignment;
 }
-
-
-
-
-

@@ -1,5 +1,6 @@
 /*  File: blixem_.h
  *  Author: Ed Griffiths, 2001-11-29
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -87,7 +88,7 @@ class BlxContext;
 #define BLXCOL_TISSUE_TYPE_WIDTH        100   /* default width for tissue-type column  */
 
 
-/* 
+/*
  * config file groups/keywords, these should not be changed willy nilly as they
  * are used external programs and users when constructing config files.
  * If you change things or add additional groups or values, then you should
@@ -113,7 +114,7 @@ class BlxContext;
 
 #define PIPE_FETCH_LOCATION       "command"
 #define PIPE_FETCH_ARGS           "args"
-#endif 
+#endif
 
 /* Required keys for socket-fetch groups */
 #define SOCKET_FETCH_LOCATION     "command"
@@ -145,7 +146,7 @@ class BlxContext;
 /* For settings */
 #define BLIXEM_SETTINGS_FILE             ".blixemrc"  /* default file name for saving blixem settings to */
 #define SETTINGS_GROUP                   "user-settings"
-#define STYLES_FILE_KEY                  "stylesfile" /* styles-file key in the [blixem] group */  
+#define STYLES_FILE_KEY                  "stylesfile" /* styles-file key in the [blixem] group */
 
 #define SETTING_NAME_INVERT_SORT "invert-sort"
 #define SETTING_NAME_HIGHLIGHT_DIFFS "highlight-diffs"
@@ -216,16 +217,16 @@ typedef void(*FetchFunc)(const char *seqName, gpointer fetchMethod, const gboole
 
 
 /* The following are used to define default colors for certain types of features in Blixem.
- * One of several different actual colors from the BlxColor struct may be used depending 
- * on state, e.g. we use a different color if "print colors" (i.e. black and 
+ * One of several different actual colors from the BlxColor struct may be used depending
+ * on state, e.g. we use a different color if "print colors" (i.e. black and
  * white mode) is on. */
 
-typedef enum 
+typedef enum
   {
     BLXCOLOR_MIN,           /* dummy value so that we don't get a zero ID */
-  
+
     BLXCOLOR_BACKGROUND,    /* background color of the widgets */
-    BLXCOLOR_REF_SEQ,       /* default background color for the reference sequence */  
+    BLXCOLOR_REF_SEQ,       /* default background color for the reference sequence */
     BLXCOLOR_MATCH,         /* background color for an exact match */
     BLXCOLOR_CONS,          /* background color for a conserved match */
     BLXCOLOR_MISMATCH,      /* background color for a mismatch */
@@ -271,13 +272,13 @@ typedef enum
 
     BLXCOL_NUM_COLORS
   } BlxColorId;
-  
+
 
 /* Utility struct to pass around a set of colors from a styles file */
 typedef struct _BlxStyleColors
 {
   char *fillColor;
-  char *lineColor; 
+  char *lineColor;
   char *fillColorSelected;
   char *lineColorSelected;
   char *fillColorCds;
@@ -288,12 +289,12 @@ typedef struct _BlxStyleColors
   gboolean cdsFound;
 } BlxStyleColors;
 
-  
+
 /* This enum contains a list of all the boolean options that the user can toggle on/off */
 typedef enum
   {
     BLXFLAG_MIN,                    /* Start index for looping through flags */
-  
+
     BLXFLAG_INVERT_SORT,            /* Inverts the default sort order */
     BLXFLAG_HIGHLIGHT_DIFFS,        /* Hides matching bases and highlights mis-matching ones */
     BLXFLAG_HIGHLIGHT_VARIATIONS,   /* Whether to highlight bases that have variations in the reference sequence */
@@ -315,12 +316,12 @@ typedef enum
     BLXFLAG_LINK_FEATURES,          /* whether features with the same name should be linked */
     BLXFLAG_SHOW_COLINEARITY,       /* whether to show colinearity lines between alignment blocks */
     BLXFLAG_SHOW_COLINEARITY_SELECTED, /* whether to show colinearity lines for selected sequence only */
-    
+
     BLXFLAG_NUM_FLAGS               /* Total number of flags e.g. for creating arrays and loops etc */
   } BlxFlag;
 
 
-/* Structure representing a group of sequences. This groups several BlxSequences together and 
+/* Structure representing a group of sequences. This groups several BlxSequences together and
  * sets various flags so that we can hide/highlight/etc all of the sequences in a group. */
 typedef struct _SequenceGroup
   {
@@ -352,7 +353,7 @@ typedef enum
     BLXOPT_HSP_GAPS = 7,          /* 'G' for HSP gaps mode; blank otherwise (blxparser.c) */
     BLXOPT_SORT_MODE = 8,         /* Initial sort mode: i=ID, n=name, p=position, s=score, t=tissue type, m=strain, g=gene name, o=organism;
                                    * OR: set to 'd' to automatically dotter the first sequence; blank otherwise (blxselect.c) */
-    
+
     BLXOPT_NUM_OPTS               /* Total number of options (must always be last in list) */
   } BlxOptsIdx ;
 
@@ -363,7 +364,7 @@ typedef enum
 typedef enum
   {
     BLXDIALOG_NOT_PERSISTENT = 0,   /* Reserved for dialogs that do not have an entry in the array */
-    
+
     BLXDIALOG_HELP,                 /* The Help dialog */
     BLXDIALOG_SETTINGS,             /* The Settings dialog */
     BLXDIALOG_SORT,                 /* The Sort dialog */
@@ -371,7 +372,7 @@ typedef enum
     BLXDIALOG_GROUPS,               /* The Groups dialog */
     BLXDIALOG_VIEW,                 /* The View dialog */
     BLXDIALOG_DOTTER,               /* The Dotter dialog */
-    
+
     BLXDIALOG_NUM_DIALOGS           /* The number of dialogs. Must always be the last entry in this enum */
   } BlxDialogId;
 
@@ -394,7 +395,7 @@ typedef enum
 
 
 /* This enum gives access into the depthArray for the specific counter (i.e. per-base or all) */
-typedef enum 
+typedef enum
   {
     DEPTHCOUNTER_NONE,
 
@@ -431,7 +432,7 @@ public:
   MSP *mspList;                   /* the list of alignments */
   GList *columnList;              /* the list of display columns */
   char **geneticCode;             /* the genetic code */
-  
+
   BlxStrand activeStrand;         /* which strand will initially be the active one */
   gboolean negateCoords;          /* if this option is true, the display will show coords as negative when the reverse strand is active */
   gboolean zoomWhole;             /* whether to zoom out to view the entire big picture range on startup */
@@ -449,9 +450,9 @@ public:
   gboolean saveTempFiles;         /* save any temporary files that blixem creates */
   gboolean coverageOn;            /* show the coverage view on start-up */
   gboolean abbrevTitle;           /* if true, use a abbreviated window titles to save space */
-  
-  gboolean mspFlagDefaults[MSPFLAG_NUM_FLAGS]; /* default values for MSP flags */     
-  
+
+  gboolean mspFlagDefaults[MSPFLAG_NUM_FLAGS]; /* default values for MSP flags */
+
   BlxBlastMode blastMode;         /* the blast match mode */
   BlxSeqType seqType;             /* whether the display shows sequences as peptides or nucleotides */
   int numFrames;                  /* the number of reading frames */
@@ -556,7 +557,7 @@ public:
             MSP **mspList,
             BlxBlastMode *blastMode,
             GArray* featureLists[],
-            GSList *supportedTypes, 
+            GSList *supportedTypes,
             GSList *styles,
             int refSeqOffset,
             IntRange* const refSeqRange,
@@ -579,7 +580,7 @@ public:
 
 private:
 
-  void regionFetchFeature(const MSP* const msp, 
+  void regionFetchFeature(const MSP* const msp,
                           const BlxFetchMethod* const fetchMethod,
                           const char *script,
                           const char *dataset,
@@ -597,7 +598,7 @@ private:
   MSP **mspList;
   BlxBlastMode *blastMode;
   GArray** featureLists;
-  GSList *supportedTypes; 
+  GSList *supportedTypes;
   GSList *styles;
   int refSeqOffset;
   IntRange* refSeqRange;
@@ -618,10 +619,10 @@ private:
 /* Function to show blixem window, can be called from any application. */
 gboolean                            blxview(CommandLineOptions *options,
                                             GArray* featureLists[],
-                                            GList *seqList, 
+                                            GList *seqList,
                                             GSList *supportedTypes,
-                                            PfetchParams *pfetch, 
-                                            char *align_types, 
+                                            PfetchParams *pfetch,
+                                            char *align_types,
                                             gboolean External,
                                             GSList *styles,
                                             GHashTable *lookupTable) ;
@@ -643,8 +644,8 @@ const IntRange*                    mspGetFullDisplayRange(const MSP* const msp, 
 void                               mspCalculateFullExtents(MSP *msp, const BlxContext* const bc, const int numUnalignedBases);
 void                               cacheMspDisplayRanges(const BlxContext* const bc, const int numUnalignedBases);
 
-gboolean                           mspGetMatchCoord(const MSP *msp, 
-                                                    const int qIdx, 
+gboolean                           mspGetMatchCoord(const MSP *msp,
+                                                    const int qIdx,
                                                     const gboolean seqSelected,
                                                     const int numUnalignedBases,
                                                     BlxContext *bc,
@@ -655,7 +656,7 @@ void                               drawAssemblyGaps(GtkWidget *widget,
                                                     GdkDrawable *drawable,
                                                     GdkColor *color,
                                                     const gboolean displayRev,
-                                                    GdkRectangle *rect, 
+                                                    GdkRectangle *rect,
                                                     const IntRange* const dnaRange,
                                                     const GArray *mspArray);
 
@@ -669,13 +670,13 @@ const char*                        blxGetCopyrightString();
 const char*                        blxGetWebSiteString();
 char*                              blxGetCommentsString();
 const char*                        blxGetLicenseString();
-const char*                        blxGetVersionString();        
+const char*                        blxGetVersionString();
 
 /* dotter.c */
 //void                               selectFeatures(void);
 
 /* blxparser.c */
-gboolean                           mspHasFs(const MSP *msp);  
+gboolean                           mspHasFs(const MSP *msp);
 char*                              readFastaSeq(FILE *seqfile, char *qname, int *startCoord, int *endCoord, const BlxSeqType seqType);
 
 /* blxFetch.c */

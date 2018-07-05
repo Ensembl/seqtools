@@ -1,5 +1,6 @@
 /*  File: greyramp.c
  *  Author: Gemma Barson, 2010-08-31
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -29,8 +30,8 @@
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
  * Description: Creates the greyramp tool window for a Dotter window.
- *              The greyramp tool is used to control how much noise is filtered 
- *              out in the dotplot. The greyramp too is owned by the Dotter 
+ *              The greyramp tool is used to control how much noise is filtered
+ *              out in the dotplot. The greyramp too is owned by the Dotter
  *              window and will be destroyed when that window is closed.
  *----------------------------------------------------------------------------
  */
@@ -71,22 +72,22 @@ public:
                                        * undocked from the main window */
   DotterWindowContext *dwc;
   GdkRectangle gradientRect;          /* the area where the gradient ectangle is drawn */
-    
+
   GtkWidget *whiteSpinButton;         /* spin button to control the position of the white point in the gradient */
   GtkWidget *blackSpinButton;         /* spin button to control the position of the black point in the gradient */
-    
+
   int blackPoint;                     /* current position for the black point */
   int whitePoint;                     /* current position for the white point */
   int lastBlackPoint;                 /* the previous value for the black-point spin button (so we can undo) */
   int lastWhitePoint;                 /* the previous value for the white-point spin button (so we can undo) */
-    
+
   gboolean swapValues;                /* top and bottom values are swapped (i.e. so top is max and bottom is min) */
 
   gboolean draggingWhite;             /* set to true when dragging the white-point marker */
   gboolean draggingBlack;             /* set to true when dragging the black-point marker */
   gboolean draggingThreshold;         /* set to true when dragging the threshold marker */
   gint dragXPos;                      /* x position of where the drag started */
-    
+
   GSList *callbackItems;              /* a list of callbacks to be called when the greyramp is updated */
 
   int greyrampMinDist;                /* minimum dist between black and white point */
@@ -105,7 +106,7 @@ static GreyrampProperties* greyrampGetProperties(GtkWidget *greyramp)
 static void onDestroyGreyramp(GtkWidget *greyramp)
 {
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
-  
+
   if (properties)
     {
       if (properties->callbackItems)
@@ -116,23 +117,23 @@ static void onDestroyGreyramp(GtkWidget *greyramp)
               CallbackItem *callbackItem = (CallbackItem*)(item->data);
               delete callbackItem;
             }
-          
+
           g_slist_free(properties->callbackItems);
         }
-      
+
       delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(greyramp), "GreyrampProperties", NULL);
     }
 }
 
-static void greyrampCreateProperties(GtkWidget *greyramp, 
+static void greyrampCreateProperties(GtkWidget *greyramp,
                                      GtkWidget *greyrampWindow,
 				     DotterWindowContext *dwc,
                                      GdkRectangle *gradientRect,
                                      GtkWidget *whiteSpinButton,
                                      GtkWidget *blackSpinButton,
-                                     const int blackPoint, 
+                                     const int blackPoint,
                                      const int whitePoint,
                                      const int lastBlackPoint,
                                      const int lastWhitePoint,
@@ -163,9 +164,9 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
       properties->dragXPos = 0;
       properties->callbackItems = NULL;
       properties->greyrampMinDist = greyrampMinDist;
-      
+
       g_object_set_data(G_OBJECT(greyramp), "GreyrampProperties", properties);
-      g_signal_connect(G_OBJECT(greyramp), "destroy", G_CALLBACK(onDestroyGreyramp), NULL); 
+      g_signal_connect(G_OBJECT(greyramp), "destroy", G_CALLBACK(onDestroyGreyramp), NULL);
     }
 }
 
@@ -174,7 +175,7 @@ static void greyrampCreateProperties(GtkWidget *greyramp,
 static void greyrampSetWhitePoint(GtkWidget *greyramp, GreyrampProperties *properties, const int whitePoint)
 {
   properties->whitePoint = whitePoint;
-  
+
   const int greyrampMin = GREYRAMP_MIN;
   const int greyrampMax = GREYRAMP_MAX;
 
@@ -182,7 +183,7 @@ static void greyrampSetWhitePoint(GtkWidget *greyramp, GreyrampProperties *prope
     {
       properties->whitePoint = greyrampMin;
     }
-  
+
   if (properties->whitePoint > greyrampMax)
     {
       properties->whitePoint = greyrampMax;
@@ -192,7 +193,7 @@ static void greyrampSetWhitePoint(GtkWidget *greyramp, GreyrampProperties *prope
     {
       properties->whitePoint = properties->blackPoint - properties->greyrampMinDist;
     }
-  
+
   if (properties->whiteSpinButton)
     {
       gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), properties->whitePoint);
@@ -207,7 +208,7 @@ static void greyrampSetWhitePoint(GtkWidget *greyramp, GreyrampProperties *prope
 static void greyrampSetBlackPoint(GtkWidget *greyramp, GreyrampProperties *properties, const int blackPoint)
 {
   properties->blackPoint = blackPoint;
-  
+
   const int greyrampMin = GREYRAMP_MIN;
   const int greyrampMax = GREYRAMP_MAX;
 
@@ -215,7 +216,7 @@ static void greyrampSetBlackPoint(GtkWidget *greyramp, GreyrampProperties *prope
     {
       properties->blackPoint = greyrampMin;
     }
-  
+
   if (properties->blackPoint > greyrampMax)
     {
       properties->blackPoint = greyrampMax;
@@ -245,13 +246,13 @@ void registerGreyrampCallback(GtkWidget *greyramp, GtkWidget *widget, GtkCallbac
   DEBUG_ENTER("registerGreyrampCallback");
 
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
-  
+
   CallbackItem *callbackItem = new CallbackItem;
   callbackItem->widget = widget;
   callbackItem->func = func;
-  
+
   properties->callbackItems = g_slist_append(properties->callbackItems, callbackItem);
-  
+
   DEBUG_EXIT("registerGreyrampCallback returning ");
 }
 
@@ -277,12 +278,12 @@ static gboolean onDeleteGreyrampTool(GtkWidget *widget, GdkEvent *event, gpointe
 void updateGreyMap(GtkWidget *greyramp)
 {
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
-  
+
   unsigned char *ramp = (unsigned char*)g_malloc(256 * sizeof(unsigned char));
-  
+
   int whitePoint = properties->whitePoint;
   int blackPoint = properties->blackPoint;
-  
+
   /* If black and white point are the same, make the white point less than the black point
    * (But make sure it's still in bounds) */
   if (blackPoint == whitePoint && blackPoint < GREYRAMP_MAX)
@@ -293,48 +294,48 @@ void updateGreyMap(GtkWidget *greyramp)
     {
       --whitePoint;
     }
-  
+
   if (blackPoint < whitePoint)
     {
       int i = 0;
-    
+
       for (i = 0 ; i < blackPoint ; ++i)
 	ramp[i] = 0x0 ;
-    
+
       gdouble fac = 0xff / (gdouble)(whitePoint - blackPoint) ;
-    
+
       for ( ; i < whitePoint && i < 256 ; ++i)
-	ramp[i] =  fac * (i - blackPoint) ; 
-    
+	ramp[i] =  fac * (i - blackPoint) ;
+
       for ( ; i < 256 ; ++i)
 	ramp[i] = 0xff ;
     }
   else
-    { 
+    {
       int i = 0;
-      
+
       for (i = 0 ; i < whitePoint ; ++i)
 	ramp[i] = 0xff ;
-      
+
       gdouble fac = 0xff / (gdouble)(blackPoint - whitePoint) ;
-      
+
       for ( ; i < blackPoint && i < 256 ; ++i)
-	ramp[i] = fac * (blackPoint - i) ; 
-      
+	ramp[i] = fac * (blackPoint - i) ;
+
       for ( ; i < 256 ; ++i)
 	ramp[i] = 0x0 ;
     }
-  
-  
+
+
   /* Loop through our list of widgets that require their callbacks to be called */
   GSList *item = properties->callbackItems;
-  
+
   for ( ; item; item = item->next)
     {
       CallbackItem *callbackItem = (CallbackItem*)(item->data);
       callbackItem->func(callbackItem->widget, ramp);
     }
-  
+
   g_free(ramp);
 }
 
@@ -408,7 +409,7 @@ static void drawGradient(GdkDrawable *drawable, GtkWidget *greyramp)
   /* If the positions are the same, make the black pos slightly smaller (to emulate historic behaviour) */
   int whitePoint = properties->whitePoint;
   int blackPoint = properties->blackPoint;
-  
+
   if (whitePoint == blackPoint)
     {
       if (blackPoint <= 1)
@@ -424,28 +425,28 @@ static void drawGradient(GdkDrawable *drawable, GtkWidget *greyramp)
   /* Get the white and black points as fractions of 1.0 */
   gdouble blackPos = blackPoint / ((gdouble)GREYRAMP_MAX);
   gdouble whitePos = whitePoint / ((gdouble)GREYRAMP_MAX);
-  
+
   /* Add a stop at the start and end. The start is white if the whitePos is less than blackPos */
   const int whiteEnd = whitePos < blackPos ? 0 : 1;
   const int blackEnd = whitePos < blackPos ? 1 : 0;
   cairo_pattern_add_color_stop_rgb(pattern, whiteEnd, 1.0, 1.0, 1.0);
   cairo_pattern_add_color_stop_rgb(pattern, blackEnd, 0.0, 0.0, 0.0);
-  
+
   /* Add stop points at the black/white positions */
   cairo_pattern_add_color_stop_rgb(pattern, whitePos, 1.0, 1.0, 1.0);
   cairo_pattern_add_color_stop_rgb(pattern, blackPos, 0.0, 0.0, 0.0);
-  
+
   if (cairo_pattern_status(pattern) == CAIRO_STATUS_SUCCESS)
     {
       cairo_t *cr = gdk_cairo_create(drawable);
-      
+
       gdk_cairo_rectangle(cr, rect);
       cairo_set_source(cr, pattern);
       cairo_fill(cr);
-      
+
       cairo_destroy(cr);
     }
-  
+
   cairo_pattern_destroy(pattern);
 }
 
@@ -455,10 +456,10 @@ static void drawWhiteMarker(GdkDrawable *drawable, GtkWidget *greyramp)
 {
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
   DotterContext *dc = properties->dwc->dotterCtx;
-  
+
   GdkRectangle markerRect;
   getWhiteMarkerRect(properties, &markerRect);
-  
+
   /* Draw a triangle. Line color is the 'selected' color if dragging */
   GdkColor *fillColor = getGdkColor(DOTCOLOR_MARKER_FILL, dc->defaultColors, FALSE, properties->dwc->usePrintColors);
   GdkColor *lineColor = getGdkColor(DOTCOLOR_MARKER_LINE, dc->defaultColors, properties->draggingWhite, properties->dwc->usePrintColors);
@@ -474,12 +475,12 @@ static void drawWhiteMarker(GdkDrawable *drawable, GtkWidget *greyramp)
 
   /* Draw and outline of marker */
   GdkGC *gc = gdk_gc_new(drawable);
-  
+
   gdk_gc_set_foreground(gc, fillColor);
   gdk_draw_polygon(drawable, gc, TRUE, points, numPoints);
   gdk_gc_set_foreground(gc, lineColor);
   gdk_draw_polygon(drawable, gc, FALSE, points, numPoints);
-  
+
   g_object_unref(gc);
 }
 
@@ -492,11 +493,11 @@ static void drawBlackMarker(GdkDrawable *drawable, GtkWidget *greyramp)
 
   GdkRectangle markerRect;
   getBlackMarkerRect(properties, &markerRect);
-  
+
   /* Draw a triangle. Line color is the 'selected' color if dragging */
   GdkColor *fillColor = getGdkColor(DOTCOLOR_MARKER_FILL, dc->defaultColors, FALSE, properties->dwc->usePrintColors);
   GdkColor *lineColor = getGdkColor(DOTCOLOR_MARKER_LINE, dc->defaultColors, properties->draggingBlack, properties->dwc->usePrintColors);
-  
+
   int numPoints = 3;
   GdkPoint points[numPoints];
   points[0].x = markerRect.x + (markerRect.width / 2);
@@ -505,15 +506,15 @@ static void drawBlackMarker(GdkDrawable *drawable, GtkWidget *greyramp)
   points[1].y = markerRect.y + markerRect.height;
   points[2].x = markerRect.x + markerRect.width;
   points[2].y = markerRect.y + markerRect.height;
-  
+
   /* Draw fill in white and line in black (or green if dragging) */
   GdkGC *gc = gdk_gc_new(drawable);
-  
+
   gdk_gc_set_foreground(gc, fillColor);
   gdk_draw_polygon(drawable, gc, TRUE, points, numPoints);
   gdk_gc_set_foreground(gc, lineColor);
   gdk_draw_polygon(drawable, gc, FALSE, points, numPoints);
-  
+
   g_object_unref(gc);
 }
 
@@ -523,17 +524,17 @@ static void drawThresholdMarker(GdkDrawable *drawable, GtkWidget *greyramp)
 {
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
   DotterContext *dc = properties->dwc->dotterCtx;
-  
+
   GdkRectangle markerRect;
   getThresholdMarkerRect(properties, &markerRect);
-  
+
   /* Draw the threshold marker outline (there's no fill because we want the background greyramp to show through) */
   GdkGC *gc = gdk_gc_new(drawable);
-  
+
   GdkColor *lineColor = getGdkColor(DOTCOLOR_THRESHOLD_MARKER, dc->defaultColors, properties->draggingThreshold, properties->dwc->usePrintColors);
   gdk_gc_set_foreground(gc, lineColor);
   gdk_draw_rectangle(drawable, gc, FALSE, markerRect.x, markerRect.y, markerRect.width, markerRect.height);
-  
+
   g_object_unref(gc);
 }
 
@@ -566,7 +567,7 @@ static gboolean onExposeGradient(GtkWidget *gradient, GdkEventExpose *event, gpo
       drawBlackMarker(drawable, greyramp);
       drawThresholdMarker(drawable, greyramp);
     }
-  
+
   return TRUE;
 }
 
@@ -582,7 +583,7 @@ static gboolean onExposeGradientMinimised(GtkWidget *gradient, GdkEventExpose *e
       drawGradient(drawable, greyramp);
       drawThresholdMarker(drawable, greyramp);
     }
-  
+
   return TRUE;
 }
 
@@ -591,12 +592,12 @@ static gboolean onExposeGradientMinimised(GtkWidget *gradient, GdkEventExpose *e
 static gboolean onButtonPressGradient(GtkWidget *gradient, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   if (event->button == 1)
     {
       GtkWidget *greyramp = GTK_WIDGET(data);
       GreyrampProperties *properties = greyrampGetProperties(greyramp);
-      
+
       /* See if we clicked inside one of the markers */
       if (pointInWhiteMarker(properties, event->x, event->y))
         {
@@ -617,15 +618,15 @@ static gboolean onButtonPressGradient(GtkWidget *gradient, GdkEventButton *event
       if (properties->draggingWhite || properties->draggingBlack || properties->draggingThreshold)
         {
           /* Remember the current values so we can undo if this is the start of a drag */
-          properties->lastBlackPoint =  properties->blackPoint; 
+          properties->lastBlackPoint =  properties->blackPoint;
           properties->lastWhitePoint =  properties->whitePoint;
 
           gtk_widget_queue_draw(greyramp);
         }
-      
+
       handled = TRUE;
     }
-  
+
   return handled;
 }
 
@@ -634,14 +635,14 @@ static gboolean onButtonReleaseGradient(GtkWidget *gradient, GdkEventButton *eve
 {
   GtkWidget *greyramp = GTK_WIDGET(data);
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
-  
+
   properties->draggingWhite = FALSE;
   properties->draggingBlack = FALSE;
   properties->draggingThreshold = FALSE;
   properties->dragXPos = 0;
-  
+
   gtk_widget_queue_draw(greyramp);
-  
+
   return TRUE;
 }
 
@@ -650,12 +651,12 @@ static gboolean onButtonReleaseGradient(GtkWidget *gradient, GdkEventButton *eve
 static gboolean onMouseMoveGradient(GtkWidget *gradient, GdkEventMotion *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   if (event->state & GDK_BUTTON1_MASK) /* left button pressed */
     {
       GtkWidget *greyramp = GTK_WIDGET(data);
       GreyrampProperties *properties = greyrampGetProperties(greyramp);
-      
+
       if (properties->draggingWhite)
         {
           /* Move the white point by the amount offset since the last move/button-press */
@@ -678,22 +679,22 @@ static gboolean onMouseMoveGradient(GtkWidget *gradient, GdkEventMotion *event, 
           greyrampSetWhitePoint(greyramp, properties, properties->whitePoint + offset);
           greyrampSetBlackPoint(greyramp, properties, properties->blackPoint + offset);
         }
-      
+
       handled = TRUE;
     }
-  
+
   return handled;
 }
 
 
 /* Called when the black-point spin button's value has changed */
 static void onBlackSpinButtonChanged(GtkSpinButton *blackSpinButton, gpointer data)
-{ 
+{
   GtkWidget *greyramp = GTK_WIDGET(data);
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
 
   properties->blackPoint = gtk_spin_button_get_value_as_int(blackSpinButton);
-  
+
   gtk_widget_queue_draw(greyramp);
   updateGreyMap(greyramp);
 }
@@ -701,12 +702,12 @@ static void onBlackSpinButtonChanged(GtkSpinButton *blackSpinButton, gpointer da
 
 /* Called when the white-point spin button's value has changed */
 static void onWhiteSpinButtonChanged(GtkSpinButton *whiteSpinButton, gpointer data)
-{ 
+{
   GtkWidget *greyramp = GTK_WIDGET(data);
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
 
   properties->whitePoint = gtk_spin_button_get_value_as_int(whiteSpinButton);
-  
+
   gtk_widget_queue_draw(greyramp);
   updateGreyMap(greyramp);
 }
@@ -718,20 +719,20 @@ static gint onPressUndoButton(GtkWidget *button, gpointer data)
   GtkWidget *greyramp = GTK_WIDGET(data);
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
 
-  int temp = properties->blackPoint; 
-  properties->blackPoint = properties->lastBlackPoint; 
+  int temp = properties->blackPoint;
+  properties->blackPoint = properties->lastBlackPoint;
   properties->lastBlackPoint = temp;
-  
-  temp = properties->whitePoint; 
-  properties->whitePoint = properties->lastWhitePoint; 
+
+  temp = properties->whitePoint;
+  properties->whitePoint = properties->lastWhitePoint;
   properties->lastWhitePoint = temp;
-  
+
   if (properties->blackSpinButton)
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->blackSpinButton), (float)properties->blackPoint) ;
 
   if (properties->whiteSpinButton)
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), (float)properties->whitePoint); 
-  
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), (float)properties->whitePoint);
+
   return TRUE;
 }
 
@@ -741,19 +742,19 @@ static gint onPressSwapButton(GtkWidget *button, gpointer data)
 {
   GtkWidget *greyramp = GTK_WIDGET(data);
   GreyrampProperties *properties = greyrampGetProperties(greyramp);
-  
-  int temp = properties->blackPoint; 
-  properties->blackPoint = properties->whitePoint; 
+
+  int temp = properties->blackPoint;
+  properties->blackPoint = properties->whitePoint;
   properties->whitePoint = temp;
-  
+
   properties->swapValues = !properties->swapValues;
-  
+
   if (properties->blackSpinButton)
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->blackSpinButton), (float)properties->blackPoint) ;
 
   if (properties->whiteSpinButton)
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(properties->whiteSpinButton), (float)properties->whitePoint);
-  
+
   return TRUE;
 }
 
@@ -774,19 +775,19 @@ static void onMaximiseGreyrampClicked(GtkWidget *button, gpointer data)
 /* Utility to create a spin button with the range 0 to 255 and various other default values. */
 static GtkWidget* createSpinButton(const gdouble initValue, GCallback callbackFunc, GtkWidget *greyramp)
 {
-  GtkObject *adjustment = gtk_adjustment_new(initValue, 
+  GtkObject *adjustment = gtk_adjustment_new(initValue,
                                              0.0,       /* lower */
                                              255.0,     /* upper */
                                              1.0,       /* step increment */
                                              1.0,       /* page increment */
                                              0.0);      /* page size */
-  
-  GtkWidget *spinButton = gtk_spin_button_new(GTK_ADJUSTMENT(adjustment), 
+
+  GtkWidget *spinButton = gtk_spin_button_new(GTK_ADJUSTMENT(adjustment),
                                               0.5, /* climb rate, i.e. amount to increase per button click */
                                               0);  /* num decimal places to display */
-  
+
   g_signal_connect(spinButton,"value_changed", callbackFunc, greyramp);
-  
+
   return spinButton;
 }
 
@@ -794,8 +795,8 @@ static GtkWidget* createSpinButton(const gdouble initValue, GCallback callbackFu
 /* Create the toolbar for the greyramp window. */
 static GtkWidget* createGreyrampToolbar(GtkTable *table,
                                         const int col,
-                                        GtkWidget *greyramp, 
-                                        GtkWidget *whiteSpinButton, 
+                                        GtkWidget *greyramp,
+                                        GtkWidget *whiteSpinButton,
                                         GtkWidget *blackSpinButton,
                                         const int blackPoint,
                                         const int whitePoint)
@@ -808,7 +809,7 @@ static GtkWidget* createGreyrampToolbar(GtkTable *table,
   gtk_widget_set_tooltip_text(swapButton, "Swap the black and white point to invert the colours");
   gtk_widget_set_tooltip_text(undoButton, "Undo/redo the last change to the sliders");
 
-  g_signal_connect(G_OBJECT(quitButton), "pressed", G_CALLBACK(onCloseGreyramp), greyramp); 
+  g_signal_connect(G_OBJECT(quitButton), "pressed", G_CALLBACK(onCloseGreyramp), greyramp);
   g_signal_connect(G_OBJECT(undoButton), "pressed", G_CALLBACK(onPressUndoButton), greyramp);
   g_signal_connect(G_OBJECT(swapButton), "pressed", G_CALLBACK(onPressSwapButton), greyramp);
 
@@ -834,7 +835,7 @@ static GtkWidget* createGreyrampToolbar(GtkTable *table,
    * then its text will be selected and we will inadvertently overwrite the
    * contents of the primary clipboard. */
   gtk_container_set_focus_child(GTK_CONTAINER(vbox), quitButton);
-  
+
   return vbox;
 }
 
@@ -846,7 +847,7 @@ static GtkWidget* createGradientRect(GtkWidget *greyramp, GdkRectangle *rect)
   GtkWidget *frame = gtk_frame_new(NULL);
   gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
   gtk_container_set_border_width(GTK_CONTAINER(frame), GRADIENT_RECT_FRAME_PADDING);
-  
+
   /* Get the total size of the gradient area, including markers and padding */
   const int totalWidth = GRADIENT_RECT_WIDTH + (2 * GRADIENT_RECT_X_PADDING) ;
   const int totalHeight = GRADIENT_RECT_HEIGHT + (2 * (GRADIENT_RECT_MARKER_HEIGHT + GRADIENT_RECT_Y_PADDING));
@@ -860,18 +861,18 @@ static GtkWidget* createGradientRect(GtkWidget *greyramp, GdkRectangle *rect)
   gtk_widget_add_events(layout, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(layout, GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(layout, GDK_POINTER_MOTION_MASK);
-  
+
   g_signal_connect(G_OBJECT(layout), "expose-event", G_CALLBACK(onExposeGradient), greyramp);
   g_signal_connect(G_OBJECT(layout), "button-press-event", G_CALLBACK(onButtonPressGradient), greyramp);
   g_signal_connect(G_OBJECT(layout), "button-release-event", G_CALLBACK(onButtonReleaseGradient), greyramp);
   g_signal_connect(G_OBJECT(layout), "motion-notify-event", G_CALLBACK(onMouseMoveGradient), greyramp);
-  
+
   /* Set the size of the gradient rectangle to be drawn */
   rect->x = GRADIENT_RECT_X_PADDING;
   rect->y = GRADIENT_RECT_MARKER_HEIGHT + GRADIENT_RECT_Y_PADDING;
   rect->width = GRADIENT_RECT_WIDTH;
   rect->height = GRADIENT_RECT_HEIGHT;
-  
+
   return frame;
 }
 
@@ -891,18 +892,18 @@ static GtkWidget* createGradientRectMinimised(GdkRectangle *rect, GtkWidget *gre
   gtk_widget_add_events(greyramp, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(greyramp, GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(greyramp, GDK_POINTER_MOTION_MASK);
-  
+
   g_signal_connect(G_OBJECT(greyramp), "expose-event", G_CALLBACK(onExposeGradientMinimised), greyrampTool);
   g_signal_connect(G_OBJECT(greyramp), "button-press-event", G_CALLBACK(onButtonPressGradient), greyrampTool);
   g_signal_connect(G_OBJECT(greyramp), "button-release-event", G_CALLBACK(onButtonReleaseGradient), greyrampTool);
   g_signal_connect(G_OBJECT(greyramp), "motion-notify-event", G_CALLBACK(onMouseMoveGradient), greyrampTool);
-  
+
   /* Set the size of the gradient rectangle to be drawn */
   rect->x = GRADIENT_RECT_X_PADDING_MIN;
   rect->y = GRADIENT_RECT_Y_PADDING_MIN;
   rect->width = GRADIENT_RECT_WIDTH;
   rect->height = GRADIENT_RECT_HEIGHT_MIN;
-  
+
   return greyramp;
 }
 
@@ -930,7 +931,7 @@ GtkWidget* createGreyrampToolMinimised(DotterWindowContext *dwc,
                                        const int blackPoint)
 {
   DEBUG_ENTER("createGreyrampToolMinimised");
-  
+
   GtkWidget *greyrampTool = gtk_hbox_new(FALSE, 0) ;
 
   /* Create a layout for drawing the greyramp gradient onto. This will be in the first column,
@@ -945,23 +946,23 @@ GtkWidget* createGreyrampToolMinimised(DotterWindowContext *dwc,
   g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(onMaximiseGreyrampClicked), greyrampTool);
   gtk_widget_set_tooltip_text(button, "Maximise the greyramp tool for more options (Ctrl-G)");
 
-  greyrampCreateProperties(greyrampTool, 
+  greyrampCreateProperties(greyrampTool,
                            NULL,
 			   dwc,
                            &gradientRect,
-                           NULL, 
-                           NULL, 
-                           blackPoint, 
-                           whitePoint, 
+                           NULL,
+                           NULL,
+                           blackPoint,
+                           whitePoint,
                            0,
-                           255, 
+                           255,
                            FALSE,
                            blackPoint - whitePoint);
-  
+
   gtk_widget_show_all(greyrampTool);
-  
+
   updateGreyMap(greyrampTool);
-                   
+
   DEBUG_EXIT("createGreyrampToolMinimised returning ");
   return greyrampTool;
 }
@@ -987,7 +988,7 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc,
   const int padding = 0;
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
   gtk_container_add(GTK_CONTAINER(greyrampTool), GTK_WIDGET(table));
-  
+
   /* Create a layout for drawing the greyramp gradient onto. This will be in the first column,
    * spanning all rows */
   GdkRectangle gradientRect;
@@ -997,39 +998,37 @@ GtkWidget* createGreyrampTool(DotterWindowContext *dwc,
   /* Create the toolbar and pack it into the parent */
   const int whitePoint = swapValues ? blackPointIn : whitePointIn;
   const int blackPoint = swapValues ? whitePointIn : blackPointIn;
-  
+
   GtkWidget *whiteSpinButton = createSpinButton(whitePoint + 1, G_CALLBACK(onWhiteSpinButtonChanged), greyrampTool);
   GtkWidget *blackSpinButton = createSpinButton(blackPoint + 1, G_CALLBACK(onBlackSpinButtonChanged), greyrampTool);
 
   createGreyrampToolbar(table, 1, greyrampTool, whiteSpinButton, blackSpinButton, blackPoint, whitePoint);
 
   GtkWidget *greyrampWindow = createGreyrampToolWindow(dwc, greyrampTool);
-  
-  greyrampCreateProperties(greyrampTool, 
+
+  greyrampCreateProperties(greyrampTool,
                            greyrampWindow,
 			   dwc,
                            &gradientRect,
-                           whiteSpinButton, 
-                           blackSpinButton, 
-                           blackPoint, 
-                           whitePoint, 
+                           whiteSpinButton,
+                           blackSpinButton,
+                           blackPoint,
+                           whitePoint,
                            0,
-                           255, 
+                           255,
                            swapValues,
                            0);
 
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(whiteSpinButton), (float)whitePoint);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(blackSpinButton), (float)blackPoint);
-  
+
   gtk_widget_show_all(greyrampTool);
-  
+
   updateGreyMap(greyrampTool);
 
   if (greyrampWindow_out)
     *greyrampWindow_out = greyrampWindow;
-                   
+
   DEBUG_EXIT("createGreyrampTool returning ");
   return greyrampTool;
 }
-  
-

@@ -1,5 +1,6 @@
 /*  File: utilities.h
  *  Author: Gemma Barson, 2010-01-05
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -31,7 +32,7 @@
  * Description: Utility functions for the SeqTools package.
  *----------------------------------------------------------------------------
  */
- 
+
 #ifndef _utilities_h_included_
 #define _utilities_h_included_
 
@@ -141,7 +142,7 @@ typedef enum
 #define BLX_DARK_GREY         "#929292"
 #define BLX_VERY_DARK_GREY    "#5f5f5f"
 
-#define BLX_YELLOW            "#ffff00" 
+#define BLX_YELLOW            "#ffff00"
 #define BLX_DARK_YELLOW       "#d0d000"
 #define BLX_PALE_YELLOW       "#ffffcc"
 
@@ -172,7 +173,7 @@ typedef enum
 #define BLX_CERISE            "#DE3163"
 
 #define BLX_GREEN             "#00ff00"
-#define BLX_LIGHT_GREEN       "#C1FFC1" 
+#define BLX_LIGHT_GREEN       "#C1FFC1"
 #define BLX_LAWN_GREEN        "#7cfc00"
 #define BLX_DARK_GREEN        "#00bb00"
 #define BLX_VERY_DARK_GREEN   "#015800"
@@ -187,7 +188,7 @@ typedef struct _BlxColor
     gboolean transparent;         /* If this is true, the colors are not specified and the
                                    * background color should be used instead. */
 
-    /* If the overridden flags are true, transparency has been overridden and the 
+    /* If the overridden flags are true, transparency has been overridden and the
      * colors ARE set but should only be used where transparency is
      * not allowed. */
     gboolean normal_overridden;
@@ -200,16 +201,16 @@ typedef struct _BlxColor
     GdkColor print;               /* the color used for printing */
     GdkColor printSelected;       /* the selected-state color used for printing */
   } BlxColor;
-  
-  
-/* This handle holds a list of pointers to all memory allocated via this handle. 
+
+
+/* This handle holds a list of pointers to all memory allocated via this handle.
  * Use handleDestroy to free the handle and all its allocated memory. */
 typedef struct _BlxHandle
   {
     GSList *memoryList;
   } BlxHandleStruct, *BlxHandle;
-  
-  
+
+
 /* This struct is used to pass user data to the message handlers */
 typedef struct _BlxMessageData
 {
@@ -217,8 +218,8 @@ typedef struct _BlxMessageData
   GtkWindow *parent;
   GtkStatusbar *statusBar;
 } BlxMessageData;
-  
-  
+
+
 /* Define a drawing style for an MSP */
 typedef struct _BlxStyle
   {
@@ -273,35 +274,35 @@ typedef struct _DoubleRange
     gdouble min;
     gdouble max;
   } DoubleRange ;
-  
+
 
 /* Fundamental strand direction. */
 typedef enum
   {
-    BLXSTRAND_NONE, 
-    BLXSTRAND_FORWARD, 
+    BLXSTRAND_NONE,
+    BLXSTRAND_FORWARD,
     BLXSTRAND_REVERSE
   } BlxStrand ;
-  
+
 /* Fundamental type of sequence (DNA really means nucleotide, because it could be RNA as well). */
 typedef enum
   {
-    BLXSEQ_NONE, 
-    BLXSEQ_DNA, 
+    BLXSEQ_NONE,
+    BLXSEQ_DNA,
     BLXSEQ_PEPTIDE
   } BlxSeqType ;
 
 /* Fundamental blast mode used */
 typedef enum
   {
-    BLXMODE_UNSET, 
-    BLXMODE_BLASTX, 
-    BLXMODE_TBLASTX, 
-    BLXMODE_BLASTN, 
-    BLXMODE_TBLASTN, 
+    BLXMODE_UNSET,
+    BLXMODE_BLASTX,
+    BLXMODE_TBLASTX,
+    BLXMODE_BLASTN,
+    BLXMODE_TBLASTN,
     BLXMODE_BLASTP
   } BlxBlastMode ;
-  
+
 
 /* Function pointer for callback functions used by widgets on dialog boxes. */
 typedef gboolean (*BlxResponseCallback)(GtkWidget *widget, const gint responseId, gpointer data);
@@ -318,7 +319,7 @@ typedef struct _CallbackData
  * to the default types specified by GtkResponseType */
 typedef enum
   {
-    BLX_RESPONSE_FORWARD, 
+    BLX_RESPONSE_FORWARD,
     BLX_RESPONSE_BACK,
     BLX_RESPONSE_RESET,
     BLX_RESPONSE_CLEAR
@@ -330,13 +331,13 @@ class CoordRange
 {
 public:
   CoordRange() : qStart(0), qEnd(0), sStart(0), sEnd(0) {};
-  
+
   int qStart;     /* start coord on the reference (Query) seq */
   int qEnd;       /* end coord on the reference (Query) seq */
   int sStart;     /* start coord on the match (Subject) seq */
   int sEnd;       /* end coord on the match (Subject) seq */
 };
-  
+
 
 /* Used to specify the degree of colinearity between two alignment blocks. */
 typedef enum
@@ -405,25 +406,25 @@ void                  boundsLimitValue(int *value, const IntRange* const range);
 gboolean              pointInRect(const int x, const int y, const GdkRectangle* const rect);
 char                  convertBaseToCorrectCase(const char charToConvert, const BlxSeqType seqType);
 
-void                  convertDisplayRangeToDnaRange(const IntRange* const displayRange, 
+void                  convertDisplayRangeToDnaRange(const IntRange* const displayRange,
                                                     const BlxSeqType displaySeqType,
                                                     const int numFrames,
                                                     const gboolean displayRev,
                                                     const IntRange* const refSeqRange,
                                                     IntRange *result);
 
-int                   convertDisplayIdxToDnaIdx(const int inputIdx, 
+int                   convertDisplayIdxToDnaIdx(const int inputIdx,
                                                 const BlxSeqType inputIdxType,
-                                                const int frame, 
-                                                const int baseNum, 
+                                                const int frame,
+                                                const int baseNum,
                                                 const int numFrames,
                                                 const gboolean displayRev,
                                                 const IntRange* const dnaIdxRange);
 
-int                   convertDnaIdxToDisplayIdx(const int dnaIdx, 
+int                   convertDnaIdxToDisplayIdx(const int dnaIdx,
                                                 const BlxSeqType displaySeqType,
                                                 const int frame,
-                                                const int numFrames, 
+                                                const int numFrames,
                                                 const gboolean displayRev,
                                                 const IntRange* const dnaIdxRange,
                                                 int *baseNum);
@@ -435,23 +436,23 @@ int                   roundToValue(const int inputVal, const int roundTo);
 int                   roundToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo);
 int                   roundUpToValueFromList(const int inputVal, GSList *roundValues, int *roundedTo);
 
-char                  getSequenceIndex(char *seq, 
-                                       const int qIdx, 
-                                       const gboolean complement, 
+char                  getSequenceIndex(char *seq,
+                                       const int qIdx,
+                                       const gboolean complement,
                                        const IntRange* const seqRange,
                                        const BlxSeqType seqType);
 
-int                   getStartDnaCoord(const IntRange* const displayRange, 
+int                   getStartDnaCoord(const IntRange* const displayRange,
                                        const int frame,
-                                       const BlxSeqType displaySeqType, 
-                                       const gboolean displayRev, 
+                                       const BlxSeqType displaySeqType,
+                                       const gboolean displayRev,
                                        const int numFrames,
                                        const IntRange* const refSeqRange);
 
-int                   getEndDnaCoord(const IntRange* const displayRange, 
+int                   getEndDnaCoord(const IntRange* const displayRange,
                                      const int frame,
-                                     const BlxSeqType displaySeqType, 
-                                     const gboolean displayRev, 
+                                     const BlxSeqType displaySeqType,
+                                     const gboolean displayRev,
                                      const int numFrames,
                                      const IntRange* const refSeqRange);
 
@@ -474,7 +475,7 @@ void                  popupMessageHandler(const gchar *log_domain, GLogLevelFlag
 void                  defaultMessageHandler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer data);
 void                  g_message_info(const char *formatStr, ...);
 
-GtkWidget*            showMessageDialog(const char *title,  
+GtkWidget*            showMessageDialog(const char *title,
                                         const char *messageText,
                                         GtkWidget *parent,
                                         const int initWidth,
@@ -493,7 +494,7 @@ GtkWidget*              createScrollableTextView(const char *messageText,
                                                  int *width,
                                                  int *height,
                                                  GtkTextView **textViewOut);
-                                    
+
 void                  widgetSetCallbackData(GtkWidget *widget, BlxResponseCallback callbackFunc, gpointer callbackData);
 gboolean              widgetCallAllCallbacks(GtkWidget *widget, gpointer data);
 void                  onResponseDialog(GtkDialog *dialog, gint responseId, gpointer data);
@@ -509,8 +510,8 @@ void                  requestDefaultClipboardText(GtkClipboardTextReceivedFunc c
 
 int                   parseMatchLine(const char *inputText,
                                      char **matchNameOut,
-                                     int *matchStartOut, 
-                                     int *matchEndOut, 
+                                     int *matchStartOut,
+                                     int *matchEndOut,
                                      int *matchLenOut);
 
 GList*                parseMatchList(const char *inputText);
@@ -545,18 +546,18 @@ gboolean              colorsEqual(GdkColor *color1, GdkColor *color2);
 
 void                  createBlxColor(GArray *defaultColors,
                                      int colorId,
-                                     const char *name, 
-                                     const char *desc, 
-                                     const char *normalCol, 
+                                     const char *name,
+                                     const char *desc,
+                                     const char *normalCol,
                                      const char *printCol,
                                      const char *normalColSelected,
                                      const char *printColSelected);
 
-gdouble               pixelsPerBase(const gint displayWidth, 
+gdouble               pixelsPerBase(const gint displayWidth,
                                     const IntRange* const displayRange);
 
-gdouble               convertBaseIdxToRectPos(const gint dnaIdx, 
-                                              const GdkRectangle* const rect, 
+gdouble               convertBaseIdxToRectPos(const gint dnaIdx,
+                                              const GdkRectangle* const rect,
                                               const IntRange* const dnaDispRange,
                                               const gboolean horizontal,
                                               const gboolean displayRev,
@@ -615,7 +616,7 @@ int                                getTextWidth(GtkWidget *widget, const char *t
 int                                getTextHeight(GtkWidget *widget, const char *text);
 
 GtkWidget*                         createTextEntryFromInt(GtkWidget *widget,
-                                                          GtkTable *table, 
+                                                          GtkTable *table,
                                                           const int row,
                                                           const int col,
                                                           const int xpad,
@@ -625,7 +626,7 @@ GtkWidget*                         createTextEntryFromInt(GtkWidget *widget,
                                                           BlxResponseCallback callback);
 
 GtkWidget*                         createTextEntryFromDouble(GtkWidget *widget,
-                                                             GtkTable *table, 
+                                                             GtkTable *table,
                                                              const int row,
                                                              const int col,
                                                              const int xpad,
@@ -634,13 +635,13 @@ GtkWidget*                         createTextEntryFromDouble(GtkWidget *widget,
                                                              const double value,
                                                              BlxResponseCallback callback);
 
-void                               drawHScale(GtkWidget *widget, 
+void                               drawHScale(GtkWidget *widget,
                                               GdkDrawable *drawable,
                                               const IntRange* const range,
                                               const GdkRectangle* const rect,
-                                              const int widthPerVal,       
-                                              const int majorTickInterval, 
-                                              const int labelInterval,     
+                                              const int widthPerVal,
+                                              const int majorTickInterval,
+                                              const int labelInterval,
                                               const int minorTickHeight,
                                               const int majorTickHeight);
 
@@ -660,9 +661,9 @@ GtkRadioButton*                    createRadioButton(GtkTable *table,
                                                      GtkWidget *blxWindow,
                                                      GSList **entryList);
 
-const char*                        getSystemTempDir();     
+const char*                        getSystemTempDir();
 
-void                               errorHandler(const int sig); 
+void                               errorHandler(const int sig);
 
 /* seqtoolsWebBrowser.c */
 gboolean                           seqtoolsLaunchWebBrowser(const char *link, GError **error);
@@ -670,7 +671,7 @@ gboolean                           seqtoolsLaunchWebBrowser(const char *link, GE
 
 /* translate.c */
 char*                              blxTranslate(const char *seq, char **code);
-void                               blxComplement(char *seq) ;    
+void                               blxComplement(char *seq) ;
 char*                              revComplement(char *comp, char *seq) ;
 char                               complementChar(const char inputChar, GError **error);
 

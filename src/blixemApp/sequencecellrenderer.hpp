@@ -1,5 +1,6 @@
 /*  File: sequencecellrenderer.h
  *  Author: Gemma Barson, 2009-10-15
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -29,11 +30,11 @@
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
  * Description: A custom renderer to render cells in the detail-view trees.
- *              Each row in the tree contains a match sequence, and the 
+ *              Each row in the tree contains a match sequence, and the
  *              renderer draws the portion of that sequence that is within the
  *              current display range.
  *
- *              Each base is colored to indicate whether it is a match, 
+ *              Each base is colored to indicate whether it is a match,
  *              mismatch or conserved (similar) match.
  *              Markers are drawn to indicate deletions or insertions.
  *
@@ -77,12 +78,12 @@
 typedef struct _SequenceCellRenderer
 {
   GtkCellRenderer   parent;
-  
+
   /* The cell renderer can be used to render a match sequence or plain text */
   char *text;       /* generic text property */
   GList *mspGList;  /* property for the sequence column. Contains the MSP(s) to be displayed in this row */
   GList *data;      /* property for data that is set for every column */
-  
+
 } SequenceCellRenderer;
 
 

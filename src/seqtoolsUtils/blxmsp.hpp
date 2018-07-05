@@ -1,5 +1,6 @@
 /*  File: blxmsp.h
  *  Author: Gemma Barson, 2010-09-02
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -28,14 +29,14 @@
  *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
- * Description: Defines the MSP data struct and related functions. I think 
+ * Description: Defines the MSP data struct and related functions. I think
  *              MSP stood for Matching Segment Pair and originally represented
  *              an alignment. However, it is now used for other feature
  *              types too, so should be renamed to "BlxFeature" or something.
  *              Ideally also it would be separated out into a base feature and
  *              derived features for the different features types.
  *----------------------------------------------------------------------------
- */ 
+ */
 
 #ifndef _blxmsp_included_
 #define _blxmsp_included_
@@ -77,11 +78,11 @@ typedef enum
 
 
 /* Supported types of MSP */
-typedef enum 
+typedef enum
 {
   BLXMSP_NONE,                   /* Not set yet */
   BLXMSP_INVALID,                /* Invalid type (cannot be displayed by blixem) */
-  
+
   BLXMSP_MATCH,                  /* A match (i.e. alignment) */
   BLXMSP_MATCH_SET,              /* The parent of a set of matches. Can be used to specify generic properties such as color. */
   BLXMSP_CDS,                    /* CDS (coding) region of an exon */
@@ -90,12 +91,12 @@ typedef enum
   BLXMSP_EXON,                   /* Exon (should appear AFTER CDS and UTR for sorting, as required by constructTranscriptData) */
   BLXMSP_POLYA_SITE,             /* polyA tail site */
   BLXMSP_POLYA_SIGNAL,           /* polyA signal */
-  
+
   BLXMSP_VARIATION,              /* SNP, substitution, deletion, insertion */
-  
+
   BLXMSP_HSP,                    /* obsolete? */
   BLXMSP_GSP,                    /* obsolete? */
-  
+
   BLXMSP_FS_SEG,                 /* Feature Series Segment - obsolete? */
   BLXMSP_XY_PLOT,                /* x/y coordinates - for plotting feature-series curves - obsolete? */
 
@@ -103,11 +104,11 @@ typedef enum
   BLXMSP_GAP,                    /* Gap, e.g. assembly gap */
 
   BLXMSP_BASIC,                  /* Basic feature (just drawn as a simple box) */
-  
-  
+
+
   BLXMSP_NUM_TYPES,               /* the number of valid MSP types - any types following this may be used
                                    * e.g. for parsing, but no real MSP will be created from them */
-  
+
   BLXMSP_TRANSCRIPT              /* Transcript */
 } BlxMspType;
 
@@ -129,7 +130,7 @@ typedef enum
   {
     BLXMODEL_NORMAL,                /* the normal model, where each row contains one feature */
     BLXMODEL_SQUASHED,              /* the "squashed" model, where all MSPs from the same sequence appear on the same row */
-    
+
     BLXMODEL_NUM_MODELS             /* the number of model IDs. MUST BE LAST IN LIST */
   } BlxModelId;
 
@@ -138,7 +139,7 @@ typedef enum
 typedef enum
   {
     MSPFLAG_MIN,                        /* Start index for looping through flags */
-  
+
     MSPFLAG_LINK_FEATURES_BY_NAME,      /* whether features with the same name are part of the same parent */
     MSPFLAG_SQUASH_LINKED_FEATURES,     /* whether features with the same parent should be compressed onto the same line when you do 'squash matches' */
     MSPFLAG_SQUASH_IDENTICAL_FEATURES,  /* whether alignments that are identical should be compressed onto the same line when you do 'squash matches' */
@@ -217,7 +218,7 @@ typedef struct _BlxColumnInfo
     const char *sortName;       /* the name to display in the sort-by drop-down box (NULL if the view is not sortable on this column) */
 
     GQuark emblId;              /* 2-char embl line ID, e.g. 'SQ' for sequence or 'OS' for organism */
-    GQuark emblTag;             /* tag name within an embl line, e.g. the 'tissue_type' tag within the 'FT' section. 
+    GQuark emblTag;             /* tag name within an embl line, e.g. the 'tissue_type' tag within the 'FT' section.
                                  * Only supports tags of the following format (i.e. like those in the 'FT' section):
                                  *     /tissue_type="testis"    */
 
@@ -238,14 +239,14 @@ typedef struct _BlxSequence
   char *idTag;                     /* Unique identifier e.g. from ID tag in GFF files */
 
   GArray* values;                  /* Array of values (as GValue) for the columns */
- 
+
   BlxStrand strand;                /* which strand of the sequence this is */
   gboolean sequenceReqd;           /* whether the sequence data is required (e.g. it is not needed for exons/introns etc.) */
 
-  IntRange qRangeFwd;              /* the extent of alignments from this sequence on the ref sequence forward strand */ 
-  IntRange qRangeRev;              /* the extent of alignments from this sequence on the ref sequence reverse strand */ 
+  IntRange qRangeFwd;              /* the extent of alignments from this sequence on the ref sequence forward strand */
+  IntRange qRangeRev;              /* the extent of alignments from this sequence on the ref sequence reverse strand */
   char *organismAbbrev;            /* internally-calculated abbreviation for the Organism column value, if set */
-  
+
   GList *mspList;                  /* list of MSPs from this sequence */
 } BlxSequence;
 
@@ -263,9 +264,9 @@ typedef struct _FeatureSeries
 
 /* Shapes of XY curves */
 typedef enum
-{ 
-  BLXCURVE_PARTIAL, 
-  BLXCURVE_INTERPOLATE, 
+{
+  BLXCURVE_PARTIAL,
+  BLXCURVE_INTERPOLATE,
   BLXCURVE_BADSHAPE
 } BlxCurveShape;
 
@@ -278,24 +279,24 @@ typedef struct _MSP
 
   struct _MSP       *next;
   GList             *childMsps;    /* Child MSPs of this MSP if it has them, e.g. an exon has CDS and UTR children (part_of relationship). */
-  
+
   BlxMspType        type;          /* The type of the MSP, e.g. match, exon, SNP etc. */
   gdouble           score;         /* Score as a percentage. Technically this should be a weighted score taking into account gaps, length of the match etc., but for unknown reasons the ID has always been passed instead of score and the ID gets stored in here */
   gdouble           id;            /* Identity as a percentage. A simple comparison of bases within the match, ignoring gaps etc. Currently this is calculated internally by blixem. */
   int               phase;         /* phase: q start coord is offset by this amount to give the first base in the first complete codon (only relevant to CDSs) */
   GQuark            filename;      /* optional filename, e.g. for features used to fetch data from a bam file */
-  
+
   char              *qname;        /* For Dotter, the MSP can belong to either sequence */
   IntRange          qRange;        /* the range of coords on the ref sequence where the alignment lies */
   BlxStrand         qStrand;       /* which strand on the reference sequence the match is on */
   int               qFrame;        /* which frame on the reference sequence the match is on */
-  
+
   BlxSequence       *sSequence;    /* pointer to a struct holding info about the sequence/strand this match is from */
   char              *sname;        /* sequence name (could be different to the sequence name in
                                       the blxSequence e.g. exons have a postfixed 'x') */
   char              *sname_orig;   /* sequence name, original case version of sname. */
   IntRange          sRange;        /* the range of coords on the match sequence where the alignment lies */
-  
+
   /* The following ranges are all calculated from the above but are
    * cached in the MSP because they are used a lot. Note that these
    * these are not current used by dotter so dotter does not bother to
@@ -303,13 +304,13 @@ typedef struct _MSP
   IntRange          displayRange;  /* the same range as qRange but in display coords */
   IntRange          fullRange;     /* the full range of display coords to show this match against (includes any unaligned portions of sequence that we're showing) */
   IntRange          fullSRange;    /* the full range of coords on the match sequence that we're showing (including any unaligned portions of sequence) */
-  
+
   char              *desc;         /* Optional description text for the MSP */
   GSList            *gaps;         /* Array of "gaps" in this homolgy (this is a bit of a misnomer because the array
                                     * gives the ranges of the bits that align rather than the ranges of the gaps in between */
-  
+
   BlxStyle          *style;        /* Specifies drawing style for this MSP, e.g. fill color and line color */
-  
+
   /* obsolete? */
   FeatureSeries     *fs;           /* Feature series that this MSP belongs to */
   GdkColor          fsColor;       /* Color to draw this MSP in the feature series */
@@ -350,12 +351,12 @@ int                   mspGetQRangeLen(const MSP* const msp);
 int                   mspGetSRangeLen(const MSP* const msp);
 int                   mspGetMatchSeqLen(const MSP* const msp);
 
-const GdkColor*       mspGetColor(const MSP* const msp, 
+const GdkColor*       mspGetColor(const MSP* const msp,
                                   GArray *defaultColors,
                                   const int defaultColorId,
-                                  const BlxSequence *blxSeq, 
-                                  const gboolean selected, 
-                                  const gboolean usePrintColors, 
+                                  const BlxSequence *blxSeq,
+                                  const gboolean selected,
+                                  const gboolean usePrintColors,
                                   const gboolean fill,
                                   const int exonFillColorId,
                                   const int exonLineColorId,
@@ -421,9 +422,9 @@ MSP*                  createNewMsp(GArray* featureLists[],
                                    const gdouble score, const gdouble percentId, const int phase, const char *idTag,
                                    const char *qName, const int qStart, const int qEnd,
                                    const BlxStrand qStrand, const int qFrame,
-                                   const char *sName, const char *const sName_orig, int sStart, const int sEnd, 
+                                   const char *sName, const char *const sName_orig, int sStart, const int sEnd,
                                    const BlxStrand sStrand, char *sequence,
-                                   const GQuark filename, GHashTable *lookupTable, BlxSequence *blxSeq, GError **error);  
+                                   const GQuark filename, GHashTable *lookupTable, BlxSequence *blxSeq, GError **error);
 MSP*                  copyMsp(const MSP* const src, GArray* featureLists[], MSP **lastMsp, MSP **mspList, const gboolean addToParent, const gboolean sort);
 
 //void                  insertFS(MSP *msp, char *series);
@@ -495,11 +496,3 @@ void                  blxColumnCreate(BlxColumnId columnId, const gboolean creat
 gboolean              dataTypeGetFlag(const BlxDataType* const dataType, const MspFlag flag);
 
 #endif /* _blxmsp_included_ */
-
-
-
-
-
-
-
-

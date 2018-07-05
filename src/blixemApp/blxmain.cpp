@@ -1,5 +1,6 @@
 /*  File: blxmain.c
  *  Author: Erik Sonnhammer, 1999-08-26
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -51,7 +52,7 @@
 gboolean blixem_debug_G = FALSE ;
 
 
-/* Usage text. This is a duplicate of the text that is in 
+/* Usage text. This is a duplicate of the text that is in
  * doc/User_doc/blixem_usage.txt, so ideally we would get rid of this and use
  * the text from the file instead; for now, we must update both. */
 
@@ -262,7 +263,7 @@ MSPcrunch\n\
 \n\
  o The BLAST program (blastp, blastn, blastx, tblastn, tblastx)\n\
    is automatically detected from the Blast output header by MSPcrunch\n\
-   and is passed on to Blixem in the seqbl format (-q).\n\n" 
+   and is passed on to Blixem in the seqbl format (-q).\n\n"
 
 
 /* set default values for command lines options */
@@ -277,22 +278,22 @@ static void initCommandLineOptions(CommandLineOptions *options, char *refSeqName
   options->columnList = NULL;
   options->geneticCode = stdcode1;
   options->activeStrand = BLXSTRAND_FORWARD;
-  options->bigPictZoom = 10;          
-  
+  options->bigPictZoom = 10;
+
   options->zoomWhole = FALSE;
-  options->bigPictON = TRUE;          
-  options->hideInactive = FALSE;         
+  options->bigPictON = TRUE;
+  options->hideInactive = FALSE;
   options->initSortColumn = BLXCOL_ID;
-  options->sortInverted = FALSE;        
-  options->highlightDiffs = FALSE;   
-  options->dotterFirst = FALSE; 
+  options->sortInverted = FALSE;
+  options->highlightDiffs = FALSE;
+  options->dotterFirst = FALSE;
   options->startNextMatch = FALSE;
   options->squashMatches = FALSE;
   options->optionalColumns = FALSE;
   options->saveTempFiles = FALSE;
   options->coverageOn = FALSE;
   options->abbrevTitle = FALSE;
-  
+
   options->blastMode = BLXMODE_UNSET;
   options->seqType = BLXSEQ_NONE;
   options->numFrames = 1;
@@ -321,14 +322,14 @@ static void validateOptions(CommandLineOptions *options)
 static BlxSeqType getSeqTypeFromChar(char seqChar)
 {
   BlxSeqType result = BLXSEQ_NONE;
-  
+
   if (seqChar == 'n' || seqChar == 'N')
     result = BLXSEQ_DNA;
   else if (seqChar == 'p' || seqChar == 'P')
     result = BLXSEQ_PEPTIDE;
   else
     g_error("Bad display mode '%c'\n", seqChar);
-  
+
   return result;
 }
 
@@ -337,7 +338,7 @@ static BlxSeqType getSeqTypeFromChar(char seqChar)
 static BlxColumnId getSortModeFromChar(char sortChar)
 {
   BlxColumnId result = BLXCOL_NONE;
-  
+
   switch (sortChar)
   {
     case 's':
@@ -366,9 +367,9 @@ static BlxColumnId getSortModeFromChar(char sortChar)
       break;
 
     default:
-      g_error("Bad sort mode: %c\n", sortChar); 
+      g_error("Bad sort mode: %c\n", sortChar);
   }
-  
+
   return result;
 }
 
@@ -379,15 +380,15 @@ static char* getSupportedTypesAsString(GSList *supportedTypes)
 {
   GString *resultStr = g_string_new(NULL);
   GSList *item = supportedTypes;
-  
+
   for ( ; item; item = item->next)
     {
       BlxGffType *gffType = (BlxGffType*)(item->data);
       g_string_append_printf(resultStr, "    %s\n", gffType->name);
     }
-  
+
   char *result = g_string_free(resultStr, FALSE);
-  
+
   return result;
 }
 
@@ -411,7 +412,7 @@ static void showHelpText(GSList *supportedTypes, const int exitCode)
   GString *resultStr = g_string_new(USAGE_TEXT);
 
   char *supported_types_string = getSupportedTypesAsString(supportedTypes);
-  
+
   g_string_append_printf(resultStr, HELP_TEXT, supported_types_string);
   g_string_append(resultStr, FOOTER_TEXT);
 
@@ -420,7 +421,7 @@ static void showHelpText(GSList *supportedTypes, const int exitCode)
     g_message_info("%s", resultStr->str);
   else
     g_message("%s", resultStr->str);
-  
+
   g_free(supported_types_string);
   g_string_free(resultStr, TRUE);
 }
@@ -429,13 +430,13 @@ static void showHelpText(GSList *supportedTypes, const int exitCode)
 /* Prints version info to stderr */
 static void showVersionInfo()
 {
-  g_message(VERSION_TEXT);  
+  g_message(VERSION_TEXT);
 }
 
 /* Prints compiled date (must go to stdout for our build scripts to work) */
 static void showCompiledInfo()
 {
-  g_message("%s\n", UT_MAKE_COMPILE_DATE());  
+  g_message("%s\n", UT_MAKE_COMPILE_DATE());
 }
 
 
@@ -452,11 +453,11 @@ int main(int argc, char **argv)
   FILE *seqfile = NULL, *FSfile = NULL;
   char *seqfilename = NULL;
   char *FSfilename = NULL;
-  
+
   int install = 1;
   static gboolean showVersion = FALSE;      /* gets set to true if blixem was called with --version option */
   static gboolean showCompiled = FALSE;     /* gets set to true if blixem was called with --compiled option */
-  
+
   static gboolean rm_input_files = FALSE ; /* whether to remove input files once we're done with them */
   PfetchParams *pfetch = NULL ;
   gboolean xtra_data = FALSE ;      /* whether we have an extra data file to parse */
@@ -466,22 +467,22 @@ int main(int argc, char **argv)
   char *config_file = NULL ;        /* optional blixem config file (usually "blixemrc") */
   char *key_file = NULL ;           /* optional keyword file for passing style information */
   GError *error = NULL ;
- 
+
   char refSeqName[FULLNAMESIZE+1] = "";
 
   static CommandLineOptions options;
   initCommandLineOptions(&options, refSeqName);
- 
+
   /* Set up the GLib message handlers
-   * 
+   *
    * There are two handlers: the default one for all non-critical messages, which will just log
-   * output to the console, and one for critical messages and errors, which will display a 
+   * output to the console, and one for critical messages and errors, which will display a
    * pop-up message (the idea being that we don't bother the user unless it's something serious).
-   * So, to get a pop-up message use g_critical, and to log a message or warning use g_message, 
+   * So, to get a pop-up message use g_critical, and to log a message or warning use g_message,
    * g_warning, g_debug etc. Note that g_error is always fatal.
    */
   g_log_set_default_handler(defaultMessageHandler, &options.msgData);
-  g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION), 
+  g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION),
                     popupMessageHandler, &options.msgData);
 
   /* Get the list of supported GFF types, in case we need to print them out in the usage text */
@@ -518,8 +519,8 @@ int main(int argc, char **argv)
       {"sequence-file",         required_argument,  0, 'e'},
       {"help",                  no_argument,        0, 'h'},
       {"disable-install",       no_argument,        0, 'i'}, /* "secret" option (hide from user) */
-      {"map-coords",            required_argument,  0, 'm'}, 
-      {"negate-coords",         no_argument,        0, 'n'}, 
+      {"map-coords",            required_argument,  0, 'm'},
+      {"negate-coords",         no_argument,        0, 'n'},
       {"offset",                required_argument,  0, 'o'},
       {"reverse-strand",        no_argument,        0, 'r'},
       {"start-coord",           required_argument,  0, 's'},
@@ -554,7 +555,7 @@ int main(int argc, char **argv)
                 pfetch = new PfetchParams;
                 pfetch->net_id = strtok(optarg, ":") ;
                 pfetch->port = atoi(strtok(NULL, ":")) ;
-              }                
+              }
             else if (stringsEqual(long_options[optionIndex].name, "sort-mode", TRUE))
               {
                 options.initSortColumn = getSortModeFromChar(*optarg);
@@ -563,24 +564,24 @@ int main(int argc, char **argv)
               {
                 options.dataset = g_strdup(optarg);
               }
-          break; 
-          
+          break;
+
         case '?':
           break; /* getopt_long already printed an error message */
-          
+
         case 'a':
           align_types = g_strdup_printf("%s", optarg) ;
           break;
-        case 'c': 
+        case 'c':
           config_file = g_strdup(optarg) ;
           break;
-        case 'd': 
+        case 'd':
           FSfilename = g_strdup(optarg) ;
           break;
-        case 'e': 
+        case 'e':
           seqfilename = g_strdup(optarg) ;
           break;
-        case 'h': 
+        case 'h':
           {
             showHelpText(supportedTypes, EXIT_SUCCESS);
             exit(EXIT_SUCCESS) ;
@@ -593,12 +594,12 @@ int main(int argc, char **argv)
           {
             options.mapCoords = TRUE;
             options.mapCoordsFrom = atoi(optarg); /* will ignore anything after ':', if it exists */
-              
+
             /* Optionally there may be a second number after a ':' character */
             const char *cp = strchr(optarg, ':');
             if (cp)
               options.mapCoordsTo = atoi(cp + 1);
-              
+
             break;
           }
         case 'n':
@@ -610,7 +611,7 @@ int main(int argc, char **argv)
         case 'r':
           options.activeStrand = BLXSTRAND_REVERSE;
           break ;
-        case 's': 
+        case 's':
           options.startCoord = atoi(optarg);
           options.startCoordSet = TRUE;
           break;
@@ -620,23 +621,23 @@ int main(int argc, char **argv)
         case 'w':
           wait = TRUE;
           break ;
-        case 'x': 
+        case 'x':
           xtra_data = TRUE ;
           strcpy(xtra_filename, optarg);
           break;
         case 'y':
           key_file = g_strdup(optarg) ;
           break;
-        case 'z': 
+        case 'z':
           {
             int coord1 = atoi(optarg); /* will ignore anything after ':' */
             const char *cp = strchr(optarg, ':');
-              
+
             if (cp)
               {
                 int coord2 = atoi(cp + 1);
                 options.bigPictRange.set(coord1, coord2);
-                
+
                 /* If the start coord hasn't already been specified on the
                  * command line, base the default start on the centre of the
                  * big picture range (can still be overridden if start coord
@@ -648,10 +649,10 @@ int main(int argc, char **argv)
               {
                 g_warning("Invalid parameters for --zoom-range argument; expected <start:end> but got '%s'. Zoom range will be ignored.\n", optarg);
               }
-              
+
             break;
           }
-            
+
         default : g_error("Illegal option\n");
         }
     }
@@ -685,7 +686,7 @@ int main(int argc, char **argv)
    * (It's quick and dirty to destroy recreate this but it's a small list and only done once.) */
   blxDestroyGffTypeList(&supportedTypes);
   supportedTypes = blxCreateSupportedGffTypeList(options.seqType);
-  
+
   const int numFiles = argc - optind;
 
   /* Add -install for private colormaps */
@@ -703,7 +704,7 @@ int main(int argc, char **argv)
       else
         options.refSeqOffset = options.mapCoordsTo - options.mapCoordsFrom;
     }
-  
+
   /* Set up program configuration. */
   blxInitConfig(config_file, &options, &error);
   reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
@@ -733,7 +734,7 @@ int main(int argc, char **argv)
           seqfilename = g_strdup(argv[optind]);
           FSfilename = g_strdup(argv[optind+1]);
         }
-      else 
+      else
         {
           if (seqfilename && FSfilename)
             g_error("Sequence file and data file specified twice - please specify these as the last arguments OR using the -e and -d arguments.");
@@ -757,13 +758,13 @@ int main(int argc, char **argv)
     {
       g_error("Cannot open file %s\n", FSfilename);
     }
-  
+
   /* Parser compiles lists of MSPs per type into the following array. Initialise each GList in the array to NULL */
   GArray* featureLists[BLXMSP_NUM_TYPES];
   int typeId = 0;
   for ( ; typeId < BLXMSP_NUM_TYPES; ++typeId)
     featureLists[typeId] = g_array_new(TRUE, FALSE, sizeof(MSP*));
-  
+
   GList *seqList = NULL; /* parser compiles a list of BlxSequences into this list */
 
   char *dummyseq = NULL;    /* Needed for blxparser to handle both dotter and blixem */
@@ -774,7 +775,7 @@ int main(int argc, char **argv)
 
   /* Pass the config file to parseFS */
   GKeyFile *inputConfigFile = blxGetConfig();
-  
+
   /* Create a temporary lookup table for BlxSequences so we can link them on GFF ID */
   GHashTable *lookupTable = g_hash_table_new(g_direct_hash, g_direct_equal);
 
@@ -783,7 +784,7 @@ int main(int argc, char **argv)
    * of blastmode at some point). */
   if (options.blastMode == BLXMODE_UNSET && options.seqType != BLXSEQ_NONE)
     options.blastMode = (options.seqType == BLXSEQ_PEPTIDE ? BLXMODE_BLASTX : BLXMODE_BLASTN);
-  
+
   if (FSfile)
     {
       parseFS(&options.mspList, FSfile, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
@@ -791,7 +792,7 @@ int main(int argc, char **argv)
               options.fetchMethods, &error) ;
     }
 
-  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);  
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 
   /* Now see if blast mode was set and set seqtype from it if not already set... */
   if (options.seqType == BLXSEQ_NONE && options.blastMode != BLXMODE_UNSET)
@@ -806,22 +807,22 @@ int main(int argc, char **argv)
         seqfile = stdin;
       else if(!(seqfile = fopen(seqfilename, "r")))
         g_error("Cannot open %s\n", seqfilename);
-      
+
       /* Read in the reference sequence */
       int startCoord = UNSET_INT;
       int endCoord = UNSET_INT;
       options.refSeq = readFastaSeq(seqfile, options.refSeqName, &startCoord, &endCoord, options.seqType);
-      
+
       if (startCoord != UNSET_INT && endCoord != UNSET_INT)
         options.refSeqRange.set(startCoord, endCoord);
-      
+
       if (seqfile != stdin)
         fclose(seqfile);
     }
-  
+
   if (!options.refSeq)
     g_error("No reference sequence supplied.");
-  
+
   /* If the ref seq range still has not been set, use 1-based coords */
   if (!options.refSeqRange.isSet())
     {
@@ -840,7 +841,7 @@ int main(int argc, char **argv)
         {
           g_error("Cannot open %s\n", xtra_filename) ;
         }
-      
+
       parseFS(&options.mspList, xtra_file, &options.blastMode, featureLists, &seqList, options.columnList, supportedTypes, styles,
               &options.refSeq, options.refSeqName, NULL, &dummyseq, dummyseqname, blxGetConfig(), lookupTable, options.fetchMethods, &error) ;
 
@@ -857,14 +858,14 @@ int main(int argc, char **argv)
           g_warning("Unlink of sequence input file \"%s\" failed: %s\n", seqfilename, msg) ;
           g_free(msg);
         }
-        
+
       if(FSfilename && FSfilename[0] != '\0' && unlink(FSfilename) != 0)
         {
           char *msg = getSystemErrorText();
           g_warning("Unlink of MSP input file \"%s\" failed: %s\n", FSfilename, msg) ;
           g_free(msg);
         }
-        
+
       if (xtra_filename[0] != '\0' && unlink(xtra_filename) != 0)
         {
           char *msg = getSystemErrorText();
@@ -879,14 +880,14 @@ int main(int argc, char **argv)
 
   if (FSfilename)
     g_free(FSfilename);
-  
+
   /* Now display the alignments. (Note that TRUE signals blxview() that it is being called from
    * this standalone blixem program instead of as part of acedb. */
   if (blxview(&options, featureLists, seqList, supportedTypes, pfetch, align_types, TRUE, styles, lookupTable))
     {
       gtk_main();
     }
- 
+
   g_free(key_file);
   g_free(config_file);
   g_hash_table_unref(lookupTable);
@@ -894,6 +895,3 @@ int main(int argc, char **argv)
   printf("Exiting Blixem\n");
   return (EXIT_SUCCESS) ;
 }
-
-
-

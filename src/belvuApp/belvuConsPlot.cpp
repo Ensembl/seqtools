@@ -1,5 +1,6 @@
 /*  File: belvuConsPlot.h
  *  Author: Gemma Barson, 2011-07-01
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -70,18 +71,18 @@ public:
   GtkWidget *widget;                  /* The conservation plot window */
   BelvuContext *bc;                   /* The belvu context */
   GtkActionGroup *actionGroup;
-    
+
   GtkWidget *drawingArea;             /* The drawing widget */
   GdkRectangle headerRect;            /* Space for drawing the header line */
   GdkRectangle plotRect;              /* Space for drawing the main plot */
   GdkRectangle yScaleRect;            /* Space for drawing the y scale */
   GdkRectangle xScaleRect;            /* Space for drawing the y scale */
-    
+
   int windowSize;                     /* Size of the sliding window used for smothing the profile */
   int lineWidth;                      /* Line width of the plot */
   double xScale;                      /* Used for scaling the x axis */
   double yScale;                      /* Used for scaling the y axis */
-    
+
   double maxcons;                     /* maximum conservation */
   double mincons;                     /* minimum conservation */
   double avgcons;                     /* average conservation */
@@ -100,7 +101,7 @@ static ConsPlotProperties* consPlotGetProperties(GtkWidget *consPlot)
 static void onDestroyConsPlot(GtkWidget *consPlot)
 {
   ConsPlotProperties *properties = consPlotGetProperties(consPlot);
-  
+
   if (properties)
     {
       /* Free the properties struct itself */
@@ -112,8 +113,8 @@ static void onDestroyConsPlot(GtkWidget *consPlot)
 
 
 /* Create the properties struct and initialise all values. */
-static void consPlotCreateProperties(GtkWidget *consPlot, 
-                                     BelvuContext *bc, 
+static void consPlotCreateProperties(GtkWidget *consPlot,
+                                     BelvuContext *bc,
                                      GtkActionGroup *actionGroup,
                                      GtkWidget *drawingArea)
 {
@@ -126,14 +127,14 @@ static void consPlotCreateProperties(GtkWidget *consPlot,
       properties->actionGroup = actionGroup;
 
       properties->drawingArea = drawingArea;
-      
+
       properties->windowSize = 1;
       properties->lineWidth = 1;
       properties->xScale = 10.0;
       properties->yScale = 20.0;
-      
+
       properties->smooth = NULL;
-      
+
       g_object_set_data(G_OBJECT(consPlot), "BelvuConsPlotProperties", properties);
       g_signal_connect(G_OBJECT(consPlot), "destroy", G_CALLBACK (onDestroyConsPlot), NULL);
     }
@@ -156,9 +157,9 @@ static void belvuConsPlotRedrawAll(GtkWidget *consPlot)
 {
   if (!consPlot)
     return;
-  
+
   ConsPlotProperties *properties = consPlotGetProperties(consPlot);
-  
+
   if (properties && properties->drawingArea)
     {
       widgetClearCachedDrawable(properties->drawingArea, NULL);
@@ -182,55 +183,55 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
 {
   if (!properties->drawingArea)
     return;
-  
+
   BelvuContext *bc = properties->bc;
   GdkGC *gc = gdk_gc_new(drawable);
   gdk_gc_set_line_attributes(gc, properties->lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
-  
+
   GtkAdjustment *hAdjustment = gtk_layout_get_hadjustment(GTK_LAYOUT(properties->drawingArea));
   const double xMin = hAdjustment->value;
   const double xMax = min(hAdjustment->value + hAdjustment->page_size, hAdjustment->upper);
   int iMin = (xMin - (double)properties->plotRect.x) / properties->xScale;
   int iMax = (xMax - (double)properties->plotRect.x) / properties->xScale;
-  
+
   if (iMin < 0)
     iMin = 0;
-  
+
   if (iMax > bc->maxLen - 1)
     iMax = bc->maxLen - 1;
-  
+
   /* Draw the header line */
   char *tmpStr = g_strdup_printf("Window = %d", properties->windowSize);
   drawText(widget, drawable, gc, properties->headerRect.x, properties->headerRect.y, tmpStr, NULL, NULL);
   g_free(tmpStr);
-  
+
   /* Draw x scale */
   GdkColor *scaleColor = getGdkColor(BELCOLOR_CONS_PLOT_SCALE, bc->defaultColors, FALSE, FALSE);
   gdk_gc_set_foreground(gc, scaleColor);
 
   const int majorXTickInterval = 10;
   const int minorXTickInterval = 5;
-  
+
   /* Get the start and end x coords of the plot. Note that we offset by the
    * minimum x coord so that the leftmost edge is 0 rather than xMin */
   double xStart = max(xMin, (double)properties->xScaleRect.x) - xMin;
   const double xEnd = min(xMax, (double)properties->xScaleRect.x + (double)properties->xScaleRect.width) - xMin;
-  
+
   /* Draw the base line for the x scale */
   double y = properties->xScaleRect.y;
   gdk_draw_line(drawable, gc, xStart, y, xEnd, y);
 
   /* Loop through each visible column that will have a major tickmark. For
-   * each major tickmark we also draw the minor tickmark previous to it, so 
+   * each major tickmark we also draw the minor tickmark previous to it, so
    * loop until (i - minorXTickInterval) is outside the visible range. */
   int i = roundToValue(iMin, majorXTickInterval);
   double x = 0;
-  
-  for ( ; i - minorXTickInterval <= iMax; i += majorXTickInterval) 
+
+  for ( ; i - minorXTickInterval <= iMax; i += majorXTickInterval)
     {
       /* Get the x position of this column */
       x = properties->xScaleRect.x + (i * properties->xScale) - xMin;
-      
+
       /* Draw the major tickmark (if in range; the very last one might not be) */
       if (i <= iMax)
         gdk_draw_line(drawable, gc, x, y, x, y + MAJOR_TICKMARK_HEIGHT);
@@ -243,12 +244,12 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
           double x2 = properties->xScaleRect.x + ((i + minorXTickInterval) * properties->xScale) - xMin;
           gdk_draw_line(drawable, gc, x2, y, x2, y + MINOR_TICKMARK_HEIGHT);
         }
-      
+
       tmpStr = g_strdup_printf("%d", i);
       drawText(widget, drawable, gc, x - minorXTickInterval, y + MAJOR_TICKMARK_HEIGHT + CONS_PLOT_LABEL_PAD, tmpStr, NULL, NULL);
       g_free(tmpStr);
     }
-  
+
   /* Draw the y scale. Note that the scale is inversed; that is, the lowest number
    * is at the bottom, i.e. with the highest y position. */
   const double majorYTickInterval = 1.0;
@@ -257,24 +258,24 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
   x = max(xMin, (double)properties->yScaleRect.x + (double)properties->yScaleRect.width) - xMin;
   const double yStart = properties->yScaleRect.y + properties->yScaleRect.height;
   const double yEnd = properties->yScaleRect.y;
-  
+
   gdk_draw_line(drawable, gc, x, yEnd, x, yStart);
 
   double f = properties->mincons;
   y = 0;
 
-  for ( ; f < properties->maxcons; f += majorYTickInterval) 
+  for ( ; f < properties->maxcons; f += majorYTickInterval)
     {
       y = yStart - (f * properties->yScale);
-      
+
       gdk_draw_line(drawable, gc, x, y, x - MAJOR_TICKMARK_HEIGHT, y);
-      
-      if (f + minorYTickInterval < properties->maxcons) 
+
+      if (f + minorYTickInterval < properties->maxcons)
         {
           double y2 = yStart - ((f + minorYTickInterval) * properties->yScale);
           gdk_draw_line(drawable, gc, x, y2, x - MINOR_TICKMARK_HEIGHT, y2);
         }
-      
+
       tmpStr = g_strdup_printf("%.0f", f);
       PangoLayout *layout = gtk_widget_create_pango_layout(widget, tmpStr);
       g_free(tmpStr);
@@ -283,33 +284,33 @@ static void drawConsPlot(GtkWidget *widget, GdkDrawable *drawable, ConsPlotPrope
       pango_layout_get_size(layout, &textWidth, &textHeight);
       textWidth /= PANGO_SCALE;
       textHeight /= PANGO_SCALE;
-      
-      gdk_draw_layout(drawable, gc, 
-                      x - textWidth - MAJOR_TICKMARK_HEIGHT - CONS_PLOT_LABEL_PAD, 
+
+      gdk_draw_layout(drawable, gc,
+                      x - textWidth - MAJOR_TICKMARK_HEIGHT - CONS_PLOT_LABEL_PAD,
                       y - textHeight / 2, layout);
-      
+
       g_object_unref(layout);
     }
-  
+
   /* Draw average line */
   GdkColor *avgLineColor = getGdkColor(BELCOLOR_CONS_PLOT_AVG, bc->defaultColors, FALSE, FALSE);
   gdk_gc_set_foreground(gc, avgLineColor);
   const double yAvg = yStart - (properties->avgcons * properties->yScale);
-  
+
   gdk_draw_line(drawable, gc, xStart, yAvg, xEnd, yAvg);
   drawText(widget, drawable, gc, xEnd + CONS_PLOT_XPAD, yAvg, AVG_CONSERVATION_LABEL, NULL, NULL);
-  
+
   /* Plot the conservation value for each column */
   GdkColor *plotColor = getGdkColor(BELCOLOR_CONS_PLOT, bc->defaultColors, FALSE, FALSE);
   gdk_gc_set_foreground(gc, plotColor);
-  
-  for (i = iMin + 1; i <= iMax; ++i) 
+
+  for (i = iMin + 1; i <= iMax; ++i)
     {
       x = properties->xScaleRect.x + (i * properties->xScale) - xMin;
-      
+
       const double y1 = yStart - (properties->smooth[i - 1] * properties->yScale);
       const double y2 = yStart - (properties->smooth[i] * properties->yScale);
-      
+
       gdk_draw_line(drawable, gc, x, y1, x + properties->xScale, y2);
     }
 
@@ -326,11 +327,11 @@ static void showSettingsDialog(GtkWidget *consPlot)
 {
   ConsPlotProperties *properties = consPlotGetProperties(consPlot);
   BelvuContext *bc = properties->bc;
-  
+
   char *title = g_strdup_printf("%sPlot Settings", belvuGetTitlePrefix(bc));
 
-  GtkWidget *dialog = gtk_dialog_new_with_buttons(title, 
-                                                  GTK_WINDOW(consPlot), 
+  GtkWidget *dialog = gtk_dialog_new_with_buttons(title,
+                                                  GTK_WINDOW(consPlot),
                                                   (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT),
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
@@ -339,7 +340,7 @@ static void showSettingsDialog(GtkWidget *consPlot)
   g_free(title);
 
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-  
+
   const int numRows = 3;
   const int numCols = 4;
   const int xpad = TABLE_XPAD;
@@ -354,7 +355,7 @@ static void showSettingsDialog(GtkWidget *consPlot)
   GtkWidget *lineEntry = createTextEntryFromInt(dialog, table, 2, 1, xpad, ypad, "_Line width: ", properties->lineWidth, NULL);
 
   gtk_widget_show_all(dialog);
-  
+
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
       const int newWin = convertStringToInt(gtk_entry_get_text(GTK_ENTRY(winEntry)));
@@ -363,7 +364,7 @@ static void showSettingsDialog(GtkWidget *consPlot)
       const int newLine = convertStringToInt(gtk_entry_get_text(GTK_ENTRY(lineEntry)));
 
       gboolean changed = FALSE;
-      
+
       /* Recalculate the conservation array if the window size has changed */
       if (newWin != properties->windowSize)
         {
@@ -371,7 +372,7 @@ static void showSettingsDialog(GtkWidget *consPlot)
           properties->windowSize = newWin;
           calculateConservation(consPlot);
         }
-      
+
       /* Recalculate the window size if either scale has changed */
       if (newX != properties->xScale || newY != properties->yScale)
         {
@@ -389,8 +390,8 @@ static void showSettingsDialog(GtkWidget *consPlot)
           belvuConsPlotRedrawAll(consPlot);
         }
     }
-  
-  gtk_widget_destroy(dialog);  
+
+  gtk_widget_destroy(dialog);
 }
 
 
@@ -403,53 +404,53 @@ static void calculateConservation(GtkWidget *consPlot)
 {
   ConsPlotProperties *properties = consPlotGetProperties(consPlot);
   BelvuContext *bc = properties->bc;
-  
+
   /* Smooth the conservation profile by applying a window */
   if (properties->smooth)
     g_free(properties->smooth);
-  
+
   properties->smooth = (double*)g_malloc(bc->maxLen * sizeof(double));
-  
+
   double sum = 0.0;
-  
+
   int i = 0;
-  for (i = 0; i < properties->windowSize; ++i) 
+  for (i = 0; i < properties->windowSize; ++i)
     sum += bc->conservation[i];
-  
+
   properties->smooth[properties->windowSize / 2] = sum / properties->windowSize;
-  
-  for ( ; i < bc->maxLen; ++i) 
+
+  for ( ; i < bc->maxLen; ++i)
     {
       sum -= bc->conservation[i-properties->windowSize];
       sum += bc->conservation[i];
       properties->smooth[i - properties->windowSize / 2] = sum/properties->windowSize;
     }
-  
+
   /* Find max and min and avg conservation */
   properties->maxcons = -1;
   properties->mincons = 10000;
   properties->avgcons = 0;
-  
-  for (i = 0; i < bc->maxLen; ++i) 
+
+  for (i = 0; i < bc->maxLen; ++i)
     {
-      if (properties->smooth[i] > properties->maxcons) 
+      if (properties->smooth[i] > properties->maxcons)
         properties->maxcons = properties->smooth[i];
-      
-      if (properties->smooth[i] < properties->mincons) 
+
+      if (properties->smooth[i] < properties->mincons)
         properties->mincons = properties->smooth[i];
-      
+
       properties->avgcons += bc->conservation[i];
     }
-  
+
   properties->avgcons /= bc->maxLen * 1.0;
 }
 
 
 /* Calculate the size of the drawing areas */
 static void calculateConsPlotBorders(GtkWidget *consPlot)
-{  
+{
   ConsPlotProperties *properties = consPlotGetProperties(consPlot);
-  
+
   /* Calculate plot size */
   properties->plotRect.width = properties->xScale * properties->bc->maxLen;
   properties->plotRect.height = (properties->maxcons - properties->mincons) * properties->yScale;
@@ -459,10 +460,10 @@ static void calculateConsPlotBorders(GtkWidget *consPlot)
   int textWidth, textHeight;
   getTextSize(properties->drawingArea, tmpStr, &textWidth, &textHeight);
   g_free(tmpStr);
-  
+
   properties->yScaleRect.width = textWidth + MAJOR_TICKMARK_HEIGHT + CONS_PLOT_XPAD;
   properties->yScaleRect.height = properties->plotRect.height;
-  
+
   /* header line size (one character high) */
   properties->headerRect.width = properties->plotRect.width;
   properties->headerRect.height = textHeight;
@@ -474,27 +475,27 @@ static void calculateConsPlotBorders(GtkWidget *consPlot)
   /* Calculate x and y coords */
   properties->headerRect.x = CONS_PLOT_XPAD;
   properties->headerRect.y = CONS_PLOT_YPAD;
-  
+
   properties->yScaleRect.x = CONS_PLOT_XPAD;
   properties->yScaleRect.y = properties->headerRect.y + properties->headerRect.height + CONS_PLOT_YPAD;
-  
+
   properties->plotRect.x = properties->yScaleRect.x + properties->yScaleRect.width + CONS_PLOT_XPAD;
   properties->plotRect.y = properties->yScaleRect.y;
-  
+
   properties->xScaleRect.x = properties->plotRect.x;
   properties->xScaleRect.y = properties->plotRect.y + properties->plotRect.height + CONS_PLOT_YPAD;
 
   /* Set the size of the layout. This must include the rightmost extent of the plot
    * rectangle, and also some extra space on the right for the 'average conservation'
    * label. */
-  const int width = properties->plotRect.x + properties->plotRect.width + 
+  const int width = properties->plotRect.x + properties->plotRect.width +
                     getTextWidth(properties->drawingArea, AVG_CONSERVATION_LABEL) +
                     (CONS_PLOT_XPAD * 2);
-  
-  gtk_layout_set_size(GTK_LAYOUT(properties->drawingArea), 
-                      width, 
+
+  gtk_layout_set_size(GTK_LAYOUT(properties->drawingArea),
+                      width,
                       properties->xScaleRect.y + properties->xScaleRect.height);
-  
+
   belvuConsPlotRedrawAll(consPlot);
 }
 
@@ -506,23 +507,23 @@ static gboolean onExposeConsPlot(GtkWidget *widget, GdkEventExpose *event, gpoin
 {
   GtkWidget *consPlot = GTK_WIDGET(data);
   ConsPlotProperties *properties = consPlotGetProperties(consPlot);
-  
+
   GdkDrawable *window = GTK_LAYOUT(widget)->bin_window;
-  
+
   if (window)
     {
       GdkDrawable *bitmap = widgetGetDrawable(widget);
-      
+
       if (!bitmap)
         {
           /* There isn't a bitmap yet. Create it now. */
-          bitmap = createBlankSizedPixmap(widget, window, 
-                                          widget->allocation.width, 
+          bitmap = createBlankSizedPixmap(widget, window,
+                                          widget->allocation.width,
                                           properties->xScaleRect.y + properties->xScaleRect.height);
 
           drawConsPlot(widget, bitmap, properties);
         }
-      
+
       if (bitmap)
         {
           /* Push the bitmap onto the window */
@@ -536,7 +537,7 @@ static gboolean onExposeConsPlot(GtkWidget *widget, GdkEventExpose *event, gpoin
           g_warning("Failed to draw conservation plot [%p] - could not create bitmap.\n", widget);
         }
     }
-  
+
   return TRUE;
 }
 
@@ -559,12 +560,12 @@ static gboolean onScrollPosChangedConsPlot(GtkObject *object, gpointer data)
 {
   GtkWidget *consPlot = GTK_WIDGET(data);
   ConsPlotProperties *properties = consPlotGetProperties(consPlot);
-  
+
   if (properties->drawingArea)
     {
       belvuConsPlotRedrawAll(consPlot);
     }
-  
+
   return FALSE;
 }
 
@@ -575,16 +576,16 @@ static gboolean onScrollPosChangedConsPlot(GtkObject *object, gpointer data)
 static void setConsPlotStyleProperties(GtkWidget *window, BelvuContext *bc, const int height)
 {
   gtk_widget_set_name(window, BELVU_CONS_PLOT_WINDOW_NAME);
-  
+
   /* Just hide the widget when it is closed rather than destroy it */
   g_signal_connect(window, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
-  
+
   /* Set default size based on scale height and alignment window width */
   int screenWidth = 300, screenHeight = 100;
   gbtools::GUIGetTrueMonitorSize(window, &screenWidth, &screenHeight);
-  
+
   const int width = screenWidth * DEFAULT_BELVU_WINDOW_WIDTH_FRACTION;
-  
+
   gtk_window_set_default_size(GTK_WINDOW(window), width, height + CONS_PLOT_WINDOW_YPAD);
 }
 
@@ -593,40 +594,40 @@ void createConsPlot(BelvuContext *bc)
 {
   /* Create the window */
   bc->consPlot = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  
+
   char *title = g_strdup_printf("%sConservation Profile", belvuGetTitlePrefix(bc));
   gtk_window_set_title(GTK_WINDOW(bc->consPlot), title);
   g_free(title);
-  
+
   /* We must add all toplevel windows to the list of spawned windows */
   bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, bc->consPlot);
-  
+
   /* Create the context menu and set a callback to show it */
   GtkActionGroup *actionGroup = NULL;
   GtkUIManager *uiManager = createUiManager(bc->consPlot, bc, &actionGroup);
   GtkWidget *contextmenu = createBelvuMenu(bc->consPlot, "/PlotContextMenu", uiManager);
-  
+
   gtk_widget_add_events(bc->consPlot, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(bc->consPlot), "button-press-event", G_CALLBACK(onButtonPressBelvu), contextmenu);
-  
+
   GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(bc->consPlot), vbox);
-  
+
   /* We'll place the drawing area in a scrolled window */
   GtkWidget *drawing = gtk_layout_new(NULL, NULL);
   GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
   gtk_container_add(GTK_CONTAINER(scrollWin), drawing);
-  
+
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_ALWAYS, GTK_POLICY_ALWAYS);
   gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
-  
+
   /* Set default background color */
   GdkColor *bgColor = getGdkColor(BELCOLOR_BACKGROUND, bc->defaultColors, FALSE, FALSE);
   gtk_widget_modify_bg(drawing, GTK_STATE_NORMAL, bgColor);
-  
+
   /* Set properties */
   consPlotCreateProperties(bc->consPlot, bc, actionGroup, drawing);
-  
+
   /* Calculate the plot size so we can set the initial window height correctly.
    * Must be done after setting properties, but before showing the widgets. */
   calculateConservation(bc->consPlot);

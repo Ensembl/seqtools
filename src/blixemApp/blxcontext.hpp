@@ -1,5 +1,6 @@
 /*  File: blxcontext.hpp
  *  Author: Gemma Barson, 2016-04-06
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -28,7 +29,7 @@
  *      Roy Storey        (Sanger Institute, UK)  <rds@sanger.ac.uk>
  *      Malcolm Hinsley   (Sanger Institute, UK)  <mh17@sanger.ac.uk>
  *
- * Description: A Blixem context class, containing all status information 
+ * Description: A Blixem context class, containing all status information
  *              required for a blixem instance.
  *----------------------------------------------------------------------------
  */
@@ -77,8 +78,8 @@ public:
   std::set<GQuark> getSelectedSources() const;
   GList* getFeaturesInSourceList(std::set<GQuark> sources) const;
 
-  void highlightBoxCalcBorders(GdkRectangle *drawingRect, GdkRectangle *highlightRect, 
-                               const IntRange *fullRange, const IntRange *highlightRange, 
+  void highlightBoxCalcBorders(GdkRectangle *drawingRect, GdkRectangle *highlightRect,
+                               const IntRange *fullRange, const IntRange *highlightRange,
                                const int yPadding);
 
   // Modify
@@ -101,7 +102,7 @@ public:
 
 
   GtkWidget *statusBar;                   /* The Blixem window's status bar */
-    
+
   char *refSeq;                           /* The reference sequence (always forward strand, always DNA sequence) */
   const char *refSeqName;                 /* The name of the reference sequence */
   IntRange refSeqRange;                   /* The range of the reference sequence */
@@ -124,18 +125,18 @@ public:
 
   MSP *mspList;                           /* List of all MSPs. Obsolete - use featureLists array instead */
   GArray* featureLists[BLXMSP_NUM_TYPES]; /* Array indexed by the BlxMspType enum. Each array entry contains a zero-terminated array of all the MSPs of that type. */
-    
+
   GList *matchSeqs;                       /* List of all match sequences (as BlxSequences). */
   GSList *supportedTypes;                 /* List of supported GFF types */
   const char *paddingSeq;                 /* A sequence of padding characters, used if the real sequence could not be found. All padded MSPs
                                            * use this same padding sequence - it is constructed to be long enough for the longest required seq. */
-    
+
   gboolean displayRev;                    /* True if the display is reversed (i.e. coords decrease as you read from left to right, rather than increase). */
   gboolean external;                      /* True if Blixem was run externally or false if it was run internally from another program */
-    
+
   GList *selectedSeqs;                    /* A list of sequences that are selected (as BlxSequences) */
   GList *sequenceGroups;                  /* A list of SequenceGroups */
-    
+
   DotterRefType dotterRefType;            /* Whether to dotter a ref seq range or a transcript */
   DotterMatchType dotterMatchType;        /* Saved type of match to call dotter on */
   char *dotterAdhocSeq;                   /* Saves the sequence text the user pastes into the dotter dialog */
@@ -144,19 +145,19 @@ public:
   int dotterStart;                        /* Start coord to call dotter on, or UNSET_INT to calculate automatically */
   int dotterEnd;                          /* End coord to call dotter on, or UNSET_INT to calculate automatically */
   int dotterZoom;                         /* Zoom param to call dotter with, if using manual params */
-    
+
   GArray *defaultColors;                  /* Default colors used by Blixem */
   gboolean usePrintColors;                /* Whether to use print colors (i.e. black and white) */
   char *windowColor;                      /* If not null, background color for the window */
 
   GList *columnList;                      /* A list of details about all the columns in the detail view (might have been better to use an array here but it's a short list so not important) */
   GSList *styles;
-    
+
   gboolean flags[BLXFLAG_NUM_FLAGS];              /* Array of all the flags the user can toggle. Indexed by the BlxFlags enum. */
   GtkWidget *dialogList[BLXDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
   GSList *spawnedProcesses;                       /* List of processes spawned by Blixem */
   BlxModelId modelId;                             /* which tree model to use (i.e. normal or squashed) */
-  
+
   /* This array holds the depth (num alignments) at each coord of the ref seq for
    * different types of counter. For each counter there is an array the same lenth as the
    * reference sequence. This could cause memory problems with a large region. Generally

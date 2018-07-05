@@ -1,5 +1,6 @@
 /*  File: bigpicturegrid.c
  *  Author: Gemma Barson, 2009-11-23
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -63,7 +64,7 @@ typedef struct _DrawGridData
   gboolean drawColinearityLines;
 } DrawGridData;
 
-  
+
 
 /* Local function declarations */
 static BlxContext*	    gridGetContext(GtkWidget *grid);
@@ -76,8 +77,8 @@ static void                 drawBigPictureGrid(GtkWidget *grid, GdkDrawable *dra
  *                     Utility functions	           *
  ***********************************************************/
 
-/* Calls the given function (passed as the data pointer) on the given widget 
- * if it is a grid in the big picture view, or, if it is a container, 
+/* Calls the given function (passed as the data pointer) on the given widget
+ * if it is a grid in the big picture view, or, if it is a container,
  * calls the function on all children/grandchildren/etc that are grids */
 void callFuncOnAllBigPictureGrids(GtkWidget *widget, gpointer data)
 {
@@ -106,10 +107,10 @@ gint convertValueToGridPos(GtkWidget *grid, const gdouble value)
 {
   /* The top line of the grid is drawn one cell height down from the top of the grid border */
   GridProperties *properties = gridGetProperties(grid);
-  
+
   DoubleRange *valRange = bigPictureGetPercentIdRange(properties->bigPicture);
   gdouble percent = (valRange->max - value) / (valRange->max - valRange->min);
-  
+
   /* Make sure we do the multiplication on doubles before rounding to int */
   gint result = properties->gridRect.y + roundNearest((gdouble)properties->gridRect.height * percent);
   return result;
@@ -118,12 +119,12 @@ gint convertValueToGridPos(GtkWidget *grid, const gdouble value)
 
 /* Calculates the size and position of an MSP line in the given grid. Return
  * args can be null if not required. */
-static void calculateMspLineDimensions(GtkWidget *grid, 
-                                       const MSP* const msp, 
+static void calculateMspLineDimensions(GtkWidget *grid,
+                                       const MSP* const msp,
                                        gboolean clip,
-                                       int *x, 
-                                       int *y, 
-                                       int *width, 
+                                       int *x,
+                                       int *y,
+                                       int *width,
                                        int *height)
 {
   BlxContext *bc = gridGetContext(grid);
@@ -136,23 +137,23 @@ static void calculateMspLineDimensions(GtkWidget *grid,
   /* The grid pos for coords gives the left edge of the coord, so draw to max + 1 to be inclusive */
   const int mspMin = msp->qRange.min(true, bc->displayRev);
   const int mspMax = msp->qRange.max(true, bc->displayRev);
-  
+
   const int x1 = convertBaseIdxToRectPos(mspMin, &gridProperties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
   const int x2 = convertBaseIdxToRectPos(mspMax, &gridProperties->gridRect, &dnaDispRange, TRUE, bc->displayRev, TRUE);
-  
+
   const int xMin = min(x1, x2);
   const int xMax = max(x1, x2);
-  
+
   if (x)
     *x = xMin;
-    
+
   if (width)
     *width = max((xMax - xMin), MIN_MSP_LINE_WIDTH);
-  
+
   /* Find where in the y axis we should draw the line, based on the %ID value */
   if (y)
     *y = convertValueToGridPos(grid, msp->id);
-    
+
   if (height)
     *height = gridProperties->mspLineHeight;
 }
@@ -162,7 +163,7 @@ static void calculateMspLineDimensions(GtkWidget *grid,
  * strand, is not an intron or exon, and (if checkRange is true) is not out of range */
 static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean checkRange)
 {
-  gboolean result = FALSE ; 
+  gboolean result = FALSE ;
 
   list<const SequenceGroup*> groups ;
   BlxContext *bc = NULL ;
@@ -177,7 +178,7 @@ static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean c
       groups = bc->getSequenceGroups(msp->sSequence) ;
       result = bc->isGroupVisible(groups, msp->sSequence->type) ;
     }
-  
+
   if (result)
     {
       if (checkRange)
@@ -193,7 +194,7 @@ static gboolean mspShownInGrid(const MSP* const msp, GtkWidget *grid, gboolean c
           result = TRUE;
         }
     }
-  
+
   return result;
 }
 
@@ -206,22 +207,22 @@ static void drawMspLine(const MSP* const msp, DrawGridData *drawData)
     {
       gdk_gc_set_subwindow(drawData->gc, GDK_INCLUDE_INFERIORS);
       gdk_gc_set_foreground(drawData->gc, drawData->color);
-      
+
       /* Calculate where it should go */
       int x, y, width, height;
       calculateMspLineDimensions(drawData->grid, msp, TRUE, &x, &y, &width, &height);
-      
+
       /* Draw a block rectangle */
       gdk_draw_rectangle(drawData->drawable, drawData->gc, TRUE, x, y, width, height);
-      
+
       /* Draw a drop-shadow, to make sure it is always visible even in the paler highlight colors */
       const int shadowHt = 1;
       gdk_gc_set_foreground(drawData->gc, drawData->shadowColor);
       gdk_gc_set_line_attributes(drawData->gc, shadowHt, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
-      
+
       int yBottom = y + height - shadowHt;
       gdk_draw_line(drawData->drawable, drawData->gc, x, yBottom, x + width, yBottom);
-      
+
       /* only draw the right-hand-side if the width is great enough to fit it and still be visible */
       if (width > shadowHt + 1)
       {
@@ -238,7 +239,7 @@ static void drawColinearityLines(GList *mspListItem, DrawGridData *drawData)
   g_return_if_fail(drawData);
 
   BlxContext *bc = gridGetContext(drawData->grid);
-  
+
   if (drawData->drawColinearityLines && mspListItem && mspListItem->next && bc->flags[BLXFLAG_SHOW_COLINEARITY])
     {
       const IntRange* const displayRange = gridGetDisplayRange(drawData->grid);
@@ -288,7 +289,7 @@ static void drawColinearityLines(GList *mspListItem, DrawGridData *drawData)
               IntRange lineXRange(x1 + width1, x2);
               IntRange lineYRange(y1 + height1 / 2, y2 + height2 / 2);
 
-              gdk_draw_line(drawData->drawable, drawData->gc, 
+              gdk_draw_line(drawData->drawable, drawData->gc,
                             lineXRange.min(), lineYRange.min(), lineXRange.max(), lineYRange.max());
             }
         }
@@ -300,12 +301,12 @@ static void drawColinearityLines(GList *mspListItem, DrawGridData *drawData)
 static void drawSequenceMspLines(gpointer listItemData, gpointer data)
 {
   const BlxSequence *seq = (const BlxSequence*)listItemData;
-  
+
   /* Only applicable to alignments and transcripts */
   if (!blxSequenceShownInGrid(seq))
     return;
-  
-  DrawGridData *drawData = (DrawGridData*)data;  
+
+  DrawGridData *drawData = (DrawGridData*)data;
   GList *mspListItem = seq->mspList;
 
   for ( ; mspListItem; mspListItem = mspListItem->next)
@@ -340,7 +341,7 @@ static void drawGroupedMspLines(gpointer listItemData, gpointer data)
       GdkColor shadowColor;
       getDropShadowColor(drawData->color, &shadowColor);
       drawData->shadowColor = &shadowColor;
-      
+
       g_list_foreach(seqGroup->seqList, drawSequenceMspLines, drawData);
 
       /* Set the draw data back to its original values */
@@ -351,7 +352,7 @@ static void drawGroupedMspLines(gpointer listItemData, gpointer data)
     {
       g_list_foreach(seqGroup->seqList, drawSequenceMspLines, drawData);
     }
-  
+
 }
 
 
@@ -360,23 +361,23 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable)
 {
   BlxContext *bc = gridGetContext(grid);
   GdkGC *gc = gdk_gc_new(drawable);
-  
+
   DrawGridData drawData = {
-    grid, 
-    drawable, 
-    gc, 
-    gridGetMspLineColor(grid, FALSE), 
+    grid,
+    drawable,
+    gc,
+    gridGetMspLineColor(grid, FALSE),
     gridGetMspLineColor(grid, FALSE),
     FALSE
   };
-  
-  /* Draw all MSPs for this grid */ 
-  g_list_foreach(bc->matchSeqs, drawSequenceMspLines, &drawData);  
+
+  /* Draw all MSPs for this grid */
+  g_list_foreach(bc->matchSeqs, drawSequenceMspLines, &drawData);
 
   /* Now draw MSPs that are in groups (to do: it would be good to do this in reverse
    * Sort Order, so that those ordered first get drawn last and therefore appear on top) */
   g_list_foreach(bc->sequenceGroups, drawGroupedMspLines, &drawData);
-  
+
   /* Finally, draw selected sequences. These will appear on top of everything else and will have
    * colinearity lines displayed (we only ever display colinearity lines for selected sequences
    * in the grid because it would be too cluttered otherwise). */
@@ -386,7 +387,7 @@ static void drawMspLines(GtkWidget *grid, GdkDrawable *drawable)
   drawData.shadowColor = &shadowColor;
   drawData.drawColinearityLines = TRUE;
   g_list_foreach(bc->selectedSeqs, drawSequenceMspLines, &drawData);
-  
+
   g_object_unref(gc);
 }
 
@@ -407,17 +408,17 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
   /* Get the display range in dna coords */
   IntRange bpRange;
   convertDisplayRangeToDnaRange(&bpProperties->displayRange, bc->seqType, bc->numFrames, bc->displayRev, &bc->refSeqRange, &bpRange);
-  
+
   GdkColor *color = getGdkColor(BLXCOLOR_ASSEMBLY_GAP, bc->defaultColors, FALSE, bc->usePrintColors);
 
   drawAssemblyGaps(grid, drawable, color, bc->displayRev,
-                   &properties->gridRect, &bpRange, 
+                   &properties->gridRect, &bpRange,
                    bc->featureLists[BLXMSP_GAP]);
-  
+
   /* Draw the grid lines */
   drawVerticalGridLines(&properties->gridRect, &properties->highlightRect, properties->gridYPadding, bc, bpProperties, drawable);
   drawHorizontalGridLines(grid, properties->bigPicture, &properties->gridRect, bc, bpProperties, drawable, numVCells, percentPerCell, bpProperties->percentIdRange.max, FALSE, "%");
-  
+
   /* Draw lines corresponding to the MSPs */
   drawMspLines(grid, drawable);
 }
@@ -428,7 +429,7 @@ static void drawBigPictureGrid(GtkWidget *grid, GdkDrawable *drawable)
 void gridPrepareForPrinting(GtkWidget *grid)
 {
   GdkDrawable *drawable = widgetGetDrawable(grid);
-  
+
   if (drawable)
     {
       GridProperties *properties = gridGetProperties(grid);
@@ -453,7 +454,7 @@ void calculateGridHighlightBoxBorders(GtkWidget *grid)
   IntRange *dvRange = detailViewGetDisplayRange(detailView);
 
   bc->highlightBoxCalcBorders(&properties->gridRect,
-                              &properties->highlightRect, 
+                              &properties->highlightRect,
                               bpRange,
                               dvRange,
                               properties->mspLineHeight);
@@ -466,33 +467,33 @@ void calculateGridBorders(GtkWidget *grid)
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
   int numVCells = gridGetNumVCells(grid);
-  
+
   /* Get some info about the size of the layout and the font used */
   guint layoutWidth, layoutHeight;
   gtk_layout_get_size(GTK_LAYOUT(grid), &layoutWidth, &layoutHeight);
-  
+
   properties->displayRect.x = 0;
   properties->displayRect.y = 0;
   properties->displayRect.width = grid->allocation.width;
-  
+
   /* Get the boundaries of the grid */
   properties->gridRect.x = roundNearest(bigPictureProperties->contentXPos());
   properties->gridRect.y = HIGHLIGHT_BOX_Y_PAD + properties->gridYPadding;
   properties->gridRect.width = bigPictureProperties->contentWidth();
   properties->gridRect.height = bigPictureGetCellHeight(properties->bigPicture) * numVCells;
-  
+
   /* Get the boundaries of the highlight box */
   calculateGridHighlightBoxBorders(grid);
-  
+
   /* Get the total display height required. Set the layout size to fit. */
   const int newHeight = properties->highlightRect.height;
-  
+
   if (newHeight != properties->displayRect.height)
     {
       DEBUG_OUT("Setting new grid height = %d\n", newHeight);
       properties->displayRect.height = newHeight;
       gtk_layout_set_size(GTK_LAYOUT(grid), properties->displayRect.width, properties->displayRect.height);
-  
+
       /* Set the size request to our desired height. We want a fixed heigh but don't set the
        * width, because we want the user to be able to resize that. */
       gtk_widget_set_size_request(grid, 0, properties->displayRect.height);
@@ -516,14 +517,14 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
   if (window)
     {
       GdkDrawable *bitmap = widgetGetDrawable(grid);
-      
+
       if (!bitmap)
         {
           /* There isn't a bitmap yet. Create it now. */
 	  bitmap = createBlankPixmap(grid);
           drawBigPictureGrid(grid, bitmap);
         }
-      
+
       if (bitmap)
         {
           /* Push the bitmap onto the window */
@@ -537,7 +538,7 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
 
           GdkColor *highlightBoxColor = getGdkColor(BLXCOLOR_HIGHLIGHT_BOX, bc->defaultColors, FALSE, bc->usePrintColors);
           drawHighlightBox(window, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH, highlightBoxColor);
-          
+
           /* Draw the preview box too, if set */
           BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
           bpProperties->drawPreviewBox(window, &properties->gridRect, &properties->highlightRect);
@@ -547,7 +548,7 @@ static gboolean onExposeGrid(GtkWidget *grid, GdkEventExpose *event, gpointer da
 	  g_warning("Failed to draw grid [%p] - could not create bitmap.\n", grid);
 	}
     }
-  
+
   return TRUE;
 }
 
@@ -560,41 +561,41 @@ static void onSizeAllocateBigPictureGrid(GtkWidget *grid, GtkAllocation *allocat
   /* Recalculate the borders for the grids and the header */
   GridProperties *properties = gridGetProperties(grid);
   BigPictureProperties *bigPictureProperties = bigPictureGetProperties(properties->bigPicture);
-  
+
   calculateGridHeaderBorders(bigPictureProperties->header);
   calculateGridBorders(grid);
-  
+
   DEBUG_EXIT("onSizeAllocateBigPictureGrid returning");
 }
 
 
 /* Mark the given MSP's sequence as selected if this MSP line contains the given coords.
  * Returns true if it was selected. */
-static gboolean selectMspIfContainsCoords(GtkWidget *grid, 
+static gboolean selectMspIfContainsCoords(GtkWidget *grid,
 					  const MSP *msp,
 					  const int x,
 					  const int y,
 					  gboolean deselectOthers)
 {
   gboolean wasSelected = FALSE;
-  
+
   if (mspShownInGrid(msp, grid, TRUE))
     {
       int mspX, mspY, mspWidth, mspHeight;
       calculateMspLineDimensions(grid, msp, TRUE, &mspX, &mspY, &mspWidth, &mspHeight);
-      
+
       if (x >= mspX && x <= mspX + mspWidth && y >= mspY && y <= mspY + mspHeight)
 	{
 	  /* It's a hit. Select this sequence. */
 	  GtkWidget *blxWindow = gridGetBlxWindow(grid);
-	  
+
 	  if (deselectOthers)
 	    {
 	      blxWindowDeselectAllSeqs(blxWindow);
 	    }
-	  
+
 	  blxWindowSelectSeq(blxWindow, msp->sSequence);
-	  
+
 	  /* Update the selected strand */
 	  GtkWidget *detailView = blxWindowGetDetailView(blxWindow);
 	  detailViewSetSelectedStrand(detailView, gridGetStrand(grid));
@@ -605,7 +606,7 @@ static gboolean selectMspIfContainsCoords(GtkWidget *grid,
 	  wasSelected = TRUE;
 	}
     }
-  
+
   return wasSelected;
 }
 
@@ -632,32 +633,32 @@ static gboolean selectClickedMspLines(GtkWidget *grid, GdkEventButton *event, co
 static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   /* left button */
   if (event->button == 1)
     {
       /* If we clicked on top of an msp line, select that msp */
       const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
       const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
-      
+
       handled = selectClickedMspLines(grid, event, ctrlModifier, shiftModifier);
     }
-  
+
   /* Middle button: always show the preview box; left button: show
    * preview box if we double-clicked, or if we clicked in the highlight
-   * box (i.e. left button selects and drags the highlight box; middle 
+   * box (i.e. left button selects and drags the highlight box; middle
    * button or double-click makes the highlight box jump) */
   GridProperties *properties = gridGetProperties(grid);
-  
-  if (event->button == 2 || 
-      (event->button == 1 && !handled && 
-       (event->type == GDK_2BUTTON_PRESS || 
+
+  if (event->button == 2 ||
+      (event->button == 1 && !handled &&
+       (event->type == GDK_2BUTTON_PRESS ||
         clickedInRect(event, &properties->highlightRect, HIGHLIGHT_BOX_MIN_WIDTH))))
     {
-      /* If dragging the highlight box (left button), then centre the preview 
+      /* If dragging the highlight box (left button), then centre the preview
        * box on the existing highlight box centre; otherwise, centre it on the click pos */
       int x = event->x;
-      
+
       if (event->button == 1 && event->type == GDK_BUTTON_PRESS)
         x = properties->highlightRect.x + properties->highlightRect.width / 2;
 
@@ -665,7 +666,7 @@ static gboolean onButtonPressGrid(GtkWidget *grid, GdkEventButton *event, gpoint
       bpProperties->startPreviewBox(event->x, TRUE, x - event->x);
       handled = TRUE;
     }
-  
+
   return handled;
 }
 
@@ -678,7 +679,7 @@ static gboolean onButtonReleaseGrid(GtkWidget *grid, GdkEventButton *event, gpoi
       BigPictureProperties *bpProperties = bigPictureGetProperties(properties->bigPicture);
       bpProperties->finishPreviewBox(event->x, &properties->gridRect, &properties->highlightRect);
     }
-  
+
   return TRUE;
 }
 
@@ -689,7 +690,7 @@ static gboolean onButtonReleaseGrid(GtkWidget *grid, GdkEventButton *event, gpoi
 static gboolean onScrollGrid(GtkWidget *grid, GdkEventScroll *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   switch (event->direction)
     {
       case GDK_SCROLL_LEFT:
@@ -698,7 +699,7 @@ static gboolean onScrollGrid(GtkWidget *grid, GdkEventScroll *event, gpointer da
 	  handled = TRUE;
 	  break;
 	}
-	
+
       case GDK_SCROLL_RIGHT:
 	{
           scrollBigPictureRightStep(gridGetBigPicture(grid));
@@ -712,7 +713,7 @@ static gboolean onScrollGrid(GtkWidget *grid, GdkEventScroll *event, gpointer da
 	  break;
 	}
     };
-  
+
   return handled;
 }
 
@@ -726,7 +727,7 @@ static gboolean onMouseMoveGrid(GtkWidget *grid, GdkEventMotion *event, gpointer
       BigPictureProperties *bpProperties = bigPictureGetProperties(gridGetBigPicture(grid));
       bpProperties->startPreviewBox(event->x, FALSE, 0);
     }
-  
+
   return TRUE;
 }
 
@@ -749,7 +750,7 @@ static BlxContext* gridGetContext(GtkWidget *grid)
 static void onDestroyGrid(GtkWidget *widget)
 {
   GridProperties *properties = gridGetProperties(widget);
-  
+
   if (properties)
     {
       delete properties;
@@ -759,7 +760,7 @@ static void onDestroyGrid(GtkWidget *widget)
 }
 
 
-GridProperties::GridProperties(GtkWidget *widget_in, 
+GridProperties::GridProperties(GtkWidget *widget_in,
                                GtkWidget *bigPicture_in,
                                gulong exposeHandlerId_in,
                                BlxStrand strand_in)
@@ -786,25 +787,25 @@ GridProperties::GridProperties(GtkWidget *widget_in,
 }
 
 
-static void gridCreateProperties(GtkWidget *widget, 
+static void gridCreateProperties(GtkWidget *widget,
 				 GtkWidget *bigPicture,
 				 gulong exposeHandlerId,
 				 BlxStrand strand)
 {
   if (widget)
-    { 
+    {
       /* Work out how many characters we need to display in the left border for
-       * the vertical grid axis label.  This is the number of digits in the 
+       * the vertical grid axis label.  This is the number of digits in the
        * largest label value plus one (for a '%' character)
-       * Add a fudge factor to give more space to allow for the fact that 
+       * Add a fudge factor to give more space to allow for the fact that
        * the calculated char width is approximate and may not give enough space */
-      GridProperties *properties = new GridProperties(widget, 
+      GridProperties *properties = new GridProperties(widget,
                                                       bigPicture,
                                                       exposeHandlerId,
                                                       strand);
-      
+
       g_object_set_data(G_OBJECT(widget), "GridProperties", properties);
-      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyGrid), NULL); 
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyGrid), NULL);
     }
 }
 
@@ -849,27 +850,25 @@ GtkWidget* createBigPictureGrid(GtkWidget *bigPicture, BlxStrand strand)
 {
   /* Create a layout area for the grid */
   GtkWidget *grid = gtk_layout_new(NULL, NULL);
-  
+
   /* Grid style properties */
   gtk_widget_set_redraw_on_allocate(grid, FALSE);
   gtk_widget_set_name(grid, BIG_PICTURE_GRID_NAME);
-  
+
   /* Connect signals */
   gtk_widget_add_events(grid, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(grid, GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(grid, GDK_POINTER_MOTION_MASK);
-  
-  gulong exposeHandlerId = g_signal_connect(G_OBJECT(grid), "expose-event", G_CALLBACK(onExposeGrid), NULL);  
+
+  gulong exposeHandlerId = g_signal_connect(G_OBJECT(grid), "expose-event", G_CALLBACK(onExposeGrid), NULL);
   g_signal_connect(G_OBJECT(grid), "size-allocate",	    G_CALLBACK(onSizeAllocateBigPictureGrid), NULL);
   g_signal_connect(G_OBJECT(grid), "button-press-event",    G_CALLBACK(onButtonPressGrid),	      NULL);
   g_signal_connect(G_OBJECT(grid), "button-release-event",  G_CALLBACK(onButtonReleaseGrid),	      NULL);
   g_signal_connect(G_OBJECT(grid), "motion-notify-event",   G_CALLBACK(onMouseMoveGrid),	      NULL);
   g_signal_connect(G_OBJECT(grid), "scroll-event",	    G_CALLBACK(onScrollGrid),		      NULL);
-  
+
   /* Set required data in the grid. We can't set the tree yet because it hasn't been created yet. */
   gridCreateProperties(grid, bigPicture, exposeHandlerId, strand);
-  
+
   return grid;
 }
-
-

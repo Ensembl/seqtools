@@ -1,5 +1,6 @@
 /*  File: belvu.c
  *  Author: Erik Sonnhammer
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -34,7 +35,7 @@
 
 
 
-/* 
+/*
 
     Pending:
 
@@ -48,7 +49,7 @@
 	        Traverse bootstrap and original tree
 	Rationale for group bootstrapping:
 		   For each sequence, store array of sequences in merging order in bootstrap tree.
-		   For each node in original tree, check if group of sequences 
+		   For each node in original tree, check if group of sequences
 		   corresponds to the first n sequences in bootstraptree array.
 	Rationale for exact bootstrapping:
 		   Traverse bootstrap tree from leaf to root:
@@ -69,7 +70,7 @@
 
 	read in other trees with bootstraps
 	use confidence cutoff in find orthologs
-	
+
         make alignment collapsing easier to use, see above.
 
         Keyboard edit of one sequence.  How to find the right place ? !!
@@ -102,7 +103,7 @@
 
     for each residue i {
         for each residue j {
-	    if (i == j) 
+	    if (i == j)
 	        score(i) += (count(i)-1)*count(j)*matrix(i,j)
 	    else
 	        score(i) += count(i)*count(j)*matrix(i,j)
@@ -111,15 +112,15 @@
 
 	if (ignore gaps)
 	    n = nresidues(pos)
-	else 
+	else
 	    n = nsequences
-		    
+
 	if (n == 1)
 	    id = 0.0
 	else
 	    id = score/(n*(n-1))
     }
-		
+
 */
 
 
@@ -159,7 +160,7 @@
 
   Note: to use with a2b[], always subtract 1 from the values !!!!
 
-  A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V   B   Z   X  \* */ 
+  A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V   B   Z   X  \* */
 static int BLOSUM62[24][24] = {
   {4, -1, -2, -2,  0, -1, -1,  0, -2, -1, -1, -1, -1, -2, -1,  1,  0, -3, -2,  0, -2, -1,  0, -4},
   {-1,  5,  0, -2, -3,  1,  0, -2,  0, -3, -2,  2, -1, -3, -2, -1, -1, -3, -2, -3, -1,  0, -1, -4},
@@ -192,7 +193,7 @@ static int BLOSUM62[24][24] = {
  *  This converts an ascii char to a 1-based index that can be used in
  *  the BLOSUM matrix - note that you need to subtract 1 from the values
  *  to get a 0-based index for use in BLOSUM62.
- *  
+ *
  *  It specifies a 1-based index for the 20 standard amino acids. For any
  *  character that is not a residue, NA is returned.
  *
@@ -220,7 +221,7 @@ static int a2b[] =
     NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
     NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
     NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-    NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA 
+    NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
   };
 
 
@@ -257,7 +258,7 @@ static int n2b[] =
 
 #ifdef OLD_BELVU_CODE
 
-/* Note: this treecpy does not reallocate any strings, assuming they will 
+/* Note: this treecpy does not reallocate any strings, assuming they will
    always exist and never change.  Serious problems await if this is
    not true
 */
@@ -270,7 +271,7 @@ static treeNode *treecpy(treeNode *node)
     newnode = g_malloc(sizeof(treeNode));
 
     newnode->dist      = node->dist;
-    newnode->branchlen = node->branchlen;	
+    newnode->branchlen = node->branchlen;
     newnode->boot      = node->boot;
     newnode->name      = node->name;
     newnode->organism  = node->organism;
@@ -299,7 +300,7 @@ static void treeBalanceTreeRecurse(treeNode *node, double *bestbal, treeNode **b
 	lweight = treeSize3way(node, node->left) - node->branchlen;
 	rweight = treeSize3way(node->left, node) - node->left->branchlen;
 	newbal = fabsf(lweight - rweight);
-	
+
 	/*
 	printf("Subtree weights = %.1f  %.1f\n", lweight, rweight);
 	printf("oldbal = %.1f   newbal = %.1f\n", *bestbal, newbal);
@@ -308,10 +309,10 @@ static void treeBalanceTreeRecurse(treeNode *node, double *bestbal, treeNode **b
 	if (newbal < *bestbal) { /* better balance */
 
 	    g_message("Better balance: %.1f (oldbest = %.1f)\n", newbal, *bestbal);
-	    
+
 	    *bestbal = newbal;
 	    *bestNode = node;
-	    
+
 	    treeBalanceTreeRecurse(node->right, bestbal, bestNode);
 	}
     }
@@ -321,19 +322,19 @@ static void treeBalanceTreeRecurse(treeNode *node, double *bestbal, treeNode **b
 	lweight = treeSize3way(node, node->right) - node->branchlen;
 	rweight = treeSize3way(node->right, node) - node->right->branchlen;
 	newbal = fabsf(lweight - rweight);
-	
+
 	/*
 	printf("Subtree weights = %.1f  %.1f\n", lweight, rweight);
 	printf("oldbal = %.1f   newbal = %.1f\n", *bestbal, newbal);
 	*/
-	
+
 	if (newbal < *bestbal) { /* better balance */
-	    
+
 	    g_message("Better bal: %f\n", newbal);
-	    
+
 	    *bestbal = newbal;
 	    *bestNode = node;
-	    
+
 	    treeBalanceTreeRecurse(node->right, bestbal, bestNode);
 	}
     }
@@ -344,7 +345,7 @@ static void treeBalanceTreeRecurse(treeNode *node, double *bestbal, treeNode **b
 
 
 /* These values define the defaults for the thresholds when coloring by
- * conservation; the first three are when coloring by %ID and the last 
+ * conservation; the first three are when coloring by %ID and the last
  * three when coloring by similarity (i.e. BLOSUM62) */
 #define DEFAULT_LOW_ID_CUTOFF           0.4
 #define DEFAULT_MID_ID_CUTOFF           0.6
@@ -359,49 +360,49 @@ static void treeBalanceTreeRecurse(treeNode *node, double *bestbal, treeNode **b
 #define DEFAULT_LOW_FG_COLOR            BLACK
 #define DEFAULT_MAX_BG_COLOR            CYAN
 #define DEFAULT_MID_BG_COLOR            MIDBLUE
-#define DEFAULT_LOW_BG_COLOR            LIGHTGRAY  
+#define DEFAULT_LOW_BG_COLOR            LIGHTGRAY
 #define DEFAULT_MAX_FG_PRINT_COLOR      WHITE
 #define DEFAULT_MID_FG_PRINT_COLOR      BLACK
 #define DEFAULT_LOW_FG_PRINT_COLOR      BLACK
 #define DEFAULT_MAX_BG_PRINT_COLOR      BLACK
 #define DEFAULT_MID_BG_PRINT_COLOR      GRAY
-#define DEFAULT_LOW_BG_PRINT_COLOR      LIGHTGRAY  
+#define DEFAULT_LOW_BG_PRINT_COLOR      LIGHTGRAY
 
 /* Global variables */
 
 /* Color names (must be in same order as Color enum) */
 static const char *colorNames[NUM_TRUECOLORS] = {
-"WHITE", 
-"BLACK", 
-"LIGHTGRAY", 
+"WHITE",
+"BLACK",
+"LIGHTGRAY",
 "DARKGRAY",
-"RED", 
-"GREEN", 
+"RED",
+"GREEN",
 "BLUE",
-"YELLOW", 
-"CYAN", 
+"YELLOW",
+"CYAN",
 "MAGENTA",
-"LIGHTRED", 
-"LIGHTGREEN", 
+"LIGHTRED",
+"LIGHTGREEN",
 "LIGHTBLUE",
-"DARKRED", 
-"DARKGREEN", 
+"DARKRED",
+"DARKGREEN",
 "DARKBLUE",
-"PALERED", 
-"PALEGREEN", 
+"PALERED",
+"PALEGREEN",
 "PALEBLUE",
-"PALEYELLOW", 
-"PALECYAN", 
+"PALEYELLOW",
+"PALECYAN",
 "PALEMAGENTA",
-"BROWN", 
-"ORANGE", 
+"BROWN",
+"ORANGE",
 "PALEORANGE",
-"PURPLE", 
-"VIOLET", 
+"PURPLE",
+"VIOLET",
 "PALEVIOLET",
-"GRAY", 
+"GRAY",
 "PALEGRAY",
-"CERISE", 
+"CERISE",
 "MIDBLUE"
 };
 
@@ -424,7 +425,7 @@ static const char* colorTable[NUM_TRUECOLORS]= {
 "#af0000", 	   /* DARKRED         */
 "#00af00",	   /* DARKGREEN       */
 "#0000af",         /* DARKBLUE        */
-"#ffe6d2",	   /* PALERED         */ 
+"#ffe6d2",	   /* PALERED         */
 "#d2ffd2", 	   /* PALEGREEN       */
 "#d2ebff",	   /* PALEBLUE        */
 "#ffffc8",	   /* PALEYELLOW      */
@@ -542,7 +543,7 @@ static int a2b_sean[] =
   };
 
 
- 
+
 
 /* Local function declarations */
 static double		   score(char *s1, char *s2, const gboolean penalize_gaps);
@@ -564,7 +565,7 @@ gint alphaorder(gconstpointer xIn, gconstpointer yIn)
   const ALN *y = *((const ALN**)yIn);
 
   int retval=0;
-  
+
   if (!(retval = strcmp(x->name, y->name)))
     {
       if (x->start == y->start)
@@ -579,10 +580,10 @@ gint alphaorder(gconstpointer xIn, gconstpointer yIn)
       else if (x->start > y->start)
 	retval = 1;
     }
-  
-  /* printf("Comparing %10s %4d %4d with %10s %4d %4d = %d\n", 
+
+  /* printf("Comparing %10s %4d %4d with %10s %4d %4d = %d\n",
    x->name, x->start, x->end, y->name, y->start, y->end, retval); */
-  
+
   return retval;
 }
 
@@ -611,14 +612,14 @@ gint organismorder(gconstpointer xIn, gconstpointer yIn)
   const ALN *y = *((const ALN**)yIn);
 
   int retval=0;
-  const char *p1 = strchr(x->name, '_'), 
+  const char *p1 = strchr(x->name, '_'),
              *p2 = strchr(y->name, '_');
 
   if (!p1 && !p2) return alphaorder(xIn, yIn);
   if (!p1) return 1;
   if (!p2) return -1;
-  
-  if (!(retval = strcmp(p1, p2))) 
+
+  if (!(retval = strcmp(p1, p2)))
     return alphaorder(xIn, yIn);
 
   return retval;
@@ -667,14 +668,14 @@ gint nrorder(gconstpointer xIn, gconstpointer yIn)
 
 void scoreSort(BelvuContext *bc)
 {
-  if (!bc->displayScores) 
-    { 
+  if (!bc->displayScores)
+    {
       g_critical("No scores available.\n");
       return;
     }
 
   g_array_sort(bc->alignArr, scoreorder);
-    
+
   arrayOrder(bc->alignArr);
 }
 
@@ -695,30 +696,30 @@ static void organismSort(BelvuContext *bc)
 
 void highlightScoreSort(char mode, BelvuContext *bc)
 {
-  if (!bc->selectedAln) 
+  if (!bc->selectedAln)
     {
       g_critical("Please highlight a sequence first\n");
       return;
     }
-  
-  if (bc->selectedAln->markup) 
+
+  if (bc->selectedAln->markup)
     {
       g_critical("Please do not highlight a markup line\n");
       return;
     }
-  
+
   separateMarkupLines(bc);
-  
+
   /* if (displayScores) {
    if (!(graphQuery("This will erase the current scores, do you want to continue?")))
    return;
    }*/
-  
+
   bc->displayScores = TRUE;
-  
+
   /* Calculate score relative to highlighted sequence */
   int i = 0;
-  
+
   for (i = 0; i < (int)bc->alignArr->len; ++i)
     {
       ALN *curAln = g_array_index(bc->alignArr, ALN*, i);
@@ -731,23 +732,23 @@ void highlightScoreSort(char mode, BelvuContext *bc)
 	{
 	  curAln->score = percentIdentity(alnGetSeq(bc->selectedAln), alnGetSeq(curAln), bc->penalize_gaps);
 	}
-      
+
       char *scoreStr = g_strdup_printf("%.1f", curAln->score);
       int len = strlen(scoreStr);
-      
+
       if (len > bc->maxScoreLen)
 	bc->maxScoreLen = len;
-      
+
       g_free(scoreStr);
     }
-  
+
   g_array_sort(bc->alignArr, scoreorderRev);
   arrayOrder(bc->alignArr);
-  
+
   reInsertMarkupLines(bc);
-  
+
   bc->alignYStart = 0;
-  
+
   if (bc->belvuAlignment)
     {
       updateHeaderColumnsSize(bc->belvuAlignment);
@@ -764,8 +765,8 @@ void highlightScoreSort(char mode, BelvuContext *bc)
 void doSort(BelvuContext *bc, const BelvuSortType sortType, const gboolean showTree)
 {
   g_array_sort(bc->alignArr, nrorder);
-  
-  switch(sortType) 
+
+  switch(sortType)
   {
     case BELVU_SORT_ALPHA :	      alphaSort(bc);                        break;
     case BELVU_SORT_ORGANISM :        organismSort(bc);                     break;
@@ -775,8 +776,8 @@ void doSort(BelvuContext *bc, const BelvuSortType sortType, const gboolean showT
     case BELVU_SORT_SIM :             highlightScoreSort('P', bc);          break;
     case BELVU_SORT_ID :              highlightScoreSort('I', bc);          break;
     case BELVU_UNSORTED : break;
-    
-    default: 
+
+    default:
       g_warning("Initial sort order '%d' not recognised.\n", sortType);
       break;
   }
@@ -786,7 +787,7 @@ void doSort(BelvuContext *bc, const BelvuSortType sortType, const gboolean showT
  *		          Trees				   *
  ***********************************************************/
 
-void setTreeScaleCorr(BelvuContext *bc, const int treeMethod) 
+void setTreeScaleCorr(BelvuContext *bc, const int treeMethod)
 {
   if (treeMethod == UPGMA)
       bc->treeScale = 1.0;
@@ -795,24 +796,24 @@ void setTreeScaleCorr(BelvuContext *bc, const int treeMethod)
 }
 
 
-void setTreeScale(BelvuContext *bc, const double newScale) 
+void setTreeScale(BelvuContext *bc, const double newScale)
 {
   bc->treeScale = newScale;
 }
 
 
-static int treeOrder(TreeNode *node, const int treeOrderNrIn) 
+static int treeOrder(TreeNode *node, const int treeOrderNrIn)
 {
   int treeOrderNr = treeOrderNrIn;
-  
-  if (node) 
+
+  if (node)
     {
       treeOrderNr = treeOrder(node->left, treeOrderNr);
-      
+
       if (node->aln)
         node->aln->nr = treeOrderNr++;
-      
-      treeOrderNr = treeOrder(node->right, treeOrderNr);    
+
+      treeOrderNr = treeOrder(node->right, treeOrderNr);
     }
 
   return treeOrderNr;
@@ -822,26 +823,26 @@ static int treeOrder(TreeNode *node, const int treeOrderNrIn)
 void treeSortBatch(BelvuContext *bc)
 {
   separateMarkupLines(bc);
-  
+
   if (!bc->mainTree || !bc->mainTree->head)
     {
       Tree *tree = treeMake(bc, FALSE, TRUE);
       belvuContextSetTree(bc, &tree);
     }
-  
+
   treeOrder(bc->mainTree->head, 1); /* Set nr field according to tree order */
-  
+
   g_array_sort(bc->alignArr, nrorder);
-  
+
   reInsertMarkupLines(bc);
 }
 
 
-void treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *treeNode)) 
+void treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *treeNode))
 {
-  if (!node) 
+  if (!node)
     return;
-  
+
   treeTraverse(bc, node->left, func);
   func(bc, node);
   treeTraverse(bc, node->right, func);
@@ -851,7 +852,7 @@ void treeTraverse(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *b
 /* General purpose routine to convert a string to ALN struct.
    Note: only fields Name, Start, End are filled!
  */
-void str2aln(BelvuContext *bc, char *src, ALN *alnp) 
+void str2aln(BelvuContext *bc, char *src, ALN *alnp)
 {
   char *tmp = g_strdup(src);
   stripCoordTokens(tmp, bc);
@@ -861,10 +862,10 @@ void str2aln(BelvuContext *bc, char *src, ALN *alnp)
       g_critical("Name to field conversion failed for %s (%s).\n", src, tmp);
       return;
     }
-  
+
   if (strlen(alnp->name) > MAXNAMESIZE)
     g_error("buffer overrun in %s !!!!!!!!!\n", "str2aln") ;
-  
+
   g_free(tmp);
 }
 
@@ -874,7 +875,7 @@ void str2aln(BelvuContext *bc, char *src, ALN *alnp)
 void treeSort(BelvuContext *bc, const gboolean showTree)
 {
   treeSortBatch(bc);
-  
+
   if (showTree)
     {
       /* Show the tree window (create it if necessary) */
@@ -886,37 +887,37 @@ void treeSort(BelvuContext *bc, const gboolean showTree)
 }
 
 
-static void treeTraverseLRfirst(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *node)) 
+static void treeTraverseLRfirst(BelvuContext *bc, TreeNode *node, void (*func)(BelvuContext *bc, TreeNode *node))
 {
-  if (!node) 
+  if (!node)
     return;
-  
+
   treeTraverseLRfirst(bc, node->left, func);
   treeTraverseLRfirst(bc, node->right, func);
   func(bc, node);
 }
 
 
-static void subfamilyTrav(BelvuContext *bc, TreeNode *node) 
+static void subfamilyTrav(BelvuContext *bc, TreeNode *node)
 {
   static double dist = 0.0;
-  static int 
+  static int
   newgroup = 1,
   groupnr = 0;
-  
-  if (!node) 
+
+  if (!node)
     return;
-  
-  if (node->name) 
+
+  if (node->name)
     {
       dist = node->branchlen;
-    
-      if (newgroup) 
+
+      if (newgroup)
         {
           g_message("\nGroup nr %d:\n", ++groupnr);
           newgroup = 0;
         }
-      
+
       g_message("%s\n", node->name);
     }
   else
@@ -924,12 +925,12 @@ static void subfamilyTrav(BelvuContext *bc, TreeNode *node)
       /* internal node */
       dist += node->branchlen;
     }
-  
+
   if ( bc->mksubfamilies_cutoff > (100.0-dist) )
-    { 
-      newgroup = 1; 
+    {
+      newgroup = 1;
     }
-  
+
   /* printf("abs=%.1f  branch=%.1f\n", dist, node->branchlen); */
 }
 
@@ -937,12 +938,12 @@ static void subfamilyTrav(BelvuContext *bc, TreeNode *node)
 void mksubfamilies(BelvuContext *bc, double cutoff)
 {
   separateMarkupLines(bc);
-  
+
   strcpy(bc->treeMethodString, UPGMAstr);
   bc->treeMethod = UPGMA;
-  
+
   Tree *tree = treeMake(bc, FALSE, TRUE);
-  
+
   treeTraverseLRfirst(bc, tree->head, subfamilyTrav);
 }
 
@@ -958,9 +959,9 @@ void mksubfamilies(BelvuContext *bc, double cutoff)
  * maintaining a pointer to it. */
 static void readFastaAlnFinalise(BelvuContext *bc, ALN *aln)
 {
-  if (bc->maxLen) 
+  if (bc->maxLen)
     {
-      if (alnGetSeqLen(aln) != bc->maxLen) 
+      if (alnGetSeqLen(aln) != bc->maxLen)
         g_error("Differing sequence lengths: %d %d\n", bc->maxLen, alnGetSeqLen(aln));
     }
   else
@@ -971,9 +972,9 @@ static void readFastaAlnFinalise(BelvuContext *bc, ALN *aln)
   int ip = 0;
   if (alnArrayFind(bc->alignArr, &aln, &ip, alphaorder))
     {
-      g_error("Sequence name occurs more than once: %s%c%d-%d\n", 
+      g_error("Sequence name occurs more than once: %s%c%d-%d\n",
               aln->name, bc->saveSeparator, aln->start, aln->end);
-      
+
       g_string_free(aln->sequenceStr, TRUE);
       g_free(aln);
     }
@@ -1000,7 +1001,7 @@ void initAln(ALN *alnp)
   alnp->markup = 0;
   alnp->hide = FALSE;
   alnp->nocolor = FALSE;
-  alnp->organism = NULL; 
+  alnp->organism = NULL;
   alnp->startColIdx = 0;
 }
 
@@ -1022,12 +1023,12 @@ static void readFastaAln(BelvuContext *bc, FILE *pipe)
   ALN *currentAln = NULL;
 
   while (!feof (pipe))
-    { 
+    {
       if (!fgets (line, MAXLENGTH, pipe))
 	break;
 
       char *cp = strchr(line, '\n');
-      
+
       /* Cut off the newline char at the end, if it has one */
       if (cp)
 	*cp = 0;
@@ -1044,7 +1045,7 @@ static void readFastaAln(BelvuContext *bc, FILE *pipe)
           /* Create a new sequence */
           currentAln = createEmptyAln();
           currentAln->sequenceStr = g_string_new(NULL);
-          
+
           /* Parse the new line. Note that this resets the ALN struct for us. */
           parseMulLine(bc, line + 1, currentAln);
         }
@@ -1054,14 +1055,14 @@ static void readFastaAln(BelvuContext *bc, FILE *pipe)
           g_string_append(currentAln->sequenceStr, line);
         }
     }
-  
+
   if (currentAln)
     {
       readFastaAlnFinalise(bc, currentAln);
     }
 
   bc->saveFormat = BELVU_FILE_ALIGNED_FASTA;
-  
+
   return ;
 }
 
@@ -1075,7 +1076,7 @@ void alncpy(ALN *dest, ALN *src)
   dest->end = src->end;
   /* dest->sequenceStr = src->sequenceStr ? g_string_new(src->sequenceStr->str) : NULL; */
   dest->sequenceStr = src->sequenceStr;
-  dest->nr = src->nr;			
+  dest->nr = src->nr;
   strncpy(dest->fetch, src->fetch, MAXNAMESIZE+10);
   dest->score = src->score;
   dest->color = src->color;
@@ -1093,15 +1094,15 @@ void alncpy(ALN *dest, ALN *src)
 
 /* Convenience routine for converting "name/start-end" to "name start end".
  Used by parsing routines.
- 
+
  Return 1 if both tokens were found, otherwise 0.
  */
 static int stripCoordTokens(char *cp, BelvuContext *bc)
 {
   char *end = cp;
-  
+
   while (*end && !isspace(*end)) end++;
-  
+
   if ((cp = strchr(cp, bc->saveSeparator)) && cp < end) {
     *cp = ' ';
     if ((cp = strchr(cp, '-')) && cp < end) {
@@ -1118,55 +1119,55 @@ static int stripCoordTokens(char *cp, BelvuContext *bc)
 
 /*
  Parse name, start and end of a Mul format line
- 
+
  Convenience routine, part of readMul and other parsers
  */
 void parseMulLine(BelvuContext *bc, char *line, ALN *aln)
 {
   char line2[MAXLENGTH+1], *cp=line2, *cq, GRfeat[MAXNAMESIZE+1];
   GRfeat[0] = 0;
-  
+
   strncpy(cp, line, MAXLENGTH);
-  
+
   if (!strncmp(cp, "#=GC", 4))
     {
       aln->markup = GC;
       cp += 5;
     }
 
-  if (!strncmp(cp, "#=RF", 4)) 
+  if (!strncmp(cp, "#=RF", 4))
     {
       aln->markup = GC;
-    } 
+    }
 
-  if (!strncmp(cp, "#=GR", 4)) 
+  if (!strncmp(cp, "#=GR", 4))
     {
       aln->markup = GR;
       cp += 5;
     }
-  
-  if (bc->stripCoordTokensOn) 
+
+  if (bc->stripCoordTokensOn)
     stripCoordTokens(cp, bc);
-  
+
   /* Name */
   strncpy(aln->name, cp, MAXNAMESIZE);
   aln->name[MAXNAMESIZE] = 0;
 
-  if ((cq = strchr(aln->name, ' '))) 
+  if ((cq = strchr(aln->name, ' ')))
     *cq = 0;
-  
+
   /* Add Start and End coords */
   if (bc->stripCoordTokensOn && (bc->IN_FORMAT != RAW) )
     sscanf(strchr(cp, ' ') + 1, "%d%d", &aln->start, &aln->end);
-  
-  if (aln->markup == GR) 
+
+  if (aln->markup == GR)
     {
-      /* Add GR markup names to name 
-       
+      /* Add GR markup names to name
+
          #=GR O83071 192 246 SA 999887756453524252..55152525....36463774777.....948472782969685958
          ->name = O83071_SA
       */
-      if (bc->IN_FORMAT == MUL) 
+      if (bc->IN_FORMAT == MUL)
         {
           sscanf(cp + strlen(aln->name), "%d%d%s", &aln->start, &aln->end, GRfeat);
         }
@@ -1174,13 +1175,13 @@ void parseMulLine(BelvuContext *bc, char *line, ALN *aln)
         {
           sscanf(cp + strlen(aln->name), "%s", GRfeat);
         }
-      
+
       if (strlen(aln->name)+strlen(GRfeat)+2 > MAXNAMESIZE)
         g_critical("Too long name or/and feature name\n");
 
       strcat(aln->name, " ");
       strncat(aln->name, GRfeat, MAXNAMESIZE-strlen(aln->name));
-      
+
       /* printf("%s, %d chars\n", aln->name, strlen(aln->name)); fflush(stdout); */
     }
 }
@@ -1191,35 +1192,35 @@ void parseMulLine(BelvuContext *bc, char *line, ALN *aln)
  ***********************************************************/
 
 /* Set the default colors of organisms to something somewhat intelligent */
-void setOrganismColors(GArray *organismArr) 
+void setOrganismColors(GArray *organismArr)
 {
     static int treeColors[16] = {
-      RED, 
+      RED,
       BLUE,
-      DARKGREEN, 
-      ORANGE, 
+      DARKGREEN,
+      ORANGE,
       MAGENTA,
-      BROWN, 
-      PURPLE, 
-      CYAN, 
-      VIOLET, 
+      BROWN,
+      PURPLE,
+      CYAN,
+      VIOLET,
       MIDBLUE,
-      CERISE, 
+      CERISE,
       LIGHTBLUE,
-      DARKRED, 
-      GREEN, 
+      DARKRED,
+      GREEN,
       DARKBLUE,
       GRAY
   };
-  
+
   int i = 0;
   int color = 0;
-  
-  for (i = 0; i < (int)organismArr->len; ++i) 
+
+  for (i = 0; i < (int)organismArr->len; ++i)
     {
       color = treeColors[i % 16];
       /*if (i > 15) color = treeColors[15];*/
-     
+
       g_array_index(organismArr, ALN*, i)->color = color;
     }
 }
@@ -1268,10 +1269,10 @@ int* getMarkupColorArray()
 static const char* convertColorNumToStr(const int colorNum)
 {
   const char *result = colorTable[WHITE];
-  
+
   if (colorNum >= 0 && colorNum < NUM_TRUECOLORS)
     result = colorTable[colorNum];
-  
+
   return result;
 }
 
@@ -1281,7 +1282,7 @@ void convertColorNumToGdkColor(const int colorNum, const gboolean isSelected, Gd
 {
   const char *colorStr = convertColorNumToStr(colorNum);
   getColorFromString(colorStr, result, NULL);
-  
+
   /* If an item is selected, we use a slightly different shade of the same color. */
   if (isSelected)
     getSelectionColor(result, result);
@@ -1291,11 +1292,11 @@ void convertColorNumToGdkColor(const int colorNum, const gboolean isSelected, Gd
 //static void colorCons(BelvuContext *bc)
 //{
 //  setConsSchemeColors(bc);
-//  
+//
 //  //  menuSetFlags(menuItem(colorMenu, thresholdStr), MENUFLAG_DISABLED);
 //  //  menuUnsetFlags(menuItem(colorMenu, printColorsStr), MENUFLAG_DISABLED);
 //  //  menuUnsetFlags(menuItem(colorMenu, ignoreGapsStr), MENUFLAG_DISABLED);
-//  
+//
 //  bc->colorByResIdOn = FALSE;
 //  //  belvuRedraw();
 //}
@@ -1395,7 +1396,7 @@ void initCustomColors()
 static void colorSchemeCGP(BelvuContext *bc)
 {
   clearResidueColors(bc);
-  
+
   color[(unsigned char)'C'] = color[(unsigned char)'c'] = CYAN;
   color[(unsigned char)'G'] = color[(unsigned char)'g'] = RED;
   color[(unsigned char)'P'] = color[(unsigned char)'p'] = GREEN;
@@ -1405,7 +1406,7 @@ static void colorSchemeCGP(BelvuContext *bc)
 static void colorSchemeCGPH(BelvuContext *bc)
 {
   clearResidueColors(bc);
-  
+
   color[(unsigned char)'C'] = color[(unsigned char)'c'] = CYAN;
   color[(unsigned char)'G'] = color[(unsigned char)'g'] = RED;
   color[(unsigned char)'P'] = color[(unsigned char)'p'] = GREEN;
@@ -1422,14 +1423,14 @@ static void colorSchemeEmpty(BelvuContext *bc)
 static void colorSchemeErik(BelvuContext *bc)
 {
   /* Erik's favorite colours:
-   
+
    C        - MIDBLUE
    GP       - CYAN
    HKR      - GREEN
    AFILMVWY - YELLOW
    BDENQSTZ - LIGHTRED
    */
-  
+
   color[(unsigned char)'A'] = color[(unsigned char)'a'] = YELLOW;
   color[(unsigned char)'B'] = color[(unsigned char)'b'] = NOCOLOR;
   color[(unsigned char)'C'] = color[(unsigned char)'c'] = MIDBLUE;
@@ -1458,12 +1459,12 @@ static void colorSchemeErik(BelvuContext *bc)
 static void colorSchemeGibson(BelvuContext *bc)
 {
   /* Colour scheme by Gibson et. al (1994) TIBS 19:349-353
-   
+
    Listed in Figure 1:
-   
-   
+
+
    Gibson      AA        Here
-   
+
    orange      G         ORANGE (16-colours: LIGHTRED)
    yellow      P         YELLOW
    blue        ACFILMVW  MIDBLUE
@@ -1473,7 +1474,7 @@ static void colorSchemeGibson(BelvuContext *bc)
    red         RK        RED
    pink        H         LIGHTRED (16-colours: DARKRED)
    */
-  
+
   color[(unsigned char)'A'] = color[(unsigned char)'a'] = MIDBLUE;
   color[(unsigned char)'B'] = color[(unsigned char)'b'] = NOCOLOR;
   color[(unsigned char)'C'] = color[(unsigned char)'c'] = MIDBLUE;
@@ -1503,7 +1504,7 @@ static void colorSchemeGibson(BelvuContext *bc)
 void saveCustomColors(BelvuContext *bc)
 {
   bc->haveCustomColors = TRUE;
-  
+
   customColor[(unsigned char)'A'] = customColor[(unsigned char)'a'] = color[(unsigned char)'a'];
   customColor[(unsigned char)'B'] = customColor[(unsigned char)'b'] = color[(unsigned char)'b'];
   customColor[(unsigned char)'C'] = customColor[(unsigned char)'c'] = color[(unsigned char)'c'];
@@ -1526,7 +1527,7 @@ void saveCustomColors(BelvuContext *bc)
   customColor[(unsigned char)'W'] = customColor[(unsigned char)'w'] = color[(unsigned char)'w'];
   customColor[(unsigned char)'Y'] = customColor[(unsigned char)'y'] = color[(unsigned char)'y'];
   customColor[(unsigned char)'Z'] = customColor[(unsigned char)'z'] = color[(unsigned char)'z'];
-  
+
 }
 
 
@@ -1570,8 +1571,8 @@ void setResidueSchemeColors(BelvuContext *bc)
       case BELVU_SCHEME_CGPH:     colorSchemeCGPH(bc);	    break;
       case BELVU_SCHEME_NONE:     colorSchemeEmpty(bc);	    break;
       case BELVU_SCHEME_CUSTOM:   colorSchemeCustom(bc);    break;
-      
-      default: 
+
+      default:
 	g_warning("Program error: unrecognised color scheme '%d'.\n", bc->residueScheme);
 	break;
     }
@@ -1582,7 +1583,7 @@ void setResidueSchemeColors(BelvuContext *bc)
  * colors according to the active scheme. */
 void updateSchemeColors(BelvuContext *bc)
 {
-  /* Set the color scheme if coloring by conservation or if applying a 
+  /* Set the color scheme if coloring by conservation or if applying a
    * threshold when coloring by residue */
   if (colorByConservation(bc) || colorByResId(bc))
     setConsSchemeColors(bc);
@@ -1590,32 +1591,32 @@ void updateSchemeColors(BelvuContext *bc)
 
 
 /* Return 1 if c1 has priority over c2, 0 otherwise */
-static int colorPriority(BelvuContext *bc, int c1, int c2) 
+static int colorPriority(BelvuContext *bc, int c1, int c2)
 {
-  if (c2 == WHITE) 
+  if (c2 == WHITE)
     return 1;
-  
+
   if (c2 == *getConsColor(bc, CONS_LEVEL_MAX, FALSE))
     return 0;
-  
-  if (c2 == *getConsColor(bc, CONS_LEVEL_LOW, FALSE)) 
+
+  if (c2 == *getConsColor(bc, CONS_LEVEL_LOW, FALSE))
     {
-      if (c1 ==*getConsColor(bc, CONS_LEVEL_LOW, FALSE)) 
+      if (c1 ==*getConsColor(bc, CONS_LEVEL_LOW, FALSE))
         return 0;
-      else 
+      else
         return 1;
     }
-  
-  if (c2 == *getConsColor(bc, CONS_LEVEL_MID, FALSE)) 
+
+  if (c2 == *getConsColor(bc, CONS_LEVEL_MID, FALSE))
     {
-      if (c1 == *getConsColor(bc, CONS_LEVEL_MAX, FALSE)) 
+      if (c1 == *getConsColor(bc, CONS_LEVEL_MAX, FALSE))
         return 1;
       else
         return 0;
     }
-  
+
   g_critical("Program error: invalid background colour '%s' when calculating color priority.\n", colorNames[c2]);
-  
+
   return 0 ;
 }
 
@@ -1626,12 +1627,12 @@ void setConsSchemeColors(BelvuContext *bc)
 {
   int i, j, k, l, colornr, simCount, n;
   double id, maxid;
-  
-  if (!bc->conservCount) 
+
+  if (!bc->conservCount)
     initConservMtx(bc);
-  
+
   int totalNumSeqs = countResidueFreqs(bc);
-  
+
   for (i = 0; i < bc->maxLen; ++i)
     {
       for (k = 1; k < 21; ++k)
@@ -1639,24 +1640,24 @@ void setConsSchemeColors(BelvuContext *bc)
 	  bc->colorMap[k][i] = WHITE;
 	}
     }
-  
-  for (i = 0; i < bc->maxLen; ++i) 
+
+  for (i = 0; i < bc->maxLen; ++i)
     {
       maxid = -100.0;
-    
-      for (k = 1; k < 21; k++) 
+
+      for (k = 1; k < 21; k++)
 	{
-	  if (colorBySimilarity(bc)) 
+	  if (colorBySimilarity(bc))
 	    {
               /* Convert counts to similarity counts */
               simCount = 0;
-              for (j = 1; j < 21; j++) 
+              for (j = 1; j < 21; j++)
                 {
                   /* Get the blosum comparison score of the two residues */
                   int score_k_vs_j = BLOSUM62[j-1][k-1];
-                  
+
                   /* This comparison score applies for each occurance of k vs
-                   * each occurance of j, e.g. if there are 3 occurances of k 
+                   * each occurance of j, e.g. if there are 3 occurances of k
                    * and 2 occurances of j, we have:
                    *   k1 vs j1 = score_k_vs_j
                    *   k1 vs j2 = score_k_vs_j
@@ -1664,7 +1665,7 @@ void setConsSchemeColors(BelvuContext *bc)
                    *   k2 vs j2 = score_k_vs_j
                    *   k3 vs j1 = score_k_vs_j
                    *   k4 vs j2 = score_k_vs_j
-                   * 
+                   *
                    * i.e. score_k_vs_j occurs (count_k * count_j) times.
                    */
                   int count_k = bc->conservCount[k][i];
@@ -1672,65 +1673,65 @@ void setConsSchemeColors(BelvuContext *bc)
 
                   /* Don't compare the same amino acid against itself, i.e. if
                    * there are three occurances of k then we compare:
-                   *   k1 vs k2 
-                   *   k1 vs k3 
-                   * 
+                   *   k1 vs k2
+                   *   k1 vs k3
+                   *
                    * but NOT
                    *   k1 vs k1
                    *
                    * so in this case score_k_vs_j occurs (count_k * (count_k - 1)) times.
                    */
-                  if (j == k) 
+                  if (j == k)
                     --count_k;
 
                   simCount += count_k * count_j * score_k_vs_j;
                 }
-	    
-              if (bc->ignoreGapsOn) 
+
+              if (bc->ignoreGapsOn)
                 n = bc->conservResidues[i]; /* total number of residues in this column */
-              else 
+              else
                 n = totalNumSeqs;  /* total number of sequences */
-              
+
               if (n < 2)
                 {
                   id = 0.0;
                 }
-              else 
+              else
                 {
-                  /* Divide the similarity count by the total number of comparisons 
+                  /* Divide the similarity count by the total number of comparisons
                    * made for each column; we made n * (n - 1) comparisons because
                    * we compared each of the n residues in the column to each other
                    * residue in the column except itself. */
                   id = (double)simCount / (n * (n-1));
                 }
-              
+
               /* printf("%d, %c:  simCount= %d, id= %.2f\n", i, b2a[k], simCount, id); */
-	    
+
               /* Colour this residue if it is above the %ID threshold */
-              if (id > bc->lowSimCutoff) 
+              if (id > bc->lowSimCutoff)
                 {
                   /* Choose the colour based on the 3 specified levels */
-                  if (id > bc->maxSimCutoff) 
+                  if (id > bc->maxSimCutoff)
                     colornr = *getConsColor(bc, CONS_LEVEL_MAX, FALSE);
-                  else if (id > bc->midSimCutoff) 
+                  else if (id > bc->midSimCutoff)
                     colornr = *getConsColor(bc, CONS_LEVEL_MID, FALSE);
                   else
                     colornr = *getConsColor(bc, CONS_LEVEL_LOW, FALSE);
-                  
+
                   /* Set the colour for this residue, unless it has already been
                    * given a colour with a higher priority than this one (i.e. it
                    * has already been marked as more conserved) */
                   if (colorPriority(bc, colornr, bc->colorMap[k][i]))
                     bc->colorMap[k][i] = colornr;
-	      
+
                   /* Color all similar residues too; that is, any residue that has
                    * a positive blosum score when compared to the current residue
-                   * should be coloured with same level of conservation in this 
-                   * column; again, we only set the colour if it doesn't already 
+                   * should be coloured with same level of conservation in this
+                   * column; again, we only set the colour if it doesn't already
                    * have a higher priority colour set on it. */
-                  for (l = 1; l < 21; l++) 
+                  for (l = 1; l < 21; l++)
                     {
-                      if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
+                      if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i]))
                         {
                           /*printf("%d: %c -> %c\n", i, b2a[k], b2a[l]);*/
                           bc->colorMap[l][i] = colornr;
@@ -1738,13 +1739,13 @@ void setConsSchemeColors(BelvuContext *bc)
                     }
                 }
 	    }
-	  else 
+	  else
 	    {
               /* We are colouring by %ID */
-              
+
               /* First, get the %ID; this is the count of this residue divided
                * by the total number of residues (or the total number of sequences,
-               * if we are including gaps). 
+               * if we are including gaps).
                * If ignoring gaps but there is only one residue in this column
                * then the ID takes into account the total number of sequences;
                * I'm not sure why - perhaps because there are no other residues
@@ -1753,8 +1754,8 @@ void setConsSchemeColors(BelvuContext *bc)
                 id = (double)bc->conservCount[k][i]/bc->conservResidues[i];
               else
                 id = (double)bc->conservCount[k][i]/totalNumSeqs;
-              
-              if (colorByResId(bc)) 
+
+              if (colorByResId(bc))
                 {
                   /* We're colouring by residue type, but only colouring the residues
                    * if their %ID is above the set threshold */
@@ -1763,33 +1764,33 @@ void setConsSchemeColors(BelvuContext *bc)
                   else
                     bc->colorMap[k][i] = WHITE;
                 }
-              else if (id > bc->lowIdCutoff) 
+              else if (id > bc->lowIdCutoff)
                 {
                   /* We're colouring by conservation, using the %ID to determine
                    * the colour according to the three thresholds: */
-                  if (id > bc->maxIdCutoff) 
+                  if (id > bc->maxIdCutoff)
                     colornr = *getConsColor(bc, CONS_LEVEL_MAX, FALSE);
-                  else if (id > bc->midIdCutoff) 
+                  else if (id > bc->midIdCutoff)
                     colornr = *getConsColor(bc, CONS_LEVEL_MID, FALSE);
                   else
                     colornr = *getConsColor(bc, CONS_LEVEL_LOW, FALSE);
-                  
-                  /* Set the colour in the array (to do: should this use 
+
+                  /* Set the colour in the array (to do: should this use
                    * colorPriority to check if it's already been set? At the moment
-                   * it overrides any previous (possibly better) colour set 
+                   * it overrides any previous (possibly better) colour set
                    * from a similar residue's result)  */
                   bc->colorMap[k][i] = colornr;
-                  
-                  if (bc->consScheme == BELVU_SCHEME_ID_BLOSUM) 
+
+                  if (bc->consScheme == BELVU_SCHEME_ID_BLOSUM)
                     {
                       /* Colour all similar residues too; that is, any residues
-                       * that have a positive blosum score when compared to the 
+                       * that have a positive blosum score when compared to the
                        * current residue should be given the same colour in this
                        * column (unless a higher priority colour has already been
                        * set). */
-                      for (l = 1; l < 21; l++) 
+                      for (l = 1; l < 21; l++)
                         {
-                          if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i])) 
+                          if (BLOSUM62[k-1][l-1] > 0 && colorPriority(bc, colornr, bc->colorMap[l][i]))
                             {
                               /*printf("%d: %c -> %c\n", i, b2a[k], b2a[l]);*/
                               bc->colorMap[l][i] = colornr;
@@ -1798,13 +1799,13 @@ void setConsSchemeColors(BelvuContext *bc)
                     }
                 }
 	    }
-	
-	  if (id > maxid) 
+
+	  if (id > maxid)
 	    {
 	      maxid = id;
 	    }
 	}
-      
+
       bc->conservation[i] = maxid;
     }
 }
@@ -1854,110 +1855,110 @@ void initMarkupColors(void)
 /* Save the current color-by-residue color scheme */
 void saveResidueColorScheme(BelvuContext *bc, FILE *fil)
 {
-  if (!fil) 
+  if (!fil)
     return;
-  
+
   int i = 1;
   for (i = 1; i < 21; i++)
     {
       fprintf(fil, "%c %s\n", b2a[i], colorNames[color[(unsigned char)(b2a[i])]]);
     }
-  
+
   fclose(fil);
 }
 
 
 /* This reads in residue colors from the given file and places them into
  * the given array, which is typically one of the active color scheme arrays
- * 'color' or 'markupColor'. 
+ * 'color' or 'markupColor'.
  * If storeCustomColors is true, then it also saves the colors to the 'customColor'
  * array so that they can be retrieved later (because 'color' gets overwritten
  * with the current colors every time the user toggles between different color
  * schemes). */
 void readResidueColorScheme(BelvuContext *bc, FILE *fil, int *colorarr, const gboolean storeCustomColors)
 {
-  if (!fil) 
+  if (!fil)
     return;
 
   char *cp=NULL, line[MAXLINE+1], setColor[MAXLINE+1];
   unsigned char c ;
   int i=0, colornr=0;
-  
-  while (!feof(fil)) 
+
+  while (!feof(fil))
     {
-      if (!fgets (line, MAXLINE, fil)) 
+      if (!fgets (line, MAXLINE, fil))
 	break;
-    
+
       /* remove newline */
-      if ((cp = strchr(line, '\n'))) 
+      if ((cp = strchr(line, '\n')))
         *cp = 0 ;
-    
-      /* Parse color of organism in tree 
+
+      /* Parse color of organism in tree
          Format:  #=OS BLUE D. melanogaster*/
-      if (!strncmp(line, "#=OS ", 5)) 
+      if (!strncmp(line, "#=OS ", 5))
         {
           cp = line+5;
           sscanf(cp, "%s", setColor);
-          
+
           for (colornr = -1, i = 0; i < NUM_TRUECOLORS; i++)
             {
-              if (!strcasecmp(colorNames[i], setColor)) 
+              if (!strcasecmp(colorNames[i], setColor))
                 colornr = i;
             }
-          
-          if (colornr == -1) 
+
+          if (colornr == -1)
             {
               g_warning("Unrecognized color: %s, using black instead.\n", setColor);
               colornr = BLACK;
             }
-          
+
           while(*cp == ' ') cp++;
           while(*cp != ' ') cp++;
           while(*cp == ' ') cp++;
-          
+
           /* Find organism and set its colour */
           ALN aln;
           initAln(&aln);
           aln.organism = cp;
-          
+
           int ip = 0;
           if (!alnArrayFind(bc->organismArr, &aln, &ip, organism_order))
             g_critical("Cannot find organism \"%s\", specified in color code file. Hope that's ok\n", aln.organism);
           else
             g_array_index(bc->organismArr, ALN*, ip)->color = colornr;
         }
-      
+
       /* Ignore comments */
-      if (*line == '#') 
+      if (*line == '#')
         continue;
-      
+
       /* Parse character colours */
-      if (sscanf(line, "%c%s", &c, setColor) == 2) 
+      if (sscanf(line, "%c%s", &c, setColor) == 2)
         {
           c = toupper(c);
           for (colornr = -1, i = 0; i < NUM_TRUECOLORS; i++)
             {
-              if (!strcasecmp(colorNames[i], setColor)) 
+              if (!strcasecmp(colorNames[i], setColor))
                 colornr = i;
             }
-          
-          if (colornr == -1) 
+
+          if (colornr == -1)
             {
               g_warning("Unrecognized color: %s\n", setColor);
               colornr = 0;
             }
-          
+
           colorarr[(unsigned char)(c)] = colornr;
-          
+
           if (c > 64 && c <= 96)
             colorarr[(unsigned char)(c+32)] = colorarr[(unsigned char)(c)];
           else if (c > 96 && c <= 128)
             colorarr[(unsigned char)(c-32)] = colorarr[(unsigned char)(c)];
         }
     }
-  
+
   fclose(fil);
-  
+
   /* Store the custom colors */
   saveCustomColors(bc);
 }
@@ -1987,11 +1988,11 @@ int* getConsPrintColor(BelvuContext *bc, const BelvuConsLevel consLevel, const g
       case CONS_LEVEL_MAX:
         result = foreground ? &bc->maxfgPrintColor : &bc->maxbgPrintColor;
         break;
-        
+
       case CONS_LEVEL_MID:
         result = foreground ? &bc->midfgPrintColor : &bc->midbgPrintColor;
         break;
-        
+
       case CONS_LEVEL_LOW:
         result = foreground ? &bc->lowfgPrintColor : &bc->lowbgPrintColor;
         break;
@@ -2019,11 +2020,11 @@ int* getConsColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboole
       case CONS_LEVEL_MAX:
         result = foreground ? &bc->maxfgColor : &bc->maxbgColor;
         break;
-        
+
       case CONS_LEVEL_MID:
         result = foreground ? &bc->midfgColor : &bc->midbgColor;
         break;
-        
+
       case CONS_LEVEL_LOW:
         result = foreground ? &bc->lowfgColor : &bc->lowbgColor;
         break;
@@ -2041,40 +2042,40 @@ int* getConsColor(BelvuContext *bc, const BelvuConsLevel consLevel, const gboole
  * from the conservation colours calculations */
 void setExcludeFromConsCalc(BelvuContext *bc, const gboolean exclude)
 {
-  if (!bc->selectedAln) 
+  if (!bc->selectedAln)
     {
       g_critical("Please select a sequence first.\n");
       return;
   }
-  
+
   if ((exclude && bc->selectedAln->nocolor) ||
      (!exclude && !bc->selectedAln->nocolor))
     {
       /* Nothing to do */
       return;
     }
-  
+
   /* Store orignal state in the nocolor field:
    1 = normal sequence
    2 = markup line
-   
+
    This is needed to restore markup lines (nocolor lines are always markups)
    */
-  
-  if (exclude) 
+
+  if (exclude)
     {
       if (bc->selectedAln->markup)
         bc->selectedAln->nocolor = 2;
       else
         bc->selectedAln->nocolor = 1;
-      
+
       bc->selectedAln->markup = 1;
     }
-  else 
+  else
     {
-      if (bc->selectedAln->nocolor == 1) 
+      if (bc->selectedAln->nocolor == 1)
         bc->selectedAln->markup = 0;
-      
+
       bc->selectedAln->nocolor = 0;
     }
 }
@@ -2094,14 +2095,14 @@ gboolean alnArrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpoint
   int i = 0 , j = a->len, k;
 
   if (!j || (ord = orderFunc(&s, &g_array_index(a, ALN*, 0))) < 0)
-    { 
+    {
       if (ip)
-	*ip = -1; 
+	*ip = -1;
       return FALSE;
     }   /* not found */
 
   if (ord == 0)
-    { 
+    {
       if (ip)
 	*ip = 0;
       return TRUE;
@@ -2110,40 +2111,40 @@ gboolean alnArrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpoint
   if ((ord = orderFunc(&s, &g_array_index(a, ALN*, --j))) > 0)
     {
       if (ip)
-	*ip = j; 
+	*ip = j;
       return FALSE;
     }
-  
+
   if (ord == 0)
-    { 
+    {
       if (ip)
 	*ip = j;
       return TRUE;
     }
 
   while (TRUE)
-    { 
+    {
       k = i + ((j-i) >> 1) ; /* midpoint */
 
       if ((ord = orderFunc(&s, &g_array_index(a, ALN*, k))) == 0)
-	{ 
+	{
           if (ip)
-	    *ip = k; 
+	    *ip = k;
 	  return TRUE;
 	}
-      
-      if (ord > 0) 
+
+      if (ord > 0)
 	(i = k);
       else
 	(j = k) ;
-      
+
       if (i == (j-1) )
         break;
     }
-  
+
   if (ip)
     *ip = i ;
-  
+
   return FALSE;
 }
 
@@ -2153,71 +2154,71 @@ gboolean bsArrayFind(GArray *a, void *s, int *ip, int (* orderFunc)(gconstpointe
 {
   int ord;
   int i = 0 , j = a->len, k;
-  
+
   if (!j || (ord = orderFunc(&s, &g_array_index(a, BootstrapGroup*, 0))) < 0)
-    { 
+    {
       if (ip)
-	*ip = -1; 
+	*ip = -1;
       return FALSE;
     }   /* not found */
-  
+
   if (ord == 0)
-    { 
+    {
       if (ip)
 	*ip = 0;
       return TRUE;
     }
-  
+
   if ((ord = orderFunc(&s, &g_array_index(a, BootstrapGroup*, --j))) > 0)
     {
       if (ip)
-	*ip = j; 
+	*ip = j;
       return FALSE;
     }
-  
+
   if (ord == 0)
-    { 
+    {
       if (ip)
 	*ip = j;
       return TRUE;
     }
-  
+
   while (TRUE)
-    { 
+    {
       k = i + ((j-i) >> 1) ; /* midpoint */
-      
+
       if ((ord = orderFunc(&s, &g_array_index(a, BootstrapGroup*, k))) == 0)
-	{ 
+	{
           if (ip)
-	    *ip = k; 
+	    *ip = k;
 	  return TRUE;
 	}
-      
-      if (ord > 0) 
+
+      if (ord > 0)
 	(i = k);
       else
 	(j = k) ;
-      
+
       if (i == (j-1) )
         break;
     }
-  
+
   if (ip)
     *ip = i ;
-  
+
   return FALSE;
 }
 
 
 /* Linear search for an exact matching sequence name and coordinates,
- typically to find back highlighted row after sorting 
+ typically to find back highlighted row after sorting
  */
 gboolean alignFind(GArray *alignArr, ALN *obj, int *idx)
 {
-  for (*idx = 0; *idx < (int)alignArr->len; (*idx)++) 
+  for (*idx = 0; *idx < (int)alignArr->len; (*idx)++)
     {
       ALN *currentAln = g_array_index(alignArr, ALN*, *idx);
-      
+
       if (alphaorder(&currentAln, &obj) == 0)
         return TRUE;
     }
@@ -2230,8 +2231,8 @@ gboolean alignFind(GArray *alignArr, ALN *obj, int *idx)
 void arrayOrder(GArray *alignArr)
 {
   int i = 0;
-  
-  for (i = 0; i < (int)alignArr->len; ++i) 
+
+  for (i = 0; i < (int)alignArr->len; ++i)
     {
       ALN *alnp = g_array_index(alignArr, ALN*, i);
       alnp->nr = i + 1;
@@ -2246,7 +2247,7 @@ void arrayOrder(GArray *alignArr)
 //{
 //  int i;
 //
-//  for (i = 0; i < alignArr->len; ++i) 
+//  for (i = 0; i < alignArr->len; ++i)
 //    g_array_index(alignArr, ALN*, i)->nr = (i+1)*10;
 //}
 
@@ -2257,15 +2258,15 @@ void arrayOrder(GArray *alignArr)
 void separateMarkupLines(BelvuContext *bc)
 {
   bc->markupAlignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN*), 100);
-  
+
   arrayOrder(bc->alignArr);
-  
+
   int i = 0;
-  for (i = 0; i < (int)bc->alignArr->len; ) 
+  for (i = 0; i < (int)bc->alignArr->len; )
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
-      
-      if (alnp->markup) 
+
+      if (alnp->markup)
         {
           /* printf ("Moving line %d, %s/%d-%d, nseq=%d\n", i, alnp->name, alnp->start, alnp->end, nseq);*/
           g_array_append_val(bc->markupAlignArr, alnp);
@@ -2277,7 +2278,7 @@ void separateMarkupLines(BelvuContext *bc)
           ++i;
         }
     }
-  
+
   arrayOrder(bc->alignArr);
 }
 
@@ -2287,7 +2288,7 @@ void reInsertMarkupLines(BelvuContext *bc)
 {
   int i, j;
   char tmpname[MAXNAMESIZE+1], *cp;
-  
+
   g_array_sort(bc->alignArr, nrorder); /* to do: can we move this out of the loop ? */
 
   for (i = bc->markupAlignArr->len - 1; i >=0 ; --i)
@@ -2298,10 +2299,10 @@ void reInsertMarkupLines(BelvuContext *bc)
        * minus the postfix (after a space); or at the end of the array if none
        * exists. */
       strcpy(tmpname, alnp->name);
-      
+
       if ((cp = strchr(tmpname, ' ')))
         *cp = 0;
-      
+
       for (j = 0; j < (int)bc->alignArr->len; ++j)
         {
           if (!strcmp(tmpname, g_array_index(bc->alignArr, ALN*, j)->name))
@@ -2322,7 +2323,7 @@ int strcmp_(gconstpointer xIn, gconstpointer yIn)
 {
   const char *x = *((const char**)xIn);
   const char *y = *((const char**)yIn);
-  
+
   int retval = strcmp(x, y);
   return retval;
 }
@@ -2331,14 +2332,14 @@ int strcmp_(gconstpointer xIn, gconstpointer yIn)
 GArray *copyAlignArray(GArray *inputArr)
 {
   GArray *result = g_array_sized_new(FALSE, FALSE, sizeof(char*), inputArr->len);
-  
+
   int i = 0;
   for ( ; i < (int)inputArr->len; ++i)
     {
       ALN *inputAln = g_array_index(inputArr, ALN*, i);
       ALN *destAln = createEmptyAln();
       alncpy(destAln, inputAln); /* shallow copy; doesn't copy sequence string */
-      
+
       g_array_append_val(result, destAln);
 
       /* Duplicate the sequence string, if not null */
@@ -2347,7 +2348,7 @@ GArray *copyAlignArray(GArray *inputArr)
       else
         destAln->sequenceStr = NULL;
     }
-  
+
   return result;
 }
 
@@ -2355,7 +2356,7 @@ GArray *copyAlignArray(GArray *inputArr)
 void columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcIdx)
 {
   int i;
-  
+
   for (i = 0; i < (int)alignArrSrc->len; ++i)
     {
       ALN *srcAln = g_array_index(alignArrSrc, ALN*, i);
@@ -2363,7 +2364,7 @@ void columnCopy(GArray *alignArrDest, int destIdx, GArray *alignArrSrc, int srcI
 
       char *srcSeq = alnGetSeq(srcAln);
       char *destSeq = alnGetSeq(destAln);
-      
+
       if (srcSeq && destSeq && destIdx < alnGetSeqLen(destAln) && srcIdx < alnGetSeqLen(srcAln))
         destSeq[destIdx] = srcSeq[srcIdx];
     }
@@ -2381,7 +2382,7 @@ void createBelvuColors(BelvuContext *bc)
   /* Initialise the array with empty BlxColor structs */
   bc->defaultColors = g_array_sized_new(FALSE, FALSE, sizeof(BlxColor), BELCOLOR_NUM_COLORS);
   int i = BELCOLOR_MIN + 1;
-  
+
   for ( ; i < BELCOLOR_NUM_COLORS; ++i)
     {
       BlxColor *blxColor = new BlxColor;
@@ -2389,17 +2390,17 @@ void createBelvuColors(BelvuContext *bc)
       blxColor->desc = NULL;
       g_array_append_val(bc->defaultColors, *blxColor);
     }
-  
+
   createBlxColor(bc->defaultColors, BELCOLOR_BACKGROUND, "Background", "Background color", BLX_WHITE, BLX_WHITE, "#bdbdbd", NULL);
   createBlxColor(bc->defaultColors, BELCOLOR_ALIGN_TEXT, "Text color for alignments", "Text color for alignments", BLX_BLACK, BLX_BLACK, NULL, NULL);
   createBlxColor(bc->defaultColors, BELCOLOR_COLUMN_HIGHLIGHT, "Highlight color for selected column", "Highlight color for selected column",  "#dddddd", BLX_BLACK, NULL, NULL);
-  
+
   /* Trees */
   createBlxColor(bc->defaultColors, BELCOLOR_TREE_BACKGROUND, "Tree background", "Tree background color", BLX_WHITE, BLX_WHITE, NULL, NULL);
   createBlxColor(bc->defaultColors, BELCOLOR_TREE_LINE, "Default tree line color", "Default tree line color", BLX_BLACK, BLX_BLACK, NULL, NULL);
   createBlxColor(bc->defaultColors, BELCOLOR_TREE_TEXT, "Default tree text color", "Default tree text color", BLX_BLACK, BLX_BLACK, NULL, NULL);
   createBlxColor(bc->defaultColors, BELCOLOR_TREE_BOOTSTRAP, "Tree boostrap line color", "Tree boostrap line color", BLX_BLUE, BLX_BLUE, NULL, NULL);
-  
+
   /* Conservation plot */
   createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT, "Line color of the conservation plot", "Line color of the conservation plot", BLX_BLACK, BLX_BLACK, NULL, NULL);
   createBlxColor(bc->defaultColors, BELCOLOR_CONS_PLOT_AVG, "Average-conservation line color on the conservation profile", "Average-conservation line color on the conservation profile", BLX_RED, BLX_GREY, NULL, NULL);
@@ -2411,46 +2412,46 @@ void createBelvuColors(BelvuContext *bc)
 BelvuContext* createBelvuContext()
 {
   BelvuContext *bc = new BelvuContext;
-  
+
   bc->belvuWindow = NULL;
   bc->spawnedWindows = NULL;
   bc->belvuTree = NULL;
   bc->belvuAlignment = NULL;
   bc->consPlot = NULL;
   bc->orgsWindow = NULL;
-  
+
   bc->defaultCursor = NULL; /* get from gdkwindow once it is shown */
   bc->removeSeqsCursor = NULL ;
   bc->busyCursor = NULL ;
 
   bc->defaultColors = NULL;
-  
+
   bc->alignArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN*), 100);
   bc->organismArr = g_array_sized_new(FALSE, FALSE, sizeof(ALN*), 100);
   bc->markupAlignArr = NULL;
   bc->bootstrapGroups = NULL;
-  
+
   bc->selectedAln = NULL;
   bc->highlightedAlns = NULL;
-  
+
   bc->mainTree = NULL;
   bc->treeBestBalancedNode = NULL;
-  
+
   bc->treeReadDistancesPipe = NULL;
-  
+
   bc->IN_FORMAT = MUL;
   bc->maxScoreLen = 0;
   bc->alignYStart = 0;
-  bc->treebootstraps = 0; 
+  bc->treebootstraps = 0;
   bc->maxLen = 0;
   bc->maxTreeWidth = 0;
-  bc->maxNameLen = 0;   
-  bc->maxStartLen = 0; 
-  bc->maxEndLen = 0; 
-  bc->maxScoreLen = 0; 
+  bc->maxNameLen = 0;
+  bc->maxStartLen = 0;
+  bc->maxEndLen = 0;
+  bc->maxScoreLen = 0;
   bc->selectedCol = 0;
   bc->highlightedCol = 0;
-  
+
   bc->maxfgColor = DEFAULT_MAX_FG_COLOR;
   bc->midfgColor = DEFAULT_MID_FG_COLOR,
   bc->lowfgColor = DEFAULT_LOW_FG_COLOR;
@@ -2463,19 +2464,19 @@ BelvuContext* createBelvuContext()
   bc->maxbgPrintColor = DEFAULT_MAX_BG_PRINT_COLOR;
   bc->midbgPrintColor = DEFAULT_MID_BG_PRINT_COLOR;
   bc->lowbgPrintColor = DEFAULT_LOW_BG_PRINT_COLOR;
-  
+
   bc->schemeType = BELVU_SCHEME_TYPE_CONS;
   bc->residueScheme = BELVU_SCHEME_ERIK;
   bc->consScheme = BELVU_SCHEME_BLOSUM;
-  
+
   bc->treeMethod = NJ;
   bc->treeDistCorr = SCOREDIST;
   bc->treePickMode = NODESWAP;
-  
+
   bc->sortType = BELVU_UNSORTED;
-  
+
   bc->annotationList = NULL;
-  
+
   bc->treeBestBalance = 0.0;
   bc->treeBestBalance_subtrees = 0.0;
   bc->tree_y = 0.3;
@@ -2489,7 +2490,7 @@ BelvuContext* createBelvuContext()
   bc->mksubfamilies_cutoff = 0.0;
   bc->treeScale = DEFAULT_TREE_SCALE_CORR;
   bc->treeLineWidth = 0.3;
-  
+
   bc->gapChar = '.';
   bc->saveSeparator = '/';
   strcpy(bc->treeDistString, SCOREDISTstr);
@@ -2499,14 +2500,14 @@ BelvuContext* createBelvuContext()
   bc->fileName = NULL;
   bc->dirName = NULL;
   bc->organismLabel[0] = 'O';
-  bc->organismLabel[1] = 'S';   
-  bc->organismLabel[2] = '\0'; 
-  
+  bc->organismLabel[1] = 'S';
+  bc->organismLabel[2] = '\0';
+
   bc->conservCount = NULL;
   bc->colorMap = NULL;
   bc->conservResidues = NULL;
   bc->conservation = NULL;
-  
+
   bc->treeCoordsOn = TRUE;
   bc->treeReadDistancesOn = FALSE;
   bc->treePrintDistances = FALSE;
@@ -2533,14 +2534,14 @@ BelvuContext* createBelvuContext()
   bc->useWWWFetch = FALSE;
   bc->initTree = FALSE;
   bc->onlyTree = FALSE;
-  
+
   /* Null out all the entries in the dialogs list */
   int dialogId = 0;
   for ( ; dialogId < BELDIALOG_NUM_DIALOGS; ++dialogId)
     {
       bc->dialogList[dialogId] = NULL;
     }
-  
+
   return bc;
 }
 
@@ -2552,16 +2553,16 @@ void destroyBelvuContext(BelvuContext **bc)
     {
     if ((*bc)->alignArr)
       g_array_unref((*bc)->alignArr);
-    
+
     if ((*bc)->organismArr)
       g_array_unref((*bc)->organismArr);
-    
+
     if ((*bc)->markupAlignArr)
       g_array_unref((*bc)->markupAlignArr);
-    
+
     if ((*bc)->bootstrapGroups)
       g_array_unref((*bc)->bootstrapGroups);
-    
+
     delete *bc;
     *bc = NULL;
     }
@@ -2600,15 +2601,15 @@ const char *belvuGetWebSiteString(void)
  * functions, this one allocates a new string which must be free'd by the caller */
 const char *belvuGetCommentsString(void)
 {
-  char *result = g_strdup_printf("%s\n%s\n%s %s\n\n%s\n", 
-                                 BELVU_TITLE_STRING, 
+  char *result = g_strdup_printf("%s\n%s\n%s %s\n\n%s\n",
+                                 BELVU_TITLE_STRING,
                                  gbtools::UtilsGetVersionTitle(),
-                                 UT_COMPILE_PHRASE, 
-                                 UT_MAKE_COMPILE_DATE(), 
+                                 UT_COMPILE_PHRASE,
+                                 UT_MAKE_COMPILE_DATE(),
                                  AUTHOR_TEXT);
 
   return result;
-  
+
 }
 
 /* Returns a license string for the belvu application. */
@@ -2649,30 +2650,30 @@ char b2aIndex(const int idx)
 void drawText(GtkWidget *widget, GdkDrawable *drawable, GdkGC *gc, const int x, const int y, const char *text, int *textWidth, int *textHeight)
 {
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, text);
-  
+
   if (drawable)
     gdk_draw_layout(drawable, gc, x, y, layout);
-  
+
   /* Return the width and height of the layout, if requested */
   pango_layout_get_size(layout, textWidth, textHeight);
-  
+
   if (textWidth)
     *textWidth /= PANGO_SCALE;
-  
+
   if (textHeight)
     *textHeight /= PANGO_SCALE;
-  
+
   g_object_unref(layout);
 }
 
 
-/* Utility to draw the given integer as text. The text is right-aligned, so 
+/* Utility to draw the given integer as text. The text is right-aligned, so
  * the input x coord must be the RIGHTMOST EDGE of where you want the text. */
-void drawIntAsText(GtkWidget *widget, 
-                   GdkDrawable *drawable, 
-                   GdkGC *gc, 
-                   const int x, 
-                   const int y, 
+void drawIntAsText(GtkWidget *widget,
+                   GdkDrawable *drawable,
+                   GdkGC *gc,
+                   const int x,
+                   const int y,
                    const int value)
 {
   char *tmpStr = g_strdup_printf("%d", value);
@@ -2687,22 +2688,22 @@ void drawIntAsText(GtkWidget *widget,
 }
 
 
-/* Utility to draw the given double as text. The text is right-aligned, so 
+/* Utility to draw the given double as text. The text is right-aligned, so
  * the input x coord must be the RIGHTMOST EDGE of where you want the text. */
-void drawDoubleAsText(GtkWidget *widget, 
-                      GdkDrawable *drawable, 
-                      GdkGC *gc, 
-                      const int x, 
-                      const int y, 
+void drawDoubleAsText(GtkWidget *widget,
+                      GdkDrawable *drawable,
+                      GdkGC *gc,
+                      const int x,
+                      const int y,
                       const double value)
 {
   char *tmpStr = g_strdup_printf("%.1f", value);
   PangoLayout *layout = gtk_widget_create_pango_layout(widget, tmpStr);
   g_free(tmpStr);
-  
+
   int textWidth;
   pango_layout_get_pixel_size(layout, &textWidth, NULL);
-  
+
   gdk_draw_layout(drawable, gc, x - textWidth, y, layout);
   g_object_unref(layout);
 }
@@ -2713,19 +2714,19 @@ double percentIdentity(char *s1, char *s2, const gboolean penalize_gaps)
 {
     int n, id;
 
-    for (n = id = 0; *s1 && *s2; s1++, s2++) 
+    for (n = id = 0; *s1 && *s2; s1++, s2++)
       {
-	if (isGap(*s1) && isGap(*s2)) 
+	if (isGap(*s1) && isGap(*s2))
           continue;
-        
+
 	if (isGap(*s1) || isGap(*s2))
           {
-	    if (!penalize_gaps) 
+	    if (!penalize_gaps)
               continue;
           }
-        
+
 	n++;
-	if (toupper(*s1) == toupper(*s2)) 
+	if (toupper(*s1) == toupper(*s2))
           id++;
       }
 
@@ -2741,13 +2742,13 @@ static double score(char *s1, char *s2, const gboolean penalize_gaps)
 {
     double sc=0.0;
 
-    for (;*s1 && *s2; s1++, s2++) 
+    for (;*s1 && *s2; s1++, s2++)
       {
-	if (isGap(*s1) && isGap(*s2)) 
+	if (isGap(*s1) && isGap(*s2))
           {
 	    continue;
           }
-	else if (isGap(*s1) || isGap(*s2)) 
+	else if (isGap(*s1) || isGap(*s2))
           {
 	    if (penalize_gaps) sc -= 0.6;
           }
@@ -2755,20 +2756,20 @@ static double score(char *s1, char *s2, const gboolean penalize_gaps)
           {
             int val1 = a2b[(unsigned char)(*s1)];
             int val2 = a2b[(unsigned char)(*s2)];
-            
+
             if (val1 > 0 && val2 > 0)
               sc += (double) BLOSUM62[val1 - 1][val2 - 1];
           }
       }
-    
+
     return sc;
 }
 
 
-gboolean isGap(char c) 
+gboolean isGap(char c)
 {
   if (c == '.' || c == '-' ||
-      c == '[' || c == ']' /* Collapse-control chars */ ) 
+      c == '[' || c == ']' /* Collapse-control chars */ )
     return TRUE;
   else
     return FALSE;
@@ -2779,43 +2780,43 @@ static gboolean isAlign(char c)
 {
   if (isalpha(c) || isGap(c) || c == '*')
     return TRUE;
-  else 
+  else
     return FALSE;
 }
 
 
 int GCGchecksum(BelvuContext *bc, char *seq)
 {
-  int  
-  check = 0, 
-  count = 0, 
+  int
+  check = 0,
+  count = 0,
   i=0;
-  
-  for (i = 0; i < bc->maxLen; ++i) 
+
+  for (i = 0; i < bc->maxLen; ++i)
     {
     ++count;
     check += count * toupper((int) seq[i]);
-    
-    if (count == 57) 
+
+    if (count == 57)
       count = 0;
     }
-  
+
   return (check % 10000);
 }
 
 
 int GCGgrandchecksum(BelvuContext *bc)
 {
-  int 
+  int
   i=0,
   grand_checksum=0;
-  
+
   for(i=0; i < (int)bc->alignArr->len; ++i)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
       grand_checksum += GCGchecksum(bc, alnGetSeq(alnp));
     }
-  
+
   return (grand_checksum % 10000);
 }
 
@@ -2826,25 +2827,25 @@ void readLabels(BelvuContext *bc, FILE *fil)
   char *labelseq = (char*)g_malloc(bc->maxLen + 1); /* The raw sequence of labels */
   char *label = (char*)g_malloc(bc->maxLen + 1);    /* The mapped sequence of labels, 1-maxlen */
   char line[MAXLENGTH+1];
-  
+
   /* read file */
   char *cq = labelseq;
-  while (!feof (fil)) 
+  while (!feof (fil))
     {
-      if (!fgets (line, MAXLENGTH, fil)) 
+      if (!fgets (line, MAXLENGTH, fil))
         break;
-      
+
       char *cp = line;
-      while (*cp) 
+      while (*cp)
         {
-          if (isalpha(*cp)) 
+          if (isalpha(*cp))
             *cq++ = *cp;
           cp++;
         }
     }
 
   fclose(fil);
-  
+
   /* Warn if seq too long, return if too short */
   int seqlen = bc->selectedAln->end - bc->selectedAln->start + 1;
   if ((int)strlen(labelseq) > seqlen)
@@ -2852,40 +2853,40 @@ void readLabels(BelvuContext *bc, FILE *fil)
       g_critical("The sequence of labels is longer (%d) than the sequence (%d).\nHope that's ok\n",
 		 (int)strlen(labelseq), seqlen);
     }
-  else if ((int)strlen(labelseq) < seqlen) 
+  else if ((int)strlen(labelseq) < seqlen)
     {
       g_critical("The sequence of labels is shorter (%d) than the sequence (%d).\nAborting\n",
 		 (int)strlen(labelseq), seqlen);
       return;
     }
-  
+
   /* map labels to alignment */
   int col = 0;
   int seqpos = 0;
-  
-  for (col = 0, seqpos = 0; col < bc->maxLen; col++) 
+
+  for (col = 0, seqpos = 0; col < bc->maxLen; col++)
     {
       label[col] = labelseq[seqpos];
       const char *selectedSeq = alnGetSeq(bc->selectedAln);
-      
-      if (selectedSeq && isalpha(selectedSeq[col]) && labelseq[seqpos+1]) 
+
+      if (selectedSeq && isalpha(selectedSeq[col]) && labelseq[seqpos+1])
         seqpos++;
     }
-  
+
   int row = 0;
-  for (row = 0; row < (int)bc->alignArr->len; ++row) 
+  for (row = 0; row < (int)bc->alignArr->len; ++row)
     {
       ALN *alnrow = g_array_index(bc->alignArr, ALN*, row);
-      
+
       for (col = 0; col < bc->maxLen; col++)
         {
           char *rowSeq = alnGetSeq(alnrow);
-          
+
           if (rowSeq && isalpha(rowSeq[col]))
             rowSeq[col] = label[col];
         }
     }
-  
+
   g_free(labelseq);
 }
 
@@ -2903,26 +2904,26 @@ static void makeSegList(BelvuContext *bc, SEG **SegList, char *line)
   linecopy = (char*)g_malloc(strlen(line)+1);
   strcpy(linecopy, line);
   n = 0;
-  
-  if (atoi(strtok(linecopy, " "))) 
+
+  if (atoi(strtok(linecopy, " ")))
     n++;;
-  
-  while ( (p = strtok(0, " ")) && atoi(p) ) 
+
+  while ( (p = strtok(0, " ")) && atoi(p) )
     n++;
-  
+
   g_free(linecopy);
-    
-  if (!n || n % 4) 
+
+  if (!n || n % 4)
     g_error("Segments not multiple of 4 ints (%s)\n", line);
 
-  for (i = 0; i < n/4; i++) 
+  for (i = 0; i < n/4; i++)
     {
       seg = (SEG *)g_malloc(sizeof(SEG));
-      if (prevseg) 
+      if (prevseg)
         prevseg->next = seg;
       else
         *SegList = seg;
-      
+
       prevseg = seg;
 
       seg->qstart = atoi(i ? strtok(0, " ") : strtok(line, " "));
@@ -2932,7 +2933,7 @@ static void makeSegList(BelvuContext *bc, SEG **SegList, char *line)
       seg->next = NULL;
     }
 
-  for (seg = *SegList; seg; seg = seg->next) 
+  for (seg = *SegList; seg; seg = seg->next)
     {
       DEBUG_OUT("%d %d %d %d\n", seg->qstart, seg->qend, seg->start, seg->end);
 
@@ -2958,43 +2959,43 @@ static void makeSegList(BelvuContext *bc, SEG **SegList, char *line)
 
 static int countInserts(SEG *seg)
 {
-  int   
+  int
     Align_gap, Query_gap, gap, insert_counter=0;
 
   if (!seg)
     return insert_counter ;
 
-  while (seg->next) 
+  while (seg->next)
     {
       Align_gap = seg->next->start - seg->end - 1;
-      if (Align_gap < 0) 
+      if (Align_gap < 0)
         g_error("Negative Align_gap: %d (%d-%d)\n", Align_gap, seg->start, seg->next->end );
-		
+
       Query_gap = seg->next->qstart - seg->qend - 1;
-      if (Query_gap < 0) 
+      if (Query_gap < 0)
         g_error("Negative Query_gap: %d (%d-%d)\n", Query_gap, seg->qstart, seg->next->qend );
 
       gap = Query_gap - Align_gap;
-      if (gap > 0) 
+      if (gap > 0)
         {
           insert_counter += gap;
 	}
-      
+
       seg = seg->next;
     }
-  
+
   return insert_counter;
 }
 
 
-/* Inserts n gap columns after position p, in sequence coordinate, 1...maxLen 
+/* Inserts n gap columns after position p, in sequence coordinate, 1...maxLen
  */
 static void insertColumns(BelvuContext *bc, int p, int n)
 {
   int
     i, j;
 
-  ALN 
+  ALN
     *alni;
   char
     *dest, *src, *seq;
@@ -3003,24 +3004,24 @@ static void insertColumns(BelvuContext *bc, int p, int n)
 
   bc->maxLen += n;
 
-  for (i = 0; i < (int)bc->alignArr->len; ++i) 
+  for (i = 0; i < (int)bc->alignArr->len; ++i)
     {
       alni = g_array_index(bc->alignArr, ALN*, i);
-	
+
       seq = (char*)g_malloc(bc->maxLen + 1);
 
       dest = seq;
       src = alnGetSeq(alni);
 
-      for (j = 0; j < p;  j++) 
+      for (j = 0; j < p;  j++)
         {
           *dest++ = *src++;
 	}
-      for (; j < p+n;  j++) 
+      for (; j < p+n;  j++)
         {
           *dest++ = '.';
 	}
-      for (; j < bc->maxLen;  j++) 
+      for (; j < bc->maxLen;  j++)
         {
           *dest++ = *src++;
 	}
@@ -3046,8 +3047,8 @@ static void insertColumns(BelvuContext *bc, int p, int n)
 
    - Should matches be displayed on separate lines or in the middle of the alignment?
      On top would be nice, but would require a lot of extra programming (status bar etc).
-     Instead add to alignment (SEED usually fits on one screen) 
-     Draw names with red background.  
+     Instead add to alignment (SEED usually fits on one screen)
+     Draw names with red background.
      Add on top.
 
 
@@ -3066,7 +3067,7 @@ static void insertColumns(BelvuContext *bc, int p, int n)
 void readMatch(BelvuContext *bc, FILE *fil)
 {
   /* Format:
-       
+
   Using segments is more difficult than residues, but is
   necessary to display in ACEDB Pepmap.
 
@@ -3082,7 +3083,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
   char *cp, *seq, *rawseq = NULL, *seqp;
   SEG	*SegList = NULL, *seg;
   char line[MAXLENGTH+1];
-  
+
   while (!done_one)
     {
       if (!fgets(line, MAXLENGTH, fil))
@@ -3106,7 +3107,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 
 	  strncpy(aln->name, line, MAXNAMESIZE);
 	  aln->name[MAXNAMESIZE] = 0;
-          
+
 	  if ((cp = strchr(aln->name, ' ')))
 	    *cp = 0;
 
@@ -3114,38 +3115,38 @@ void readMatch(BelvuContext *bc, FILE *fil)
 	    bc->maxNameLen = strlen(aln->name);
 
 	  /* Start & End */
-	  if (!(cp = strtok(0, "-"))) 
+	  if (!(cp = strtok(0, "-")))
             g_error("Bad start: %s\n", cp);
 
 	  aln->start = atoi(cp);
-          
+
 	  if ((len=strlen(cp)) > bc->maxStartLen)
 	    bc->maxStartLen = len;
-          
+
           char *tmpStr = g_strdup_printf("%d", aln->start);
 
 	  if (bc->maxStartLen < (tmp = strlen(tmpStr)))
 	    bc->maxStartLen = tmp;
-                                   
+
           g_free(tmpStr);
           tmpStr = NULL;
 
 	  if (!(cp = strtok(0, " ")))
 	    g_error("Bad end: %s\n", cp);
-          
+
 	  aln->end = atoi(cp);
-          
+
 	  if ((len=strlen(cp)) > bc->maxEndLen)
 	    bc->maxEndLen = len;
-          
+
           tmpStr = g_strdup_printf("%d", aln->end);
-          
+
 	  if (bc->maxEndLen < (tmp = strlen(tmpStr)))
 	    bc->maxEndLen = tmp;
-    
+
           g_free(tmpStr);
           tmpStr = NULL;
-          
+
           int ip = 0;
 	  if (alignFind(bc->alignArr, aln, &ip))
 	    {
@@ -3159,12 +3160,12 @@ void readMatch(BelvuContext *bc, FILE *fil)
 	    g_error("Bad score: %s\n", cp);
 
 	  aln->score = atof(cp);
-          
+
           tmpStr = g_strdup_printf("%.1f", aln->score);
-          
+
 	  if ((len=strlen(tmpStr)) > bc->maxScoreLen)
 	    bc->maxScoreLen = len;
-          
+
           g_free(tmpStr);
           tmpStr = NULL;
 
@@ -3176,12 +3177,12 @@ void readMatch(BelvuContext *bc, FILE *fil)
 
 	  if ((cp = strchr(line, '\n')))
 	    *cp = 0 ;
-          
+
 	  rawseq = (char*)g_malloc(strlen(line)+1);
 	  strcpy(rawseq, line);
 
 	  /* Matching segments */
-          
+
 	  if (!fgets(line, MAXLENGTH, fil))
 	    break;
 
@@ -3193,7 +3194,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 	  inserts = countInserts(SegList);
 	  seq = (char*)g_malloc(bc->maxLen + inserts + 1);
 	  memset(seq, '.', bc->maxLen + inserts);
-	    
+
 	  orig_maxLen = bc->maxLen;
 
 	  /* Add first segment */
@@ -3202,7 +3203,7 @@ void readMatch(BelvuContext *bc, FILE *fil)
 	  seqp = seq + seg->start-1;
 	  seglen = seg->end - seg->start+1;
 	  strncpy(seqp, rawseq, seglen);
-	  seqp += seglen; 
+	  seqp += seglen;
 
 	  /* Add subsequent segments */
 	  insert_counter = 0;
@@ -3213,9 +3214,9 @@ void readMatch(BelvuContext *bc, FILE *fil)
 
 
 	      if (Query_gap > 0)
-		{ 
+		{
 		  strncpy(seqp, rawseq + seg->qend, Query_gap);
-		  seqp += Query_gap; 
+		  seqp += Query_gap;
 		}
 
 	      gap = Query_gap - Align_gap;
@@ -3243,12 +3244,12 @@ void readMatch(BelvuContext *bc, FILE *fil)
 
 	  aln->sequenceStr = g_string_new(seq);
           g_free(seq);
-          
+
 	  aln->color = RED;
 	  aln->nr = 0;
 
           g_array_append_val(bc->alignArr, aln);
-          
+
 	  done_one = 1;
 
 	} /* End of this matchSeq */
@@ -3271,32 +3272,32 @@ void checkAlignment(BelvuContext *bc)
 
   bc->maxNameLen = bc->maxStartLen = bc->maxEndLen = 0;
 
-  for (i = 0; i < (int)bc->alignArr->len; ++i) 
+  for (i = 0; i < (int)bc->alignArr->len; ++i)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
 
-      if (!alnp->markup) 
+      if (!alnp->markup)
         {
           char *alnSeq = alnGetSeq(alnp);
-          
+
           /* Count residues */
-          for (cres = g = 0; g < bc->maxLen; g++) 
+          for (cres = g = 0; g < bc->maxLen; g++)
             {
-              if (alnSeq && isAlign(alnSeq[g]) && !isGap(alnSeq[g])) 
+              if (alnSeq && isAlign(alnSeq[g]) && !isGap(alnSeq[g]))
                 cres++;
 	    }
-	    
-          if (!alnp->start) 
+
+          if (!alnp->start)
             {
               /* No coords provided - reconstruct them */
               alnp->start = 1;
               alnp->end = cres;
 	    }
-          else 
+          else
             {
               /* Check if provided coordinates are correct */
               nres = abs(alnp->end - alnp->start) + 1;
-              
+
               if ( nres != cres)
                 {
                   g_warning("Found wrong number of residues in %s/%d-%d: %d instead of %d\n",
@@ -3312,8 +3313,8 @@ void checkAlignment(BelvuContext *bc)
         bc->maxNameLen = strlen(alnp->name);
 
       char *tmpStr = g_strdup_printf("%d", alnp->start);
-      
-      if (bc->maxStartLen < (tmp = strlen(tmpStr))) 
+
+      if (bc->maxStartLen < (tmp = strlen(tmpStr)))
         bc->maxStartLen = tmp;
 
       g_free(tmpStr);
@@ -3321,10 +3322,10 @@ void checkAlignment(BelvuContext *bc)
 
       tmpStr= g_strdup_printf("%d", alnp->end);
 
-      if (bc->maxEndLen   < (tmp = strlen(tmpStr))) 
+      if (bc->maxEndLen   < (tmp = strlen(tmpStr)))
         bc->maxEndLen = tmp;
     }
-}    
+}
 
 
 static void initConservMtx(BelvuContext *bc)
@@ -3333,8 +3334,8 @@ static void initConservMtx(BelvuContext *bc)
 
   bc->conservCount = (int **)g_malloc(21*sizeof(int *));
   bc->colorMap = (int **)g_malloc(21*sizeof(int *));
-    
-  for (i = 0; i < 21; ++i) 
+
+  for (i = 0; i < 21; ++i)
     {
       bc->conservCount[i] = (int *)g_malloc(bc->maxLen*sizeof(int));
       bc->colorMap[i] = (int *)g_malloc(bc->maxLen*sizeof(int));
@@ -3342,18 +3343,18 @@ static void initConservMtx(BelvuContext *bc)
 
   bc->conservResidues = (int*)g_malloc(bc->maxLen*sizeof(int));
   bc->conservation = (double*)g_malloc(bc->maxLen*sizeof(double));
-}	
+}
 
 
 /* This populates conservCount (the count of how many of each residue there is
  * in each column) and conservResidues (the count of how many residues in total
- * there are in each column). 
+ * there are in each column).
  * Returns: the total number of sequences (excluding markup lines) */
 static int countResidueFreqs(BelvuContext *bc)
 {
   int   i, j, totalNumSeqs=0;
 
-  if (!bc->conservCount) 
+  if (!bc->conservCount)
     initConservMtx(bc);
 
     /* Must reset since this routine may be called many times */
@@ -3364,14 +3365,14 @@ static int countResidueFreqs(BelvuContext *bc)
           bc->conservCount[j][i] = 0;
           bc->colorMap[j][i] = 0;
         }
-      
+
       bc->conservResidues[i] = 0;
     }
-    
+
   for (j = 0; j < (int)bc->alignArr->len; ++j)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, j);
-      
+
       if (alnp->markup)
         continue;
 
@@ -3393,7 +3394,7 @@ static int countResidueFreqs(BelvuContext *bc)
 }
 
 
-/* Calculate overhang between two aligned sequences 
+/* Calculate overhang between two aligned sequences
    Return nr of residues at the ends unique to s1 (overhanging s2).
 */
 static int alnOverhang(char *s1, char *s2)
@@ -3403,21 +3404,21 @@ static int alnOverhang(char *s1, char *s2)
     s2started = 0;
   char *s1save = s1, *s2save = s2;
 
-  for (; *s1 && *s2; s1++, s2++) 
+  for (; *s1 && *s2; s1++, s2++)
     {
       if (!isGap(*s1)) s1started = 1;
       if (!isGap(*s2)) s2started = 1;
       if (s1started && !s2started) overhang++;
-    }	
-  
+    }
+
   s1--; s2--;
   s1started = s2started = 0;
-  for (; s1>=s1save && s2>=s2save; s1--, s2--) 
+  for (; s1>=s1save && s2>=s2save; s1--, s2--)
     {
       if (!isGap(*s1)) s1started = 1;
       if (!isGap(*s2)) s2started = 1;
       if (s1started && !s2started) overhang++;
-    }	
+    }
 
   /* printf ("%s\n%s\nOverhang=%d\n", s1save, s2save, overhang);*/
 
@@ -3441,41 +3442,41 @@ void rmColumn(BelvuContext *bc, const int from, const int to)
 {
   int
     i=0, j=0, len = to - from + 1;
-  ALN 
+  ALN
     *alni=NULL;
-  
+
   g_message_info("Removing Columns %d-%d.\n", from, to);
 
-  for (i = 0; i < (int)bc->alignArr->len; i++) 
+  for (i = 0; i < (int)bc->alignArr->len; i++)
     {
       alni = g_array_index(bc->alignArr, ALN*, i);
       char *alnSeq = alnGetSeq(alni);
 
       /* If N or C terminal trim, change the coordinates */
       if (from == 1)
-        for (j = from; j <= to;  j++) 
+        for (j = from; j <= to;  j++)
           {
             /* Only count real residues */
-            
+
             if (!isGap(alnSeq[j-1]))
-              (alni->start < alni->end ? alni->start++ : alni->start--); 
+              (alni->start < alni->end ? alni->start++ : alni->start--);
           }
 
       if (to == bc->maxLen)
-        for (j = from; j <= to;  j++) 
+        for (j = from; j <= to;  j++)
           {
             /* Only count real residues */
             if (!isGap(alnSeq[j-1]))
-              (alni->start < alni->end ? alni->end-- : alni->end++); 
+              (alni->start < alni->end ? alni->end-- : alni->end++);
           }
-	
+
       /* Remove the columns */
-      for (j = 0; j < bc->maxLen-to+1 /* Including terminator 0 */;  j++) 
+      for (j = 0; j < bc->maxLen-to+1 /* Including terminator 0 */;  j++)
         {
           alnSeq[from+j-1] = alnSeq[to+j];
 	}
       j--;
-      
+
       if (alnSeq[from+j-1] || alnSeq[to+j])
         g_warning("Still a bug in rmColumn(): End=%c, Oldend=%c\n", alnSeq[from+j-1], alnSeq[to+j]);
     }
@@ -3489,42 +3490,42 @@ void rmColumn(BelvuContext *bc, const int from, const int to)
 /* Remove columns whose conservation is below the given cutoff */
 void rmColumnCutoff(BelvuContext *bc, const double from, const double to)
 {
-  int 
+  int
     i, j, max, removed=0, oldmaxLen=bc->maxLen;
   static double cons ;
-  
-  
-  for (i = bc->maxLen-1; i >= 0; i--) 
+
+
+  for (i = bc->maxLen-1; i >= 0; i--)
     {
-      if (colorBySimilarity(bc)) 
+      if (colorBySimilarity(bc))
         {
           cons = bc->conservation[i];
         }
-      else 
+      else
         {
           max = 0;
           for (j = 1; j < 21; j++)
             {
-              if (bc->conservCount[j][i] > max) 
+              if (bc->conservCount[j][i] > max)
                 {
                   max = bc->conservCount[j][i];
                 }
-            }	
+            }
           cons = (double)max / bc->alignArr->len;
         }
-      
-      if (cons > from && cons <= to) 
+
+      if (cons > from && cons <= to)
         {
           g_message("removing %d, cons= %.2f\n", i+1, cons);
           rmColumn(bc, i+1, i+1);
-          if (++removed == oldmaxLen) 
+          if (++removed == oldmaxLen)
             {
               g_critical("You have removed all columns.  Prepare to exit Belvu\n");
               exit(EXIT_SUCCESS);
             }
         }
     }
-  
+
   bc->saved = FALSE;
   rmFinaliseColumnRemoval(bc);
 }
@@ -3534,36 +3535,36 @@ void rmEmptyColumns(BelvuContext *bc, double cutoff)
 {
   int
     i=0, j=0, gaps=0, totseq=0, removed=0, oldmaxLen=bc->maxLen;
-  ALN 
+  ALN
     *alni=NULL;
   char
     c='\0';
 
-  for (totseq = i = 0; i < (int)bc->alignArr->len; ++i) 
+  for (totseq = i = 0; i < (int)bc->alignArr->len; ++i)
     {
       alni = g_array_index(bc->alignArr, ALN*, i);
-      
-      if (!alni->markup) 
+
+      if (!alni->markup)
         totseq++;
     }
 
-  for (j = bc->maxLen-1; j >= 0; j--) 
+  for (j = bc->maxLen-1; j >= 0; j--)
     {
-      for (gaps = i = 0; i < (int)bc->alignArr->len; i++) 
+      for (gaps = i = 0; i < (int)bc->alignArr->len; i++)
         {
           alni = g_array_index(bc->alignArr, ALN*, i);
           char *alnSeq = alnGetSeq(alni);
-          
-          if (!alni->markup) 
+
+          if (!alni->markup)
             {
               c = alnSeq[j];
-              
-              if (isGap(c) || c == ' ') 
+
+              if (isGap(c) || c == ' ')
                 gaps++;
 	    }
 	}
-      
-      if ((double)gaps/totseq >= cutoff - MACHINE_RES) 
+
+      if ((double)gaps/totseq >= cutoff - MACHINE_RES)
         {
           rmColumn(bc, j+1, j+1);
           if (++removed == oldmaxLen)
@@ -3581,26 +3582,26 @@ void greyOutInvalidActionsForGroup(BelvuContext *bc, GtkActionGroup *action_grou
 {
   if (!action_group)
     return;
-  
+
   enableMenuAction(action_group, "Output", bc->displayScores);
   enableMenuAction(action_group, "rmScore", bc->displayScores);
   enableMenuAction(action_group, "scoreSort", bc->displayScores);
-  
+
   enableMenuAction(action_group, "toggleColorByResId", !colorByConservation(bc));
   enableMenuAction(action_group, "colorByResId", !colorByConservation(bc));
   enableMenuAction(action_group, "saveColorScheme", !colorByConservation(bc));
   enableMenuAction(action_group, "loadColorScheme", !colorByConservation(bc));
-  
+
   enableMenuAction(action_group, "colorSchemeCustom", bc->haveCustomColors);
-  
+
   /* ignoreGaps used to be greyed out in old belvu when in color-by-residue
    * mode; it does affect the display when in that mode if using a %ID
-   * threshold, though, so it should probably be enabled (or alternatively the 
-   * logic should be adjusted so that it does not affect the residue colors, if 
+   * threshold, though, so it should probably be enabled (or alternatively the
+   * logic should be adjusted so that it does not affect the residue colors, if
    * that was the intent...) */
   /* enableMenuAction(action_group, "ignoreGaps", colorByConservation(bc)); */
   enableMenuAction(action_group, "printColors", colorByConservation(bc));
-  
+
   enableMenuAction(action_group, "excludeHighlighted", bc->selectedAln != NULL);
 }
 
@@ -3611,7 +3612,7 @@ void greyOutInvalidActions(BelvuContext *bc)
   /* Need to do the action groups for the main window and the tree (wrapped
    * windows currently don't have anything that gets greyed out but if they
    * do in future they will need updating here too) */
-  
+
   GtkActionGroup *actionGroup = belvuWindowGetActionGroup(bc->belvuWindow);
   greyOutInvalidActionsForGroup(bc, actionGroup);
 
@@ -3629,12 +3630,12 @@ void belvuContextSetTree(BelvuContext *bc, Tree **tree)
       /* We don't destroy the actual tree struct because there may be pointers
        * to it from other places; instead, we just replace its contents. */
       destroyTreeContents(bc->mainTree);
-      
+
       if (tree && *tree)
         {
           bc->mainTree->head = (*tree)->head;
           g_free(*tree);
-          
+
           /* Update input pointer so that it points to the tree that actually
            * got set. */
           *tree = bc->mainTree;
@@ -3648,25 +3649,25 @@ void belvuContextSetTree(BelvuContext *bc, Tree **tree)
     {
       bc->mainTree = NULL;
     }
-  
+
   /* Whether a tree exists affects whether some menu items are greyed out */
   greyOutInvalidActions(bc);
 }
 
 
 /* This function should be called after removing sequences or columns */
-static void rmFinalise(BelvuContext *bc) 
+static void rmFinalise(BelvuContext *bc)
 {
   /*    ruler[maxLen] = 0;*/
   checkAlignment(bc);
   setConsSchemeColors(bc);
-  
+
   /* Removing seqs/cols invalidates the tree, so set the tree head to NULL. */
   belvuContextSetTree(bc, NULL);
-  
+
   /* Removing seqs/cols invalidates the conservation plot, so recalculate it */
   belvuConsPlotRecalcAll(bc->consPlot);
-  
+
   /* Removing sequences can change the size of the columns in the alignment view,
    * so recalculate them */
   updateHeaderColumnsSize(bc->belvuAlignment);
@@ -3681,23 +3682,23 @@ void rmPartialSeqs(BelvuContext *bc)
   int i=0, n=0;
   ALN *alni = NULL;
 
-  for (i = 0; i < (int)bc->alignArr->len; ) 
+  for (i = 0; i < (int)bc->alignArr->len; )
     {
       alni = g_array_index(bc->alignArr, ALN*, i);
       char *alnSeq = alnGetSeq(alni);
-      
-      if (isGap(alnSeq[0]) || isGap(alnSeq[bc->maxLen-1])) 
+
+      if (isGap(alnSeq[0]) || isGap(alnSeq[bc->maxLen-1]))
         {
           /* Remove entry */
           n++;
 
-          if (bc->selectedAln == alni) 
+          if (bc->selectedAln == alni)
             bc->selectedAln = 0;
-          
+
           g_array_remove_index(bc->alignArr, i);
           bc->saved = 0;
 	}
-      else 
+      else
         {
           ++i;
         }
@@ -3717,27 +3718,27 @@ void rmGappySeqs(BelvuContext *bc, const double cutoff)
   int i=0, j=0, n=0, gaps;
   ALN *alni = NULL;
 
-  for (i = 0; i < (int)bc->alignArr->len; ) 
+  for (i = 0; i < (int)bc->alignArr->len; )
     {
       alni = g_array_index(bc->alignArr, ALN*, i);
       char *alnSeq = alnGetSeq(alni);
 
       for (gaps = j = 0; j < bc->maxLen; j++)
-        if (isGap(alnSeq[j])) 
+        if (isGap(alnSeq[j]))
           gaps++;
 
-      if ((double)gaps/bc->maxLen >= cutoff/100.0) 
+      if ((double)gaps/bc->maxLen >= cutoff/100.0)
         {
           /* Remove entry */
           n++;
-          
-          if (bc->selectedAln == alni) 
+
+          if (bc->selectedAln == alni)
             bc->selectedAln = 0;
-          
+
           g_array_remove_index(bc->alignArr, i);
           bc->saved = 0;
 	}
-      else 
+      else
 	{
 	  i++;
 	}
@@ -3753,14 +3754,14 @@ void rmGappySeqs(BelvuContext *bc, const double cutoff)
  * is enabled. */
 void rmFinaliseGapRemoval(BelvuContext *bc)
 {
-  if (bc->rmEmptyColumnsOn) 
+  if (bc->rmEmptyColumnsOn)
     rmEmptyColumns(bc, 1.0);
-  
+
   rmFinalise(bc);
 }
 
 
-/* Get rid of seqs that are more than x% identical with others. 
+/* Get rid of seqs that are more than x% identical with others.
  * Keep the  first one.
  */
 void mkNonRedundant(BelvuContext *bc, const double cutoff)
@@ -3769,19 +3770,19 @@ void mkNonRedundant(BelvuContext *bc, const double cutoff)
   ALN *alni=NULL, *alnj=NULL;
   double id = 0.0;
 
-  for (i = 0; i < (int)bc->alignArr->len; i++) 
+  for (i = 0; i < (int)bc->alignArr->len; i++)
     {
       alni = g_array_index(bc->alignArr, ALN*, i);
       char *alniSeq = alnGetSeq(alni);
 
-      for (j = 0; j < (int)bc->alignArr->len; j++) 
+      for (j = 0; j < (int)bc->alignArr->len; j++)
         {
-          if (i == j) 
+          if (i == j)
             continue;
 
           alnj = g_array_index(bc->alignArr, ALN*, j);
           char *alnjSeq = alnGetSeq(alnj);
-	    
+
           overhang = alnOverhang(alnjSeq, alniSeq);
           id = percentIdentity(alniSeq, alnjSeq, bc->penalize_gaps);
 
@@ -3792,17 +3793,17 @@ void mkNonRedundant(BelvuContext *bc, const double cutoff)
                              alni->name, alni->start, alni->end,
                              alnj->name, alnj->start, alnj->end,
                              id);
-		
+
               /* Remove entry j */
               n++;
-		
-              if (bc->selectedAln == alnj) 
+
+              if (bc->selectedAln == alnj)
                 bc->selectedAln = NULL;
-              
+
               g_array_remove_index(bc->alignArr, j);
               bc->saved = FALSE;
-              
-              if (j < i) 
+
+              if (j < i)
                 {
                   i--;
                   alni = g_array_index(bc->alignArr, ALN*, i);
@@ -3813,58 +3814,58 @@ void mkNonRedundant(BelvuContext *bc, const double cutoff)
     }
 
   g_message_info("%d sequences removed at the %.0f%% level.  %d seqs left.\n\n", n, cutoff, bc->alignArr->len);
-  
+
   arrayOrder(bc->alignArr);
   rmFinaliseGapRemoval(bc);
 }
 
 
-/* Get rid of seqs that are less than x% identical with any of the others. 
+/* Get rid of seqs that are less than x% identical with any of the others.
  */
 void rmOutliers(BelvuContext *bc, const double cutoff)
 {
   int i=0,j=0, n=0;
   ALN *alni=NULL, *alnj=NULL;
-  
-  for (i = 0; i < (int)bc->alignArr->len - 1; ) 
+
+  for (i = 0; i < (int)bc->alignArr->len - 1; )
     {
       alni = g_array_index(bc->alignArr, ALN*, i);
-    
+
       double maxid = 0;
-      for (maxid=0, j = 0; j < (int)bc->alignArr->len; ++j) 
+      for (maxid=0, j = 0; j < (int)bc->alignArr->len; ++j)
 	{
-	  if (i == j) 
+	  if (i == j)
 	    continue;
-	
+
 	  alnj = g_array_index(bc->alignArr, ALN*, j);
 	  double id = percentIdentity(alnGetSeq(alni), alnGetSeq(alnj), bc->penalize_gaps);
-	
-	  if (id > maxid) 
+
+	  if (id > maxid)
 	    maxid = id;
 	}
-    
-      if (maxid < cutoff) 
+
+      if (maxid < cutoff)
 	{
 	  g_message("%s/%d-%d was max %.1f%% identical to any other sequence and was removed.\n",
 		    alni->name, alni->start, alni->end, maxid);
-	
+
 	  /* Remove entry */
 	  n++;
-	
-	  if (bc->selectedAln == alni) 
+
+	  if (bc->selectedAln == alni)
 	    bc->selectedAln = NULL;
-	
+
 	  g_array_remove_index(bc->alignArr, i);
 	  bc->saved = FALSE;
 	}
-      else 
+      else
 	{
 	  i++;
 	}
     }
-  
+
   g_message("%d sequences removed at the %.0f%% level.  %d seqs left.\n\n", n, cutoff, bc->alignArr->len);
-  
+
   arrayOrder(bc->alignArr);
   rmFinaliseGapRemoval(bc);
 }
@@ -3874,31 +3875,31 @@ void rmOutliers(BelvuContext *bc, const double cutoff)
 void rmScore(BelvuContext *bc, const double cutoff)
 {
   scoreSort(bc);
-  
+
   /* Save bc->selectedAln */
   ALN aln;
   initAln(&aln);
-  
+
   if (bc->selectedAln)
     alncpy(&aln, bc->selectedAln);
-  
+
   int numRemoved = 0;
   int i = 0;
-  
-  for (i = 0; i < (int)bc->alignArr->len; ) 
+
+  for (i = 0; i < (int)bc->alignArr->len; )
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
-    
-      if (alnp->score < cutoff) 
-	{ 
+
+      if (alnp->score < cutoff)
+	{
 	  ++numRemoved;
-	  
+
 	  g_message_info("Removing %s/%d-%d (score %.1f)\n",
                          alnp->name, alnp->start, alnp->end, alnp->score);
-	
-	  if (bc->selectedAln == alnp) 
+
+	  if (bc->selectedAln == alnp)
 	    bc->selectedAln = NULL;
-	  
+
 	  g_array_remove_index(bc->alignArr, i);
 	  bc->saved = FALSE;
 	}
@@ -3907,19 +3908,19 @@ void rmScore(BelvuContext *bc, const double cutoff)
 	  i++;
 	}
     }
-  
+
   arrayOrder(bc->alignArr);
-  
+
   g_message_info("%d sequences with score < %.1f removed.  %d seqs left.\n\n", numRemoved, cutoff, bc->alignArr->len);
-  
+
   /* Find bc->selectedAln in new array */
-  if (bc->selectedAln) 
-    { 
+  if (bc->selectedAln)
+    {
       int ip = 0;
       ALN aln;
       initAln(&aln);
-      
-      if (!alnArrayFind(bc->alignArr, &aln, &ip, scoreorder)) 
+
+      if (!alnArrayFind(bc->alignArr, &aln, &ip, scoreorder))
 	{
 	  bc->selectedAln = NULL;
 	}
@@ -3928,9 +3929,9 @@ void rmScore(BelvuContext *bc, const double cutoff)
 	  bc->selectedAln = g_array_index(bc->alignArr, ALN*, ip);
 	}
   }
-  
+
   bc->alignYStart = 0;
-  
+
   rmFinaliseGapRemoval(bc);
 }
 
@@ -3942,17 +3943,17 @@ void rmScore(BelvuContext *bc, const double cutoff)
 /* Save the given tree to the given file in New Hampshire format */
 void saveTreeNH(Tree *tree, TreeNode *node, FILE *file)
 {
-  if (!node) 
+  if (!node)
     return;
-  
-  if (node->left && node->right) 
+
+  if (node->left && node->right)
     {
       fprintf(file, "(\n");
       saveTreeNH(tree, node->left, file);
       fprintf(file, ",\n");
       saveTreeNH(tree, node->right, file);
       fprintf(file, ")\n");
-      
+
       if (node != tree->head)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
         fprintf(file, "%.0f", node->boot+0.5);
     }
@@ -3960,7 +3961,7 @@ void saveTreeNH(Tree *tree, TreeNode *node, FILE *file)
     {
       fprintf(file, "%s", node->name);
     }
-  
+
   if (node != tree->head)	/* Not exactly sure why this is necessary, but njplot crashes otherwise */
     fprintf(file, ":%.3f", node->branchlen/100.0);
 }
@@ -3971,25 +3972,25 @@ void writeMSF(BelvuContext *bc, FILE *pipe) /* c = separator between name and co
   int i=0, j=0;
   int maxfullnamelen = bc->maxNameLen + 1 + bc->maxStartLen + 1 + bc->maxEndLen;
   int paragraph=0, alnstart=0, alnend=0, alnlen=0, linelen=50, blocklen=10;
-  
+
   if (bc->saveCoordsOn)
     maxfullnamelen = bc->maxNameLen + 1 + bc->maxStartLen + 1 + bc->maxEndLen;
   else
     maxfullnamelen = bc->maxNameLen;
-  
+
   /* Title */
   fprintf(pipe, "PileUp\n\n %s  MSF: %d  Type: X  Check: %d  ..\n\n",
           bc->Title, bc->maxLen, GCGgrandchecksum(bc));
 
   /* Names and checksums */
-  for(i=0; i < (int)bc->alignArr->len; ++i) 
+  for(i=0; i < (int)bc->alignArr->len; ++i)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
-      
-      if (alnp->markup) 
+
+      if (alnp->markup)
         continue;
 
-      char *tmpStr = bc->saveCoordsOn 
+      char *tmpStr = bc->saveCoordsOn
         ? g_strdup_printf("%s%c%d-%d", alnp->name, bc->saveSeparator, alnp->start, alnp->end)
         : g_strdup_printf("%s", alnp->name);
 
@@ -4002,7 +4003,7 @@ void writeMSF(BelvuContext *bc, FILE *pipe) /* c = separator between name and co
 
       g_free(tmpStr);
     }
-  
+
   fprintf(pipe, "\n//\n\n");
 
   /* Alignment */
@@ -4010,42 +4011,42 @@ void writeMSF(BelvuContext *bc, FILE *pipe) /* c = separator between name and co
     {
       for (i = 0; i < (int)bc->alignArr->len; ++i)
 	{
-          alnstart = paragraph * linelen; 
+          alnstart = paragraph * linelen;
           alnlen = ( (paragraph+1)*linelen < bc->maxLen ? linelen : bc->maxLen - alnstart );
           alnend = alnstart + alnlen;
 
           ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
-          
-          if (alnp->markup) 
+
+          if (alnp->markup)
             continue;
 
-          char *tmpStr = bc->saveCoordsOn 
+          char *tmpStr = bc->saveCoordsOn
             ? g_strdup_printf("%s%c%d-%d", alnp->name, bc->saveSeparator, alnp->start, alnp->end)
             : g_strdup_printf("%s", alnp->name);
-          
+
           fprintf(pipe, "%-*s  ", maxfullnamelen, tmpStr);
           g_free(tmpStr);
-          
-          for (j = alnstart; j < alnend; ) 
+
+          for (j = alnstart; j < alnend; )
             {
               char *alnpSeq = alnGetSeq(alnp);
               fprintf(pipe, "%c", alnpSeq[j]);
               j++;
-              
-              if ( !((j-alnstart) % blocklen) ) 
+
+              if ( !((j-alnstart) % blocklen) )
                 fprintf(pipe, " ");
 	    }
-          
+
           fprintf(pipe, "\n");
 	}
-      
+
       fprintf(pipe, "\n");
       paragraph++;
     }
 
   fclose(pipe);
   fflush(pipe);
-  
+
   bc->saved = TRUE;
 }
 
@@ -4056,31 +4057,31 @@ static void readMSF(BelvuContext *bc, FILE *pipe)
   char line[MAXLENGTH + 1];
   line[0] = 0;
   seq[0] = 0;
-  
+
   g_message_info("\nDetected MSF format\n");
 
   /* Read sequence names */
   while (!feof (pipe))
-    { 
-      if (!fgets (line, MAXLENGTH, pipe)) 
+    {
+      if (!fgets (line, MAXLENGTH, pipe))
         break;
 
-      if (!strncmp(line, "//", 2)) 
+      if (!strncmp(line, "//", 2))
         {
           break;
         }
-      else if (strstr(line, "Name:") && (cp = strstr(line, "Len:")) && strstr(line, "Check:")) 
+      else if (strstr(line, "Name:") && (cp = strstr(line, "Len:")) && strstr(line, "Check:"))
 	{
           int len;
 
           sscanf(cp+4, "%d", &len);
 
-          if (bc->maxLen < len) 
+          if (bc->maxLen < len)
             bc->maxLen = len;
 
           cp = strstr(line, "Name:")+6;
-          
-          while (*cp && *cp == ' ') 
+
+          while (*cp && *cp == ' ')
             cp++;
 
           /* Read sequence name and coords */
@@ -4089,7 +4090,7 @@ static void readMSF(BelvuContext *bc, FILE *pipe)
 
           /* Create a string to contain the sequence data */
           aln->sequenceStr = g_string_new("");
-          
+
           /* Add to the array */
           aln->nr = bc->alignArr->len + 1;
 
@@ -4100,27 +4101,27 @@ static void readMSF(BelvuContext *bc, FILE *pipe)
 
   /* Read sequence alignment */
   while (!feof (pipe))
-    { 
-      if (!fgets (line, MAXLENGTH, pipe)) 
+    {
+      if (!fgets (line, MAXLENGTH, pipe))
         break;
 
       cp = line;
       cq = seq;
       while (*cp && *cp == ' ') cp++;
       while (*cp && *cp != ' ') cp++; /* Spin to sequence */
-      
-      while (*cp && cq-seq < 1000) 
+
+      while (*cp && cq-seq < 1000)
         {
           if (isAlign(*cp)) *cq++ = *cp;
           cp++;
 	}
-	
+
       *cq = 0;
 
-      if (*seq) 
+      if (*seq)
         {
           cp = line;
-          while (*cp && *cp == ' ') 
+          while (*cp && *cp == ' ')
             cp++;
 
           /* Get the name of the sequence  */
@@ -4142,7 +4143,7 @@ static void readMSF(BelvuContext *bc, FILE *pipe)
             }
 	}
     }
-  
+
   bc->saveFormat = BELVU_FILE_MSF;
 }
 
@@ -4158,54 +4159,54 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
     *labelp,		/* Label (OS) */
     *valuep;		/* Organism (c. elegans) */
 
-  
+
   /* Ignore anything that's not a 'GS' line */
   if (strncmp(cp, "#=GS", 4) != 0)
     return;
-      
+
   /* Copy the portion after  the '#=GS' into 'name' */
   strcpy(name, cp+4);
   namep = name;
-  
+
   /* Ignore leading whitespace */
-  while (*namep == ' ') 
+  while (*namep == ' ')
     namep++;
-      
+
   /* Find the end of the name */
   labelp = namep;
-  while (*labelp != ' ') 
+  while (*labelp != ' ')
     labelp++;
-  
+
   *labelp = 0;		/* Terminate namep */
   ++labelp;		/* Walk across terminator */
-  
+
   while (*labelp == ' ') /* Find the start of the label */
     ++labelp;
-      
+
   valuep = labelp;
   while (*valuep != ' ') valuep++; /* Find the end of the label */
   while (*valuep == ' ') valuep++; /* Find the start of the value */
-  
+
   if (strncasecmp(labelp, "LO", 2) == 0)
     {
       int i, colornr;
-      
+
       /* Check the value to see if it matches one of our colour names */
       for (colornr = -1, i = 0; i < NUM_TRUECOLORS; i++)
         {
-          if (strcasecmp(colorNames[i], valuep) == 0) 
+          if (strcasecmp(colorNames[i], valuep) == 0)
             {
               colornr = i;
               break;
             }
         }
-      
+
       if (colornr == -1)
         {
           g_message("Unrecognized color: %s\n", valuep);
           colornr = 0;
         }
-          
+
       /* Create an ALN struct from the name */
       ALN aln;
       initAln(&aln);
@@ -4217,16 +4218,16 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
           g_critical("Cannot find '%s' [%d %d] in alignment.\n", aln.name, aln.start, aln.end);
           return;
         }
-      
+
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
       alnp->color = colornr;
     }
   else if (strncasecmp(labelp, bc->organismLabel, 2) == 0)
     {
-      /* Add organism to table of organisms.  This is necessary to make all 
-         sequences of the same organism point to the same place and to make a 
+      /* Add organism to table of organisms.  This is necessary to make all
+         sequences of the same organism point to the same place and to make a
          non-redundant list of present organisms */
-      
+
       /* Find string in permanent stack */
       const char *valuepconst = strstr(cp, valuep);
 
@@ -4237,10 +4238,10 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
         }
 
       valuep = strdup(valuepconst);
-      
+
       /* Create an ALN struct from this organism */
       ALN *aln = createEmptyAln();
-      
+
       aln->organism = valuep; /* Find organism string in permanent stack */
 
       /* Add to organisms array, if not already there */
@@ -4249,47 +4250,47 @@ static void parseMulAnnotationLine(BelvuContext *bc, const char *seqLine)
         {
           g_array_append_val(bc->organismArr, aln);
           g_array_sort(bc->organismArr, organism_order);
-          
+
           /* Set the max organism name length */
           int organismLen = strlen(aln->organism);
 
           if (organismLen > bc->maxOrganismLen)
             bc->maxOrganismLen = organismLen ;
         }
- 
+
       if (strchr(cp, '/') && strchr(cp, '-'))
         {
           str2aln(bc, namep, aln);
-              
+
           /* Find the corresponding sequence */
           int ip = 0;
-          
-          if (!alnArrayFind(bc->alignArr, aln, &ip, alphaorder)) 
+
+          if (!alnArrayFind(bc->alignArr, aln, &ip, alphaorder))
             {
               g_critical("Cannot find '%s' [%d %d] in alignment.\n", aln->name, aln->start, aln->end);
               return;
             }
-             
+
           ALN *alnp = g_array_index(bc->alignArr, ALN*, ip);
-              
+
           /* Store pointer to unique organism in ALN struct */
           aln->organism = valuep;
           ip = 0;
-          
+
           alnArrayFind(bc->organismArr, aln, &ip, organism_order);
           alnp->organism = g_array_index(bc->organismArr, ALN*, ip)->organism;
         }
-      else 
+      else
         {
           /* Organism specified for entire sequences.
              Find all ALN instances of this sequences.
           */
           int i = 0;
-          for (i = 0; i < (int)bc->alignArr->len; ++i) 
+          for (i = 0; i < (int)bc->alignArr->len; ++i)
             {
               ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
 
-              if (strcmp(alnp->name, namep) == 0) 
+              if (strcmp(alnp->name, namep) == 0)
                 {
                   /* Store pointer to unique organism in ALN struct */
                   ALN aln;
@@ -4323,7 +4324,7 @@ static void appendSequenceDataToAln(BelvuContext *bc, char *line, const int alns
       /* Append this bit of sequence to the existing alignment */
       ALN *alnp = g_array_index(bc->alignArr, ALN*, ip);
       g_string_append(alnp->sequenceStr, line + alnstart);
-      
+
       /* Recalculate the max alignment length */
       if ((int)alnp->sequenceStr->len > bc->maxLen)
         bc->maxLen = alnp->sequenceStr->len;
@@ -4333,13 +4334,13 @@ static void appendSequenceDataToAln(BelvuContext *bc, char *line, const int alns
       /* Create a new alignment and add this bit of sequence */
       ALN *alnp = createEmptyAln();
       alncpy(alnp, &aln);
-      
+
       alnp->sequenceStr = g_string_new(line + alnstart);
       alnp->nr = bc->alignArr->len + 1;
-      
+
       g_array_append_val(bc->alignArr, alnp);
       g_array_sort(bc->alignArr, alphaorder);
-      
+
       /* Recalculate the max alignment length */
       if ((int)alnp->sequenceStr->len > bc->maxLen)
         bc->maxLen = alnp->sequenceStr->len;
@@ -4347,7 +4348,7 @@ static void appendSequenceDataToAln(BelvuContext *bc, char *line, const int alns
 }
 
 
-/* ReadMul 
+/* ReadMul
  * parses an alignment file in mul (stockholm) or selex format and puts it in the Align array
  *
  * Assumes header contains ' ' or '#'
@@ -4366,17 +4367,17 @@ static void readMul(BelvuContext *bc, FILE *pipe)
 
   /* Read raw alignment into stack
    *******************************/
-  
+
   int alnstart = MAXLENGTH;
   GSList *alnList = NULL;
-  
+
   while (!feof (pipe))
-    { 
+    {
       /* EOF checking to make acedb calling work */
-      if (!fgets (line, MAXLENGTH, pipe) || (unsigned char)*line == (unsigned char)EOF ) 
+      if (!fgets (line, MAXLENGTH, pipe) || (unsigned char)*line == (unsigned char)EOF )
         break;
-      
-      if (!strncmp(line, "PileUp", 6)) 
+
+      if (!strncmp(line, "PileUp", 6))
         {
           readMSF(bc, pipe);
           return;
@@ -4384,7 +4385,7 @@ static void readMul(BelvuContext *bc, FILE *pipe)
 
       /* Remove any trailing newline */
       char *cp = strchr(line, '\n');
-      if (cp) 
+      if (cp)
         *cp = 0;
 
       cp = strchr(line, '\r');
@@ -4397,18 +4398,18 @@ static void readMul(BelvuContext *bc, FILE *pipe)
 	{
           /* Sequence line */
           char *cq = strchr(line, ' ');
-          
-          if (!cq) 
+
+          if (!cq)
             g_error("Error reading selex file; no spacer between name and sequence in the following line:\n%s", line);
-          
+
           /* Find which column the alignment starts in */
           int i = 0;
           for (i = 0; line[i] && line[i] != ' '; ++i);
           for (; line[i] && !isAlign(line[i]); ++i);
-          
+
           /* Remember the leftmost start position of any alignment. We'll assume
            * all alignments start in the same column. */
-          if (i < alnstart) 
+          if (i < alnstart)
             alnstart = i;
 
           /* Remove optional accession number at end of alignment */
@@ -4420,39 +4421,39 @@ static void readMul(BelvuContext *bc, FILE *pipe)
           /* Store the line for processing later (once alnstart has been calculated) */
           alnList = g_slist_prepend(alnList, g_strdup(line));
 	}
-      else if (!strncmp(line, "#=GF ", 5) || 
-               !strncmp(line, "#=GS ", 5)) 
+      else if (!strncmp(line, "#=GF ", 5) ||
+               !strncmp(line, "#=GS ", 5))
         {
 	  /* Store all annotation lines in a list. Prepend the items because that
 	   * is more efficient, and then reverse the list at the end */
 	  bc->annotationList = g_slist_prepend(bc->annotationList, g_strdup(line));
         }
-      else if (!strncmp(line, "#=GC ", 5) || 
-               !strncmp(line, "#=GR ", 5) || 
-               !strncmp(line, "#=RF ", 5)) 
+      else if (!strncmp(line, "#=GC ", 5) ||
+               !strncmp(line, "#=GR ", 5) ||
+               !strncmp(line, "#=RF ", 5))
         {
           /* These are markup lines that are shown in the alignment list */
           alnList = g_slist_prepend(alnList, g_strdup(line));
         }
-      else if (!strncmp(line, "# matchFooter", 13)) 
+      else if (!strncmp(line, "# matchFooter", 13))
         {
           /* Match Footer  */
           bc->matchFooter = TRUE;
           break;
         }
     }
-  
+
   /* Reverse the lists, because we prepended items instead of appending them */
   bc->annotationList = g_slist_reverse(bc->annotationList);
   alnList = g_slist_reverse(alnList);
-  
+
   /* Loop through all of the alignment lines and extract the sequence string */
   GSList *alnItem = alnList;
   for ( ; alnItem; alnItem = alnItem->next)
     {
       char *alnStr = (char*)(alnItem->data);
       appendSequenceDataToAln(bc, alnStr, alnstart);
-      
+
       /* Free the line string, now we're done with it */
       g_free(alnStr);
       alnItem->data = NULL;
@@ -4468,45 +4469,45 @@ static void readMul(BelvuContext *bc, FILE *pipe)
       char *line = (char*)(annItem->data) ;
       parseMulAnnotationLine(bc, line);
     }
-  
+
 /* For debugging * /
    for (i = 0; i < nseq; i++) {
    alnp = arrp(Align, i, ALN);
-   printf("\n%-10s %4d %4d %s %d %s\n", 
-   alnp->name, alnp->start, alnp->end, alnp->seq, 
+   printf("\n%-10s %4d %4d %s %d %s\n",
+   alnp->name, alnp->start, alnp->end, alnp->seq,
    alnp->len, alnp->organism);
    }
-   for (i=0; i < arrayMax(organismArr); i++) 
+   for (i=0; i < arrayMax(organismArr); i++)
    printf("%s\n", arrp(organismArr, i, ALN)->organism);
    */
-  
-  if (bc->alignArr->len == 0 || bc->maxLen == 0) 
+
+  if (bc->alignArr->len == 0 || bc->maxLen == 0)
     g_error("Unable to read sequence data\n");
-  
+
   bc->saveFormat = BELVU_FILE_MUL;
 }
 
 
-/* 
- Format the name/start-end string 
- 
+/*
+ Format the name/start-end string
+
  For convenience, used by writeMul. Returns a newly allocated string
  which must be freed with g_free
  */
-static char *writeMulName(BelvuContext *bc, ALN *aln) 
-{  
+static char *writeMulName(BelvuContext *bc, ALN *aln)
+{
   char *name = NULL; /* result */
-  
+
   char *cp, *namep, GRname[MAXNAMESIZE*2+2], GRfeat[MAXNAMESIZE+1];
-  
-  if (aln->markup == GC) 
+
+  if (aln->markup == GC)
     {
       name = g_strdup_printf("#=GC %s", aln->name);
       return name;
     }
-  
+
   /* NOTE: GR lines have the feature concatenated in aln->name - must separate */
-  if (aln->markup == GR) 
+  if (aln->markup == GR)
     {
       namep = GRname;
       strncpy(namep, aln->name, 50);
@@ -4518,19 +4519,19 @@ static char *writeMulName(BelvuContext *bc, ALN *aln)
     {
       namep = aln->name;
     }
-  
-  if (!bc->saveCoordsOn) 
+
+  if (!bc->saveCoordsOn)
     {
       name = g_strdup_printf("%s", namep);
     }
-  else 
+  else
     {
       name = g_strdup_printf("%s%c%d-%d", namep, bc->saveSeparator, aln->start, aln->end);
     }
-  
+
   if (aln->markup == GR)
     name = g_strdup_printf("#=GR %s %s", name, GRfeat);
-  
+
   return name;
 }
 
@@ -4539,7 +4540,7 @@ void writeMul(BelvuContext *bc, FILE *fil)
 {
   /* Write Annotation */
   GSList *annotationItem = bc->annotationList;
-  
+
   for ( ; annotationItem; annotationItem = annotationItem->next)
     {
       const char *line = (const char*)(annotationItem->data);
@@ -4549,7 +4550,7 @@ void writeMul(BelvuContext *bc, FILE *fil)
   /* Find max width of name column */
   int i = 0;
   int maxWidth = 0;
-  
+
   for ( ; i < (int)bc->alignArr->len; ++i)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
@@ -4557,25 +4558,25 @@ void writeMul(BelvuContext *bc, FILE *fil)
       char *mulName = writeMulName(bc, alnp);
       int curWidth = strlen(mulName);
       g_free(mulName);
-    
-      if ( curWidth > maxWidth) 
+
+      if ( curWidth > maxWidth)
 	maxWidth = curWidth;
     }
-    
+
   /* Write alignment */
   for (i = 0; i < (int)bc->alignArr->len; i++)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
       char *mulName = writeMulName(bc, alnp);
       const char *alnpSeq = alnGetSeq(alnp);
-    
+
       fprintf(fil, "%-*s %s\n", maxWidth, mulName, (alnpSeq ? alnpSeq : ""));
-    
+
       g_free(mulName);
     }
-  
+
   fprintf(fil, "//\n");
-  
+
   fclose(fil);
   fflush(fil);
 
@@ -4583,8 +4584,8 @@ void writeMul(BelvuContext *bc, FILE *fil)
 }
 
 
-/* readFile 
- * Determines the format of the input file and calls the appropriate 
+/* readFile
+ * Determines the format of the input file and calls the appropriate
  * parser. Valid file formats are fasta, MSF, mul (stockholm) or selex.
  */
 void readFile(BelvuContext *bc, FILE *pipe)
@@ -4592,15 +4593,15 @@ void readFile(BelvuContext *bc, FILE *pipe)
   char   ch = '\0';
   char line[MAXLENGTH+1];
   line[0] = 0;
-  
+
   /* Parse header to check for MSF or Fasta format */
   while (!feof (pipe))
-    { 
+    {
       ch = fgetc(pipe);
-      
-      if (!isspace(ch)) 
+
+      if (!isspace(ch))
         {
-          if (ch == '>') 
+          if (ch == '>')
             {
               ungetc(ch, pipe);
               return readFastaAln(bc, pipe);
@@ -4612,16 +4613,16 @@ void readFile(BelvuContext *bc, FILE *pipe)
         }
       else if (ch == '\n')
         {
-          if (!fgets (line, MAXLENGTH, pipe)) 
+          if (!fgets (line, MAXLENGTH, pipe))
             break;
         }
-      
-      if (strstr(line, "MSF:") && strstr(line, "Type:") && strstr(line, "Check:")) 
+
+      if (strstr(line, "MSF:") && strstr(line, "Type:") && strstr(line, "Check:"))
         {
           return readMSF(bc, pipe);
         }
     }
-  
+
   if (!feof(pipe))
     ungetc(ch, pipe);
 
@@ -4634,18 +4635,18 @@ void writeFasta(BelvuContext *bc, FILE *pipe)
   int i=0, n=0;
   char *cp = NULL;
 
-  for (i = 0; i < (int)bc->alignArr->len; ++i) 
+  for (i = 0; i < (int)bc->alignArr->len; ++i)
     {
       ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
-      
-      if (alnp->markup) 
+
+      if (alnp->markup)
         continue;
-	
+
       if (bc->saveCoordsOn)
         fprintf(pipe, ">%s%c%d-%d\n", alnp->name, bc->saveSeparator, alnp->start, alnp->end);
       else
         fprintf(pipe, ">%s\n", alnp->name);
-	
+
       for (n=0, cp = alnGetSeq(alnp); *cp; cp++)
         {
 	  if (bc->saveFormat == BELVU_FILE_ALIGNED_FASTA)
@@ -4655,27 +4656,27 @@ void writeFasta(BelvuContext *bc, FILE *pipe)
 	    }
           else
             {
-              if (!isGap(*cp)) 
+              if (!isGap(*cp))
                 {
                   fputc(*cp, pipe);
                   n++;
 		}
 	    }
-	    
-          if (n && !(n % 80) ) 
+
+          if (n && !(n % 80) )
             {
               fputc('\n', pipe);
               n = 0;
 	    }
 	}
-	
+
       if (n)
         fputc('\n', pipe);
     }
 
   fclose(pipe);
   fflush(pipe);
-  
+
   bc->saved = TRUE;
 }
 
@@ -4684,19 +4685,19 @@ static int getMatchStates(BelvuContext *bc)
 {
   int i=0, j=0, n=0, retval=0;
 
-  for (j = 0; j < bc->maxLen; ++j) 
+  for (j = 0; j < bc->maxLen; ++j)
     {
       n = 0;
-      for (i = 0; i < (int)bc->alignArr->len; ++i) 
+      for (i = 0; i < (int)bc->alignArr->len; ++i)
         {
           ALN *alnp = g_array_index(bc->alignArr, ALN*, i);
           char *alnpSeq = alnGetSeq(alnp);
-          
-          if (isalpha(alnpSeq[j])) 
+
+          if (isalpha(alnpSeq[j]))
             n++;
 	}
-      
-      if (n > (int)bc->alignArr->len / 2) 
+
+      if (n > (int)bc->alignArr->len / 2)
         retval++;
     }
 
@@ -4720,10 +4721,10 @@ void outputProbs(BelvuContext *bc, FILE *fil)
      Asp (D) 5.29   His (H) 2.23   Phe (F) 4.06   Tyr (Y) 3.21
      Cys (C) 1.70   Ile (I) 5.72   Pro (P) 4.91   Val (V) 6.52
   */
-  
+
   double f_sean[21] = {
-    0.0, 
-    .08713, .03347, .04687, .04953, .03977, .08861, .03362, .03689, .08048, .08536, 
+    0.0,
+    .08713, .03347, .04687, .04953, .03977, .08861, .03362, .03689, .08048, .08536,
     .01475, .04043, .05068, .03826, .04090, .06958, .05854, .06472, .01049, .02992
   };
 
@@ -4731,7 +4732,7 @@ void outputProbs(BelvuContext *bc, FILE *fil)
   int i = 0, c[21], n=0, nmat = 0;
   char *cp = NULL;
 
-  for (i = 1; i <= 20; i++) 
+  for (i = 1; i <= 20; i++)
     c[i] = 0;
 
   for (i = 0; i < (int)bc->alignArr->len; ++i)
@@ -4752,22 +4753,22 @@ void outputProbs(BelvuContext *bc, FILE *fil)
   if (!n)
     g_error("No residues found\n");
 
-  if (0) 
+  if (0)
     {
       nmat = getMatchStates(bc);	/* Approximation, HMM may differ slightly */
 
-      if (!nmat) 
+      if (!nmat)
         g_error("No match state columns found\n");
-      
+
       g_message("Amino\n");
-      
-      for (i = 1; i <= 20; i++) 
+
+      for (i = 1; i <= 20; i++)
         {
           /* One way:  p = ((double)c[i]/nmat + 20*f_sean[i]) / (double)(n/nmat+20);*/
           /* Other way: */
           p = ((double)c[i] + 20*f_sean[i]) / (double)(n+20);
 
-          if (p < 0.000001) 
+          if (p < 0.000001)
             p = 0.000001; /* Must not be zero */
 
           g_message("%f ", p);
@@ -4777,16 +4778,16 @@ void outputProbs(BelvuContext *bc, FILE *fil)
   else
     {
       g_message("Amino\n");
-      for (i = 1; i <= 20; ++i) 
+      for (i = 1; i <= 20; ++i)
         {
           p = (double)c[i] / (double)n;
           if (p < 0.000001) p = 0.000001; /* Must not be zero */
           g_message("%f ", p);
 	}
     }
-    
+
   g_message("\n");
-  
+
   fclose(fil);
   fflush(fil);
 
@@ -4806,21 +4807,21 @@ void listIdentity(BelvuContext *bc)
   int i=0,j=0,n=0 ;
   double totsc=0, maxsc=0, minsc=1000000,
          totid=0.0, maxid=0.0, minid=100.0;
-  
-  for (i = n = 0; i < (int)bc->alignArr->len - 1; ++i) 
+
+  for (i = n = 0; i < (int)bc->alignArr->len - 1; ++i)
     {
       /* Update the display periodically, otherwise the busy cursor might not
-       * get updated (e.g. if we were outside the main window when we set the 
+       * get updated (e.g. if we were outside the main window when we set the
        * cursor and the user later enters the window). */
       while (gtk_events_pending())
         gtk_main_iteration();
 
       ALN *alni = g_array_index(bc->alignArr, ALN*, i);
-      
+
       if (alni->markup > 0) /* ignore markup lines */
         continue;
 
-      for (j = i+1; j < (int)bc->alignArr->len; ++j) 
+      for (j = i+1; j < (int)bc->alignArr->len; ++j)
         {
           ALN *alnj = g_array_index(bc->alignArr, ALN*, j);
 
@@ -4830,26 +4831,26 @@ void listIdentity(BelvuContext *bc)
           double id = percentIdentity(alnGetSeq(alni), alnGetSeq(alnj), bc->penalize_gaps);
           totid += id;
 
-          if (id > maxid) 
+          if (id > maxid)
             maxid = id;
-          
-          if (id < minid) 
+
+          if (id < minid)
             minid = id;
-      
+
           double sc = score(alnGetSeq(alni), alnGetSeq(alnj), bc->penalize_gaps);
           totsc += sc;
-          
-          if (sc > maxsc) 
+
+          if (sc > maxsc)
             maxsc = sc;
-          
-          if (sc < minsc) 
+
+          if (sc < minsc)
             minsc = sc;
-          
+
           g_message("%s/%d-%d and %s/%d-%d are %.1f%% identical, score=%f\n",
                     alni->name, alni->start, alni->end,
                     alnj->name, alnj->start, alnj->end,
                     id, sc);
-          
+
           ++n;
         }
       g_message("\n");
@@ -4884,7 +4885,7 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       /* Get the URL from the enviroment var (or use the hard-coded default
        * value) */
       char  *env, url[1025]="";
-      
+
       if ((env = getenv(FETCH_URL_ENV_VAR)) )
 	strcpy(url, env);
       else
@@ -4893,10 +4894,10 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       /* Add the sequence name to the url. The URL should be a format string
        * containing '%s' for the name. */
       char *cp = strchr(url, '%');
-      
+
       if (cp)
         ++cp;
-      
+
       if (!cp || *cp != 's')
         {
           g_critical("Invalid URL string %s.\nThe URL must contain the search string \"%%s\", which will be replaced with the sequence name.\n", url);
@@ -4904,24 +4905,24 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       else
         {
           char *link = g_strdup_printf(url, alnp->name);
-          
+
           g_message_info("Opening URL: %s\n", link);
           seqtoolsLaunchWebBrowser(link, &error);
-          
+
           g_free(link);
         }
     }
   else
     {
       char  *env, fetchProg[1025]="";
-      
+
       if ((env = getenv(FETCH_PROG_ENV_VAR)) )
         strcpy(fetchProg, env);
       else
         strcpy(fetchProg, DEFAULT_FETCH_PROG);
 
       char *path = g_find_program_in_path(fetchProg);
-      
+
       if (!path)
         {
           g_warning("Executable '%s' not found in path: %s\n", fetchProg, getenv("PATH"));
@@ -4929,26 +4930,26 @@ void fetchAln(BelvuContext *bc, ALN *alnp)
       else
         {
           g_free(path);
-          
+
           char *cmd = g_strdup_printf("%s '%s' &", fetchProg, alnp->name);
-      
+
           GtkWidget *pfetchWin = externalCommand(cmd, BELVU_TITLE, bc->belvuAlignment, &error);
-      
+
           if (pfetchWin)
             {
               const gchar *env = g_getenv(FONT_SIZE_ENV_VAR);
               if (env)
                 widgetSetFontSizeAndCheck(pfetchWin, convertStringToInt(env));
-              
+
               /* Add the window to our list of spawned windows */
               bc->spawnedWindows = g_slist_prepend(bc->spawnedWindows, pfetchWin);
               g_signal_connect(G_OBJECT(pfetchWin), "destroy", G_CALLBACK(onDestroySpawnedWindow), bc);
             }
-      
+
           g_free(cmd);
         }
     }
-  
+
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 
 }
@@ -4994,4 +4995,3 @@ void setBusyCursor(BelvuContext *bc, const gboolean busy)
   while (gtk_events_pending())
     gtk_main_iteration();
 }
-
