@@ -1,29 +1,30 @@
 /*  File: dotterKarlin.c
  *  Author: Erik Sonnhammer, 1995-08-28
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2010 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -53,12 +54,12 @@
  * From blast/gish/fct/fct_powi.c
  */
 double fct_powi(double x, register int n)
-/* x  argument */ 
+/* x  argument */
 /* n  power */
 {
     int	i;
     double	y;
-    
+
     y = 1.;
     for (i = abs(n); i > 0; i /= 2) {
 	if (i&1)
@@ -78,11 +79,11 @@ double fct_powi(double x, register int n)
 long fct_gcd(long a, long b)
 {
     long	c;
-    
+
     b = abs(b);
     if (b > a)
 	c=a, a=b, b=c;
-    
+
     while (b != 0) {
 	c = a%b;
 	a = b;
@@ -101,13 +102,13 @@ long fct_gcd(long a, long b)
 double fct_expm1(double x)
 {
     double absx = ((x < 0) ? -x : x) ;
-    
+
     if (absx > .33)
 	return exp(x) - 1.;
-    
+
     if (absx < 1.e-16)
 	return x;
-    
+
     return x * (1. + x *
 		(0.5 + x * (1./6. + x *
 			    (1./24. + x * (1./120. + x *
@@ -123,7 +124,7 @@ double fct_expm1(double x)
 }
 
 
-/* etop() -- given an Expect value, return the associated probability 
+/* etop() -- given an Expect value, return the associated probability
  * From blast/blast/lib/etop.c
  */
 double etop(double E)
@@ -134,12 +135,12 @@ double etop(double E)
 
 /* From blast/blast/lib/karlin.c
  *
- *  long	low;	 	 Lowest score (must be negative)    
- *  long	high;		 Highest score (must be positive)   
- *  double	*pr;		 Probabilities for various scores   
- *  double	*lambda;	 Pointer to parameter lambda        
- *  double	*K;		 Pointer to parmeter K              
- *  double	*H;		 Pointer to parmeter H              
+ *  long	low;	 	 Lowest score (must be negative)
+ *  long	high;		 Highest score (must be positive)
+ *  double	*pr;		 Probabilities for various scores
+ *  double	*lambda;	 Pointer to parameter lambda
+ *  double	*K;		 Pointer to parmeter K
+ *  double	*H;		 Pointer to parmeter H
  */
 double karlin(long low, long high, double *pr, double *lambda, double *K, double *H)
 {
@@ -185,9 +186,9 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
 	of the highest scoring contiguous segment of this sequence.  Then if N
 	is sufficiently large (greater than 100), the following bound on the
 	probability that S is greater than or equal to x applies:
-	
+
 		P( S >= x )   <=   1 - exp [ - KN exp ( - lambda * x ) ].
-	
+
 	In other words, the p-value for this segment can be written as
 	1-exp[-KN*exp(-lambda*S)].
 
@@ -253,7 +254,7 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
 	for (sum=0,i=low; i<=high; ++i)
 	    sum += *ptr1++ * exp(up*i);
     } while (sum<1.0);
-    
+
     /* Root solving by the bisection method */
     for (*lambda=0., j=0; j<25; ++j) {
 	new_val = (*lambda+up)/2.0;
@@ -273,7 +274,7 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
     for (av=0, i=low; i<=high; ++i)
 	av += *ptr1++ *i*exp(*lambda*i);
     *H = *lambda*av;
-    
+
     /* Calculate the parameter K */
     if (low == -1 || high == 1) {
 	*K = (high == 1 ? av : Sum*Sum/av);
@@ -322,17 +323,17 @@ See:	Karlin, S. & Altschul, S.F. "Methods for Assessing the Statistical
 	oldsum *= ratio;
 	Sum += sum = oldsum / ++j;
     }
-    
+
     for (i=low; p[i-low] == 0.; ++i)
 	;
     for (j= -i;i<high && j>1;)
 	if (p[++i-low])
 	    j = fct_gcd(j,i);
-    
+
     *K = (j*exp(-2.*Sum))/(av*etop(*lambda * j));
 
 OKExit:
-	   
+
     g_free(p);
     g_free(P);
     return 0;		/* Parameters calculated successfully */
@@ -340,29 +341,29 @@ OKExit:
 
 
 /* Adapted from blastp.c */
-int winsizeFromlambdak(gint32 mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq, 
+int winsizeFromlambdak(gint32 mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq,
 		       double *exp_res_score, double *Lambda)
 {
-    gint32 
+    gint32
         lows=0, highs=0,
         range;
-  
-    int    
+
+    int
 	i, j,
 	*n1, *n2,
 	qlen=0, slen=0,
 	retval,
 	n = 100;		/* Nominal size of dot-matrix */
-    double  
+    double
 	*fq1, *fq2, *prob, K, H,
 	qij, exp_MSP_score, sum;
-    
-    
+
+
     n1 = (int *)g_malloc((abetsize+4)*sizeof(int));
     n2 = (int *)g_malloc((abetsize+4)*sizeof(int));
     fq1 = (double *)g_malloc((abetsize+4)*sizeof(double));
     fq2 = (double *)g_malloc((abetsize+4)*sizeof(double));
-    
+
 
     /* Find high and lows score in score matrix */
     for (i = 0; i < abetsize; ++i)
@@ -394,20 +395,20 @@ int winsizeFromlambdak(gint32 mtx[24][24], int *tob, int abetsize, const char *q
 	    slen++;
 	}
     }
-		    
+
 
     /* Convert counts to frequencies */
     for (i = 0; i < abetsize; ++i) {
 	fq1[i] = (double)n1[i] / qlen;
 	fq2[i] = (double)n2[i] / slen;
-    }	
-    
+    }
+
 
     /* Calculate probability of each score */
     range = highs - lows;
     prob = (double *)g_malloc(sizeof(double)*(range+1));
     for (i = 0; i <= range; ++i) prob[i] = 0.0;
-    
+
     for (i = 0; i < abetsize; ++i)
       {
 	for (j = 0; j < abetsize ; ++j)
@@ -421,7 +422,7 @@ int winsizeFromlambdak(gint32 mtx[24][24], int *tob, int abetsize, const char *q
 	g_critical("Setting ad hoc values to winsize=%d and expected score=%.3f", 25, *exp_res_score);
 	return 25;
       }
-    
+
 
     /* Calculate expected score per residue in MSP */
     *exp_res_score = sum = 0;
@@ -455,4 +456,3 @@ int winsizeFromlambdak(gint32 mtx[24][24], int *tob, int abetsize, const char *q
 
     return retval;
 }
- 

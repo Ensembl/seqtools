@@ -1,29 +1,30 @@
 /*  File: iupac.h
  *  Author: Fred Wobus, 1999-08-26
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2010 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -42,7 +43,7 @@
 
 int PAM120[23][23] =
   {
-    /*A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V   B   Z   X */ 
+    /*A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V   B   Z   X */
     { 3, -3, -1,  0, -3, -1,  0,  1, -3, -1, -3, -2, -2, -4,  1,  1,  1, -7, -4,  0,  1,  0, -1},
     {-3,  6, -1, -3, -4,  1, -3, -4,  1, -2, -4,  2, -1, -5, -1, -1, -2,  1, -5, -3, -1,  0, -1},
     {-1, -1,  4,  2, -5,  0,  1,  0,  2, -2, -4,  1, -3, -4, -2,  1,  0, -4, -2, -3,  4,  1, -1},
@@ -86,7 +87,7 @@ int aa_atob[]	/* ASCII-to-binary translation table */
 	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
 	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
 	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA 
+	NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
 };
 
 
@@ -153,7 +154,7 @@ struct iupactype
  * H = A/C/T (all but G)    D = T/G/A
  * V = G/C/A (all but T)    B = C/G/T
  * N = A/G/C/T (any)        N = A/G/C/T
- */ 
+ */
 #define IUPACSYMNUM 17
 struct iupactype iupac[IUPACSYMNUM] =
   {

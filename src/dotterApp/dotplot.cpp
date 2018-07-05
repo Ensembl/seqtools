@@ -1,29 +1,30 @@
 /*  File: dotplot.c
  *  Author: Gemma Barson, 2010-09-08
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2010 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -51,13 +52,13 @@ using namespace std;
 
 #define PIXELS_PER_MARK_X                           100   /* number of pixels between each major tick mark on the x scale */
 #define PIXELS_PER_MARK_Y                           50    /* number of pixels between each major tick mark on the y scale */
-#define CROSSHAIR_TEXT_PADDING                      5     /* padding between the crosshair and the coord display text */ 
+#define CROSSHAIR_TEXT_PADDING                      5     /* padding between the crosshair and the coord display text */
 #define ANNOTATION_LABEL_PADDING		    5	  /* padding around annotation labels, if shown */
 
-/* max width / height to allow for a gdk image. Guesstimate based on the fact that 
+/* max width / height to allow for a gdk image. Guesstimate based on the fact that
  * it blacks out the lower part of the plot (overdraws on it?) if we allow more than this.
  * gb10: this was 16000 but reducing it because some users are seeing crashing with long, skinny plots. */
-#define MAX_IMAGE_DIMENSION                         12000 
+#define MAX_IMAGE_DIMENSION                         12000
 
 
 int atob_0[]	/* NEW (starting at 0) ASCII-to-binary translation table */
@@ -78,7 +79,7 @@ NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
 NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
 NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
 NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,
-NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR 
+NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR
 };
 
 //static int atob[]	/* OLD (starting at 1) ASCII-to-binary translation table  (Inherited from blast) */
@@ -99,7 +100,7 @@ NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR,NR
 //NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
 //NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
 //NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA 
+//NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
 //};
 
 char aa_btoa[]	/* binary-to-ASCII translation table */
@@ -196,7 +197,7 @@ DotplotProperties* dotplotGetProperties(GtkWidget *widget)
 static void onDestroyDotplot(GtkWidget *widget)
 {
   DotplotProperties *properties = dotplotGetProperties(widget);
-  
+
   if (properties)
     {
       if (properties->pixelmap)
@@ -216,7 +217,7 @@ static void onDestroyDotplot(GtkWidget *widget)
         gdk_image_unref(properties->image);
         properties->image = NULL;
       }
-    
+
       delete properties;
       properties = NULL;
       g_object_set_data(G_OBJECT(widget), "DotplotProperties", NULL);
@@ -240,18 +241,18 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
   properties->hozExons2 = NULL;
   properties->vertExons1 = NULL;
   properties->vertExons2 = NULL;
-  
+
   properties->plotRect.x = 0;
   properties->plotRect.y = 0;
   properties->plotRect.width = 0;
   properties->plotRect.height = 0;
-  
+
   if (widget) /* only create colormap if we have a widget (i.e. we're not in batch/non-graphical mode) */
     {
       properties->colorMap = insertGreyRamp(properties);
       gtk_widget_set_default_colormap(properties->colorMap);
     }
-  
+
   properties->image = NULL;
 
   properties->pixelmap = NULL;
@@ -263,7 +264,7 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
 
   properties->pixelmapOn = !hspsOn;
   properties->hspMode = hspsOn ? DOTTER_HSPS_LINE : DOTTER_HSPS_OFF;
-  
+
   properties->gridlinesOn = FALSE;
   properties->breaklinesOn = breaklinesOn;
   properties->hozLabelsOn = TRUE;
@@ -273,15 +274,15 @@ static DotplotProperties* dotplotCreateProperties(GtkWidget *widget,
   properties->dragStart.y = UNSET_INT;
   properties->dragEnd.x = UNSET_INT;
   properties->dragEnd.y = UNSET_INT;
-      
+
   properties->exportFileName = exportFileName;
 
   if (widget)
     {
       g_object_set_data(G_OBJECT(widget), "DotplotProperties", properties);
-      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyDotplot), NULL); 
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyDotplot), NULL);
     }
-  
+
   properties->hozScale.basesPerMark = 0;
   properties->hozScale.basesPerSubmark = 0;
   properties->hozScale.numMarks = 0;
@@ -311,7 +312,7 @@ DotterHspMode dotplotGetHspMode(GtkWidget *dotplot)
   DEBUG_ENTER("dotplotGetHspMode");
 
   DotplotProperties *properties = dotplotGetProperties(dotplot);
-  
+
   DEBUG_EXIT("dotplotGetHspMode returning ");
   return properties->hspMode;
 }
@@ -326,7 +327,7 @@ gboolean dotplotSetSlidingWinSize(GtkWidget *dotplot, const int newValue, GError
 {
   gboolean changed = FALSE;
   DotplotProperties *properties = dotplotGetProperties(dotplot);
-  
+
   if (newValue <= 0)
     {
       g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_INVALID_WIN_SIZE, "Sliding window size must be greater than 0.\n");
@@ -336,7 +337,7 @@ gboolean dotplotSetSlidingWinSize(GtkWidget *dotplot, const int newValue, GError
       properties->slidingWinSize = newValue;
       changed = TRUE;
     }
-  
+
   return changed;
 }
 
@@ -417,16 +418,16 @@ static void initPixmap(unsigned char **pixmap, const int width, const int height
 
   if (*pixmap)
     g_free(*pixmap);
-  
+
   const int pixelmapLen = width  * height;
   *pixmap = (unsigned char *)g_malloc(sizeof(unsigned char*) * pixelmapLen);
-  
+
   int i = 0;
   for (i=0; i < pixelmapLen; i++)
     {
       (*pixmap)[i] = 0;
     }
-  
+
   DEBUG_EXIT("initPixmap returning ");
 }
 
@@ -435,9 +436,9 @@ static void initPixmap(unsigned char **pixmap, const int width, const int height
 static void resetPixmapBackground(unsigned char *pixmap, DotplotProperties *properties)
 {
   const int pixelmapLen = properties->image->width * properties->image->height;
-  
+
   int i = 0;
-  for (i = 0; i < pixelmapLen; i++) 
+  for (i = 0; i < pixelmapLen; i++)
     {
       pixmap[i] = 0;
     }
@@ -449,9 +450,9 @@ void setHspMode(GtkWidget *dotplot, DotterHspMode hspMode)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  
+
   properties->hspMode = hspMode;
-  
+
   if (properties->hspMode)
     {
       if (!properties->hspPixmap)
@@ -459,13 +460,13 @@ void setHspMode(GtkWidget *dotplot, DotterHspMode hspMode)
           /* The HSP pixelmap doesn't exist yet so create it */
           initPixmap(&properties->hspPixmap, properties->image->width, properties->image->height);
         }
-      
+
       /* For greyscale mode, loop through all match MSPs and set the pixel strength */
-      if (properties->hspMode == DOTTER_HSPS_GREYSCALE) 
+      if (properties->hspMode == DOTTER_HSPS_GREYSCALE)
         {
           resetPixmapBackground(properties->hspPixmap, properties);
           MSP *msp = dc->mspList;
-          
+
           for ( ; msp; msp = msp->next)
             {
               const char *mspName = getShortMspName(msp);
@@ -474,15 +475,15 @@ void setHspMode(GtkWidget *dotplot, DotterHspMode hspMode)
                   /* Not an MSP from our match sequence */
                   continue;
                 }
-              
+
               int sx, ex, sy, ey;
               getMspScreenCoords(msp, properties, &sx, &ex, &sy, &ey);
-              
+
               /* Draw as greyscale pixmap */
               const int strength = (int)msp->score;
               calculateImageHsps(strength, sx, sy, ex, ey, properties);
             }
-          
+
           /* Overwrite the image with the HSP pixmap */
           transformGreyRampImage(properties->image, properties->hspPixmap, properties);
         }
@@ -492,17 +493,17 @@ void setHspMode(GtkWidget *dotplot, DotterHspMode hspMode)
     {
       /* Make sure the dot-plot pixmap is set (we may have overwritten it if the previous mode
        * was HSP_GREYSCALE). */
-      
+
       if (!properties->pixelmap)
         {
           /* The dot-plot pixelmap doesn't exist yet so create it */
           initPixmap(&properties->pixelmap, properties->image->width, properties->image->height);
           calculateImage(properties);
         }
-      
+
       transformGreyRampImage(properties->image, properties->pixelmap, properties);
     }
-  
+
   widgetClearCachedDrawable(dotplot, NULL);
   gtk_widget_queue_draw(dotplot);
 }
@@ -524,21 +525,21 @@ void dotplotTogglePixelmap(GtkWidget *dotplot)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   properties->pixelmapOn = !properties->pixelmapOn;
-  
+
   if (!properties->pixelmap)
     {
       /* The dot-plot pixelmap doesn't exist yet so create it */
       initPixmap(&properties->pixelmap, properties->image->width, properties->image->height);
       calculateImage(properties);
     }
-  
+
   if (properties->hspMode != DOTTER_HSPS_GREYSCALE)
     {
       /* Make sure the image has the dot-plot pixels, not the HSP pixels, which might previously
        * have overwritten it */
       transformGreyRampImage(properties->image, properties->pixelmap, properties);
     }
-  
+
   widgetClearCachedDrawable(dotplot, NULL);
   gtk_widget_queue_draw(dotplot);
 }
@@ -549,12 +550,12 @@ void toggleCrosshairOn(GtkWidget *dotplot)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   properties->crosshairOn = !properties->crosshairOn;
-  
+
   exonViewSetShowCrosshair(properties->hozExons1, properties->crosshairOn && properties->crosshairFullscreen);
   exonViewSetShowCrosshair(properties->hozExons2, properties->crosshairOn && properties->crosshairFullscreen);
   exonViewSetShowCrosshair(properties->vertExons1, properties->crosshairOn && properties->crosshairFullscreen);
   exonViewSetShowCrosshair(properties->vertExons2, properties->crosshairOn && properties->crosshairFullscreen);
-  
+
   refreshDotplot(dotplot);
 }
 
@@ -569,7 +570,7 @@ void toggleCrosshairFullscreen(GtkWidget *dotplot)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   properties->crosshairFullscreen = !properties->crosshairFullscreen;
-  
+
   exonViewSetShowCrosshair(properties->hozExons1, properties->crosshairOn && properties->crosshairFullscreen);
   exonViewSetShowCrosshair(properties->hozExons2, properties->crosshairOn && properties->crosshairFullscreen);
   exonViewSetShowCrosshair(properties->vertExons1, properties->crosshairOn && properties->crosshairFullscreen);
@@ -604,14 +605,14 @@ static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpoin
           bitmap = createBlankPixmap(dotplot);
           drawDotplot(dotplot, bitmap);
         }
-      
+
       if (bitmap)
         {
           /* Push the bitmap onto the window */
           GdkGC *gc = gdk_gc_new(window);
           gdk_draw_drawable(window, gc, bitmap, 0, 0, 0, 0, -1, -1);
           g_object_unref(gc);
-          
+
           /* Draw anything else that needs to be refreshed on each expose */
           dotplotDrawCrosshair(dotplot, window);
           drawRubberBand(dotplot, window);
@@ -620,14 +621,14 @@ static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpoin
 
   if (properties->exportFileName)
     {
-      /* We're in batch mode and have been asked to export the plot to pdf; print it, 
+      /* We're in batch mode and have been asked to export the plot to pdf; print it,
       * and then quit */
       GError *error = NULL;
       exportPlot(dotplot, GTK_WINDOW(gtk_widget_get_toplevel(dotplot)), properties->exportFileName, &error);
       gtk_main_quit();
     }
 
-  
+
   return TRUE;
 }
 
@@ -635,7 +636,7 @@ static gboolean onExposeDotplot(GtkWidget *dotplot, GdkEventExpose *event, gpoin
 static gboolean onButtonPressDotplot(GtkWidget *dotplot, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   if (event->type == GDK_BUTTON_PRESS && event->button == 1) /* left click */
     {
       setCoordsFromPos(dotplot, event->x, event->y);
@@ -648,7 +649,7 @@ static gboolean onButtonPressDotplot(GtkWidget *dotplot, GdkEventButton *event, 
       setPoint(&properties->dragStart, event->x, event->y, &properties->plotRect);
       handled = TRUE;
     }
-  
+
   return handled;
 }
 
@@ -657,18 +658,18 @@ static gboolean onButtonPressDotplot(GtkWidget *dotplot, GdkEventButton *event, 
 static gboolean onButtonReleaseDotplot(GtkWidget *dotplot, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   if (event->type == GDK_BUTTON_RELEASE && event->button == 2) /* middle click */
     {
       /* Call dotter on the selected region */
       DotplotProperties *properties = dotplotGetProperties(dotplot);
       DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-      
+
       if (properties->dragStart.x != UNSET_INT && properties->dragEnd.x != UNSET_INT)
         {
           /* Get the sequence coords for the start and end of the drag rectangle. */
-	  const gdouble zoomFactor = 0; 
-	
+	  const gdouble zoomFactor = 0;
+
 	  int qStart, qEnd, sStart, sEnd;
 	  getCoordsFromPos(dotplot, properties->dragStart.x, properties->dragStart.y, &qStart, &sStart);
 	  getCoordsFromPos(dotplot, properties->dragEnd.x, properties->dragEnd.y, &qEnd, &sEnd);
@@ -676,7 +677,7 @@ static gboolean onButtonReleaseDotplot(GtkWidget *dotplot, GdkEventButton *event
 	  IntRange qRange, sRange;
 	  qRange.set(qStart, qEnd);
 	  sRange.set(sStart, sEnd);
-	
+
           /* Ignore small mouse moves as they are likely to be accidental or cancelled clicks */
           if (qRange.max() - qRange.min() > 10 && sRange.max() - sRange.min() > 10)
             {
@@ -684,15 +685,15 @@ static gboolean onButtonReleaseDotplot(GtkWidget *dotplot, GdkEventButton *event
               callDotterInternal(dc, &qRange, &sRange, zoomFactor, properties->breaklinesOn) ;
             }
         }
-      
+
       /* Clear drag */
       setPoint(&properties->dragStart, UNSET_INT, UNSET_INT, NULL);
       setPoint(&properties->dragEnd, UNSET_INT, UNSET_INT, NULL);
-      
+
       gtk_widget_queue_draw(dotplot);
       handled = TRUE;
     }
-  
+
   return handled;
 }
 
@@ -701,7 +702,7 @@ static gboolean onButtonReleaseDotplot(GtkWidget *dotplot, GdkEventButton *event
 static gboolean onMouseMoveDotplot(GtkWidget *dotplot, GdkEventMotion *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   if (event->state & GDK_BUTTON1_MASK)  /* left-drag */
     {
       setCoordsFromPos(dotplot, event->x, event->y);
@@ -714,7 +715,7 @@ static gboolean onMouseMoveDotplot(GtkWidget *dotplot, GdkEventMotion *event, gp
       gtk_widget_queue_draw(dotplot);
       handled = TRUE;
     }
-  
+
   return handled;
 }
 
@@ -730,11 +731,11 @@ static int getImageDimension(DotplotProperties *properties, const gboolean horiz
 
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  
+
   const IntRange* const seqRange = horizontal ? &dwc->refSeqRange : &dwc->matchSeqRange;
   const int seqLen = seqRange->length();
   DEBUG_OUT("Sequence length = %d\n", seqLen);
-  
+
   int imageLen = (int)ceil((double)seqLen / getScaleFactor(properties, horizontal));
   DEBUG_OUT("Image length = %d\n", imageLen);
 
@@ -742,10 +743,10 @@ static int getImageDimension(DotplotProperties *properties, const gboolean horiz
     {
       g_critical("seqLen/resfac > imageLen * zoom (%d > %d (%d*%f))", seqLen / dc->numFrames, (int)(imageLen * dwc->zoomFactor), imageLen, dwc->zoomFactor);
     }
-  
+
   DEBUG_EXIT("getImageDimension returning ");
   return imageLen;
-}  
+}
 
 
 /* Set the coords for the initial crosshair position. Use the given coords if in range, or
@@ -760,7 +761,7 @@ static void initCrosshairCoords(const int qcenter, const int scenter, DotterWind
     {
       dwc->refCoord = dwc->refSeqRange.centre();
     }
-  
+
   if (valueWithinRange(qcenter, &dwc->matchSeqRange))
     {
       dwc->matchCoord = qcenter;
@@ -787,11 +788,11 @@ static GdkImage* createImage(DotplotProperties *properties)
       dwc->zoomFactor = ceil((double)origLen / (double)properties->imageWidth); /* adjust zoom so we can still show the original range */
 
       properties->imageWidth = getImageDimension(properties, TRUE);   /* rounds the new value to the nearest 4 etc. */
-      properties->imageHeight = getImageDimension(properties, FALSE); 
+      properties->imageHeight = getImageDimension(properties, FALSE);
 
       g_warning("Image too wide - setting zoom to %d\n", (int)dwc->zoomFactor);
     }
-  
+
   if (properties->imageHeight > MAX_IMAGE_DIMENSION)
     {
       int origLen = properties->imageHeight * dwc->zoomFactor;
@@ -813,7 +814,7 @@ static GdkImage* createImage(DotplotProperties *properties)
 
 
 /* Create the actual drawing area for the dotplot */
-static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc, 
+static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
                                            const char *loadFileName,
                                            const char *saveFileName,
                                            const char *exportFileName,
@@ -833,26 +834,26 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
   gboolean showPlot = (exportFileName || !batch);
 
   GtkWidget *dotplot = (showPlot ? gtk_layout_new(NULL, NULL) : NULL);
-  
+
   DotplotProperties *properties = dotplotCreateProperties(dotplot, dwc, hspsOn, breaklinesOn, exportFileName);
-  
+
   if (loadFileName)
     {
       /* Load existing dotplot file (initialises and populates the pixmap) */
       GError *error = NULL;
       loadPlot(dotplot, loadFileName, &error);
-      
+
       prefixError(error, "Error loading dot plot. ");
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
-  else 
+  else
     {
       initWindow(initWinsize, properties);
-      
-      /* Set pixelFac so that expResScore is at 1/5 of the range. 
+
+      /* Set pixelFac so that expResScore is at 1/5 of the range.
        * This positions expResScore at 51.2 */
       properties->pixelFac = pixelFacIn ? pixelFacIn : 0.2 * NUM_COLORS / properties->expResScore;
-      
+
       /* Calculate the image size */
       properties->imageWidth = getImageDimension(properties, TRUE);
       properties->imageHeight = getImageDimension(properties, FALSE);
@@ -862,9 +863,9 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
         properties->image = createImage(properties);
 
       DEBUG_OUT("Set image w=%d, h=%d\n", properties->imageWidth, properties->imageHeight);
-      
+
       unsigned char **pixmap = NULL; /* which pixelmap we're displaying at the start */
-      
+
       if (properties->hspMode == DOTTER_HSPS_GREYSCALE)
         {
           pixmap = &properties->hspPixmap;
@@ -876,18 +877,18 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
           initPixmap(pixmap, properties->imageWidth, properties->imageHeight);
           calculateImage(properties);
         }
-      
+
       /* Push the pixelmap to the GdkImage */
       if (showPlot && pixmap)
         transformGreyRampImage(properties->image, *pixmap, properties);
     }
-  
+
   if (saveFileName)
     {
       /* Batch mode: save the dot matrix;  */
       GError *error = NULL;
       savePlot(dotplot, properties, saveFileName, &error);
-      
+
       prefixError(error, "Error saving dot plot. ");
       reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
     }
@@ -901,7 +902,7 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
       /* Calculate the size of the dot-plot */
       calculateDotplotBorders(dotplot, properties);
     }
-  
+
   DEBUG_EXIT("createDotplotDrawingArea returning ");
   return dotplot;
 }
@@ -909,7 +910,7 @@ static GtkWidget* createDotplotDrawingArea(DotterWindowContext *dwc,
 
 /* Put all the dotplot and exon widgets in a table. The table gets put in a
  * scrolled window and the scrolled window is returned. */
-static GtkWidget* createDotplotTable(GtkWidget *dotplotCont, 
+static GtkWidget* createDotplotTable(GtkWidget *dotplotCont,
                                      GtkWidget *hozExons1,
                                      GtkWidget *hozExons2,
                                      GtkWidget *vertExons1,
@@ -919,20 +920,20 @@ static GtkWidget* createDotplotTable(GtkWidget *dotplotCont,
   const int ypad = 0;
   const int numRows = 4;
   const int numCols = 4;
-  
+
   GtkTable *table = GTK_TABLE(gtk_table_new(numRows, numCols, FALSE));
-  
+
   gtk_table_attach(table, dotplotCont, 1, 2, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
   gtk_table_attach(table, vertExons1, 2, 3, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
   gtk_table_attach(table, vertExons2, 3, 4, 1, 2, GTK_FILL, GTK_FILL, xpad, ypad);
   gtk_table_attach(table, hozExons1, 1, 2, 2, 3, GTK_FILL, GTK_FILL, xpad, ypad);
   gtk_table_attach(table, hozExons2, 1, 2, 3, 4, GTK_FILL, GTK_FILL, xpad, ypad);
-  
+
   /* Put the table in a scrolled window with a horizontal scrollbar */
   GtkWidget *scrollWin = gtk_scrolled_window_new(NULL, NULL);
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin), GTK_WIDGET(table));
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-  
+
   return GTK_WIDGET(scrollWin);
 }
 
@@ -945,8 +946,8 @@ static BlxStrand getOppositeStrand(BlxStrand strand)
 
 
 /* Create the exons view widgets for dotter */
-static void createDotterExonViews(GtkWidget *dotplot, 
-                                  DotterWindowContext *dwc, 
+static void createDotterExonViews(GtkWidget *dotplot,
+                                  DotterWindowContext *dwc,
                                   GtkWidget **hozExons1,
                                   GtkWidget **hozExons2,
                                   GtkWidget **vertExons1,
@@ -957,47 +958,47 @@ static void createDotterExonViews(GtkWidget *dotplot,
   const gboolean showCrosshair = properties->crosshairOn && properties->crosshairFullscreen;
 
   /* The strand that was passed to dotter is the main strand, so show that first */
-  *hozExons1 = createDotterExonView(dotplot, 
+  *hozExons1 = createDotterExonView(dotplot,
                                     NULL,
                                     TRUE,
-                                    dc->refSeqStrand, 
-                                    dwc, 
+                                    dc->refSeqStrand,
+                                    dwc,
                                     properties->imageWidth,
                                     properties->imageHeight,
-                                    &dwc->refSeqRange, 
+                                    &dwc->refSeqRange,
                                     showCrosshair,
                                     &properties->hozExons1);
-  
-  *hozExons2 = createDotterExonView(dotplot, 
+
+  *hozExons2 = createDotterExonView(dotplot,
                                     NULL,
                                     TRUE,
-                                    getOppositeStrand(dc->refSeqStrand), 
-                                    dwc, 
-                                    properties->imageWidth, 
+                                    getOppositeStrand(dc->refSeqStrand),
+                                    dwc,
+                                    properties->imageWidth,
                                     properties->imageHeight,
-                                    &dwc->refSeqRange, 
-                                    showCrosshair, 
+                                    &dwc->refSeqRange,
+                                    showCrosshair,
                                     &properties->hozExons2);
-  
-  *vertExons1 = createDotterExonView(dotplot, 
-                                     NULL, 
+
+  *vertExons1 = createDotterExonView(dotplot,
+                                     NULL,
                                      FALSE,
-                                     dc->matchSeqStrand, 
-                                     dwc, 
+                                     dc->matchSeqStrand,
+                                     dwc,
                                      properties->imageWidth,
                                      properties->imageHeight,
                                      &dwc->matchSeqRange,
                                      showCrosshair,
                                      &properties->vertExons1);
 
-  *vertExons2 = createDotterExonView(dotplot, 
-                                     NULL, 
+  *vertExons2 = createDotterExonView(dotplot,
+                                     NULL,
                                      FALSE,
                                      getOppositeStrand(dc->matchSeqStrand),
-                                     dwc, 
-                                     properties->imageWidth, 
+                                     dwc,
+                                     properties->imageWidth,
                                      properties->imageHeight,
-                                     &dwc->matchSeqRange, 
+                                     &dwc->matchSeqRange,
                                      showCrosshair,
                                      &properties->vertExons2);
 }
@@ -1005,9 +1006,9 @@ static void createDotterExonViews(GtkWidget *dotplot,
 
 /* Create the drawing area for the dot plot. The 'dotplot' output arg is populated with the
  * actual drawing area; the return arg is the overall container widget for the dot plot that will
- * be packed into the dotter window UNLESS we're running in batch mode, in which case the return 
+ * be packed into the dotter window UNLESS we're running in batch mode, in which case the return
  * will be no widgets displayed to the user. */
-GtkWidget* createDotplot(DotterWindowContext *dwc, 
+GtkWidget* createDotplot(DotterWindowContext *dwc,
                          const char *loadFileName,
                          const char *saveFileName,
                          const char *exportFileName,
@@ -1044,7 +1045,7 @@ GtkWidget* createDotplot(DotterWindowContext *dwc,
 
   /* Put everything in a table */
   GtkWidget *parent = createDotplotTable(*dotplot, hozExons1, hozExons2, vertExons1, vertExons2);
-  
+
   gtk_widget_add_events(*dotplot, GDK_BUTTON_PRESS_MASK);
   gtk_widget_add_events(*dotplot, GDK_BUTTON_RELEASE_MASK);
   gtk_widget_add_events(*dotplot, GDK_POINTER_MOTION_MASK);
@@ -1066,13 +1067,13 @@ static void clearPixmaps(DotplotProperties *properties)
       gdk_image_unref(properties->image);
       properties->image = NULL;
     }
-  
+
   if (properties->pixelmap)
     {
       g_free(properties->pixelmap);
       properties->pixelmap = NULL;
     }
-  
+
   if (properties->hspPixmap)
     {
       g_free(properties->hspPixmap);
@@ -1092,16 +1093,16 @@ static int getAlphabetSize(const BlxSeqType seqType)
 static void initWindow(const char *winsizeIn, DotplotProperties *properties)
 {
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  
+
   double exp1, exp2, exp3, lambda;
   int win1, win2, win3;
-  
+
   const int alphabetSize = getAlphabetSize(dc->displaySeqType);
-  
+
   /* Call winsizeFromlambdak even if we don't want to set the window
    size in order to get the other parameters (properties->expResScore) */
-  
-  if (dc->blastMode == BLXMODE_BLASTX) 
+
+  if (dc->blastMode == BLXMODE_BLASTX)
     {
       win1 = winsizeFromlambdak(dc->matrix, atob_0, alphabetSize, dc->peptideSeqs[0], dc->matchSeq, &exp1, &lambda);
       win2 = winsizeFromlambdak(dc->matrix, atob_0, alphabetSize, dc->peptideSeqs[1], dc->matchSeq, &exp2, &lambda);
@@ -1117,16 +1118,16 @@ static void initWindow(const char *winsizeIn, DotplotProperties *properties)
     {
       properties->slidingWinSize = winsizeFromlambdak(dc->matrix, atob_0, alphabetSize, dc->refSeq, dc->matchSeq, &properties->expResScore, &lambda);
     }
-  
-  if (!winsizeIn || toupper(*winsizeIn) == 'K') 
+
+  if (!winsizeIn || toupper(*winsizeIn) == 'K')
     {
-      if (properties->slidingWinSize < 3) 
+      if (properties->slidingWinSize < 3)
         {
           g_critical("Karlin/Altschul estimate of window size = %d ignored. Using 10 instead.\n", properties->slidingWinSize);
           properties->slidingWinSize = 10;
         }
-      
-      if (properties->slidingWinSize > 50) 
+
+      if (properties->slidingWinSize > 50)
         {
           g_critical("Karlin/Altschul estimate of window size = %d ignored. Using 50 instead.\n", properties->slidingWinSize);
           properties->slidingWinSize = 50;
@@ -1138,7 +1139,7 @@ static void initWindow(const char *winsizeIn, DotplotProperties *properties)
         {
           g_error("Bad window size specification: %s\n", winsizeIn);
         }
-      
+
       properties->slidingWinSize = atoi(winsizeIn);
     }
 }
@@ -1160,13 +1161,13 @@ static char getHozSeqBase(DotterWindowContext *dwc, const int idx, const int fra
     {
       /* Reverse the sequence if the scale is reversed */
       const int coord = dc->hozScaleRev ? dwc->refSeqRange.max() - idx : dwc->refSeqRange.min() + idx;
-      
+
       /* Complement the sequence if it's the reverse strand */
       const gboolean complement = (dc->refSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->hozScaleRev);
 
       result = getSequenceIndex(dc->refSeq, coord, complement, &dc->refSeqFullRange, dc->refSeqType);
     }
-  
+
   return result;
 }
 
@@ -1181,7 +1182,7 @@ static char getVertSeqBase(DotterWindowContext *dwc, const int idx)
   const int coord = dc->vertScaleRev ? dwc->matchSeqRange.max() - idx : dwc->matchSeqRange.min() + idx;
 
   const gboolean complement = (dc->matchSeqStrand == BLXSTRAND_REVERSE && dc->refSeqType == BLXSEQ_DNA && dc->vertScaleRev);
-  
+
   return getSequenceIndex(dc->matchSeq, coord, complement, &dc->matchSeqFullRange, dc->matchSeqType);
 }
 
@@ -1190,8 +1191,8 @@ static char getVertSeqBase(DotterWindowContext *dwc, const int idx)
 static void populateMatchSeqBinaryVals(DotterWindowContext *dwc, const int slen, const int translationTable[], int *sIndex)
 {
   int sIdx = 0;
-  
-  for ( ; sIdx < slen; ++sIdx) 
+
+  for ( ; sIdx < slen; ++sIdx)
     {
       const char sBase = getVertSeqBase(dwc, sIdx);
       const int asciiVal = (int)sBase;
@@ -1206,7 +1207,7 @@ static void populateMatchSeqBinaryVals(DotterWindowContext *dwc, const int slen,
 static void createScoreVec(DotterWindowContext *dwc, const int vecLen, const int qlen, BlxHandle *handle, gint32 ***scoreVecPtr)
 {
   DotterContext *dc = dwc->dotterCtx;
-  
+
   *scoreVecPtr = (gint32**)handleAlloc(handle, vecLen * sizeof(int*));
   gint32 **scoreVec = *scoreVecPtr;
 
@@ -1221,7 +1222,7 @@ static void createScoreVec(DotterWindowContext *dwc, const int vecLen, const int
     {
       /* Populate non-protein symbols in scorevector */
       int qIdx = 0;
-      for (qIdx = 0; qIdx < qlen; ++qIdx) 
+      for (qIdx = 0; qIdx < qlen; ++qIdx)
         {
           scoreVec[vecLen - 1][qIdx] = dc->matrix[vecLen - 2][vecLen - 2];
         }
@@ -1232,7 +1233,7 @@ static void createScoreVec(DotterWindowContext *dwc, const int vecLen, const int
 static void populateScoreVec(DotterWindowContext *dwc, const int vecLen, const int qlen, const int frame, const int offset, const int translationTable[], int **scoreVec)
 {
   DotterContext *dc = dwc->dotterCtx;
-  
+
   /* Loop through each row */
   int rowIdx = 0;
   for (rowIdx = 0; rowIdx < vecLen - 1; ++rowIdx)
@@ -1245,7 +1246,7 @@ static void populateScoreVec(DotterWindowContext *dwc, const int vecLen, const i
           const int asciiVal = (int)qBase;
           const int aminoAcidId = translationTable[asciiVal];
           const gint32 score = dc->matrix[rowIdx][aminoAcidId]; /* score of this base in the q seq wrt the current amino acid ID 'i' */
-          
+
           scoreVec[rowIdx][qIdx] = score;
         }
     }
@@ -1256,7 +1257,7 @@ static void populateScoreVec(DotterWindowContext *dwc, const int vecLen, const i
 static int* getTranslationTable(const BlxSeqType seqType, const BlxStrand strand)
 {
   int *result = NULL;
-  
+
   if (seqType == BLXSEQ_PEPTIDE)
     {
       result = atob_0;
@@ -1265,7 +1266,7 @@ static int* getTranslationTable(const BlxSeqType seqType, const BlxStrand strand
     {
       result = (strand == BLXSTRAND_REVERSE ? ntob_compl : ntob);
     }
-     
+
   return result;
 }
 
@@ -1273,10 +1274,10 @@ static int* getTranslationTable(const BlxSeqType seqType, const BlxStrand strand
 static int* getRowToDelete(const int sIdx, const int slen, const int *sIndex, int **scoreVec, int *zero, const int slidingWinSize, const BlxStrand strand)
 {
   int *delrow = NULL;
-  
+
   if (strand == BLXSTRAND_REVERSE)
     {
-      if (sIdx < slen - slidingWinSize) 
+      if (sIdx < slen - slidingWinSize)
         {
           delrow = scoreVec[sIndex[sIdx + slidingWinSize]];
         }
@@ -1287,7 +1288,7 @@ static int* getRowToDelete(const int sIdx, const int slen, const int *sIndex, in
     }
   else
     {
-      if (sIdx >= slidingWinSize) 
+      if (sIdx >= slidingWinSize)
         {
           delrow = scoreVec[sIndex[sIdx - slidingWinSize]];
         }
@@ -1295,16 +1296,16 @@ static int* getRowToDelete(const int sIdx, const int slen, const int *sIndex, in
         {
           delrow = zero;
         }
-    } 
-  
+    }
+
   return delrow;
 }
 
 
 /* This does the work for calculateImage, for a particular strand and reading frame of the reference sequence */
-static void doCalculateImage(const BlxStrand qStrand, 
-                             const int incrementVal, 
-                             const int sStart, 
+static void doCalculateImage(const BlxStrand qStrand,
+                             const int incrementVal,
+                             const int sStart,
                              const int frame,
                              DotterWindowContext *dwc,
                              DotplotProperties *properties,
@@ -1324,46 +1325,46 @@ static void doCalculateImage(const BlxStrand qStrand,
   const int pixelmapLen = properties->imageWidth * properties->imageHeight;
 
   int qIdx, sIdx, qmax, dotpos, dotposq, dotposs;
-  
+
   int *newsum;	/* The current row of scores being calculated */
   int *oldsum;	/* Remembers the previous row of calculated scores */
   int *delrow;	/* Pointer to the row in scoreVec to subtract */
   int *addrow;	/* Pointer to the row in scoreVec to add */
-  
+
   /* Reset the sum vectors */
   int idx = 0;
-  for ( ; idx < pepQSeqLen; ++idx) 
+  for ( ; idx < pepQSeqLen; ++idx)
     {
       sum1[idx] = 0;
       sum2[idx] = 0;
     }
-  
-  /* Get the range of valid calculations (excluding the initial sliding window size, where we don't have enough 
+
+  /* Get the range of valid calculations (excluding the initial sliding window size, where we don't have enough
    * info to calculate the average properly - exclude the winsize at the start if fwd or the end if reverse) */
   IntRange validRange;
   validRange.set(qStrand == BLXSTRAND_REVERSE ? 0 : properties->slidingWinSize,
                  qStrand == BLXSTRAND_REVERSE ? slen - properties->slidingWinSize : slen);
-  
+
   /* Re-populate the score vector for this reading frame */
   populateScoreVec(dwc, vecLen, pepQSeqLen, frame, pepQSeqOffset, getTranslationTable(dc->displaySeqType, qStrand), scoreVec);
-  
+
   /* Loop through each base in the match sequence */
   for (sIdx = sStart ; sIdx >= 0 && sIdx < slen; sIdx += incrementVal)
-    {   
+    {
       /* Set oldsum to the previous row. (newsum will be overwritten, but we re-use the
        * same two vectors (sum1 and sum2) here to save having to keep allocating memory) */
       oldsum = (sIdx & 1) ? sum2 : sum1;
       newsum = (sIdx & 1) ? sum1 : sum2;
-      
+
       delrow = getRowToDelete(sIdx, slen, sIndex, scoreVec, zero, properties->slidingWinSize, qStrand);
-      
+
       /* We add the pre-calculated value from the score vector for the current amino acid */
       addrow = scoreVec[sIndex[sIdx]];
       *newsum = *addrow;
       ++addrow;
-      
+
       qmax = min(properties->slidingWinSize, pepQSeqLen);
-      
+
       for (qIdx = 1; qIdx < qmax ; ++qIdx)
         {
           ++newsum;
@@ -1371,39 +1372,39 @@ static void doCalculateImage(const BlxStrand qStrand,
           ++oldsum;
           ++addrow;
         }
-      
+
       qmax = (dc->blastMode != BLXMODE_BLASTX && dwc->selfComp ? sIdx + 1 : pepQSeqLen);
       qmax = min(qmax, pepQSeqLen);
-      
-      for ( ; qIdx < qmax ; ++qIdx) 
+
+      for ( ; qIdx < qmax ; ++qIdx)
         {
           ++newsum;
           *newsum = *oldsum + *addrow - *delrow;
           ++oldsum;
           ++addrow;
           ++delrow;
-          
-          if (*newsum > 0 && valueWithinRange(sIdx, &validRange)) 
+
+          if (*newsum > 0 && valueWithinRange(sIdx, &validRange))
             {
               dotposq = (qIdx - win2)/dwc->zoomFactor;
               dotposs = (sIdx - (incrementVal * win2))/dwc->zoomFactor;
-              
+
               /* Only fill half the submatrix */
               const int qPosLocal = qIdx - win2 - (dotposq * dwc->zoomFactor);  /* query position in local submatrix (of one pixel) */
               int sPosLocal = sIdx - (incrementVal * win2) - (dotposs * dwc->zoomFactor);  /* subject position in local submatrix (of one pixel) */
-              
+
               if (qStrand == BLXSTRAND_REVERSE)
                 {
                   /* Set the origin (0,0) to the bottom left corner of submatrix
                    Ugly but correct. Zoom = pixels/submatrix */
                   sPosLocal = dwc->zoomFactor - 1 - sPosLocal;
                 }
-              
+
               if (sPosLocal >= qPosLocal)
                 {
                   dotpos = properties->imageWidth*dotposs + dotposq;
-                  
-                  if (dotpos < 0 || dotpos >= pixelmapLen) 
+
+                  if (dotpos < 0 || dotpos >= pixelmapLen)
                     {
                       g_critical ( "Pixel %d out of bounds. Pixelmap len=%d, mode =%d, ref sequqnece strand=%s\n", dotpos, pixelmapLen, dc->blastMode, (qStrand == BLXSTRAND_REVERSE ? "reverse" : "forward"));
                     }
@@ -1413,7 +1414,7 @@ static void doCalculateImage(const BlxStrand qStrand,
                       const int val = *newsum * properties->pixelFac / properties->slidingWinSize;
                       unsigned char dotValue = (val > 255 ? 255 : (unsigned char)val);
                       unsigned char *curDot = &properties->pixelmap[dotpos];
-                      
+
                       if (dotValue > *curDot)
                         {
                           *curDot = dotValue;
@@ -1421,7 +1422,7 @@ static void doCalculateImage(const BlxStrand qStrand,
                     }
                 }
             }
-        } 
+        }
     }
 }
 
@@ -1430,39 +1431,39 @@ static void doCalculateImage(const BlxStrand qStrand,
 static void printCalculateImageStats(DotterWindowContext *dwc, const int qlen, const int slen)
 {
   DotterContext *dc = dwc->dotterCtx;
-  
+
   double speed = 17.2;  /* Speed in Mdots/seconds. SGI MIPS R10000 (clobber) */
   /* speed = 5.7;  DEC Alpha AXP 3000/700 */
   /* speed = 3.7;  SGI R4400: */
-  
+
   double numDots = qlen/1e6*slen; /* total number of dots (millions) */
-  
-  if (dwc->selfComp) 
+
+  if (dwc->selfComp)
     numDots /= 2;
-  
-  if (dc->blastMode == BLXMODE_BLASTN && !(dc->watsonOnly || dc->crickOnly)) 
+
+  if (dc->blastMode == BLXMODE_BLASTN && !(dc->watsonOnly || dc->crickOnly))
     numDots *= 2;
-  
-  if (dc->blastMode == BLXMODE_BLASTX) 
+
+  if (dc->blastMode == BLXMODE_BLASTX)
     numDots *= 3;
-  
+
   int min = (int)(numDots/speed/60);
   int sec = (int)(numDots/speed) - min*60;
-  
+
   g_message("%d vs. %d residues => %.2f million dots. ", qlen, slen, numDots);
-  
-  if (min+sec >= 2) 
+
+  if (min+sec >= 2)
     {
       g_message("(Takes ");
-      
+
       if (min)
         g_message("%d:%.2d minutes", min, sec);
-      else 
+      else
         g_message("%d seconds", sec);
-      
+
       g_message(" on an SGI MIPS R10000)");
     }
-  
+
   g_message("\n");
   fflush(stdout);
 }
@@ -1475,12 +1476,12 @@ static void calculateImage(DotplotProperties *properties)
   DEBUG_ENTER("calculateImage");
 
   g_assert(properties->slidingWinSize > 0);
-  
+
   int qIdx, sIdx;     /* Loop variables */
   int dotpos;
-  
+
   BlxHandle handle = handleCreate();
-  
+
   /* Extract some often-used data */
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
@@ -1490,27 +1491,27 @@ static void calculateImage(DotplotProperties *properties)
 
   /* Print some statistics about what we're about to do */
   printCalculateImageStats(dwc, qlen, slen);
-  
+
   /* Find the offset of the current display range within the full range of the bit of reference sequence we have */
-  const int qOffset = dc->refSeqStrand == BLXSTRAND_REVERSE 
+  const int qOffset = dc->refSeqStrand == BLXSTRAND_REVERSE
     ? dc->refSeqFullRange.max() - dwc->refSeqRange.max()
     : dwc->refSeqRange.min() - dc->refSeqFullRange.min();
-  
+
   /* Convert from nucleotides to peptides, if applicable */
   const int resFactor = (dc->blastMode == BLXMODE_BLASTX ? dc->numFrames : 1);
   const int pepQSeqLen = qlen / resFactor;
   const int pepQSeqOffset = qOffset / resFactor;
   const int vecLen = (dc->displaySeqType == BLXSEQ_DNA ? 6 : 25);
 
-  /* Initialize lookup tables for faster execution. scoreVec is an array of precalculated 
-   * scores for qseq residues. sIndex contains the match sequence forward strand bases as 
+  /* Initialize lookup tables for faster execution. scoreVec is an array of precalculated
+   * scores for qseq residues. sIndex contains the match sequence forward strand bases as
    * binary values (i.e. amino-acid IDs 0 -> 23) */
   gint32 **scoreVec = NULL;
   createScoreVec(dwc, vecLen, pepQSeqLen, &handle, &scoreVec);
 
   gint32 *sIndex = (gint32*)handleAlloc(&handle, slen * sizeof(gint32));
   populateMatchSeqBinaryVals(dwc, slen, getTranslationTable(dc->matchSeqType, BLXSTRAND_FORWARD), sIndex);
-  
+
   /* Allocate some vectors for use in averaging the values for whole rows at a time. Initialise the
    * 'zero' array now but leave the sum arrays because these will be reset in doCalculateWindow. */
   gint32 *zero = (gint32*)handleAlloc(&handle, pepQSeqLen * sizeof(gint32));
@@ -1518,7 +1519,7 @@ static void calculateImage(DotplotProperties *properties)
   gint32 *sum2 = (gint32*)handleAlloc(&handle, pepQSeqLen * sizeof(gint32));
 
   int idx = 0;
-  for (idx = 0; idx < pepQSeqLen; ++idx) 
+  for (idx = 0; idx < pepQSeqLen; ++idx)
     {
       zero[idx] = 0;
     }
@@ -1536,7 +1537,7 @@ static void calculateImage(DotplotProperties *properties)
 
         }
     }
-  else if (dc->blastMode == BLXMODE_BLASTP) 
+  else if (dc->blastMode == BLXMODE_BLASTP)
     {
       /* Protein -> Protein matches. Straightforward comparison of the two sequences. */
       doCalculateImage(BLXSTRAND_FORWARD, 1, 0, 0,
@@ -1547,7 +1548,7 @@ static void calculateImage(DotplotProperties *properties)
     {
       /* Nucleotide -> Nucleotide matches. Calculate the result for each strand of the reference
        * sequence, and use the overall max values. */
-      
+
       if (!dc->crickOnly)
         {
           doCalculateImage(BLXSTRAND_FORWARD, 1, 0, 0,
@@ -1563,15 +1564,15 @@ static void calculateImage(DotplotProperties *properties)
         }
     }
 
-  if (dwc->selfComp && dc->displayMirror) 
+  if (dwc->selfComp && dc->displayMirror)
     {
       /* Copy mirror image */
-      
+
       int dotposCopy;
-      
-      for (sIdx = 0; sIdx < properties->imageHeight; ++sIdx) 
-        { 
-          for (qIdx = 0; qIdx < sIdx ; ++qIdx) 
+
+      for (sIdx = 0; sIdx < properties->imageHeight; ++sIdx)
+        {
+          for (qIdx = 0; qIdx < sIdx ; ++qIdx)
             {
               dotpos = properties->imageWidth * sIdx + qIdx;
               dotposCopy = properties->imageWidth * qIdx + sIdx;
@@ -1588,9 +1589,9 @@ static void calculateImage(DotplotProperties *properties)
             }
         }
     }
-  
+
   handleDestroy(&handle);
-  
+
   DEBUG_EXIT("calculateImage returning ");
 }
 
@@ -1600,10 +1601,10 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  
+
   /* Open the file */
   FILE *loadFile = fopen (loadFileName, "rb");
-  
+
   if (!loadFile)
     {
       g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_OPENING_FILE, "Could not open file '%s'", loadFileName);
@@ -1620,12 +1621,12 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
   gboolean ok = fread(&format, 1, sizeof(unsigned char), loadFile) == sizeof(unsigned char);
   dotstart += sizeof(unsigned char);
 
-  if (format != 1 && format != 2 && format != 3) 
+  if (format != 1 && format != 2 && format != 3)
     {
       g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Unknown dotter file format version: %d", format);
       return;
     }
-  
+
   /* Read in the zoom factor (an int in formats 1 and 2, or gdouble in later formats) */
   if (format == 1 || format == 2)
     {
@@ -1637,33 +1638,33 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
       ok &= fread(&dwc->zoomFactor, 1, sizeof(gdouble), loadFile) == sizeof(gdouble);
       dotstart += sizeof(gdouble);
     }
-  
+
   /* Read in the image size */
   ok &= fread(&properties->imageWidth, 1, sizeof(gint32), loadFile) == sizeof(gint32);
   dotstart += sizeof(gint32);
 
   ok &= fread(&properties->imageHeight, 1, sizeof(gint32), loadFile) == sizeof(gint32);
   dotstart += sizeof(gint32);
-  
+
   if (!ok)
     {
       g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Error reading file '%s'", loadFileName);
       return;
     }
-  
+
 #ifdef ALPHA
   reversebytes(&dwc->zoomFactor, sizeof(gdouble));
   reversebytes(&properties->imageWidth, sizeof(gint32));
   reversebytes(&properties->imageHeight, sizeof(gint32));
 #endif
-  
-  if (format == 1) 
+
+  if (format == 1)
     {
       /* Don't actually know these variables for sure - guess the most common */
       properties->pixelFac = 50;
       properties->slidingWinSize = 25;
     }
-  else 
+  else
     {
       ok &= fread(&properties->pixelFac, 1, sizeof(gint32), loadFile) == sizeof(gint32);
       dotstart += sizeof(gint32);
@@ -1697,17 +1698,17 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
           matrixName[matrixNameLen] = 0;
           g_free(dc->matrixName);
           dc->matrixName = g_strdup(matrixName);
-      
+
           /* Read in the matrix data */
           int i = 0;
           int j = 0;
-          
+
           for (i = 0; i < 24; i++)
             {
-              for (j = 0; j < 24; j++) 
+              for (j = 0; j < 24; j++)
                 {
                   gint32 matrixVal;
-                  ok &= fread(&matrixVal, 1, sizeof(gint32), loadFile) == sizeof(gint32); 
+                  ok &= fread(&matrixVal, 1, sizeof(gint32), loadFile) == sizeof(gint32);
                   dotstart += sizeof(gint32);
 #ifdef ALPHA
                   reversebytes(&matrixVal, sizeof(gint32));
@@ -1717,13 +1718,13 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
             }
         }
     }
-  
+
   if (!ok)
     {
       g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Error reading file '%s'", loadFileName);
       return;
     }
-  
+
   fseek(loadFile, 0, SEEK_END);
   int n = ftell(loadFile);
 
@@ -1731,40 +1732,40 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
 
   if (n - dotstart != pixelmapLen)
     {
-      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Wrong number of pixels in %s: %d. Expected %d * %d = %d\n", 
+      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Wrong number of pixels in %s: %d. Expected %d * %d = %d\n",
             loadFileName, n - dotstart, properties->imageWidth, properties->imageHeight, pixelmapLen);
       return;
     }
-  
+
   /* Allocate memory for the pixmap */
   initPixmap(&properties->pixelmap, properties->imageWidth, properties->imageHeight);
-  
+
   fseek(loadFile, dotstart, SEEK_SET);
-  
+
   int i = 0;
   for (i = 0; i < pixelmapLen; i++)
     {
       unsigned char pixelVal;
-      ok &= fread(&pixelVal, 1, sizeof(unsigned char), loadFile) == sizeof(unsigned char); 
+      ok &= fread(&pixelVal, 1, sizeof(unsigned char), loadFile) == sizeof(unsigned char);
 #ifdef ALPHA
       reversebytes(&pixelVal, sizeof(unsigned char));
 #endif
       properties->pixelmap[i] = pixelVal;
     }
-  
-  
+
+
 //  if ((n = fread(properties->pixelmap, sizeof(unsigned char), pixelmapLen, loadFile)) != pixelmapLen)
 //    {
-//      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Read wrong number of pixels from %s: %d. Expected %d * %-d = %d\n", 
+//      g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_READING_FILE, "Read wrong number of pixels from %s: %d. Expected %d * %-d = %d\n",
 //              loadFileName, n, properties->imageWidth, properties->imageHeight, pixelmapLen);
 //      return;
 //    }
-  
+
   fclose(loadFile);
 
   g_message("Dotplot file '%s' was loaded successfully.\n", loadFileName);
 
-  if (format == 1) 
+  if (format == 1)
     {
       g_message("Old dotplot file format '1' was used, so the windowsize and pixel factor are estimates.\n");
     }
@@ -1779,26 +1780,26 @@ void loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error)
 }
 
 
-/* savePlot writes a 1 byte unsigned-char at the start of the file to indicate the file format. 
+/* savePlot writes a 1 byte unsigned-char at the start of the file to indicate the file format.
  * It then writes various parameters (as determined by that format) and then the dot-matrix itself.
  *
  * The format char is one of the following:
- *   '1'  The original format, with the following fields: format (uchar), zoom (int), image width (int), image height (int) 
- *   '2'  In addition to the format '1' fields: pixelFac (int), win size (int), matrix name len (int), matrix name (MNlen chars) 
- *   '3'  as format 2 but changed zoom from int to gdouble 
+ *   '1'  The original format, with the following fields: format (uchar), zoom (int), image width (int), image height (int)
+ *   '2'  In addition to the format '1' fields: pixelFac (int), win size (int), matrix name len (int), matrix name (MNlen chars)
+ *   '3'  as format 2 but changed zoom from int to gdouble
  *
  * Note that formats 1 and 2 used to assume that the 'int' date type was always 4 bytes. We now make
  * sure this is the case by using the gint32 data type, which is guaranteed to be 32 bits (4 bytes)
- * on any system.  The standard for chars/uchars (1 byte) and doubles/gdoubles (8 bytes) should be 
+ * on any system.  The standard for chars/uchars (1 byte) and doubles/gdoubles (8 bytes) should be
  * consistent for all systems so we don't need to worry about those.
  */
 void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *saveFileName, GError **error)
 {
   /* We may be passed the properties as null if we are given the dotplot. */
   DotplotProperties *properties = propertiesIn ? propertiesIn : dotplotGetProperties(dotplot);
-  
+
   g_assert(properties);
-  
+
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
 
@@ -1808,8 +1809,8 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
 
   gboolean batch = (saveFileName ? TRUE : FALSE); /* whether this is part of a batch process */
 
-  
-  /* Open the file. Use the given file name (i.e. if we're in batch mode) or ask the user to 
+
+  /* Open the file. Use the given file name (i.e. if we're in batch mode) or ask the user to
    * select a file. */
   static const char *fileName = NULL;
 
@@ -1817,15 +1818,15 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
     fileName = saveFileName;
   else if (dotplot)
     fileName = getSaveFileName(dotplot, fileName, NULL, ".dotter", "Save dot-plot in dotter format");
-  
+
   g_message("Saving dot-matrix to '%s'.\n", fileName);
 
   FILE *saveFile = NULL;
-  
-  if (fileName) 
+
+  if (fileName)
     {
       saveFile = fopen (fileName, "wb");
-      
+
       if (!saveFile)
         {
           g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_OPENING_FILE, "Failed to open file '%s'.\n", fileName);
@@ -1837,11 +1838,11 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
       g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_OPENING_FILE, "No file name specified.\n");
       return;
     }
-  
+
   /* Get the length of the matrix name */
   const gint32 MNlen = strlen(dc->matrixName);
   gint32 MNlenSave = MNlen;
-  
+
 #ifdef ALPHA
   reversebytes(&dwc->zoomFactor, sizeof(gdouble));
   reversebytes(&properties->imageWidth, sizeof(gint32));
@@ -1850,7 +1851,7 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
   reversebytes(&slidingWinSize, sizeof(gint32));
   reversebytes(&MNlenSave, sizeof(gint32));
 #endif
-  
+
   gboolean ok = fwrite(&format, 1, sizeof(unsigned char), saveFile) == sizeof(unsigned char);
   ok &= fwrite(&dwc->zoomFactor, 1, sizeof(gdouble), saveFile) == sizeof(gdouble);
   ok &= fwrite(&properties->imageWidth, 1, sizeof(gint32), saveFile) == sizeof(gint32);
@@ -1859,13 +1860,13 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
   ok &= fwrite(&properties->slidingWinSize, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
   ok &= fwrite(&MNlenSave, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
   ok &= fwrite(dc->matrixName, sizeof(char), MNlen, saveFile) == sizeof(char) * MNlen; /* New feature of format 2  */
-  
-  
+
+
   /* Loop through the matrix and write the values to the file */
   int i = 0;
   int j = 0;
   gint32 mtx = 0;
-  
+
   for (i = 0; i < 24; i++)
     {
       for (j = 0; j < 24; j++)
@@ -1877,7 +1878,7 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
           ok &= fwrite(&mtx, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
         }
     }
-  
+
 #ifdef ALPHA
   reversebytes(&dwc->zoomFactor, sizeof(gdouble));
   reversebytes(&properties->imageWidth, sizeof(gint32));
@@ -1885,28 +1886,28 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
   reversebytes(&pixelFac, sizeof(gint32));
   reversebytes(&slidingWinSize, sizeof(gint32));
 #endif
-  
-  
+
+
   /* Loop through the dotplot values and write them to file */
   const int imgSize = properties->imageWidth * properties->imageHeight;
-  
+
   for (i = 0; i < imgSize; i++)
     {
       unsigned char pixelVal = properties->pixelmap[i];
 #ifdef ALPHA
       reversebytes(&pixelVal, sizeof(unsigned char));
 #endif
-      ok &= fwrite(&pixelVal, 1, sizeof(unsigned char), saveFile) == sizeof(unsigned char); 
+      ok &= fwrite(&pixelVal, 1, sizeof(unsigned char), saveFile) == sizeof(unsigned char);
     }
-  
-  
+
+
 //  ok &= fwrite(properties->pixelmap, sizeof(unsigned char), imgSize, saveFile) == imgSize;
-  
+
   if (!ok)
     {
       g_set_error(error, DOTTER_ERROR, DOTTER_ERROR_SAVING_FILE, "Error writing data to file '%s'.\n", fileName);
     }
-  
+
   fclose(saveFile);
   saveFile = 0;
 }
@@ -1914,14 +1915,14 @@ void savePlot(GtkWidget *dotplot, DotplotProperties *propertiesIn, const char *s
 
 /* Export the plot to a graphical format (currently only PDF is supported by GTK).
  * the drawable can be NULL. */
-void exportPlot(GtkWidget *dotplot, 
+void exportPlot(GtkWidget *dotplot,
                 GtkWindow *window,
                 const char *exportFileName,
                 GError **error)
 {
   gboolean batch = (exportFileName ? TRUE : FALSE); /* whether this is part of a batch process */
-  
-  /* Open the file. Use the given file name (i.e. if we're in batch mode) or ask the user to 
+
+  /* Open the file. Use the given file name (i.e. if we're in batch mode) or ask the user to
    * select a file. */
   static const char *fileName = NULL;
 
@@ -1929,10 +1930,10 @@ void exportPlot(GtkWidget *dotplot,
     fileName = exportFileName;
   else if (dotplot)
     fileName = getSaveFileName(dotplot, fileName, NULL, ".pdf", "Export dot-plot");
-  
+
   GtkPrintSettings *printSettings = gtk_print_settings_new();
   GtkPageSetup *pageSetup = gtk_page_setup_new();
-  
+
   gtk_page_setup_set_orientation(pageSetup, GTK_PAGE_ORIENTATION_LANDSCAPE);
   gtk_print_settings_set_orientation(printSettings, GTK_PAGE_ORIENTATION_LANDSCAPE);
   gtk_print_settings_set_quality(printSettings, GTK_PRINT_QUALITY_HIGH);
@@ -1953,13 +1954,13 @@ static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *pro
   /* Recalculate the image size */
   properties->imageWidth = getImageDimension(properties, TRUE);
   properties->imageHeight = getImageDimension(properties, FALSE);
-  
+
   DEBUG_OUT("Set image w=%d, h=%d\n", properties->imageWidth, properties->imageHeight);
 
   /* Create the image */
   if (properties->image)
     gdk_image_unref(properties->image);
-    
+
   properties->image = createImage(properties);
 
   /* Create the new pixmap */
@@ -1974,9 +1975,9 @@ static void recalculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *pro
       calculateImage(properties);
       transformGreyRampImage(properties->image, properties->pixelmap, properties);
     }
-  
+
   calculateDotplotBorders(dotplot, properties);
-  
+
   DEBUG_EXIT("recalculateDotplotBorders");
 }
 
@@ -1985,10 +1986,10 @@ static void findScaleUnit (gdouble cutoff, int *u, int *sub)
 {
   gdouble unit = *u ;
   gdouble subunit = *u ;
-  
+
   if (cutoff < 0)
     cutoff = -cutoff ;
-  
+
   while (unit < cutoff)
     { unit *= 2 ;
       subunit *= 5 ;
@@ -2008,28 +2009,28 @@ static void findScaleUnit (gdouble cutoff, int *u, int *sub)
 
 
 /* Note [Scale Labels] -- gb10
- * 
+ *
  * We use GtkLabel child widgets to draw the scale labels on the dotplot.
  * Originally the labels were drawn directly on the dotplot drawing area
  * using pango/cairo. However, there were some bugs with this where some
- * of the labels were sometimes not getting drawn, and sometimes dotter 
- * would crash (with the crash happening in the pango or cairo function 
+ * of the labels were sometimes not getting drawn, and sometimes dotter
+ * would crash (with the crash happening in the pango or cairo function
  * that was drawing the text).
  *
  * I could not find the cause for these bugs so I have used another
- * approach using GtkLabel widgets to draw the labels instead. This 
+ * approach using GtkLabel widgets to draw the labels instead. This
  * appears to fix these problems.
  *
  * Note that we create the labels outside of the expose function
  * and add them to an array so that we can keep track of them (we
  * don't want to create loads of new labels every time we redraw).
  * However, the text and position of the labels is set in the expose
- * function, because this is where the scale markers are drawn, which 
+ * function, because this is where the scale markers are drawn, which
  * defines the position for the labels. We also don't know the exact
  * font (and hence text size) until the widgets are realised, and again
- * this affects the position of the labels, so it's easiest to do it 
+ * this affects the position of the labels, so it's easiest to do it
  * all in the expose function.
- * 
+ *
  */
 
 /* Create the label widgets for the scale. See note [Scale Labels]
@@ -2053,14 +2054,14 @@ static void createScaleLabels(GtkWidget *dotplot,
     {
       GtkWidget *eventBox = gtk_event_box_new();
       GtkWidget *label = gtk_label_new(NULL);
-      
+
       gtk_container_add(GTK_CONTAINER(eventBox), label);
       gtk_layout_put(GTK_LAYOUT(dotplot), eventBox, 0, 0);
-      
+
       g_array_append_val(scale->labels, eventBox);
     }
 
-  /* If we have too many labels, hide the extra ones. (Note that 
+  /* If we have too many labels, hide the extra ones. (Note that
    * drawTickmarkLabels will take care of re-showing any that are
    * required later.) */
   i = scale->numMarks;
@@ -2092,15 +2093,15 @@ static void calculateScaleProperties(GtkWidget *dotplot,
   scale->basesPerSubmark = 1;
   gdouble cutoff = horizontal ? PIXELS_PER_MARK_X : PIXELS_PER_MARK_Y;
   cutoff *= scaleFactor;
-  
+
   findScaleUnit(cutoff, &scale->basesPerMark, &scale->basesPerSubmark);
-  
+
   /* Round up the start coord to find the coord and position of the first submark */
   scale->startCoord = UNSET_INT;
   scale->endCoord = UNSET_INT;
-  scale->firstSubmarkCoord = UNSET_INT; 
+  scale->firstSubmarkCoord = UNSET_INT;
   int firstMarkCoord = UNSET_INT;
-  
+
   if (reversedScale)
     {
       /* Horizontal scale is reversed. 	Round the max coord down to the nearest basesPerSubmark */
@@ -2137,7 +2138,7 @@ int getMaxBreakpointLabelSize(GtkWidget *dotplot, DotterContext *dc)
   int max_len = 0;
 
   cairo_surface_t *surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, 500, 500);
-  cairo_t *cr = cairo_create (surface);  
+  cairo_t *cr = cairo_create (surface);
 
   PangoLayout *layout = pango_cairo_create_layout(cr);
   pango_layout_set_font_description(layout, dotplot->style->font_desc);
@@ -2167,7 +2168,7 @@ int getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties)
 {
   /* Make sure the plot is tall enough to fit the vertical label */
   cairo_surface_t *surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, 500, 500);
-  cairo_t *cr = cairo_create (surface);  
+  cairo_t *cr = cairo_create (surface);
 
   PangoLayout *layout = pango_cairo_create_layout(cr);
   pango_layout_set_text(layout, properties->dotterWinCtx->dotterCtx->matchSeqName, -1);
@@ -2180,22 +2181,22 @@ int getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties)
   g_object_unref(layout);
   cairo_destroy(cr);
   cairo_surface_destroy(surface);
-      
+
   const int dotplotHeight = max(height, properties->plotRect.height);
 
   /* The basic height is the height of the dotplot plus padding and scale */
-  int result = properties->plotRect.y + 
+  int result = properties->plotRect.y +
                dotplotHeight +
-               DEFAULT_Y_PADDING + 
+               DEFAULT_Y_PADDING +
                SCALE_LINE_WIDTH;
-    
+
   if (properties->breaklinesOn && properties->hozLabelsOn)
     {
-      /* Add space for breakline labels. They are rotated 90 degrees so we need to 
+      /* Add space for breakline labels. They are rotated 90 degrees so we need to
        * add enough height for the full label length */
       const int labelSize = getMaxBreakpointLabelSize(dotplot, properties->dotterWinCtx->dotterCtx) ;
       result += labelSize + ANNOTATION_LABEL_PADDING;
-    }      
+    }
 
   return result;
 }
@@ -2204,17 +2205,17 @@ int getDotplotHeight(GtkWidget *dotplot, DotplotProperties *properties)
 int getDotplotWidth(GtkWidget *dotplot, DotplotProperties *properties)
 {
   int result = properties->plotRect.x +
-               properties->plotRect.width + 
-               DEFAULT_X_PADDING + 
+               properties->plotRect.width +
+               DEFAULT_X_PADDING +
                SCALE_LINE_WIDTH;
-  
+
   if (properties->breaklinesOn && properties->vertLabelsOn)
     {
       /* Add space for breakline labels */
       const int labelSize = getMaxBreakpointLabelSize(dotplot, properties->dotterWinCtx->dotterCtx) ;
       result += labelSize + ANNOTATION_LABEL_PADDING;
     }
-  
+
   return result;
 }
 
@@ -2229,10 +2230,10 @@ static void calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *prope
   properties->plotRect.y = DEFAULT_Y_PADDING + dc->scaleHeight + dc->charHeight;
   properties->plotRect.width = properties->imageWidth;
   properties->plotRect.height = properties->imageHeight;
-  
+
   const int totalWidth = getDotplotWidth(dotplot, properties);
   const int totalHeight = getDotplotHeight(dotplot, properties);
-  
+
   if (dotplot)
     {
       gtk_widget_set_size_request(dotplot, totalWidth, totalHeight);
@@ -2240,7 +2241,7 @@ static void calculateDotplotBorders(GtkWidget *dotplot, DotplotProperties *prope
       widgetClearCachedDrawable(dotplot, NULL);
       gtk_widget_queue_draw(dotplot);
     }
-  
+
   calculateScaleProperties(dotplot, properties, TRUE);
   calculateScaleProperties(dotplot, properties, FALSE);
 
@@ -2283,14 +2284,14 @@ void redrawDotplot(GtkWidget *dotplot)
 void recalcDotplot(GtkWidget *dotplot)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
-  
+
   recalculateDotplotBorders(dotplot, properties);
-  
+
   calculateDotterExonViewBorders(properties->hozExons1, properties->imageWidth, properties->imageHeight);
   calculateDotterExonViewBorders(properties->hozExons2, properties->imageWidth, properties->imageHeight);
   calculateDotterExonViewBorders(properties->vertExons1, properties->imageWidth, properties->imageHeight);
   calculateDotterExonViewBorders(properties->vertExons2, properties->imageWidth, properties->imageHeight);
-  
+
   redrawDotplot(dotplot);
 }
 
@@ -2308,23 +2309,23 @@ static void drawDotplot(GtkWidget *dotplot, GdkDrawable *drawable)
 
 /* This prepares the dotplot for printing. It draws the crosshair onto the
  * cached pixmap, because it is this pixmap that will be used in the print.
- * (Normally the crosshair does not get drawn to the pixmap - it just gets 
+ * (Normally the crosshair does not get drawn to the pixmap - it just gets
  * drawn to the screen by the expose function). */
 void dotplotPrepareForPrinting(GtkWidget *dotplot)
 {
   GdkDrawable *drawable = widgetGetDrawable(dotplot);
-  
+
   if (!drawable)
     {
       drawable = createBlankPixmap(dotplot);
       drawDotplot(dotplot, drawable);
     }
-  
+
   if (drawable)
     {
       dotplotDrawCrosshair(dotplot, drawable);
     }
-  
+
   /* Do the same for each exon view */
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   exonViewPrepareForPrinting(properties->hozExons1);
@@ -2343,23 +2344,23 @@ static void drawGridline(GdkDrawable *drawable, DotplotProperties *properties, c
 
       DotterWindowContext *dwc = properties->dotterWinCtx;
       DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-      
+
       GdkColor *gridColor = getGdkColor(DOTCOLOR_GRID, dc->defaultColors, FALSE, dwc->usePrintColors);
       gdk_gc_set_foreground(gc, gridColor);
-      
+
       int xEnd = horizontal ? xStart : xStart + properties->plotRect.width;
       int yEnd = horizontal ? yStart + properties->plotRect.height : yStart;
-    
+
       gdk_draw_line(drawable, gc, xStart, yStart, xEnd, yEnd);
-      
+
       g_object_unref(gc);
-    }  
+    }
 }
 
 
 /* Utility used by drawScaleMarkers to draw the labels for the tick marks */
-static void drawTickmarkLabel(GtkWidget *dotplot, 
-                              DotterContext *dc, 
+static void drawTickmarkLabel(GtkWidget *dotplot,
+                              DotterContext *dc,
                               GdkDrawable *drawable,
                               GtkWidget *labelParent,
                               const int coordIn,
@@ -2375,7 +2376,7 @@ static void drawTickmarkLabel(GtkWidget *dotplot,
   PangoLayout *layout = pango_cairo_create_layout(cr);
   pango_layout_set_text(layout, displayText, -1);
 
-  /* We'll centre the text at half the text width for the horizontal 
+  /* We'll centre the text at half the text width for the horizontal
    * axis, or half the height for the vertical. */
   int width = UNSET_INT, height = UNSET_INT;
   pango_layout_get_pixel_size(layout, &width, &height);
@@ -2392,21 +2393,21 @@ static void drawTickmarkLabel(GtkWidget *dotplot,
 
   gtk_widget_show_all(labelParent);
   gtk_layout_move(GTK_LAYOUT(dotplot), labelParent, x, y);
-  
-  g_object_unref(layout);  
+
+  g_object_unref(layout);
   cairo_destroy(cr);
   g_free(displayText);
 }
 
 
-static void drawScaleMarkers(GtkWidget *dotplot, 
-                             GdkDrawable *drawable, 
-                             GdkGC *gc, 
+static void drawScaleMarkers(GtkWidget *dotplot,
+                             GdkDrawable *drawable,
+                             GdkGC *gc,
                              const IntRange* const displayRange,
                              DotplotProperties *properties,
                              const gboolean horizontal)
 {
-  /* We scale down by the zoom factor, and also divide by the number 
+  /* We scale down by the zoom factor, and also divide by the number
    * of frames so that one dot represents one peptide */
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
   DotplotScaleProperties *scale = horizontal ? &properties->hozScale : &properties->vertScale;
@@ -2414,8 +2415,8 @@ static void drawScaleMarkers(GtkWidget *dotplot,
   const gdouble scaleFactor = getScaleFactor(properties, horizontal);
   const gboolean reversedScale = ((horizontal && dc->hozScaleRev) || (!horizontal && dc->vertScaleRev));
   const int direction = reversedScale ? -1 : 1;
-    
-  const int staticBorder = horizontal 
+
+  const int staticBorder = horizontal
     ? properties->plotRect.y - SCALE_LINE_WIDTH
     : properties->plotRect.x - SCALE_LINE_WIDTH;
 
@@ -2430,7 +2431,7 @@ static void drawScaleMarkers(GtkWidget *dotplot,
 
       const int currentPos = scale->firstSubmarkPos + (basesFromFirstMark / scaleFactor);
       const int tickHeight = isMajorTick ? DEFAULT_MAJOR_TICK_HEIGHT : DEFAULT_MINOR_TICK_HEIGHT;
-      
+
       /* Draw the marker line */
       int x1 = horizontal ? currentPos : staticBorder - tickHeight;
       int x2 = horizontal ? currentPos : staticBorder;
@@ -2438,10 +2439,10 @@ static void drawScaleMarkers(GtkWidget *dotplot,
       int y2 = horizontal ? staticBorder : currentPos;
 
       gdk_draw_line(drawable, gc, x1, y1, x2, y2);
-      
+
       /* Draw a grid line, if applicable */
       drawGridline(drawable, properties, x2, y2, horizontal);
-          
+
       /* Draw a lable on major tick marks */
       if (isMajorTick)
         {
@@ -2450,7 +2451,7 @@ static void drawScaleMarkers(GtkWidget *dotplot,
               GtkWidget *label = g_array_index(scale->labels, GtkWidget*, majorTickIdx);
               drawTickmarkLabel(dotplot, dc, drawable, label, coord, x1, y1, &properties->plotRect, horizontal);
             }
-          
+
           ++majorTickIdx;
         }
     }
@@ -2465,7 +2466,7 @@ static void drawLabel(GtkWidget *dotplot, GdkDrawable *drawable, GdkGC *gc)
   int textHeight = UNSET_INT;
 
   cairo_t *cr = gdk_cairo_create(drawable);
-  
+
   PangoLayout *layout = pango_cairo_create_layout(cr);
   pango_layout_set_font_description(layout, dotplot->style->font_desc);
   pango_layout_set_text(layout, dc->refSeqName, -1);
@@ -2484,10 +2485,10 @@ static void drawLabel(GtkWidget *dotplot, GdkDrawable *drawable, GdkGC *gc)
   pango_layout_set_font_description(layout, dotplot->style->font_desc);
   pango_layout_set_text(layout, dc->matchSeqName, -1);
   pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
- 
+
   x = properties->plotRect.x - (dc->scaleWidth + dc->charHeight);
   y = properties->plotRect.y + (properties->plotRect.height / 2) + (textWidth / 2);
-  
+
   cairo_move_to (cr, x, y);
   cairo_rotate(cr, 270.0 * G_PI / 180.0);
   pango_cairo_show_layout(cr, layout);
@@ -2503,19 +2504,19 @@ static void drawDotterScale(GtkWidget *dotplot, GdkDrawable *drawable)
   GdkGC *gc = gdk_gc_new(drawable);
 
   DotplotProperties *properties = dotplotGetProperties(dotplot);
-  
+
   /* Draw the outline rectangle of the dot plot */
   gdk_gc_set_line_attributes(gc, SCALE_LINE_WIDTH, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
-  
-  gdk_draw_rectangle(drawable, gc, FALSE, 
-                     properties->plotRect.x - SCALE_LINE_WIDTH, properties->plotRect.y - SCALE_LINE_WIDTH, 
+
+  gdk_draw_rectangle(drawable, gc, FALSE,
+                     properties->plotRect.x - SCALE_LINE_WIDTH, properties->plotRect.y - SCALE_LINE_WIDTH,
                      properties->plotRect.width + SCALE_LINE_WIDTH, properties->plotRect.height + SCALE_LINE_WIDTH);
 
   drawLabel(dotplot, drawable, gc);
-  
+
   drawScaleMarkers(dotplot, drawable, gc, &properties->dotterWinCtx->refSeqRange, properties, TRUE);
   drawScaleMarkers(dotplot, drawable, gc, &properties->dotterWinCtx->matchSeqRange, properties, FALSE);
-  
+
   g_object_unref(gc);
 }
 
@@ -2531,13 +2532,13 @@ static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotPrope
   if (msp->qRange.min() != msp->qRange.max())
     g_warning("Breakline coords should be the same but min=%d and max=%d\n", msp->qRange.min(), msp->qRange.max());
 
-  /* See if this msp is the vertical or horizontal sequence. It could be both for a self comparison. 
+  /* See if this msp is the vertical or horizontal sequence. It could be both for a self comparison.
    * We check if the name matches the sequence name or the values @1 or @2 for hoz and vert resp. */
   gboolean horizontal = (msp->qname && strcmp(msp->qname, dc->refSeqName) == 0);
   gboolean vertical = (msp->qname && strcmp(msp->qname, dc->matchSeqName) == 0);
-  
+
   vertical |= (msp->qname && strcmp(msp->qname, "@2") == 0);
-  
+
   if(msp->qname && strcmp(msp->qname, "@1") == 0)
     {
       horizontal = TRUE;
@@ -2555,11 +2556,11 @@ static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotPrope
       /* Find the x position of this coord and draw a vertical line here */
       int sy = properties->plotRect.y;
       int ey = properties->plotRect.y + properties->plotRect.height + ANNOTATION_LABEL_PADDING;
-    
+
       int sx, ex; /* start/end coordinates [0..n] */
       getMspScreenCoords(msp, properties, &sx, &ex, NULL, NULL);
       gdk_draw_line(drawable, gc, sx, sy, ex, ey);
-    
+
       /* Draw a label at the bottom (if labels enabled) */
       if (properties->hozLabelsOn && msp->desc)
 	{
@@ -2576,7 +2577,7 @@ static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotPrope
           cairo_destroy(cr);
 	}
     }
-  
+
   if (vertical)
     {
       /* Find the y position of this coord and draw a horizontal line here */
@@ -2586,14 +2587,14 @@ static void drawBreakline(const MSP* const msp, GtkWidget *dotplot, DotplotPrope
       int sy, ey; /* start/end coordinates [0..n]. Note that breakline coords are always
 		   * stored in the q coords even for the vertical sequence. */
       getMspScreenCoords(msp, properties, &sy, &ey, NULL, NULL);
-    
+
       /* hack the coords because they've been based at the x coord. Really we should store them
        * properly in the s range but for historic reasons they're in the q range. */
       sy += properties->plotRect.y - properties->plotRect.x;
       ey += properties->plotRect.y - properties->plotRect.x;
-    
+
       gdk_draw_line(drawable, gc, sx, sy, ex, ey);
-    
+
       /* Draw a label at the RHS (if labels enabled) */
       if (properties->vertLabelsOn && msp->desc)
 	{
@@ -2621,19 +2622,19 @@ static void drawBreaklines(GtkWidget *dotplot, GdkDrawable *drawable)
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = dwc->dotterCtx;
-  
+
   if (properties->breaklinesOn)
     {
       const MSP* msp = dc->mspList;
-    
+
       for ( ; msp; msp = msp->next)
 	{
 	  if (msp->type == BLXMSP_FS_SEG)
 	    {
 	      drawBreakline(msp, dotplot, properties, drawable);
 	    }
-	}      
-    }  
+	}
+    }
 }
 
 
@@ -2641,7 +2642,7 @@ static void drawBreaklines(GtkWidget *dotplot, GdkDrawable *drawable)
 static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
-  
+
   if (properties->crosshairOn)
     {
       GdkGC *gc = gdk_gc_new(drawable);
@@ -2652,7 +2653,7 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
       /* Set the line color for the crosshair */
       GdkColor *lineColor = getGdkColor(DOTCOLOR_CROSSHAIR, dc->defaultColors, FALSE, dwc->usePrintColors);
       gdk_gc_set_foreground(gc, lineColor);
-      
+
       int x = UNSET_INT, y = UNSET_INT;
       getPosFromSelectedCoords(dotplot, &x, &y);
 
@@ -2666,21 +2667,21 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
       int y1 = properties->crosshairFullscreen ? dc->scaleHeight : properties->plotRect.y;
       int height = properties->crosshairFullscreen ? dotplot->allocation.height : properties->plotRect.height;
       gdk_draw_line(drawable, gc, x, y1, x, y1 + height);
-      
+
       if (properties->crosshairCoordsOn)
         {
           /* Draw the coord text */
-          char *displayText = g_strdup_printf("%d, %d", 
-                                              getDisplayCoord(dwc->refCoord, dc, TRUE), 
+          char *displayText = g_strdup_printf("%d, %d",
+                                              getDisplayCoord(dwc->refCoord, dc, TRUE),
                                               getDisplayCoord(dwc->matchCoord, dc, FALSE));
-          
+
           if (displayText && strlen(displayText) > 0)
             {
               cairo_t *cr = gdk_cairo_create(drawable);
               PangoLayout *layout = pango_cairo_create_layout(cr);
               pango_layout_set_font_description(layout, dotplot->style->font_desc);
               pango_layout_set_text(layout, displayText, -1);
-              
+
               int textWidth = UNSET_INT, textHeight = UNSET_INT;
               pango_layout_get_pixel_size(layout, &textWidth, &textHeight);
 
@@ -2696,7 +2697,7 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
                 {
                   x += CROSSHAIR_TEXT_PADDING;
                 }
-              
+
               if (y + CROSSHAIR_TEXT_PADDING + textHeight > totalHeight)
                 {
                   y -= CROSSHAIR_TEXT_PADDING + textHeight;
@@ -2716,7 +2717,7 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
 
           g_free(displayText);
         }
-      
+
       g_object_unref(gc);
     }
 }
@@ -2726,16 +2727,16 @@ static void dotplotDrawCrosshair(GtkWidget *dotplot, GdkDrawable *drawable)
 static void drawImage(GtkWidget *dotplot, GdkDrawable *drawable)
 {
   DEBUG_ENTER("drawImage");
-  
+
   DotplotProperties *properties = dotplotGetProperties(dotplot);
- 
+
   if (showImage(properties))
-    {  
+    {
       GdkGC *gc = gdk_gc_new(drawable);
-      
+
       gdk_draw_image(drawable, gc, properties->image,
                      0, 0, properties->plotRect.x, properties->plotRect.y,
-                     properties->image->width, properties->image->height); 
+                     properties->image->width, properties->image->height);
 
       /* We cannot calculate the image in the sliding-window size border,
        * so shade that in to indicate it is not part of the plot */
@@ -2753,29 +2754,29 @@ static void drawImage(GtkWidget *dotplot, GdkDrawable *drawable)
       drawRect(drawable, color, r->x, r->y, vBorder, r->height, alpha, op);
       drawRect(drawable, color, r->x + r->width - vBorder, r->y, vBorder, r->height, alpha, op);
       drawRect(drawable, color, r->x, r->y, r->width, hBorder, alpha, op);
-      drawRect(drawable, color, r->x, r->y + r->height - hBorder, r->width, hBorder, alpha, op);      
+      drawRect(drawable, color, r->x, r->y + r->height - hBorder, r->width, hBorder, alpha, op);
 
       g_object_unref(gc);
     }
-  
+
   DEBUG_EXIT("drawImage returning ");
 }
 
 
-/* Utility to cut off anything before the ':' in an MSP name. Returns the full name if 
- * there is no colon. Returns a pointer into the original name, so the result should not 
+/* Utility to cut off anything before the ':' in an MSP name. Returns the full name if
+ * there is no colon. Returns a pointer into the original name, so the result should not
  * be free'd */
 static const char* getShortMspName(const MSP* const msp)
 {
   const char *result = NULL;
   const char *sName = mspGetSName(msp);
-  
+
   if (sName)
     {
-      const char *mspName = strchr(sName, ':');  
+      const char *mspName = strchr(sName, ':');
       result = mspName ? ++mspName : sName;
     }
-  
+
   return result;
 }
 
@@ -2787,35 +2788,35 @@ static void calculateImageHsps(int strength, int sx, int sy, int ex, int ey, Dot
   ex -= properties->plotRect.x;
   sy -= properties->plotRect.y;
   ey -= properties->plotRect.y;
-  
+
   const int xInc = (sx < ex) ? 1 : -1;
   const int xLen = (ex - sx) * xInc + 1;
   const int yInc = (sy < ey) ? 1 : -1;
   const int yLen = (ey - sy) * yInc + 1;
-  
+
   const int width = properties->image->width;
   const int height = properties->image->height;
   const int pixelmapLen = width * height;
-  
+
   unsigned char dotValue;
-  
+
   if (strength < NUM_COLORS)
     dotValue = (unsigned char)strength;
-  else 
+  else
     dotValue = NUM_COLORS - 1;
-  
+
   int i = 0;
   for (i = 0; i < xLen && i < yLen; ++i)
     {
       const int x = sx + i * xInc;
       const int y = sy + i * yInc;
-      
-      if (x >= 0 && x < width && y >= 0 && y < height) 
+
+      if (x >= 0 && x < width && y >= 0 && y < height)
 	{
           const int dotpos = width * (y) + x;
 
           /* Use the new value if greater than the existing value. Ignore pixels out of range. */
-          if (dotpos >= 0 && dotpos < pixelmapLen && dotValue > properties->hspPixmap[dotpos]) 
+          if (dotpos >= 0 && dotpos < pixelmapLen && dotValue > properties->hspPixmap[dotpos])
             {
               properties->hspPixmap[dotpos] = dotValue;
             }
@@ -2837,7 +2838,7 @@ static void getMspScreenCoords(const MSP* const msp, DotplotProperties *properti
   getPosFromCoords(properties, qStart, sStart, sx, sy);
   getPosFromCoords(properties, qEnd, sEnd, ex, ey);
 }
-  
+
 
 static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
 {
@@ -2852,27 +2853,27 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
   GdkGC *gc = gdk_gc_new(drawable);
 
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  
+
   /* we'll clip the hsp lines to the dotplot drawing area */
   gdk_gc_set_clip_origin(gc, 0, 0);
   gdk_gc_set_clip_rectangle(gc, &properties->plotRect);
-  
+
   /* Loop through all MSPs */
   MSP *msp = dc->mspList;
   int sx, ex, sy, ey; /* start/end coordinates [0..n] */
-  
+
   for (msp = dc->mspList; msp;  msp = msp->next)
-    {    
+    {
       const char *mspName = getShortMspName(msp);
       if (!mspName || strcmp(mspName, dc->matchSeqName) != 0)
         {
           /* Not an MSP from our sequence */
           continue;
         }
-        
+
       getMspScreenCoords(msp, properties, &sx, &ex, &sy, &ey);
-      
-      if (properties->hspMode == DOTTER_HSPS_LINE) 
+
+      if (properties->hspMode == DOTTER_HSPS_LINE)
         {
           /* Draw in red */
           GdkColor hspLineColor;
@@ -2886,12 +2887,12 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
         {
           /* Get color based on score: */
           GdkColor scoreColor;
-          
+
           if (msp->score < 75.0)
             {
               gdk_color_parse("dark red", &scoreColor);
             }
-          if (msp->score < 100.0) 
+          if (msp->score < 100.0)
             {
               gdk_color_parse("magenta", &scoreColor);
             }
@@ -2899,14 +2900,14 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
             {
               gdk_color_parse("red", &scoreColor);
             }
-          
+
           gdk_colormap_alloc_color(gdk_colormap_get_system(), &scoreColor, TRUE, TRUE);
           gdk_gc_set_foreground(gc, &scoreColor);
-          
+
           gdk_draw_line(drawable, gc, sx, sy, ex, ey);
         }
     }
-  
+
   g_object_unref(gc);
 }
 
@@ -2915,18 +2916,18 @@ static void drawHsps(GtkWidget *dotplot, GdkDrawable *drawable)
 static void drawRubberBand(GtkWidget *dotplot, GdkDrawable *drawable)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
-  
+
   if (properties->dragStart.x != UNSET_INT && properties->dragEnd.x != UNSET_INT)
     {
       GdkGC *gc = gdk_gc_new(drawable);
-      
+
       gdk_gc_set_function(gc, GDK_INVERT);
-      
+
       gdk_draw_line(drawable, gc, properties->dragStart.x, properties->dragStart.y, properties->dragEnd.x, properties->dragStart.y);
       gdk_draw_line(drawable, gc, properties->dragStart.x, properties->dragStart.y, properties->dragStart.x, properties->dragEnd.y);
       gdk_draw_line(drawable, gc, properties->dragStart.x, properties->dragEnd.y, properties->dragEnd.x, properties->dragEnd.y);
       gdk_draw_line(drawable, gc, properties->dragEnd.x, properties->dragStart.y, properties->dragEnd.x, properties->dragEnd.y);
-      
+
       g_object_unref(gc);
     }
 }
@@ -2942,24 +2943,24 @@ static GdkColormap *insertGreyRamp (DotplotProperties *properties)
 
   GdkVisual *visual = gdk_visual_get_system();
   GdkColormap *cmap = gdk_colormap_get_system();
-  
-  if (visual->type == GDK_VISUAL_PSEUDO_COLOR) 
+
+  if (visual->type == GDK_VISUAL_PSEUDO_COLOR)
     {
       g_critical("Pseudo-color display not supported.\n");
     }
-  
+
   /* true color display */
   int i = 0;
-  
+
   for (i = 0; i < NUM_COLORS; i++)
     {
       properties->greyRamp[i].red = i<<8;
       properties->greyRamp[i].green =  i<<8;
       properties->greyRamp[i].blue = i<<8;
     }
-  
+
   gdk_colormap_alloc_colors(cmap, properties->greyRamp, NUM_COLORS, FALSE, TRUE, success);
-  
+
   return cmap;
 }
 
@@ -2973,18 +2974,18 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
       g_warning("Pixelmap is NULL; image will not be drawn.\n");
       return;
     }
-    
+
   /* Note1 : here we stick to client byte-order, and rely on Xlib to swap
    if the server is different */
-  
+
   /* Note2: The exact function of this routine depends on the visual. If it's
-   a pseudo color visual, we're just getting the pixel values for the 
+   a pseudo color visual, we're just getting the pixel values for the
    greyramp colormap entries. These values don't change, but the colors
-   they represent do. If it's a true-colour visual, the map entries 
-   are changed to give the correct values. It so happens that the 
-   transformation here is the same in both cases, this is not true 
+   they represent do. If it's a true-colour visual, the map entries
+   are changed to give the correct values. It so happens that the
+   transformation here is the same in both cases, this is not true
    for changing the grey-ramp. */
-  
+
   int row, col;
 #if G_BYTE_ORDER == G_BIG_ENDIAN
   DEBUG_OUT("G_BYTE_ORDER == G_BIG_ENDIAN\n");
@@ -2994,29 +2995,29 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
   gboolean byterev = (image->byte_order == GDK_MSB_FIRST);
 #endif
 
-  DEBUG_OUT("width=%d, height=%d, byterev=%d, image->bpp=%d, image->bpl=%d\n", 
+  DEBUG_OUT("width=%d, height=%d, byterev=%d, image->bpp=%d, image->bpl=%d\n",
             image->width, image->height, byterev, image->bpp, image->bpl);
-  
+
   /* Switch on the number of bytes per pixel */
   switch (image->bpp)
-  { 
+  {
     case 1:
       for (row = 0; row < image->height; row++)
-	{ 
+	{
 	  guint8 *ptr = ((guint8 *)image->mem) + row * image->bpl;
-	  guint8 *sptr = ((guint8 *)pixmap) + row * image->width; 
+	  guint8 *sptr = ((guint8 *)pixmap) + row * image->width;
 	  for (col = 0 ; col < image->width; col++)
 	    *ptr++ = (guint8) properties->greyMap[*sptr++];
 	}
       break;
     case 2:
       for (row = 0; row < image->height; row++)
-	{ 
+	{
 	  guint16 *ptr = (guint16 *)(((guint8 *)(image->mem))+row*image->bpl);
 	  guint8 *sptr = ((guint8 *)pixmap) +row * image->width;
 	  if (byterev)
 	    for (col = 0 ; col < image->width; col++)
-	      { 
+	      {
 		guint32 pixel = properties->greyMap[*sptr++];
 		*ptr++ = ((pixel & 0xff00) >> 8) | ((pixel & 0xff) << 8);
 	      }
@@ -3027,28 +3028,28 @@ static void transformGreyRampImage(GdkImage *image, unsigned char *pixmap, Dotpl
       break;
     case 3:
       for (row = 0; row < image->height; row++)
-	{ 
+	{
 	  guint8 *ptr = ((guint8 *)image->mem) + row*image->bpl;
 	  guint8 *sptr = ((guint8 *)pixmap) +row * image->width;
 	  for (col = 0 ; col < image->width; col++)
 	    {
-	      guint32 pixel = properties->greyMap[*sptr++]; 
+	      guint32 pixel = properties->greyMap[*sptr++];
 	      *ptr++ = (guint8)pixel;
 	      *ptr++ = (guint8)(pixel>>8);
-	      *ptr++ = (guint8)(pixel>>16); 
+	      *ptr++ = (guint8)(pixel>>16);
 	    }
 	}
       break;
     case 4:
       for (row = 0; row < image->height; row++)
-	{ 
+	{
 	  guint32 *ptr = (guint32 *)(((guint8 *)image->mem) + row*image->bpl);
 	  guint8 *sptr = ((guint8 *)pixmap) +row * image->width;
 	  if (byterev)
 	    for (col = 0 ; col < image->width; col++)
-	      { 
+	      {
 		guint32 pixel = properties->greyMap[*sptr++];
-		*ptr++ = 
+		*ptr++ =
                 ((pixel & 0xff000000) >> 24) |
                 ((pixel & 0xff0000) >> 8) |
                 ((pixel & 0xff00) << 8) |
@@ -3079,7 +3080,7 @@ void dotplotUpdateGreymap(GtkWidget *dotplot, gpointer data)
 
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   unsigned char *ramp = (unsigned char*)data;
-  
+
   /* First calculate the new mapping from weight to pixels */
   int i = 0;
   for (i = 0; i < NUM_COLORS; i++)
@@ -3087,9 +3088,9 @@ void dotplotUpdateGreymap(GtkWidget *dotplot, gpointer data)
       GdkColor *color = &properties->greyRamp[ramp[i]];
       properties->greyMap[i] = color->pixel;
     }
-  
+
   /* Now recreate the image from the pixmap. Use the HSP pixmap if enabled, otherwise
-   * use the standard pixelmap. */ 
+   * use the standard pixelmap. */
   if (properties->hspMode == DOTTER_HSPS_GREYSCALE)
     {
       transformGreyRampImage(properties->image, properties->hspPixmap, properties);
@@ -3098,26 +3099,26 @@ void dotplotUpdateGreymap(GtkWidget *dotplot, gpointer data)
     {
       transformGreyRampImage(properties->image, properties->pixelmap, properties);
     }
-  
+
   widgetClearCachedDrawable(dotplot, NULL);
   gtk_widget_queue_draw(dotplot);
-  
+
   DEBUG_EXIT("dotplotUpdateGreymap returning ");
 }
 
 
 /* Get the reference/match sequence coords at the given x/y position */
-static void getCoordsFromPos(GtkWidget *dotplot, const int x, const int y, 
+static void getCoordsFromPos(GtkWidget *dotplot, const int x, const int y,
 			     int *refCoord, int *matchCoord)
 {
   DotplotProperties *properties = dotplotGetProperties(dotplot);
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  
+
   /* For ref seq, convert to number of nucleotides */
   gdouble scaleFactor = getScaleFactor(properties, TRUE);
   const int numBasesHoz = (x - properties->plotRect.x) * scaleFactor;
-  
+
   if (dc->hozScaleRev)
     {
       *refCoord = dwc->refSeqRange.max() - numBasesHoz;
@@ -3132,8 +3133,8 @@ static void getCoordsFromPos(GtkWidget *dotplot, const int x, const int y,
   boundsLimitValue(refCoord, &dwc->refSeqRange);
 
   scaleFactor = getScaleFactor(properties, FALSE);
-  const int numBasesVert = (y - properties->plotRect.y) * scaleFactor;  
-  
+  const int numBasesVert = (y - properties->plotRect.y) * scaleFactor;
+
   if (dc->vertScaleRev)
     {
       *matchCoord = dwc->matchSeqRange.max() - numBasesVert;
@@ -3142,7 +3143,7 @@ static void getCoordsFromPos(GtkWidget *dotplot, const int x, const int y,
     {
       *matchCoord = dwc->matchSeqRange.min() + numBasesVert;
     }
-  
+
   /* Round to nearest whole pixel and limit to valid range */
   *matchCoord = roundToValue(*matchCoord, getResFactor(dc, FALSE));
   boundsLimitValue(matchCoord, &dwc->matchSeqRange);
@@ -3156,9 +3157,9 @@ static void setCoordsFromPos(GtkWidget *dotplot, const int x, const int y)
   DotterWindowContext *dwc = properties->dotterWinCtx;
 
   getCoordsFromPos(dotplot, x, y, &dwc->refCoord, &dwc->matchCoord);
-  
+
   refreshDotplot(dotplot);
-}  
+}
 
 
 /* Get the x,y position of the given coords */
@@ -3166,7 +3167,7 @@ static void getPosFromCoords(DotplotProperties *properties, int qCoord, int sCoo
 {
   DotterWindowContext *dwc = properties->dotterWinCtx;
   DotterContext *dc = properties->dotterWinCtx->dotterCtx;
-  
+
   const gdouble hScaleFactor = getScaleFactor(properties, TRUE);
   const gdouble vScaleFactor = getScaleFactor(properties, FALSE);
 
@@ -3177,7 +3178,7 @@ static void getPosFromCoords(DotplotProperties *properties, int qCoord, int sCoo
       else
 	*x = properties->plotRect.x + (qCoord - dwc->refSeqRange.min()) / hScaleFactor;
     }
-  
+
   if (y)
     {
       if (dc->vertScaleRev)
@@ -3203,16 +3204,16 @@ static void boundsLimitPoint(GdkPoint *point, GdkRectangle *rect)
 {
   if (point->x < rect->x)
     point->x = rect->x;
-  
+
   if (point->x > rect->x + rect->width)
     point->x = rect->x + rect->width;
-  
+
   if (point->y < rect->y)
     point->y = rect->y;
-  
+
   if (point->y > rect->y + rect->height)
     point->y = rect->y + rect->height;
-  
+
 }
 
 
@@ -3221,7 +3222,7 @@ static void setPoint(GdkPoint *point, const int x, const int y, GdkRectangle *re
 {
   point->x = x;
   point->y = y;
-  
+
   if (rect)
     boundsLimitPoint(point, rect);
 }
@@ -3241,15 +3242,13 @@ static gdouble getScaleFactor(DotplotProperties *properties, const gboolean hori
  */
 #ifdef ALPHA
 static void reversebytes(void *ptr, int n)
-{ 
+{
   static char copy[256], *cp;
   int  i;
-  
+
   cp = ptr;
   memcpy(copy, ptr, n);  /* Note: strcpy doesn't work - stops at \0 */
-  
+
   for(i=0; i<n; i++) *cp++ = copy[n-i-1];
 }
 #endif
-
-

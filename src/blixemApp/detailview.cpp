@@ -1,29 +1,30 @@
 /*  File: detailview.c
  *  Author: Gemma Barson, 2009-11-23
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2009 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -87,7 +88,7 @@ using namespace std;
 #define SETTING_NAME_NUM_UNALIGNED_BASES "num-unaligned-bases"
 
 
-typedef struct 
+typedef struct
 {
   const int startDnaIdx;              /* the DNA coord to start searching from */
   const gboolean searchRight;         /* search towards the right or left */
@@ -149,23 +150,23 @@ static int                    getVariationRowNumber(const IntRange* const rangeI
 static void                   freeRowsList(GSList *rows);
 
 static gboolean               coordAffectedByVariation(const int dnaIdx,
-                                                       const BlxStrand strand, 
+                                                       const BlxStrand strand,
                                                        BlxContext *bc,
                                                        const MSP **msp,
-                                                       gboolean *drawStartBoundary, 
-                                                       gboolean *drawEndBoundary, 
-                                                       gboolean *drawJoiningLines, 
+                                                       gboolean *drawStartBoundary,
+                                                       gboolean *drawEndBoundary,
+                                                       gboolean *drawJoiningLines,
                                                        gboolean *drawBackground,
                                                        gboolean *multipleVariations);
 
 static gboolean               coordAffectedByPolyASignal(const int dnaIdx,
-                                                         const BlxStrand strand, 
+                                                         const BlxStrand strand,
                                                          BlxContext *bc,
                                                          const MSP **mspOut,
                                                          gboolean *multipleVariations);
 
 static gboolean                coordAffectedByPolyASite(const int dnaIdx,
-                                                        const BlxStrand strand, 
+                                                        const BlxStrand strand,
                                                         BlxContext *bc,
                                                         const MSP **mspOut,
                                                         gboolean *multipleVariations);
@@ -175,8 +176,8 @@ static gboolean                detailViewContainerIsParent(GtkContainer *contain
 
 static void                    detailViewRefreshSelection(GtkWidget *detailView);
 
-static void                    setDetailViewIndex(DetailViewIndex *index, 
-                                                  const gboolean isSet, 
+static void                    setDetailViewIndex(DetailViewIndex *index,
+                                                  const gboolean isSet,
                                                   const int dnaIdx,
                                                   const int displayIdx,
                                                   const int frame,
@@ -193,14 +194,14 @@ static void                    destroyBlxSpliceSite(gpointer listItemData, gpoin
 DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
                                            GtkWidget *blxWindow_in,
                                            BlxContext *bc_in,
-                                           CoverageViewProperties *coverageViewP_in, 
+                                           CoverageViewProperties *coverageViewP_in,
                                            GtkCellRenderer *renderer_in,
                                            GList *fwdStrandTrees_in,
                                            GList *revStrandTrees_in,
                                            GtkWidget *feedbackBox_in,
                                            GtkWidget *statusBar_in,
                                            GList *columnList_in,
-                                           GtkAdjustment *adjustment_in, 
+                                           GtkAdjustment *adjustment_in,
                                            const int startCoord_in,
                                            const BlxColumnId sortColumn_in) :
   BlxPanel(detailView_in, blxWindow_in, bc_in, coverageViewP_in, 0)
@@ -224,14 +225,14 @@ DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
   setDetailViewIndex(&selectedRangeInit, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
   setDetailViewIndex(&selectedRangeStart, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
   setDetailViewIndex(&selectedRangeEnd, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
-      
+
   /* The numunalignedbases may be set in the config file; if so, override the default */
   GKeyFile *key_file = blxGetConfig();
   if (key_file)
     {
       GError *error = NULL;
       int numUnaligned = g_key_file_get_integer(key_file, SETTINGS_GROUP, SETTING_NAME_NUM_UNALIGNED_BASES, &error);
-          
+
       if (!error) /* we don't care if it wasn't found */
         numUnalignedBases = numUnaligned;
     }
@@ -250,14 +251,14 @@ DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
 
   /* Find the padding between the background area of the tree cells and the actual
    * drawing area. This is used to render the full height of the background area, so
-   * that we don't have gaps between rows. */ 
+   * that we don't have gaps between rows. */
   if (fwdStrandTrees)
     {
       //GtkWidget *widget = GTK_WIDGET(fwdStrandTrees->data);
 
       //GtkWidget *tree = widgetIsTree(widget) ? widget : treeContainerGetTree(GTK_CONTAINER(widget));
       //gtk_widget_realize(tree); /* must realize tree to pick up any overriden style properties */
-            
+
       /* I can't get this to work properly using gtk_tree_view_get_cell_area etc. The cell
        * area and background area come out wrong - perhaps because I'm not using a real
        * row path. After a bit of experimentation it seems that the y padding is always
@@ -265,18 +266,18 @@ DetailViewProperties::DetailViewProperties(GtkWidget *detailView_in,
       gint vertical_separator = 0, horizontal_separator = 0;
       //gtk_widget_style_get (tree, "vertical-separator", &vertical_separator, NULL);
       //gtk_widget_style_get (tree, "horizontal-separator", &horizontal_separator, NULL);
-          
+
       cellXPadding = (horizontal_separator / 2) + 1;
       cellYPadding = (vertical_separator / 2) + 1;
     }
   exonBoundaryLineWidth   = 1;
   exonBoundaryLineStyle = GDK_LINE_SOLID;
   exonBoundaryLineStylePartial = GDK_LINE_ON_OFF_DASH;
-      
+
   /* Allocate sortColumns array to be same length as columnList */
   const int numColumns = g_list_length(columnList_in);
   sortColumns = new BlxColumnId[numColumns];
-      
+
   int i = 0;
   for ( ; i < numColumns; ++i)
     sortColumns[i] = BLXCOL_NONE;
@@ -292,13 +293,13 @@ DetailViewProperties::~DetailViewProperties()
 {
   /* N.B. Don't free the cell renderer, or it causes memory corruption. I'm not
    * sure what owns it - the columns it is added to? */
-    
+
   if (fwdStrandTrees)
     {
       g_list_free(fwdStrandTrees);
       fwdStrandTrees = NULL;
     }
-  
+
   if (revStrandTrees)
     {
       g_list_free(revStrandTrees);
@@ -310,7 +311,7 @@ DetailViewProperties::~DetailViewProperties()
       pango_font_description_free(fontDesc);
       fontDesc = NULL;
     }
-  
+
   if (spliceSites)
     {
       g_slist_foreach(spliceSites, destroyBlxSpliceSite, NULL);
@@ -329,7 +330,7 @@ double DetailViewProperties::charHeight() const
   return m_charHeight;
 }
 
-/* Get the position of the left border of the main content, i.e. the 
+/* Get the position of the left border of the main content, i.e. the
  * sequence column */
 double DetailViewProperties::contentXPos() const
 {
@@ -343,7 +344,7 @@ double DetailViewProperties::contentXPos() const
   return result;
 }
 
-/* Get the position of the right border of the main content, i.e. the 
+/* Get the position of the right border of the main content, i.e. the
  * sequence column */
 double DetailViewProperties::contentWidth() const
 {
@@ -373,7 +374,7 @@ void callFuncOnChildren(GtkWidget *widget, gpointer data)
 
   if (stringsEqual(gtk_widget_get_name(widget), funcData->widgetName, TRUE))
     funcData->callbackFunc(widget, funcData->callbackData);
-  
+
   if (GTK_IS_CONTAINER(widget))
     gtk_container_foreach(GTK_CONTAINER(widget), callFuncOnChildren, data);
 }
@@ -386,7 +387,7 @@ void detailViewRefreshAllHeaders(GtkWidget *detailView)
 
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
-  
+
   RecursiveFuncData data = {SNP_TRACK_HEADER_NAME, recalculateSnpTrackBorders, detailView};
   callFuncOnChildren(detailView, &data);
 
@@ -404,7 +405,7 @@ void detailViewRedrawAll(GtkWidget *detailView)
   callFuncOnAllDetailViewTrees(detailView, widgetClearCachedDrawable, NULL);
 
   /* Recalculate the size of the snp track headers */
-  RecursiveFuncData data = {SNP_TRACK_HEADER_NAME, recalculateSnpTrackBorders, detailView};  
+  RecursiveFuncData data = {SNP_TRACK_HEADER_NAME, recalculateSnpTrackBorders, detailView};
   callFuncOnChildren(detailView, &data);
 
   DetailViewProperties *properties = detailViewGetProperties(detailView);
@@ -423,7 +424,7 @@ void detailViewSaveProperties(GtkWidget *detailView, GKeyFile *key_file)
   DEBUG_ENTER("detailViewSaveProperties()");
 
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  
+
   g_key_file_set_integer(key_file, SETTINGS_GROUP, SETTING_NAME_NUM_UNALIGNED_BASES, properties->numUnalignedBases);
   saveColumnWidths(detailViewGetColumnList(detailView), key_file);
   saveSummaryColumns(detailViewGetColumnList(detailView), key_file);
@@ -465,24 +466,24 @@ void setDetailViewEndIdx(GtkWidget *detailView, int coord, const BlxSeqType coor
 
 /* Update the scroll position of the adjustment to the given value. Does bounds checking. */
 static void setDetailViewScrollPos(GtkAdjustment *adjustment, int value)
-{ 
+{
   DEBUG_ENTER("setDetailViewScrollPos()");
 
   /* bounds checking */
   int maxValue = adjustment->upper - adjustment->page_size + 1;
-  
+
   if (value > maxValue)
     {
       value = maxValue;
     }
-  
+
   if (value < adjustment->lower)
     {
       value = adjustment->lower;
     }
-  
+
   adjustment->value = value;
-  
+
   /* Emit notification that the scroll pos has changed */
    gtk_adjustment_value_changed(adjustment);
 
@@ -560,11 +561,11 @@ static int calcNumBasesInSequenceColumn(DetailViewProperties *properties)
   DEBUG_ENTER("calcNumBasesInSequenceColumn()");
 
   int numChars = 0;
-  
+
   /* Find the width of the sequence column */
   int colWidth = UNSET_INT;
   GList *listItem = blxWindowGetColumnList(properties->blxWindow());
-  
+
   for ( ; listItem; listItem = listItem->next)
     {
       BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
@@ -574,17 +575,17 @@ static int calcNumBasesInSequenceColumn(DetailViewProperties *properties)
           break;
         }
     }
-  
+
   if (colWidth >= 0)
     {
       /* Don't include the cell padding area */
       GtkCellRenderer *renderer = properties->renderer;
       colWidth -= (2 * renderer->xpad) + (2 * renderer->xalign);
-      
+
       /* Return the number of whole characters that fit in the column. */
       numChars = (int)((gdouble)colWidth / properties->charWidth());
     }
-  
+
   DEBUG_EXIT("calcNumBasesInSequenceColumn returning %d", numChars);
   return numChars;
 }
@@ -592,43 +593,43 @@ static int calcNumBasesInSequenceColumn(DetailViewProperties *properties)
 
 /* This should be called when the width of the sequence column has changed (or the
  * size of the font has changed). This function will adjust the scroll range of our
- * custom scroll adjustment so that it represents the range that can be displayed 
+ * custom scroll adjustment so that it represents the range that can be displayed
  * in the new column width. */
 void updateDetailViewRange(GtkWidget *detailView)
 {
   DEBUG_ENTER("updateDetailViewRange()");
 
   DetailViewProperties *properties = detailViewGetProperties(detailView);
-  
+
   if (properties->adjustment)
     {
       int newPageSize = calcNumBasesInSequenceColumn(properties);
-      
+
       /* Only trigger updates if things have actually changed */
       if (newPageSize != properties->adjustment->page_size)
         {
           properties->adjustment->page_size = newPageSize;
           properties->adjustment->page_increment = newPageSize;
-          
+
           ///* Reset the display range so that it is between the scrollbar min and max. Try to keep
-//         * it centred on the same base. The base index is in terms of the display range coords, 
+//         * it centred on the same base. The base index is in terms of the display range coords,
 //         * so the sequence type of the coord is whatever the display sequence type is. */
 //        const IntRange const *displayRange = &properties->displayRange;
 //
 //        /* First time through, both coords are set to the initial start coord. So, if
 //         * they are the same, just use that coord as the start coord */
 //        int newStart = displayRange->min;
-//        
+//
 //        if (displayRange->min != displayRange->max)
 //          {
 //            int centre = displayRange->centre();
 //            int offset = roundNearest((double)properties->adjustment->page_size / 2.0);
 //            newStart = centre - offset;
 //          }
-//            
+//
 //        const BlxSeqType seqType = blxWindowGetSeqType(properties->blxWindow());
 //        setDetailViewStartIdx(detailView, newStart, seqType);
-          
+
           gtk_adjustment_changed(properties->adjustment); /* signal that the scroll range has changed */
         }
     }
@@ -644,10 +645,10 @@ static GtkWidget *findNestedPanedWidget(GtkContainer *parentWidget)
   DEBUG_ENTER("findNestedPanedWidget()");
 
   GtkWidget *result = NULL;
-  
+
   GList *children = gtk_container_get_children(parentWidget);
   GList *child = children;
-  
+
   while (child)
     {
       GtkWidget *childWidget = GTK_WIDGET(child->data);
@@ -656,10 +657,10 @@ static GtkWidget *findNestedPanedWidget(GtkContainer *parentWidget)
           result = childWidget;
           break;
         }
-      
+
       child = child->next;
     }
-  
+
   g_list_free(children);
 
   DEBUG_EXIT("findNestedPanedWidget returning ");
@@ -672,19 +673,19 @@ static GtkWidget *findNestedPanedWidget(GtkContainer *parentWidget)
  * actual trees, it may contain their containers (e.g. if they live in scrolled windows). 'first'
  * indicates that this is the first (set of) tree(s) added. This information is used to determine
  * which pane to put the tree in and/or whether the first tree in the list should have headers. */
-static void addTreesToDetailViewPane(GtkPaned *panedWin, 
-                                     GList *treeList, 
+static void addTreesToDetailViewPane(GtkPaned *panedWin,
+                                     GList *treeList,
                                      const gboolean first)
 {
   DEBUG_ENTER("addTreesToDetailViewPane()");
 
   int numTrees = g_list_length(treeList);
-  
+
   if (numTrees == 1)
     {
       /* Two panes, one tree. Use 'first' flags to decide which pane to put it in */
       GtkWidget *tree1 = GTK_WIDGET(treeList->data);
-      
+
       if (first)
         {
           gtk_paned_pack1(panedWin, tree1, TRUE, TRUE);
@@ -699,7 +700,7 @@ static void addTreesToDetailViewPane(GtkPaned *panedWin,
       /* Two panes, two trees. Easy - put one in each. */
       GtkWidget *tree1 = GTK_WIDGET(treeList->data);
       GtkWidget *tree2 = GTK_WIDGET(treeList->next->data);
-      
+
       gtk_paned_pack1(panedWin, tree1, TRUE, TRUE);
       gtk_paned_pack2(panedWin, tree2, TRUE, TRUE);
     }
@@ -711,10 +712,10 @@ static void addTreesToDetailViewPane(GtkPaned *panedWin,
       gtk_paned_pack1(panedWin, tree1, TRUE, TRUE);
 
       GtkWidget *nestedPanedWidget = findNestedPanedWidget(GTK_CONTAINER(panedWin));
-      
+
       if (nestedPanedWidget)
         {
-          /* Create a new list containing the remaining trees and call this 
+          /* Create a new list containing the remaining trees and call this
            * function again on the nested paned widget. */
           GList *remainingTrees = NULL;
           GList *nextTree = treeList->next;
@@ -723,7 +724,7 @@ static void addTreesToDetailViewPane(GtkPaned *panedWin,
               remainingTrees = g_list_append(remainingTrees, nextTree->data);
               nextTree = nextTree->next;
             }
-          
+
           /* Pass 'first' as false to make sure we don't add any more headers */
           addTreesToDetailViewPane(GTK_PANED(nestedPanedWidget), remainingTrees, FALSE);
         }
@@ -745,7 +746,7 @@ static gboolean widgetIsTree(GtkWidget *widget)
 }
 
 
-/* Returns true if this widget is a detail-view-tree-container (that is, 
+/* Returns true if this widget is a detail-view-tree-container (that is,
  * a container that has only one child that is a detail-view-tree.) */
 static gboolean widgetIsTreeContainer(GtkWidget *widget)
 {
@@ -763,16 +764,16 @@ static gboolean widgetIsTreeContainer(GtkWidget *widget)
 static GtkWidget *treeContainerGetTree(GtkContainer *container)
 {
   GtkWidget *result = NULL;
-  
+
   GList *children = gtk_container_get_children(container);
   GList *child = children;
-  
+
   for ( ; child && !result; child = child->next)
     {
       if (GTK_IS_WIDGET(child->data))
         {
           GtkWidget *childWidget = GTK_WIDGET(child->data);
-          
+
           if (widgetIsTree(childWidget))
             {
               result = childWidget;
@@ -785,7 +786,7 @@ static GtkWidget *treeContainerGetTree(GtkContainer *container)
     }
 
   g_list_free(children);
-  
+
   return result;
 }
 
@@ -813,7 +814,7 @@ static gboolean detailViewContainerIsParent(GtkContainer *container, GtkWidget *
           result = detailViewContainerIsParent(GTK_CONTAINER(check_widget), search_child);
         }
     }
-  
+
   g_list_free(check_list);
 
   return result;
@@ -829,13 +830,13 @@ static GtkWidget *detailViewContainerGetParentWidget(GtkContainer *container, Gt
   /* Loop through all children in the container looking for a widget with parent_name */
   GList *container_children = gtk_container_get_children(container);
   GList *cur_item = container_children;
-  
+
   for ( ; cur_item && !result; cur_item = cur_item->next)
     {
       if (GTK_IS_WIDGET(cur_item->data))
         {
           GtkWidget *cur_widget = GTK_WIDGET(cur_item->data);
-          
+
           /* If the name matches, then check if this widget is a container with a child
            * (or child-of-a-child) that matches search_child. If not, keep on searching. */
           if (strcmp(gtk_widget_get_name(cur_widget), parent_name) == 0 && GTK_IS_CONTAINER(cur_widget))
@@ -846,7 +847,7 @@ static GtkWidget *detailViewContainerGetParentWidget(GtkContainer *container, Gt
                   break;
                 }
             }
-          
+
           if (GTK_IS_CONTAINER(cur_widget))
            {
              result = detailViewContainerGetParentWidget(GTK_CONTAINER(cur_widget), search_child, parent_name);
@@ -855,7 +856,7 @@ static GtkWidget *detailViewContainerGetParentWidget(GtkContainer *container, Gt
     }
 
   g_list_free(container_children);
-  
+
   return result;
 }
 
@@ -886,7 +887,7 @@ static void removeAllTreesFromContainer(GtkWidget *widget, gpointer data)
 
 /* This function removes the trees from the detail view and re-adds them in the
  * correct order according to the displayRev flag. It should be called every
- * time the strands are toggled. It assumes the trees are already in the 
+ * time the strands are toggled. It assumes the trees are already in the
  * detailView container, and that the properties have been set for all 3 widgets. */
 static void refreshTreeOrder(GtkWidget *detailView)
 {
@@ -901,7 +902,7 @@ static void refreshTreeOrder(GtkWidget *detailView)
 
   gtk_container_foreach(GTK_CONTAINER(detailView), removeAllTreesFromContainer, detailViewContainer);
 
-  /* Extract the named detail-view widget, which is the direct parent of the trees. This 
+  /* Extract the named detail-view widget, which is the direct parent of the trees. This
    * should be a paned window. */
   GtkWidget *panedWin = getNamedChildWidget(detailView, DETAIL_VIEW_WIDGET_NAME);
 
@@ -922,7 +923,7 @@ static void refreshTreeOrder(GtkWidget *detailView)
       GList *treeList = toggled ? properties->revStrandTrees : properties->fwdStrandTrees;
       addTreesToDetailViewPane(GTK_PANED(panedWin), treeList, TRUE);
     }
-  
+
   /* Must show all child widgets because some of them may not have been in this parent before.
    * (Just calling gtk_widget_show on the individual trees doesn't seem to work.)
    * However, we then need to re-hide any that may have been previously hidden by the user. */
@@ -935,17 +936,17 @@ static void refreshTreeOrder(GtkWidget *detailView)
 
 /* Refresh a header that contains fixed-width text that needs to be resized whenever a zoom
  * happens; updates the height of the widget and the font description, and clears its cached
- * drawable, if it has one. This just sets things up ready for the next expose event, where 
+ * drawable, if it has one. This just sets things up ready for the next expose event, where
  * the actual drawing will take place. */
 void refreshTextHeader(GtkWidget *header, gpointer data)
 {
   const char *widgetName = gtk_widget_get_name(header);
-  
+
   if (GTK_IS_LABEL(header))
     {
       /* For straightforward labels, just update the font size. */
       GtkWidget *detailView = GTK_WIDGET(data);
-      
+
       PangoFontDescription *dvFont = detailViewGetFontDesc(detailView);
       int newSize = pango_font_description_get_size(dvFont);
 
@@ -960,7 +961,7 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
       /* Update the font and the widget height, in case the font-size has changed. */
       GtkWidget *detailView = GTK_WIDGET(data);
       gtk_widget_modify_font(header, detailViewGetFontDesc(detailView));
-     
+
       if (!strcmp(widgetName, SNP_TRACK_HEADER_NAME))
         {
           /* SNP track - must adjust its size based on the char height and number of rows visible */
@@ -976,7 +977,7 @@ void refreshTextHeader(GtkWidget *header, gpointer data)
 
       gtk_widget_queue_draw(header);
     }
-  
+
   /* If this is a container, recurse over each child */
   if (GTK_IS_CONTAINER(header))
     {
@@ -994,12 +995,12 @@ static void refreshDetailViewHeaders(GtkWidget *detailView)
   /* Loop through all widgets and call refreshTextHeader. This
    * updates the font etc. if it is a type of widget that requires that. */
   gtk_container_foreach(GTK_CONTAINER(detailView), refreshTextHeader, detailView);
-  
+
   /* Loop through all columns and call the individual refresh callbacks for
    * each of their headers. This updates the specific information within the header. */
   GList *columnList = detailViewGetColumnList(detailView);
   GList *column = columnList;
-  
+
   for ( ; column; column = column->next)
     {
       BlxColumnInfo *columnInfo = (BlxColumnInfo*)column->data;
@@ -1026,7 +1027,7 @@ void resizeDetailViewHeaders(GtkWidget *detailView)
   DEBUG_ENTER("resizeDetailViewHeaders()");
 
   GList *listItem = detailViewGetColumnList(detailView);
-  
+
   for ( ; listItem; listItem = listItem->next)
     {
       BlxColumnInfo *columnInfo = (BlxColumnInfo*)listItem->data;
@@ -1061,10 +1062,10 @@ void updateDetailViewFontDesc(GtkWidget *detailView)
   DEBUG_ENTER("updateDetailViewFontDesc()");
 
   PangoFontDescription *fontDesc = detailViewGetFontDesc(detailView);
-  
+
   gtk_widget_modify_font(detailView, fontDesc);
   callFuncOnAllDetailViewTrees(detailView, (GtkCallback)gtk_widget_modify_font, fontDesc);
-  
+
   updateCellRendererFont(detailView, fontDesc);
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
@@ -1081,7 +1082,7 @@ static void incrementFontSize(GtkWidget *detailView)
 
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   int newSize = (pango_font_description_get_size(properties->fontDesc) / PANGO_SCALE) + FONT_INCREMENT_SIZE;
-  
+
   if (newSize <= MAX_FONT_SIZE)
     {
       pango_font_description_set_size(properties->fontDesc, newSize * PANGO_SCALE);
@@ -1098,7 +1099,7 @@ static void decrementFontSize(GtkWidget *detailView)
 
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   int newSize = (pango_font_description_get_size(properties->fontDesc) / PANGO_SCALE) - FONT_INCREMENT_SIZE;
-  
+
   /* Note that the font needs to be big enough to cover the vertical separators and padding around the
    * cell, otherwise we will end up with visible gaps between rows. */
   if (newSize >= MIN_FONT_SIZE && newSize >= (detailViewGetCellYPadding(detailView) * 2))
@@ -1124,13 +1125,13 @@ void zoomDetailView(GtkWidget *detailView, const gboolean zoomIn)
     {
       decrementFontSize(detailView);
     }
-  
+
   updateDetailViewRange(detailView);
 
   DEBUG_EXIT("zoomDetailView returning ");
 }
 
-  
+
 /* set the contents of a text entry box */
 static void entrySetContents(GtkWidget *widget, const char *value)
 {
@@ -1223,7 +1224,7 @@ static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
                                    const BlxSequence *seq)
 {
   BlxContext *bc = detailViewGetContext(detailView);
-  
+
   if (detailViewGetSelectedIdxRangeSet(detailView))
     {
       /* A range of coordinates is selected */
@@ -1257,7 +1258,7 @@ static void feedbackBoxSetRefCoord(GtkWidget *feedbackBox,
     }
 }
 
-static bool getMatchCoordForRefCoord(GtkWidget *detailView, 
+static bool getMatchCoordForRefCoord(GtkWidget *detailView,
                                      const BlxSequence *seq,
                                      const int qIdx,
                                      int &sIdx)
@@ -1269,12 +1270,12 @@ static bool getMatchCoordForRefCoord(GtkWidget *detailView,
 
   GList *mspListItem = seq->mspList;
   const int numUnalignedBases = detailViewGetNumUnalignedBases(detailView);
-              
+
   for ( ; mspListItem; mspListItem = mspListItem->next)
     {
       MSP *msp = (MSP*)(mspListItem->data);
       BlxContext *bc = detailViewGetContext(detailView);
-                  
+
       if (mspGetMatchCoord(msp, qIdx, TRUE, numUnalignedBases, bc, &sIdx))
         {
           found = TRUE;
@@ -1295,7 +1296,7 @@ static void feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
       if (g_list_length(seq->mspList) > 0)
         {
           MSP *firstMsp = (MSP*)(seq->mspList->data);
-          
+
           if (mspGetMatchSeq(firstMsp))
             {
               const int sLen = strlen(mspGetMatchSeq(firstMsp));
@@ -1311,7 +1312,7 @@ static void feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
               int start = UNSET_INT;
               int end = UNSET_INT;
 
-              if (range && 
+              if (range &&
                   getMatchCoordForRefCoord(detailView, seq, range->start(bc->displayRev), start) &&
                   getMatchCoordForRefCoord(detailView, seq, range->end(bc->displayRev), end))
                 {
@@ -1329,7 +1330,7 @@ static void feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
             {
               int qIdx = detailViewGetSelectedDnaIdx(detailView);
               int sIdx = UNSET_INT;
-              
+
               if (getMatchCoordForRefCoord(detailView, seq, qIdx, sIdx))
                 {
                   feedbackBoxSetInt(feedbackBox, DETAIL_VIEW_FEEDBACK_MATCH_COORD, sIdx);
@@ -1341,11 +1342,11 @@ static void feedbackBoxSetMatchCoord(GtkWidget *feedbackBox,
 
 
 static void feedbackBoxSetMatchName(GtkWidget *feedbackBox,
-                                    const BlxSequence *seq, 
+                                    const BlxSequence *seq,
                                     const int numSeqsSelected)
 {
   string resultString("");
-  
+
   /* Find the sequence name text (or some default text to indicate that a sequence is not selected) */
   const char *noSeqText = numSeqsSelected > 0 ? MULTIPLE_SUBJECTS_SELECTED_TEXT : NO_SUBJECT_SELECTED_TEXT;
 
@@ -1356,7 +1357,7 @@ static void feedbackBoxSetMatchName(GtkWidget *feedbackBox,
 
       if (seqName)
         resultString += seqName;
-        
+
       /* For variations, also include the variation data in the name box */
       if (seq->type == BLXSEQUENCE_VARIATION && sequence)
         {
@@ -1379,7 +1380,7 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
 {
   BlxContext *bc = detailViewGetContext(detailView);
   const BlxStrand strand = bc->activeStrand();
-  
+
   if (detailViewGetSelectedIdxRangeSet(detailView))
     {
       /* A range of coordinates is selected. Sum the read depth over the range. */
@@ -1420,7 +1421,7 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
 
           /* Always show ACGT, even if 0, for consistency. We could change this however we like,
            * e.g. it might be good to show them in descending order */
-          tmp_ss << "\nA: " << depth_a << "\nC: " << depth_c 
+          tmp_ss << "\nA: " << depth_a << "\nC: " << depth_c
                  << "\nG: " << depth_g << "\nT: " << depth_t;
 
           /* Only show N, Gaps and Unknown if they are non-zero because most of the time they're
@@ -1447,9 +1448,9 @@ static void feedbackBoxSetDepth(GtkWidget *feedbackBox,
 
 /* Set the text displayed in the user feedback boxes based on the given MSPs sequence name
  * (if an MSP is given), and also the currently-selected base index (if there is one). */
-static void setFeedbackText(GtkWidget *detailView, 
-                            const BlxSequence *seq, 
-                            const int numSeqsSelected, 
+static void setFeedbackText(GtkWidget *detailView,
+                            const BlxSequence *seq,
+                            const int numSeqsSelected,
                             GtkWidget *feedbackBox)
 {
   DEBUG_ENTER("setFeedbackText()");
@@ -1461,13 +1462,13 @@ static void setFeedbackText(GtkWidget *detailView,
   feedbackBoxSetMatchName(feedbackBox, seq, numSeqsSelected) ;
   feedbackBoxSetMatchCoord(feedbackBox, detailView, seq) ; // also sets match length
   feedbackBoxSetDepth(feedbackBox, detailView, seq) ;
-  
+
   DEBUG_EXIT("setFeedbackText returning ");
 }
 
 
-/* Updates the feedback box with info about any currently-selected MSPs. This 
- * currently assumes single-MSP selections, but could be extended in the future 
+/* Updates the feedback box with info about any currently-selected MSPs. This
+ * currently assumes single-MSP selections, but could be extended in the future
  * to display, say, summary information about multiple MSPs. */
 void updateFeedbackBox(GtkWidget *detailView)
 {
@@ -1479,17 +1480,17 @@ void updateFeedbackBox(GtkWidget *detailView)
 
   /* currently we only properly handle single sequence selection so only pass the sequence if 1
    * and only 1 sequence is selected */
-  if (numSeqsSelected == 1) 
+  if (numSeqsSelected == 1)
     {
       seq = (const BlxSequence*)(bc->selectedSeqs->data);
     }
-  
+
   GtkWidget *feedbackBox = detailViewGetFeedbackBox(detailView);
 
   setFeedbackText(detailView, seq, numSeqsSelected, feedbackBox);
 
   gtk_widget_queue_draw(feedbackBox);
-  
+
   DEBUG_EXIT("updateFeedbackBox returning ");
 }
 
@@ -1504,7 +1505,7 @@ void clearFeedbackArea(GtkWidget *detailView)
   if (properties)
     {
       GtkStatusbar *statusBar = GTK_STATUSBAR(properties->statusBar);
-      
+
       if (statusBar)
         {
           guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
@@ -1524,28 +1525,28 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
 
   /* First clear the existing message if there is one */
   GtkStatusbar *statusBar = GTK_STATUSBAR(properties->statusBar);
-  
+
   if (statusBar)
     {
       guint contextId = gtk_statusbar_get_context_id(GTK_STATUSBAR(statusBar), DETAIL_VIEW_STATUSBAR_CONTEXT);
       gtk_statusbar_pop(GTK_STATUSBAR(statusBar), contextId);
-      
+
       /* See if there's a variation at the given coord */
       const MSP *msp = NULL;
-      
+
       gboolean multiple = FALSE;
-      
+
       if (coordAffectedByVariation(dnaIdx, strand, bc, &msp, NULL, NULL, NULL, NULL, &multiple))
         {
           if (msp && mspGetSName(msp))
             {
               char *displayText = NULL;
-              
+
               /* If we're displaying coords negated, negate it now */
               int coord = (negateCoords(bc) ? -1 * dnaIdx : dnaIdx);
 
               /* If there are multiple variations on this coord, display some summary text.
-               * Otherwise, check we've got the sequence info to display. We should have, but 
+               * Otherwise, check we've got the sequence info to display. We should have, but
                * if not just display the name. */
               if (multiple)
                 displayText = g_strdup_printf("%d  %s", coord, MULTIPLE_VARIATIONS_TEXT);
@@ -1553,7 +1554,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
                 displayText = g_strdup_printf("%d  %s : %s", coord, mspGetSName(msp), mspGetMatchSeq(msp));
               else
                 displayText = g_strdup_printf("%d  %s", coord, mspGetSName(msp));
-              
+
               /* Send the message to the status bar */
               gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
               g_free(displayText);
@@ -1580,7 +1581,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
               else
                 displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA signal", msp->qRange.min(), msp->qRange.max());
             }
-              
+
           /* Send the message to the status bar */
           gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
           g_free(displayText);
@@ -1606,7 +1607,7 @@ void updateFeedbackAreaNucleotide(GtkWidget *detailView, const int dnaIdx, const
               else
                 displayText = g_strdup_printf("%d %s: %d,%d", coord, "polyA site", msp->qRange.min(), msp->qRange.max());
             }
-              
+
           /* Send the message to the status bar */
           gtk_statusbar_push(GTK_STATUSBAR(statusBar), contextId, displayText);
           g_free(displayText);
@@ -1622,7 +1623,7 @@ void detailViewScrollToKeepInRange(GtkWidget *detailView, const IntRange* const 
 
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
   const BlxSeqType seqType = detailViewGetSeqType(detailView);
-      
+
   if (displayRange->min() < range->min())
     {
       setDetailViewStartIdx(detailView, range->min(), seqType);
@@ -1637,7 +1638,7 @@ void detailViewScrollToKeepInRange(GtkWidget *detailView, const IntRange* const 
 
 
 /* If the selected base index is outside the current display range, scroll to
- * keep it in range. We scroll by the minimum number of bases possible if 
+ * keep it in range. We scroll by the minimum number of bases possible if
  * scrollMinimum is true; otherwise we re-centre on the selection. */
 static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean scrollMinimum)
 {
@@ -1650,7 +1651,7 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
   if (selectedBaseSet && !valueWithinRange(selectedBaseIdx, displayRange))
     {
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
-      
+
       if (scrollMinimum)
         {
           if (selectedBaseIdx < displayRange->min())
@@ -1673,7 +1674,7 @@ static void scrollToKeepSelectionInRange(GtkWidget *detailView, const gboolean s
 }
 
 
-/* This is called when the Squash matches option has been toggled. It switches to the condensed 
+/* This is called when the Squash matches option has been toggled. It switches to the condensed
  * view of the trees (where multiple MSPs in the same sequence appear on the same row) if squash
  * is true, or reverts to the expanded version (where each MSP has its own row) if squash is false. */
 void detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash)
@@ -1681,7 +1682,7 @@ void detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash)
   DEBUG_ENTER("detailViewUpdateSquashMatches()");
 
   BlxContext *bc = detailViewGetContext(detailView);
-  
+
   if (squash && bc->modelId != BLXMODEL_SQUASHED)
     {
       /* Set the "squashed" model to be active */
@@ -1706,13 +1707,13 @@ void detailViewUpdateSquashMatches(GtkWidget *detailView, const gboolean squash)
 static gint sortByGroupCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *blxWindow)
 {
   gint result = 0;
-  
+
   /* Get the order number out of the group and sort on that. If the sequence
    * is not in a group, its order number is UNSET_INT, and it gets sorted after
    * any sequences that are in groups. */
   const int msp1Order = sequenceGetGroupOrder(blxWindow, msp1->sSequence);
   const int msp2Order = sequenceGetGroupOrder(blxWindow, msp2->sSequence);
-  
+
   if (msp1Order == UNSET_INT && msp2Order != UNSET_INT)
     {
       result = 1;
@@ -1729,7 +1730,7 @@ static gint sortByGroupCompareFunc(const MSP *msp1, const MSP *msp2, GtkWidget *
   return result;
 }
 
-/* Sort comparison function for sorting by the start position on the 
+/* Sort comparison function for sorting by the start position on the
  * reference sequence. (Does a secondary sort by the alignment length) */
 static gint sortByStartCompareFunc(const MSP *msp1, const MSP *msp2, const gboolean displayRev)
 {
@@ -1741,14 +1742,14 @@ static gint sortByStartCompareFunc(const MSP *msp1, const MSP *msp2, const gbool
        * and look for the max */
       result = msp2->qRange.max() - msp1->qRange.max();
     }
-  else 
+  else
     {
       result = msp1->qRange.min() - msp2->qRange.min();
     }
-  
+
   if (result == 0)
     {
-      /* If the MSPs have the same start coord, do a secondary sort 
+      /* If the MSPs have the same start coord, do a secondary sort
        * by alignment length */
       result = msp1->qRange.length() - msp2->qRange.length();
     }
@@ -1760,16 +1761,16 @@ static gint sortByStartCompareFunc(const MSP *msp1, const MSP *msp2, const gbool
 static gint sortByDoubleCompareFunc(const MSP *msp1, const MSP *msp2)
 {
   gint result = 0;
-  
+
   gdouble dResult = msp1->id - msp2->id;
-  
+
   if (dResult == 0)
     result = 0;
   else if (dResult > 0)
     result = 1;
-  else 
+  else
     result = -1;
-  
+
   return result;
 }
 
@@ -1816,7 +1817,7 @@ static int sortByStringCompareFunc(const char *str1, const char *str2)
       const int len = min(strlen(str1), strlen(str2));
       result = g_ascii_strncasecmp(str1, str2, len);
     }
-  
+
   return result;
 }
 
@@ -1835,7 +1836,7 @@ static GtkSortType getColumnSortOrder(BlxContext *bc, const BlxColumnId columnId
       case BLXCOL_ID:
         result = GTK_SORT_DESCENDING;
         break;
-        
+
       default: /* all others ascending */
         break;
     };
@@ -1859,11 +1860,11 @@ static gboolean mspIsSortable(const MSP* const msp)
 /* Sort comparison function for sorting by a particular column of the tree view. */
 gint sortByColumnCompareFunc(GList *mspGList1,
                              GList *mspGList2,
-                             GtkWidget *detailView, 
+                             GtkWidget *detailView,
                              const BlxColumnId sortColumn)
 {
   gint result = 0;
-  
+
   /* Get the first MSP in each list. */
   MSP *msp1 = mspGList1 ? (MSP*)(mspGList1->data) : NULL;
   MSP *msp2 = mspGList2 ? (MSP*)(mspGList2->data) : NULL;
@@ -1879,9 +1880,9 @@ gint sortByColumnCompareFunc(GList *mspGList1,
   /* Check whether either row has more than one MSP. If so, it means some options
    * aren't applicable (\to do: unless they're short reads, which should be identical if
    * they're in the same row, so we can treat those as singular). */
-  const gboolean multipleMsps = 
+  const gboolean multipleMsps =
     (g_list_length(mspGList1) > 1 || g_list_length(mspGList2) > 1);
-  
+
   BlxContext *bc = detailViewGetContext(detailView);
   gboolean displayRev = bc->displayRev;
 
@@ -1890,26 +1891,26 @@ gint sortByColumnCompareFunc(GList *mspGList1,
     case BLXCOL_NONE:
       result = 0;
       break;
-      
+
     case BLXCOL_SCORE:
       result = multipleMsps ? 0 : (int)(msp1->score - msp2->score);
       break;
-      
+
     case BLXCOL_ID:
       result = multipleMsps ? 0 : sortByDoubleCompareFunc(msp1, msp2);
       break;
-      
+
     case BLXCOL_START:
       if (multipleMsps)
         result = sortByStartCompareFuncMultiple(mspGList1, mspGList2, msp1->qStrand == BLXSTRAND_FORWARD, msp2->qStrand == BLXSTRAND_FORWARD, displayRev);
       else
         result = sortByStartCompareFunc(msp1, msp2, displayRev);
       break;
-      
+
     case BLXCOL_GROUP:
       result = sortByGroupCompareFunc(msp1, msp2, detailViewGetBlxWindow(detailView));
       break;
-      
+
     default:
       /* Generic string column */
       result = sortByStringCompareFunc(mspGetColumn(msp1, sortColumn), mspGetColumn(msp2, sortColumn));
@@ -1921,7 +1922,7 @@ gint sortByColumnCompareFunc(GList *mspGList1,
     {
       result *= -1;
     }
-  
+
   return result;
 }
 
@@ -1929,9 +1930,9 @@ gint sortByColumnCompareFunc(GList *mspGList1,
 /* This is the main sort comparison function for comparing two BlxSequences.
  * The sort criteria are specified in the detailView properties;
  * we may sort by multiple columns.
- * 
+ *
  * Returns a negative value if the first row appears before the second,
- * positive if the second appears before the first, or 0 if they are 
+ * positive if the second appears before the first, or 0 if they are
  * equivalent. */
 static gint detailViewSortByColumns(gconstpointer a, gconstpointer b)
 {
@@ -1947,7 +1948,7 @@ static gint detailViewSortByColumns(gconstpointer a, gconstpointer b)
 
   /* Sort by each requested column in order of priority */
   BlxColumnId *sortColumns = detailViewGetSortColumns(detailView);
-  
+
   if (sortColumns)
     {
       int priority = 0;
@@ -1955,7 +1956,7 @@ static gint detailViewSortByColumns(gconstpointer a, gconstpointer b)
       for ( ; priority < numColumns; ++priority)
         {
           BlxColumnId sortColumn = sortColumns[priority];
-        
+
           /* NONE indicates an unused entry in the priority array; if we reach
            * an unset value, there should be no more values after it */
           if (sortColumn == BLXCOL_NONE)
@@ -1964,16 +1965,16 @@ static gint detailViewSortByColumns(gconstpointer a, gconstpointer b)
           /* Extract the MSPs for the two rows that we're comparing */
           GList *mspGList1 = seq1->mspList;
           GList *mspGList2 = seq2->mspList;
-  
+
           /* Do the comparison on this column */
           result = sortByColumnCompareFunc(mspGList1, mspGList2, detailView, sortColumn);
-          
+
           /* If rows are equal, continue to sort; otherwise we're done */
           if (result != 0)
             break;
         }
     }
-  
+
   return result;
 }
 
@@ -2016,7 +2017,7 @@ void detailViewUpdateShowSnpTrack(GtkWidget *detailView, const gboolean showSnpT
   refreshDetailViewHeaders(detailView);
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   detailViewRedrawAll(detailView);
-  
+
   refreshDialog(BLXDIALOG_SETTINGS, detailViewGetBlxWindow(detailView));
 
   DEBUG_EXIT("detailViewUpdateShowSnpTrack returning ");
@@ -2032,15 +2033,15 @@ void detailViewUpdateMspLengths(GtkWidget *detailView, const int numUnalignedBas
 
   /* Re-calculate the full extent of all MSPs, and the max msp length */
   setMaxMspLen(0);
-  
+
   BlxContext *bc = detailViewGetContext(detailView);
   MSP *msp = bc->mspList;
-  
+
   for ( ; msp; msp = msp->next)
     {
       mspCalculateFullExtents(msp, bc, numUnalignedBases);
     }
-  
+
   /* Do a full re-sort and re-filter because the lengths of the displayed match
    * sequences may have changed (and we need to make sure they're sorted by start pos) */
   detailViewResortTrees(detailView);
@@ -2067,16 +2068,16 @@ void detailViewSetNumUnalignedBases(GtkWidget *detailView, const int numBases)
 int getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, const IntRange* const displayRange)
 {
   int result = UNSET_INT;
-  
+
   const int leftEdge = 0; /* to do: allow for padding? check upper bound? */
-  
+
   if (x > leftEdge)
     {
       result = (int)(((gdouble)x - leftEdge) / charWidth);
     }
-  
+
   result += displayRange->min();
-  
+
   return result;
 }
 
@@ -2086,27 +2087,27 @@ int getBaseIndexAtColCoords(const int x, const int y, const gdouble charWidth, c
 static void getSeqColHeaderClickedNucleotide(GtkWidget *header, GtkWidget *detailView, const int x, const int y, int *coordOut, int *frameOut, int *baseOut)
 {
   int coord = getBaseIndexAtColCoords(x, y, detailViewGetCharWidth(detailView), detailViewGetDisplayRange(detailView));
-  
+
   if (coord != UNSET_INT)
-    {   
+    {
       /* Get the base number of the clicked base within the active frame. The
-       * base number is determined by which row in the header the mouse pointer 
+       * base number is determined by which row in the header the mouse pointer
        * is over: for frame 1, row 1 will give base 1; for frame 2, row 2 will
        * give base 1, etc. Start by getting the frame number for the clicked row: */
       int frame = detailViewGetActiveFrame(detailView);
       int row = seqColHeaderGetRow(header);
       const int numFrames = detailViewGetNumFrames(detailView);
-      
+
       /* The header widget passed to this function is the originally-clicked widget.
        * If the pointer has dragged onto another row in the header, we can work out
-       * which one based on the y coord. If it is outside altogether, take the 
-       * topmost/bottommost row. (NB this assumes all rows in the header have the 
+       * which one based on the y coord. If it is outside altogether, take the
+       * topmost/bottommost row. (NB this assumes all rows in the header have the
        * same height as this one - should be true because they're just simple labels). */
       if (y < 0 || y > header->allocation.height)
         {
           const int offsetRows = floor((double)y / (double)header->allocation.height); /* can be negative */
           row += offsetRows;
-          
+
           if (row < 1)
             {
               row = 1;
@@ -2116,23 +2117,23 @@ static void getSeqColHeaderClickedNucleotide(GtkWidget *header, GtkWidget *detai
               row = numFrames;
             }
         }
-      
+
       /* Calculate the base number based on the row and the currently-active frame */
       int baseNum = row - frame + 1;
-      
+
       if (baseNum < 1)
         {
           /* Cycle round if gone below the min base number */
           baseNum += numFrames;
           --coord;
         }
-      
+
       if (coordOut)
         *coordOut = coord;
-      
+
       if (frameOut)
         *frameOut = frame;
-      
+
       if (baseOut)
         *baseOut = baseNum;
     }
@@ -2146,15 +2147,15 @@ static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, co
 
   int coord, frame, baseNum;
   getSeqColHeaderClickedNucleotide(header, detailView, x, y, &coord, &frame, &baseNum);
-  
+
   detailViewSetSelectedDisplayIdx(detailView, coord, frame, baseNum, FALSE, TRUE, extend);
 
   DEBUG_EXIT("selectClickedNucleotide returning ");
 }
 
 
-/* If the user clicked on a SNP in the SNP header, select it. This updates the 
- * feedback box with the SNP name and coord, selects the SNP coord and recentres 
+/* If the user clicked on a SNP in the SNP header, select it. This updates the
+ * feedback box with the SNP name and coord, selects the SNP coord and recentres
  * on it (if allowScroll is true), clearing any previous selections. If expandSnps
  * is true it means that the SNPs are drawn full-width (i.e. showing all the sequence
  * in the MSP) and we should take into account when clicking; otherwise, the SNP
@@ -2165,9 +2166,9 @@ static void selectClickedNucleotide(GtkWidget *header, GtkWidget *detailView, co
  * widget is not the same width of the sequence column, the coords will need converting). */
 void selectClickedSnp(GtkWidget *snpTrack,
                       GtkWidget *colHeader,
-                      GtkWidget *detailView, 
-                      const int xIn, 
-                      const int yIn, 
+                      GtkWidget *detailView,
+                      const int xIn,
+                      const int yIn,
                       const gboolean expandSnps,
                       const int clickedBase)
 {
@@ -2177,10 +2178,10 @@ void selectClickedSnp(GtkWidget *snpTrack,
   GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   BlxContext *bc = blxWindowGetContext(blxWindow);
   const int activeFrame = detailViewGetActiveFrame(detailView);
-  
+
   /* Convert x coord to sequence-column coords */
   int x = xIn, y = yIn;
-  
+
   if (colHeader)
     {
       gtk_widget_translate_coordinates(snpTrack, colHeader, xIn, 0, &x, NULL);
@@ -2200,18 +2201,18 @@ void selectClickedSnp(GtkWidget *snpTrack,
       GSList *rows = NULL;
       int i = 0;
       const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
-      
+
       for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], ++i))
         {
           /* Get the variation coords in terms of display coords, and also the 'expanded' range
            * of coords where the variation is displayed */
           IntRange mspExpandedRange;
           getVariationDisplayRange(msp, expandSnps, bc->seqType, bc->numFrames, bc->displayRev, activeFrame, &bc->refSeqRange, NULL, &mspExpandedRange);
-          
+
           const int clickedDnaIdx = convertDisplayIdxToDnaIdx(clickedDisplayIdx, bc->seqType, 1, clickedBase, bc->numFrames, bc->displayRev, &bc->refSeqRange);
           gboolean found = FALSE;
           int dnaIdxToSelect = UNSET_INT;
-          
+
           /* Get the row this variation is in */
           int mspRow = 1;
           if (expandSnps)
@@ -2231,14 +2232,14 @@ void selectClickedSnp(GtkWidget *snpTrack,
               found = TRUE;
               dnaIdxToSelect = clickedDnaIdx;
             }
-          
+
           if (found)
             {
               snpList = g_list_prepend(snpList, msp->sSequence);
               detailViewSetSelectedDnaBaseIdx(detailView, dnaIdxToSelect, activeFrame, TRUE, FALSE, FALSE);
             }
         }
-      
+
       freeRowsList(rows);
 
       /* Clear any existing selections and select the new SNP(s) */
@@ -2254,33 +2255,33 @@ void selectClickedSnp(GtkWidget *snpTrack,
  ***********************************************************/
 
 /* Draw a vertical separator line at the edges of the given widget */
-void drawColumnSeparatorLine(GtkWidget *widget, 
-                             GdkDrawable *drawable, 
-                             GdkGC *gc, 
+void drawColumnSeparatorLine(GtkWidget *widget,
+                             GdkDrawable *drawable,
+                             GdkGC *gc,
                              const BlxContext *bc)
 {
   const int lineWidth = 1; /* width of the separator lines */
-  
+
   if (GTK_WIDGET_VISIBLE(widget) && widget->allocation.width > lineWidth)
     {
       GdkColor *color = getGdkColor(BLXCOLOR_TREE_GRID_LINES, bc->defaultColors, FALSE, bc->usePrintColors);
       gdk_gc_set_foreground(gc, color);
-      
+
       /* We want dashed lines */
       gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_ON_OFF_DASH, GDK_CAP_BUTT, GDK_JOIN_MITER);
-      
+
       /* Make the dashes very short and closely packed (i.e. dash length of 1 pixel and gaps of 1 pixel) */
       int listLen = 1;
       gint8 dashList[listLen];
       dashList[0] = 1;
       gdk_gc_set_dashes(gc, 0, dashList, listLen);
-      
+
       /* Draw vertical lines. Draw the rightmost edge of each widget (because we don't really want a
        * line at the leftmost edge of the first cell of the tree view.) */
       const int x = widget->allocation.x + widget->allocation.width - lineWidth;
       const int y1 = widget->allocation.y;
       const int y2 = y1 + widget->allocation.height;
-      
+
       gdk_draw_line(drawable, gc, x, y1, x, y2);
     }
 }
@@ -2296,7 +2297,7 @@ static void mspGetAdjacentBases(const MSP* const msp, char *bases, const gboolea
       bases[0] = getSequenceIndex(bc->refSeq, msp->qRange.min() - 2, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
       bases[1] = getSequenceIndex(bc->refSeq, msp->qRange.min() - 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
       bases[2] = '\0';
-    }  
+    }
   else
     {
       bases[0] = getSequenceIndex(bc->refSeq, msp->qRange.max() + 1, revStrand, &bc->refSeqRange, BLXSEQ_DNA);
@@ -2307,13 +2308,13 @@ static void mspGetAdjacentBases(const MSP* const msp, char *bases, const gboolea
 
 
 /* This function returns the prev/next MSP in the given sequence in order of start position on
- * the ref seq. Returns the next MSP (with the next-highest start coord) if 'getNext' is true; 
+ * the ref seq. Returns the next MSP (with the next-highest start coord) if 'getNext' is true;
  * otherwise returns the previous one. The return value will be NULL if there is no next/prev MSP.
  * The error will be set if there was any problem (e.g. if the given MSP does not exist the the sequence).
  * Only considers exons and matches. */
-static const MSP* sequenceGetNextMsp(const MSP* const msp, 
-                                     const BlxSequence *blxSeq, 
-                                     const gboolean getNext, 
+static const MSP* sequenceGetNextMsp(const MSP* const msp,
+                                     const BlxSequence *blxSeq,
+                                     const gboolean getNext,
                                      GError **error)
 {
   const MSP *result = NULL;
@@ -2321,16 +2322,16 @@ static const MSP* sequenceGetNextMsp(const MSP* const msp,
   GList *mspItem = blxSeq->mspList;
   const MSP *prevMsp = NULL;
   gboolean found = FALSE;
-  
+
   /* Loop through all MSPs and look for the given one. */
   for ( ; mspItem; mspItem = mspItem->next)
     {
       const MSP* const curMsp = (const MSP*)(mspItem->data);
-      
+
       if (curMsp == msp)
         {
           found = TRUE;
-          
+
           /* If looking for the previous MSP, we already know it. */
           if (!getNext)
             {
@@ -2343,7 +2344,7 @@ static const MSP* sequenceGetNextMsp(const MSP* const msp,
               continue;
             }
         }
-      
+
       if (found && getNext)
         {
           /* We've found the input MSP and we're on the next one. See if it is an exon/match,
@@ -2354,29 +2355,29 @@ static const MSP* sequenceGetNextMsp(const MSP* const msp,
               break;
             }
         }
-      
+
       /* Set the previous MSP (but only if it's an exon/match) */
       if (mspIsBoxFeature(curMsp) || mspIsBlastMatch(curMsp))
         {
           prevMsp = curMsp;
         }
     }
-  
+
   if (!found && error)
     {
       g_set_error(error, BLX_ERROR, 1, "The given MSP '%s' was not found in the given sequence '%s'.\n", mspGetSName(msp), blxSequenceGetName(blxSeq));
     }
-  
+
   return result;
 }
 
 
-/* Determine whether the bases at the other end of the intron for the start/end of 
+/* Determine whether the bases at the other end of the intron for the start/end of
  * the given MSP are canonical. 'canonicalStart' and 'canonicalEnd' contain the two bases to look
  * for at the start/end of the next/previous MSP to determine if the result is canonical. */
 static gboolean mspIsSpliceSiteCanonicalOtherEnd(const MSP* const msp,
                                                  const BlxSequence *blxSeq,
-                                                 const gboolean isMinCoord, 
+                                                 const gboolean isMinCoord,
                                                  const gboolean revStrand,
                                                  const gboolean donor,
                                                  const gboolean revcomp,
@@ -2384,17 +2385,17 @@ static gboolean mspIsSpliceSiteCanonicalOtherEnd(const MSP* const msp,
                                                  const BlxSpliceSite *spliceSite)
 {
   gboolean result = FALSE;
- 
-  /* Get the previous MSP if we're looking at the min coord of the current MSP, or 
+
+  /* Get the previous MSP if we're looking at the min coord of the current MSP, or
    * the next MSP if we're at the end */
   const MSP *nextMsp = sequenceGetNextMsp(msp, blxSeq, !isMinCoord, NULL);
-  
+
   if (nextMsp)
     {
       /* Get the two bases at the end of the previous MSP / start of the next MSP */
       char bases[3];
       mspGetAdjacentBases(nextMsp, bases, !isMinCoord, revStrand, bc);
-      
+
       /* If the original site was a donor site, look for an acceptor site (or vice versa) */
       const char *canonicalBases = spliceSiteGetBases(spliceSite, !donor, revStrand, revcomp);
 
@@ -2403,7 +2404,7 @@ static gboolean mspIsSpliceSiteCanonicalOtherEnd(const MSP* const msp,
           result = TRUE;
         }
     }
-  
+
   return result;
 }
 
@@ -2418,7 +2419,7 @@ static void addBlxSpliceSite(GSList **spliceSites, const char *donorSite, const 
       g_critical("Error adding splice site info ['%s', '%s'].\n", donorSite, acceptorSite);
       return;
     }
-  
+
   spliceSite->donorSite[0] = donorSite[0];
   spliceSite->donorSite[1] = donorSite[1];
   spliceSite->donorSite[2] = '\0';
@@ -2439,21 +2440,21 @@ static void addBlxSpliceSite(GSList **spliceSites, const char *donorSite, const 
   spliceSite->acceptorSite[0] = acceptorSite[0];
   spliceSite->acceptorSite[1] = acceptorSite[1];
   spliceSite->acceptorSite[2] = '\0';
-  
+
   spliceSite->acceptorSiteComp[0] = complementChar(acceptorSite[0], NULL);
   spliceSite->acceptorSiteComp[1] = complementChar(acceptorSite[1], NULL);
   spliceSite->acceptorSiteComp[2] = '\0';
-  
+
   spliceSite->acceptorSiteRev[0] = acceptorSite[1];
   spliceSite->acceptorSiteRev[1] = acceptorSite[0];
   spliceSite->acceptorSiteRev[2] = '\0';
-  
+
   spliceSite->acceptorSiteRevComp[0] = complementChar(acceptorSite[1], NULL);
   spliceSite->acceptorSiteRevComp[1] = complementChar(acceptorSite[0], NULL);
   spliceSite->acceptorSiteRevComp[2] = '\0';
-  
+
   spliceSite->bothReqd = bothReqd;
-  
+
   /* Add it to the list */
   *spliceSites = g_slist_append(*spliceSites, spliceSite);
 }
@@ -2463,7 +2464,7 @@ static void addBlxSpliceSite(GSList **spliceSites, const char *donorSite, const 
 static void destroyBlxSpliceSite(gpointer listItemData, gpointer data)
 {
   BlxSpliceSite *spliceSite = (BlxSpliceSite*)listItemData;
-  
+
   delete spliceSite;
 }
 
@@ -2471,9 +2472,9 @@ static void destroyBlxSpliceSite(gpointer listItemData, gpointer data)
 /* Return the canonical bases at the donor/acceptor end of the given BlxSpliceSite. Returns them in
  * reverse order if 'reverse' is true, e.g. for a GC-AG intron, the dono is GC and acceptor is AG.
  * If reverse is true the donor returns CG and acceptor returns GA. The result is a pointer to the
- * string in the splice site, which is owned by the Detail View properties. 
+ * string in the splice site, which is owned by the Detail View properties.
  * If revcomp is true, then revcomp the result and swap whether it's a donor or acceptor. */
-static const char* spliceSiteGetBases(const BlxSpliceSite *spliceSite, 
+static const char* spliceSiteGetBases(const BlxSpliceSite *spliceSite,
                                       const gboolean donor,
                                       const gboolean reverse,
                                       const gboolean revcomp)
@@ -2508,9 +2509,9 @@ static const char* spliceSiteGetBases(const BlxSpliceSite *spliceSite,
  * it were on the other strand (i.e its revcomp is canonical). This is useful for identifying
  * errors in input data (common in BAM, which doesn't have comprehensive representation of all
  * strand combinations). */
-static BlxColorId getMspSpliceSiteColor(const MSP* const msp, 
-                                        const BlxSequence *blxSeq, 
-                                        const gboolean isMinCoord, 
+static BlxColorId getMspSpliceSiteColor(const MSP* const msp,
+                                        const BlxSequence *blxSeq,
+                                        const gboolean isMinCoord,
                                         const gboolean revStrand,
                                         const BlxContext *bc,
                                         GSList *spliceSites)
@@ -2527,8 +2528,8 @@ static BlxColorId getMspSpliceSiteColor(const MSP* const msp,
       /* Get the two adjacent bases at the start/end of the given MSP */
       char bases[3];
       mspGetAdjacentBases(msp, bases, isMinCoord, revStrand, bc);
-      
-      /* The min coord end of the MSP is the acceptor site of the intron and the max coord the 
+
+      /* The min coord end of the MSP is the acceptor site of the intron and the max coord the
        * donor site (or vice versa if the strand is reversed). */
       const gboolean donor = (isMinCoord == revStrand);
       gboolean revcomp = FALSE;
@@ -2594,19 +2595,19 @@ static BlxColorId getMspSpliceSiteColor(const MSP* const msp,
  * splice sites of the adjacent introns. Inserts the results into the given hash table with
  * an enum indicating whether the nucleotides are canonical/non-canonical. Only considers
  * MSPs that are within the given ref seq range. */
-static void mspGetSpliceSiteCoords(const MSP* const msp, 
-                                   const BlxSequence *blxSeq, 
-                                   const IntRange* const qRange, 
-                                   const BlxContext *bc, 
+static void mspGetSpliceSiteCoords(const MSP* const msp,
+                                   const BlxSequence *blxSeq,
+                                   const IntRange* const qRange,
+                                   const BlxContext *bc,
                                    GSList *spliceSites,
                                    GHashTable *result)
 {
   const gboolean revStrand = (mspGetRefStrand(msp) != BLXSTRAND_FORWARD);
-  
+
   /* Ignore the termini (i.e. 5' end of first exon and 3' end of last exon) */
   const gboolean getMin = (msp->sSequence && msp->qRange.min() != blxSequenceGetStart(msp->sSequence, msp->qStrand));
   const gboolean getMax = (msp->sSequence && msp->qRange.max() != blxSequenceGetEnd(msp->sSequence, msp->qStrand));
-  
+
   /* See if the min coord is within the given range */
   if (getMin && valueWithinRange(msp->qRange.min(), qRange) && msp->qRange.min() >= bc->refSeqRange.min() + 2)
     {
@@ -2617,13 +2618,13 @@ static void mspGetSpliceSiteCoords(const MSP* const msp,
       g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min() - 2), GINT_TO_POINTER(colorId));
       g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.min() - 1), GINT_TO_POINTER(colorId));
     }
-  
+
   /* See if the max coord is within the given range */
   if (getMax && valueWithinRange(msp->qRange.max(), qRange) && msp->qRange.max() <= bc->refSeqRange.max() - 2)
     {
       /* Find out if they are canonical/non-canonical */
       BlxColorId colorId = getMspSpliceSiteColor(msp, blxSeq, FALSE, revStrand, bc, spliceSites);
-      
+
       /* Insert the two coords into the hash table */
       g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max() + 1), GINT_TO_POINTER(colorId));
       g_hash_table_insert(result, GINT_TO_POINTER(msp->qRange.max() + 2), GINT_TO_POINTER(colorId));
@@ -2651,27 +2652,27 @@ static void getAnnotatedPolyASignalBasesToHighlight(const BlxContext *bc,
       /* Loop through all polyA signals */
       int i = 0;
       const MSP *sigMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], i);
-      
+
       for ( ; sigMsp; sigMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], ++i))
         {
           /* Only interested the polyA signal has the correct strand and is within the display range. */
           if (sigMsp->qStrand == qStrand && rangesOverlap(&sigMsp->qRange, qRange))
             {
               gboolean addSignal = FALSE;
-              
+
               if (bc->flags[BLXFLAG_SHOW_POLYA_SIG_SELECTED])
                 {
                   /* We're only interested in polyA signals that are 50 bases upstream of one of our polyA-tail MSPs */
                   GSList *item = polyATailMsps;
-                  
+
                   for ( ; item && !addSignal; item = item->next)
                     {
                       const MSP* const tailMsp = (const MSP*)(item->data);
                       const int qEnd = tailMsp->qRange.max();
                       const int qStart = qEnd - POLYA_SIG_BASES_UPSTREAM;
-                      
+
                       IntRange upstreamRange(qStart, qEnd); /* sorts out which is min and which is max */
-                                        
+
                       addSignal = rangesOverlap(&sigMsp->qRange, &upstreamRange);
                     }
                 }
@@ -2680,7 +2681,7 @@ static void getAnnotatedPolyASignalBasesToHighlight(const BlxContext *bc,
                   /* Add all signals that are in the display range */
                   addSignal = TRUE;
                 }
-            
+
               if (addSignal)
                 {
                   /* Add each base in the polyA signal range to the hash table. This may overwrite
@@ -2764,7 +2765,7 @@ static void getAnnotatedPolyASiteBasesToHighlight(const BlxContext *bc,
       /* Loop through all polyA signals */
       int i = 0;
       const MSP *siteMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], i);
-      
+
       for ( ; siteMsp; siteMsp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], ++i))
         {
           /* Only interested the polyA site has the correct strand and is within the display range. */
@@ -2782,8 +2783,8 @@ static void getAnnotatedPolyASiteBasesToHighlight(const BlxContext *bc,
 /* This function looks for special bases in the reference sequence header to highlight and stores their
  * coords in the returned hash table with the BlxColorId (converted to a gpointer with GINT_TO_POINTER)
  * of the fill color they should be drawn with. These special coords include splice sites and polyA signals. */
-GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView, 
-                                      const IntRange* const qRange, 
+GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
+                                      const IntRange* const qRange,
                                       const BlxSeqType seqType,
                                       const BlxStrand qStrand)
 {
@@ -2791,44 +2792,44 @@ GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
 
   GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   const BlxContext *bc = blxWindowGetContext(blxWindow);
-  
+
   /* We only highlight nucleotides, so there is nothing to do if we're showing a peptide sequence,
    * or if the show-splice-sites or show-polyA-signals options are disabled. */
-  if (seqType == BLXSEQ_PEPTIDE || 
+  if (seqType == BLXSEQ_PEPTIDE ||
       (!bc->flags[BLXFLAG_SHOW_SPLICE_SITES] && !bc->flags[BLXFLAG_SHOW_POLYA_SIG]))
     {
       return result;
     }
-  
-  /* Loop through the selected sequences. If showing polyA signals for selected sequences, we'll 
+
+  /* Loop through the selected sequences. If showing polyA signals for selected sequences, we'll
    * compile a list of MSPs we're interested in seeing polyA signals for (i.e. those with polyA tails) */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   GList *seqItem = blxWindowGetSelectedSeqs(blxWindow);
   GSList *polyATailMsps = NULL;
-  
+
   for ( ; seqItem; seqItem = seqItem->next)
     {
       const BlxSequence *blxSeq = (const BlxSequence*)(seqItem->data);
       GList *mspItem = blxSeq->mspList;
-     
-      /* Loop through all MSPs for this sequence */ 
+
+      /* Loop through all MSPs for this sequence */
       for ( ; mspItem; mspItem = mspItem->next)
         {
           MSP *msp = (MSP*)(mspItem->data);
-          
+
           /* Only look at matches/exons on the correct strand */
-          if ((mspIsBlastMatch(msp) || msp->type == BLXMSP_EXON || msp->type == BLXMSP_BASIC) && 
+          if ((mspIsBlastMatch(msp) || msp->type == BLXMSP_EXON || msp->type == BLXMSP_BASIC) &&
               mspGetRefStrand(msp) == qStrand)
             {
               if (bc->flags[BLXFLAG_SHOW_SPLICE_SITES])
                 mspGetSpliceSiteCoords(msp, blxSeq, qRange, bc, properties->spliceSites, result);
-              
+
               if (bc->flags[BLXFLAG_SHOW_POLYA_SIG] && mspHasPolyATail(msp))
                 polyATailMsps = g_slist_append(polyATailMsps, msp);
             }
         }
     }
-  
+
   /* Now check the polyA signals and sites and see if any of them are in range. */
   getPolyASignalBasesToHighlight(detailView, bc, polyATailMsps, qRange, result);
   getAnnotatedPolyASignalBasesToHighlight(bc, polyATailMsps, qStrand, qRange, result);
@@ -2841,27 +2842,27 @@ GHashTable* getRefSeqBasesToHighlight(GtkWidget *detailView,
 static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxStrand strand, const int frame)
 {
   GdkDrawable *drawable = createBlankPixmap(dnaTrack);
-  
+
   GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   BlxContext *bc = blxWindowGetContext(blxWindow);
-  
+
   /* Find the segment of the ref sequence to display (complemented if this tree is
    * displaying the reverse strand, and reversed if the display is toggled). Ref seq
    * coords are in nucleotides, so convert display range to nucleotide coords. */
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
-  
+
   const int qIdx1 = convertDisplayIdxToDnaIdx(displayRange->min(), bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);         /* 1st base in frame */
   const int qIdx2 = convertDisplayIdxToDnaIdx(displayRange->max(), bc->seqType, frame, bc->numFrames, bc->numFrames, bc->displayRev, &bc->refSeqRange); /* last base in frame */
   IntRange qRange = {min(qIdx1, qIdx2), max(qIdx1, qIdx2)};
-  
+
   GError *error = NULL;
-  
+
   gchar *segmentToDisplay = getSequenceSegment(bc->refSeq,
                                                &qRange,
-                                               strand, 
+                                               strand,
                                                BLXSEQ_DNA,      /* ref seq is always in nucleotide coords */
                                                BLXSEQ_DNA,      /* required segment is in nucleotide coords */
-                                               frame, 
+                                               frame,
                                                bc->numFrames,
                                                &bc->refSeqRange,
                                                bc->blastMode,
@@ -2870,7 +2871,7 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
                                                bc->displayRev,
                                                bc->displayRev,
                                                &error);
-  
+
   if (!segmentToDisplay)
     {
       g_assert(error);
@@ -2883,26 +2884,26 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
       /* If there's an error but the sequence was still returned it's a non-critical warning */
       reportAndClearIfError(&error, G_LOG_LEVEL_WARNING);
     }
-    
-    
+
+
   GdkGC *gc = gdk_gc_new(drawable);
-  
+
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   const int activeFrame = detailViewGetActiveFrame(detailView);
   const BlxStrand activeStrand = blxWindowGetActiveStrand(blxWindow);
   const gboolean highlightSnps = bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS];
 
   gtk_layout_set_size(GTK_LAYOUT(dnaTrack), dnaTrack->allocation.width, roundNearest(properties->charHeight()));
-  
+
   /* Find out if there are any bases in the introns that need highlighting. */
   GHashTable *basesToHighlight = getRefSeqBasesToHighlight(detailView, &qRange, BLXSEQ_DNA, activeStrand);
-  
+
   /* We'll loop forward/backward through the display range depending on which strand we're viewing */
   int incrementValue = bc->displayRev ? -bc->numFrames : bc->numFrames;
   int displayLen = qRange.length();
   char displayText[displayLen + 1];
   int displayTextPos = 0;
-  
+
   int qIdx = bc->displayRev ? qRange.max() : qRange.min();
   int displayIdx = convertDnaIdxToDisplayIdx(qIdx, bc->seqType, activeFrame, bc->numFrames, bc->displayRev, &bc->refSeqRange, NULL);
   const int y = 0;
@@ -2925,13 +2926,13 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
                            FALSE,
                            FALSE,
                            detailViewGetSelectedDnaIdxRange(detailView)};
-  
+
   while (qIdx >= qRange.min() && qIdx <= qRange.max())
     {
       /* Get the character to display at this index, and its position */
       displayText[displayTextPos] = getSequenceIndex(bc->refSeq, qIdx, bc->displayRev, &bc->refSeqRange, BLXSEQ_DNA);
       const int x = (int)((gdouble)displayTextPos * properties->charWidth());
-      
+
       baseData.dnaIdx = qIdx;
       baseData.baseChar = displayText[displayTextPos];
       baseData.displayIdxSelected = detailViewIsDisplayIdxSelected(detailView, displayIdx);
@@ -2939,44 +2940,44 @@ static void drawDnaTrack(GtkWidget *dnaTrack, GtkWidget *detailView, const BlxSt
 
       /* Color the base depending on whether it is selected or affected by a SNP */
       drawHeaderChar(bc, properties, drawable, gc, x, y, basesToHighlight, &baseData);
-      
+
       /* Increment indices */
       ++displayTextPos;
       ++displayIdx;
       qIdx += incrementValue;
     }
-  
+
   /* Make sure the string is terminated properly */
   displayText[displayTextPos] = '\0';
-  
+
   /* Draw the text */
   PangoLayout *layout = gtk_widget_create_pango_layout(detailView, displayText);
   pango_layout_set_font_description(layout, detailViewGetFontDesc(detailView));
-  
+
   if (layout)
     {
       gtk_paint_layout(dnaTrack->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, 0, 0, layout);
       g_object_unref(layout);
     }
-  
+
   drawColumnSeparatorLine(dnaTrack, drawable, gc, bc);
-  
+
   g_hash_table_unref(basesToHighlight);
   g_free(segmentToDisplay);
   g_object_unref(gc);
 }
 
 
-/* Utility to find the display coord(s) that a variation lies on. If expand is true, 
- * it means that if the variation contains more than one alternative, and these will be 
- * displayed horizontally across the display, taking up more width than where 
- * the actual variation coords lie. expandedRange will take this into account. displayRange 
+/* Utility to find the display coord(s) that a variation lies on. If expand is true,
+ * it means that if the variation contains more than one alternative, and these will be
+ * displayed horizontally across the display, taking up more width than where
+ * the actual variation coords lie. expandedRange will take this into account. displayRange
  * always returns the actual msp start/end in display coords. */
-static void getVariationDisplayRange(const MSP *msp, 
+static void getVariationDisplayRange(const MSP *msp,
                                      const gboolean expand,
-                                     const BlxSeqType seqType, 
+                                     const BlxSeqType seqType,
                                      const int numFrames,
-                                     const gboolean displayRev, 
+                                     const gboolean displayRev,
                                      const int activeFrame,
                                      const IntRange* const refSeqRange,
                                      IntRange *displayRange,
@@ -2988,35 +2989,35 @@ static void getVariationDisplayRange(const MSP *msp,
 
   if (displayRange)
     displayRange->set(mspRange);
-  
+
   if (!expandedRange)
     return;
 
   /* Work out the expanded range (it will be the same as the MSP range if unexpanded) */
   expandedRange->set(mspRange);
-  
+
   if (expand && mspGetMatchSeq(msp))
     {
-      /* Expand the variation range so that we display its entire sequence. We'll 
+      /* Expand the variation range so that we display its entire sequence. We'll
        * position the variation so that the middle of its sequence lies at the centre
        * coord of its ref seq range */
       const int numChars = strlen(mspGetMatchSeq(msp));
 
       int offset = (int)((double)numChars / 2.0);
-  
+
       if (numChars % 2 == 0)
         {
           /* Shift to the right by one if we've got an even number of chars */
           --offset;
         }
-  
+
       expandedRange->setMin(expandedRange->centre() - offset);
       expandedRange->setMax(expandedRange->min() + numChars - 1); // uses updated min
     }
 }
 
 
-/* Utility that returns true if the given bool is either true or not 
+/* Utility that returns true if the given bool is either true or not
  * requested (i.e. the pointer is null) */
 static gboolean trueOrNotRequested(const gboolean* const ptr)
 {
@@ -3031,21 +3032,21 @@ static gboolean trueOrNotRequested(const gboolean* const ptr)
  * is part of a selected variation). Sets multipleVariations to true if there is more than
  * one variation at this coord */
 static gboolean coordAffectedByVariation(const int dnaIdx,
-                                         const BlxStrand strand, 
+                                         const BlxStrand strand,
                                          BlxContext *bc,
                                          const MSP **mspOut, /* the variation we found */
-                                         gboolean *drawStartBoundary, 
-                                         gboolean *drawEndBoundary, 
-                                         gboolean *drawJoiningLines, 
+                                         gboolean *drawStartBoundary,
+                                         gboolean *drawEndBoundary,
+                                         gboolean *drawJoiningLines,
                                          gboolean *drawBackground,
                                          gboolean *multipleVariations)
 {
   gboolean result = FALSE;
-  
+
   /* Loop through all variations */
   int i = 0;
   const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], i);
-  
+
   for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_VARIATION], ++i))
     {
       if (mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
@@ -3055,11 +3056,11 @@ static gboolean coordAffectedByVariation(const int dnaIdx,
             *multipleVariations = TRUE;
 
           result = TRUE;
-          
+
           if (mspOut)
             *mspOut = msp;
-          
-          /* We draw the start boundary of this base if it's the first base in the variation's range 
+
+          /* We draw the start boundary of this base if it's the first base in the variation's range
            * and the end boundary if it's the last, unless it's a zero-length feature, i.e. an insertion
            * site; in this case we draw a line to the right of the coord in the direction of the
            * reference sequence (i.e. to give just a vertical line at the site, not an outline around the bases) */
@@ -3071,35 +3072,35 @@ static gboolean coordAffectedByVariation(const int dnaIdx,
            * found in this loop) then we keep the current value */
           if (drawStartBoundary)
             *drawStartBoundary |= (isZeroLen != bc->displayRev ? isLast : isFirst);
-            
+
           if (drawEndBoundary)
             *drawEndBoundary |= (isZeroLen != bc->displayRev ? isFirst : isLast);
 
           /* Don't draw joining lines between the start and end boundaries if it's zero-length */
           if (drawJoiningLines)
             *drawJoiningLines |= !isZeroLen;
-            
+
           /* Highlight the background if the variation is selected (unless it's a zero-length variation) */
           if (drawBackground)
             *drawBackground |= !isZeroLen && bc->isSeqSelected(msp->sSequence);
-          
+
           /* If we only want to know if this coord is affected by a snp, we can return now.
            *
-           * If we also need the boundary-lines info for this coord, then we need to check 
+           * If we also need the boundary-lines info for this coord, then we need to check
            * all snps that are at this coord, because some may have different boundaries to
            * others. We can break if all boundar-lines have already been set to true, though.
            *
            * If we need to return whether there are multiple snps at this coord, we can return
            * after we've found the second on (i.e. after multipleVariations is set to TRUE). */
           if (trueOrNotRequested(drawStartBoundary) &&
-              trueOrNotRequested(drawEndBoundary) && 
-              trueOrNotRequested(drawJoiningLines) && 
+              trueOrNotRequested(drawEndBoundary) &&
+              trueOrNotRequested(drawJoiningLines) &&
               trueOrNotRequested(drawBackground) &&
               trueOrNotRequested(multipleVariations))
             break;
         }
     }
-  
+
   return result;
 }
 
@@ -3107,17 +3108,17 @@ static gboolean coordAffectedByVariation(const int dnaIdx,
 /* Determine whether the given coord in the given frame/strand is affected by
  * a polyA signal */
 static gboolean coordAffectedByPolyASignal(const int dnaIdx,
-                                           const BlxStrand strand, 
+                                           const BlxStrand strand,
                                            BlxContext *bc,
                                            const MSP **mspOut, /* the variation we found */
                                            gboolean *multiple)
 {
   gboolean result = FALSE;
-  
+
   /* Loop through all variations */
   int i = 0;
   const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], i);
-  
+
   for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SIGNAL], ++i))
     {
       if (mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
@@ -3127,10 +3128,10 @@ static gboolean coordAffectedByPolyASignal(const int dnaIdx,
             *multiple = TRUE;
 
           result = TRUE;
-          
+
           if (mspOut)
             *mspOut = msp;
-          
+
           /* If we only want to know if this coord is affected by a polyA signal, we can return now.
            *
            * If we need to return whether there are multiple sites at this coord, we can return
@@ -3139,7 +3140,7 @@ static gboolean coordAffectedByPolyASignal(const int dnaIdx,
             break;
         }
     }
-  
+
   return result;
 }
 
@@ -3147,17 +3148,17 @@ static gboolean coordAffectedByPolyASignal(const int dnaIdx,
 /* Determine whether the given coord in the given frame/strand is affected by
  * a polyA site */
 static gboolean coordAffectedByPolyASite(const int dnaIdx,
-                                         const BlxStrand strand, 
+                                         const BlxStrand strand,
                                          BlxContext *bc,
                                          const MSP **mspOut, /* the variation we found */
                                          gboolean *multiple)
 {
   gboolean result = FALSE;
-  
+
   /* Loop through all variations */
   int i = 0;
   const MSP *msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], i);
-  
+
   for ( ; msp; msp = mspArrayIdx(bc->featureLists[BLXMSP_POLYA_SITE], ++i))
     {
       if (mspGetRefStrand(msp) == strand && valueWithinRange(dnaIdx, &msp->qRange))
@@ -3167,10 +3168,10 @@ static gboolean coordAffectedByPolyASite(const int dnaIdx,
             *multiple = TRUE;
 
           result = TRUE;
-          
+
           if (mspOut)
             *mspOut = msp;
-          
+
           /* If we only want to know if this coord is affected by a polyA signal, we can return now.
            *
            * If we need to return whether there are multiple sites at this coord, we can return
@@ -3179,19 +3180,19 @@ static gboolean coordAffectedByPolyASite(const int dnaIdx,
             break;
         }
     }
-  
+
   return result;
 }
 
 
 /* Draw a rectangle with an outline and a fill color */
-static void drawRectangle(GdkDrawable *drawable, 
-                          GdkGC *gc, 
+static void drawRectangle(GdkDrawable *drawable,
+                          GdkGC *gc,
                           GdkColor *fillColor,
                           GdkColor *outlineColor,
-                          const int x, 
+                          const int x,
                           const int y,
-                          const int width, 
+                          const int width,
                           const int height,
                           const gboolean drawLeft,
                           const gboolean drawRight,
@@ -3199,7 +3200,7 @@ static void drawRectangle(GdkDrawable *drawable,
                           const gboolean drawBottom)
 {
   const int lineWidth = 1;
-  
+
   if (fillColor)
     {
       gdk_gc_set_foreground(gc, fillColor);
@@ -3210,13 +3211,13 @@ static void drawRectangle(GdkDrawable *drawable,
     {
       gdk_gc_set_foreground(gc, outlineColor);
       gdk_gc_set_line_attributes(gc, lineWidth, GDK_LINE_SOLID, GDK_CAP_BUTT, GDK_JOIN_MITER);
-      
+
       int w = width - lineWidth;
       int h = height - lineWidth;
-      
+
       if (drawLeft)
         gdk_draw_line(drawable, gc, x, y, x, y + h);
-        
+
       if (drawRight)
         gdk_draw_line(drawable, gc, x + w, y, x + w, y + h);
 
@@ -3235,36 +3236,36 @@ static void drawRectangle(GdkDrawable *drawable,
  * range of any MSP that is selected. Only considers MSPs that are on the given ref seq
  * frame and strand (if given; otherwise considers all MSPs). */
 static gboolean isCoordInSelectedMspRange(const BlxContext *bc,
-                                          const int dnaIdx, 
-                                          const BlxStrand refSeqStrand, 
+                                          const int dnaIdx,
+                                          const BlxStrand refSeqStrand,
                                           const int refSeqFrame,
                                           const BlxSeqType seqType)
 {
   gboolean inSelectedMspRange = FALSE;
-  
+
   /* Loop through all the selected sequences */
   GList *seqItem = bc->selectedSeqs;
-  
+
   for ( ; seqItem && !inSelectedMspRange; seqItem = seqItem->next)
     {
       /* Loop through all the MSPs in this sequence */
       const BlxSequence* const blxSeq = (const BlxSequence*)(seqItem->data);
       GList *mspItem = blxSeq->mspList;
-      
+
       for ( ; mspItem && !inSelectedMspRange; mspItem = mspItem->next)
         {
           const MSP* const msp = (const MSP*)(mspItem->data);
           const int mspFrame = mspGetRefFrame(msp, seqType);
-          
-          if ((mspIsBlastMatch(msp) || mspIsBoxFeature(msp)) && 
+
+          if ((mspIsBlastMatch(msp) || mspIsBoxFeature(msp)) &&
               (refSeqStrand == BLXSTRAND_NONE || mspGetRefStrand(msp) == refSeqStrand) &&
               (refSeqFrame == UNSET_INT || mspFrame == refSeqFrame))
             {
               /* Passed-in coord is the nucleotide for base 1 in frame 1 of the current display index.
-               * We need to compare against base1 for the frame for the individual MSP, though, so 
+               * We need to compare against base1 for the frame for the individual MSP, though, so
                * we need to convert it: just add 1 base if we're in frame 2 or 2 bases if we're in frame3. */
               int idx = dnaIdx;
-              
+
               if (bc->displayRev)
                 {
                   idx -= (mspFrame - 1);
@@ -3273,7 +3274,7 @@ static gboolean isCoordInSelectedMspRange(const BlxContext *bc,
                 {
                   idx += (mspFrame - 1);
                 }
-              
+
               inSelectedMspRange = valueWithinRange(idx, &msp->qRange);
             }
         }
@@ -3286,16 +3287,16 @@ static gboolean isCoordInSelectedMspRange(const BlxContext *bc,
 /* Determine whether any highlighting needs to be done for snps in the ref seq */
 static void getSnpHighlighting(DrawBaseData *data,
                                BlxContext *bc)
-{     
+{
   gboolean drawBackground = FALSE;
-  
+
   if (coordAffectedByVariation(data->dnaIdx, data->strand, bc, NULL,
                                &data->drawStart, &data->drawEnd, &data->drawJoiningLines, &drawBackground, NULL))
     {
       /* The coord is affected by a SNP. Outline it in the "selected" SNP color
        * (which is darker than the normal color) */
       data->outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
-      
+
       /* If the SNP is selected, also fill it with the SNP color (using the
        * "unselected" SNP color, which is lighter than the outline). */
       if (drawBackground)
@@ -3319,7 +3320,7 @@ void drawHeaderChar(BlxContext *bc,
 {
   if (!data->selectionRange || (data->selectionRange && data->selectionRange->length() == 1))
     {
-      /* Shade the background if the base is selected XOR if the base is within the range of a 
+      /* Shade the background if the base is selected XOR if the base is within the range of a
        * selected sequence. (If both conditions are true we don't shade, to give the effect of an
        * inverted selection color.) */
       gboolean inSelectedMspRange = isCoordInSelectedMspRange(bc, data->dnaIdx, data->strand, data->frame, data->seqType);
@@ -3337,7 +3338,7 @@ void drawHeaderChar(BlxContext *bc,
   data->drawStart = FALSE;
   data->drawEnd = FALSE;
   data->drawJoiningLines = FALSE;
- 
+
   /* Check if this coord already has a special color stored for it */
   gpointer hashValue = g_hash_table_lookup(basesToHighlight, GINT_TO_POINTER(data->dnaIdx));
 
@@ -3349,10 +3350,10 @@ void drawHeaderChar(BlxContext *bc,
       if (colorId == BLXCOLOR_POLYA_SITE_ANN)
         {
           /* For polyA sites we don't shade the background; instead we want to draw a bar after the
-           * coord (or before if the display is reversed), so set the outline. 
-           * (NB Bit of a hack to use the colorId to identify polyA sites here but it works fine.) */ 
+           * coord (or before if the display is reversed), so set the outline.
+           * (NB Bit of a hack to use the colorId to identify polyA sites here but it works fine.) */
           data->outlineColor = color;
-          
+
           if (bc->displayRev)
             data->drawStart = TRUE;
           else
@@ -3371,14 +3372,14 @@ void drawHeaderChar(BlxContext *bc,
       if (data->dnaIdxSelected || data->displayIdxSelected)
         {
           /* The coord is a nucleotide in the currently-selected codon. The color depends
-           * on whether the actual nucleotide itself is selected, or just the codon that it 
+           * on whether the actual nucleotide itself is selected, or just the codon that it
            * belongs to. */
           data->fillColor = getGdkColor(BLXCOLOR_CODON, bc->defaultColors, data->dnaIdxSelected, bc->usePrintColors);
-          
+
         }
       else if (!data->fillColor)
         {
-          /* The coord is not selected but this coord is within the range of a selected MSP, so 
+          /* The coord is not selected but this coord is within the range of a selected MSP, so
            * shade the background. */
           data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
@@ -3389,7 +3390,7 @@ void drawHeaderChar(BlxContext *bc,
     {
       getSnpHighlighting(data, bc);
     }
-  
+
   /* If the base is not already assigned some special highlighting, then
    * check whether it should be highlighted as a stop or MET. Otherwise,
    * give it the default background colour. */
@@ -3411,7 +3412,7 @@ void drawHeaderChar(BlxContext *bc,
           data->fillColor = getGdkColor(data->defaultBgColor, bc->defaultColors, data->shadeBackground, bc->usePrintColors);
         }
     }
-  
+
   /* Ok, now we know all the colours and outlines, draw the background for the base */
   if (data->topToBottom)
     {
@@ -3446,9 +3447,9 @@ static int getVariationRowNumber(const IntRange* const rangeIn, const int numRow
       /* See if it overlaps an existing range */
       GSList *ranges = (GSList*)(row->data);
       GSList *rangeItem = ranges;
-      
+
       gboolean overlaps = FALSE;
-  
+
       for ( ; rangeItem && !overlaps; rangeItem = rangeItem->next)
         {
           IntRange *range = (IntRange*)(rangeItem->data);
@@ -3461,12 +3462,12 @@ static int getVariationRowNumber(const IntRange* const rangeIn, const int numRow
           IntRange *range = new IntRange;
           range->set(rangeIn);
           ranges = g_slist_append(ranges, range);
-          
+
           row->data = ranges;
 
           if (numRows != UNSET_INT)
             rowNum = numRows - rowNum + 1; /* invert row order */
-          
+
           return rowNum;
         }
     }
@@ -3494,7 +3495,7 @@ static void freeRowsList(GSList *rows)
     {
       GSList *ranges = (GSList*)(rowItem->data);
       GSList *rangeItem = ranges;
-      
+
       for ( ; rangeItem; rangeItem = rangeItem->next)
         {
           IntRange *range = (IntRange*)(rangeItem->data);
@@ -3508,11 +3509,11 @@ static void freeRowsList(GSList *rows)
 }
 
 
-/* Utility to calculate the number of rows we need in the SNP track to avoid 
+/* Utility to calculate the number of rows we need in the SNP track to avoid
  * any overlapping variations. */
-static int getNumSnpTrackRows(const BlxContext *bc, 
-                              DetailViewProperties *properties, 
-                              const BlxStrand strand, 
+static int getNumSnpTrackRows(const BlxContext *bc,
+                              DetailViewProperties *properties,
+                              const BlxStrand strand,
                               const int frame)
 {
   DEBUG_ENTER("getNumSnpTrackRows()");
@@ -3536,7 +3537,7 @@ static int getNumSnpTrackRows(const BlxContext *bc,
             {
               /* Get the row number (1-based) to draw this variation in. */
               int row = getVariationRowNumber(&mspExpandedRange, UNSET_INT, &rows);
-              
+
               /* Keep track of how many rows we've seen so we can size the widget accordingly */
               if (row > numRows)
                 numRows = row;
@@ -3545,7 +3546,7 @@ static int getNumSnpTrackRows(const BlxContext *bc,
     }
 
   freeRowsList(rows);
-  
+
   DEBUG_EXIT("getNumSnpTrackRows returning %d", numRows);
   return numRows;
 }
@@ -3577,25 +3578,25 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
 
   GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
   BlxContext *bc = blxWindowGetContext(blxWindow);
-  
+
   if (!bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] || !bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS])
     {
       DEBUG_EXIT("drawVariationsTrack returning");
       return;
     }
-  
+
   const int activeFrame = detailViewGetActiveFrame(detailView);
-  
+
   BlxStrand strand = snpTrackGetStrand(snpTrack, detailView);
-  
+
   GdkGC *gc = gdk_gc_new(drawable);
-  
+
   /* Find the left margin. It will be at the same x coord as the left edge of
    * the sequence column header. */
   int leftMargin = UNSET_INT;
   BlxColumnInfo *seqColInfo = getColumnInfo(detailViewGetColumnList(detailView), BLXCOL_SEQUENCE);
   gtk_widget_translate_coordinates(seqColInfo->headerWidget, snpTrack, 0, 0, &leftMargin, NULL);
-  
+
   /* Maintain lists for each row where the variations are drawn; remember their display
    * ranges and don't allow any to overlap. */
   const int numRows = getNumSnpTrackRows(bc, properties, strand, activeFrame);
@@ -3621,20 +3622,20 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
               /* Get the row number to draw this variation in. */
               const int rowNum = getVariationRowNumber(&mspExpandedRange, numRows, &rows);
               const int rowIdx = rowNum - 1;
-              
+
               int x = leftMargin + (int)((gdouble)(mspExpandedRange.min() - properties->displayRange.min()) * properties->charWidth());
               const int width = ceil((gdouble)strlen(mspGetMatchSeq(msp)) * properties->charWidth());
               const gboolean isSelected = blxWindowIsSeqSelected(blxWindow, msp->sSequence);
-              
+
               /* Draw the outline in the default SNP color. If the SNP is selected, also
                * fill in the rectangle in the SNP color (use the selected color for the
                * outline and the unselected color for the fill, so that the outline is darker). */
               GdkColor *outlineColor = getGdkColor(BLXCOLOR_SNP, bc->defaultColors, TRUE, bc->usePrintColors);
               GdkColor *fillColor = isSelected ? getGdkColor(BLXCOLOR_SNP, bc->defaultColors, FALSE, bc->usePrintColors) : NULL;
-              
+
               /* Draw the background rectangle for the char */
               drawRectangle(drawable, gc, fillColor, outlineColor, x, y + (rowHeight * rowIdx), width, rowHeight, TRUE, TRUE, TRUE, TRUE);
-              
+
               /* Draw the text */
               PangoLayout *layout = gtk_widget_create_pango_layout(detailView, mspGetMatchSeq(msp));
               pango_layout_set_font_description(layout, properties->fontDesc);
@@ -3643,22 +3644,22 @@ static void drawVariationsTrack(GtkWidget *snpTrack, GtkWidget *detailView)
                 {
                   gtk_paint_layout(snpTrack->style, drawable, GTK_STATE_NORMAL, TRUE, NULL, detailView, NULL, x, y + (rowHeight * rowIdx), layout);
                   g_object_unref(layout);
-                }             
+                }
             }
         }
     }
 
   freeRowsList(rows);
-  
+
   drawColumnSeparatorLine(snpTrack, drawable, gc, bc);
-  
+
   g_object_unref(gc);
 
   DEBUG_EXIT("drawVariationsTrack returning ");
 }
 
 
-/* This function centres the detail view display on the currently-selected base index. Does 
+/* This function centres the detail view display on the currently-selected base index. Does
  * nothing if there isn't a selected base. */
 static void detailViewCentreOnSelection(GtkWidget *detailView)
 {
@@ -3666,13 +3667,13 @@ static void detailViewCentreOnSelection(GtkWidget *detailView)
 
   const gboolean selectedBaseSet = detailViewGetSelectedIdxSet(detailView);
   const int selectedBaseIdx = detailViewGetSelectedDisplayIdx(detailView);
-  
+
   if (selectedBaseSet)
     {
       /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
       const BlxSeqType seqType = detailViewGetSeqType(detailView);
       const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
-      
+
       int newStart = selectedBaseIdx - (displayRange->length() / 2);
       setDetailViewStartIdx(detailView, newStart, seqType);
     }
@@ -3692,7 +3693,7 @@ static int getBaseIndexAtDetailViewCoords(GtkWidget *detailView, const int x, co
   /* Get the x coords at the start/end of the sequence column */
   IntRange xRange;
   getColumnXCoords(columnList, BLXCOL_SEQUENCE, &xRange);
-  
+
   /* See if our x coord lies inside the sequence column */
   if (x >= xRange.min() && x <= xRange.max())
     {
@@ -3704,7 +3705,7 @@ static int getBaseIndexAtDetailViewCoords(GtkWidget *detailView, const int x, co
       GtkAdjustment *adjustment = properties->adjustment;
       baseIdx = charIdx + adjustment->value;
     }
-  
+
   return baseIdx;
 }
 
@@ -3720,7 +3721,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
 
   GtkAdjustment *adjustment = GTK_ADJUSTMENT(object);
   GtkWidget *detailView = GTK_WIDGET(data);
-  
+
   IntRange *displayRange = detailViewGetDisplayRange(detailView);
 
   /* First time round, set the adjusment range to be centred on the centre of
@@ -3737,18 +3738,18 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
 
   int newStart = adjustment->value;
   int newEnd = newStart + adjustment->page_size - 1;
-  
+
   /* Only update if something has changed */
   if (displayRange->min() != newStart || displayRange->max() != newEnd)
     {
       IntRange oldRange = {displayRange->min(), displayRange->max()};
 
       displayRange->set(newStart, newEnd);
-      
+
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
       refilterDetailView(detailView, &oldRange);
 
-      /* Refresh the detail view header (which may contain the DNA sequence), and 
+      /* Refresh the detail view header (which may contain the DNA sequence), and
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
       callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
@@ -3759,7 +3760,7 @@ static void onScrollRangeChangedDetailView(GtkObject *object, gpointer data)
       refreshBigPictureDisplayRange(bigPicture, FALSE);
       calculateBigPictureCellSize(bigPicture, bigPictureGetProperties(bigPicture));
     }
-  
+
   DEBUG_EXIT("onScrollRangeChangedDetailView returning");
 }
 
@@ -3771,7 +3772,7 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
 
   GtkAdjustment *adjustment = GTK_ADJUSTMENT(object);
   GtkWidget *detailView = GTK_WIDGET(data);
-  
+
   /* Set the display range so that it starts at the new scroll pos */
   int newStart = adjustment->value;
   int newEnd = adjustment->value + adjustment->page_size - 1;
@@ -3779,7 +3780,7 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
   /* Only update if something has changed */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   IntRange *displayRange = &properties->displayRange;
-  
+
   if (displayRange->min() != newStart || displayRange->max() != newEnd)
     {
       IntRange oldRange(displayRange->min(), displayRange->max());
@@ -3789,7 +3790,7 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
       /* Refilter the data for all trees in the detail view because rows may have scrolled in/out of view */
       refilterDetailView(detailView, &oldRange);
 
-      /* Refresh the detail view header (which may contain the DNA sequence), and 
+      /* Refresh the detail view header (which may contain the DNA sequence), and
        * the headers for all the trees (which contains the reference sequence) */
       refreshDetailViewHeaders(detailView);
       callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
@@ -3799,7 +3800,7 @@ static void onScrollPosChangedDetailView(GtkObject *object, gpointer data)
       GtkWidget *bigPicture = blxWindowGetBigPicture(properties->blxWindow());
       refreshBigPictureDisplayRange(bigPicture, FALSE);
     }
-  
+
   DEBUG_EXIT("onScrollPosChangedDetailView returning");
 }
 
@@ -3815,11 +3816,11 @@ static void updateCellRendererFont(GtkWidget *detailView, PangoFontDescription *
   /* Calculate the row height from the font size */
   gdouble charWidth, charHeight;
   getFontCharSize(detailView, fontDesc, &charWidth, &charHeight);
-  
+
   /* Cache these results, because we use them often for calculations */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   properties->setFontSize(charWidth, charHeight);
-  
+
   /* Set the row height. Subtract the padding between the cell's actual area and
    * its background area. We will render at the background area's height, so that
    * we draw over the "gaps" between the cells, giving the impression of no gaps. */
@@ -3838,17 +3839,17 @@ static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxContext *bc)
   /* Find the tree row that this MSP is in and force that row to update
    * its visibility status. */
   gchar *pathStr = mspGetTreePath(msp, bc->modelId);
-  
+
   if (pathStr)
     {
       GtkTreePath *path = gtk_tree_path_new_from_string(pathStr);
-      
+
       if (path)
         {
           GtkWidget *tree = detailViewGetTree(detailView, mspGetRefStrand(msp), mspGetRefFrame(msp, bc->seqType));
           GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
           GtkTreeIter iter;
-          
+
           if (gtk_tree_model_get_iter(model, &iter, path))
             {
               gtk_tree_model_row_changed(model, path, &iter);
@@ -3857,7 +3858,7 @@ static void refilterMspRow(MSP *msp, GtkWidget *detailView, BlxContext *bc)
 
       gtk_tree_path_free(path);
     }
-  
+
   //DEBUG_EXIT("refilterMspRow returning ");
 }
 
@@ -3870,49 +3871,49 @@ static gboolean startValueWithinRange(const IntRange* const range1,
                                       const gboolean rev)
 {
   gboolean result = FALSE;
-  
+
   if (rev)
     result = valueWithinRange(range1->max(), range2);
-  else 
+  else
     result = valueWithinRange(range1->min(), range2);
-  
+
   return result;
 }
 
 
 /* Quick search to find any MSP in the given array that whose start coord
- * lies within the given range. Sets the found array index in 'idx' or returns 
+ * lies within the given range. Sets the found array index in 'idx' or returns
  * FALSE if no MSP was found in this range. */
-static gboolean getAnyMspInRange(GArray *mspArray, 
-                                 const IntRange* const range, 
-                                 const gboolean displayRev, 
+static gboolean getAnyMspInRange(GArray *mspArray,
+                                 const IntRange* const range,
+                                 const gboolean displayRev,
                                  int *idx)
 {
   gboolean result = FALSE;
-  
-  /* Do a binary search based on start coord until we find a start coord 
+
+  /* Do a binary search based on start coord until we find a start coord
    * that lies within the given range. */
   int iMax = mspArray->len - 1;
   int iMin = 0;
 
   while (1)
     {
-      const int i = iMin + (iMax - iMin) / 2;  
+      const int i = iMin + (iMax - iMin) / 2;
       const MSP *msp = mspArrayIdx(mspArray, i);
-      
+
       if (!msp)
         break;
-    
+
       if (startValueWithinRange(&msp->displayRange, range, displayRev))
         {
           result = TRUE;
           *idx = i;
           break;
         }
-    
+
       if (iMax - iMin < 1)
         break;
-    
+
       if ((msp->displayRange.min() < range->min()) != displayRev)
         {
           iMin = i + 1;
@@ -3922,21 +3923,21 @@ static gboolean getAnyMspInRange(GArray *mspArray,
           iMax = i - 1;
         }
     }
-  
+
   return result;
 }
 
 
 /* Refilter the tree rows for all MSPs in the given array whose start coords
  * lie within the given range. 'startIdx' should be an index in the array that
- * gives the position of an MSP that is known to lie within this range (i.e. 
+ * gives the position of an MSP that is known to lie within this range (i.e.
  * it gives us a rough starting point so that we don't have to search through
  * the entire array; it does not necessarily have to be the FIRST MSP that lies
  * within range). */
-static void refilterMspList(const int startIdx, 
+static void refilterMspList(const int startIdx,
                             GArray *array,
-                            const IntRange* const range, 
-                            GtkWidget *detailView, 
+                            const IntRange* const range,
+                            GtkWidget *detailView,
                             BlxContext *bc)
 {
   DEBUG_ENTER("refilterMspList(startIdx=%d, range=[%d,%d])", startIdx, range->min(), range->max());
@@ -3945,66 +3946,66 @@ static void refilterMspList(const int startIdx,
    * for each MSP until we find an MSP that is out of range. */
   int i = startIdx;
   MSP *msp = mspArrayIdx(array, i);
-  
+
   for ( ; msp; msp = mspArrayIdx(array, ++i))
     {
       if (!startValueWithinRange(&msp->displayRange, range, bc->displayRev))
         break;
-      
+
       refilterMspRow(msp, detailView, bc);
     }
-  
-  /* Also loop backwards from the start index, because startIdx may not have 
+
+  /* Also loop backwards from the start index, because startIdx may not have
    * been the very first MSP in the array that was in range. */
   i = startIdx - 1;
   msp = mspArrayIdx(array, i);
-  
+
   for ( ; msp; msp = mspArrayIdx(array, --i))
     {
       if (!startValueWithinRange(&msp->displayRange, range, bc->displayRev))
         break;
-      
+
       refilterMspRow(msp, detailView, bc);
     }
-  
+
   DEBUG_EXIT("refilterMspList returning ");
 }
 
 
 /* Refilter rows in the detail-view trees for MSPs of the given type. Only filter
  * the rows of MSPs that lie within the given display range. */
-static void refilterMspArrayByRange(BlxMspType mspType, 
-                                   BlxContext *bc, 
-                                   const IntRange* const displayRange, 
+static void refilterMspArrayByRange(BlxMspType mspType,
+                                   BlxContext *bc,
+                                   const IntRange* const displayRange,
                                    GtkWidget *detailView)
 {
   //DEBUG_ENTER("refilterMspArrayByRange(mspType=%d)", mspType);
 
   if (!displayRange)
     return;
-  
+
   /* We only want to update MSPs that are within the given display range.
-   * 
-   * We want to avoid searching through the entire MSP array, because it may 
+   *
+   * We want to avoid searching through the entire MSP array, because it may
    * contain many thousands of MSPs. However, it is difficult to do a quick
    * search to find an item from the list based on two values (i.e. the start and
-   * end of its range). 
+   * end of its range).
    * What we do is extend the start of the display range by the maximum MSP
-   * length so that we can do a binary search just on the start coord of the MSP 
+   * length so that we can do a binary search just on the start coord of the MSP
    * to check that it lies within the extended range. For any MSP that lies within
-   * the display range, it must be true that its start coord lies within this 
+   * the display range, it must be true that its start coord lies within this
    * extended range.
    * Because the extended range is based on the maximum MSP length, it is likely
    * to include some MSPs that do not actually lie within the display range.
-   * However, there is no harm in filtering a few extra rows, and this should 
+   * However, there is no harm in filtering a few extra rows, and this should
    * still be more efficient that searching through the entire array of MSPs. */
 
   const int maxLen = getMaxMspLen();
 
-  /* If the display is reversed, the 'start' is the maximum coord end 
+  /* If the display is reversed, the 'start' is the maximum coord end
    * rather than the minimum coord */
   IntRange extendedRange;
-  
+
   if (bc->displayRev)
     {
       extendedRange.set(displayRange->min(), displayRange->max() + maxLen);
@@ -4013,14 +4014,14 @@ static void refilterMspArrayByRange(BlxMspType mspType,
     {
       extendedRange.set(displayRange->min() - maxLen, displayRange->max());
     }
-  
+
   int startIdx = 0;
-  
+
   if (getAnyMspInRange(bc->featureLists[mspType], &extendedRange, bc->displayRev, &startIdx))
     {
       refilterMspList(startIdx, bc->featureLists[mspType], &extendedRange, detailView, bc);
     }
-  
+
   //DEBUG_EXIT("refilterMspArrayByRange returning ");
 }
 
@@ -4030,12 +4031,12 @@ static void refilterMspArrayByRange(BlxMspType mspType,
 void refilterDetailView(GtkWidget *detailView, const IntRange* const oldRange)
 {
   DEBUG_ENTER("refilterDetailView(oldRange=[%d,%d])", oldRange ? oldRange->min() : 0, oldRange ? oldRange->max() : 0);
-  
+
   BlxContext *bc = detailViewGetContext(detailView);
-  
+
   if (bc->flags[BLXFLAG_SHOW_POLYA_SITE] || bc->flags[BLXFLAG_SHOW_UNALIGNED])
     {
-      /* If these options are enabled, then determining which rows need to be 
+      /* If these options are enabled, then determining which rows need to be
        * refiltered becomes much more complex because visible alignments lengths
        * may differ from the actual alignment coords, and may differ depending
        * on whether the sequence is selected or not. For now, play safe and
@@ -4059,7 +4060,7 @@ void refilterDetailView(GtkWidget *detailView, const IntRange* const oldRange)
               refilterMspArrayByRange((BlxMspType)mspType, bc, newRange, detailView);
             }
         }
-      
+
       detailViewRedrawAll(detailView);
     }
 
@@ -4076,13 +4077,13 @@ static void assertDetailView(GtkWidget *detailView)
   /* Check it's a valid detail-view tree type */
   if (!detailView)
     g_error("Detail-view widget is null\n");
-  
+
   if (!GTK_IS_WIDGET(detailView))
     g_error("Detail-view is not a valid widget [%p]\n", detailView);
-  
+
   if (!GTK_IS_CONTAINER(detailView))
     g_error("Detail-view is not a valid container [%p]\n", detailView);
-  
+
   if (!detailViewGetProperties(detailView))
     g_error("Tree properties not set [widget=%p]\n", detailView);
 }
@@ -4127,14 +4128,14 @@ GType* columnListGetTypes(GList *columnList)
 
       GList *item = columnList;
       int i = 0;
-      
+
       for ( ; item; item = item->next, ++i)
         {
           BlxColumnInfo* columnInfo = (BlxColumnInfo*)(item->data);
           result[i] = columnInfo->type;
         }
     }
-  
+
   return result;
 }
 
@@ -4180,7 +4181,7 @@ GtkWidget* detailViewGetTreeContainer(GtkWidget *detailView, const BlxStrand act
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   GtkWidget *result = NULL;
-  
+
   /* Get the list of trees for the relevant strand */
   GList *list = (activeStrand == BLXSTRAND_FORWARD) ? properties->fwdStrandTrees : properties->revStrandTrees;
 
@@ -4190,20 +4191,20 @@ GtkWidget* detailViewGetTreeContainer(GtkWidget *detailView, const BlxStrand act
     {
       GList *listItem = list;
       int count = 1;
-      
+
       for ( ; listItem && count < frame; ++count)
         {
           listItem = listItem->next;
         }
 
-      if (count == frame && 
-          GTK_IS_WIDGET(listItem->data) && 
+      if (count == frame &&
+          GTK_IS_WIDGET(listItem->data) &&
           (widgetIsTree(GTK_WIDGET(listItem->data)) || widgetIsTreeContainer(GTK_WIDGET(listItem->data))))
         {
           result = GTK_WIDGET(listItem->data);
         }
     }
-  
+
   return result;
 }
 
@@ -4213,7 +4214,7 @@ GtkWidget* detailViewGetTree(GtkWidget *detailView, const BlxStrand activeStrand
 {
   GtkWidget *result = NULL;
   GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, activeStrand, frame);
-  
+
   if (treeContainer && widgetIsTree(treeContainer))
     {
       result = treeContainer;
@@ -4222,12 +4223,12 @@ GtkWidget* detailViewGetTree(GtkWidget *detailView, const BlxStrand activeStrand
     {
       result = treeContainerGetTree(GTK_CONTAINER(treeContainer));
     }
-  
+
   if (!result)
     {
       g_warning("Tree not found for '%s' strand, frame '%d'. Returning NULL.\n", ((activeStrand == BLXSTRAND_FORWARD) ? "forward" : "reverse"), frame);
     }
-  
+
   return result;
 }
 
@@ -4322,8 +4323,8 @@ gboolean detailViewGetSelectedIdxRangeSet(GtkWidget *detailView)
   gboolean result = FALSE;
   DetailViewProperties *properties = detailViewGetProperties(detailView);
 
-  if (properties && 
-      properties->selectedRangeStart.isSet && 
+  if (properties &&
+      properties->selectedRangeStart.isSet &&
       properties->selectedRangeEnd.isSet &&
       properties->selectedRangeStart.dnaIdx != properties->selectedRangeEnd.dnaIdx)
     {
@@ -4370,7 +4371,7 @@ int detailViewGetActiveFrame(GtkWidget *detailView)
 {
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   int result = 1;
-  
+
   if (detailViewGetSelectedIdxSet(detailView))
     {
       result = properties->selectedIndex->frame;
@@ -4424,10 +4425,10 @@ static void updateFollowingBaseSelection(GtkWidget *detailView,
     {
       scrollToKeepSelectionInRange(detailView, scrollMinimum);
     }
-  
+
   /* Update the feedback box */
   updateFeedbackBox(detailView);
-  
+
   /* Update the headers so that the newly-selected index is highlighted */
   detailViewRefreshAllHeaders(detailView);
 }
@@ -4488,8 +4489,8 @@ gboolean detailViewIsDnaIdxSelected(GtkWidget *detailView, const int dnaIdx)
 
 
 /* Utility to set the info in a DetailViewIndex struct */
-static void setDetailViewIndex(DetailViewIndex *index, 
-                               const gboolean isSet, 
+static void setDetailViewIndex(DetailViewIndex *index,
+                               const gboolean isSet,
                                const int dnaIdx,
                                const int displayIdx,
                                const int frame,
@@ -4520,9 +4521,9 @@ void detailViewUnsetSelectedBaseIdx(GtkWidget *detailView)
   setDetailViewIndex(&properties->selectedRangeInit, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
   setDetailViewIndex(&properties->selectedRangeStart, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
   setDetailViewIndex(&properties->selectedRangeEnd, FALSE, UNSET_INT, UNSET_INT, UNSET_INT, UNSET_INT);
-  
+
   properties->selectedIndex = NULL;
-  
+
   updateFollowingBaseSelection(detailView, FALSE, FALSE);
 
   DEBUG_EXIT("detailViewUnsetSelectedBaseIdx returning ");
@@ -4531,18 +4532,18 @@ void detailViewUnsetSelectedBaseIdx(GtkWidget *detailView)
 
 /* This function does the work to update the selected index (called by the display/dna specific
  * functions). It makes sure the selection range is updated correctly when extending the
- * range. 
- * Performs any required refreshes. Scrolls the view to keep the selected base 
+ * range.
+ * Performs any required refreshes. Scrolls the view to keep the selected base
  * in view if allowScroll is true. (Such scrolling is by the minimum
- * number of bases necessary if scrollMinimum is true.) 
- * if extend is true, then extend the current range rather than starting a new 
+ * number of bases necessary if scrollMinimum is true.)
+ * if extend is true, then extend the current range rather than starting a new
  * selection. */
-static void detailViewSetSelectedIndex(GtkWidget *detailView, 
+static void detailViewSetSelectedIndex(GtkWidget *detailView,
                                        const int dnaIdx_in,
                                        const int displayIdx_in,
                                        const int frame,
                                        const int baseNum,
-                                       const gboolean allowScroll, 
+                                       const gboolean allowScroll,
                                        const gboolean scrollMinimum,
                                        const gboolean extend)
 {
@@ -4561,8 +4562,8 @@ static void detailViewSetSelectedIndex(GtkWidget *detailView,
       IntRange* dnaRange = blxWindowGetRefSeqRange(blxWindow);
       boundsLimitValue(&displayIdx, displayRange);
       boundsLimitValue(&dnaIdx, dnaRange);
-    }  
-  
+    }
+
   if (!extend || !properties->selectedIndex ||
       !properties->selectedRangeStart.isSet || !properties->selectedRangeEnd.isSet)
     {
@@ -4578,7 +4579,7 @@ static void detailViewSetSelectedIndex(GtkWidget *detailView,
     }
   else
     {
-      DEBUG_OUT("Extending existing range (%d, %d) to %d\n", 
+      DEBUG_OUT("Extending existing range (%d, %d) to %d\n",
                 properties->selectedRangeStart.dnaIdx, properties->selectedRangeEnd.dnaIdx, dnaIdx);
 
       /* Extend or trim the existing range by setting the start or end of the range to the new
@@ -4637,7 +4638,7 @@ void detailViewSetSelectedDnaBaseIdx(GtkWidget *detailView,
 void detailViewSetActiveFrame(GtkWidget *detailView, const int frame)
 {
   DEBUG_ENTER("detailViewSetActiveFrame()");
-  
+
   if (detailViewGetSelectedIdxSet(detailView))
     {
       /* Keep the selected DNA coord(s) the same but update the frame */
@@ -4655,10 +4656,10 @@ void detailViewSetActiveFrame(GtkWidget *detailView, const int frame)
 
 
 /* Set the selected base index to the given display index and base/frame number. */
-void detailViewSetSelectedDisplayIdx(GtkWidget *detailView, 
-                                     const int displayIdx, 
-                                     const int frame, 
-                                     const int baseNum, 
+void detailViewSetSelectedDisplayIdx(GtkWidget *detailView,
+                                     const int displayIdx,
+                                     const int frame,
+                                     const int baseNum,
                                      const gboolean allowScroll,
                                      const gboolean scrollMinimum,
                                      const gboolean extend)
@@ -4666,14 +4667,14 @@ void detailViewSetSelectedDisplayIdx(GtkWidget *detailView,
   DEBUG_ENTER("detailViewSetSelectedDisplayIdx(%d, %d, %d)", displayIdx, frame, baseNum);
 
   BlxContext *bc = detailViewGetContext(detailView);
-  
+
   /* For protein matches, calculate the base index in terms of the DNA sequence */
-  const int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx, 
-                                               bc->seqType, 
-                                               frame, 
-                                               baseNum, 
-                                               bc->numFrames, 
-                                               bc->displayRev, 
+  const int dnaIdx = convertDisplayIdxToDnaIdx(displayIdx,
+                                               bc->seqType,
+                                               frame,
+                                               baseNum,
+                                               bc->numFrames,
+                                               bc->displayRev,
                                                &bc->refSeqRange);
 
   detailViewSetSelectedIndex(detailView, dnaIdx, displayIdx, frame, baseNum, allowScroll, scrollMinimum, extend);
@@ -4719,13 +4720,13 @@ int detailViewGetClickedBaseIdx(GtkWidget *detailView)
 
 
 /* Set the selected base index to the given display index and base/frame number.
- *  Performs any required refreshes. Scrolls the view to keep the selected base 
+ *  Performs any required refreshes. Scrolls the view to keep the selected base
  * in view if allowScroll is true. (Such scrolling is by the minimum
  * number of bases necessary if scrollMinimum is true.) */
-void detailViewSetClickedBaseIdx(GtkWidget *detailView, 
-                                  const int clickedBaseIdx, 
-                                  const int frame, 
-                                  const int baseNum, 
+void detailViewSetClickedBaseIdx(GtkWidget *detailView,
+                                  const int clickedBaseIdx,
+                                  const int frame,
+                                  const int baseNum,
                                   const gboolean allowScroll,
                                   const gboolean scrollMinimum)
 {
@@ -4751,7 +4752,7 @@ DetailViewProperties* detailViewGetProperties(GtkWidget *widget)
 
   if (!properties && widget)
     properties = (DetailViewProperties*)(g_object_get_data(G_OBJECT(widget), "DetailViewProperties"));
-  
+
   return properties;
 }
 
@@ -4782,14 +4783,14 @@ static DetailViewProperties* detailViewCreateProperties(GtkWidget *detailView,
                                                         GtkWidget *feedbackBox,
                                                         GtkWidget *statusBar,
                                                         GList *columnList,
-                                                        GtkAdjustment *adjustment, 
+                                                        GtkAdjustment *adjustment,
                                                         const int startCoord,
                                                         const BlxColumnId sortColumn)
 {
   DetailViewProperties *properties = NULL;
 
   if (detailView)
-    { 
+    {
       properties = new DetailViewProperties(detailView,
                                             blxWindow,
                                             bc,
@@ -4800,12 +4801,12 @@ static DetailViewProperties* detailViewCreateProperties(GtkWidget *detailView,
                                             feedbackBox,
                                             statusBar,
                                             columnList,
-                                            adjustment, 
+                                            adjustment,
                                             startCoord,
                                             sortColumn);
- 
+
       g_object_set_data(G_OBJECT(detailView), "DetailViewProperties", properties);
-      g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL); 
+      g_signal_connect(G_OBJECT(detailView), "destroy", G_CALLBACK(onDestroyDetailView), NULL);
     }
 
   return properties;
@@ -4828,9 +4829,9 @@ int seqColHeaderGetRow(GtkWidget *header)
 int seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames)
 {
   const int row = seqColHeaderGetRow(header);
-  
+
   int baseNum = UNSET_INT;
-  
+
   if (row != UNSET_INT)
     {
       baseNum = row - (frame - 1);
@@ -4841,7 +4842,7 @@ int seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames)
           baseNum += numFrames;
         }
     }
-  
+
   return baseNum;
 }
 
@@ -4849,7 +4850,7 @@ int seqColHeaderGetBase(GtkWidget *header, const int frame, const int numFrames)
 static int seqColHeaderGetCoordAtPos(GtkWidget *header, GtkWidget *detailView, const int x, const int y)
 {
   int baseIdx = UNSET_INT;
-  
+
   GtkAdjustment *adjustment = detailViewGetAdjustment(detailView);
 
   if (x >= 0 && x <= header->allocation.width)
@@ -4857,7 +4858,7 @@ static int seqColHeaderGetCoordAtPos(GtkWidget *header, GtkWidget *detailView, c
       /* Get the 0-based char index at x */
       gdouble charWidth = detailViewGetCharWidth(detailView);
       int charIdx = (int)((gdouble)x / charWidth);
-      
+
       /* Add the start of the scroll range to convert this to the display index */
       baseIdx = charIdx + adjustment->value;
     }
@@ -4869,7 +4870,7 @@ static int seqColHeaderGetCoordAtPos(GtkWidget *header, GtkWidget *detailView, c
     {
       baseIdx = adjustment->value = adjustment->page_size;
     }
-  
+
   return baseIdx;
 }
 
@@ -4884,14 +4885,14 @@ static int seqColHeaderGetCoordAtPos(GtkWidget *header, GtkWidget *detailView, c
 static void panedWindowCreateProperties(GtkWidget *widget, const int splitterPos)
 {
   if (widget)
-    { 
+    {
       PanedWindowProperties *properties = new PanedWindowProperties;
 
       properties->widget = widget;
       properties->splitterPos = splitterPos;
-      
+
       g_object_set_data(G_OBJECT(widget), "PanedWindowProperties", properties);
-      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyPanedWindow), NULL); 
+      g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(onDestroyPanedWindow), NULL);
     }
 }
 
@@ -4902,7 +4903,7 @@ static PanedWindowProperties* panedWindowGetProperties(GtkWidget *widget)
 
   if (!properties && widget)
     properties = (PanedWindowProperties*)(g_object_get_data(G_OBJECT(widget), "PanedWindowProperties"));
-  
+
   return properties;
 }
 
@@ -4930,18 +4931,18 @@ static void snpTrackSetStrand(GtkWidget *snpTrack, const BlxStrand strand)
 static BlxStrand snpTrackGetStrand(GtkWidget *snpTrack, GtkWidget *detailView)
 {
   BlxStrand strand = BLXSTRAND_NONE;
-  
+
   if (snpTrack)
     {
       strand = (BlxStrand)GPOINTER_TO_INT(g_object_get_data(G_OBJECT(snpTrack), "snpTrackStrand"));
     }
-  
+
   if (strand == BLXSTRAND_NONE)
     {
       /* use the active strand instead */
       strand = blxWindowGetActiveStrand(detailViewGetBlxWindow(detailView));
     }
-  
+
   return strand;
 }
 
@@ -5038,14 +5039,14 @@ static void snpTrackSetHeight(GtkWidget *detailView, GtkWidget *snpTrack)
 gboolean onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data)
 {
   GdkGC *gc = gdk_gc_new(headerWidget->window);
-  
+
   GtkWidget *detailView = GTK_WIDGET(data);
   const BlxContext *bc = detailViewGetContext(detailView);
-  
+
   drawColumnSeparatorLine(headerWidget, headerWidget->window, gc, bc);
-  
+
   g_object_unref(gc);
-  
+
   return FALSE;
 }
 
@@ -5054,7 +5055,7 @@ gboolean onExposeGenericHeader(GtkWidget *headerWidget, GdkEventExpose *event, g
 gboolean onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpointer data)
 {
   GdkWindow *window = GTK_IS_LAYOUT(headerWidget) ? GTK_LAYOUT(headerWidget)->bin_window : headerWidget->window;
-  
+
   if (window)
     {
       /* See if there's a cached drawable and, if not, create it */
@@ -5065,11 +5066,11 @@ gboolean onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpoint
           /* There isn't a bitmap yet. Create it now. */
           GtkWidget *detailView = GTK_WIDGET(data);
           const BlxStrand activeStrand = detailViewGetDisplayRev(detailView) ? BLXSTRAND_REVERSE : BLXSTRAND_FORWARD;
-          
+
           drawDnaTrack(headerWidget, detailView, activeStrand, seqColHeaderGetRow(headerWidget));
           bitmap = widgetGetDrawable(headerWidget);
         }
-      
+
       if (bitmap)
         {
           /* Push the bitmap onto the window */
@@ -5078,7 +5079,7 @@ gboolean onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpoint
           g_object_unref(gc);
         }
     }
-  
+
   return FALSE;
 }
 
@@ -5087,7 +5088,7 @@ gboolean onExposeDnaTrack(GtkWidget *headerWidget, GdkEventExpose *event, gpoint
 static gboolean onExposeVariationsTrack(GtkWidget *snpTrack, GdkEventExpose *event, gpointer data)
 {
   GdkDrawable *window = GTK_LAYOUT(snpTrack)->bin_window;
-  
+
   if (window)
     {
       GdkDrawable *bitmap = widgetGetDrawable(snpTrack);
@@ -5096,10 +5097,10 @@ static gboolean onExposeVariationsTrack(GtkWidget *snpTrack, GdkEventExpose *eve
           /* There isn't a bitmap yet. Create it now. */
           GtkWidget *detailView = GTK_WIDGET(data);
           drawVariationsTrack(snpTrack, detailView);
-          
+
           bitmap = widgetGetDrawable(snpTrack);
         }
-      
+
       if (bitmap)
         {
           /* Push the bitmap onto the window */
@@ -5112,7 +5113,7 @@ static gboolean onExposeVariationsTrack(GtkWidget *snpTrack, GdkEventExpose *eve
           g_critical("Failed to draw SNP track [%p] - could not create bitmap.\n", snpTrack);
         }
     }
-  
+
   return TRUE;
 }
 
@@ -5130,7 +5131,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
         GtkWidget *blxWindow = detailViewGetBlxWindow(detailView);
         BlxContext *bc = blxWindowGetContext(blxWindow);
         GList *columnList = detailViewGetColumnList(detailView);
-        
+
         if (event->type == GDK_BUTTON_PRESS) /* first click */
           {
             /* Select the variation that was clicked on.  */
@@ -5141,15 +5142,15 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
             BlxColumnInfo *seqColInfo = getColumnInfo(columnList, BLXCOL_SEQUENCE);
 
             selectClickedSnp(snpTrack, seqColInfo->headerWidget, detailView, event->x, event->y, TRUE, UNSET_INT); /* SNPs are always expanded in the SNP track */
-            
+
             detailViewRefreshAllHeaders(detailView);
-          }      
+          }
         else if (event->type == GDK_2BUTTON_PRESS) /* double-click */
           {
-            /* If a variation was double-clicked, open its URL in a browser. 
+            /* If a variation was double-clicked, open its URL in a browser.
              * If multiple are selected, use the last-selected one. */
             GList *seqItem = g_list_last(blxWindowGetSelectedSeqs(blxWindow));
-            
+
             if (seqItem)
               {
                 BlxSequence *seq = (BlxSequence*)(seqItem->data);
@@ -5169,10 +5170,10 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
   }
 
   if (!handled)
-    { 
+    {
       propagateEventButton(snpTrack, detailView, event);
     }
-  
+
   return handled;
 }
 
@@ -5181,7 +5182,7 @@ static gboolean onButtonPressSnpTrack(GtkWidget *snpTrack, GdkEventButton *event
 static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
 
   switch (event->button)
@@ -5189,16 +5190,16 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
     case 2:
     {
       /* Middle button: select the base index at the clicked coords */
-      
+
       /* First make sure the detail view trees are fully drawn (so that the
        * cached drawable is up to date - see notes in onExposeDetailViewTree)
        * and then set the mouse-drag flag. */
       detailViewRedrawAll(detailView);
       gdk_window_process_all_updates();
       setMouseDragMode(TRUE);
-      
+
       int baseIdx = getBaseIndexAtDetailViewCoords(detailView, event->x, event->y);
-      
+
       if (baseIdx != UNSET_INT)
         {
           /* For protein matches, select the first base in the triplet */
@@ -5206,11 +5207,11 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
           const int frame = detailViewGetActiveFrame(detailView);
           detailViewSetSelectedDisplayIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE, shiftModifier);
         }
-      
+
       handled = TRUE;
       break;
     }
-      
+
     case 3:
     {
       /* Right button: store the clicked coord (required for copying ref seq),
@@ -5222,17 +5223,17 @@ static gboolean onButtonPressDetailView(GtkWidget *detailView, GdkEventButton *e
           const int frame = detailViewGetActiveFrame(detailView);
           detailViewSetClickedBaseIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE);
         }
-      
+
       GtkWidget *mainmenu = blxWindowGetMainMenu(detailViewGetBlxWindow(detailView));
       gtk_menu_popup (GTK_MENU(mainmenu), NULL, NULL, NULL, NULL, event->button, event->time);
       handled = TRUE;
       break;
     }
-      
+
     default:
       break;
   };
-  
+
   return handled;
 }
 
@@ -5242,13 +5243,13 @@ static gboolean onMouseMoveDetailView(GtkWidget *detailView, GdkEventMotion *eve
   gboolean handled = FALSE;
 
   const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
-  
+
   if (event->state & GDK_BUTTON2_MASK)
     {
       /* Moving mouse with middle mouse button down. Update the currently-selected base
        * (but don't re-centre on the selected base until the mouse button is released). */
       const int baseIdx = getBaseIndexAtDetailViewCoords(detailView, event->x, event->y);
-      
+
       if (baseIdx != UNSET_INT)
         {
           /* For protein matches, get the 1st base in the peptide */
@@ -5258,10 +5259,10 @@ static gboolean onMouseMoveDetailView(GtkWidget *detailView, GdkEventMotion *eve
           /* If shift is pressed, extend the current selection range */
           detailViewSetSelectedDisplayIdx(detailView, baseIdx, frame, baseNum, FALSE, TRUE, shiftModifier);
         }
-      
+
       handled = TRUE;
     }
-  
+
   return handled;
 }
 
@@ -5272,7 +5273,7 @@ static gboolean onMouseMoveDetailView(GtkWidget *detailView, GdkEventMotion *eve
 static gboolean onScrollDetailView(GtkWidget *detailView, GdkEventScroll *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   switch (event->direction)
     {
       case GDK_SCROLL_LEFT:
@@ -5296,7 +5297,7 @@ static gboolean onScrollDetailView(GtkWidget *detailView, GdkEventScroll *event,
           break;
         }
     };
-  
+
   return handled;
 }
 
@@ -5304,13 +5305,13 @@ static gboolean onScrollDetailView(GtkWidget *detailView, GdkEventScroll *event,
 static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   /* Right button: show context menu (handled in button-press event) */
   if (event->button == 3)
     {
       handled = TRUE;
     }
-  
+
   /* Middle button: scroll the selected base index to the centre (unless CTRL is pressed) */
   if (event->button == 2)
     {
@@ -5318,29 +5319,29 @@ static gboolean onButtonReleaseDetailView(GtkWidget *detailView, GdkEventButton 
       setMouseDragMode(FALSE);
 
       const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
-      
+
       if (!ctrlModifier)
         {
           /* Move the scrollbar so that the currently-selected base index is at the centre */
           const gboolean selectedBaseSet = detailViewGetSelectedIdxSet(detailView);
           const int selectedBaseIdx = detailViewGetSelectedDisplayIdx(detailView);
-          
+
           if (selectedBaseSet)
             {
               /* The coord is in terms of the display coords, i.e. whatever the displayed seq type is. */
               const BlxSeqType seqType = detailViewGetSeqType(detailView);
               const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
-              
+
               int newStart = selectedBaseIdx - (displayRange->length() / 2);
               setDetailViewStartIdx(detailView, newStart, seqType);
             }
         }
 
       detailViewRedrawAll(detailView);
-      
+
       handled = TRUE;
     }
-  
+
   return handled;
 }
 
@@ -5380,7 +5381,7 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 
   const gboolean shiftModifier = (event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK;
   GtkWidget *detailView = GTK_WIDGET(data);
-  
+
   switch (event->button)
   {
     case 1:
@@ -5392,7 +5393,7 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
             const int clickedBase = seqColHeaderGetBase(header, 1, detailViewGetNumFrames(detailView));
 
             selectClickedSnp(header, NULL, detailView, event->x, event->y, FALSE, clickedBase); /* SNPs are always un-expanded in the DNA track */
-            
+
             detailViewRefreshAllHeaders(detailView);
           }
         else if (event->type == GDK_2BUTTON_PRESS)
@@ -5400,11 +5401,11 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
             /* Double-click: toggle variations-track visibility */
             BlxContext *bc = detailViewGetContext(detailView);
             const gboolean showTrack = !bc->flags[BLXFLAG_SHOW_VARIATION_TRACK];
-            
+
             /* If we're enabling the variations track, also make sure that variations are highlighted in the header */
             if (showTrack)
               bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS] = TRUE;
-            
+
             bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] = showTrack;
             detailViewUpdateShowSnpTrack(detailView, showTrack);
           }
@@ -5412,7 +5413,7 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
         handled = TRUE;
         break;
       }
-      
+
     case 2:
       {
         /* Middle button: select the nucleotide that was clicked on. */
@@ -5420,7 +5421,7 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
         handled = TRUE;
         break;
       }
-      
+
     case 3: /* right button */
       {
         handled = detailViewHeaderShowContextMenu(header, detailView, event);
@@ -5432,10 +5433,10 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
   }
 
   if (!handled)
-    { 
+    {
       propagateEventButton(header, detailView, event);
     }
-  
+
   return handled;
 }
 
@@ -5443,19 +5444,19 @@ static gboolean onButtonPressSeqColHeader(GtkWidget *header, GdkEventButton *eve
 static gboolean onButtonReleaseSeqColHeader(GtkWidget *header, GdkEventButton *event, gpointer data)
 {
   gboolean handled = FALSE;
-  
+
   /* Middle button: scroll the selected base index to the centre (unless CTRL is pressed) */
   if (event->button == 2)
     {
       const gboolean ctrlModifier = (event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK;
-      
+
       if (!ctrlModifier)
         {
           /* Move the scrollbar so that the currently-selected base index is at the centre */
           GtkWidget *detailView = GTK_WIDGET(data);
           detailViewCentreOnSelection(detailView);
         }
-      
+
       handled = TRUE;
     }
 
@@ -5479,17 +5480,17 @@ static gboolean onMouseMoveSeqColHeader(GtkWidget *header, GdkEventMotion *event
        * feedback area */
       int baseIdx, frame, baseNum;
       getSeqColHeaderClickedNucleotide(header, detailView, event->x, event->y, &baseIdx, &frame, &baseNum);
-      
+
       if (baseIdx != UNSET_INT && frame != UNSET_INT && baseNum != UNSET_INT)
         {
           BlxContext *bc = detailViewGetContext(detailView);
           const int dnaIdx = convertDisplayIdxToDnaIdx(baseIdx, bc->seqType, frame, baseNum, bc->numFrames, bc->displayRev, &bc->refSeqRange);
           const BlxStrand strand = blxWindowGetActiveStrand(detailViewGetBlxWindow(detailView));
-          
+
           updateFeedbackAreaNucleotide(detailView, dnaIdx, strand);
         }
     }
-  
+
   return TRUE;
 }
 
@@ -5502,22 +5503,22 @@ void updateDynamicColumnWidths(GtkWidget *detailView)
    * other (visible) column widths and subtract from the allocation width. */
   int width = detailView->allocation.width;
   BlxColumnInfo *seqColInfo = NULL;
-  
+
   GList *listItem = detailViewGetColumnList(detailView);
   for ( ; listItem; listItem = listItem->next)
     {
       BlxColumnInfo *columnInfo = (BlxColumnInfo*)(listItem->data);
-      
+
       if (columnInfo->columnId == BLXCOL_SEQUENCE)
         seqColInfo = columnInfo;
       else if (columnInfo->showColumn && columnInfo->dataLoaded)
         width -= columnInfo->width;
     }
-      
+
   if (seqColInfo && seqColInfo->width != width)
     {
       seqColInfo->width = width;
-  
+
       callFuncOnAllDetailViewTrees(detailView, resizeTreeColumns, NULL);
       resizeDetailViewHeaders(detailView);
 
@@ -5538,7 +5539,7 @@ static void swapTreeVisibility(GtkWidget *detailView)
     {
       GtkWidget *tree1 = detailViewGetTreeContainer(detailView, BLXSTRAND_FORWARD, 1);
       GtkWidget *tree2 = detailViewGetTreeContainer(detailView, BLXSTRAND_REVERSE, 1);
-      
+
       if (widgetGetHidden(tree1) != widgetGetHidden(tree2))
         {
           widgetSetHidden(tree1, !widgetGetHidden(tree1));
@@ -5553,7 +5554,7 @@ static void swapGridVisibility(GtkWidget *bigPicture)
 {
   GtkWidget *grid1 = bigPictureGetFwdGrid(bigPicture);
   GtkWidget *grid2 = bigPictureGetRevGrid(bigPicture);
-  
+
   if (widgetGetHidden(grid1) != widgetGetHidden(grid2))
     {
       widgetSetHidden(grid1, !widgetGetHidden(grid1));
@@ -5567,7 +5568,7 @@ static void swapExonViewVisibility(GtkWidget *bigPicture)
 {
   GtkWidget *exonView1 = bigPictureGetFwdExonView(bigPicture);
   GtkWidget *exonView2 = bigPictureGetRevExonView(bigPicture);
-  
+
   if (widgetGetHidden(exonView1) != widgetGetHidden(exonView2))
     {
       widgetSetHidden(exonView1, !widgetGetHidden(exonView1));
@@ -5585,7 +5586,7 @@ void toggleStrand(GtkWidget *detailView)
 
   /* Update the flag */
   blxContext->displayRev = !blxContext->displayRev;
-  
+
   /* Invert the display range for both detail view and big picture */
   IntRange *bpRange = bigPictureGetDisplayRange(bigPicture);
   const IntRange* const fullRange = &blxContext->fullDisplayRange;
@@ -5601,18 +5602,18 @@ void toggleStrand(GtkWidget *detailView)
    * have changed and need updating in the index structs. */
   DetailViewProperties *properties = detailViewGetProperties(detailView);
   detailViewRefreshSelection(detailView);
- 
+
   /* Re-calculate the cached display ranges for the MSPs */
   cacheMspDisplayRanges(blxContext, properties->numUnalignedBases);
-  
+
   /* Update the feedback box */
   updateFeedbackBox(detailView);
-  
+
   /* If one grid/tree is hidden and the other visible, toggle which is hidden */
   swapTreeVisibility(detailView);
   swapGridVisibility(bigPicture);
   swapExonViewVisibility(bigPicture);
-  
+
   /* Toggle the order of the trees and grids. */
   refreshTreeOrder(detailView);
   refreshGridOrder(bigPicture);
@@ -5624,10 +5625,10 @@ void toggleStrand(GtkWidget *detailView)
   callFuncOnAllDetailViewTrees(detailView, refreshTreeHeaders, NULL);
   callFuncOnAllDetailViewTrees(detailView, refilterTree, NULL);
   detailViewRedrawAll(detailView);
-  
+
   /* Redraw the grids and grid headers */
   refreshBigPictureDisplayRange(bigPicture, FALSE);
-  
+
   DEBUG_EXIT("toggleStrand returning");
 }
 
@@ -5641,19 +5642,19 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
   static gboolean toplevelCoords = FALSE;
 
   BlxContext *bc = detailViewGetContext(detailView);
-  
+
   /* Pop up a dialog to request a coord from the user */
   char *title = g_strdup_printf("%sGo to position", blxGetTitlePrefix(bc));
 
   GtkWidget *dialog = gtk_dialog_new_with_buttons(title,
-                                                  NULL, 
+                                                  NULL,
                                                   (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_NO_SEPARATOR),
                                                   GTK_STOCK_OK, GTK_RESPONSE_ACCEPT,
                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
                                                   NULL);
 
   g_free(title);
-  
+
   gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
   GtkWidget *contentArea = GTK_DIALOG(dialog)->vbox;
   const int padding = 4;
@@ -5685,18 +5686,18 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
 
       /* Convert the input string to an int */
       int requestedCoord = atoi(inputText);
-      
+
       if (requestedCoord)
         {
           /* Remember this input for next time */
           sprintf(defaultInput, "%d", requestedCoord);
-          
+
           int coord = requestedCoord;
-          
-          /* If display coords are negated, assume the user has entered a 
+
+          /* If display coords are negated, assume the user has entered a
            * negative coord too, and un-negate it. */
           const gboolean negate = negateCoords(bc);
-          
+
           if (negate)
             {
               coord *= -1;
@@ -5715,7 +5716,7 @@ void goToDetailViewCoord(GtkWidget *detailView, const BlxSeqType coordSeqType)
               g_debug("Coord '%d' does not lie within the reference sequence range [%d %d]; trying '%d'\n", requestedCoord, negate ? bc->refSeqRange.max() * -1 : bc->refSeqRange.min(), negate ? bc->refSeqRange.min() * -1 : bc->refSeqRange.max(), requestedCoord * -1);
               coord *= -1;
             }
-          
+
           if (valueWithinRange(coord, &bc->refSeqRange))
             {
               const int activeFrame = detailViewGetActiveFrame(detailView);
@@ -5743,7 +5744,7 @@ void detailViewSetSortColumn(GtkWidget *detailView, const BlxColumnId sortColumn
   const int numColumns = g_list_length(columnList);
 
   if (numColumns > 0)
-    {      
+    {
       if (properties->sortColumns[0] != sortColumn)
         {
           properties->sortColumns[0] = sortColumn;
@@ -5762,7 +5763,7 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 
   /* Loop through all MSPs in this tree row. */
   GList* mspListItem = treeGetMsps(model, iter);
-  
+
   for ( ; mspListItem; mspListItem = mspListItem->next)
     {
       MSP *msp = (MSP*)(mspListItem->data);
@@ -5776,10 +5777,10 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
            * ignorning zero and negative offsets (negative means its the wrong direction) */
           const int offset1 = (msp->qRange.min() - searchData->startDnaIdx) * searchData->searchDirection;
           const int offset2 = (msp->qRange.max() - searchData->startDnaIdx) * searchData->searchDirection;
-          
+
           int currentFrame = mspGetRefFrame(msp, searchData->seqType);
           int currentBest = UNSET_INT;
-          
+
           if (offset1 > 0 && (offset2 <= 0 || offset2 >= offset1))
             {
               currentBest = offset1;
@@ -5794,15 +5795,15 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 
               /* Check if this is the first one we've looked at */
               useNew |= (searchData->offset == UNSET_INT);
-              
+
               /* Check if this offset is smaller than the previous best */
               useNew |= (currentBest < searchData->offset);
-              
-              /* If it's the same as the previous best, use the one with the smallest 
+
+              /* If it's the same as the previous best, use the one with the smallest
                * frame number, i.e. give preference to the topmost frame (in the hope
                * that this will be the least confusing!) */
               useNew |= (currentBest == searchData->offset && currentFrame < searchData->foundFrame);
-              
+
               if (useNew)
                 {
                   searchData->offset = currentBest;
@@ -5812,7 +5813,7 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
             }
         }
     }
-  
+
   return FALSE;
 }
 
@@ -5825,17 +5826,17 @@ static gboolean findNextMatchInTree(GtkTreeModel *model, GtkTreePath *path, GtkT
 static MSP* goToNextMatch(GtkWidget *detailView,
                           const int startDnaIdx,
                           const gboolean searchRight,
-                          GList *seqList, 
+                          GList *seqList,
                           const gboolean extend)
 {
   BlxContext *bc = detailViewGetContext(detailView);
-  
+
   const int searchDirection = (searchRight != bc->displayRev) ? 1 : -1;
 
-  MatchSearchData searchData = {startDnaIdx, 
-                                searchRight, 
-                                searchDirection, 
-                                bc->displayRev, 
+  MatchSearchData searchData = {startDnaIdx,
+                                searchRight,
+                                searchDirection,
+                                bc->displayRev,
                                 bc->seqType,
                                 bc->numFrames,
                                 &bc->refSeqRange,
@@ -5851,7 +5852,7 @@ static MSP* goToNextMatch(GtkWidget *detailView,
     {
       GtkWidget *treeContainer = detailViewGetTreeContainer(detailView, BLXSTRAND_FORWARD, frame);
       GtkWidget *tree = treeContainerGetTree(GTK_CONTAINER(treeContainer));
-      
+
       if (GTK_WIDGET_VISIBLE(tree) && gtk_widget_get_parent(treeContainer)) /* ignore if not currently included in view */
         {
           GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
@@ -5860,14 +5861,14 @@ static MSP* goToNextMatch(GtkWidget *detailView,
 
       treeContainer = detailViewGetTreeContainer(detailView, BLXSTRAND_REVERSE, frame);
       tree = treeContainerGetTree(GTK_CONTAINER(treeContainer));
-      
+
       if (GTK_WIDGET_VISIBLE(tree) && gtk_widget_get_parent(treeContainer)) /* ignore if not currently included in view */
         {
           GtkTreeModel *model = treeGetBaseDataModel(GTK_TREE_VIEW(tree));
           gtk_tree_model_foreach(model, findNextMatchInTree, &searchData);
         }
     }
-  
+
   if (searchData.offset != UNSET_INT)
     {
       /* Offset the start coord by the found amount. */
@@ -5876,7 +5877,7 @@ static MSP* goToNextMatch(GtkWidget *detailView,
       callFuncOnAllDetailViewTrees(detailView, treeScrollSelectionIntoView, NULL);
       detailViewRedrawAll(detailView);
     }
-  
+
   return searchData.foundMsp;
 }
 
@@ -5889,17 +5890,17 @@ MSP* prevMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
   int startDnaIdx = detailViewGetSelectedDnaIdx(detailView);
   int startCoord = detailViewGetSelectedDisplayIdx(detailView);
   const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
-  
+
   if (!valueWithinRange(startCoord, displayRange))
     {
       startCoord = displayRange->centre();
-      
+
       /* Use base 1 within the currently selected frame for this display coord */
       int frame = detailViewGetActiveFrame(detailView);
       BlxContext *bc = detailViewGetContext(detailView);
       startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
-  
+
   return goToNextMatch(detailView, startDnaIdx, FALSE, seqList, extend);
 }
 
@@ -5912,17 +5913,17 @@ MSP* nextMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
   int startDnaIdx = detailViewGetSelectedDnaIdx(detailView);
   int startCoord = detailViewGetSelectedDisplayIdx(detailView);
   const IntRange* const displayRange = detailViewGetDisplayRange(detailView);
-  
+
   if (!valueWithinRange(startCoord, displayRange))
     {
       startCoord = displayRange->centre();
-      
+
       /* Use base 1 within the currently selected frame for this display coord */
       int frame = detailViewGetActiveFrame(detailView);
       BlxContext *bc = detailViewGetContext(detailView);
       startDnaIdx = convertDisplayIdxToDnaIdx(startCoord, bc->seqType, frame, 1, bc->numFrames, bc->displayRev, &bc->refSeqRange);
     }
-  
+
   return goToNextMatch(detailView, startDnaIdx, TRUE, seqList, extend);
 }
 
@@ -5933,7 +5934,7 @@ MSP* firstMatch(GtkWidget *detailView, GList *seqList, const gboolean extend)
   /* Jump to the nearest match to the start of the ref seq */
   const IntRange* const refSeqRange = detailViewGetRefSeqRange(detailView);
   const int startIdx = detailViewGetDisplayRev(detailView) ? refSeqRange->max() : refSeqRange->min();
-  
+
   return goToNextMatch(detailView, startIdx, TRUE, seqList, extend);
 }
 
@@ -5958,7 +5959,7 @@ static void addColumnsToHeaderBar(GtkBox *headerBar, GList *columnList)
 {
   /* Loop through each column and add its header widget to the header bar */
   GList *columnItem = columnList;
-  
+
   for ( ; columnItem; columnItem = columnItem->next)
     {
       BlxColumnInfo *columnInfo = (BlxColumnInfo*)(columnItem->data);
@@ -5972,21 +5973,21 @@ static void addColumnsToHeaderBar(GtkBox *headerBar, GList *columnList)
 
 
 /* Create the header bar for the detail view. This contains the labels for the
- * detail-view trees (since we only want one label at the top, rather than 
+ * detail-view trees (since we only want one label at the top, rather than
  * individual labels for each tree). For protein sequence matches, the header
  * for the sequence column will also show the DNA sequence (separated into reading
- * frames). 
- * Column data is compiled into the detailViewColumns return argument. 
+ * frames).
+ * Column data is compiled into the detailViewColumns return argument.
  * If includeSnpTrack is true then the snp track widget will also be created. */
-static GtkWidget* createDetailViewHeader(GtkWidget *detailView, 
-                                         const BlxSeqType seqType, 
+static GtkWidget* createDetailViewHeader(GtkWidget *detailView,
+                                         const BlxSeqType seqType,
                                          const int numFrames,
                                          GList *columnList,
                                          const gboolean includeSnpTrack,
                                          GtkWidget **snpTrack)
 {
   GtkBox *headerBar = GTK_BOX(gtk_hbox_new(FALSE, 0)); /* hbox for the column headers */
-  
+
   /* Create a SNP track, if requested */
   if (includeSnpTrack && snpTrack)
     {
@@ -6006,13 +6007,13 @@ GtkWidget* createSnpTrackHeader(GtkWidget *detailView, const BlxStrand strand)
 {
   GtkWidget *snpTrack = gtk_layout_new(NULL, NULL);
 
-  gtk_widget_set_name(snpTrack, SNP_TRACK_HEADER_NAME);  
+  gtk_widget_set_name(snpTrack, SNP_TRACK_HEADER_NAME);
   snpTrackSetStrand(snpTrack, strand);
 
   gtk_widget_add_events(snpTrack, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(G_OBJECT(snpTrack), "expose-event", G_CALLBACK(onExposeVariationsTrack), detailView);
   g_signal_connect(G_OBJECT(snpTrack), "button-press-event", G_CALLBACK(onButtonPressSnpTrack), detailView);
-  
+
   return snpTrack;
 }
 
@@ -6027,7 +6028,7 @@ static void createSeqColHeader(GtkWidget *detailView,
   if (seqType == BLXSEQ_PEPTIDE)
     {
       GtkWidget *header = gtk_vbox_new(FALSE, 0);
-      
+
       int frame = 0;
       for ( ; frame < numFrames; ++frame)
         {
@@ -6062,11 +6063,11 @@ static void createSeqColHeader(GtkWidget *detailView,
  GtkWidget* createDetailViewScrollBar(GtkAdjustment *adjustment, GtkWidget *detailView)
 {
   GtkWidget *scrollBar = gtk_hscrollbar_new(adjustment);
-  
+
   /* Connect signals */
   g_signal_connect(G_OBJECT(adjustment), "changed", G_CALLBACK(onScrollRangeChangedDetailView), detailView);
   g_signal_connect(G_OBJECT(adjustment), "value-changed", G_CALLBACK(onScrollPosChangedDetailView), detailView);
-  
+
   return scrollBar;
 }
 
@@ -6088,7 +6089,7 @@ static void createFeedbackBoxEntry(GtkBox *parent,
 
   gtk_box_pack_start(GTK_BOX(parent), entry, FALSE, FALSE, 0);
 
-  /* We want the box to be printed, so connect the expose function that will 
+  /* We want the box to be printed, so connect the expose function that will
    * draw to a pixmap for printing */
   g_signal_connect(G_OBJECT(entry), "expose-event", cb_func, cb_data);
 }
@@ -6111,30 +6112,30 @@ static GtkWidget* createFeedbackBox(GtkToolbar *toolbar, char *windowColor)
   /* Match sequence "name:coord/len" */
   gtk_box_pack_start(box, gtk_label_new("  "), FALSE, FALSE, 0);
 
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_NAME, DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP, 
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_NAME, DETAIL_VIEW_FEEDBACK_MATCH_NAME_TOOLTIP,
                          G_CALLBACK(onExposePrintable), NULL);
 
   gtk_box_pack_start(box, gtk_label_new(":"), FALSE, FALSE, 0);
 
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_COORD, "Match sequence coord(s)", 
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_COORD, "Match sequence coord(s)",
                          G_CALLBACK(onExposePrintable), NULL);
 
   gtk_box_pack_start(box, gtk_label_new("/"), FALSE, FALSE, 0);
 
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_LEN, "Match sequence length", 
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_MATCH_LEN, "Match sequence length",
                          G_CALLBACK(onExposePrintable), NULL);
 
   /* Read depth at selected coord(s) */
   gtk_box_pack_start(box, gtk_label_new("  "), FALSE, FALSE, 0);
-  
-  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_DEPTH, DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP, 
+
+  createFeedbackBoxEntry(box, DETAIL_VIEW_FEEDBACK_DEPTH, DETAIL_VIEW_FEEDBACK_DEPTH_TOOLTIP,
                          G_CALLBACK(onExposePrintable), NULL);
-  
+
   return feedbackBox;
 }
 
 
-/* Create the status bar for the detail-view toolbar. (This feeds back info to the user 
+/* Create the status bar for the detail-view toolbar. (This feeds back info to the user
  * about the currently-moused-over sequence.) */
 static GtkWidget* createStatusBar(GtkToolbar *toolbar, char *windowColor)
 {
@@ -6155,7 +6156,7 @@ static GtkWidget* createStatusBar(GtkToolbar *toolbar, char *windowColor)
 
 
 /* Create the detail view toolbar */
-static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView, 
+static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
                                             GtkWidget *toolbarIn,
                                             BlxBlastMode mode,
                                             const BlxColumnId sortColumn,
@@ -6167,7 +6168,7 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   GtkToolbar *toolbar = GTK_TOOLBAR(toolbarIn);
 
   blxSetWidgetColor(GTK_WIDGET(toolbar), windowColor);
-  
+
   gtk_toolbar_set_style(toolbar, GTK_TOOLBAR_ICONS);
   gtk_toolbar_set_icon_size(toolbar, GTK_ICON_SIZE_SMALL_TOOLBAR);
 
@@ -6177,9 +6178,9 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
   /* Create a parent hbox which will hold the main toolbar
    * and the detail-view tools. (We do this rather than putting
    * the detail-view tools directly into the toolbar so that
-   * we have more control over spacing. In particular, the 
+   * we have more control over spacing. In particular, the
    * toolbar tools go into a nice drop-down box when there isn't
-   * enough space, but the detail-view tools won't display if 
+   * enough space, but the detail-view tools won't display if
    * that happens, so we keep them separate.) */
   GtkBox *hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
   gtk_box_pack_start(hbox, toolbarIn, TRUE, TRUE, 0);
@@ -6199,9 +6200,9 @@ static GtkWidget* createDetailViewButtonBar(GtkWidget *detailView,
  * given). The first tree gets associated with grid1 and appended to list1, and the second
  * with grid2 and list2. If hasHeaders is true, the first tree will have visible headers. */
 static void createTwoPanedTrees(GtkWidget *detailView,
-                                GtkPaned *panedWin, 
+                                GtkPaned *panedWin,
                                 GtkCellRenderer *renderer,
-                                GtkWidget *grid1, 
+                                GtkWidget *grid1,
                                 GtkWidget *grid2,
                                 GList **list1,
                                 GList **list2,
@@ -6214,7 +6215,7 @@ static void createTwoPanedTrees(GtkWidget *detailView,
 {
   GtkWidget *tree1 = createDetailViewTree(grid1, detailView, renderer, list1, columnList, seqType, refSeqName, frame1, includeSnpTrack);
   GtkWidget *tree2 = createDetailViewTree(grid2, detailView, renderer, list2, columnList, seqType, refSeqName, frame2, includeSnpTrack);
-  
+
   if (panedWin)
     {
       gtk_paned_pack1(GTK_PANED(panedWin), tree1, TRUE, TRUE);
@@ -6238,7 +6239,7 @@ static void createThreePanedTrees(GtkWidget *detailView,
                                   const gboolean includeSnpTrack)
 {
   const int frame1 = 1, frame2 = 2, frame3 = 3;
-  
+
   /* Create a tree for pane1 (but only add it to the detailView if instructed to).
    * The first tree has headers. */
   GtkWidget *tree1 = createDetailViewTree(grid, detailView, renderer, list, columnList, seqType, refSeqName, frame1, includeSnpTrack);
@@ -6247,13 +6248,13 @@ static void createThreePanedTrees(GtkWidget *detailView,
   if (addToDetailView)
     {
       gtk_paned_pack1(GTK_PANED(panedWin), tree1, TRUE, TRUE);
-      
+
       /* Create another paned widget and place it in pane 2 */
       nestedPanedWidget = GTK_PANED(gtk_vpaned_new());
       gtk_paned_pack2(panedWin, GTK_WIDGET(nestedPanedWidget), TRUE, TRUE);
     }
-  
-  /* Create two more trees (and place them in the nested paned widget, if it is not null). 
+
+  /* Create two more trees (and place them in the nested paned widget, if it is not null).
    * Neither of these trees should have headers. */
   createTwoPanedTrees(detailView, nestedPanedWidget, renderer, grid, grid, list, list, seqType, columnList, refSeqName, frame2, frame3, includeSnpTrack);
 }
@@ -6261,11 +6262,11 @@ static void createThreePanedTrees(GtkWidget *detailView,
 
 /* Create the trees for the detail view, creating sub-panes if necessary depending
  * on how many trees we need */
-static void createDetailViewPanes(GtkWidget *detailView, 
+static void createDetailViewPanes(GtkWidget *detailView,
                                   GtkPaned *panedWin,
                                   GtkCellRenderer *renderer,
-                                  GtkWidget *fwdStrandGrid, 
-                                  GtkWidget *revStrandGrid, 
+                                  GtkWidget *fwdStrandGrid,
+                                  GtkWidget *revStrandGrid,
                                   const int numFrames,
                                   GList **fwdStrandTrees,
                                   GList **revStrandTrees,
@@ -6277,13 +6278,13 @@ static void createDetailViewPanes(GtkWidget *detailView,
   if (numFrames == 1)
     {
       /* DNA matches: we need 2 trees, one for the forward strand and one for the reverse. */
-      createTwoPanedTrees(detailView, 
-                          panedWin, 
+      createTwoPanedTrees(detailView,
+                          panedWin,
                           renderer,
-                          fwdStrandGrid, 
-                          revStrandGrid, 
-                          fwdStrandTrees, 
-                          revStrandTrees, 
+                          fwdStrandGrid,
+                          revStrandGrid,
+                          fwdStrandTrees,
+                          revStrandTrees,
                           seqType,
                           columnList,
                           refSeqName,
@@ -6306,7 +6307,7 @@ static void createDetailViewPanes(GtkWidget *detailView,
  *                     Initialization                      *
  ***********************************************************/
 
-/* Add the MSPs to the detail-view trees. Calculates and returns the lowest ID 
+/* Add the MSPs to the detail-view trees. Calculates and returns the lowest ID
  * out of all the blast matches. modelId specifies which tree data model should
  * be active at the start. If create is true, the tree data stores are created;
  * otherwise we assume they already exist. */
@@ -6320,7 +6321,7 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
   /* Loop through each MSP, and add it to the correct tree based on its strand and
    * reading frame. Also find the lowest ID value out of all the matches. */
   MSP *msp = mspList;
-  
+
   for ( ; msp; msp = msp->next)
     {
       /* Only add matches/exons to trees. For exons, only add the parent exon;
@@ -6343,13 +6344,13 @@ void detailViewAddMspData(GtkWidget *detailView, MSP *mspList, GList *seqList)
             }
         }
     }
-    
-  /* Finally, create a custom-filtered version of the data store for each tree. We do 
+
+  /* Finally, create a custom-filtered version of the data store for each tree. We do
    * this AFTER adding the data so that it doesn't try to re-filter every time we add a row.
    * To do: Note that if we're calling this function a second time to add additional rows, the filter
    * will already exist so this may be slow and we may need to look into improving this. */
   callFuncOnAllDetailViewTrees(detailView, treeCreateFilteredDataModel, NULL);
-  
+
   /* Also create a second data store that will store one sequence per row (as opposed to one
    * MSP per row). This data store will be switched in when the user selects 'squash matches'. */
   callFuncOnAllDetailViewTrees(detailView, addSequencesToTree, seqList);
@@ -6369,7 +6370,7 @@ static gboolean onMouseMoveSnpSplitter(GtkWidget *paned, GdkEventMotion *event, 
           const int splitterPos = gtk_paned_get_position(GTK_PANED(paned));
           BlxContext *bc = detailViewGetContext(detailView);
 
-          if (splitterPos != 0 && 
+          if (splitterPos != 0 &&
               !(bc->flags[BLXFLAG_SHOW_VARIATION_TRACK] && bc->flags[BLXFLAG_HIGHLIGHT_VARIATIONS]) )
             {
               /* Show the track. We must also enable highlight-variations or it will not make any
@@ -6398,13 +6399,13 @@ static gboolean onMouseMoveSnpSplitter(GtkWidget *paned, GdkEventMotion *event, 
 GtkWidget* snpTrackCreatePanedWin(GtkWidget *detailView, GtkWidget *snpTrack, GtkWidget *otherWidget)
 {
   GtkPaned *paned = GTK_PANED(gtk_vpaned_new());
-  gtk_widget_set_name(GTK_WIDGET(paned), SNP_TRACK_CONTAINER_NAME);  
+  gtk_widget_set_name(GTK_WIDGET(paned), SNP_TRACK_CONTAINER_NAME);
 
   /* Top pane is the snp track. Put it inside a scrollwin */
   GtkWidget *snpScrollWin = gtk_scrolled_window_new(NULL, NULL);
   gtk_container_add(GTK_CONTAINER(snpScrollWin), snpTrack);
 
-  gtk_widget_set_name(GTK_WIDGET(snpScrollWin), SNP_TRACK_SCROLL_WIN_NAME);  
+  gtk_widget_set_name(GTK_WIDGET(snpScrollWin), SNP_TRACK_SCROLL_WIN_NAME);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(snpScrollWin), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
 
   gtk_paned_pack1(paned, snpScrollWin, FALSE, TRUE);
@@ -6424,8 +6425,8 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
                             BlxContext *bc,
                             GtkContainer *parent,
                             GtkWidget *toolbar,
-                            GtkAdjustment *adjustment, 
-                            GtkWidget *fwdStrandGrid, 
+                            GtkAdjustment *adjustment,
+                            GtkWidget *fwdStrandGrid,
                             GtkWidget *revStrandGrid,
                             MSP *mspList,
                             GList *columnList,
@@ -6442,11 +6443,11 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   /* We'll group the trees in their own container so that we can pass them all around
    * together (so that operations like zooming and scrolling can act on the group). The
    * trees might be a direct child of this or a grandchild/grand-grandchild, so we will need
-   * to look at all children recursively and check if they're the correct type. (We'll give 
+   * to look at all children recursively and check if they're the correct type. (We'll give
    * all of our detail-view trees the same name so that we can identify them.) */
   GtkWidget *detailView = gtk_vbox_new(FALSE, 0);
   gtk_container_add(parent, detailView);
-  
+
   GtkWidget *panedWin = gtk_vpaned_new();
   gtk_widget_set_name(panedWin, DETAIL_VIEW_WIDGET_NAME);
 
@@ -6459,7 +6460,7 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   GtkWidget *statusBar = NULL;
   GtkWidget *buttonBar = createDetailViewButtonBar(detailView, toolbar, mode, sortColumn, columnList, windowColor, &feedbackBox, &statusBar);
 
-  /* Create the header bar. If viewing protein matches include one SNP track in the detail 
+  /* Create the header bar. If viewing protein matches include one SNP track in the detail
    * view header; otherwise create SNP tracks in each tree header. */
   const gboolean singleSnpTrack = (seqType == BLXSEQ_PEPTIDE);
   GtkWidget *snpTrack = NULL;
@@ -6470,12 +6471,12 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 
   /* Create the trees. */
   GList *fwdStrandTrees = NULL, *revStrandTrees = NULL;
-  createDetailViewPanes(detailView, 
+  createDetailViewPanes(detailView,
                         GTK_PANED(panedWin),
                         renderer,
-                        fwdStrandGrid, 
-                        revStrandGrid, 
-                        numFrames, 
+                        fwdStrandGrid,
+                        revStrandGrid,
+                        numFrames,
                         &fwdStrandTrees,
                         &revStrandTrees,
                         seqType,
@@ -6514,17 +6515,17 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
   g_signal_connect(G_OBJECT(detailView), "motion-notify-event",  G_CALLBACK(onMouseMoveDetailView),     NULL);
   g_signal_connect(G_OBJECT(detailView), "scroll-event",         G_CALLBACK(onScrollDetailView),        NULL);
 
-  DetailViewProperties *properties = detailViewCreateProperties(detailView, 
-                                                                blxWindow, 
+  DetailViewProperties *properties = detailViewCreateProperties(detailView,
+                                                                blxWindow,
                                                                 bc,
                                                                 coverageViewP,
                                                                 renderer,
                                                                 fwdStrandTrees,
                                                                 revStrandTrees,
-                                                                feedbackBox, 
+                                                                feedbackBox,
                                                                 statusBar,
                                                                 columnList,
-                                                                adjustment, 
+                                                                adjustment,
                                                                 startCoord,
                                                                 sortColumn);
 
@@ -6532,4 +6533,3 @@ GtkWidget* createDetailView(GtkWidget *blxWindow,
 
   return detailView;
 }
-

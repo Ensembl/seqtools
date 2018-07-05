@@ -1,29 +1,30 @@
 /*  File: belvu_.h
  *  Author: Gemma Barson, 2011-03-06
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2011 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -101,7 +102,7 @@
 
 
 /* List of color ids. Must be kept in sync with colorNames in belvu.c */
-enum Colour    
+enum Colour
 {
   WHITE, BLACK, LIGHTGRAY, DARKGRAY,
   RED, GREEN, BLUE,
@@ -133,9 +134,9 @@ typedef enum _BelvuFileFormat
   BELVU_FILE_MSF,		/* MSF file format */
   BELVU_FILE_ALIGNED_FASTA,	/* Aligned FASTA file format */
   BELVU_FILE_UNALIGNED_FASTA,	/* Unaligned FASTA file format */
-  
+
   BELVU_NUM_FILE_FORMATS	/* must be last in list */
-} BelvuFileFormat;  
+} BelvuFileFormat;
 
 
 /* Tree picking methods */
@@ -162,21 +163,21 @@ typedef enum _BelvuDistCorr
   STORMSONN,
   SCOREDIST,
   JUKESCANTOR
-} BelvuDistCorr; 
+} BelvuDistCorr;
 
 
 /* The following are used to define default colors for certain types of features in Belvu.
- * One of several different actual colors from the BlxColor struct may be used depending 
- * on state, e.g. we use a different color if "print colors" (i.e. black and 
+ * One of several different actual colors from the BlxColor struct may be used depending
+ * on state, e.g. we use a different color if "print colors" (i.e. black and
  * white mode) is on. */
 typedef enum _BelvuColorId
   {
     BELCOLOR_MIN,                             /* dummy value so that we don't get a zero ID */
-    
+
     BELCOLOR_BACKGROUND,                      /* default background color for general widgets */
     BELCOLOR_ALIGN_TEXT,                      /* text color for alignments */
     BELCOLOR_COLUMN_HIGHLIGHT,                /* highlight colour for the currently-selected column */
-    
+
     BELCOLOR_TREE_BACKGROUND,                 /* background color for trees */
     BELCOLOR_TREE_LINE,                       /* default line color for the tree */
     BELCOLOR_TREE_TEXT,                       /* default text color for the tree */
@@ -193,7 +194,7 @@ typedef enum _BelvuColorId
 typedef enum _BelvuSortType
   {
     BELVU_UNSORTED,	       /* Not sorted */
-  
+
     BELVU_SORT_SCORE,          /* Sort by score */
     BELVU_SORT_ALPHA,          /* Sort alphabetically */
     BELVU_SORT_ORGANISM,       /* Sort by organism */
@@ -221,9 +222,9 @@ typedef enum _BelvuColorSchemes
     BELVU_SCHEME_CGP,               /* Cys/Gly/Pro */
     BELVU_SCHEME_CGPH,              /* Cys/Gly/Pro/His */
     BELVU_SCHEME_CUSTOM,            /* Custom color scheme (this is activated after colors have been edited) */
-    
+
     NUM_RESIDUE_SCHEMES,            /* this allows us to identify whether a scheme is a color-by-residue or -by-conservation mode scheme */
-    
+
     BELVU_SCHEME_BLOSUM,            /* Average similarity by BLOSUM62 */
     BELVU_SCHEME_ID,                /* Percent identity */
     BELVU_SCHEME_ID_BLOSUM          /* Percent ID and BLOSUM62 */
@@ -258,7 +259,7 @@ typedef struct alnStruct {
 } ALN;
 
 
-typedef struct _TreeNode 
+typedef struct _TreeNode
 {
   double dist;			/* Absolute distance position */
   double branchlen;		/* Length of branch to higher node */
@@ -282,7 +283,7 @@ typedef struct _Tree
 
 /* Struct to store bootstrap group */
 typedef struct BootstrapGroupStruct
-{   
+{
   TreeNode *node;    /* Points to node in original tree (for incrementing) */
   char *s;           /* Sorted concatenation of all sequences in node, to be inserted in list */
 } BootstrapGroup;
@@ -304,7 +305,7 @@ typedef struct SegStruct
 typedef enum
   {
     BELDIALOG_NOT_PERSISTENT = 0,   /* Reserved for dialogs that do not have an entry in the array */
-    
+
     BELDIALOG_MAKE_TREE,            /* The make-tree dialog */
     BELDIALOG_EDIT_RESIDUE_COLORS,  /* The edit-residue-colors dialog */
     BELDIALOG_EDIT_CONS_COLORS,     /* The edit-conservation-colors dialog */
@@ -328,7 +329,7 @@ typedef struct BelvuContextStruct
   GdkCursor *removeSeqsCursor;     /* cursor to use when removing sequences */
 
   GArray *defaultColors;           /* Default colors used by Belvu */
-  
+
   GArray *alignArr;
   GArray *organismArr;
   GArray *markupAlignArr;
@@ -370,18 +371,18 @@ typedef struct BelvuContextStruct
   int maxbgPrintColor;
   int midbgPrintColor;
   int lowbgPrintColor;
-  
+
   BelvuSchemeType schemeType;	      /* Current colour scheme mode (color-by-residue or -by-conservation) */
   BelvuColorScheme residueScheme;     /* Which color-by-residue color scheme is selected */
   BelvuColorScheme consScheme;	      /* Which color-by-conservation color scheme is selected */
-  
+
   BelvuBuildMethod treeMethod;        /* Default building method for trees */
   BelvuDistCorr treeDistCorr;         /* Default distance correction method for trees */
   BelvuPickMode treePickMode;         /* Default action when picking a node in a tree */
-  
+
   BelvuSortType sortType;             /* What data to sort the alignments by */
   BelvuFileFormat saveFormat;	      /* Which file format to use for saving alignments */
-  
+
   double treeBestBalance;
   double treeBestBalance_subtrees;
   double tree_y;
@@ -392,10 +393,10 @@ typedef struct BelvuContextStruct
   double midSimCutoff;                /* %id cutoff for medium colour */
   double maxSimCutoff;                /* %id cutoff for maximum colour */
   double colorByResIdCutoff;          /* Cutoff when only coloring residues above a given %ID */
-  double mksubfamilies_cutoff; 
+  double mksubfamilies_cutoff;
   double treeScale;                   /* Default scale to use for drawing the tree */
   double treeLineWidth;               /* Default line width of the branch lines in trees */
-  
+
   char gapChar;
   char saveSeparator;
   char treeDistString[50];
@@ -404,14 +405,14 @@ typedef struct BelvuContextStruct
   char *fileName;		   /* Default file name for file browser */
   char *dirName;		   /* Default directory for file browser */
   char organismLabel[3];
-  
+
   int **conservCount;              /* Matrix of conservation values (1st index is amino acid code; 2nd index is column index; value is the number of that residue in that column) - 21 x maxLen */
   int **colorMap;                  /* Matrix of conservation colours - 21 x maxLen */
   int *conservResidues;            /* Array of number of residues present in each column */
   double *conservation;            /* The max conservation in each column [0..maxLen] */
 
   GSList *annotationList;	   /* List of annotation lines from the input file */
-  
+
   gboolean treeCoordsOn;
   gboolean treeReadDistancesOn;
   gboolean treePrintDistances;
@@ -421,7 +422,7 @@ typedef struct BelvuContextStruct
   gboolean displayScores;
   gboolean outputBootstrapTrees;   /* Output the individual bootstrap trees */
   gboolean treebootstrapsDisplay;  /* Display bootstrap trees on screen */
-  gboolean treeColorsOn;           
+  gboolean treeColorsOn;
   gboolean treeShowOrganism;       /* whether to display the organism name in the tree */
   gboolean treeShowBranchlen;      /* whether to display the branch length in the tree */
   gboolean matchFooter;
@@ -444,7 +445,7 @@ typedef struct BelvuContextStruct
   gboolean abbrevTitle;            /* Abbreviate window title prefixes */
 
   GtkWidget *dialogList[BELDIALOG_NUM_DIALOGS];   /* Array of all the persistent dialogs in the application */
-  
+
 } BelvuContext;
 
 
@@ -455,7 +456,7 @@ const char*                               belvuGetCopyrightString(void);
 const char*                               belvuGetWebSiteString(void);
 const char*                               belvuGetCommentsString(void);
 const char*                               belvuGetLicenseString(void);
-const char*                               belvuGetVersionString(void);       
+const char*                               belvuGetVersionString(void);
 
 BelvuContext*                             createBelvuContext();
 void                                      destroyBelvuContext(BelvuContext **bc);
@@ -486,14 +487,14 @@ void                                      setOrganismColors(GArray *organismArr)
 
 void                                      parseMulLine(BelvuContext *bc, char *line, ALN *aln);
 
-void                                      readMatch(BelvuContext *bc, FILE *fil);                
+void                                      readMatch(BelvuContext *bc, FILE *fil);
 void                                      checkAlignment(BelvuContext *bc);
 void                                      setConsSchemeColors(BelvuContext *bc);
 void					  updateSchemeColors(BelvuContext *bc);
 void                                      saveCustomColors(BelvuContext *bc);
 void                                      initResidueColors(BelvuContext *bc);
-void                                      initMarkupColors(void);              
-void                                      initCustomColors(void);              
+void                                      initMarkupColors(void);
+void                                      initCustomColors(void);
 gboolean				  colorByConservation(BelvuContext *bc);
 gboolean				  colorByResidue(BelvuContext *bc);
 gboolean				  colorBySimilarity(BelvuContext *bc);
@@ -507,7 +508,7 @@ void                                      setExcludeFromConsCalc(BelvuContext *b
 void                                      readLabels(BelvuContext *bc, FILE *fil);
 
 void                                      mkNonRedundant(BelvuContext *bc, double cutoff);
-void                                      rmPartialSeqs(BelvuContext *bc);         
+void                                      rmPartialSeqs(BelvuContext *bc);
 void                                      rmEmptyColumns(BelvuContext *bc, double cutoff);
 void                                      rmGappySeqs(BelvuContext *bc, double cutoff);
 void                                      rmFinaliseGapRemoval(BelvuContext *bc);
@@ -527,11 +528,11 @@ void                                      reInsertMarkupLines(BelvuContext *bc);
 Tree*                                     treeMake(BelvuContext *bc, const gboolean doBootstrap, const gboolean displayFeedback);
 
 void                                      outputProbs(BelvuContext *bc, FILE *fil);
-void                                      mksubfamilies(BelvuContext *bc, double cutoff);        
+void                                      mksubfamilies(BelvuContext *bc, double cutoff);
 
-void                                      treeDisplay(BelvuContext *bc);       
+void                                      treeDisplay(BelvuContext *bc);
 
-void                                      colorSim(BelvuContext *bc);          
+void                                      colorSim(BelvuContext *bc);
 
 char                                      b2aIndex(const int idx);
 int                                       getMarkupColor(const char inputChar);

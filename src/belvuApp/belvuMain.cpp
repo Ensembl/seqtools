@@ -1,29 +1,30 @@
 /*  File: belvuMain.c
  *  Author: Gemma Barson, 2011-04-06
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2011 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -46,7 +47,7 @@
 #include <ctype.h>
 
 
-/* Usage text. This is a duplicate of the text that is in 
+/* Usage text. This is a duplicate of the text that is in
  * doc/User_doc/dotter_usage.txt, so ideally we would get rid of this and use
  * the text from the file instead; for now, we must update both. */
 
@@ -344,36 +345,36 @@ static void showHelpText(const int exitCode)
 /* Prints version info to stderr */
 static void showVersionInfo()
 {
-  g_message(VERSION_TEXT);  
+  g_message(VERSION_TEXT);
 }
 
 /* Prints compiled date (must go to stdout for our build scripts to work) */
 static void showCompiledInfo()
 {
-  g_message("%s\n", UT_MAKE_COMPILE_DATE());  
+  g_message("%s\n", UT_MAKE_COMPILE_DATE());
 }
 
 
 /* Convert swissprot name suffixes to organisms */
-static void suffix2organism(BelvuContext *bc, GArray *alignArr, GArray *organismArr) 
+static void suffix2organism(BelvuContext *bc, GArray *alignArr, GArray *organismArr)
 {
   int i = 0;
   char *cp = NULL;
-  
-  for (i = 0; i < (int)alignArr->len; ++i) 
+
+  for (i = 0; i < (int)alignArr->len; ++i)
     {
       ALN *alnp = g_array_index(alignArr, ALN*, i);
-      
-      if (!alnp->markup && (cp = strchr(alnp->name, '_'))) 
+
+      if (!alnp->markup && (cp = strchr(alnp->name, '_')))
         {
           char *suffix = (char*)g_malloc(strlen(cp) + 1);
           strcpy(suffix, cp + 1);
-          
-          /* Add organism to table of organisms.  This is necessary to make all 
-           sequences of the same organism point to the same place and to make a 
+
+          /* Add organism to table of organisms.  This is necessary to make all
+           sequences of the same organism point to the same place and to make a
            non-redundant list of present organisms */
           alnp->organism = suffix;
-          
+
           /* Only insert a new organism if it is not already in the array */
           int ip = 0;
           if (!alnArrayFind(organismArr, alnp, &ip, organism_order))
@@ -381,7 +382,7 @@ static void suffix2organism(BelvuContext *bc, GArray *alignArr, GArray *organism
 	      ALN *organism = createEmptyAln();
 	      alncpy(organism, alnp);
 	      organism->organism = alnp->organism;
-	    
+
               g_array_append_val(organismArr, organism);
               g_array_sort(organismArr, organism_order);
 
@@ -407,32 +408,32 @@ static void suffix2organism(BelvuContext *bc, GArray *alignArr, GArray *organism
 static void treeReadDistancesNames(BelvuContext *bc)
 {
   char   *cp = NULL;
-  
+
   char line[MAXLENGTH + 1];
-  
+
   if (!fgets (line, MAXLENGTH, bc->treeReadDistancesPipe))
     g_error("Error reading distance matrix\n");
-  
+
   if ((cp = strchr(line, '\n')))
     *cp = 0;
-  
+
   int nseq = 0;
-  
+
   while ((cp = strtok(nseq ? 0 : line, " \t")))
     {
       ALN *aln = createEmptyAln();
-      
+
       strncpy(aln->name, cp, MAXNAMESIZE);
-      
+
       aln->name[MAXNAMESIZE] = 0;
       aln->nr = nseq;
       g_array_insert_val(bc->alignArr, nseq, aln);
-      
+
       nseq++;
-      
+
       /* printf("%d  %s\n", aln.nr, aln.name); */
     }
-  
+
   g_array_sort(bc->alignArr, nrorder);
 }
 
@@ -442,7 +443,7 @@ static void readScores(char *filename, BelvuContext *bc)
   char line[MAXLENGTH+1], linecp[MAXLENGTH+1], *cp;
   FILE *file;
   int scoreLen;
-  
+
   gboolean found = FALSE;
   gboolean warnings = FALSE;
 
@@ -451,66 +452,66 @@ static void readScores(char *filename, BelvuContext *bc)
 
   if (!(file = fopen(filename, "r")))
     g_error("Cannot open file %s\n", filename);
-  
+
   while (!feof (file))
-    { 
+    {
       if (!fgets (line, MAXLENGTH, file)) break;
       strcpy(linecp, line);
-      
+
       initAln(&aln);
-      
-      if (!(cp = strtok(line, " "))) 
+
+      if (!(cp = strtok(line, " ")))
 	g_error("Error parsing score file %s.\nLine: %s\n", filename, linecp);
-      
+
       if (!(sscanf(cp, "%f", &aln.score)))
         g_error("Error parsing score file %s - bad score.\nLine: %s\n", filename, linecp);
-      
-      if (!(cp = strtok(0, "/"))) 
+
+      if (!(cp = strtok(0, "/")))
 	g_error("Error parsing score file %s.\nLine: %s\n", filename, linecp);
-      
+
       strncpy(aln.name, cp, MAXNAMESIZE);
       aln.name[MAXNAMESIZE] = 0;
-      
-      if (!(cp = strtok(0, "-"))) 
+
+      if (!(cp = strtok(0, "-")))
 	g_error("Error parsing score file %s.\nLine: %s\n", filename, linecp);
-      
+
       if (!(aln.start = atoi(cp)))
         g_error("Error parsing score file %s - no start coordinate.\nLine: %s\n", filename, linecp);
-      
-      if (!(cp = strtok(0, "\n"))) 
+
+      if (!(cp = strtok(0, "\n")))
 	g_error("Error parsing score file %s.\nLine: %s\n", filename, linecp);
-      
+
       if (!(aln.end = atoi(cp)))
         g_error("Error parsing score file %s - no end coordinate.\nLine: %s\n", filename, linecp);
-      
+
       int idx = 0;
-      if (!alignFind(bc->alignArr, &aln, &idx)) 
+      if (!alignFind(bc->alignArr, &aln, &idx))
         {
 	  warnings = TRUE;
-          /* printf("Warning: %s/%d-%d (score %.1f) not found in alignment\n", 
+          /* printf("Warning: %s/%d-%d (score %.1f) not found in alignment\n",
            aln.name, aln.start, aln.end, aln.score);*/
         }
       else
         {
 	  found = TRUE;
-	
+
           g_array_index(bc->alignArr, ALN*, idx)->score = aln.score;
 
           char *scoreStr = g_strdup_printf("%.1f", aln.score);
           scoreLen = strlen(scoreStr);
           g_free(scoreStr);
 
-          if (scoreLen > bc->maxScoreLen) 
+          if (scoreLen > bc->maxScoreLen)
             bc->maxScoreLen = scoreLen;
         }
     }
 
   fclose(file);
-  
+
   if (found)
     {
       bc->displayScores = TRUE;
-    
+
       if (warnings)
         g_warning("Some sequences in the scores file were not found in the alignment.\n");
     }
@@ -527,42 +528,42 @@ int main(int argc, char **argv)
   signal(SIGSEGV, errorHandler);
   signal(SIGFPE, errorHandler);
 
-  FILE    
+  FILE
   *file, *pipe;
-  
-  char    
+
+  char
   *scoreFile = 0,
   *readMatchFile = 0,
   *colorCodesFile = 0,
   *markupColorCodesFile = 0,
   *output_format = 0,
   *optargc;
-  
-  int     
+
+  int
   i,
   output_probs = 0,
   show_ann = 0;
-  
-  double   
+
+  double
   makeNRinit = 0.0,
   init_rmGappyColumns = 0.0,
   init_rmGappySeqs = 0.0;
-  
-  
-  
-  
+
+
+
+
   /* Set up the GLib message handlers
-   * 
+   *
    * There are two handlers: the default one for all non-critical messages, which will just log
-   * output to the console, and one for critical messages and errors, which will display a 
+   * output to the console, and one for critical messages and errors, which will display a
    * pop-up message (the idea being that we don't bother the user unless it's something serious).
    * Note that the latter needs to display a gtk dialog so can't be set up until after gtk_init
    * has been called.
-   * 
+   *
    * All errors and warnings will be sent to stderr, as will info messages (g_message_info).
    * Program output destined for stdout should use g_message.
    * g_debug will direct to stdout as well.
-   * 
+   *
    * In summary:
    *   g_error: pop-up error message (always fatal)
    *   g_critical: pop-up error message
@@ -570,7 +571,7 @@ int main(int argc, char **argv)
    *   g_message_info: program info message sent to stderr
    *   g_message: program output message set to stdout
    *   (g_debug: not sure of usage scenarios but directs to stdout)
-   *   
+   *
    */
   BlxMessageData msgData;
   msgData.titlePrefix = g_strdup(BELVU_PREFIX);
@@ -587,20 +588,20 @@ int main(int argc, char **argv)
   /* Set up tree defaults */
   char treePickString[50];
   strcpy(treePickString, SWAPstr);
-  
+
   setTreeScaleCorr(bc, bc->treeMethod);
-  
-  
+
+
   gboolean verbose = FALSE;
   gboolean init_rmPartial = FALSE;
-  
+
   static gboolean showHelp = FALSE;
   static gboolean showCompiled = FALSE;
   static gboolean showVersion = FALSE;
   static gboolean abbrevTitle = FALSE;
 
   gtk_parse_args(&argc, &argv);
-  
+
   /* Get the input args. We allow long args, so we need to create a long_options array */
   static struct option long_options[] =
     {
@@ -612,21 +613,21 @@ int main(int argc, char **argv)
       {"help",                  no_argument,        0, 'h'},
       {0, 0, 0, 0}
     };
-  
+
   const char  *optstring="aBb:CcGhil:L:m:n:O:o:PpQ:q:RrS:s:T:t:uX:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
   int          optc;        /* the current option gets stored here */
-  
+
   while ((optc = getopt_long(argc, argv, optstring, long_options, &optionIndex)) != EOF)
     {
-      switch (optc) 
+      switch (optc)
         {
           case 0:
             /* we get here if getopt_long set a flag; nothing else to do */
-            break; 
-            
+            break;
+
           case 'a': show_ann = 1;                                       break;
           case 'B': bc->outputBootstrapTrees = TRUE;                    break;
           case 'b': bc->treebootstraps = atoi(optarg);                  break;
@@ -647,8 +648,8 @@ int main(int argc, char **argv)
           case 'p': output_probs = 1;                                   break;
           case 'R': bc->stripCoordTokensOn = bc->saveCoordsOn = FALSE;  break;
           case 'r': bc->IN_FORMAT = RAW;                                break;
-            
-          case 'S': 
+
+          case 'S':
             switch (*optarg)
             {
               case 'a': bc->sortType = BELVU_SORT_ALPHA;                break;
@@ -656,27 +657,27 @@ int main(int argc, char **argv)
               case 's': bc->sortType = BELVU_SORT_SCORE;                break;
               case 'S': bc->sortType = BELVU_SORT_SIM;                  break;
               case 'i': bc->sortType = BELVU_SORT_ID;                   break;
-              case 'n': 
+              case 'n':
                 bc->treeMethod = NJ;
                 bc->sortType = BELVU_SORT_TREE;                         break;
-              case 'u': 
-                bc->treeMethod = UPGMA; 
+              case 'u':
+                bc->treeMethod = UPGMA;
                 bc->sortType = BELVU_SORT_TREE;                         break;
               default : g_error("Illegal sorting order: %s\n", optarg);   break;
             };
             break;
-            
+
           case 's': scoreFile = g_strdup(optarg);                       break;
-            
-          case 'T': 
-          for (optargc = optarg; *optargc; optargc++) 
+
+          case 'T':
+          for (optargc = optarg; *optargc; optargc++)
             {
               switch (*optargc)
                 {
-                  case 'n': 
+                  case 'n':
                     strcpy(bc->treeMethodString, NJstr);
                     bc->treeMethod = NJ;                          break;
-                  case 'u': 
+                  case 'u':
                     strcpy(bc->treeMethodString, UPGMAstr);
                     bc->treeMethod = UPGMA;                       break;
                   case 'c':
@@ -698,7 +699,7 @@ int main(int argc, char **argv)
                   case 'o':
                     bc->treeCoordsOn = FALSE;                     break;
                   case 'p':
-                    bc->treePrintDistances = TRUE;  
+                    bc->treePrintDistances = TRUE;
                     bc->initTree = TRUE;                          break;
                   case 'R':
                     bc->treeReadDistancesOn = TRUE;               break;
@@ -716,9 +717,9 @@ int main(int argc, char **argv)
                     setTreeScale(bc, 1.0);          break;
                   default : g_error("Illegal sorting order: %s\n", optarg);
                 }
-            } 
+            }
             break;
-            
+
           case 't': strncpy(bc->Title, optarg, 255);		  break;
           case 'u': bc->displayColors = FALSE;                    break;
           case 'X': bc->mksubfamilies_cutoff = atof(optarg);      break;
@@ -726,7 +727,7 @@ int main(int argc, char **argv)
           default : g_error("Illegal option\n");                    break;
         }
     }
-  
+
   if (showVersion)
     {
       showVersionInfo();
@@ -738,44 +739,44 @@ int main(int argc, char **argv)
       showCompiledInfo();
       exit (EXIT_SUCCESS);
     }
-  
+
   if (showHelp)
-    { 
+    {
       showHelpText(EXIT_SUCCESS);
       exit(EXIT_SUCCESS);
     }
-  
-  if (argc-optind < 1) 
-    { 
+
+  if (argc-optind < 1)
+    {
       showUsageText(EXIT_FAILURE);
       exit(EXIT_FAILURE);
     }
-  
-  if (!strcmp(argv[optind], "-")) 
+
+  if (!strcmp(argv[optind], "-"))
     {
       pipe = stdin;
       if (!*bc->Title) strcpy(bc->Title, "stdin");
     }
-  else 
+  else
     {
       if (!(pipe = fopen(argv[optind], "r")))
 	g_error("Cannot open file %s\n", argv[optind]);
-      if (!*bc->Title) 
+      if (!*bc->Title)
 	strncpy(bc->Title, argv[optind], 255);
-      
+
       bc->fileName = g_path_get_basename(argv[optind]);
       bc->dirName = g_path_get_dirname(argv[optind]);
     }
-  
+
   bc->abbrevTitle = abbrevTitle;
   msgData.titlePrefix = abbrevTitle ? g_strdup(BELVU_PREFIX_ABBREV) : g_strdup(BELVU_PREFIX);
-    
-  if (bc->treeReadDistancesOn) 
+
+  if (bc->treeReadDistancesOn)
     {
       /* Should this really be either or?  Problem: cannot read organism info when reading tree */
       bc->treeReadDistancesPipe = pipe;
       treeReadDistancesNames(bc);
-      
+
       bc->initTree = TRUE;
       bc->onlyTree = TRUE;
       bc->treeCoordsOn = FALSE;
@@ -784,16 +785,16 @@ int main(int argc, char **argv)
     {
       readFile(bc, pipe);
     }
-  
+
   if (bc->organismArr->len == 0)
     suffix2organism(bc, bc->alignArr, bc->organismArr);
-  
+
   setOrganismColors(bc->organismArr);
-  
-  if (scoreFile) 
+
+  if (scoreFile)
     readScores(scoreFile, bc);
-  
-  
+
+
   /* Sort by the initial sort order. If sorting by similarity or ID, then
    * we must have a selected sequence - select the first one that is not
    * a markup line. */
@@ -812,40 +813,40 @@ int main(int argc, char **argv)
     }
 
   doSort(bc, bc->sortType, FALSE);
-  
-  if (!bc->matchFooter && readMatchFile) 
+
+  if (!bc->matchFooter && readMatchFile)
     {
-      if (!(file = fopen(readMatchFile, "r"))) 
+      if (!(file = fopen(readMatchFile, "r")))
         g_error("Cannot open file %s\n", readMatchFile);
-      
+
       readMatch(bc, file);
       fclose(file);
     }
-  else if (bc->matchFooter) 
-    {	 
+  else if (bc->matchFooter)
+    {
       readMatch(bc, pipe);
       fclose(pipe);
     }
-  
-  if (!bc->treeReadDistancesOn) 
+
+  if (!bc->treeReadDistancesOn)
     {
       checkAlignment(bc);
       setConsSchemeColors(bc);
     }
-  
+
   if (verbose)
     {
       /* Print conservation statistics */
       int i, j, max, consensus = 0 ;
       double totcons = 0.0;
-    
+
       g_message("\nColumn Consensus        Identity       Conservation\n");
       g_message  ("------ ---------  -------------------  ------------\n");
-    
+
       for (i = 0; i < bc->maxLen; ++i)
         {
           max = 0;
-          
+
           for (j = 1; j < 21; j++)
             {
               if (bc->conservCount[j][i] > max)
@@ -854,35 +855,35 @@ int main(int argc, char **argv)
                   consensus = j;
                 }
             }
-          
-          g_message("%4d       %c      %4d/%-4d = %5.1f %%  %4.1f\n", 
+
+          g_message("%4d       %c      %4d/%-4d = %5.1f %%  %4.1f\n",
                     i+1, b2aIndex(consensus), max, bc->alignArr->len, (double)max/bc->alignArr->len*100, bc->conservation[i]);
           totcons += bc->conservation[i];
         }
-      
+
       g_message ("\nAverage conservation = %.1f\n", totcons/(bc->maxLen*1.0));
-      
+
       exit(0);
     }
-  
+
   initMarkupColors();
   initCustomColors();
 
-  if (colorCodesFile) 
+  if (colorCodesFile)
     {
-      if (!(file = fopen(colorCodesFile, "r"))) 
+      if (!(file = fopen(colorCodesFile, "r")))
         g_error("Cannot open file %s\n", colorCodesFile);
-      
+
       readResidueColorScheme(bc, file, getColorArray(), TRUE);
 
       bc->residueScheme = BELVU_SCHEME_CUSTOM;
       bc->schemeType = BELVU_SCHEME_TYPE_RESIDUE;
       bc->colorByResIdOn = FALSE;
     }
-  
-  if (markupColorCodesFile) 
+
+  if (markupColorCodesFile)
     {
-      if (!(file = fopen(markupColorCodesFile, "r"))) 
+      if (!(file = fopen(markupColorCodesFile, "r")))
         g_error("Cannot open file %s\n", markupColorCodesFile);
 
       readResidueColorScheme(bc, file, getMarkupColorArray(), FALSE);
@@ -895,19 +896,19 @@ int main(int argc, char **argv)
 
   if (makeNRinit)
     mkNonRedundant(bc, makeNRinit);
-  
+
   if (init_rmPartial)
     rmPartialSeqs(bc);
-  
+
   if (init_rmGappyColumns)
     rmEmptyColumns(bc, init_rmGappyColumns/100.0);
-  
+
   if (init_rmGappySeqs) {
     rmGappySeqs(bc, init_rmGappySeqs);
     rmFinaliseGapRemoval(bc);
   }
-  
-  if (output_format) 
+
+  if (output_format)
     {
       if (!strcasecmp(output_format, "Stockholm") ||
           !strcasecmp(output_format, "Mul") ||
@@ -919,24 +920,24 @@ int main(int argc, char **argv)
         {
           writeMSF(bc, stdout);
         }
-      else if (!strcasecmp(output_format, "FastaAlign")) 
+      else if (!strcasecmp(output_format, "FastaAlign"))
         {
 	  bc->saveFormat = BELVU_FILE_ALIGNED_FASTA;
           writeFasta(bc, stdout);
         }
-      else if (!strcasecmp(output_format, "Fasta")) 
+      else if (!strcasecmp(output_format, "Fasta"))
         {
 	  bc->saveFormat = BELVU_FILE_UNALIGNED_FASTA;
           writeFasta(bc, stdout);
         }
-      else if (!strcasecmp(output_format, "tree")) 
+      else if (!strcasecmp(output_format, "tree"))
         {
           separateMarkupLines(bc);
-          
+
           Tree *tree = treeMake(bc, TRUE, TRUE);
           saveTreeNH(tree, tree->head, stdout);
           destroyTree(&tree);
-          
+
           g_message(";\n");
           reInsertMarkupLines(bc);
         }
@@ -947,20 +948,20 @@ int main(int argc, char **argv)
 
       exit(0);
     }
-  
-  if (bc->outputBootstrapTrees && bc->treebootstraps > 0) 
+
+  if (bc->outputBootstrapTrees && bc->treebootstraps > 0)
     {
       treeBootstrap(bc);
       exit(0);
-    } 
-  
-  if (output_probs) 
+    }
+
+  if (output_probs)
     {
       outputProbs(bc, stdout);
       exit(0);
     }
-  
-  if (bc->mksubfamilies_cutoff) 
+
+  if (bc->mksubfamilies_cutoff)
     {
       mksubfamilies(bc, bc->mksubfamilies_cutoff);
       exit(0);
@@ -970,7 +971,7 @@ int main(int argc, char **argv)
   gtk_init(&argc, &argv);
 
   /* After gtk_init is called, we can start using the popup message handler */
-  g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION), 
+  g_log_set_handler(NULL, (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION),
                     popupMessageHandler, &msgData);
 
   /* Update bits of the context that require the display to be initialised */
@@ -979,40 +980,40 @@ int main(int argc, char **argv)
   createBelvuColors(bc);
 
   g_message_info("\n%d sequences, max len = %d\n", bc->alignArr->len, bc->maxLen);
-  
+
   /* Try to get 8x13 font for menus, if not set on command line */
   for ( i=0; i < argc; i++)
     {
-      if (!strcmp(argv[i], "-font")) 
+      if (!strcmp(argv[i], "-font"))
         break;
     }
-  
-  if (i == argc) 
+
+  if (i == argc)
     {
       argvAdd(&argc, &argv, "-font");
       argvAdd(&argc, &argv, "8x13");
     }
-  
-  if (show_ann) 
+
+  if (show_ann)
     showAnnotationWindow(bc);
 
   if (bc->outputBootstrapTrees && bc->treebootstraps < 0)
-    {	
+    {
       /* Display [treebootstraps] bootstrap trees */
       bc->treebootstrapsDisplay = TRUE;
-      
+
       bc->treebootstraps = -bc->treebootstraps;
-      
+
       treeBootstrap(bc);
     }
 
-  if (!colorCodesFile) 
+  if (!colorCodesFile)
     {
       bc->schemeType = BELVU_SCHEME_TYPE_CONS;
       bc->consScheme = BELVU_SCHEME_BLOSUM;
       setConsSchemeColors(bc);
     }
-  
+
   /* Create the main belvu graph display of aligned sequences. */
   if (createBelvuWindow(bc, &msgData))
     {

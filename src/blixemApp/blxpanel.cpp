@@ -1,29 +1,30 @@
 /*  File: blxpanel.cpp
  *  Author: Gemma Barson, 2016-04-07
+ *  Copyright [2018] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2016 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 3
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
  * ---------------------------------------------------------------------------
- * This file is part of the SeqTools sequence analysis package, 
+ * This file is part of the SeqTools sequence analysis package,
  * written by
  *      Gemma Barson      (Sanger Institute, UK)  <gb10@sanger.ac.uk>
- * 
+ *
  * based on original code by
  *      Erik Sonnhammer   (SBC, Sweden)           <Erik.Sonnhammer@sbc.su.se>
- * 
+ *
  * and utilizing code taken from the AceDB and ZMap packages, written by
  *      Richard Durbin    (Sanger Institute, UK)  <rd@sanger.ac.uk>
  *      Jean Thierry-Mieg (CRBM du CNRS, France)  <mieg@kaa.crbm.cnrs-mop.fr>
@@ -49,13 +50,13 @@ namespace
 
 
 /* Convert an x coord in the given rectangle to a base index (in nucleotide coords) */
-static gint convertRectPosToBaseIdx(const gint x, 
-                                    const GdkRectangle* const displayRect,  
+static gint convertRectPosToBaseIdx(const gint x,
+                                    const GdkRectangle* const displayRect,
                                     const IntRange* const dnaDispRange,
                                     const gboolean displayRev)
 {
   gint result = UNSET_INT;
-  
+
   gdouble distFromEdge = (gdouble)(x - displayRect->x);
   int basesFromEdge = (int)(distFromEdge / pixelsPerBase(displayRect->width, dnaDispRange));
 
@@ -67,33 +68,33 @@ static gint convertRectPosToBaseIdx(const gint x,
     {
       result = dnaDispRange->min() + basesFromEdge;
     }
-  
+
   return result;
 }
 
 
-/* Given the centre x coord of a rectangle and its width, find the x coord of the 
+/* Given the centre x coord of a rectangle and its width, find the x coord of the
  * left edge. If an outer rectangle is given, limit the coord so that the
  * rectangle lies entirely within the outer rect. */
 int getLeftCoordFromCentre(const int centreCoord, const int width, const GdkRectangle *outerRect)
 {
   int leftCoord = centreCoord - roundNearest((double)width / 2.0);
-  
+
   if (outerRect)
     {
-      if (leftCoord < outerRect->x) 
+      if (leftCoord < outerRect->x)
 	leftCoord = outerRect->x;
       else
 	{
 	  int leftCoordMax = outerRect->x + outerRect->width - width;
-	  
-	  if (leftCoord > leftCoordMax) 
+
+	  if (leftCoord > leftCoordMax)
 	    {
 	      leftCoord = leftCoordMax;
 	    }
 	}
     }
-  
+
   return leftCoord;
 }
 
@@ -105,7 +106,7 @@ int getLeftCoordFromCentre(const int centreCoord, const int width, const GdkRect
 
 
 /* Default constructor */
-BlxPanel::BlxPanel() : 
+BlxPanel::BlxPanel() :
   displayRange(0, 0),
   m_widget(NULL),
   m_blxWindow(NULL),
@@ -119,8 +120,8 @@ BlxPanel::BlxPanel() :
 };
 
 /* Constructor */
-BlxPanel::BlxPanel(GtkWidget *widget_in, 
-                   GtkWidget *blxWindow_in, 
+BlxPanel::BlxPanel(GtkWidget *widget_in,
+                   GtkWidget *blxWindow_in,
                    BlxContext *bc_in,
                    CoverageViewProperties *coverageViewP_in,
                    int previewBoxCentre_in) :
@@ -205,7 +206,7 @@ void BlxPanel::refreshDisplayRange(const bool keepCentered)
 {
 }
 
- 
+
 /* Show a preview box centred on the given x coord. If init is true, we're initialising
  * a drag; otherwise, we're already dragging */
 void BlxPanel::startPreviewBox(const int x, const gboolean init, const int offset)
@@ -248,34 +249,34 @@ void BlxPanel::finishPreviewBox(const int xCentreIn, GdkRectangle *displayRect, 
 
   /* Apply any offset required to get the real centre coord */
   const int xCentre = xCentreIn + m_previewBoxOffset;
-  
+
   /* Get the display range in dna coords */
   IntRange dnaDispRange;
   convertDisplayRangeToDnaRange(&displayRange, m_bc->seqType, m_bc->numFrames, m_bc->displayRev, &m_bc->refSeqRange, &dnaDispRange);
-  
+
   /* Find the base index where the new scroll range will start. This is the leftmost
-   * edge of the preview box if numbers increase in the normal left-to-right direction, 
+   * edge of the preview box if numbers increase in the normal left-to-right direction,
    * or the rightmost edge if the display is reversed. */
   const int x = getLeftCoordFromCentre(xCentre, highlightRect->width, displayRect);
   int baseIdx = convertRectPosToBaseIdx(x, displayRect, &dnaDispRange, m_bc->displayRev);
-  
+
   /* Subtract 1 if the display is reversed to give the base to the right of x, rather than the base to the left of x */
   if (m_bc->displayRev)
     --baseIdx;
-  
+
   /* Reset the preview box status. We don't need to un-draw it because we
    * will redraw the whole big picture below. */
   m_previewBoxOn = FALSE;
   m_previewBoxOffset = 0;
-  
+
   /* Perform any required updates following the change to the highlight box position. The base
    * index is in terms of the nucleotide coords so we need to convert to display coords */
   const int displayIdx = convertDnaIdxToDisplayIdx(baseIdx, m_bc->seqType, 1, m_bc->numFrames, m_bc->displayRev, &m_bc->refSeqRange, NULL);
   onHighlightBoxMoved(displayIdx, m_bc->seqType);
-  
+
   /* Re-centre the panel */
   refreshDisplayRange(TRUE);
-  
+
   gtk_widget_queue_draw(widget());
 }
 
@@ -286,8 +287,8 @@ void BlxPanel::onHighlightBoxMoved(const int displayIdx, const BlxSeqType seqTyp
 /* Draw the preview box on the given drawable within the boundaries of the given displayRect.
  * The boundaries of the preview box are given by highlightRect.
  * Only does anything if the preview box centre is set. */
-void BlxPanel::drawPreviewBox(GdkDrawable *drawable, 
-                              GdkRectangle *displayRect, 
+void BlxPanel::drawPreviewBox(GdkDrawable *drawable,
+                              GdkRectangle *displayRect,
                               GdkRectangle *highlightRect)
 {
   /* If not currently drawing the preview box then nothing to do */
@@ -299,16 +300,16 @@ void BlxPanel::drawPreviewBox(GdkDrawable *drawable,
   /* Get the display range in dna coords */
   IntRange dnaDispRange;
   convertDisplayRangeToDnaRange(&displayRange, m_bc->seqType, m_bc->numFrames, m_bc->displayRev, &m_bc->refSeqRange, &dnaDispRange);
-  
+
   /* Find the x coord for the left edge of the preview box (or the right edge, if
    * the display is right-to-left). */
   int x = getLeftCoordFromCentre(m_previewBoxCentre, highlightRect->width, displayRect);
-  
+
   /* Convert it to the base index and back again so that we get it rounded to the position of
    * the nearest base. */
   int baseIdx = convertRectPosToBaseIdx(x, displayRect, &dnaDispRange, m_bc->displayRev);
   int xRounded = convertBaseIdxToRectPos(baseIdx, displayRect, &dnaDispRange, TRUE, m_bc->displayRev, TRUE);
-  
+
   /* The other dimensions of the preview box are the same as the current highlight box. */
   GdkRectangle previewRect = {xRounded, highlightRect->y, highlightRect->width, highlightRect->height};
 
