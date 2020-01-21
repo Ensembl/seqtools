@@ -1,6 +1,6 @@
 /*  File: seqtoolsWebBrowser.c
  *  Author: Gemma Barson
- *  Copyright [2018-2019] EMBL-European Bioinformatics Institute
+ *  Copyright [2018-2020] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
