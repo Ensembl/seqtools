@@ -1,6 +1,6 @@
 /*  File: blxpanel.cpp
  *  Author: Gemma Barson, 2016-04-07
- *  Copyright [2018] EMBL-European Bioinformatics Institute
+ *  Copyright [2018-2021] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2016 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or

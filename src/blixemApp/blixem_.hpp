@@ -1,6 +1,6 @@
 /*  File: blixem_.h
  *  Author: Ed Griffiths, 2001-11-29
- *  Copyright [2018] EMBL-European Bioinformatics Institute
+ *  Copyright [2018-2021] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2009 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or

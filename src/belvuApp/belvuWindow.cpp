@@ -1,6 +1,6 @@
 /*  File: belvuWindow.c
  *  Author: Gemma Barson, 2011-04-11
- *  Copyright [2018] EMBL-European Bioinformatics Institute
+ *  Copyright [2018-2021] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2011 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
