@@ -201,7 +201,7 @@ To make the datafile from blast output, run MSPcrunch with option -q.
  See http://www.sanger.ac.uk/resources/software/seqtools/ for more info.
 
  Copyright (c) 2009-2011: Genome Research Ltd.
- Blixem is distributed under the GNU Public License; see http://www.gnu.org/copyleft/gpl.txt
+ Blixem is distributed under the Apache License; see http://www.gnu.org/copyleft/gpl.txt
 
  Version 4.10-1-g6bff  17:38:25 Apr  4 2012
 

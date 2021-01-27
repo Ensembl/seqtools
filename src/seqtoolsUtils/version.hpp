@@ -118,7 +118,7 @@ PACKAGE_NAME " - " VERSION_STRING
 
 /* Make a licence string */
 #define UT_MAKE_LICENCE_STRING(TITLE) \
-TITLE" is distributed under the GNU Public License; see http://www.gnu.org/copyleft/gpl.txt"
+TITLE" is distributed under the Apache License; see http://www.gnu.org/copyleft/gpl.txt"
 
 
 /* Define the authors of the SeqTools package. AUTHOR_LIST is a comma-separated list of all authors
