@@ -1,6 +1,6 @@
 /*  File: blxview.c
  *  Author: Erik Sonnhammer, 1993-02-20
- *  Copyright [2018] EMBL-European Bioinformatics Institute
+ *  Copyright [2018-2021] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2009 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or

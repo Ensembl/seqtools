@@ -1,6 +1,6 @@
 /*  File: version.h
  *  Author: Ed Griffiths
- *  Copyright [2018] EMBL-European Bioinformatics Institute
+ *  Copyright [2018-2021] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2010 - 2012 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * SeqTools is free software; you can redistribute it and/or
