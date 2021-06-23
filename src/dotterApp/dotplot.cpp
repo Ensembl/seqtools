@@ -3213,3 +3213,170 @@ static void reversebytes(void *ptr, int n)
 #endif
 
 
+
+
+
+static bool saveAsBinaray(FILE *saveFile, DotplotProperties *properties, GError **error)
+{
+
+  bool ok = FALSE ;
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+
+  /* This is the latest file format number. Increment this if you change anything that will break
+   * compatibility with the current format. */
+  unsigned char format = 3;
+
+  /* Get the length of the matrix name */
+  const gint32 MNlen = strlen(dc->matrixName);
+  gint32 MNlenSave = MNlen;
+
+#ifdef ALPHA
+  reversebytes(&dwc->zoomFactor, sizeof(gdouble));
+  reversebytes(&properties->imageWidth, sizeof(gint32));
+  reversebytes(&properties->imageHeight, sizeof(gint32));
+  reversebytes(&pixelFac, sizeof(gint32));
+  reversebytes(&slidingWinSize, sizeof(gint32));
+  reversebytes(&MNlenSave, sizeof(gint32));
+#endif
+
+  ok = fwrite(&format, 1, sizeof(unsigned char), saveFile) == sizeof(unsigned char);
+  ok &= fwrite(&dwc->zoomFactor, 1, sizeof(gdouble), saveFile) == sizeof(gdouble);
+  ok &= fwrite(&properties->imageWidth, 1, sizeof(gint32), saveFile) == sizeof(gint32);
+  ok &= fwrite(&properties->imageHeight, 1, sizeof(gint32), saveFile) == sizeof(gint32);
+  ok &= fwrite(&properties->pixelFac,  1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+  ok &= fwrite(&properties->slidingWinSize, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+  ok &= fwrite(&MNlenSave, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+  ok &= fwrite(dc->matrixName, sizeof(char), MNlen, saveFile) == sizeof(char) * MNlen; /* New feature of format 2  */
+
+
+  /* Loop through the matrix and write the values to the file */
+  int i = 0;
+  int j = 0;
+  gint32 mtx = 0;
+
+  for (i = 0; i < CONS_MATRIX_SIZE; i++)
+    {
+      for (j = 0; j < CONS_MATRIX_SIZE; j++)
+        {
+          mtx = dc->matrix[i][j];
+#ifdef ALPHA
+          reversebytes(&mtx, sizeof(gint32));
+#endif
+          ok &= fwrite(&mtx, 1, sizeof(gint32), saveFile) == sizeof(gint32); /* New feature of format 2  */
+        }
+    }
+
+#ifdef ALPHA
+  reversebytes(&dwc->zoomFactor, sizeof(gdouble));
+  reversebytes(&properties->imageWidth, sizeof(gint32));
+  reversebytes(&properties->imageHeight, sizeof(gint32));
+  reversebytes(&pixelFac, sizeof(gint32));
+  reversebytes(&slidingWinSize, sizeof(gint32));
+#endif
+
+
+  /* Loop through the dotplot values and write them to file */
+  const int imgSize = properties->imageWidth * properties->imageHeight;
+
+  for (i = 0; i < imgSize; i++)
+    {
+      unsigned char pixelVal = properties->pixelmap[i];
+#ifdef ALPHA
+      reversebytes(&pixelVal, sizeof(unsigned char));
+#endif
+      ok &= fwrite(&pixelVal, 1, sizeof(unsigned char), saveFile) == sizeof(unsigned char);
+    }
+
+
+//  ok &= fwrite(properties->pixelmap, sizeof(unsigned char), imgSize, saveFile) == imgSize;
+
+  return ok ;
+}
+
+
+
+static bool saveAsAscii(FILE *saveFile, DotplotProperties *properties, GError **error)
+{
+  bool result = true ;
+  DotterWindowContext *dwc = properties->dotterWinCtx;
+  DotterContext *dc = properties->dotterWinCtx->dotterCtx;
+
+  /* This is the latest file format number. Increment this if you change anything that will break
+   * compatibility with the current format. */
+  unsigned int format = 3;
+
+  int index ;
+  int i;
+  int j;
+  gint32 mtx;
+
+
+  if (!(result = (fprintf(saveFile, "Format\t%d\n", format) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "Zoom\t%g\n", dwc->zoomFactor) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "Width\t%d\n", properties->imageWidth) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "Height\t%d\n", properties->imageHeight) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "Factor\t%d\n", properties->pixelFac) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "WindowSize\t%d\n", properties->slidingWinSize) != 0)))
+    goto failure ;
+  if (!(result = (fprintf(saveFile, "MatrixName\t%s\n", dc->matrixName) != 0)))
+    goto failure ;
+
+
+  /* Loop through the matrix and write the values to the file */
+  i = 0;
+  j = 0;
+  mtx = 0;
+
+  if (!(result = (fprintf(saveFile, "%s %d %d\n", "ScoreMatrix", CONS_MATRIX_SIZE, CONS_MATRIX_SIZE) != 0)))
+    goto failure ;
+
+  for (i = 0; i < CONS_MATRIX_SIZE; i++)
+    {
+      for (j = 0; j < CONS_MATRIX_SIZE; j++)
+        {
+          mtx = dc->matrix[i][j];
+
+          if (!(result = (fprintf(saveFile, "%d\t", mtx) != 0)))
+            goto failure ;
+        }
+
+      if (!(result = (fprintf(saveFile, "%s\n", "") != 0)))
+        goto failure ;
+
+    }
+
+  /* Loop through the dotplot values and write them to file */
+  if (!(result = (fprintf(saveFile, "%s %d %d\n",
+                          "PlotValues", properties->imageWidth, properties->imageHeight) != 0)))
+    goto failure ;
+
+  for (index = 0, i = 0; i < properties->imageHeight; i++)
+    {
+      for (j = 0; j < properties->imageWidth; j++)
+        {
+          unsigned int pixelVal = properties->pixelmap[index];
+
+          if (!(result = (fprintf(saveFile, "%d\t", pixelVal) != 0)))
+            goto failure ;
+
+          index++ ;
+        }
+
+      if (!(result = (fprintf(saveFile, "%s\n", "") != 0)))
+        goto failure ;
+
+    }
+
+
+  // May jump to here on failure.
+ failure:
+
+
+  return result ;
+}
