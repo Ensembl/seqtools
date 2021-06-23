@@ -1,22 +1,19 @@
 /*  File: dotter_.h
  *  Author: esr, 1999-08-26
  *  Copyright [2018-2021] EMBL-European Bioinformatics Institute
- *  Copyright (c) 2010 - 2012 Genome Research Ltd
+ *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
- * SeqTools is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * ---------------------------------------------------------------------------
  * This file is part of the SeqTools sequence analysis package,
  * written by
@@ -145,6 +142,8 @@ typedef enum
   } DotterDialogId;
 
 
+#define CONS_MATRIX_SIZE 24
+
 /* General properties for the dotter session. These settings are common to all dotter windows
  * open for the same process (i.e. if you start a sub-dotter from within dotter it will inherit
  * these properties). */
@@ -154,7 +153,7 @@ typedef struct _DotterContext
   BlxSeqType displaySeqType;                /* whether the display shows sequences as nucleotide or peptide */
   int numFrames;                            /* the number of reading frames */
   char **geneticCode;                       /* code used to translate nucleotide triplets to amino acids */
-  gint32 matrix[24][24];                    /* matrix for determining conserved matches */
+  gint32 matrix[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE];        /* matrix for determining conserved matches */
   char *matrixName;                         /* matrix name */
   MSP *mspList;                             /* list of all MSPs in dotter */
   GList *seqList;                           /* list of all matches sequences as BlxSequences */
@@ -301,7 +300,7 @@ const char*         dotterGetCommentsString(void);
 const char*         dotterGetLicenseString(void);
 const char*         dotterGetVersionString(void);
 
-int                 winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq,
+int                 winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq, 
                                        double *exp_res_score, double *Lambda);
 
 void                argvAdd(int *argc, char ***argv, const char *s);
@@ -347,6 +346,7 @@ void                alignmentToolClearSequenceSelection(GtkWidget *alignmentTool
 GtkWidget*          createDotplot(DotterWindowContext *dwc,
                                   const char *loadFileName,
                                   const char *saveFileName,
+                                  const DotterSaveFormatType saveFormat,
                                   const char *exportFileName,
                                   const gboolean hspsOn,
                                   const gboolean breaklinesOn,
@@ -386,7 +386,8 @@ void                setHspMode(GtkWidget *dotplot, DotterHspMode hspMode);
 void                refreshDotplot(GtkWidget *dotplot);
 void                redrawDotplot(GtkWidget *dotplot);
 void                recalcDotplot(GtkWidget *dotplot);
-void                savePlot(GtkWidget *dotplot, DotplotProperties *properties, const char *saveFileName, GError **error);
+void                savePlot(GtkWidget *dotplot, DotplotProperties *properties,
+                             const char *saveFileName, DotterSaveFormatType saveFormat, GError **error);
 void                exportPlot(GtkWidget *dotplot, GtkWindow *window, const char *exportFileName, GError **error);
 void                loadPlot(GtkWidget *dotplot, const char *loadFileName, GError **error);
 

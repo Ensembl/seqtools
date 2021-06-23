@@ -1,7 +1,7 @@
 
  Blixem - display multiple alignments against a reference sequence.
 
- Usage: blixem [options] [<sequencefile>] <datafile> [X options] 
+ Usage: blixem [options] [<sequencefile>] <datafile> [X options]
 
    <sequencefile> contains the reference sequence in FASTA format.
    <datafile> is a GFF v3 file containing alignments and other features.
@@ -109,7 +109,7 @@
 
 -----
  Written by Gemma Barson <gb10@sanger.ac.uk>
- Based on original code by Erik Sonnhammer <Erik.Sonnhammer@sbc.su.se> 
+ Based on original code by Erik Sonnhammer <Erik.Sonnhammer@sbc.su.se>
 
  Reference: Sonnhammer ELL & Durbin R (1994). A workbench for Large Scale
             Sequence Homology Analysis. Comput. Applic. Biosci. 10:301-307.
@@ -117,7 +117,6 @@
  See http://www.sanger.ac.uk/resources/software/seqtools/ for more info.
 
  Copyright (c) 2009-2011: Genome Research Ltd.
- Blixem is distributed under the GNU Public License; see http://www.gnu.org/copyleft/gpl.txt
+ Blixem is distributed under the Apache License;
 
  Version 4.10-1-g6bff  17:38:25 Apr  4 2012
-

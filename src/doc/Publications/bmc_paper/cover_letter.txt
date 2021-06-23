@@ -1,4 +1,0 @@
-SeqTools: visual tools for manual analysis of sequence alignments
-
-This paper describes version 4 of the "SeqTools" suite of progrmas for visualising sequence alignments: Blixem, Dotter and Belvu. Previously, these programs were only available as part of the AceDB genome database system and as such had a limited audience. In version 4, they were re-written to become independent of AceDB, and have been vastly improved and updated to make them more generically useful. Significant enhancements have been added, particularly to Blixem, since the programs were first published (Sonnhammer, E. L. and Durbin, R. (1994); Sonnhammer, E. L. and Durbin, R. (1995); and Sonnhammer, E. and Hollich, V. (2005)). The aim of this paper is to promote awareness of these tools and the improvements which make them more widely useful.
-

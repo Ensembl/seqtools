@@ -88,5 +88,5 @@
  See http://www.sanger.ac.uk/resources/software/seqtools/ for more info.
 
  Copyright (c) 2010-2011: Genome Research Ltd.
- Dotter is distributed under the GNU Public License; see http://www.gnu.org/copyleft/gpl.txt
+ Dotter is distributed under the Apache License; see http://www.gnu.org/copyleft/gpl.txt
 
