@@ -193,7 +193,8 @@ static void setDefaultOptions(DotterOptions *options)
   options->seqInSFS = 0;
 
   options->memoryLimit = 0.0;
-  
+
+  options->saveFormat = DOTSAVE_BINARY ;
   options->savefile = NULL;
   options->exportfile = NULL;
   options->loadfile = NULL;
@@ -461,8 +462,9 @@ int main(int argc, char **argv)
 
 	  case '?':
             break; /* getopt_long already printed an error message */
-	  
-          case 'b': options.savefile = g_strdup(optarg);   break;
+
+          case 'a': options.saveFormat = DOTSAVE_ASCII ; options.savefile = g_strdup(optarg);   break;
+          case 'b': options.saveFormat = DOTSAVE_BINARY ; options.savefile = g_strdup(optarg);   break;
           case 'c': options.crickOnly = TRUE;              break;
           case 'D': options.mirrorImage = FALSE;           break;
           case 'e': options.exportfile = g_strdup(optarg); break;
@@ -578,7 +580,9 @@ int main(int argc, char **argv)
       /* The input arguments (following the options) are: qname, qlen, sname, slen. */
       if (argc - optind < 5 || argc - optind > 5)
         {
-          g_error("Incorrect number of arguments passed to dotter from internal program call\n"); 
+          g_message("Incorrect number of arguments passed to dotter from internal program call\n");
+          showUsageText(EXIT_FAILURE);
+          exit(EXIT_FAILURE);
         }
 
       options.qname = g_strdup(argv[optind]);
@@ -676,7 +680,8 @@ int main(int argc, char **argv)
 
       if(!(qfile = fopen(argv[optind], "r")))
         {
-          g_error("Cannot open %s\n", argv[optind]); 
+          g_message("Cannot open %s\n", argv[optind]);
+          exit(EXIT_FAILURE);
         }
 
       qfilename = argv[optind];
@@ -695,7 +700,8 @@ int main(int argc, char **argv)
 
       if (!(sfile = fopen(argv[optind+1], "r")))
         {
-          g_error("Cannot open %s\n", argv[optind+1]); 
+          g_message("Cannot open %s\n", argv[optind+1]);
+          exit(EXIT_FAILURE);
         }
 
       sfilename = argv[optind+1];

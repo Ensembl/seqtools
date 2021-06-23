@@ -401,8 +401,8 @@ static int    MATRIX[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE];
 
 /*  BLOSUM62 930809
 
-     A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V   B   Z   X  \* */ 
-int BLOSUM62[24][24] = {
+     A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V   B   Z   X  \* */
+int BLOSUM62[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE] = {
   {  4, -1, -2, -2,  0, -1, -1,  0, -2, -1, -1, -1, -1, -2, -1,  1,  0, -3, -2,  0, -2, -1,  0, -4 },
   { -1,  5,  0, -2, -3,  1,  0, -2,  0, -3, -2,  2, -1, -3, -2, -1, -1, -3, -2, -3, -1,  0, -1, -4 },
   { -2,  0,  6,  1, -3,  0,  0,  0,  1, -3, -3,  0, -2, -3, -2,  1,  0, -4, -2, -3,  3,  0, -1, -4 },
@@ -2825,7 +2825,7 @@ static void readmtx(int MATRIX[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE], char *mtxfil
           g_error("Wrong number of rows in matrix file: %d (should be %d).\n", row, CONS_MATRIX_SIZE);
 
         p = strtok(line, " \t\n");
-        for (col = 0; col < 24; col++) 
+        for (col = 0; col < CONS_MATRIX_SIZE; col++)
         {
             while (*p == '*' || isalpha((int) *p))
                 p = strtok(NULL, " \t\n");
@@ -3115,8 +3115,20 @@ static void onSavePlotMenu(GtkAction *action, gpointer data)
   DotterProperties *properties = dotterGetProperties(dotterWindow);
 
   GError *error = NULL;
-  savePlot(properties->dotplot, NULL, NULL, &error);
-  
+  savePlot(properties->dotplot, NULL, NULL, DOTSAVE_BINARY, &error);
+
+  prefixError(error, "Error saving plot. ");
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+}
+
+static void onSaveAsciiPlotMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+
+  GError *error = NULL;
+  savePlot(properties->dotplot, NULL, NULL, DOTSAVE_ASCII, &error);
+
   prefixError(error, "Error saving plot. ");
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
 }

@@ -83,7 +83,8 @@ typedef struct _DotterOptions
     int seqInSFS;             /* whether the sequences are in the features file, i.e. there are no separate sequence files */
 
     float memoryLimit;
-    
+
+    DotterSaveFormatType saveFormat;                        // Save as binary or ascii text.
     char *savefile;           /* file to save the dot-plot to (batch mode; saves the dot-matrix so it can be loaded later and interacted with) */
     char *exportfile;         /* file to export the dot-plot to (batch mode; exports to a graphical format, e.g. pdf or ps. Default is pdf unless file extension indicates otherwise) */
     char *loadfile;           /* file to load a dot-plot from */

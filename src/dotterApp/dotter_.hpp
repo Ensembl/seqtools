@@ -300,7 +300,8 @@ const char*         dotterGetCommentsString(void);
 const char*         dotterGetLicenseString(void);
 const char*         dotterGetVersionString(void);
 
-int                 winsizeFromlambdak(int mtx[24][24], int *tob, int abetsize, const char *qseq, const char *sseq, 
+int                 winsizeFromlambdak(int mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE],
+                                       int *tob, int abetsize, const char *qseq, const char *sseq,
                                        double *exp_res_score, double *Lambda);
 
 void                argvAdd(int *argc, char ***argv, const char *s);
