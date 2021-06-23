@@ -125,7 +125,7 @@ if [[ "$gbtools_install" == "yes" ]] ; then
 
   clean_lib 'gbtools' ./gbtools
 
-  fetch_lib "$git_location/$gbtools_repo" 'gbtools' '-b develop'
+  fetch_lib "$git_location/$gbtools_repo" 'gbtools' '-b production'
 
 fi
 
