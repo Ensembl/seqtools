@@ -6,7 +6,7 @@
 <body>
 <div class="outer">
   <h1>Build System</h1>
-  This page describes how to compile the SeqTools package using the Autotools scripts included with the source code.
+  This page describes how to compile the SeqTools package from the development repository (as opposed to the dist file) using the Autotools scripts included with the source code.
 
   <h2>Autotools</h2>
   <p>
@@ -16,15 +16,15 @@
       <li>src/configure.ac: This file is processed by autoconf to produce the configure file.
       <li>src/Makefile.am: This file is processed by automake to produce the Makefile.in file.
       <li>src/AUTHORS, src/COPYING, src/README, src/NEWS, src/ChangeLog: These files are for information.
-      <li>subdirectory Makefile.am files: The subdirectories blixemApp, dotterApp, seqtoolsUtils and libpfetch all contain a Makefile.am file, which is processed by automake to create a Makefile.in file in that directory.
+      <li>subdirectory Makefile.am files: The subdirectories blixemApp, dotterApp and seqtoolsUtils all contain a Makefile.am file, which is processed by automake to create a Makefile.in file in that directory.
     </ul>
   </p>
 
   <p>
     The build process is as follows:
     <ul>
-      <li>Run '<code>autoreconf -i</code>' in the <code>src</code> directory. This runs autoheader, aclocal, autoconf and automake and creates the configure script (and some other required files) in the src directory.
-      <li><code>cd</code> to the directory where the code is to be built (this can be src or any other directory, e.g. src/build) and run the configure script from there. This will create a makefile in the build directory (and subdirectories for blixemApp, dotterApp, seqtoolsUtils and libpfetch, which all contain a makefile for building that module). It will also create the config.h file that will be included by the code, and a few other required files.
+      <li>Run '<code>./autogen.sh</code>' in the <code>src</code> directory. This runs autoheader, aclocal, autoconf and automake and creates the configure script (and some other required files) in the src directory. It also clones the gbtools library and configures that.
+      <li><code>cd</code> to the directory where the code is to be built (this can be src or any other directory, e.g. src/build) and run the <code>runconfig.sh</code> script from there. This will create a makefile in the build directory (and subdirectories for blixemApp, dotterApp and seqtoolsUtils, which all contain a makefile for building that module). It will also create the config.h file that will be included by the code, and a few other required files.
       <li>Run <code>make</code> in the build directory to build everything (or in a subdirectory to build just that module).
     </ul>
   </p>
@@ -37,8 +37,7 @@
       <li>dotterApp: Dotter application code.
       <li>seqtoolsUtils: Generic utility functions. Required by dotter, blixem and blixemh.
       <li>seqtoolsUtils: Generic seqtools utility functions. Required by dotter, blixem and blixemh.
-      <li>libpfetch: Utilities for fetching sequences over http. Required by blixemh.
-      <li>gbtools: Generic utility functions from an external repository of shared code. This code is included in the distribution so that it is automatically compiled as part of the seqtools package.
+      <li>gbtools: Generic utility functions from an external repository of shared code. This code is included in the distribution so that it is automatically compiled as part of the seqtools package. See the <code>src/INSTALL.DEVELOPER</code> file for more information about including gbtools.
     </ul>
   </p>
 
@@ -48,6 +47,7 @@
       <li>All of the executables in the SeqTools package require the GLib and GTK+ libraries. These are built using pkg-config. configure.ac specifies which version of the libraries are required.
       <li>blixemh uses the libpfetch library, which requires the libcurl library.
       <li>blixem and blixemh compile in the sqlite3 library if it is availble. If it is not available, the sqlite functionality is disabled.
+      <li>See the INSTALL.XXX files for more information about dependencies.
     </ul>
   </p>
 </div>

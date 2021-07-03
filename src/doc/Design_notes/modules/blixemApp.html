@@ -123,7 +123,7 @@
     Middle-clicking/middle-dragging in the detail-view tree highlights the moused-over coordinate, and feeds back info about the currently selected coordinate in the feedback box on the toolbar. Left-clicking selects a row, and feeds back info about the selected sequence in the feedback box. Multiple rows can be selected and operations can be performed on the selected sequence(s), e.g. creating a group from them or running Dotter.
   </p>
   <p>
-    Note: The aim in using GtkTreeView was to take advantage of all of the functionality that comes with it: filtering, sorting, row selections, column headers, column resizing etc. etc. However, as more customisations have been added a lot of this functionality has had to be implemented manually, so perhaps in hindsight it would have been better to use a GtkLayout and do all of the drawing manually (which might give us better performance). If we ever need to change to a real tree with child rows, though (e.g. squash-matches could be implemented this way), having  GtkTreeView may be advantageous. The main downside of using GtkTreeView is that when the user middle-clicks/drags, to highlight the current column the whole tree has to be redrawn. Ideally we would not have to redraw the tree but would XOR the highlight box over the top of it.
+    Note: The aim in using GtkTreeView was to take advantage of all of the functionality that comes with it: filtering, sorting, row selections, column headers, column resizing etc. etc. However, as more customisations have been added a lot of this functionality has had to be implemented manually, so perhaps in hindsight it would have been better to use a GtkLayout and do all of the drawing manually (which might give us better performance). If we ever need to change to a real tree with child rows, though (e.g. squash-matches could be implemented this way), having  GtkTreeView may be advantageous.
   </p>
 
   <h4>Detail-view columns</h4>
@@ -138,8 +138,12 @@
 
   <h3>Sequences, selections and groups</h3>
   <p>
-    A Group is a struct that stores a list of (match) sequences, along with any properties that are relevant (e.g. highlight color, visibility etc.). A Selection is essentially just a list of sequences too, so many functions are designed to operate on a list of sequences so that they work with either a Group or a Selection. The Groups functionality is very basic at the moment, offering just a simple mechanism to highlight or hide a set of sequences, but it could be extended to give much more powerful filtering and sorting options. 
-  </p>
+A Group is a struct that stores a list of features, along with any properties that are relevant (e.g. highlight color, visibility etc.). A Selection is essentially just a list of features too, so many functions are designed to operate on a list of features so that they work with either a Group or a Selection. A Filter is also just a Group with the "filter" flag set. Filtering works as follows: if there are no groups with the filter flag set, then all features are shown; if there is one or more group with a filter flag set, then only features in that group (or another group with the filter flag set) are shown. Other features are filtered out, but only if they are the same type as the features in the Filter group(s). This is because generally an annotator wants to filter out sequences to only see a particular sequence, but they still want to see transcripts and other feature types. This has evolved over time so is not as intuitive as it could be when you start creating more than one group/filter. However, most annotators just want to quickly create one filter, in which case it works fine from a user's perspective.
+</p>
+<p>
+Groups can be created from the clipboard (i.e. current selection in blixem or zmap) or from a search. The functionality could be expanded to create groups in other ways, e.g. based on %ID.
+</p>
+
 
   <h2>Calling Dotter</h2>
   <p>

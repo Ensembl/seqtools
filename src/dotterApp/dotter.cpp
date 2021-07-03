@@ -152,9 +152,9 @@ public:
 /* Local function declarations */
 
 static void showSettingsDialog(GtkWidget *dotterWindow);
-static void readmtx(int mtx[24][24], char *mtxfile);
-static void mtxcpy(int mtx[24][24], int BLOSUM62[24][24]);
-static void DNAmatrix(int mtx[24][24]);
+static void readmtx(int mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE], char *mtxfile);
+static void mtxcpy(int mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE], int BLOSUM62[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE]);
+static void DNAmatrix(int mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE]);
 //static void drawAllFeatures(MSP *msp) ;
 //static void drawGenes(MSP *msp, float forward_y, float reverse_y, float depth) ;
 //gint compareMSPs(gconstpointer a, gconstpointer b) ;
@@ -182,6 +182,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        DotterWindowContext *dotterWinCtx,
                                        const char *loadFileName,
                                        const char *saveFileName,
+                                       const DotterSaveFormatType saveFormat,
                                        const char *exportFileName,
                                        const gboolean hspsOn,
                                        const gboolean breaklinesOn,
@@ -190,12 +191,15 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        const int zoomFacIn,
                                        const int qcenter,
                                        const int scenter,
+                                       const int bpoint,
+                                       const int wpoint,
                                        const gboolean greyramSwap,
                                        char *windowColor);
 
 static void                       onQuitMenu(GtkAction *action, gpointer data);
 static void                       onCloseMenu(GtkAction *action, gpointer data);
 static void                       onSavePlotMenu(GtkAction *action, gpointer data);
+static void                       onSaveAsciiPlotMenu(GtkAction *action, gpointer data);
 static void                       onExportPlotMenu(GtkAction *action, gpointer data);
 static void                       onPrintMenu(GtkAction *action, gpointer data);
 static void                       onSettingsMenu(GtkAction *action, gpointer data);
@@ -232,7 +236,8 @@ static const GtkActionEntry menuEntries[] = {
 
 { "Quit",           GTK_STOCK_QUIT,         "_Quit all dotters",      "<control>Q", "Quit all dotters",           G_CALLBACK(onQuitMenu)},
 { "Close",          GTK_STOCK_CLOSE,        "_Close this dotter",     "<control>W", "Close this dotter",          G_CALLBACK(onCloseMenu)},
-{ "SavePlot",       GTK_STOCK_SAVE,         "_Save plot",             NULL,         "Save plot",                  G_CALLBACK(onSavePlotMenu)},
+{ "SavePlot",       GTK_STOCK_SAVE,         "_Save plot",             NULL,         "Save plot for Reload",       G_CALLBACK(onSavePlotMenu)},
+{ "SaveAsciiPlot",  GTK_STOCK_SAVE,         "_SaveAscii plot",        NULL,         "Save plot as Text",          G_CALLBACK(onSaveAsciiPlotMenu)},
 { "ExportPlot",     NULL,                   "_Export plot",           NULL,         "Export plot",                G_CALLBACK(onExportPlotMenu)},
 { "Print",          GTK_STOCK_PRINT,        "_Print...",              "<control>P", "Print",                      G_CALLBACK(onPrintMenu)},
 { "Settings",       GTK_STOCK_PREFERENCES,  "Settings",               "<control>S", "Set dotter parameters",      G_CALLBACK(onSettingsMenu)},
@@ -282,6 +287,7 @@ static const char mainMenuDescription[] =
 "  <menubar name='MenuBar'>"
 "    <menu action='FileMenuAction'>"
 "      <menuitem action='SavePlot'/>"
+"      <menuitem action='SaveAsciiPlot'/>"
 "      <menuitem action='ExportPlot'/>"
 "      <separator/>"
 "      <menuitem action='Print'/>"
@@ -328,6 +334,7 @@ static const char mainMenuDescription[] =
 "    <menuitem action='Quit'/>"
 "    <menuitem action='Help'/>"
 "    <menuitem action='SavePlot'/>"
+"    <menuitem action='SaveAsciiPlot'/>"
 "    <menuitem action='Print'/>"
 "    <separator/>"
 "    <menuitem action='Settings'/>"
@@ -373,7 +380,7 @@ static const char mainMenuDescription[] =
 
 /* Global variables */
 
-static int    MATRIX[24][24];
+static int    MATRIX[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE];
 //              MSPoffset,      /* Difference between real MSP coord and coord stored in MSP */
 //              HSPgaps = 0.
 //              fsBoxStart,
@@ -395,7 +402,7 @@ static int    MATRIX[24][24];
 /*  BLOSUM62 930809
 
      A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V   B   Z   X  \* */
-int BLOSUM62[24][24] = {
+int BLOSUM62[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE] = {
   {  4, -1, -2, -2,  0, -1, -1,  0, -2, -1, -1, -1, -1, -2, -1,  1,  0, -3, -2,  0, -2, -1,  0, -4 },
   { -1,  5,  0, -2, -3,  1,  0, -2,  0, -3, -2,  2, -1, -3, -2, -1, -1, -3, -2, -3, -1,  0, -1, -4 },
   { -2,  0,  6,  1, -3,  0,  0,  0,  1, -3, -3,  0, -2, -3, -2,  1,  0, -4, -2, -3,  3,  0, -1, -4 },
@@ -541,7 +548,7 @@ static DotterContext* createDotterContext(DotterOptions *options,
                                           const BlxStrand matchSeqStrand,
                                           MSP *mspList,
                                           GList *seqList,
-                                          int matrix[24][24],
+                                          int matrix[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE],
                                           char *matrixName)
 {
   DEBUG_ENTER("createDotterContext");
@@ -1088,15 +1095,15 @@ static void setInitSelectedCoords(GtkWidget *dotterWindow, const int refCoord, c
 
 
 
-void dotter (const BlxBlastMode blastMode,
-             DotterOptions *options,
-             const BlxStrand refSeqStrand,
-             const BlxStrand matchSeqStrand,
-              int   qcenter,
-              int   scenter,
-              MSP  *mspList,
-              GList *seqList,
-             int   MSPoff)
+void dotter(const BlxBlastMode blastMode,
+            DotterOptions *options,
+            const BlxStrand refSeqStrand,
+            const BlxStrand matchSeqStrand,
+            int   qcenter,
+            int   scenter,
+            MSP  *mspList,
+            GList *seqList,
+            int   MSPoff)
 {
   DEBUG_ENTER("dotter(mode=%d, qname=%s, qoff=%d, qstrand=%d, sname=%s, soff=%d, sstrand=%d)",
               blastMode, options->qname, options->qoffset, refSeqStrand, options->sname, options->soffset, matchSeqStrand);
@@ -1162,6 +1169,7 @@ void dotter (const BlxBlastMode blastMode,
                        dotterWinCtx,
                        options->loadfile,
                        options->savefile,
+                       options->saveFormat,
                        options->exportfile,
                        options->hspsOnly,
                        options->breaklinesOn,
@@ -1170,6 +1178,8 @@ void dotter (const BlxBlastMode blastMode,
                        options->dotterZoom,
                        qcenter,
                        scenter,
+                       options->bpoint,
+                       options->wpoint,
                        options->swapGreyramp,
                        options->windowColor);
 
@@ -1185,6 +1195,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        DotterWindowContext *dotterWinCtx,
                                        const char *loadFileName,
                                        const char *saveFileName,
+                                       const DotterSaveFormatType saveFormat,
                                        const char *exportFileName,
                                        const gboolean hspsOn,
                                        const gboolean breaklinesOn,
@@ -1193,6 +1204,8 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
                                        const int zoomFacIn,
                                        const int qcenter,
                                        const int scenter,
+                                       const int bpoint,
+                                       const int wpoint,
                                        const gboolean greyrampSwap,
                                        char *windowColor)
 {
@@ -1204,6 +1217,7 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
   GtkWidget *dotplotWidget = createDotplot(dotterWinCtx,
                                            loadFileName,
                                            saveFileName,
+                                           saveFormat,
                                            exportFileName,
                                            hspsOn,
                                            breaklinesOn,
@@ -1220,8 +1234,8 @@ static GtkWidget* createDotterInstance(DotterContext *dotterCtx,
       GtkWidget *greyrampContainer = gtk_frame_new(NULL); /* container for when docked */
       gtk_frame_set_shadow_type(GTK_FRAME(greyrampContainer), GTK_SHADOW_NONE);
       GtkWidget *greyrampWindow = NULL; /* container for when undocked */
-      GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, 40, 100, greyrampSwap, &greyrampWindow);
-      GtkWidget *greyrampToolMinimised = createGreyrampToolMinimised(dotterWinCtx, 40, 100);
+      GtkWidget *greyrampTool = createGreyrampTool(dotterWinCtx, bpoint, wpoint, greyrampSwap, &greyrampWindow);
+      GtkWidget *greyrampToolMinimised = createGreyrampToolMinimised(dotterWinCtx, bpoint, wpoint);
       registerGreyrampCallback(greyrampTool, dotplot, dotplotUpdateGreymap);
       registerGreyrampCallback(greyrampToolMinimised, dotplot, dotplotUpdateGreymap);
       blxSetWidgetColor(greyrampWindow, windowColor);
@@ -1301,7 +1315,11 @@ void callDotterInternal(DotterContext *dc,
                         const gboolean breaklinesOn)
 {
   DotterWindowContext *dwc = createDotterWindowContext(dc, refSeqRange, matchSeqRange, zoomFactor, TRUE);
-  createDotterInstance(dc, dwc, NULL, NULL, NULL, FALSE, breaklinesOn, NULL, 0, 0, 0, 0, FALSE, NULL);
+
+  createDotterInstance(dc, dwc, NULL, NULL, DOTSAVE_INVALID, NULL,
+                       FALSE, breaklinesOn, NULL, 0, 0, 0, 0, 0, 0, FALSE, NULL);
+
+  return;
 }
 
 
@@ -2775,7 +2793,7 @@ static void refreshAll(GtkWidget *dotterWindow, gpointer data)
 }
 
 
-static void readmtx(int MATRIX[24][24], char *mtxfile)
+static void readmtx(int MATRIX[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE], char *mtxfile)
 {
     FILE *fil;
     int row, col;
@@ -2801,13 +2819,13 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
       }
 
     /* Read in the pairwise scores */
-    for (row = 0; row < 24; row++)
+    for (row = 0; row < CONS_MATRIX_SIZE; row++)
     {
         if (!(fgets(line, 1024, fil)))
-            g_error("Wrong number of rows in matrix file: %d (should be 24).\n", row);
+          g_error("Wrong number of rows in matrix file: %d (should be %d).\n", row, CONS_MATRIX_SIZE);
 
         p = strtok(line, " \t\n");
-        for (col = 0; col < 24; col++)
+        for (col = 0; col < CONS_MATRIX_SIZE; col++)
         {
             while (*p == '*' || isalpha((int) *p))
                 p = strtok(NULL, " \t\n");
@@ -2825,17 +2843,17 @@ static void readmtx(int MATRIX[24][24], char *mtxfile)
     fclose(fil);
 }
 
-static void mtxcpy(int dest[24][24], int src[24][24])
+static void mtxcpy(int dest[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE], int src[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE])
 {
     int i, j;
 
-    for (i = 0 ; i < 24 ; i++)
-        for (j = 0 ; j < 24 ; j++)
+    for (i = 0 ; i < CONS_MATRIX_SIZE ; i++)
+        for (j = 0 ; j < CONS_MATRIX_SIZE ; j++)
             dest[i][j] = src[i][j];
 }
 
 
-static void DNAmatrix(int mtx[24][24])
+static void DNAmatrix(int mtx[CONS_MATRIX_SIZE][CONS_MATRIX_SIZE])
 {
     int i, j;
 
@@ -3097,7 +3115,19 @@ static void onSavePlotMenu(GtkAction *action, gpointer data)
   DotterProperties *properties = dotterGetProperties(dotterWindow);
 
   GError *error = NULL;
-  savePlot(properties->dotplot, NULL, NULL, &error);
+  savePlot(properties->dotplot, NULL, NULL, DOTSAVE_BINARY, &error);
+
+  prefixError(error, "Error saving plot. ");
+  reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);
+}
+
+static void onSaveAsciiPlotMenu(GtkAction *action, gpointer data)
+{
+  GtkWidget *dotterWindow = GTK_WIDGET(data);
+  DotterProperties *properties = dotterGetProperties(dotterWindow);
+
+  GError *error = NULL;
+  savePlot(properties->dotplot, NULL, NULL, DOTSAVE_ASCII, &error);
 
   prefixError(error, "Error saving plot. ");
   reportAndClearIfError(&error, G_LOG_LEVEL_CRITICAL);

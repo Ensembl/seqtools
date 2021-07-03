@@ -1,22 +1,19 @@
 /*  File: dotter.h
  *  Author: Erik Sonnhammer, 1999-08-26
  *  Copyright [2018-2021] EMBL-European Bioinformatics Institute
- *  Copyright (c) 2010 - 2012 Genome Research Ltd
+ *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
- * SeqTools is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * ---------------------------------------------------------------------------
  * This file is part of the SeqTools sequence analysis package,
  * written by
@@ -59,12 +56,24 @@ typedef enum _DotterExportFormat
     DOTTER_EXPORT_SVG           /* Scalable vector graphics */
   } DotterExportFormat;
 
+// Save file format, either binary or text.
+//
+typedef enum
+  {
+    DOTSAVE_INVALID,
+    DOTSAVE_BINARY,                                         // Original binary format.
+    DOTSAVE_ASCII                                           // Text/tab/line separated format.
+  } DotterSaveFormatType ;
+
+
 
 /* Options specifying the initial state for dotter */
 typedef struct _DotterOptions
   {
     int qoffset;              /* qoffset + 1 gives the value of the first coord on the ref seq */
     int soffset;              /* soffset + 1 gives the value of the first coord on the match seq */
+    int bpoint;               /* black point */
+    int wpoint;               /* white point */
     gboolean selfcall;        /* whether called internally, i.e. so that features/sequences will be piped into dotter rather than read from files */
     int qlen;                 /* length of the ref seq */
     int slen;                 /* length of the match seq */
@@ -75,6 +84,7 @@ typedef struct _DotterOptions
 
     float memoryLimit;
 
+    DotterSaveFormatType saveFormat;                        // Save as binary or ascii text.
     char *savefile;           /* file to save the dot-plot to (batch mode; saves the dot-matrix so it can be loaded later and interacted with) */
     char *exportfile;         /* file to export the dot-plot to (batch mode; exports to a graphical format, e.g. pdf or ps. Default is pdf unless file extension indicates otherwise) */
     char *loadfile;           /* file to load a dot-plot from */

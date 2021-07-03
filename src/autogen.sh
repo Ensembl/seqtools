@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 ###############################################################################
 # Simple script to bootstrap and create the configure script, should be run
 # when any control files have been changed (e.g. new source files added which
@@ -82,14 +83,22 @@ function fetch_lib
 
 
 
-# Should gbtools be installed ? Default is "no"
-gbtools_install='no'
+checkout_only='no'
+
+#git_location='git.internal.sanger.ac.uk:/repos/git/annotools'
+git_location='git@github.com:Ensembl'
+
+# gbtools stuff.
+gbtools_install='yes'
+gbtools_repo='gbtools'
 
 
-
-while getopts ":g" opt ; do
+while getopts ":cgr:z" opt ; do
     case $opt in
-	g  ) gbtools_install='yes' ;;
+        c  ) checkout_only='yes' ;;
+        g  ) gbtools_install='yes' ;;
+        r  ) git_location=$OPTARG ;;
+        z  ) gbtools_install='no' ;;
     esac
 done
 
@@ -116,9 +125,20 @@ if [[ "$gbtools_install" == "yes" ]] ; then
 
   clean_lib 'gbtools' ./gbtools
 
-  fetch_lib git.internal.sanger.ac.uk:/repos/git/annotools/gbtools  'gbtools'
+  fetch_lib "$git_location/$gbtools_repo" 'gbtools' '-b production'
 
 fi
+
+
+# Sometimes we want a tree containing any necessary subdirectories (aceconn etc)
+# but don't want to run any autoconf stuff.
+#
+if [ "$checkout_only" = 'yes' ] ; then
+  echo "Subdirectories installed, exiting before autoreconf."
+
+  exit 0
+fi
+
 
 
 # If the gbtools autogen.sh script exists then run that. This is necessary
@@ -138,4 +158,6 @@ echo "seqtools running: autoreconf -fi -v"
 autoreconf -fi -v || echo "autoreconf failed...."
 echo "Done"
 
+
+exit 0
 

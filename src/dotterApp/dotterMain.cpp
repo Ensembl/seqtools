@@ -1,22 +1,19 @@
 /*  File: dotterMain.c
  *  Author: esr, 1999-08-26
  *  Copyright [2018-2021] EMBL-European Bioinformatics Institute
- *  Copyright (c) 2010 - 2012 Genome Research Ltd
+ *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
- * SeqTools is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- * or see the on-line version at http://www.gnu.org/copyleft/gpl.txt
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * ---------------------------------------------------------------------------
  * This file is part of the SeqTools sequence analysis package,
  * written by
@@ -70,8 +67,11 @@
   -h, --help\n\
     Show this usage information\n\
 \n\
+  -a <file>, --batch-ascii=<file>\n\
+    Batch mode; save dot matrix as Ascii text to <file>\n\
+\n\
   -b <file>, --batch-save=<file>\n\
-    Batch mode; save dot matrix to <file>\n\
+    Batch mode; save dot matrix as binary to <file>\n\
 \n\
   -e <file>, --batch-export=<file>\n\
     Batch mode; export plot to PDF file <file>\n\
@@ -127,6 +127,12 @@
   -s <int>, --vertical-offset=<int>\n\
     Vertical_sequence offset\n\
 \n\
+  -x <int>, --black-point=<int>\n\
+    Black point value\n\
+\n\
+  -y <int>, --white-point=<int>\n\
+    White point value\n\
+\n\
   --horizontal-type=p|d\n\
     Horizontal_sequence type ('p' for peptide or 'd' for DNA)\n\
 \n\
@@ -176,6 +182,8 @@ static void setDefaultOptions(DotterOptions *options)
 {
   options->qoffset = 0;
   options->soffset = 0;
+  options->bpoint = 40;
+  options->wpoint = 100;
   options->selfcall = FALSE;
   options->qlen = UNSET_INT;
   options->slen = UNSET_INT;
@@ -186,6 +194,7 @@ static void setDefaultOptions(DotterOptions *options)
 
   options->memoryLimit = 0.0;
 
+  options->saveFormat = DOTSAVE_BINARY ;
   options->savefile = NULL;
   options->exportfile = NULL;
   options->loadfile = NULL;
@@ -377,6 +386,7 @@ int main(int argc, char **argv)
       {"reverse-v-display",	no_argument,        &vertScaleRev, 1},
 
       {"help",                  no_argument,        0, 'h'},
+      {"batch-ascii",           required_argument,  0, 'a'},
       {"batch-save",            required_argument,  0, 'b'},
       {"batch-export",          required_argument,  0, 'e'},
       {"load",                  required_argument,  0, 'l'},
@@ -396,6 +406,8 @@ int main(int argc, char **argv)
       {"crick-only",            no_argument,        0, 'c'},
       {"horizontal-offset",     required_argument,  0, 'q'},
       {"vertical-offset",       required_argument,  0, 's'},
+      {"black-point",           required_argument,  0, 'x'},
+      {"white-point",           required_argument,  0, 'y'},
       {"horizontal-type",       required_argument,  0, 0},
       {"vertical-type",         required_argument,  0, 0},
       {"negate-coords",         no_argument,        0, 'N'},
@@ -404,7 +416,7 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
     };
 
-  const char  *optstring="b:cDe:f:F:hHil:M:m:Np:q:Rrs:SvW:wz:";
+  const char  *optstring="a:b:cDe:f:F:hHil:M:m:Np:q:Rrs:SvW:wx:y:z:";
   extern int   optind;
   extern char *optarg;
   int          optionIndex; /* getopt_long stores the index into the option struct here */
@@ -451,7 +463,8 @@ int main(int argc, char **argv)
 	  case '?':
             break; /* getopt_long already printed an error message */
 
-          case 'b': options.savefile = g_strdup(optarg);   break;
+          case 'a': options.saveFormat = DOTSAVE_ASCII ; options.savefile = g_strdup(optarg);   break;
+          case 'b': options.saveFormat = DOTSAVE_BINARY ; options.savefile = g_strdup(optarg);   break;
           case 'c': options.crickOnly = TRUE;              break;
           case 'D': options.mirrorImage = FALSE;           break;
           case 'e': options.exportfile = g_strdup(optarg); break;
@@ -484,8 +497,16 @@ int main(int argc, char **argv)
             options.winsize = (char*)g_malloc(strlen(optarg)+1);
             strcpy(options.winsize, optarg);               break;
           case 'w': options.watsonOnly = TRUE;             break;
+          case 'x': options.bpoint = atoi(optarg);        break;
+          case 'y': options.wpoint = atoi(optarg);        break;
           case 'z': options.dotterZoom = atoi(optarg);     break;
-          default : g_error("Illegal option\n");
+          default :
+            {
+              g_message("Illegal option\n");
+              showUsageText(EXIT_FAILURE);
+              exit(EXIT_FAILURE);
+              break ;
+            }
         }
     }
 
@@ -559,7 +580,9 @@ int main(int argc, char **argv)
       /* The input arguments (following the options) are: qname, qlen, sname, slen. */
       if (argc - optind < 5 || argc - optind > 5)
         {
-          g_error("Incorrect number of arguments passed to dotter from internal program call\n");
+          g_message("Incorrect number of arguments passed to dotter from internal program call\n");
+          showUsageText(EXIT_FAILURE);
+          exit(EXIT_FAILURE);
         }
 
       options.qname = g_strdup(argv[optind]);
@@ -577,14 +600,16 @@ int main(int argc, char **argv)
       int l = fread(options.qseq, 1, options.qlen, stdin);
       if (l != options.qlen)
         {
-          g_error("Only read %d chars to qseq, expected %d\n", l, options.qlen);
+          g_message("Only read %d chars to qseq, expected %d\n", l, options.qlen);
+          exit(EXIT_FAILURE);
         }
       options.qseq[options.qlen] = 0;
 
       l = fread(options.sseq, 1, options.slen, stdin);
       if (l != options.slen)
         {
-          g_error("Only read %d chars to sseq, expected %d\n", l, options.slen);
+          g_message("Only read %d chars to sseq, expected %d\n", l, options.slen);
+          exit(EXIT_FAILURE);
         }
       options.sseq[options.slen] = 0;
       DEBUG_OUT("...done.\n");
@@ -655,7 +680,8 @@ int main(int argc, char **argv)
 
       if(!(qfile = fopen(argv[optind], "r")))
         {
-          g_error("Cannot open %s\n", argv[optind]);
+          g_message("Cannot open %s\n", argv[optind]);
+          exit(EXIT_FAILURE);
         }
 
       qfilename = argv[optind];
@@ -674,7 +700,8 @@ int main(int argc, char **argv)
 
       if (!(sfile = fopen(argv[optind+1], "r")))
         {
-          g_error("Cannot open %s\n", argv[optind+1]);
+          g_message("Cannot open %s\n", argv[optind+1]);
+          exit(EXIT_FAILURE);
         }
 
       sfilename = argv[optind+1];
@@ -832,7 +859,8 @@ int main(int argc, char **argv)
         }
       else if(!(file = fopen(options.FSfilename, "r")))
         {
-          g_error("Cannot open %s\n", options.FSfilename);
+          g_message("Cannot open %s\n", options.FSfilename);
+          exit(EXIT_FAILURE);
         }
 
       GSList *supportedTypes = blxCreateSupportedGffTypeList(BLXSEQ_NONE);
@@ -885,7 +913,8 @@ int main(int argc, char **argv)
     }
   else
     {
-      g_error("Illegal sequence types: Protein vs. DNA - turn arguments around!\n");
+      g_message("Illegal sequence types: Protein vs. DNA - turn arguments around!\n");
+      exit(EXIT_FAILURE);
     }
 
   /* Add -install for private colormaps */
