@@ -69,7 +69,7 @@ function fetch_lib
 
     git clone $3 $1 $tmp_dir || zmap_message_exit "could not clone $1 into $PWD/$tmp_dir"
 
-    # Copy the entire contents of the temp directory to the destination directory. Note that 
+    # Copy the entire contents of the temp directory to the destination directory. Note that
     # the dot on the end of the source directory is essential for including hidden files. We
     # need to include the hidden .git directory so that we can determine the correct git version
     # number for the library.
@@ -86,11 +86,11 @@ function fetch_lib
 checkout_only='no'
 
 #git_location='git.internal.sanger.ac.uk:/repos/git/annotools'
-git_location='git@github.com:Ensembl'
+git_location='https://github.com/Ensembl'
 
 # gbtools stuff.
 gbtools_install='yes'
-gbtools_repo='gbtools'
+gbtools_repo='gbtools.git'
 
 
 while getopts ":cgr:z" opt ; do
@@ -160,4 +160,3 @@ echo "Done"
 
 
 exit 0
-
