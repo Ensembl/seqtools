@@ -1,6 +1,6 @@
 /*  File: detailview.c
  *  Author: Gemma Barson, 2009-11-23
- *  Copyright [2018-2022] EMBL-European Bioinformatics Institute
+ *  Copyright [2018-2023] EMBL-European Bioinformatics Institute
  *  Copyright (c) 2006-2017 Genome Research Ltd
  * ---------------------------------------------------------------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
